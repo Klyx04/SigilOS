@@ -13,9 +13,9 @@ export function BossGuideLauncher() {
             <Button
                 onClick={() => setIsOpen(true)}
                 variant="outline"
-                className="h-14 px-8 text-lg gap-3 border-fuchsia-500/30 hover:border-fuchsia-500/80 hover:bg-fuchsia-950/30 text-fuchsia-300 font-black uppercase tracking-wider flex-1 min-w-[240px]   transition-all"
+                className="h-11 px-5 text-sm gap-2.5 border-fuchsia-500/30 hover:border-fuchsia-500/60 bg-fuchsia-500/5 hover:bg-fuchsia-500/10 text-fuchsia-300 font-bold rounded-xl shadow-sm transition-all"
             >
-                <BookOpen className="w-6 h-6 shadow-fuchsia-500/50 drop-shadow-[0_0_8px_rgba(217,70,239,0.5)]" />
+                <BookOpen className="w-4 h-4 text-fuchsia-400" />
                 Guide Boss Songes
             </Button>
 

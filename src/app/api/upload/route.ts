@@ -6,6 +6,15 @@ import sharp from "sharp";
 import { v4 as uuidv4 } from "uuid";
 import { detectMimeType, validateMagicBytes, MAX_FILE_SIZE, ALLOWED_MIME_TYPES } from "@/lib/image-security";
 
+/**
+ * Dossiers de destination autorisés sous `private_uploads/`.
+ * ⚠️ `guides` et `assets` sont exposés PUBLIQUEMENT par
+ * `/api/storage/*` (cf. isPublicPresentationAsset) : n'y écrire que des visuels
+ * publics (images de guides indexés, assets de site). Le scope `landing` a existé
+ * pour la feature #140 : il a été retiré le 17/09/2026 avec le pilotage God.
+ */
+const ALLOWED_UPLOAD_SCOPES = new Set(["docs", "guides", "assets"]);
+
 export async function POST(req: NextRequest) {
     const session = await auth();
 
@@ -34,6 +43,15 @@ export async function POST(req: NextRequest) {
         if (!file) {
             return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
         }
+
+        // 1. Scope de destination — allowlist stricte.
+        //    `docs`       : documents privés (défaut, comportement historique)
+        //    `guides`     : images de guides → servies PUBLIQUEMENT (le guide Rush
+        //                   Sylvestre est indexé, un visiteur anonyme doit voir
+        //                   l'image : `/api/storage/docs/*` exige une session).
+        //    `assets` : assets publics du site.
+        const rawScope = String(formData.get("scope") ?? "docs").trim().toLowerCase();
+        const scope = ALLOWED_UPLOAD_SCOPES.has(rawScope) ? rawScope : "docs";
 
         // 2. Validate File Size
         if (file.size > MAX_FILE_SIZE) {
@@ -68,7 +86,7 @@ export async function POST(req: NextRequest) {
         // 6. Save File
         // Use a UUID to avoid collisions
         const fileName = `${uuidv4()}.webp`;
-        const uploadDir = join(process.cwd(), "private_uploads", "docs");
+        const uploadDir = join(process.cwd(), "private_uploads", scope);
 
         // Ensure directory exists
         await mkdir(uploadDir, { recursive: true });
@@ -77,7 +95,7 @@ export async function POST(req: NextRequest) {
         await writeFile(filePath, optimizedBuffer);
 
         // 7. Return URL
-        const publicUrl = `/uploads/docs/${fileName}`;
+        const publicUrl = `/uploads/${scope}/${fileName}`;
 
         return NextResponse.json({
             success: true,

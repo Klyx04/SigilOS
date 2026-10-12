@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import 'dotenv/config';
+import { OFFICIAL_DOCS } from '../src/lib/docs-catalog';
 
 const cleanEnv = (val: string | undefined) => {
     if (!val) return '';
@@ -26,135 +27,72 @@ const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const docs = [
-    {
-        slug: 'introduction',
-        title: 'Bienvenue sur SigilOS',
-        category: 'Guides Utilisateurs',
-        accessLevel: 'PUBLIC' as any,
-        content: `
-# Bienvenue sur SigilOS
+export async function seedOfficialDocs(client?: PrismaClient) {
+    const p = client || prisma;
+    console.log(`🌱 Synchronisation de la documentation officielle (${OFFICIAL_DOCS.length} fiches)...`);
 
-SigilOS est l'interface ultime pour la gestion de votre guilde Dofus. Nous avons conçu cet outil pour vous faire gagner des dizaines d'heures de gestion chaque mois.
+    const validSlugs = OFFICIAL_DOCS.map(d => d.slug);
 
-## Premier Pas : Se Connecter
-Tout se passe via **Discord**. Un seul clic suffit pour lier votre compte. Une fois connecté, vous accéderez automatiquement au dashboard de votre guilde si celle-ci est déjà enregistrée.
+    // Suppression sécurisée des slugs obsolètes
+    const deleted = await p.docPage.deleteMany({
+        where: {
+            slug: { notIn: validSlugs }
+        }
+    });
 
-<div class="callout callout-tip">
-<strong>💡 Astuce</strong>
-Si vous êtes sur mobile, l'interface est totalement responsive pour suivre vos missions même en plein combat.
-</div>
-
-## Le Dashboard
-Votre tableau de bord centralise :
-- Vos missions hebdomadaires
-- Votre progression Ocre
-- Les actualités de votre guilde
-- Votre status d'activité
-        `
-    },
-    {
-        slug: 'quete-ocre',
-        title: 'Gestion de la Quête Ocre',
-        category: 'Guides Utilisateurs',
-        accessLevel: 'MEMBER',
-        content: `
-# La Quête de l'Éternelle Moisson (Ocre)
-
-SigilOS s'intègre parfaitement avec **Metamob** pour vous proposer une expérience de synchronisation fluide.
-
-## Synchronisation Metamob
-Pour voir vos archimonstres manquants :
-1. Allez dans votre profil.
-2. Renseignez votre pseudo Metamob et votre clé API.
-3. Activez la synchronisation automatique.
-
-## Le Matching Inter-Guilde
-C'est la force de SigilOS. Le système analyse les doublons de tous les membres pour vous dire exactement **qui possède l'archimonstre que vous cherchez** et à qui vous pouvez donner les vôtres.
-
-<div class="callout callout-important">
-<strong>Attention</strong>
-Seuls les monstres marqués comme "Disponibles à l'échange" sur Metamob apparaîtront dans les propositions.
-</div>
-        `
-    },
-    {
-        slug: 'missions',
-        title: 'Missions & Objectifs',
-        category: 'Guides Utilisateurs',
-        accessLevel: 'MEMBER',
-        content: `
-# Les Missions de Guilde
-
-Chaque semaine, vos officiers définissent des objectifs pour faire progresser la guilde.
-
-## Participer à une Mission
-1. Consultez l'onglet **Missions**.
-2. Choisissez une mission (Donjon, Métiers, Anomalie...).
-3. Cliquez sur "Je suis intéressé" pour réserver un slot.
-
-## Valider son passage
-Pour prouver votre participation, vous devez uploader un screenshot de fin de combat ou une preuve métier.
-L'**Intelligence Artificielle de SigilOS** (OCR) analysera automatiquement votre image pour vérifier la date, le lieu et les participants.
-
-<div class="steps">
-- **Prenez le screenshot** (Touche Impr. Écran ou F2).
-- **Glissez-déposez** le fichier dans le formulaire.
-- **Attendez la validation** automatique ou celle d'un officier.
-</div>
-        `
-    },
-    {
-        slug: 'admin-governance',
-        title: 'Guide de l\'Administrateur',
-        category: 'Spécifications Techniques',
-        accessLevel: 'ADMIN',
-        content: `
-# Gouvernance & Administration
-
-En tant qu'administrateur, vous avez le contrôle total sur les modules actifs de votre guilde.
-
-## Activation des Modules
-Rendez-vous dans \`Configuration > Modules\`. Vous pouvez activer sélectivement :
-- Le module Ocre (Synchronisation Metamob)
-- Le module Missions (OCR & Quêtes hebdomadaires)
-- Le module Calendrier (Événements & Sorties)
-
-## Validation des Preuves
-Si l'IA n'arrive pas à lire un screenshot (trop flou ou mal cadré), la mission arrive dans votre file d'attente. Vous pouvez alors la valider manuellement d'un clic.
-        `
+    if (deleted.count > 0) {
+        console.log(`🧹 ${deleted.count} ancienne(s) documentation(s) obsolète(s) supprimée(s).`);
     }
-];
 
-async function main() {
-    console.log('🌱 Seeding documentation...');
-    for (const doc of docs) {
-        await prisma.docPage.upsert({
-            where: { slug: doc.slug },
-            update: {
-                title: doc.title,
-                category: doc.category,
-                content: doc.content,
-                accessLevel: doc.accessLevel as any,
-            },
-            create: {
-                slug: doc.slug,
-                title: doc.title,
-                category: doc.category,
-                content: doc.content,
-                accessLevel: doc.accessLevel as any,
-            },
-        });
-        console.log(`✅ Doc: ${doc.slug} [${doc.accessLevel}]`);
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    for (const doc of OFFICIAL_DOCS) {
+        const existing = await p.docPage.findUnique({ where: { slug: doc.slug } });
+        if (existing) {
+            await p.docPage.update({
+                where: { slug: doc.slug },
+                data: {
+                    title: doc.title,
+                    category: doc.category,
+                    content: doc.content.trim(),
+                    accessLevel: doc.accessLevel as any,
+                    isPublished: true,
+                }
+            });
+            updatedCount++;
+        } else {
+            await p.docPage.create({
+                data: {
+                    slug: doc.slug,
+                    title: doc.title,
+                    category: doc.category,
+                    content: doc.content.trim(),
+                    accessLevel: doc.accessLevel as any,
+                    isPublished: true,
+                }
+            });
+            createdCount++;
+        }
     }
-    console.log('🎉 Seeding completed.');
+
+    console.log(`✅ Synchronisation terminée : ${createdCount} créées, ${updatedCount} mises à jour.`);
+    return { createdCount, updatedCount, total: OFFICIAL_DOCS.length };
 }
 
-main()
-    .catch((e) => {
-        console.error(e);
+async function main() {
+    try {
+        await seedOfficialDocs();
+    } catch (err) {
+        console.error("❌ Erreur lors du seed des docs :", err);
         process.exit(1);
-    })
-    .finally(async () => {
+    } finally {
         await prisma.$disconnect();
-    });
+        await pool.end();
+    }
+}
+
+// Exécution directe en CLI
+if (require.main === module || (process.argv && process.argv[1]?.includes('seed-docs'))) {
+    main();
+}

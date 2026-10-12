@@ -159,6 +159,41 @@ export async function globalSearch(query: string, guildId: string): Promise<Sear
              });
         });
 
+        // Find in Dofus & Quests
+        const dofusMatches = await db.dofusItem.findMany({
+            where: {
+                OR: [
+                    { name: { contains: query, mode: "insensitive" } },
+                    { nameShort: { contains: query, mode: "insensitive" } },
+                ]
+            },
+            take: 3
+        });
+        dofusMatches.forEach(d => {
+            results.push({
+                id: `dofus-${d.id}`,
+                title: d.name,
+                subtitle: `Quête Dofus — ${d.filterCategory || "Dofus"}`,
+                type: "GAME_DATA",
+                href: `/dashboard/${guildId}/quetes-dofus/${d.slug}`,
+            });
+        });
+
+        const questMatches = await db.dofusQuestEntry.findMany({
+            where: { name: { contains: query, mode: "insensitive" } },
+            take: 3,
+            include: { chain: { include: { dofus: true } } }
+        });
+        questMatches.forEach(q => {
+            results.push({
+                id: `quest-${q.id}`,
+                title: q.name,
+                subtitle: `Étape de quête (${q.chain.dofus.name})`,
+                type: "GAME_DATA",
+                href: `/dashboard/${guildId}/quetes-dofus/${q.chain.dofus.slug}`,
+            });
+        });
+
         // Find in Ocre Monsters (Archimonstres, etc)
         const ocreMonsters = await db.ocreMonsterTemplate.findMany({
             where: { name: { contains: query, mode: "insensitive" } },

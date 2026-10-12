@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Empêche Next.js d'annoncer le framework via l'en-tête `X-Powered-By` : c'est une
+  // empreinte inutile qui aide à cibler des vulnérabilités connues (AGENTS §5, « zéro empreinte »).
+  poweredByHeader: false,
   images: {
     remotePatterns: [
       {
@@ -139,6 +142,18 @@ const nextConfig: NextConfig = {
     '/**': [
       './node_modules/sharp/**/*',
       './node_modules/@img/**/*',
+      // Données du guide Rush Sylvestre : l'image *standalone* ne copie PAS `src/`
+      // (mesuré le 08/10/2026 : `/app/src/data` absent) alors que le seed du guide les
+      // lit au runtime (`seedRushSylvestreFromGuide`, bouton God « Importer ») et que
+      // les CLI de maintenance les prennent en argument ⇒ sans ces 2 fichiers, l'import
+      // du guide échoue sur la bêta et la prod.
+      './src/data/rush-sylvestre-guide.json',
+      './src/data/rush-sylvestre-guide.enriched.json',
+      // Dépendances des CLI de maintenance (`scripts/seed-*.mjs`, `scripts/prune-*.mjs`)
+      // absentes du *standalone* parce que le serveur ne les importe pas : minuscules,
+      // mais leur absence fait échouer tout script lancé dans le conteneur.
+      './node_modules/dotenv/**/*',
+      './node_modules/@prisma/adapter-pg/**/*',
     ],
   },
   experimental: {
@@ -161,14 +176,30 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          // X-XSS-Protection is legacy but kept for old browsers
-          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          // ⚠️ `X-XSS-Protection` volontairement ABSENT : en-tête obsolète et non standard
+          // (MDN : « in some cases, X-XSS-Protection can create XSS vulnerabilities in
+          // otherwise safe websites ») — remplacé par la CSP nonce-based de `src/proxy.ts`.
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
           // Cross-origin isolation headers (security best practice 2025+)
           { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
           { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
+        ],
+      },
+      // Service Worker & manifest — revalidation obligatoire pour que la PWA
+      // prenne immédiatement un nouveau SW (ex. correctif des icônes cassées).
+      // Sans no-cache, le navigateur garde l'ancien sw.js jusqu'à ~24h.
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, must-revalidate' },
+        ],
+      },
+      {
+        source: '/manifest.webmanifest',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, must-revalidate' },
         ],
       },
     ];

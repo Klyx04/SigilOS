@@ -1,0 +1,224 @@
+/**
+ * 🔭 Veille ciblée du catalogue d'items (`siphonGameItemsIncrementalCore`, 23/09/2026).
+ *
+ * Prouve ce qui a été **mesuré** sur l'API DofusDB : `items?updatedAt[$gt]=<date>` est un
+ * filtre réel (une date future renvoie 0) ⇒ sur 30 jours glissants, **46 items** au lieu
+ * des 21 776 de la passe complète. `$sort`/`$order`/`$select` étant refusés (HTTP 400),
+ * l'ordre des pages est celui de l'API : en cas de plafond, la passe **ne fait pas avancer
+ * le filigrane** et mémorise le lot de reprise — jamais d'item sauté, jamais de boucle.
+ */
+
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/logger", () => ({
+    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+// Le vrai siphon rend une promesse (`sharp` + écriture fichier) : le mock doit rendre une
+// promesse, sinon `.catch()` du cœur explose (mesuré ici même).
+vi.mock("@/lib/dofus-asset-siphon", () => ({ siphonAndCompressImage: vi.fn(() => Promise.resolve()) }));
+
+const mockDofusDbFetch = vi.fn();
+vi.mock("@/lib/dofusdb-limiter", () => ({
+    dofusDbFetch: (...args: unknown[]) => mockDofusDbFetch(...args),
+}));
+
+const mockFindUnique = vi.fn();
+const mockCreate = vi.fn();
+const mockUpdate = vi.fn();
+vi.mock("@/lib/prisma", () => ({
+    db: {
+        gameItem: {
+            findUnique: (...args: unknown[]) => mockFindUnique(...args),
+            create: (...args: unknown[]) => mockCreate(...args),
+            update: (...args: unknown[]) => mockUpdate(...args),
+        },
+    },
+}));
+
+import { siphonGameItemsBatchCore, siphonGameItemsIncrementalCore } from "@/lib/game-items-siphon";
+import {
+    isLocalThrottleDeferred,
+    isLocalThrottleDeferredMessage,
+    LocalThrottleDeferredError,
+} from "@/lib/dofusdb-throttle";
+
+/** Réponse DofusDB minimale (le cœur ne lit que `total` et `data`). */
+function remoteItem(id: number, name: string, updatedAt: string) {
+    return {
+        id,
+        name: { fr: name },
+        level: 200,
+        typeId: 1,
+        type: { id: 1, name: { fr: "Amulette" } },
+        description: { fr: "desc" },
+        possibleEffects: [],
+        updatedAt,
+    };
+}
+
+function mockPage(items: unknown[], total: number) {
+    mockDofusDbFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ total, data: items }),
+    });
+}
+
+/**
+ * 🚦 Réponse de **notre** limiteur (chantier A2) : 429 marquée + `retry-after: 1` — une valeur
+ * **utilisable**, donc l'attente de rejeu vaut 1 s et jamais le reste de fenêtre (60 s).
+ */
+function mockLocalThrottle() {
+    return {
+        ok: false,
+        status: 429,
+        headers: new Headers({ "x-sigilos-throttle": "local", "retry-after": "1" }),
+        json: async () => ({ error: "rate-limited (local)" }),
+    };
+}
+
+beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreate.mockResolvedValue({});
+    mockUpdate.mockResolvedValue({});
+    mockFindUnique.mockResolvedValue(null);
+});
+
+describe("veille ciblée ITEMS — filtre par date", () => {
+    it("demande à DofusDB seulement ce qui a bougé depuis le filigrane", async () => {
+        mockPage([remoteItem(1, "Amulette A", "2026-09-20T10:00:00.000Z")], 1);
+
+        const res = await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z");
+
+        const url = String(mockDofusDbFetch.mock.calls[0][0]);
+        // ⚠️ `$limit=50` : plafond réel de l'API (mesuré le 24/09/2026 — demander 100 rend 50).
+        expect(url).toContain("https://api.dofusdb.fr/items?$limit=50&$skip=0");
+        expect(url).toContain("updatedAt[$gt]=2026-09-01T00%3A00%3A00.000Z");
+        expect(res).toMatchObject({
+            inserted: 1,
+            updated: 0,
+            processed: 1,
+            truncated: false,
+            nextWatermark: "2026-09-20T10:00:00.000Z",
+        });
+        expect(mockCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it("avance le filigrane au plus récent vu, quel que soit l'ordre des pages", async () => {
+        mockPage(
+            [
+                remoteItem(1, "A", "2026-09-10T00:00:00.000Z"),
+                remoteItem(2, "B", "2026-09-22T00:00:00.000Z"),
+                remoteItem(3, "C", "2026-09-15T00:00:00.000Z"),
+            ],
+            3,
+        );
+
+        const res = await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z");
+
+        expect(res.nextWatermark).toBe("2026-09-22T00:00:00.000Z");
+        expect(res.inserted).toBe(3);
+    });
+
+    it("réécrit un item dont le hash a changé (jamais les autres)", async () => {
+        mockFindUnique
+            .mockResolvedValueOnce({ id: "db1", dataHash: "hash-different" }) // modifié
+            .mockResolvedValueOnce({ id: "db2", dataHash: null }); // jamais hashé
+        mockPage(
+            [
+                remoteItem(1, "A", "2026-09-10T00:00:00.000Z"),
+                remoteItem(2, "B", "2026-09-10T00:00:00.000Z"),
+            ],
+            2,
+        );
+
+        const res = await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z");
+
+        expect(res.updated).toBe(2);
+        expect(res.inserted).toBe(0);
+        expect(mockCreate).not.toHaveBeenCalled();
+    });
+});
+
+describe("veille ciblée ITEMS — plafond et reprise (aucun item sauté)", () => {
+    it("plafond atteint ⇒ `truncated`, filigrane NON avancé, lot de reprise mémorisé", async () => {
+        const page = Array.from({ length: 100 }, (_, i) =>
+            remoteItem(i + 1, `Item ${i + 1}`, "2026-09-21T00:00:00.000Z"),
+        );
+        // `total` élevé ⇒ DofusDB annonce d'autres pages (`hasMore = true`).
+        mockPage(page, 5_000);
+
+        const res = await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z", undefined, 10);
+
+        expect(res.truncated).toBe(true);
+        expect(res.processed).toBe(100);
+        expect(res.nextSkip).toBe(100); // reprise au lot suivant
+        expect(res.nextWatermark).toBe("2026-09-21T00:00:00.000Z");
+        // Une seule page : le plafond coupe AVANT de rappeler l'API.
+        expect(mockDofusDbFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("reprend au lot mémorisé (`startSkip`) sans repartir de zéro", async () => {
+        mockPage([remoteItem(500, "Repris", "2026-09-22T00:00:00.000Z")], 1);
+
+        await siphonGameItemsIncrementalCore(300, "2026-09-01T00:00:00.000Z");
+
+        expect(String(mockDofusDbFetch.mock.calls[0][0])).toContain("$skip=300");
+    });
+
+    /**
+     * 🚦 Chantier A2 (28/09/2026) — la capture God affichait « DofusDB a renvoyé HTTP 429 » sur
+     * *Items & ressources* alors que le 429 était rendu par **notre** limiteur (30 req/min
+     * partagées). Un refus local doit être **attendu puis rejoué**, jamais transformé en panne
+     * de DofusDB.
+     */
+    it("429 locale : on attend puis on rejoue (le lot passe, aucun item perdu)", async () => {
+        mockDofusDbFetch.mockResolvedValueOnce(mockLocalThrottle());
+        mockPage([remoteItem(7, "Amulette B", "2026-09-20T10:00:00.000Z")], 1);
+
+        const res = await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z");
+
+        expect(res.inserted).toBe(1);
+        expect(mockDofusDbFetch).toHaveBeenCalledTimes(2); // le rejeu
+    }, 10_000);
+
+    it("429 locale persistante : le lot LÈVE un différé typé (message inchangé, `retryAfterMs` porté)", async () => {
+        mockDofusDbFetch.mockResolvedValue(mockLocalThrottle());
+
+        const caught = await siphonGameItemsBatchCore(0, 50, "2026-09-01T00:00:00.000Z").then(
+            () => null,
+            (e: unknown) => e,
+        );
+
+        expect(isLocalThrottleDeferred(caught)).toBe(true);
+        const message = caught instanceof Error ? caught.message : String(caught);
+        expect(message).toContain("Limite locale atteinte");
+        expect(message).toContain("reprise au prochain passage");
+        expect(message).not.toContain("DofusDB a renvoyé");
+        expect((caught as LocalThrottleDeferredError).retryAfterMs).toBeGreaterThan(0);
+        expect(isLocalThrottleDeferredMessage(message)).toBe(true);
+        expect(isLocalThrottleDeferredMessage("DofusDB a renvoyé HTTP 500")).toBe(false);
+        expect(isLocalThrottleDeferredMessage(null)).toBe(false);
+    }, 15_000);
+
+    /**
+     * 🔶 08/10/2026 (bêta : *Items & ressources* en Échec sur notre propre budget partagé,
+     * 5 passes lancées en même temps) : un différé local n'est PAS une erreur de passe —
+     * l'incrémental s'arrête proprement (`deferred`), filigrane inchangé, reprise au même
+     * `skip`. Le Tableau reste vert avec la mention explicite (même sémantique que
+     * `throttledPages` des référentiels).
+     */
+    it("429 locale persistante : l'incrémental s'arrête PROPREMENT (`deferred`, reprise au même skip)", async () => {
+        mockPage([remoteItem(1, "Amulette A", "2026-09-20T10:00:00.000Z")], 500);
+        mockDofusDbFetch.mockResolvedValue(mockLocalThrottle());
+
+        const res = await siphonGameItemsIncrementalCore(0, "2026-09-01T00:00:00.000Z");
+
+        expect(res.deferred).toBe(true);
+        expect(res.truncated).toBe(false);
+        expect(res.inserted).toBe(1); // le premier lot est acquis
+        expect(res.nextSkip).toBe(1); // reprise au lot NON lu (pas de saut : `skip + lus`)
+        expect(res.nextWatermark).toBe("2026-09-20T10:00:00.000Z");
+    }, 15_000);
+});

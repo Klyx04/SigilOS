@@ -12,6 +12,7 @@ import PresentationContent from "./_components/presentation-content";
 import { getWelcomePosts } from "@/server/actions/onboarding-admin-actions";
 import { WelcomeFeedClient } from "../welcome/_components/welcome-feed-client";
 import { GuildHubTabs } from "./_components/guild-hub-tabs";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 type Props = { 
     params: Promise<{ guildId: string }>;
@@ -43,6 +44,7 @@ export default async function GuildHubPage({ params, searchParams }: Props) {
                 icon={Sparkles}
                 iconColor="#ffffff"
                 backHref={`/dashboard/${guildId}`}
+                actions={<ModuleHelpActions docSlug="introduction" docTitle="La Guilde & Présentation" tourPhase="presentation" />}
             />
 
             <Tabs value={initialTab} className="w-full">

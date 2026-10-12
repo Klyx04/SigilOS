@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Search, FileText, Book } from "lucide-react";
+import { Search, FileText } from "lucide-react";
 import {
     CommandDialog,
     CommandEmpty,
@@ -45,34 +45,31 @@ export function DocsSearch() {
         <>
             <button
                 onClick={() => setOpen(true)}
-                className="w-full relative group flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-surface/50 border border-border rounded-lg hover:text-foreground hover:bg-surface hover:border-info/30 transition-all text-left mb-6 shadow-sm"
+                className="group mb-3 flex w-full items-center gap-2 rounded-[4px] border border-border bg-surface px-3 py-2 text-left text-[13px] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
             >
-                <Search className="w-4 h-4 text-muted-foreground group-hover:text-info transition-colors" />
-                <span className="flex-1 truncate">Rechercher...</span>
-                <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-border bg-background px-1.5 font-mono text-caption font-medium text-muted-foreground">
-                    <span className="text-xs">Ctrl</span>K
+                <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="flex-1 truncate">Rechercher…</span>
+                <kbd className="hidden h-5 items-center gap-1 rounded-[3px] border border-border bg-background px-1.5 font-mono text-[11px] text-muted-foreground sm:inline-flex">
+                    Ctrl K
                 </kbd>
             </button>
 
-            <CommandDialog 
-                open={open} 
+            <CommandDialog
+                open={open}
                 onOpenChange={setOpen}
-                className="max-w-[600px] bg-background border-border  backdrop-blur-2xl"
+                className="registre max-w-[600px] bg-background border-border-strong"
             >
                 <DialogTitle className="sr-only">Recherche Documentation</DialogTitle>
                 <div className="relative">
-                    <CommandInput 
-                        placeholder="Rechercher dans la documentation..." 
-                        className="border-none focus:ring-0 text-lg font-medium h-16" 
+                    <CommandInput
+                        placeholder="Rechercher dans la documentation…"
+                        className="h-14 border-none text-[15px] focus:ring-0"
                     />
                 </div>
 
                 <CommandList className="max-h-[450px] border-t border-border no-scrollbar">
-                    <CommandEmpty className="py-16 text-center text-muted-foreground">
-                        <div className="w-16 h-16 rounded-2xl bg-surface/50 border border-border flex items-center justify-center mx-auto mb-6">
-                            <Book className="w-8 h-8 text-muted-foreground" />
-                        </div>
-                        <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Aucun résultat</p>
+                    <CommandEmpty className="py-12 text-center text-muted-foreground">
+                        <p className="text-[13px]">Aucun résultat</p>
                     </CommandEmpty>
 
                     <CommandGroup heading="Guides & Documentation" className="p-2">
@@ -81,22 +78,20 @@ export function DocsSearch() {
                                 key={doc.slug}
                                 onSelect={() => runCommand(() => router.push(`/docs/${doc.slug}`))}
                                 value={`${doc.title} ${doc.category} ${doc.excerpt}`}
-                                className="group flex items-start gap-4 p-4 rounded-2xl data-[selected=true]:bg-info/10 data-[selected=true]:text-foreground select-none cursor-pointer transition-all duration-300 mb-1"
+                                className="group mb-0.5 flex cursor-pointer select-none items-start gap-3 rounded-[4px] px-3 py-2.5 transition-colors data-[selected=true]:bg-surface data-[selected=true]:text-foreground"
                             >
-                                <div className="p-2.5 rounded-xl bg-surface border border-border group-data-[selected=true]:border-info/30 group-data-[selected=true]:bg-info/5 transition-all">
-                                    <FileText className="h-5 w-5 text-muted-foreground group-data-[selected=true]:text-info shrink-0" />
-                                </div>
-                                <div className="flex flex-col gap-1 min-w-0">
-                                    <span className="font-bold text-sm text-foreground group-data-[selected=true]:text-foreground transition-colors truncate">
+                                <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                <div className="flex min-w-0 flex-col gap-0.5">
+                                    <span className="truncate text-[13px] font-semibold text-foreground">
                                         {doc.title}
                                     </span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-caption uppercase tracking-[0.2em] font-black text-muted-foreground bg-background px-2 py-0.5 rounded border border-border group-data-[selected=true]:border-info/20 group-data-[selected=true]:text-info/80">
+                                        <span className="shrink-0 text-[11px] text-muted-foreground">
                                             {doc.category}
                                         </span>
                                         {doc.excerpt && (
-                                            <span className="text-xs text-muted-foreground line-clamp-1 group-data-[selected=true]:text-muted-foreground italic">
-                                                {doc.excerpt.slice(0, 70)}...
+                                            <span className="line-clamp-1 text-[12px] text-muted-foreground">
+                                                {doc.excerpt.slice(0, 70)}…
                                             </span>
                                         )}
                                     </div>
@@ -105,19 +100,16 @@ export function DocsSearch() {
                         ))}
                     </CommandGroup>
                 </CommandList>
-                
-                <div className="p-3 border-t border-border bg-background/50 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                         <div className="flex items-center gap-1.5">
-                            <kbd className="px-1.5 py-0.5 rounded border border-border bg-surface text-caption font-black text-muted-foreground">↑↓</kbd>
-                            <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Naviguer</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <kbd className="px-1.5 py-0.5 rounded border border-border bg-surface text-caption font-black text-muted-foreground">Enter</kbd>
-                            <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Ouvrir</span>
-                        </div>
+
+                <div className="flex items-center gap-4 border-t border-border p-3">
+                    <div className="flex items-center gap-1.5">
+                        <kbd className="rounded-[3px] border border-border bg-surface px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">↑↓</kbd>
+                        <span className="text-[11px] text-muted-foreground">Naviguer</span>
                     </div>
-                    <span className="text-caption font-black text-info/40 uppercase tracking-widest">SigilOS Search Index</span>
+                    <div className="flex items-center gap-1.5">
+                        <kbd className="rounded-[3px] border border-border bg-surface px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">Entrée</kbd>
+                        <span className="text-[11px] text-muted-foreground">Ouvrir</span>
+                    </div>
                 </div>
             </CommandDialog>
         </>

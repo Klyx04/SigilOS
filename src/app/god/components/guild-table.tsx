@@ -13,7 +13,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Search, Filter, ChevronDown, MoreVertical, Check, Users, Calendar, ExternalLink, Trash2, Archive, Eye, ShieldAlert, ShieldCheck, RotateCcw, Plus, UserPlus, FileText, Hash, Copy
+    Search, Filter, ChevronDown, MoreVertical, Check, Users, Calendar, ExternalLink, Trash2, Archive, Eye, ShieldAlert, ShieldCheck, RotateCcw, Plus, UserPlus, FileText, Hash, Copy, Snowflake, AlertTriangle, LogOut, Radio, ShieldX, Ban
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -35,11 +35,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { softDeleteGuild, reactivateGuild, hardDeleteGuild } from '@/server/actions/god-lifecycle-actions';
-import { addAllowedGuild, removeAllowedGuild } from "@/server/actions/super-admin-actions";
+import { softDeleteGuild, reactivateGuild, hardDeleteGuild, banEntity } from '@/server/actions/god-lifecycle-actions';
+import { addAllowedGuild, removeAllowedGuild, toggleGuildActive } from "@/server/actions/super-admin-actions";
+import { forceBotLeaveGuild } from "@/server/actions/god-discord-actions";
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { z } from 'zod';
+import { isSelfOnboardedGuild, resolveOnboardingOrigin } from '@/lib/onboarding-gating';
 
 const whitelistSchema = z.object({
     discordGuildId: z.string().min(17, "ID Discord trop court").max(20, "ID Discord trop long").regex(/^\d+$/, "L'ID doit être numérique"),
@@ -61,6 +63,8 @@ interface Guild {
     isWhitelistOnly?: boolean;
     notes?: string | null;
     tier?: string; // Restore tier
+    /** Origine : `SYSTEM_GATEWAY` = bot invité (aucune validation humaine). */
+    addedBy?: string | null;
     _count: {
         profiles: number;
     };
@@ -72,8 +76,11 @@ interface GuildTableProps {
     isReadOnly?: boolean;
 }
 
-type FilterStatus = 'all' | 'active' | 'inactive' | 'deleted';
-type SortBy = 'name' | 'members' | 'createdAt';
+type FilterStatus = 'all' | 'active' | 'autonomous' | 'vip' | 'watch' | 'frozen' | 'deleted';
+type SortBy = 'name' | 'members' | 'createdAt' | 'queue';
+
+/** SLA God — une guilde gelée/en attente depuis plus de 24 h est en retard. */
+const SLA_FROZEN_MS = 24 * 3600 * 1000;
 
 export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
     const [search, setSearch] = useState('');
@@ -89,6 +96,29 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
     const [newGuildNotes, setNewGuildNotes] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Radar Heuristics & Stats
+    const radarStats = useMemo(() => {
+        let total = guilds.length;
+        let autonomous = 0;
+        let vip = 0;
+        let watch = 0;
+        let frozen = 0;
+
+        for (const g of guilds) {
+            // Origine = SOURCE UNIQUE (`resolveOnboardingOrigin`) : le bot invité crée
+            // déjà la ligne (`addedBy: "SYSTEM_GATEWAY"`, tier BETA) — une guilde
+            // auto-onboardée était comptée « VIP Manuel » avant l'audit du 24/09.
+            const isAuto = isSelfOnboardedGuild(g);
+            if (isAuto) autonomous++;
+            else if (!g.isWhitelistOnly) vip++;
+
+            if (!g.isActive || !!g.deletedAt) frozen++;
+            else if (!g.isWhitelistOnly && g._count.profiles <= 3) watch++;
+        }
+
+        return { total, autonomous, vip, watch, frozen };
+    }, [guilds]);
+
     // Filtered & sorted guilds
     const filteredGuilds = useMemo(() => {
         const result = guilds.filter(guild => {
@@ -97,12 +127,17 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                 guild.name.toLowerCase().includes(search.toLowerCase()) ||
                 guild.discordGuildId.includes(search);
 
-            // Status filter
-            const matchesStatus =
-                filterStatus === 'all' ||
-                (filterStatus === 'active' && guild.isActive && !guild.deletedAt && !guild.isWhitelistOnly) ||
-                (filterStatus === 'inactive' && guild.isActive && guild._count.profiles === 0 && !guild.isWhitelistOnly) ||
-                (filterStatus === 'deleted' && !guild.isActive && guild.deletedAt);
+            const isAuto = isSelfOnboardedGuild(guild);
+            const isFrozen = !guild.isActive || !!guild.deletedAt;
+            const isWatch = !guild.isWhitelistOnly && !isFrozen && guild._count.profiles <= 3;
+
+            let matchesStatus = true;
+            if (filterStatus === 'active') matchesStatus = guild.isActive && !guild.deletedAt && !guild.isWhitelistOnly;
+            else if (filterStatus === 'autonomous') matchesStatus = isAuto && !guild.isWhitelistOnly;
+            else if (filterStatus === 'vip') matchesStatus = !isAuto && !guild.isWhitelistOnly;
+            else if (filterStatus === 'watch') matchesStatus = isWatch;
+            else if (filterStatus === 'frozen') matchesStatus = isFrozen;
+            else if (filterStatus === 'deleted') matchesStatus = !guild.isActive && !!guild.deletedAt;
 
             return matchesSearch && matchesStatus;
         });
@@ -111,7 +146,14 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
         result.sort((a, b) => {
             let comparison = 0;
 
-            if (sortBy === 'name') {
+            if (sortBy === 'queue') {
+                // File d'attente SLA : gelées/en attente d'abord, plus anciennes d'abord.
+                // Ordre fixe (ignore asc/desc) : l'urgence ne se trie pas à l'envers.
+                const frozenA = (!a.isActive || !!a.deletedAt) ? 0 : 1;
+                const frozenB = (!b.isActive || !!b.deletedAt) ? 0 : 1;
+                if (frozenA !== frozenB) return frozenA - frozenB;
+                return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            } else if (sortBy === 'name') {
                 comparison = a.name.localeCompare(b.name);
             } else if (sortBy === 'members') {
                 comparison = a._count.profiles - b._count.profiles;
@@ -298,6 +340,69 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                 </div>
             </div>
 
+            {/* Radar de Surveillance & Métriques d'Onboarding */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <button
+                    onClick={() => setFilterStatus('all')}
+                    className={`p-4 rounded-2xl border text-left transition-all ${filterStatus === 'all' ? 'bg-violet-500/10 border-violet-500/50 ring-1 ring-violet-500/30' : 'bg-zinc-900/40 border-white/5 hover:border-white/10'}`}
+                >
+                    <div className="text-caption font-bold text-zinc-400 uppercase tracking-widest flex items-center justify-between">
+                        <span>Total</span>
+                        <ShieldCheck className="w-4 h-4 text-violet-400" />
+                    </div>
+                    <div className="text-2xl font-black text-white mt-1">{radarStats.total}</div>
+                    <div className="text-[11px] text-zinc-500 mt-0.5">Serveurs répertoriés</div>
+                </button>
+
+                <button
+                    onClick={() => setFilterStatus('autonomous')}
+                    className={`p-4 rounded-2xl border text-left transition-all ${filterStatus === 'autonomous' ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/30' : 'bg-zinc-900/40 border-white/5 hover:border-white/10'}`}
+                >
+                    <div className="text-caption font-bold text-emerald-400 uppercase tracking-widest flex items-center justify-between">
+                        <span>Autonomes</span>
+                        <span className="text-xs">🚀</span>
+                    </div>
+                    <div className="text-2xl font-black text-emerald-400 mt-1">{radarStats.autonomous}</div>
+                    <div className="text-[11px] text-zinc-500 mt-0.5">Installations 1-clic</div>
+                </button>
+
+                <button
+                    onClick={() => setFilterStatus('vip')}
+                    className={`p-4 rounded-2xl border text-left transition-all ${filterStatus === 'vip' ? 'bg-purple-500/10 border-purple-500/50 ring-1 ring-purple-500/30' : 'bg-zinc-900/40 border-white/5 hover:border-white/10'}`}
+                >
+                    <div className="text-caption font-bold text-purple-400 uppercase tracking-widest flex items-center justify-between">
+                        <span>Pré-approuvées</span>
+                        <span className="text-xs">🛡️</span>
+                    </div>
+                    <div className="text-2xl font-black text-purple-400 mt-1">{radarStats.vip}</div>
+                    <div className="text-[11px] text-zinc-500 mt-0.5">Whitelist God ou ticket</div>
+                </button>
+
+                <button
+                    onClick={() => setFilterStatus('watch')}
+                    className={`p-4 rounded-2xl border text-left transition-all ${filterStatus === 'watch' ? 'bg-amber-500/10 border-amber-500/50 ring-1 ring-amber-500/30' : 'bg-zinc-900/40 border-white/5 hover:border-white/10'}`}
+                >
+                    <div className="text-caption font-bold text-amber-400 uppercase tracking-widest flex items-center justify-between">
+                        <span>À surveiller</span>
+                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    </div>
+                    <div className="text-2xl font-black text-amber-400 mt-1">{radarStats.watch}</div>
+                    <div className="text-[11px] text-zinc-500 mt-0.5">&le; 3 profils actifs</div>
+                </button>
+
+                <button
+                    onClick={() => setFilterStatus('frozen')}
+                    className={`p-4 rounded-2xl border text-left transition-all ${filterStatus === 'frozen' ? 'bg-red-500/10 border-red-500/50 ring-1 ring-red-500/30' : 'bg-zinc-900/40 border-white/5 hover:border-white/10'}`}
+                >
+                    <div className="text-caption font-bold text-red-400 uppercase tracking-widest flex items-center justify-between">
+                        <span>Gelées / Off</span>
+                        <Snowflake className="w-4 h-4 text-red-400" />
+                    </div>
+                    <div className="text-2xl font-black text-red-400 mt-1">{radarStats.frozen}</div>
+                    <div className="text-[11px] text-zinc-500 mt-0.5">Accès coupés</div>
+                </button>
+            </div>
+
             {/* Filters Bar */}
             <div className="bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/60 rounded-xl p-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -306,7 +411,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                         <input
                             type="text"
-                            placeholder="Recherche..."
+                            placeholder="Recherche par nom ou ID..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
@@ -319,9 +424,12 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                         onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
                         className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
                     >
-                        <option value="all">Toutes les guildes</option>
+                        <option value="all">Toutes les guildes ({radarStats.total})</option>
+                        <option value="autonomous">🚀 Autonomes ({radarStats.autonomous})</option>
+                        <option value="vip">🛡️ Pré-approuvées God / ticket ({radarStats.vip})</option>
                         <option value="active">✅ Actives</option>
-                        <option value="inactive">⚠️ Inactives (0 membre)</option>
+                        <option value="watch">🟡 À surveiller ({radarStats.watch})</option>
+                        <option value="frozen">❄️ Gelées / Inactives ({radarStats.frozen})</option>
                         <option value="deleted">🗑️ Supprimées</option>
                     </select>
 
@@ -341,6 +449,7 @@ export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
                         <option value="members-asc">Moins de membres</option>
                         <option value="createdAt-desc">Plus récentes</option>
                         <option value="createdAt-asc">Plus anciennes</option>
+                        <option value="queue-asc">File d&apos;attente (urgents d&apos;abord)</option>
                     </select>
                 </div>
             </div>
@@ -411,6 +520,63 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
 }) {
     const [isUpdating, setIsUpdating] = useState(false);
 
+    // Origine — SOURCE UNIQUE (`src/lib/onboarding-gating.ts`). Avant l'audit du
+    // 24/09, cette ligne ne reconnaissait ni `addedBy: "SYSTEM_GATEWAY"` ni le
+    // tier par défaut ⇒ toute guilde auto-onboardée s'affichait « 👑 VIP Manuel ».
+    const origin = resolveOnboardingOrigin(guild);
+    const isAutonomous = origin.kind === "AUTONOME";
+    const isFrozen = !guild.isActive || !!guild.deletedAt;
+    const isWatch = !guild.isWhitelistOnly && !isFrozen && guild._count.profiles <= 3;
+
+    const handleToggleFreeze = async () => {
+        setIsUpdating(true);
+        try {
+            const updated = await toggleGuildActive(guild.discordGuildId);
+            toast.success(updated.isActive ? "Guilde dégelée (accès rétabli)" : "Guilde gelée (accès coupé)");
+            window.location.reload();
+        } catch (e) {
+            toast.error("Échec du changement de statut");
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleForceBotLeave = async () => {
+        if (!confirm(`Expulser le bot SigilOS du serveur "${guild.name}" (${guild.discordGuildId}) ?`)) return;
+        setIsUpdating(true);
+        try {
+            const res = await forceBotLeaveGuild(guild.discordGuildId);
+            if (res.success) {
+                toast.success("Bot expulsé du serveur Discord !");
+            } else {
+                toast.error(res.error || "Erreur lors de l'expulsion");
+            }
+        } catch (e) {
+            toast.error("Échec de l'action");
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleBanEntity = async () => {
+        const reason = prompt(`Bannir définitivement la guilde "${guild.name}" de SigilOS ? Saisissez la raison :`);
+        if (!reason || !reason.trim()) return;
+        setIsUpdating(true);
+        try {
+            const res = await banEntity('GUILD', guild.discordGuildId, reason.trim());
+            if (res.success) {
+                toast.success("Guilde bannie, bot expulsé et caches invalidés !");
+                window.location.reload();
+            } else {
+                toast.error(res.error || "Erreur lors du bannissement");
+            }
+        } catch (e) {
+            toast.error("Échec du ban");
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
     const handleSoftDelete = async () => {
         if (!confirm(`Soft delete guild "${guild.name}"? This will archive it for 30 days.`)) return;
         setIsUpdating(true);
@@ -470,17 +636,23 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                 color: 'text-red-400 bg-red-500/10 border-red-500/30',
                 tooltip: 'Guilde en cours de suppression. Accès au dashboard BLOQUÉ.'
             }
-            : guild._count.profiles === 0
+            : !guild.isActive
                 ? {
-                    label: '⚠️ Inactive',
-                    color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
-                    tooltip: 'Aucun membre n\'a encore créé de compte.'
+                    label: '❄️ Gelée',
+                    color: 'text-red-400 bg-red-500/10 border-red-500/30',
+                    tooltip: 'Accès coupé par le staff (Kill-Switch).'
                 }
-                : {
-                    label: '✅ Active',
-                    color: 'text-green-400 bg-green-500/10 border-green-500/30',
-                    tooltip: 'Accès autorisé et membres actifs.'
-                };
+                : guild._count.profiles === 0
+                    ? {
+                        label: '⚠️ Inactive',
+                        color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+                        tooltip: 'Aucun membre n\'a encore créé de compte.'
+                    }
+                    : {
+                        label: '✅ Active',
+                        color: 'text-green-400 bg-green-500/10 border-green-500/30',
+                        tooltip: 'Accès autorisé et membres actifs.'
+                    };
 
     const handleRevokeWhitelist = async () => {
         if (!confirm("Révoquer l'autorisation de cette guilde ?")) return;
@@ -532,16 +704,38 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                         </div>
                     </div>
                     <div>
-                        <div className="flex items-center gap-2">
-                            <div className="font-medium">{guild.name}</div>
-                            {guild.tier && (
-                                <span className={`text-caption px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${guild.tier === 'PREMIUM' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                    }`}>
-                                    {guild.tier}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="font-bold text-sm text-white">{guild.name}</div>
+                            {/* Origin badge */}
+                            {isAutonomous ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" title="Aucune validation humaine : bot invité ou self-onboarding en 1 clic.">
+                                    {origin.badge}
+                                </span>
+                            ) : guild.isWhitelistOnly ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20" title="Bot installé mais guilde jamais déployée — en attente que l'admin clique Déployer sur le portail">
+                                    🤖 Bot Seul — en attente de déploiement
+                                </span>
+                            ) : (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20" title={origin.label}>
+                                    {origin.badge}
+                                </span>
+                            )}
+                            {/* Risk score badge */}
+                            {isFrozen ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/20" title="Guilde désactivée ou supprimée — activation requise (bouton Activer). Normal juste après une invitation, avant le Déployer du portail.">
+                                    🔴 Gelé — activation requise
+                                </span>
+                            ) : isWatch ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20" title="Faible activité (< 4 membres)">
+                                    🟡 À surveiller
+                                </span>
+                            ) : (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" title="Communauté saine">
+                                    🟢 Sain
                                 </span>
                             )}
                         </div>
-                        <div className="text-xs text-zinc-500 font-mono flex items-center gap-2">
+                        <div className="text-xs text-zinc-500 font-mono flex items-center gap-2 mt-0.5">
                             {guild.discordGuildId}
                             {guild.notes && (
                                 <span className="text-caption text-zinc-600 italic truncate max-w-[150px]">
@@ -625,31 +819,66 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
 
             <td className="p-4 text-caption text-zinc-400 hidden lg:table-cell">
                 {formatDistanceToNow(new Date(guild.createdAt), { addSuffix: true, locale: fr })}
+                {(!guild.isActive || !!guild.deletedAt) && (Date.now() - new Date(guild.createdAt).getTime() > SLA_FROZEN_MS) && (
+                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/30 text-red-400 font-black uppercase" title="SLA God 24 h dépassée">
+                        ⏳ SLA
+                    </span>
+                )}
             </td>
 
             <td className="p-4">
-                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {/* SECURITY: Super admin should NOT have direct access to guild dashboards */}
-                    {/* TODO: Create /god/guilds/[id] for read-only admin inspection */}
+                <div className="flex items-center justify-end gap-1">
+                    {/* Gel/Dégel UNIQUEMENT via le menu (1 seul point d'entrée — pas de doublon) */}
+
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400 hover:text-white">
                                 <MoreVertical className="w-4 h-4" />
                             </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56 bg-zinc-950 border-white/10 text-zinc-300 shadow-2xl">
-                            <DropdownMenuLabel className="text-xs text-zinc-500 uppercase tracking-widest p-3">Actions God Mode</DropdownMenuLabel>
+                        <DropdownMenuContent align="end" className="w-60 bg-zinc-950 border-white/10 text-zinc-300 shadow-2xl">
+                            <DropdownMenuLabel className="text-xs text-zinc-500 uppercase tracking-widest p-3">Tour de Contrôle</DropdownMenuLabel>
                             <DropdownMenuSeparator className="bg-white/5" />
 
                             {!guild.isWhitelistOnly && (
+                                <DropdownMenuItem asChild className="gap-3 p-3 cursor-pointer focus:bg-violet-500/10 focus:text-violet-400">
+                                    <Link href={`/god/guilds/${guild.id}`}>
+                                        <Eye className="w-4 h-4" />
+                                        Inspecter le Roster
+                                    </Link>
+                                </DropdownMenuItem>
+                            )}
+
+                            {!isReadOnly && (
                                 <>
-                                    <DropdownMenuItem asChild className="gap-3 p-3 cursor-pointer focus:bg-violet-500/10 focus:text-violet-400">
-                                        <Link href={`/god/guilds/${guild.id}`}>
-                                            <Eye className="w-4 h-4" />
-                                            Voir le Roster
-                                        </Link>
+                                    <DropdownMenuItem
+                                        onClick={handleToggleFreeze}
+                                        className={`gap-3 p-3 cursor-pointer ${guild.isActive ? 'focus:bg-red-500/10 focus:text-red-400' : 'focus:bg-emerald-500/10 focus:text-emerald-400'}`}
+                                    >
+                                        <Snowflake className="w-4 h-4" />
+                                        {guild.isActive ? "Geler la guilde (Kill-switch)" : "Dégeler la guilde"}
                                     </DropdownMenuItem>
 
+                                    <DropdownMenuItem
+                                        onClick={handleForceBotLeave}
+                                        className="gap-3 p-3 cursor-pointer focus:bg-orange-500/10 focus:text-orange-400"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        Expulser le Bot Discord
+                                    </DropdownMenuItem>
+
+                                    <DropdownMenuSeparator className="bg-red-500/20" />
+                                    <DropdownMenuLabel className="text-xs text-red-500/80 uppercase tracking-widest p-3">
+                                        Zone danger — données affectées entre parenthèses
+                                    </DropdownMenuLabel>
+
+                                    <DropdownMenuItem
+                                        onClick={handleBanEntity}
+                                        className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400 font-bold"
+                                    >
+                                        <Ban className="w-4 h-4" />
+                                        Bannir Définitivement (bloque, garde les données)
+                                    </DropdownMenuItem>
                                 </>
                             )}
 
@@ -665,7 +894,6 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                                         <Copy className="w-4 h-4" />
                                         Copier ID Discord
                                     </DropdownMenuItem>
-                                    {/* P2 — sous-god (readOnly) : pas de révocation de permission */}
                                     {!isReadOnly && (
                                         <DropdownMenuItem
                                             onClick={handleRevokeWhitelist}
@@ -703,7 +931,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                                                 className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
                                             >
                                                 <Trash2 className="w-4 h-4" />
-                                                Hard Delete
+                                                Hard Delete (supprime TOUT de la BDD)
                                             </DropdownMenuItem>
                                         </>
                                     )}

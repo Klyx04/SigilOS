@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DO_TAGS } from "@/lib/dofus-tags";
+import { TagWithIcons } from "@/components/gallery/gallery-filters";
+import { isDofusbookBuildUrl } from "@/lib/dofusbook-utils";
 import type { DofusBookLink } from "./builds-card";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -60,11 +62,17 @@ const TAG_CATEGORIES = [
 
 type NonNullableBuildSource = "dofusbook";
 
-const URL_VALIDATORS: Record<NonNullableBuildSource, { pattern: RegExp; placeholder: string; hint: string }> = {
+/**
+ * Validation du lien de build — **source unique** : `isDofusbookBuildUrl()`
+ * (`src/lib/dofusbook-utils.ts`), partagée avec le schéma Zod côté serveur.
+ * Flexible sur le chemin : site (`/fr/equipement/<id>-slug`), app « desktop »
+ * (`/desktop/fr/equipement/<id>-slug/objets`), `/perso/`, `/private/`, query…
+ */
+const URL_VALIDATORS: Record<NonNullableBuildSource, { validate: (url: string) => boolean; placeholder: string; hint: string }> = {
     dofusbook: {
-        pattern: /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/,
-        placeholder: "https://d-bk.net/fr/d/...",
-        hint: "Lien d-bk.net ou dofusbook.net (https requis)"
+        validate: isDofusbookBuildUrl,
+        placeholder: "https://www.dofusbook.net/fr/equipement/…",
+        hint: "Lien de build DofusBook (site ou app desktop) ou lien court d-bk.net — https requis"
     }
 };
 
@@ -114,7 +122,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
 
     // Validation per step
     const isStep0Valid = name.trim().length >= 1;
-    const isStep1Valid = source !== null && url.trim().length > 0 && (source ? URL_VALIDATORS[source].pattern.test(url.trim()) : false);
+    const isStep1Valid = source !== null && url.trim().length > 0 && (source ? URL_VALIDATORS[source].validate(url.trim()) : false);
     const canProceed = [isStep0Valid, isStep1Valid, true, true][step];
 
     const handleSubmit = async () => {
@@ -152,7 +160,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
     };
 
     const urlValidator = source ? URL_VALIDATORS[source] : null;
-    const urlIsValid = urlValidator && url.trim().length > 0 ? urlValidator.pattern.test(url.trim()) : null;
+    const urlIsValid = urlValidator && url.trim().length > 0 ? urlValidator.validate(url.trim()) : null;
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -279,7 +287,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                 )}>
                                     <ShieldAlert className="w-3 h-3 shrink-0" />
                                     {url.trim().length > 0 && urlIsValid === false
-                                        ? "Format de lien invalide (DofusBook attendu : d-bk.net ou dofusbook.net)."
+                                        ? "Format de lien invalide (lien DofusBook attendu : …/equipement/<id> ou d-bk.net)."
                                         : urlValidator?.hint
                                     }
                                 </p>
@@ -362,7 +370,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                                                         : `${tag.className} opacity-75 saturate-75 hover:opacity-100 hover:saturate-100`
                                                             )}
                                                         >
-                                                            {tag.label}
+                                                            <TagWithIcons tag={tag} size={13} />
                                                             {isSelected && <Check className="w-2.5 h-2.5 ml-0.5 shrink-0" />}
                                                         </button>
                                                     );
@@ -381,8 +389,8 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                         {tags.map(tid => {
                                             const tag = DO_TAGS.find(t => t.id === tid);
                                             return tag ? (
-                                                <span key={tid} className={cn("px-2 py-0.5 text-caption rounded-md border font-semibold", tag.className)}>
-                                                    {tag.label}
+                                                <span key={tid} className={cn("px-2 py-0.5 text-caption rounded-md border font-semibold inline-flex", tag.className)}>
+                                                    <TagWithIcons tag={tag} size={12} />
                                                 </span>
                                             ) : null;
                                         })}
@@ -452,6 +460,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                                         src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
                                                         alt={cls.name}
                                                         fill
+                                                        sizes="32px"
                                                         className="object-contain"
                                                     />
                                                 </div>

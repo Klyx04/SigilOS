@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -14,16 +14,21 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { motion } from "framer-motion";
 import {
     getDungeonsWithAchievements,
     createDungeon,
     updateDungeon,
     deleteDungeon,
     getChallenges,
+    getIgnoredDungeonsAction,
+    restoreDungeonAction,
+    updateDungeonAchievementDescription,
 } from "@/server/actions/game-data-admin-actions";
+import { Textarea } from "@/components/ui/textarea";
 import { ImageDownloader } from "./ImageDownloader";
 import { DungeonMapPicker } from "./DungeonMapPicker";
+import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
+import { ambiguousDungeonImageIds } from "@/lib/dungeon-image-ambiguity";
 import {
     Select,
     SelectContent,
@@ -31,7 +36,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
-import { Search, Plus, MapPin, Trophy, ShieldAlert, Swords, Skull, MoreHorizontal, Edit2, Trash2, ImageIcon } from "lucide-react";
+import { Search, Plus, MapPin, Trophy, ShieldAlert, Swords, Skull, MoreHorizontal, Edit2, Trash2, ImageIcon, Loader2, Ban, RotateCcw, Pencil } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -54,7 +59,19 @@ interface Dungeon {
     expeditionMechanics?: string | null;
     isOcreQuest?: boolean;
     mapId?: number | null;
-    achievements: { challengeId: string; challenge: { name: string; slug: string; iconUrl?: string | null } }[];
+    /* Chantier double boss — dissociation affichage / résolution Dofensive. */
+    dofensiveMonsterName?: string | null;
+    dofensiveDungeonName?: string | null;
+    /* Chantier donjon sans succès. */
+    isNoAchievement?: boolean;
+    /* Chantier « boss d'anomalie » — contenu SIPHONNÉ (jamais saisi à la main : préférer le bouton Siphonner). */
+    isAnomalyBoss?: boolean | null;
+    anomalyMapId?: number | null;
+    anomalyFamily?: string | null;
+    /* Chantier « boss de raid » */
+    isRaidBoss?: boolean | null;
+    raidId?: string | null;
+    achievements: { id: string; challengeId: string; description?: string | null; challenge: { name: string; slug: string; iconUrl?: string | null } }[];
 }
 
 interface Challenge {
@@ -72,13 +89,27 @@ const EXPEDITION_MODES = [
 
 export default function DungeonManager() {
     const [dungeons, setDungeons] = useState<Dungeon[]>([]);
+    /**
+     * Description **siphonnée** d'un succès, en cours d'édition (`DungeonAchievement.description`).
+     * `null` = aucune fenêtre ouverte.
+     */
+    const [descriptionEdit, setDescriptionEdit] = useState<{ id: string; name: string; value: string } | null>(null);
+    // 🔍 Debug images ambiguës (11/10/2026) : isole les donjons homonymes qui portent la
+    // MÊME image alors que leurs boss diffèrent — là où une image de boss en masque une autre.
+    const [showAmbiguousOnly, setShowAmbiguousOnly] = useState(false);
     const [challenges, setChallenges] = useState<Challenge[]>([]);
+    /* 🗑️ Donjons supprimés (exclus du seed et du siphon) — section « Restaurer » de l'éditeur. */
+    const [ignoredEntries, setIgnoredEntries] = useState<
+        { name: string; bossName: string; slug?: string | null; deletedAt?: string | null }[]
+    >([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [challengeSearch, setChallengeSearch] = useState("");
     const [selectedLevel, setSelectedLevel] = useState<string>("all");
+    // Filtre « type » du catalogue (chantier boss d'anomalie) : all | anomaly | classic.
+    const [selectedKind, setSelectedKind] = useState<string>("all");
 
     // Form State
     const [formData, setFormData] = useState({
@@ -95,6 +126,13 @@ export default function DungeonManager() {
         isOcreQuest: false,
         mapId: null as number | null,
         challengeIds: [] as string[],
+        /* Chantier double boss / donjon sans succès. */
+        dofensiveMonsterName: "",
+        dofensiveDungeonName: "",
+        isNoAchievement: false,
+        isAnomalyBoss: false,
+        isRaidBoss: false,
+        raidId: "",
     });
 
     useEffect(() => {
@@ -116,9 +154,11 @@ export default function DungeonManager() {
             }
         }
 
-        const [dungeonsRes, challengesRes] = await Promise.all([
+        const [dungeonsRes, challengesRes, ignoredRes] = await Promise.all([
             getDungeonsWithAchievements(filters),
-            getChallenges()
+            getChallenges(),
+            /* 🗑️ Anti-résurrection : ce que le God a supprimé (jamais recréé par le seed/siphon). */
+            getIgnoredDungeonsAction(),
         ]);
 
         if (dungeonsRes.success && dungeonsRes.data) {
@@ -134,7 +174,22 @@ export default function DungeonManager() {
             setChallenges(challengesRes.data);
         }
 
+        if (ignoredRes.success && ignoredRes.data) {
+            setIgnoredEntries(ignoredRes.data.entries);
+        }
+
         setLoading(false);
+    }
+
+    /** Réintègre un donjon supprimé (le prochain seed/siphon pourra le recréer). */
+    async function handleRestore(entry: { name: string; bossName: string }) {
+        const res = await restoreDungeonAction({ name: entry.name, bossName: entry.bossName });
+        if (res.success && res.data) {
+            setIgnoredEntries(res.data.entries);
+            toast.success(`${entry.bossName} réintégré — le prochain siphon pourra le recréer`);
+        } else {
+            toast.error(res.error || "Erreur lors de la restauration");
+        }
     }
 
     async function handleSubmit(e: React.FormEvent) {
@@ -172,7 +227,7 @@ export default function DungeonManager() {
 
         const result = await deleteDungeon(id);
         if (result.success) {
-            toast.success("Donjon supprimé");
+            toast.success("Donjon supprimé — mémorisé : ni le siphon ni un déploiement ne le recréeront");
             loadData();
         } else {
             toast.error(result.error || "Erreur de suppression");
@@ -196,6 +251,12 @@ export default function DungeonManager() {
             isOcreQuest: false,
             mapId: null,
             challengeIds: [],
+            dofensiveMonsterName: "",
+            dofensiveDungeonName: "",
+            isNoAchievement: false,
+            isAnomalyBoss: false,
+            isRaidBoss: false,
+            raidId: "",
         });
     }
 
@@ -216,16 +277,63 @@ export default function DungeonManager() {
             isOcreQuest: dungeon.isOcreQuest ?? false,
             mapId: dungeon.mapId ?? null,
             challengeIds: dungeon.achievements.map(a => a.challengeId),
+            dofensiveMonsterName: dungeon.dofensiveMonsterName || "",
+            dofensiveDungeonName: dungeon.dofensiveDungeonName || "",
+            isNoAchievement: dungeon.isNoAchievement ?? false,
+            isAnomalyBoss: dungeon.isAnomalyBoss ?? false,
+            isRaidBoss: dungeon.isRaidBoss ?? false,
+            raidId: dungeon.raidId || "",
         });
         setIsDialogOpen(true);
     }
 
+    /**
+     * Enregistre la **description** d'un succès (`DungeonAchievement.description`).
+     * Mise à jour optimiste ciblée : on remplace la seule ligne concernée plutôt que de
+     * recharger les 141 donjons (et leurs succès) pour un seul champ.
+     */
+    async function saveAchievementDescription() {
+        if (!descriptionEdit) return;
+        const { id, value } = descriptionEdit;
+        const res = await updateDungeonAchievementDescription(id, value);
+        if (!res.success) {
+            toast.error(res.error || "Échec de l'enregistrement");
+            return;
+        }
+        setDungeons((prev) =>
+            prev.map((d) => ({
+                ...d,
+                achievements: d.achievements.map((a) =>
+                    a.id === id ? { ...a, description: value.trim() || null } : a
+                ),
+            }))
+        );
+        setDescriptionEdit(null);
+        toast.success("Description enregistrée");
+    }
 
 
-    const filteredDungeons = dungeons.filter(d =>
-        d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        d.bossName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+
+    // Images ambiguës : plusieurs entrées de même nom (boss différents) qui portent la
+    // MÊME image. Le modèle autorise ces homonymes ; l'image, elle, appartient au boss.
+    const ambiguousImages = useMemo(() => ambiguousDungeonImageIds(dungeons), [dungeons]);
+
+    const filteredDungeons = dungeons.filter((d) => {
+        // 🔍 Filtre de debug : ne garder QUE les images ambiguës (celles à corriger).
+        if (showAmbiguousOnly && !ambiguousImages.has(d.id)) return false;
+        const matchSearch =
+            d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            d.bossName.toLowerCase().includes(searchQuery.toLowerCase());
+        if (!matchSearch) return false;
+        // Filtre « type » : boss d'anomalie, boss de raid, expéditions, quête ocre, donjon sans succès ou donjons classiques.
+        if (selectedKind === "anomaly") return !!d.isAnomalyBoss;
+        if (selectedKind === "raid") return !!d.isRaidBoss;
+        if (selectedKind === "expedition") return !!d.isExpedition;
+        if (selectedKind === "ocre") return !!d.isOcreQuest;
+        if (selectedKind === "no_achievement") return !!d.isNoAchievement;
+        if (selectedKind === "classic") return !d.isAnomalyBoss && !d.isRaidBoss && !d.isExpedition;
+        return true;
+    });
 
     return (
         <div className="space-y-4">
@@ -257,6 +365,48 @@ export default function DungeonManager() {
                         </SelectContent>
                     </Select>
                 </div>
+
+                {/* Type Filter */}
+                <div className="w-full md:w-56">
+                    <Select value={selectedKind} onValueChange={setSelectedKind}>
+                        <SelectTrigger className="bg-elevated border-border text-foreground">
+                            <SelectValue placeholder="Filtrer par type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-surface border-border">
+                            <SelectItem value="all">Tous les types</SelectItem>
+                            <SelectItem value="classic">Donjons classiques</SelectItem>
+                            <SelectItem value="expedition">⚔️ Expéditions</SelectItem>
+                            <SelectItem value="ocre">🥚 Quête Ocre</SelectItem>
+                            <SelectItem value="no_achievement">🛡️ Donjons sans succès</SelectItem>
+                            <SelectItem value="anomaly">🌀 Fiches Anomalies</SelectItem>
+                            <SelectItem value="raid">🐉 Boss de raid</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {/* 🔍 Debug « images ambiguës » (11/10/2026) : même nom de donjon + boss
+                    différents + MÊME image ⇒ l'illustration d'un boss s'affiche pour un autre.
+                    La règle vit dans `src/lib/dungeon-image-ambiguity.ts` (une image = un boss) ;
+                    ce bouton n'est qu'une LENTILLE : il isole les lignes à corriger. Le bouton
+                    disparaît quand il n'y a rien à corriger (aucun bruit permanent). */}
+                {ambiguousImages.size > 0 && (
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowAmbiguousOnly((v) => !v)}
+                        className={`w-full md:w-auto gap-2 border transition-colors ${showAmbiguousOnly
+                            ? "bg-danger/15 text-danger border-danger/40 hover:bg-danger/20"
+                            : "bg-surface border-border text-muted-foreground hover:text-foreground"}`}
+                        title="Donjons de même nom dont plusieurs boss partagent la même image : ouvre-les un par un et choisis l'image de CHAQUE boss (la grille les marque déjà d'un état neutre)."
+                    >
+                        <ImageIcon className="w-4 h-4" />
+                        Images ambiguës ({ambiguousImages.size})
+                    </Button>
+                )}
+
+                {/* ⚠️ 23/09/2026 — le bouton « Siphonner les boss d'anomalie » a été RETIRÉ :
+                    c'est exactement le dataset **ANOMALY_BOSSES** du 📊 Tableau (même opération,
+                    même cœur `syncAnomalyBosses`), qui y est lancé « ⏳ En arrière-plan » (survit
+                    à l'onglet) ou « ▶ Ici ». Un seul endroit pour lancer, ici on édite. */}
                 <Button
                     onClick={() => { resetForm(); setIsDialogOpen(true); }}
                     className="w-full md:w-auto bg-info hover:bg-info shadow-lg shadow-indigo-900/20 transition-all font-medium"
@@ -265,6 +415,33 @@ export default function DungeonManager() {
                     Nouveau Donjon
                 </Button>
             </div>
+
+            {/* 🗑️ Anti-résurrection (27/09/2026) : ce que le God a supprimé est MÉMORISÉ
+                (`ignored-dungeons.json`) — le siphon d'anomalie et le seed de déploiement ne le
+                recréent plus. « Restaurer » rouvre la porte (le prochain siphon/sync le recrée). */}
+            {ignoredEntries.length > 0 && (
+                <div className="space-y-3 rounded-lg border border-danger/30 bg-danger/5 p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-danger">
+                        <Ban className="w-4 h-4" />
+                        {ignoredEntries.length} entrée(s) supprimée(s) — jamais recréée(s) automatiquement
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {ignoredEntries.map((entry) => (
+                            <Button
+                                key={`${entry.name}::${entry.bossName}`}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 border-border bg-surface text-muted-foreground hover:text-foreground"
+                                onClick={() => handleRestore(entry)}
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                {entry.bossName}
+                                <span className="text-muted-foreground/70">({entry.name})</span>
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Grid List */}
             {loading ? (
@@ -300,8 +477,13 @@ export default function DungeonManager() {
 
                             <div className="p-4 flex flex-col h-full gap-4">
                                 <div className="flex items-start gap-4">
-                                    <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-elevated shrink-0 border border-border group-hover:border-info/50 transition-colors">
-                                        {dungeon.imageUrl ? (
+                                    <div
+                                        className="relative w-16 h-16 rounded-lg overflow-hidden bg-elevated shrink-0 border border-border group-hover:border-info/50 transition-colors"
+                                        title={ambiguousImages.has(dungeon.id)
+                                            ? "Image partagée avec d'autres boss de ce même donjon : cette image ne peut pas être celle des deux — choisis l'image du boss."
+                                            : undefined}
+                                    >
+                                        {dungeon.imageUrl && !ambiguousImages.has(dungeon.id) ? (
                                             <img
                                                 src={dungeon.imageUrl}
                                                 alt={dungeon.bossName}
@@ -339,6 +521,20 @@ export default function DungeonManager() {
                                             <Badge variant="outline" className="bg-background/50 border-border text-muted-foreground text-caption h-5">
                                                 Lvl {dungeon.level}
                                             </Badge>
+                                            {/* Chantier « boss d'anomalie » : contenu siphonné (carte de combat + famille). */}
+                                            {dungeon.isAnomalyBoss && (
+                                                <Badge variant="outline" className="bg-info/20 border-info/30 text-info text-caption h-5 gap-1" title={dungeon.anomalyFamily || "Gardiens des anomalies"}>
+                                                    <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-3 h-3 object-contain" />
+                                                    Anomalie
+                                                </Badge>
+                                            )}
+                                            {/* Chantier « boss de raid » */}
+                                            {dungeon.isRaidBoss && (
+                                                <Badge variant="outline" className="bg-purple-500/20 border-purple-500/30 text-purple-400 text-caption h-5 gap-1" title="Boss de raid">
+                                                    <ShieldAlert className="w-3 h-3 text-purple-400" />
+                                                    Raid
+                                                </Badge>
+                                            )}
                                             {dungeon.achievements.length > 0 && (
                                                 <Badge variant="outline" className="bg-warning/20 border-warning/30 text-warning text-caption h-5 gap-1">
                                                     <Trophy className="w-3 h-3" />
@@ -360,21 +556,38 @@ export default function DungeonManager() {
                                     </div>
                                 )}
 
-                                {/* Challenges Preview (Compact) */}
+                                {/* Succès du donjon : nom + description SIPHONNÉE (corrigeable au survol) */}
                                 {dungeon.achievements.length > 0 && (
-                                    <div className="flex gap-1 overflow-hidden pt-2 mt-auto border-t border-border/50">
-                                        {dungeon.achievements.slice(0, 5).map(({ challenge }) => (
-                                            <div key={challenge.slug} className="w-6 h-6 rounded bg-elevated/80 p-0.5 border border-border" title={challenge.name}>
-                                                {challenge.iconUrl && (
-                                                    <img src={challenge.iconUrl} alt={challenge.name} className="w-full h-full object-contain" />
-                                                )}
+                                    <div className="space-y-1 pt-2 mt-auto border-t border-border/50">
+                                        {dungeon.achievements.map((a) => (
+                                            <div key={a.id} className="flex items-start gap-1.5 group">
+                                                <div className="w-4 h-4 rounded bg-elevated/80 border border-border shrink-0 mt-0.5" title={a.challenge.name}>
+                                                    {a.challenge.iconUrl && (
+                                                        <img src={a.challenge.iconUrl} alt={a.challenge.name} className="w-full h-full object-contain" />
+                                                    )}
+                                                </div>
+                                                <p className="flex-1 min-w-0 text-caption leading-snug">
+                                                    <span className="font-semibold text-foreground">{a.challenge.name}</span>
+                                                    <span className="text-muted-foreground">
+                                                        {" — "}
+                                                        {a.description?.trim() || "aucune description siphonnée"}
+                                                    </span>
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDescriptionEdit({
+                                                        id: a.id,
+                                                        name: `${dungeon.name} · ${a.challenge.name}`,
+                                                        value: a.description ?? "",
+                                                    })}
+                                                    className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:text-foreground"
+                                                    title="Corriger / poser la description de ce succès"
+                                                    aria-label={`Éditer la description de ${a.challenge.name}`}
+                                                >
+                                                    <Pencil className="w-3 h-3" />
+                                                </button>
                                             </div>
                                         ))}
-                                        {dungeon.achievements.length > 5 && (
-                                            <div className="w-6 h-6 rounded bg-elevated text-caption flex items-center justify-center text-muted-foreground border border-border">
-                                                +{dungeon.achievements.length - 5}
-                                            </div>
-                                        )}
                                     </div>
                                 )}
                             </div>
@@ -385,57 +598,92 @@ export default function DungeonManager() {
 
             {/* Form Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent draggable className="w-[95vw] max-w-7xl max-h-[95vh] bg-background border-border p-0 overflow-hidden shadow-2xl flex flex-col">
+                <DialogContent draggable className="w-[95vw] max-w-5xl max-h-[90vh] bg-surface border-border p-0 overflow-hidden flex flex-col rounded-xl">
                     {/* Header Draggable Handle */}
-                    <div className="p-8 bg-surface/50 border-b border-border flex items-center justify-between shrink-0">
+                    <div className="px-5 py-4 bg-surface border-b border-border flex items-center justify-between shrink-0">
                         <DialogHeader>
-                            <DialogTitle className="text-3xl font-black text-foreground flex items-center gap-4">
-                                <Plus className="w-8 h-8 text-info" />
+                            <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-3">
+                                <Plus className="w-5 h-5 text-muted-foreground" />
                                 {editing ? "Modifier le donjon" : "Nouveau donjon"}
                             </DialogTitle>
-                            <DialogDescription className="text-muted-foreground text-lg">
-                                Configurez les détails du donjon, son boss et les succès associés.
+                            <DialogDescription className="text-sm text-muted-foreground">
+                                Détails du donjon, boss et succès associés.
                             </DialogDescription>
                         </DialogHeader>
                     </div>
 
-                    <div className="p-10 overflow-y-auto flex-1 custom-scrollbar">
-                        <form onSubmit={handleSubmit} className="space-y-10 pb-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                    <div className="px-5 py-6 overflow-y-auto flex-1 custom-scrollbar">
+                        <form onSubmit={handleSubmit} className="space-y-6 pb-2">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {/* Left Column: Core Info & Illustration */}
-                                <div className="lg:col-span-7 space-y-10">
-                                    <div className="space-y-8 bg-surface/30 p-8 rounded-3xl border border-border/50">
-                                        <div className="flex items-center justify-between border-b border-border pb-4 mb-2">
-                                            <h3 className="text-sm font-black text-info uppercase tracking-[0.2em]">Informations Principales</h3>
-                                            <div className="flex items-center gap-4 bg-background px-4 py-2 rounded-xl border border-border">
-                                                <span className="text-sm font-bold text-muted-foreground uppercase">Expédition</span>
-                                                <Switch
-                                                    checked={formData.isExpedition}
-                                                    onCheckedChange={(checked) => setFormData({ ...formData, isExpedition: checked })}
-                                                    className="data-[state=checked]:bg-info"
-                                                />
-                                                <span className="text-sm font-bold text-muted-foreground uppercase">Quête Ocre</span>
-                                                <Switch
-                                                    checked={formData.isOcreQuest}
-                                                    onCheckedChange={(checked) => setFormData({ ...formData, isOcreQuest: checked })}
-                                                    className="data-[state=checked]:bg-warning"
-                                                />
+                                <div className="space-y-6">
+                                    <div className="space-y-5 rounded-xl border border-border p-5">
+                                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+                                            <h3 className="text-xs font-medium text-muted-foreground">Informations principales</h3>
+                                            <div className="grid grid-cols-2 gap-x-5 gap-y-2.5">
+                                                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground cursor-pointer">
+                                                    Expédition
+                                                    <Switch
+                                                        checked={formData.isExpedition}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, isExpedition: checked })}
+                                                    />
+                                                </label>
+                                                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground cursor-pointer">
+                                                    Quête Ocre
+                                                    <Switch
+                                                        checked={formData.isOcreQuest}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, isOcreQuest: checked })}
+                                                    />
+                                                </label>
+                                                {/* Chantier « donjon sans succès » : le succès est d'être validé. */}
+                                                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground cursor-pointer">
+                                                    Donjon sans succès
+                                                    <Switch
+                                                        checked={formData.isNoAchievement}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, isNoAchievement: checked })}
+                                                    />
+                                                </label>
+                                                {/* Chantier « boss d'anomalie » : contenu siphonné (Gardiens des anomalies). */}
+                                                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground cursor-pointer">
+                                                    <span className="flex items-center gap-1.5">
+                                                        <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-4 h-4 object-contain" />
+                                                        Fiches Anomalies
+                                                    </span>
+                                                    <Switch
+                                                        checked={formData.isAnomalyBoss}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, isAnomalyBoss: checked })}
+                                                    />
+                                                </label>
+                                                {/* Chantier « boss de raid » */}
+                                                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground cursor-pointer">
+                                                    <span className="flex items-center gap-1.5">
+                                                        <ShieldAlert className="w-4 h-4 text-purple-400" />
+                                                        Boss de raid
+                                                    </span>
+                                                    <Switch
+                                                        checked={formData.isRaidBoss}
+                                                        onCheckedChange={(checked) => setFormData({ ...formData, isRaidBoss: checked })}
+                                                    />
+                                                </label>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                            <div className="md:col-span-3 space-y-3">
-                                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Nom du Donjon <span className="text-danger text-lg">*</span></label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                                            <div className="sm:col-span-3 space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground pl-1">Nom du donjon <span className="text-danger">*</span></label>
                                                 <Input
                                                     value={formData.name}
                                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                     required
                                                     placeholder="Ex: Antre du Kralamoure"
-                                                    className="h-16 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-xl font-bold transition-all rounded-2xl"
+                                                    className="h-12 bg-elevated border-border text-sm font-medium rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                                 />
+                                                <p className="text-[11px] text-muted-foreground pl-1 leading-relaxed">
+                                                    Correspond à l'emplacement du donjon. Plusieurs entrées du même emplacement possibles avec des boss différents (ex. Comte Harebourg + Frizz, + Sylargh, + Klime…).
+                                                </p>
                                             </div>
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Niveau <span className="text-danger text-lg">*</span></label>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground pl-1">Niveau <span className="text-danger">*</span></label>
                                                 <div className="relative">
                                                     <Input
                                                         type="number"
@@ -444,49 +692,73 @@ export default function DungeonManager() {
                                                         required
                                                         min={1}
                                                         max={1000}
-                                                        className="h-16 bg-background border-border focus:border-info/50 focus:ring-ring/20 pl-14 font-black italic text-info text-2xl transition-all rounded-2xl"
+                                                        className="h-12 bg-elevated border-border pl-12 text-sm font-semibold rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                                     />
-                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold select-none text-sm">Lvl</div>
+                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-xs select-none">Lvl</div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="space-y-3">
-                                            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Nom du Boss <span className="text-danger text-lg">*</span></label>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-muted-foreground pl-1">Nom du boss <span className="text-danger">*</span></label>
                                             <Input
                                                 value={formData.bossName}
                                                 onChange={(e) => setFormData({ ...formData, bossName: e.target.value })}
                                                 required
                                                 placeholder="Ex: Kralamoure Géant"
-                                                className="h-16 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-xl font-bold transition-all rounded-2xl"
+                                                className="h-12 bg-elevated border-border text-sm font-medium rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                             />
+                                            <p className="text-[11px] text-muted-foreground pl-1 leading-relaxed">
+                                                Le boss ou la variante (solo, +Frizz, +Sylargh…). Unique par emplacement : c'est lui qui différencie chaque entrée.
+                                            </p>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Lien DofusPourLesNoobs</label>
-                                                <Input
-                                                    value={formData.dofuspourlesnoobsUrl}
-                                                    onChange={(e) => setFormData({ ...formData, dofuspourlesnoobsUrl: e.target.value })}
-                                                    placeholder="https://www.dofuspourlesnoobs.com/..."
-                                                    className="h-14 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-sm transition-all rounded-xl"
-                                                />
-                                            </div>
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">Lien Dofensive</label>
-                                                <Input
-                                                    value={formData.dofensiveUrl}
-                                                    onChange={(e) => setFormData({ ...formData, dofensiveUrl: e.target.value })}
-                                                    placeholder="https://dofensive.com/fr/monster/..."
-                                                    className="h-14 bg-background border-border focus:border-info/50 focus:ring-ring/20 text-sm transition-all rounded-xl"
-                                                />
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-muted-foreground pl-1">Lien DofusPourLesNoobs</label>
+                                            <Input
+                                                value={formData.dofuspourlesnoobsUrl}
+                                                onChange={(e) => setFormData({ ...formData, dofuspourlesnoobsUrl: e.target.value })}
+                                                placeholder="https://www.dofuspourlesnoobs.com/..."
+                                                className="h-11 bg-elevated border-border text-xs rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
+                                            />
+                                        </div>
+                                        {/* « Lien Dofensive » retiré (11/10/2026, demande user) : le lien Dofensive
+                                            n'a plus à être saisi (les fiches publiques ne l'affichent plus) et
+                                            l'URL de la carte est résolue par le siphon (`anomalyDofensiveUrl`). */}
+
+                                        {/* Chantier double boss — dissociation affichage / résolution Dofensive.
+                                            Permet de pointer la « Balcon de … » du bon monstre même quand le nom affiché
+                                            est composé (ex. « Comte et Sylargh ») et qu'un donjon solo homonyme existe. */}
+                                        <div className="p-4 rounded-xl border border-border space-y-3">
+                                            <p className="text-xs font-medium text-muted-foreground pl-1">Résolution Dofensive (doubles boss)</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-medium text-muted-foreground pl-1">Nom du monstre (Dofensive)</label>
+                                                    <Input
+                                                        value={formData.dofensiveMonsterName || ""}
+                                                        onChange={(e) => setFormData({ ...formData, dofensiveMonsterName: e.target.value })}
+                                                        placeholder="Ex: Sylargh"
+                                                        className="h-11 bg-elevated border-border text-xs rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
+                                                    />
+                                                    <p className="text-[11px] text-muted-foreground pl-1 leading-relaxed">Nom exact du monstre Dofensive (celui de la fiche). Sert à retrouver la carte correspondante.</p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-medium text-muted-foreground pl-1">Nom du donjon (Dofensive)</label>
+                                                    <Input
+                                                        value={formData.dofensiveDungeonName || ""}
+                                                        onChange={(e) => setFormData({ ...formData, dofensiveDungeonName: e.target.value })}
+                                                        placeholder="Ex: Donjon du Comte Harebourg"
+                                                        className="h-11 bg-elevated border-border text-xs rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
+                                                    />
+                                                    <p className="text-[11px] text-muted-foreground pl-1 leading-relaxed">Nom exact du donjon Dofensive, pour lever l'ambiguïté avec un donjon solo homonyme. Vide pour un donjon classique.</p>
+                                                </div>
                                             </div>
                                         </div>
 
                                         {/* Map ID — sélecteur cliquable pour placer l'icône Ocre sur la carte */}
                                         {formData.isOcreQuest && (
-                                            <div className="p-5 rounded-2xl bg-warning/5 border border-warning/20 space-y-3">
-                                                <p className="text-caption text-warning/90 pl-1">
+                                            <div className="p-4 rounded-xl border border-border space-y-3">
+                                                <p className="text-xs text-muted-foreground pl-1">
                                                     Sélectionne le donjon correspondant sur la carte du monde pour y afficher l'icône Ocre.
                                                 </p>
                                                 <DungeonMapPicker
@@ -498,39 +770,50 @@ export default function DungeonManager() {
                                                 />
                                             </div>
                                         )}
+                                        {/* Localisation — zone du donjon encadrée, même rendu que la fiche publique. */}
+                                        <div className="p-4 rounded-xl border border-border space-y-3">
+                                            <p className="text-xs font-medium text-muted-foreground pl-1">
+                                                Zone du donjon sur la carte du monde (map d&apos;entrée ci-dessus) — l&apos;encart affiché sur la fiche publique.
+                                            </p>
+                                            <ZoneLocationCard
+                                                mapId={formData.mapId ?? null}
+                                                title="Zone du donjon"
+                                                placeName={formData.name}
+                                                openLabel="Ouvrir sur la carte"
+                                                markerIcon="/assets/worldmap/dungeon-boss.png"
+                                            />
+                                        </div>
                                     </div>
 
                                     {/* Expedition Settings */}
                                     {formData.isExpedition && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className="space-y-8 p-8 bg-info/5 rounded-3xl border border-info/20 shadow-inner shadow-indigo-500/5"
+                                        <div
+                                            className="space-y-5 p-5 rounded-xl border border-border"
                                         >
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Modes Disponibles</label>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground">Modes disponibles</label>
                                                 <MultiSelect
                                                     options={EXPEDITION_MODES}
                                                     selected={formData.expeditionModes}
                                                     onChange={(selected) => setFormData({ ...formData, expeditionModes: selected })}
                                                     placeholder="Choisir les modes..."
-                                                    className="bg-background border-border min-h-[50px] rounded-xl"
+                                                    className="bg-elevated border-border min-h-[44px] rounded-lg"
                                                 />
                                             </div>
-                                            <div className="space-y-3">
-                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Mécaniques</label>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground">Mécaniques</label>
                                                 <textarea
                                                     value={formData.expeditionMechanics || ""}
                                                     onChange={(e) => setFormData({ ...formData, expeditionMechanics: e.target.value })}
                                                     placeholder="Détails spécifiques des mécaniques..."
-                                                    className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-info/50 resize-none min-h-[100px]"
+                                                    className="w-full px-4 py-3 bg-elevated border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border-strong resize-none min-h-[100px]"
                                                 />
                                             </div>
-                                        </motion.div>
+                                        </div>
                                     )}
 
-                                    <div className="bg-background/50 p-8 rounded-3xl border border-border shadow-inner">
-                                        <h3 className="text-sm font-black text-info uppercase tracking-[0.2em] border-b border-border pb-4 mb-6">Illustration</h3>
+                                    <div className="rounded-xl border border-border p-5">
+                                        <h3 className="text-xs font-medium text-muted-foreground border-b border-border pb-3 mb-4">Illustration</h3>
                                         <ImageDownloader
                                             type="dungeon"
                                             imageUrl={formData.imageUrl}
@@ -542,24 +825,24 @@ export default function DungeonManager() {
                                 </div>
 
                                 {/* Right Column: Success & Challenges */}
-                                <div className="lg:col-span-5 h-full">
-                                    <div className="h-full space-y-4 bg-surface/30 p-8 rounded-3xl border border-border/50 flex flex-col">
-                                         <div className="border-b border-border pb-4">
-                                            <h3 className="text-sm font-black text-info uppercase tracking-[0.2em]">Succès du Boss</h3>
-                                            <p className="text-xs text-muted-foreground mt-2 font-medium">
-                                                Assurez-vous qu'ils correspondent aux mécaniques du donjon.
+                                <div className="h-full">
+                                    <div className="h-full space-y-4 rounded-xl border border-border p-5 flex flex-col">
+                                         <div className="border-b border-border pb-3">
+                                            <h3 className="text-xs font-medium text-muted-foreground">Succès du boss</h3>
+                                            <p className="text-[11px] text-muted-foreground mt-1">
+                                                Vérifie qu'ils correspondent aux mécaniques du donjon.
                                             </p>
                                         </div>
 
-                                        <div className="flex-1 flex flex-col min-h-[500px]">
-                                            <div className="space-y-4 mb-4">
+                                        <div className="flex-1 flex flex-col min-h-[300px]">
+                                            <div className="space-y-3 mb-3">
                                                 <div className="flex items-center justify-between">
-                                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">
-                                                        Succès Associés
+                                                    <label className="text-xs font-medium text-muted-foreground pl-1">
+                                                        Succès associés
                                                     </label>
-                                                    <Badge variant="outline" className="bg-info/10 border-info/20 text-info">
+                                                    <span className="text-[11px] text-muted-foreground">
                                                         {formData.challengeIds.length} sélectionné(s)
-                                                    </Badge>
+                                                    </span>
                                                 </div>
                                                 <div className="relative">
                                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -567,12 +850,12 @@ export default function DungeonManager() {
                                                         placeholder="Filtrer les succès..."
                                                         value={challengeSearch}
                                                         onChange={e => setChallengeSearch(e.target.value)}
-                                                        className="h-10 pl-9 bg-background border-border text-xs text-foreground placeholder:text-muted-foreground"
+                                                        className="h-10 pl-9 bg-elevated border-border text-xs text-foreground placeholder:text-muted-foreground rounded-lg focus-visible:ring-0 focus-visible:border-border-strong"
                                                     />
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[500px]">
+                                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[420px]">
                                                 {challenges
                                                     .filter(c => c.name.toLowerCase().includes(challengeSearch.toLowerCase()))
                                                     .map((challenge) => {
@@ -590,10 +873,10 @@ export default function DungeonManager() {
                                                                 }));
                                                             }}
                                                             className={`
-                                                                relative aspect-square rounded-xl p-2 border-2 transition-all group flex flex-col items-center justify-center gap-1
+                                                                relative aspect-square rounded-lg p-2 border transition-colors group flex flex-col items-center justify-center gap-1
                                                                 ${isSelected
-                                                                    ? "border-info bg-info/10 "
-                                                                    : "border-border bg-surface/50 hover:border-border hover:bg-elevated"
+                                                                    ? "border-success bg-success/5"
+                                                                    : "border-border hover:border-border-strong"
                                                                 }
                                                             `}
                                                             title={challenge.name}
@@ -602,21 +885,22 @@ export default function DungeonManager() {
                                                                 <img
                                                                     src={challenge.iconUrl}
                                                                     alt={challenge.name}
-                                                                    className={`w-8 h-8 object-contain transition-transform ${isSelected ? "scale-110" : "group-"}`}
+                                                                    loading="lazy"
+                                                                    className="w-8 h-8 object-contain"
                                                                 />
                                                             ) : (
-                                                                <Trophy className={`w-6 h-6 ${isSelected ? "text-info" : "text-muted-foreground"}`} />
+                                                                <Trophy className={`w-6 h-6 ${isSelected ? "text-success" : "text-muted-foreground"}`} />
                                                             )}
-                                                            <span className="text-caption font-bold text-muted-foreground text-center leading-tight line-clamp-2 w-full mt-1">
+                                                            <span className="text-[11px] font-medium text-muted-foreground text-center leading-tight line-clamp-2 w-full mt-1">
                                                                 {challenge.name}
                                                             </span>
 
                                                             {isSelected && (
-                                                                <div className="absolute -top-1.5 -right-1.5 bg-info text-info-foreground rounded-full p-0.5 shadow-lg">
-                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-success flex items-center justify-center">
+                                                                    <svg className="w-2.5 h-2.5 text-success-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                                                     </svg>
-                                                                </div>
+                                                                </span>
                                                             )}
                                                         </button>
                                                     );
@@ -627,20 +911,50 @@ export default function DungeonManager() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4 pt-6 border-t border-border sticky bottom-0 bg-background py-4 shrink-0">
-                                <Button type="submit" className="flex-[3] bg-info hover:bg-info h-14 text-lg font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all rounded-xl active:scale-[0.98]">
-                                    {editing ? "💾 Enregistrer" : "➕ Créer le Donjon"}
-                                </Button>
+                            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-border sticky bottom-0 bg-surface py-4 shrink-0">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={() => setIsDialogOpen(false)}
-                                    className="flex-1 h-14 border-border hover:bg-surface text-foreground text-sm font-bold uppercase tracking-widest transition-all rounded-xl"
+                                    className="sm:flex-1 h-12 border-border text-sm rounded-lg"
                                 >
                                     Fermer
                                 </Button>
+                                <Button type="submit" className="sm:flex-[3] h-12 text-sm font-semibold rounded-lg">
+                                    {editing ? "Enregistrer" : "Créer le donjon"}
+                                </Button>
                             </div>
                         </form>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Description d'un succès — colonne `DungeonAchievement.description`, écrite par le siphon
+                (`achievement-details-siphon.ts`) ; ici on la corrige ou on la pose à la main. */}
+            <Dialog open={!!descriptionEdit} onOpenChange={(open) => { if (!open) setDescriptionEdit(null); }}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-base">Description du succès</DialogTitle>
+                        <DialogDescription className="text-xs">
+                            {descriptionEdit?.name} — c&apos;est le texte montré au visiteur. Le siphon l&apos;écrit
+                            quand il retrouve le succès « (Spécial) » chez DofusDB ; sinon, c&apos;est vous.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Textarea
+                        value={descriptionEdit?.value ?? ""}
+                        onChange={(e) => setDescriptionEdit((prev) => (prev ? { ...prev, value: e.target.value } : prev))}
+                        rows={4}
+                        maxLength={600}
+                        placeholder="Ex. Ne pas tuer les Tynrils avant d'avoir détruit les quatre totems."
+                        className="text-sm"
+                    />
+                    <div className="flex flex-col-reverse sm:flex-row gap-3">
+                        <Button type="button" variant="outline" className="sm:flex-1" onClick={() => setDescriptionEdit(null)}>
+                            Annuler
+                        </Button>
+                        <Button type="button" className="sm:flex-[2]" onClick={saveAchievementDescription}>
+                            Enregistrer
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

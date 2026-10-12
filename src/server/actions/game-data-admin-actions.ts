@@ -12,6 +12,23 @@ import { writeFileSync } from "fs";
 import { join } from "path";
 
 import { addIgnoredFamily, addIgnoredZone } from "@/server/actions/game-data-actions";
+import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
+import { bossSlugWithFallback } from "@/lib/boss-slug";
+import { questMapImageUrl, questStartMapId } from "@/lib/dungeon-finder-utils";
+import { buildGameQuestWhere, gameQuestPageWindow, type GameQuestFilters } from "@/lib/game-quests-filter";
+import type { Prisma } from "@prisma/client";
+import { addIgnoredBounty, getIgnoredBounties, removeIgnoredBounty, type IgnoredBountyEntry } from "@/lib/bounty-ignore";
+import {
+    addIgnoredChallenge,
+    addIgnoredDungeon,
+    getIgnoredChallenges,
+    getIgnoredDungeons,
+    isIgnoredChallenge,
+    isIgnoredDungeon,
+    removeIgnoredChallenge,
+    removeIgnoredDungeon,
+    type IgnoredDungeonEntry,
+} from "@/lib/game-data-ignores";
 
 // --- Types ---
 
@@ -43,6 +60,11 @@ const ChallengeSchema = z.object({
 const DungeonFormSchema = z.object({
     name: z.string().min(1, "Nom requis").max(150),
     bossName: z.string().min(1, "Nom du boss requis").max(150),
+    /* Slug d'URL publique (`/boss/<slug>`) : optionnel. Vide ⇒ généré depuis le
+       nom du boss à la création, et **inchangé** à la modification (une URL
+       publiée ne doit pas bouger toute seule : les anciens slugs/ids restent
+       servis en 308, mais on ne casse pas un lien indexé sans raison). */
+    slug: z.string().max(150).optional().or(z.literal("")),
     level: z.number().min(1, "Niveau invalide").max(1000),
     dpnlUrl: z.string().optional().or(z.literal("")),
     dofuspourlesnoobsUrl: z.string().optional().or(z.literal("")),
@@ -54,6 +76,16 @@ const DungeonFormSchema = z.object({
     isOcreQuest: z.boolean().default(false),
     mapId: z.number().int().nullable().optional(),
     challengeIds: z.array(z.string()).optional(),
+    /* Chantier double boss : dissociation affichage / résolution Dofensive. Optionnels. */
+    dofensiveMonsterName: z.string().optional().or(z.literal("")),
+    dofensiveDungeonName: z.string().optional().or(z.literal("")),
+    /* Chantier donjon sans succès : le « succès » est d'être validé → pseudo-succès « Donjon validé ». */
+    isNoAchievement: z.boolean().default(false),
+    /* Chantier « boss d'anomalie » : coché en God (le contenu lui-même est siphonné). */
+    isAnomalyBoss: z.boolean().default(false),
+    /* Chantier « boss de raid » : coché en God. */
+    isRaidBoss: z.boolean().default(false),
+    raidId: z.string().optional().or(z.literal("")),
 });
 
 // --- Helper: Check super-admin access ---
@@ -274,6 +306,8 @@ export async function createChallenge(
             }
         });
         await logGameDataWrite('create-challenge', challenge.id, { name: challenge.name });
+        // Créer à la main un succès précédemment supprimé lève son exclusion (anti-résurrection).
+        removeIgnoredChallenge(challenge.slug);
 
         revalidatePath('/god/game-data');
         return { success: true, data: challenge };
@@ -303,6 +337,8 @@ export async function updateChallenge(
             }
         });
         await logGameDataWrite('update-challenge', id, { name: challenge.name });
+        // Éditer un succès lève son exclusion (le God l'a réintégré explicitement).
+        removeIgnoredChallenge(challenge.slug);
 
         revalidatePath('/god/game-data');
         return { success: true, data: challenge };
@@ -320,8 +356,12 @@ export async function deleteChallenge(id: string): Promise<ActionResponse> {
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
+        /* 🛡️ Anti-résurrection : on lit AVANT de supprimer pour mémoriser ce que le God refuse
+           (le seed de déploiement et les garanties de pseudo-succès respectent cette liste). */
+        const target = await db.challenge.findUnique({ where: { id }, select: { slug: true, name: true } });
         await db.challenge.delete({ where: { id } });
-        await logGameDataWrite('delete-challenge', id);
+        if (target?.slug) addIgnoredChallenge(target.slug, target.name);
+        await logGameDataWrite('delete-challenge', id, { slug: target?.slug, name: target?.name });
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error: any) {
@@ -375,6 +415,45 @@ export async function getDungeonsWithAchievements(
     }
 }
 
+/** Bornage de la description (le texte est écrit par le siphon, pas par l'utilisateur : on tient la même longueur). */
+const DungeonAchievementDescriptionSchema = z.string().max(600);
+
+/**
+ * Description **propre au donjon** d'un succès (`DungeonAchievement.description`).
+ *
+ * C'est la colonne qu'écrit le siphon `achievement-details-siphon.ts` (le titre reste
+ * « Spécial », la mécanique est ici). Le God doit pouvoir la corriger — ou la poser à la
+ * main — quand le siphon n'a rien trouvé : c'est la seule porte d'écriture de cette colonne
+ * côté interface.
+ */
+export async function updateDungeonAchievementDescription(
+    achievementId: string,
+    description: string
+): Promise<ActionResponse<{ id: string; description: string | null }>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        if (!achievementId) return { success: false, error: 'Succès non identifié' };
+        const clean = DungeonAchievementDescriptionSchema.parse(description).trim();
+        const achievement = await db.dungeonAchievement.update({
+            where: { id: achievementId },
+            data: { description: clean || null },
+        });
+        await logGameDataWrite('update-dungeon-achievement-description', achievementId, {
+            dungeonId: achievement.dungeonId,
+            challengeId: achievement.challengeId,
+        });
+
+        revalidatePath('/god/game-data');
+        return { success: true, data: { id: achievement.id, description: achievement.description } };
+    } catch (error: any) {
+        logger.error('[updateDungeonAchievementDescription] Error:', error);
+        if (error?.code === 'P2025') return { success: false, error: 'Succès introuvable' };
+        return { success: false, error: 'Erreur lors de la mise à jour de la description' };
+    }
+}
+
 export async function createDungeon(
     data: z.infer<typeof DungeonFormSchema>
 ): Promise<ActionResponse<any>> {
@@ -383,29 +462,47 @@ export async function createDungeon(
 
     try {
         const validated = DungeonFormSchema.parse(data);
-        const { challengeIds, ...dungeonData } = validated;
+        const { challengeIds, isNoAchievement, isAnomalyBoss, isRaidBoss, raidId, ...dungeonData } = validated;
 
+        // Slug public `/boss/<slug>` : slugifié, et suffixé automatiquement s'il est
+        // déjà pris (« minotoror », « minotoror-2 »).
+        const slug = await resolveUniqueDungeonSlug(dungeonData.slug?.trim() || dungeonData.bossName);
+
+        // Chantier double boss : conversion '' → null pour les champs de résolution Dofensive.
         const dungeon = await db.dungeon.create({
             data: {
                 ...dungeonData,
+                slug,
+                isNoAchievement: !!isNoAchievement,
+                isAnomalyBoss: !!isAnomalyBoss,
+                isRaidBoss: !!isRaidBoss,
+                raidId: raidId || null,
                 dpnlUrl: dungeonData.dpnlUrl || null,
                 dofuspourlesnoobsUrl: dungeonData.dofuspourlesnoobsUrl || null,
                 dofensiveUrl: dungeonData.dofensiveUrl || null,
                 imageUrl: dungeonData.imageUrl || null,
+                dofensiveMonsterName: dungeonData.dofensiveMonsterName || null,
+                dofensiveDungeonName: dungeonData.dofensiveDungeonName || null,
                 expeditionModes: (dungeonData.expeditionModes || null) as any,
                 expeditionMechanics: dungeonData.expeditionMechanics || null,
-                achievements: challengeIds ? {
-                    create: challengeIds.map(challengeId => ({
-                        challengeId,
-                        points: 10, // Default value
-                    }))
+                achievements: challengeIds || isNoAchievement ? {
+                    create: [
+                        ...(challengeIds || []).map(challengeId => ({
+                            challengeId,
+                            points: 10, // Default value
+                        })),
+                    ]
                 } : undefined
             },
             include: {
                 achievements: { include: { challenge: true } }
             }
         });
+
+        // « Donjon validé » retiré (11/10/2026) — plus de pseudo-succès créé ni rattaché.
         await logGameDataWrite('create-dungeon', dungeon.id, { name: dungeon.name });
+        // Créer à la main un donjon précédemment supprimé lève son exclusion (anti-résurrection).
+        removeIgnoredDungeon({ name: dungeon.name, bossName: dungeon.bossName });
 
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
@@ -428,27 +525,47 @@ export async function updateDungeon(
 
     try {
         const validated = DungeonFormSchema.parse(data);
-        const { challengeIds, ...dungeonData } = validated;
+        const { challengeIds, isNoAchievement, isAnomalyBoss, isRaidBoss, raidId, ...dungeonData } = validated;
 
         // Update dungeon and sync achievements
         const dungeon = await db.$transaction(async (tx) => {
+            // Slug d'URL : une valeur explicite est slugifiée et rendue unique ;
+            // sinon le slug existant est **conservé** (l'URL publiée ne bouge pas
+            // quand on corrige un nom, ou alors 308 dans l'autre sens).
+            const requestedSlug = dungeonData.slug?.trim();
+            const { slug: _requestedSlug, ...restDungeonData } = dungeonData;
+            const slugUpdate = requestedSlug
+                ? { slug: await resolveUniqueDungeonSlug(requestedSlug, { excludeId: id, client: tx }) }
+                : {};
+
             // Update dungeon basic info
             const updated = await tx.dungeon.update({
                 where: { id },
                 data: {
-                    ...dungeonData,
+                    ...restDungeonData,
+                    ...slugUpdate,
+                    isNoAchievement: !!isNoAchievement,
+                    isAnomalyBoss: !!isAnomalyBoss,
+                    isRaidBoss: !!isRaidBoss,
+                    raidId: raidId || null,
                     dpnlUrl: dungeonData.dpnlUrl || null,
                     dofuspourlesnoobsUrl: dungeonData.dofuspourlesnoobsUrl || null,
                     dofensiveUrl: dungeonData.dofensiveUrl || null,
                     imageUrl: dungeonData.imageUrl || null,
+                    dofensiveMonsterName: dungeonData.dofensiveMonsterName || null,
+                    dofensiveDungeonName: dungeonData.dofensiveDungeonName || null,
                     expeditionModes: (dungeonData.expeditionModes || null) as any,
                     expeditionMechanics: dungeonData.expeditionMechanics || null,
                 }
             });
 
+            // « Donjon validé » retiré (11/10/2026) : plus de rattachement — et la synchronisation
+            // ci-dessous supprime son éventuelle ligne résiduelle (aucune résurrection possible).
+
             // Sync achievements if provided
             if (challengeIds) {
-                // Delete removed achievements
+                // Delete removed achievements (le pseudo-succès « Donjon validé » n'existe plus :
+                // rien à préserver, donc rien à ressusciter).
                 await tx.dungeonAchievement.deleteMany({
                     where: {
                         dungeonId: id,
@@ -475,6 +592,8 @@ export async function updateDungeon(
         });
 
         await logGameDataWrite('update-dungeon', id, { name: dungeon?.name });
+        // Éditer un donjon lève son exclusion (le God l'a réintégré explicitement).
+        if (dungeon) removeIgnoredDungeon({ name: dungeon.name, bossName: dungeon.bossName });
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
         return { success: true, data: dungeon };
@@ -492,8 +611,15 @@ export async function deleteDungeon(id: string): Promise<ActionResponse> {
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
+        /* 🛡️ Anti-résurrection : on lit AVANT de supprimer pour mémoriser ce que le God refuse —
+           sans quoi le seed de déploiement et le siphon d'anomalie le recréaient. */
+        const target = await db.dungeon.findUnique({
+            where: { id },
+            select: { name: true, bossName: true, slug: true, dofusdbId: true },
+        });
         await db.dungeon.delete({ where: { id } });
-        await logGameDataWrite('delete-dungeon', id);
+        if (target) addIgnoredDungeon(target);
+        await logGameDataWrite('delete-dungeon', id, { name: target?.name, bossName: target?.bossName });
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
         return { success: true };
@@ -503,6 +629,37 @@ export async function deleteDungeon(id: string): Promise<ActionResponse> {
             return { success: false, error: 'Impossible de supprimer : des missions sont associées' };
         }
         return { success: false, error: 'Erreur lors de la suppression' };
+    }
+}
+
+/** Donjons supprimés (exclus du seed et du siphon) — affichés dans l'éditeur avec « Restaurer ». */
+export async function getIgnoredDungeonsAction(): Promise<ActionResponse<{ entries: IgnoredDungeonEntry[] }>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+    return { success: true, data: { entries: getIgnoredDungeons() } };
+}
+
+/** Réintègre un donjon exclu (le prochain seed/siphon peut alors le recréer). */
+export async function restoreDungeonAction(input: {
+    name: string;
+    bossName: string;
+}): Promise<ActionResponse<{ entries: IgnoredDungeonEntry[] }>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    const name = String(input?.name ?? "").trim();
+    const bossName = String(input?.bossName ?? "").trim();
+    if (!name || !bossName) return { success: false, error: "Donjon invalide" };
+
+    try {
+        const entries = removeIgnoredDungeon({ name, bossName });
+        await logGameDataWrite('restore-dungeon', `${name} / ${bossName}`);
+        revalidatePath('/god/game-data');
+        revalidatePath('/admin/missions');
+        return { success: true, data: { entries } };
+    } catch (error: any) {
+        logger.error('[restoreDungeonAction] Error:', error);
+        return { success: false, error: 'Erreur lors de la restauration' };
     }
 }
 
@@ -591,10 +748,109 @@ const GameQuestSchema = z.object({
     category: z.string().optional(),
 });
 
-export async function getGameQuests(): Promise<ActionResponse<any[]>> {
+/** 🎛️ Filtres + page de la liste des quêtes — bornés (jamais fait confiance au client). */
+const GameQuestListSchema = z.object({
+    search: z.string().trim().max(120).optional().default(''),
+    category: z.string().trim().max(120).optional().default(''),
+    levelMin: z.number().int().min(1).max(1000).nullable().optional().default(null),
+    levelMax: z.number().int().min(1).max(1000).nullable().optional().default(null),
+    source: z.enum(['ALL', 'DOFUSDB', 'MANUAL']).optional().default('ALL'),
+    page: z.number().int().min(0).max(1000).optional().default(0),
+});
+
+export interface GameQuestListRow {
+    id: string;
+    name: string;
+    dofusDbId: number | null;
+    levelMin: number | null;
+    levelMax: number | null;
+    description: string | null;
+    imageUrl: string | null;
+    category: string | null;
+}
+
+export interface GameQuestListPage {
+    quests: GameQuestListRow[];
+    total: number;
+    page: number;
+    pageSize: number;
+    hasMore: boolean;
+    /** Compteurs **réels** par catégorie, sous le filtre courant (jamais « 48 » pour 300). */
+    counts: { category: string; count: number }[];
+    /** Toutes les catégories existantes — remplit le sélecteur sans être tronquée par la page. */
+    categories: string[];
+}
+
+/**
+ * 🎒 Liste **paginée** des quêtes du panneau God.
+ *
+ * 🐛 Avant (mesure 10/10/2026) : `findMany` sans `select` ni `take` ⇒ ~2 000 quêtes et leur
+ * `contentJson` dans le navigateur, une carte + une image peintes par quête. Les filtres, eux,
+ * étaient calculés côté client : ils ne voyaient que ce qui était chargé. Ici : filtres **serveur**
+ * (`buildGameQuestWhere`, module pur) + une page bornée (`GAME_QUESTS_PAGE_SIZE`), et des
+ * compteurs par catégorie pour que l'en-tête de groupe dise le **vrai** total.
+ */
+export async function getGameQuests(raw: unknown = {}): Promise<ActionResponse<GameQuestListPage>> {
     try {
-        const quests = await db.gameQuest.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
-        return { success: true, data: quests };
+        if (!(await isSuperAdmin()) && !(await canAccessBrick('game-data'))) {
+            return { success: false, error: 'Non autorisé' };
+        }
+        const parsed = GameQuestListSchema.safeParse(raw ?? {});
+        if (!parsed.success) {
+            return { success: false, error: 'Filtres invalides' };
+        }
+        const filters: GameQuestFilters = parsed.data;
+        const where = buildGameQuestWhere(filters) as Prisma.GameQuestWhereInput;
+        const { skip, take } = gameQuestPageWindow(filters.page);
+
+        const [total, rows, grouped, allGrouped] = await Promise.all([
+            db.gameQuest.count({ where }),
+            db.gameQuest.findMany({
+                where,
+                orderBy: [{ category: 'asc' }, { name: 'asc' }],
+                skip,
+                take,
+                // `contentJson` / `contentHash` sont volontairement **absents** : c'est le contenu
+                // des étapes (~Ko par quête), inutile à une liste — c'est lui qui alourdissait la
+                // réponse d'un facteur important.
+                select: {
+                    id: true,
+                    name: true,
+                    dofusDbId: true,
+                    levelMin: true,
+                    levelMax: true,
+                    description: true,
+                    imageUrl: true,
+                    category: true,
+                },
+            }),
+            db.gameQuest.groupBy({
+                by: ['category'],
+                where,
+                _count: { _all: true },
+                orderBy: { category: 'asc' },
+            }),
+            db.gameQuest.groupBy({
+                by: ['category'],
+                _count: { _all: true },
+                orderBy: { category: 'asc' },
+            }),
+        ]);
+
+        return {
+            success: true,
+            data: {
+                quests: rows,
+                total,
+                page: filters.page,
+                pageSize: take,
+                hasMore: skip + rows.length < total,
+                counts: grouped.map((g) => ({ category: g.category ?? 'Non classé', count: g._count._all })),
+                categories: allGrouped
+                    .map((g) => g.category)
+                    .filter((c): c is string => typeof c === 'string' && c.trim() !== ''),
+            },
+        };
     } catch (error) {
         logger.error('[getGameQuests] Error:', error);
         return { success: false, error: 'Erreur lors du chargement des quêtes' };
@@ -669,19 +925,21 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
     const userId = await requireSuperAdmin();
     if (!userId) return { success: false, error: "Accès refusé" };
 
-    const capped = Math.min(300, Math.max(10, Math.round(limit) || 100));
+    const capped = Math.min(500, Math.max(10, Math.round(limit) || 100));
 
     try {
         let created = 0;
         let skipped = 0;
         let errors = 0;
-        let fetched = 0;
-        let page = 1;
+        let skip = 0;
         const pageSize = 50;
+        let totalRemote = Infinity;
 
-        while (fetched < capped) {
-            const take = Math.min(pageSize, capped - fetched);
-            const res = await fetch(`https://api.dofusdb.fr/quests?limit=${take}&page=${page}`, {
+        while (created < capped && skip < totalRemote) {
+            const take = pageSize;
+            // DofusDB pagine via `$limit`/`$skip`. On pagine continuellement jusqu'à importer
+            // `capped` NOUVELLES quêtes ou atteindre la fin de l'API DofusDB.
+            const res = await fetch(`https://api.dofusdb.fr/quests?$limit=${take}&$skip=${skip}`, {
                 headers: { Accept: "application/json" },
                 signal: AbortSignal.timeout(15000),
             });
@@ -693,11 +951,14 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
             }
 
             const json = await res.json();
+            if (typeof json?.total === "number") totalRemote = json.total;
             const data: any[] = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
 
             if (data.length === 0) break;
 
             for (const q of data) {
+                if (created >= capped) break;
+
                 const dofusDbId = Number(q?.id) || null;
                 const name = String(q?.name?.fr || q?.name || q?.className || "").trim();
                 if (!name) { errors++; continue; }
@@ -718,7 +979,11 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
                             levelMin: Number(q?.levelMin) || null,
                             levelMax: Number(q?.levelMax) || null,
                             description: q?.description?.fr || q?.description || null,
-                            imageUrl: q?.img || null,
+                            // 🖼️ Vrai visuel de la quête : la **carte de départ** DofusDB
+                            // (`startPosition[].mapId`), servie par le dépôt en tuile du jeu.
+                            // ⚠️ Mesure du 27/09/2026 : `/quests` **n'expose aucune image** — le
+                            // `q?.img` d'avant n'existait pas, d'où 0/1 976 visuels en base.
+                            imageUrl: questMapImageUrl(questStartMapId(q?.startPosition)),
                             category: String(q?.category?.name?.fr || "DofusDB").slice(0, 60),
                         },
                     });
@@ -729,8 +994,10 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
                 }
             }
 
-            fetched += data.length;
-            page++;
+            skip += data.length;
+
+            // Fin de pagination : DofusDB a renvoyé moins d'éléments que demandés.
+            if (data.length < take) break;
         }
 
         if (created > 0) revalidatePath('/god/game-data');
@@ -741,75 +1008,199 @@ export async function siphonQuestsFromDofusDB(limit = 100): Promise<ActionRespon
     }
 }
 
-
-// ===========================
-// DUNGEON ACHIEVEMENTS (Manual management)
-// ===========================
-
-export async function addDungeonAchievement(
-    dungeonId: string,
-    challengeId: string,
-    points: number = 10
-): Promise<ActionResponse<any>> {
-    const userId = await requireSuperAdmin();
-    if (!userId) return { success: false, error: "Accès refusé" };
-
+/**
+ * Action d'administration (GOD) pour déclencher le siphonnage intégral
+ * des donjons, monstres de salles et familles de boss DofusDB.
+ * Met à jour public/game-data/dungeon-monsters.json.
+ */
+export async function siphonDungeonMonstersDatasetAction(): Promise<ActionResponse<{
+    totalDungeons: number;
+    totalMonsters: number;
+    totalBossFamilies: number;
+}>> {
+    // Garde DANS le try : une exception du guard (session, DB) hors try remonte
+    // en "An unexpected response was received from the server" côté client.
     try {
-        const achievement = await db.dungeonAchievement.create({
-            data: { dungeonId, challengeId, points },
-            include: { challenge: true, dungeon: true }
-        });
+        const userId = await requireSuperAdmin();
+        if (!userId) return { success: false, error: "Accès refusé" };
 
+        const { siphonDungeonMonstersDataset } = await import("@/lib/dungeon-monsters-siphon");
+        const result = await siphonDungeonMonstersDataset();
         revalidatePath('/god/game-data');
-        return { success: true, data: achievement };
+        return { success: true, data: result };
     } catch (error: any) {
-        logger.error('[addDungeonAchievement] Error:', error);
-        if (error.code === 'P2002') {
-            return { success: false, error: 'Ce succès est déjà associé à ce donjon' };
+        logger.error('[siphonDungeonMonstersDatasetAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors du siphonnage des monstres et donjons' };
+    }
+}
+
+// 🛡️ Fail-closed : super-admin OU sous-god avec la brique « game-data » — les avis de
+// recherche sont un éditeur de cette interface (fusion D-4) : plus de brique ciblée
+// « game-data-bounties » (un délégué qui ne l'avait que doit recevoir `game-data`).
+async function requireGameDataBounties(): Promise<string | null> {
+    const session = await auth();
+    if (!session?.user?.id) return null;
+
+    if (await isSuperAdmin()) return session.user.id;
+    if (await canAccessBrick("game-data")) return session.user.id;
+
+    return null;
+}
+
+/**
+ * Siphon d'UNE race d'avis (journal temps réel côté God : 5 appels courts au
+ * lieu d'un seul appel de 60 s+ sujet aux coupures/timeout). Même garde et
+ * même idempotence que la passe complète.
+ */
+export async function siphonBountiesRaceAction(raceId: number): Promise<ActionResponse<{
+    raceId: number;
+    raceName: string;
+    synced: number;
+    unchanged: number;
+    total: number;
+    unproven: number;
+    images: number;
+    gradesBackfilled: number;
+    dropsBackfilled: number;
+    errors: string[];
+}>> {
+    try {
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
+
+        const id = Math.floor(Number(raceId) || 0);
+        const { BOUNTY_RACE_IDS, BOUNTY_RACE_NAMES } = await import("@/lib/bounty");
+        if (!(BOUNTY_RACE_IDS as readonly number[]).includes(id)) {
+            return { success: false, error: `Race inconnue : ${raceId}` };
         }
-        return { success: false, error: 'Erreur lors de l\'ajout' };
+
+        const { syncBounties } = await import("@/lib/bounty-siphon");
+        const result = await syncBounties([id]);
+        await logGameDataWrite("siphon-bounties-race", `race-${id}-synced-${result.synced}`, {
+            total: result.entries.length,
+            unproven: result.unproven,
+            errors: result.errors.length,
+        });
+        revalidatePath('/god/game-data');
+        return {
+            success: true,
+            data: {
+                raceId: id,
+                raceName: BOUNTY_RACE_NAMES[id] ?? `Race ${id}`,
+                synced: result.synced,
+                unchanged: result.unchanged,
+                total: result.entries.length,
+                unproven: result.unproven,
+                images: result.imagesSiphoned,
+                gradesBackfilled: result.gradesBackfilled,
+                dropsBackfilled: result.dropsBackfilled,
+                errors: result.errors,
+            },
+        };
+    } catch (error: any) {
+        logger.error('[siphonBountiesRaceAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors du siphon de la race' };
     }
 }
 
-export async function removeDungeonAchievement(
-    dungeonId: string,
-    challengeId: string
-): Promise<ActionResponse> {
-    const userId = await requireSuperAdmin();
-    if (!userId) return { success: false, error: "Accès refusé" };
-
+/** Avis de recherche **supprimés** (exclus du siphon) — lecture God. */
+export async function getIgnoredBountiesAction(): Promise<ActionResponse<{ entries: IgnoredBountyEntry[] }>> {
     try {
-        await db.dungeonAchievement.delete({
-            where: { dungeonId_challengeId: { dungeonId, challengeId } }
-        });
-
-        revalidatePath('/god/game-data');
-        return { success: true };
-    } catch (error) {
-        logger.error('[removeDungeonAchievement] Error:', error);
-        return { success: false, error: 'Erreur lors de la suppression' };
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
+        return { success: true, data: { entries: getIgnoredBounties() } };
+    } catch (error: any) {
+        logger.error('[getIgnoredBountiesAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur de lecture des exclusions' };
     }
 }
 
-export async function updateDungeonAchievementPoints(
-    dungeonId: string,
-    challengeId: string,
-    points: number
-): Promise<ActionResponse<any>> {
-    const userId = await requireSuperAdmin();
-    if (!userId) return { success: false, error: "Accès refusé" };
-
+/**
+ * Lignes `Bounty` **orphelines** (ni dans les 5 races DofusDB, ni exclues) — revue God.
+ * Source : l'instantané écrit par les passes COMPLÈTES (cron phase 4, worker BOUNTIES),
+ * `null` tant qu'aucune passe complète n'a tourné. L'exclusion en masse passe par
+ * `deleteBountyAction` (déjà testée), ligne par ligne ou en boucle côté client.
+ */
+export async function getBountyOrphansAction(): Promise<ActionResponse<{
+    orphans: { id: string; dofusdbId: number | null; name: string; slug: string }[];
+    total: number;
+    updatedAt: string | null;
+}>> {
     try {
-        const achievement = await db.dungeonAchievement.update({
-            where: { dungeonId_challengeId: { dungeonId, challengeId } },
-            data: { points }
-        });
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
+        const { getBountyOrphansSnapshot } = await import("@/server/game-data-sync-state-store");
+        const snapshot = await getBountyOrphansSnapshot();
+        return {
+            success: true,
+            data: snapshot ?? { orphans: [], total: 0, updatedAt: null },
+        };
+    } catch (error: any) {
+        logger.error('[getBountyOrphansAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur de lecture des orphelins' };
+    }
+}
 
+/**
+ * Supprime un avis de recherche : la ligne `Bounty` (+ sa fiche `MonsterStat`) est retirée **et**
+ * l'id entre dans la **liste d'exclusion** ⇒ le siphon ne le recrée pas à la passe suivante
+ * (sans cette liste, la suppression serait annulée chaque nuit).
+ */
+export async function deleteBountyAction(bountyId: string): Promise<ActionResponse<{
+    name: string;
+    dofusdbId: number | null;
+    entries: IgnoredBountyEntry[];
+}>> {
+    // Garde DANS le try (voir siphonDungeonMonstersDatasetAction).
+    try {
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
+        const bounty = await db.bounty.findUnique({
+            where: { id: String(bountyId) },
+            select: { id: true, name: true, dofusdbId: true },
+        });
+        if (!bounty) return { success: false, error: "Avis introuvable" };
+
+        await db.bounty.delete({ where: { id: bounty.id } });
+        if (bounty.dofusdbId) {
+            /* La fiche de combat (sorts/butin/simulation) suit la suppression de l'avis. */
+            await db.monsterStat.deleteMany({ where: { monsterId: bounty.dofusdbId } });
+        }
+        /* 🛡️ Exclusion TOUJOURS enregistrée (08/10/2026 : même sans `dofusdbId`) : une ligne
+           purement historique (`dofusdbId` nul) supprimée sans exclusion était RECRÉÉE à la
+           passe suivante quand son nom figure dans les races DofusDB — l'exclusion par nom
+           (`dofusdbId: 0`, voir `bounty-ignore.ts`) ferme ce trou. */
+        addIgnoredBounty(bounty.dofusdbId ?? 0, bounty.name);
+
+        await logGameDataWrite("delete-bounty", bounty.name, { dofusdbId: bounty.dofusdbId });
         revalidatePath('/god/game-data');
-        return { success: true, data: achievement };
-    } catch (error) {
-        logger.error('[updateDungeonAchievementPoints] Error:', error);
-        return { success: false, error: 'Erreur lors de la mise à jour' };
+        return {
+            success: true,
+            data: { name: bounty.name, dofusdbId: bounty.dofusdbId ?? null, entries: getIgnoredBounties() },
+        };
+    } catch (error: any) {
+        logger.error('[deleteBountyAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors de la suppression de l\'avis' };
+    }
+}
+
+/** Réintègre un avis supprimé (le prochain siphon le recrée). */
+export async function restoreBountyAction(dofusdbId: number, name?: string | null): Promise<ActionResponse<{ entries: IgnoredBountyEntry[] }>> {
+    try {
+        const userId = await requireGameDataBounties();
+        if (!userId) return { success: false, error: "Accès refusé" };
+        const id = Math.floor(Number(dofusdbId) || 0);
+        // 🔶 Les exclusions sans id (`dofusdbId: 0`, lignes historiques) se réintègrent
+        // par le nom normalisé — voir `removeIgnoredBounty`.
+        if (id <= 0 && !String(name ?? "").trim()) return { success: false, error: "Identifiant invalide" };
+
+        const entries = removeIgnoredBounty(id, name);
+        await logGameDataWrite("restore-bounty", id > 0 ? `dofusdbId-${id}` : `nom-${String(name ?? "").trim()}`);
+        revalidatePath('/god/game-data');
+        return { success: true, data: { entries } };
+    } catch (error: any) {
+        logger.error('[restoreBountyAction] Error:', error);
+        return { success: false, error: error?.message || 'Erreur lors de la réintégration' };
     }
 }
 
@@ -1165,7 +1556,13 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
             const challengeIdMap = new Map<string, string>(); // oldId → newId
 
             if (parsed.data.challenges) {
+                /* 🛡️ Anti-résurrection : un succès supprimé à la main n'est pas réimporté. */
+                const ignoredChallenges = getIgnoredChallenges();
                 for (const challenge of parsed.data.challenges) {
+                    if (isIgnoredChallenge(challenge.slug, ignoredChallenges)) {
+                        stats.skipped++;
+                        continue;
+                    }
                     // Find by name (natural unique key) — slug as fallback
                     const existing = await tx.challenge.findFirst({
                         where: {
@@ -1264,7 +1661,13 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
             // PHASE 4: Import Dungeons + Achievements
             // ============================
             if (parsed.data.dungeons) {
+                /* 🛡️ Anti-résurrection : un donjon supprimé à la main n'est pas réimporté. */
+                const ignoredDungeons = getIgnoredDungeons();
                 for (const dungeon of parsed.data.dungeons) {
+                    if (isIgnoredDungeon({ name: dungeon.name, bossName: dungeon.bossName }, ignoredDungeons)) {
+                        stats.skipped++;
+                        continue;
+                    }
                     // Find by composite natural key: name + bossName
                     const existing = await tx.dungeon.findFirst({
                         where: { name: dungeon.name, bossName: dungeon.bossName }
@@ -1292,6 +1695,9 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
                             data: {
                                 name: dungeon.name,
                                 bossName: dungeon.bossName,
+                                // Slug public généré depuis le nom du boss (unique, y
+                                // compris au sein de ce lot d'import).
+                                slug: await resolveUniqueDungeonSlug(dungeon.bossName, { client: tx }),
                                 level: dungeon.level,
                                 dpnlUrl: dungeon.dpnlUrl || null,
                                 imageUrl: dungeon.imageUrl || null,

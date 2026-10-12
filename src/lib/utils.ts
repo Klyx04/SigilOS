@@ -1,23 +1,63 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { logger } from "@/lib/logger"
 
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function getAppBaseUrl() {
-  // 1. Env override (Best practice)
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+/**
+ * Résolution de l'ORIGINE publique du site — fonction **pure** (donc testable) dont
+ * `getAppBaseUrl()` n'est qu'un habillage sur `process.env`.
+ *
+ * Priorité : `NEXT_PUBLIC_APP_URL` (explicite, posé par environnement) > `NEXTAUTH_URL` > repli prod.
+ * ⚠️ On n'utilise JAMAIS l'en-tête `Host` d'une requête entrante (il est falsifiable) : l'origine
+ * vient toujours de la configuration — c'est ce que consomme `metadataBase` dans `app/layout.tsx`.
+ * ⚠️ Le repli `https://sigilos.fr` est un **dernier recours** : sur un environnement où aucune des
+ * deux variables n'est posée, les `canonical`, le sitemap et les images OpenGraph désigneraient le
+ * mauvais domaine. C'est exactement la cause du « Impossible de récupérer le sitemap » du 03/08/2026
+ * ⇒ l'absence de configuration est désormais **signalée** (voir `getAppBaseUrl`) au lieu d'être muette.
+ */
+export function resolveAppBaseUrl(env: {
+  NEXT_PUBLIC_APP_URL?: string
+  NEXTAUTH_URL?: string
+}): { url: string; configured: boolean } {
+  const explicit = env.NEXT_PUBLIC_APP_URL?.trim()
+  if (explicit) return { url: explicit, configured: true }
 
-  // 2. Auth URL fallback (often set in Vercel/VPS)
-  if (process.env.NEXTAUTH_URL) {
-    if (process.env.NEXTAUTH_URL.includes("beta.sigilos.fr")) return "https://beta.sigilos.fr";
-    return process.env.NEXTAUTH_URL;
+  const auth = env.NEXTAUTH_URL?.trim()
+  if (auth) {
+    return {
+      url: auth.includes("beta.sigilos.fr") ? "https://beta.sigilos.fr" : auth,
+      configured: true,
+    }
   }
 
-  // 3. Default fallback (Prod)
-  return "https://sigilos.fr";
+  return { url: "https://sigilos.fr", configured: false }
+}
+
+/** Évite de répéter l'avertissement à chaque appel (le module est chargé une fois par process). */
+let missingOriginWarned = false
+
+export function getAppBaseUrl() {
+  // Les deux variables lues sont nommées explicitement (audit facile, et pas de `process.env`
+  // entier qui se ferait passer pour un objet de configuration).
+  const { url, configured } = resolveAppBaseUrl({
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  })
+
+  // Côté serveur uniquement : inutile de polluer la console du navigateur d'un visiteur.
+  if (!configured && !missingOriginWarned && typeof window === "undefined") {
+    missingOriginWarned = true
+    logger.warn(
+      "[seo] Aucune origine configurée (NEXT_PUBLIC_APP_URL / NEXTAUTH_URL) : repli sur https://sigilos.fr. " +
+        "Les canonical, le sitemap et les images OpenGraph peuvent désigner le mauvais domaine."
+    )
+  }
+
+  return url
 }
 
 /**

@@ -3,16 +3,16 @@
 import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, AlertTriangle, Hash, Bell, Users } from "lucide-react";
 import { toast } from "sonner";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { getPollSettings, updatePollSettings } from "@/server/actions/poll-actions";
 import { cn } from "@/lib/utils";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 
 interface PollSettingsClientProps {
     guildId: string;
@@ -26,6 +26,13 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
     const [pollsPingRoleIds, setPollsPingRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
 
+    // — Détection « modifications non sauvegardées » (snapshot chargé vs état courant)
+    const [initialConfig, setInitialConfig] = useState<{ channelId: string; pollsPingRoleIds: string[] } | null>(null);
+    const hasUnsavedChanges = isDirty(
+        { channelId, pollsPingRoleIds: [...pollsPingRoleIds].sort() },
+        initialConfig ? { channelId: initialConfig.channelId, pollsPingRoleIds: [...initialConfig.pollsPingRoleIds].sort() } : null
+    );
+
     useEffect(() => {
         async function loadConfig() {
             const [result, rolesRes] = await Promise.all([
@@ -36,6 +43,10 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                 setChannelId(result.data.pollsNotifyChannelId || "");
                 setIsConfigured(!!result.data.pollsNotifyChannelId);
                 setPollsPingRoleIds(result.data.pollsPingRoleIds || []);
+                setInitialConfig({
+                    channelId: result.data.pollsNotifyChannelId || "",
+                    pollsPingRoleIds: result.data.pollsPingRoleIds || [],
+                });
             }
             if (rolesRes.success && rolesRes.roles) {
                 setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
@@ -55,6 +66,7 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
             if (result.success && pingRolesResult.success) {
                 toast.success("Configuration des sondages sauvegardée !");
                 setIsConfigured(!!channelId.trim());
+                setInitialConfig({ channelId: channelId.trim(), pollsPingRoleIds: [...pollsPingRoleIds] });
             } else {
                 toast.error(result.error || pingRolesResult.error || "Erreur lors de la sauvegarde");
             }
@@ -71,6 +83,7 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
 
     return (
         <div className="space-y-6">
+            <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
             <Card className="bg-surface/60 border-border">
                 <CardHeader>
                     <div className="flex items-center justify-between">
@@ -102,13 +115,11 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                             <Hash className="w-3.5 h-3.5" />
                             Salon d'annonce par défaut
                         </Label>
-                        <Input
+                        <DiscordChannelPicker
+                            guildId={guildId}
                             value={channelId}
-                            onChange={(e) => setChannelId(e.target.value)}
-                            placeholder="ID du salon Discord (ex: 123456789...)"
-                            className="font-mono bg-black/20 border-border focus:border-info/50"
+                            onChange={setChannelId}
                         />
-                        <ChannelPreview guildId={guildId} channelId={channelId} color="cyan" />
                         <p className="text-caption text-muted-foreground italic">
                             Le salon où les nouveaux sondages seront publiés automatiquement si l'option est cochée lors de la création.
                         </p>
@@ -149,6 +160,7 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                                 <Save className="w-4 h-4 mr-2" />
                             )}
                             Sauvegarder
+                            {hasUnsavedChanges && !isPending && <span className="ml-2 w-2 h-2 rounded-full bg-white animate-pulse" title="Modifications non sauvegardées" />}
                         </Button>
                     </div>
                 </CardContent>
@@ -161,10 +173,9 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                         <Hash className="w-4 h-4 text-info" />
                     </div>
                     <div className="space-y-1">
-                        <h4 className="text-sm font-medium text-info">Comment obtenir les IDs ?</h4>
+                        <h4 className="text-sm font-medium text-info">Comment choisir un salon ?</h4>
                         <p className="text-xs text-info/70 leading-relaxed">
-                            Activez le <strong>Mode Développeur</strong> dans vos paramètres Discord (Apparence {'>'} Avancé).
-                            Ensuite, faites un clic droit sur un salon ou un rôle et choisissez <strong>"Copier l'identifiant"</strong>.
+                            Sélectionnez le salon dans la liste déroulante — plus besoin de copier son identifiant.
                         </p>
                     </div>
                 </CardContent>

@@ -1,5 +1,7 @@
 "use server";
 import { logger } from "@/lib/logger";
+import { resolveModule, sanitizeTelemetryDetails } from "@/lib/telemetry/normalize";
+import { buildFunnel, deriveGuildHealth, splitEngagement } from "@/lib/telemetry/aggregate";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -38,7 +40,7 @@ export async function logTelemetryEvent(rawInput: z.infer<typeof logTelemetrySch
                 path: data.path,
                 eventType: data.eventType,
                 elementId: data.elementId || null,
-                details: data.details || {},
+                details: sanitizeTelemetryDetails(data.details),
             }
         });
 
@@ -134,7 +136,7 @@ export async function getTelemetryStats(filterGuildId?: string) {
                 }),
                 _count: true,
                 orderBy: { _count: { elementId: "desc" } },
-                take: 15
+                take: 200
             }),
             // Top Active Users — group only by userId (lighter scan), enrich names later via profileMap
             dbAny.telemetryEvent.groupBy({
@@ -311,21 +313,8 @@ export async function getTelemetryStats(filterGuildId?: string) {
             };
         });
 
-        // Extract module name helper
-        const getModuleName = (path: string) => {
-            if (!path) return "Général";
-            if (path.includes("/raids")) return "Raid Hub";
-            if (path.includes("/stuff-gallery") || path.includes("/stuffs")) return "Galerie de Stuffs";
-            if (path.includes("/almanax")) return "Almanax";
-            if (path.includes("/shop")) return "Boutique";
-            if (path.includes("/quests") || path.includes("/dofus")) return "Quêtes & Succès";
-            if (path.includes("/minigames") || path.includes("/games")) return "Mini-Jeux";
-            if (path.includes("/members") || path.includes("/roster")) return "Roster & Membres";
-            if (path.includes("/god")) return "Administration God";
-            if (path.includes("/settings") || path.includes("/config")) return "Configuration";
-            if (path.includes("/dashboard") || path === "/") return "Accueil / Tableau de bord";
-            return "Autre Module";
-        };
+        // Cartographie chemin → module : règle pure et testée (`resolveModule`, module
+        // `src/lib/telemetry/normalize.ts`). Elle ne vit plus dans l'action : source unique.
 
         // Module Stats aggregation (groupBy path over 30 days to avoid fetching all raw events in memory)
         const moduleEventsRaw = await dbAny.telemetryEvent.groupBy({
@@ -334,9 +323,24 @@ export async function getTelemetryStats(filterGuildId?: string) {
             _count: { id: true }
         });
 
+        // Membres **réellement** distincts par module (30 j) : remplace l'estimation inventée
+        // `views / 3`. Group by `path + userId` → un utilisateur compte une fois par module.
+        const moduleUsersRaw = await dbAny.telemetryEvent.groupBy({
+            by: ["path", "userId"],
+            where: withGuild({ createdAt: { gte: thirtyDaysAgo } }),
+            _count: { id: true }
+        });
+
+        const moduleUserSets = new Map<string, Set<string>>();
+        moduleUsersRaw.forEach((row: any) => {
+            const mod = resolveModule(row.path);
+            if (!moduleUserSets.has(mod)) moduleUserSets.set(mod, new Set<string>());
+            if (row.userId) moduleUserSets.get(mod)!.add(row.userId);
+        });
+
         const moduleStatsMap = new Map<string, { views: number; interactions: number; uniqueUsersCount: number }>();
         moduleEventsRaw.forEach((ev: any) => {
-            const mod = getModuleName(ev.path);
+            const mod = resolveModule(ev.path);
             if (!moduleStatsMap.has(mod)) {
                 moduleStatsMap.set(mod, { views: 0, interactions: 0, uniqueUsersCount: 0 });
             }
@@ -351,14 +355,95 @@ export async function getTelemetryStats(filterGuildId?: string) {
             views: data.views,
             interactions: data.interactions,
             totalActions: data.views + data.interactions,
-            uniqueUsersCount: data.views > 0 ? Math.ceil(data.views / 3) : 1
+            uniqueUsersCount: moduleUserSets.get(name)?.size ?? 0
         })).sort((a, b) => b.totalActions - a.totalActions);
 
-        // List of all available guilds for the dropdown selector
+        // 8. #34 / #194 — 7-Day x 24-Hour Activity Heatmap Matrix
+        const sevenDaysEvents = await dbAny.telemetryEvent.findMany({
+            where: withGuild({ createdAt: { gte: sevenDaysAgo } }),
+            select: { createdAt: true }
+        });
+
+        // Initialize 7 (days: 0=Dim, 1=Lun, ..., 6=Sam) x 24 (hours: 0..23)
+        const heatmapMatrix: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
+        let maxHeatmapValue = 0;
+
+        sevenDaysEvents.forEach((ev: any) => {
+            const d = new Date(ev.createdAt);
+            const day = d.getDay(); // 0-6
+            const hour = d.getHours(); // 0-23
+            heatmapMatrix[day][hour] += 1;
+            if (heatmapMatrix[day][hour] > maxHeatmapValue) {
+                maxHeatmapValue = heatmapMatrix[day][hour];
+            }
+        });
+
+        const dayNames = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+        const heatmapData = heatmapMatrix.map((hours, dayIndex) => ({
+            day: dayNames[dayIndex],
+            dayIndex,
+            hours: hours.map((count, hour) => ({
+                hour,
+                count,
+                intensity: maxHeatmapValue > 0 ? Number((count / maxHeatmapValue).toFixed(2)) : 0
+            }))
+        }));
+
+        // Build availableGuilds for the selector in the dashboard
         const availableGuilds = guildConfigs.map((g: any) => ({
             id: g.id,
+            name: g.name || "Guilde sans nom",
+            discordGuildId: g.discordGuildId
+        }));
+
+        // 9. #34 / #194 — Funnel d'Activation Plateforme
+        // Chaque marche a une population propre : « profils » (`UserProfile`) et « membres »
+        // (`TelemetryEvent.userId`) ne sont **pas** imbriqués. On le signale (`exceedsPrevious`)
+        // au lieu de fabriquer un pourcentage négatif (cf. `buildFunnel`, règle pure testée).
+        const [totalAccountsCount, totalProfilesCount, activeQuestsUsersCount] = await Promise.all([
+            filterGuildId
+                ? db.userProfile
+                    .groupBy({ by: ["userId"], where: { guildId: filterGuildId }, _count: true })
+                    .then((r: unknown[]) => r.length)
+                : db.user.count(),
+            db.userProfile.count({ where: filterGuildId ? { guildId: filterGuildId } : undefined }),
+            dbAny.playerDofusProgress.groupBy({
+                by: ["profileId"],
+                where: filterGuildId ? { guildId: filterGuildId } : undefined,
+                _count: true
+            }).then((r: unknown[]) => r.length).catch(() => 0)
+        ]);
+
+        const activationFunnel = buildFunnel([
+            { step: filterGuildId ? "Comptes rattachés à la guilde" : "Comptes créés", count: totalAccountsCount },
+            { 
+                step: "Profils configurés",
+                count: totalProfilesCount,
+            },
+            { 
+                step: "Dofus suivis (profils initiés)",
+                count: activeQuestsUsersCount,
+            },
+            { 
+                step: "Membres actifs (7 j, journal d'audit)",
+                count: uniqueUsers7d.length,
+            }
+        ]);
+
+        // 10. #34 / #194 — Matrice de Santé & Rétention des Guildes (Guild Health Index)
+        // Statut et score **dérivés de la distribution observée** (quartiles du classement 7 j),
+        // sans seuil inventé : règle pure et testée dans `deriveGuildHealth`
+        // (`tests/unit/telemetry-aggregate.test.ts`). Le score est un rang centile, pas une note.
+        const guildHealthList = deriveGuildHealth(guildConfigs.map((g: any) => ({
+            id: g.id,
             discordGuildId: g.discordGuildId,
-            name: g.name || "Guilde sans nom"
+            name: g.name || "Guilde sans nom",
+            actions7d: guildActivity.find((ga: any) => ga.guildId === g.id)?.count || 0,
+        })));
+
+        const topInteractions = topInteractionsRaw.map((i: any) => ({
+            elementId: i.elementId || "unknown",
+            count: i._count
         }));
 
         return {
@@ -379,6 +464,9 @@ export async function getTelemetryStats(filterGuildId?: string) {
             },
             availableGuilds,
             moduleStats,
+            heatmapData,
+            activationFunnel,
+            guildHealthList,
             liveEvents: liveEvents.map((e: any) => {
                 const resolvedGuildId = e.guildId || null;
                 return {
@@ -398,10 +486,10 @@ export async function getTelemetryStats(filterGuildId?: string) {
                 path: p.path,
                 count: p._count
             })),
-            topInteractions: topInteractionsRaw.map((i: any) => ({
-                elementId: i.elementId || "unknown",
-                count: i._count
-            })),
+            topInteractions,
+            // Tête / queue de classement **jamais recouvrantes** (`splitEngagement`) : la queue
+            // reste `null` tant que l'échantillon ne permet pas de parler d'un « flop ».
+            engagement: splitEngagement(topInteractions),
             topUsers,
             guildActivity,
             usersLastSeen,
@@ -412,4 +500,56 @@ export async function getTelemetryStats(filterGuildId?: string) {
         throw err;
     }
 }
+
+/**
+ * Export telemetry data in CSV or JSON format for analytics
+ */
+export async function exportTelemetryDataAction(filterGuildId?: string, format: "json" | "csv" = "json") {
+    try {
+        const isAdmin = await isSuperAdmin();
+        if (!isAdmin) return { success: false, error: "Unauthorized" };
+
+        const where = filterGuildId ? { guildId: filterGuildId } : undefined;
+        const events = await dbAny.telemetryEvent.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            take: 2000
+        });
+
+        if (format === "json") {
+            return {
+                success: true,
+                data: JSON.stringify(events, null, 2),
+                mimeType: "application/json",
+                fileName: `sigilos-telemetry-${new Date().toISOString().slice(0, 10)}.json`
+            };
+        }
+
+        // Generate CSV
+        const headers = ["id", "createdAt", "userId", "userName", "guildId", "eventType", "path", "elementId"];
+        const rows = events.map((e: any) => [
+            e.id,
+            e.createdAt ? new Date(e.createdAt).toISOString() : "",
+            e.userId || "",
+            `"${(e.userName || "").replace(/"/g, '""')}"`,
+            e.guildId || "",
+            e.eventType || "",
+            `"${(e.path || "").replace(/"/g, '""')}"`,
+            `"${(e.elementId || "").replace(/"/g, '""')}"`
+        ]);
+
+        const csvContent = [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
+
+        return {
+            success: true,
+            data: csvContent,
+            mimeType: "text/csv",
+            fileName: `sigilos-telemetry-${new Date().toISOString().slice(0, 10)}.csv`
+        };
+    } catch (err) {
+        logger.error("[exportTelemetryDataAction Error]:", err);
+        return { success: false, error: "Failed to export data" };
+    }
+}
+
 

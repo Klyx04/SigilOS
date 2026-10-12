@@ -1,0 +1,309 @@
+/**
+ * 🧺 Marché — **lot multiple** (décision user du 14/09/2026, **option A**).
+ *
+ * Règles métier **pures** (zéro I/O, zéro Prisma) : bornes du lot, prix **par
+ * objet**, cycle de vie d'un objet, avancement, dérivation du statut de
+ * l'annonce. Partagé par l'assistant (client), les server actions et le moteur
+ * Discord ⇒ **une seule vérité**, testée unitairement (§13.4).
+ *
+ * Décisions actées : **2 à 5 objets** (familles mélangées) · **le prix vit sur
+ * l'objet**, jamais sur le lot · chaque objet est réservable séparément à son
+ * prix et publié dans **son** message Discord (option A).
+ *
+ * Plan : `refonte-marche/PLAN-LOT-MULTIPLE.md`.
+ */
+
+import { z } from "zod";
+
+import { formatGroupedInteger } from "@/lib/market/kamas";
+
+/** Un lot se compose au minimum de **2** objets (sinon c'est une annonce simple). */
+export const MARKET_BUNDLE_MIN_ITEMS = 2;
+
+/** … et au maximum de **5** objets (décision user, bornes de l'assistant). */
+export const MARKET_BUNDLE_MAX_ITEMS = 5;
+
+/** Statuts d'**un objet** de lot (miroir exact de l'enum `MarketComponentStatus`). */
+export type BundleItemStatus = "AVAILABLE" | "RESERVED" | "SOLD";
+
+/** Motifs de refus d'une réservation sur un objet (typés, jamais de throw §13.5). */
+export type BundleReserveRefusal = "NOT_AVAILABLE" | "ALREADY_RESERVED" | "SOLD";
+
+/**
+ * Objet minimal dont dépend la logique pure. `name`/`quantity` sont optionnels
+ * pour accepter aussi bien un `MarketListingComponent` complet qu'une projection
+ * `{ status }` (redérivation du statut d'annonce en base).
+ */
+export interface BundleComponentLike {
+    id?: string;
+    name?: string;
+    quantity?: number;
+    priceKamas?: number | null;
+    status?: BundleItemStatus | null;
+    position?: number | null;
+}
+
+/** Saisie d'un objet de lot (formulaire de l'assistant). */
+export interface BundleItemInput {
+    dofusDbItemId?: number | null;
+    name: string;
+    iconUrl?: string | null;
+    quantity: number;
+    unitLabel?: string | null;
+    priceKamas: number;
+    /**
+     * Jet déclaré **de cet objet** (correctif 10/10/2026) : renseigné uniquement
+     * pour un objet de type équipement (l'éditeur n'est proposé que dans ce cas).
+     * `undefined` / `[]` = vente brute. Le serveur recalcule plages et qualité.
+     */
+    stats?: BundleItemStatInput[];
+}
+
+/** Ligne de jet d'un objet de lot (miroir de `marketStatSchema`, sans `quality`). */
+export interface BundleItemStatInput {
+    effectId: number;
+    characteristic?: number | null;
+    label: string;
+    naturalMin?: number | null;
+    naturalMax?: number | null;
+    actualValue: number;
+    origin?: "NATIVE" | "EXO";
+}
+
+/**
+ * Schéma Zod d'une ligne de jet d'objet (bornes alignées sur l'annonce unitaire :
+ * `MARKET_LIMITS` vit côté serveur, ici les bornes sont recopiées sans duplication
+ * de règle métier — le serveur reste seul juge).
+ */
+export const bundleItemStatSchema = z.object({
+    effectId: z
+        .number({ message: "Ligne de jet incomplète : effet non reconnu." })
+        .int("Ligne de jet incomplète : effet non reconnu."),
+    characteristic: z
+        .number({ message: "Ligne de jet incomplète : caractéristique non reconnue." })
+        .int("Ligne de jet incomplète : caractéristique non reconnue.")
+        .nullable()
+        .optional(),
+    label: z
+        .string({ message: "Ligne de jet sans nom." })
+        .trim()
+        .min(1, "Ligne de jet sans nom : supprime-la ou choisis un effet dans la liste.")
+        .max(80, "Nom d'effet trop long."),
+    naturalMin: z.number().int("Plage native invalide.").nullable().optional(),
+    naturalMax: z.number().int("Plage native invalide.").nullable().optional(),
+    actualValue: z
+        .number({ message: "Valeur de jet invalide : un nombre entier est attendu." })
+        .int("Valeur de jet invalide : un nombre entier est attendu.")
+        .min(-9_999, "Valeur invraisemblable, vérifie ta saisie.")
+        .max(99_999, "Valeur invraisemblable, vérifie ta saisie."),
+    origin: z.enum(["NATIVE", "EXO"]).default("NATIVE"),
+});
+
+/**
+ * Schéma Zod d'**un** objet de lot.
+ *
+ * `priceKamas` est **obligatoire et strictement positif** : on ne publie jamais
+ * un objet « à négocier » dans un lot (c'est le rôle de `WANTED`). Borne haute
+ * volontaire (1 000 000 000) : garde-fou anti-saisie.
+ */
+export const bundleItemSchema = z.object({
+    dofusDbItemId: z
+        .number({ message: "Objet du catalogue invalide." })
+        .int("Objet du catalogue invalide.")
+        .positive("Objet du catalogue invalide.")
+        .nullable()
+        .optional(),
+    name: z
+        .string()
+        .trim()
+        .min(1, "Choisis un objet du catalogue pour chaque ligne.")
+        .max(120, "Nom d'objet trop long."),
+    iconUrl: z.string().trim().max(500, "Adresse d'icône trop longue.").nullable().optional(),
+    quantity: z
+        .number()
+        .int()
+        .min(1, "Indique une quantité d'au moins 1.")
+        .max(100_000, "Quantité trop élevée pour un lot."),
+    unitLabel: z.string().trim().max(24, "Libellé d'unité trop long.").nullable().optional(),
+    priceKamas: z
+        .number()
+        .int()
+        .min(1, "Indique un prix en kamas pour chaque objet (au moins 1 kama).")
+        .max(1_000_000_000, "Prix trop élevé : vérifie ta saisie."),
+    /**
+     * Jet de cet objet (30 lignes max, comme l'unitaire). Le serveur refuse les
+     * stats sur un objet non-équipement (garde famille par objet).
+     */
+    stats: z.array(bundleItemStatSchema).max(30).default([]),
+});
+
+/**
+ * Schéma Zod du **lot complet** : 2 à 5 objets, **noms uniques** (deux fois le
+ * même objet rendrait les boutons Discord indiscernables).
+ */
+export const bundleItemsSchema = z
+    .array(bundleItemSchema)
+    .min(MARKET_BUNDLE_MIN_ITEMS, `Un lot doit contenir au moins ${MARKET_BUNDLE_MIN_ITEMS} objets.`)
+    .max(MARKET_BUNDLE_MAX_ITEMS, `Un lot ne peut pas dépasser ${MARKET_BUNDLE_MAX_ITEMS} objets.`)
+    .refine(
+        (items) => new Set(items.map((item) => item.name.toLowerCase())).size === items.length,
+        { message: "Un lot ne peut pas contenir deux fois le même objet." }
+    );
+
+/** Total du lot = somme des prix **par objet** (calculé serveur, jamais le client). */
+export function computeBundleTotal(items: readonly { priceKamas?: number | null }[]): number {
+    return items.reduce((sum, item) => sum + Math.max(0, Math.trunc(item.priceKamas ?? 0)), 0);
+}
+
+/**
+ * Prix à l'unité d'un objet (affichage « 1 000 — 12 k / unité »).
+ * `null` si la quantité est ≤ 0 : on n'affiche jamais un prix faux.
+ */
+export function computeItemUnitPrice(priceKamas: number, quantity: number): number | null {
+    if (quantity <= 0) return null;
+    return Math.round(Math.max(0, priceKamas) / quantity);
+}
+
+/**
+ * « 12 500 » → `12 500 kamas`.
+ *
+ * ⚠️ **BUG-9** : formatage **déterministe** via le formateur partagé
+ * (`formatGroupedInteger`, espace fine insécable U+202F) — jamais
+ * `toLocaleString`, dont le rendu dépend de l'ICU du serveur ou du navigateur.
+ */
+export function formatKamas(value: number): string {
+    return `${formatGroupedInteger(Math.max(0, Math.trunc(value)))} kamas`;
+}
+
+/**
+ * Un objet peut-il être réservé ?
+ *
+ * `status` absent = `AVAILABLE` : les objets créés **avant** la migration
+ * restent réservables sans backfill. Refus **typés** pour que l'UI et Discord
+ * disent *pourquoi* (§13.5, jamais muet).
+ */
+export function canReserveComponent(
+    component: Pick<BundleComponentLike, "status">
+): { ok: true } | { ok: false; refusal: BundleReserveRefusal } {
+    const status: BundleItemStatus = component.status ?? "AVAILABLE";
+    if (status === "SOLD") return { ok: false, refusal: "SOLD" };
+    if (status === "RESERVED") return { ok: false, refusal: "ALREADY_RESERVED" };
+    return { ok: true };
+}
+
+/** Message d'UI associé à un refus (aucun montant, aucun pseudo §13.7). */
+export const BUNDLE_REFUSAL_MESSAGES: Record<BundleReserveRefusal, string> = {
+    NOT_AVAILABLE: "Cet objet n'est plus disponible.",
+    ALREADY_RESERVED: "Cet objet est déjà réservé par un autre membre.",
+    SOLD: "Cet objet a déjà été vendu.",
+};
+
+/** Avancement d'un lot (compteurs + part vendue, pour la barre de progression). */
+export interface BundleProgress {
+    total: number;
+    available: number;
+    reserved: number;
+    sold: number;
+    /** Part vendue en pourcentage entier (0-100), arrondie — jamais `NaN`. */
+    percentSold: number;
+}
+
+export function describeBundleProgress(components: readonly BundleComponentLike[]): BundleProgress {
+    const total = components.length;
+    let available = 0;
+    let reserved = 0;
+    let sold = 0;
+
+    for (const component of components) {
+        switch (component.status ?? "AVAILABLE") {
+            case "SOLD":
+                sold += 1;
+                break;
+            case "RESERVED":
+                reserved += 1;
+                break;
+            default:
+                available += 1;
+        }
+    }
+
+    return {
+        total,
+        available,
+        reserved,
+        sold,
+        percentSold: total === 0 ? 0 : Math.round((sold / total) * 100),
+    };
+}
+
+/**
+ * Statut de l'**annonce** déduit de ses objets : `SOLD` seulement si **tous**
+ * les objets sont vendus, `RESERVED` dès qu'un objet est réservé, `ACTIVE`
+ * sinon. Un lot sans objet reste `ACTIVE` (état transitoire de création).
+ */
+export function deriveBundleListingStatus(
+    components: readonly BundleComponentLike[]
+): "ACTIVE" | "RESERVED" | "SOLD" {
+    if (components.length === 0) return "ACTIVE";
+    if (components.every((component) => (component.status ?? "AVAILABLE") === "SOLD")) {
+        return "SOLD";
+    }
+    if (components.some((component) => (component.status ?? "AVAILABLE") !== "AVAILABLE")) {
+        return "RESERVED";
+    }
+    return "ACTIVE";
+}
+
+/** Résumé d'un lot sur une ligne : `3/5 disponible(s) · 1 vendu(s) · 25 000 kamas`. */
+export function summarizeBundle(components: readonly BundleComponentLike[]): string {
+    const progress = describeBundleProgress(components);
+    return [
+        `${progress.available}/${progress.total} disponible(s)`,
+        progress.reserved > 0 ? `${progress.reserved} réservé(s)` : null,
+        progress.sold > 0 ? `${progress.sold} vendu(s)` : null,
+        formatKamas(computeBundleTotal(components)),
+    ]
+        .filter((part): part is string => part !== null)
+        .join(" · ");
+}
+
+/** Clé d'appariement d'un objet de lot à l'édition (noms uniques, § bundleItemsSchema). */
+export function bundleComponentKey(name: string): string {
+    return name.trim().toLowerCase();
+}
+
+export type PreservedBundleComponent = {
+    id: string;
+    name: string;
+    status?: BundleItemStatus | null;
+    reservedAt?: Date | string | null;
+    soldAt?: Date | string | null;
+    discordChannelId?: string | null;
+    discordMessageId?: string | null;
+};
+
+/**
+ * Correctif 10/10/2026 — **l'édition d'un lot conserve l'état** : un objet qui
+ * existe toujours (même nom, insensible à la casse) garde son statut
+ * (`AVAILABLE`/`RESERVED`/`SOLD`), ses horodatages et ses traces Discord.
+ * Sans cela, modifier le prix d'un objet effaçait les réservations des autres
+ * et orphelinait leurs messages Discord.
+ *
+ * Pur (testé) : le serveur applique le résultat, jamais l'inverse.
+ */
+export function matchPreservedBundleComponents(
+    existing: readonly PreservedBundleComponent[],
+    incomingNames: readonly string[]
+): Map<string, PreservedBundleComponent> {
+    const byKey = new Map<string, PreservedBundleComponent>();
+    for (const row of existing) {
+        const key = bundleComponentKey(row.name);
+        if (!byKey.has(key)) byKey.set(key, row);
+    }
+    const preserved = new Map<string, PreservedBundleComponent>();
+    for (const name of incomingNames) {
+        const found = byKey.get(bundleComponentKey(name));
+        if (found) preserved.set(name, found);
+    }
+    return preserved;
+}

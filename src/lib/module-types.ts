@@ -32,7 +32,11 @@ export type ModuleKey =
     | "ladderSync"
     | "manualLadderSync"
     | "minigames"
-    | "succes";
+    | "succes"
+    | "reactionRoles"
+    | "tickets"
+    | "marche"
+    | "commandes";
 
 export type GuildModulesState = {
     // Général
@@ -57,6 +61,8 @@ export type GuildModulesState = {
     logs: boolean;
     polls: boolean;
     admin: boolean;
+    reactionRoles: boolean;
+    tickets: boolean;
     // Coming Soon
     quests: boolean;
     worldmap: boolean;
@@ -66,6 +72,9 @@ export type GuildModulesState = {
     manualLadderSync: boolean;
     minigames: boolean;
     succes: boolean;
+    /** Module « Marché » (annonces FM) — OFF par défaut (D15). */
+    marche: boolean;
+    commandes: boolean;
 };
 
 /**
@@ -98,6 +107,8 @@ export const DEFAULT_MODULES: GuildModulesState = {
     logs: false,
     polls: false,
     admin: true, // nécessaire à l'admin pour se configurer à l'arrivée
+    reactionRoles: true,
+    tickets: true,
     quests: false,
     worldmap: false,
     resources: false,
@@ -105,4 +116,12 @@ export const DEFAULT_MODULES: GuildModulesState = {
     manualLadderSync: false,
     minigames: false,
     succes: false,
+    // Marché (annonces FM) : module inactif par défaut — l'admin l'active
+    // explicitement (règle « rien d'actif sauf le nécessaire à l'arrivée »).
+    marche: false,
+    // Catalogue des commandes slash : piloté par toggle (cohérence
+    // "désactivé = invisible"). Inactif par défaut pour les nouvelles guildes
+    // (ligne absente) ; les guildes existantes gardent true via la migration.
+    commandes: false,
 };
+

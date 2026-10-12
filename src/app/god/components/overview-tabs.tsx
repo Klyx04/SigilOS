@@ -21,7 +21,30 @@ interface OverviewTabsProps {
 export function OverviewTabs({ stats, chart, communication, worker }: OverviewTabsProps) {
     return (
         <div className="space-y-12">
-            {/* Section 1: System Status & Infrastructure (Immediate Full-Width Visibility) */}
+            {/* Section 1: Platform KPIs — rendu RÉTABLI (les props `stats`/`chart` étaient reçues
+                mais jamais affichées depuis fbbbc8a8 : l'écran affichait « 0 » sans que rien ne casse). */}
+            <motion.div className="space-y-4" {...sectionFade}>
+                <GodSectionHeader
+                    title="Indicateurs plateforme"
+                    description="Guildes, aventuriers, profils, missions et activité sur 7 jours — flux temps réel."
+                />
+                {stats}
+            </motion.div>
+
+            {/* Section 2: Platform Activity Chart (30 days) */}
+            <motion.div
+                className="space-y-4"
+                {...sectionFade}
+                transition={{ ...sectionFade.transition, delay: 0.05 }}
+            >
+                <GodSectionHeader
+                    title="Activité de la plateforme"
+                    description="Nouveaux inscrits (produit) et volume du journal d'audit (technique) sur 30 jours."
+                />
+                {chart}
+            </motion.div>
+
+            {/* Section 3: System Status & Infrastructure (Immediate Full-Width Visibility) */}
             <motion.div className="space-y-4" {...sectionFade}>
                 <GodSectionHeader
                     title="État des Services & Infrastructures"

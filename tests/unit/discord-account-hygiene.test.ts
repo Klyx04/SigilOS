@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockAccountFindFirst = vi.fn();
 const mockAccountDeleteMany = vi.fn();
 const mockSessionDeleteMany = vi.fn();
+const mockProfileUpdateMany = vi.fn();
 vi.mock("@/lib/prisma", () => ({
     db: {
         account: {
@@ -18,6 +19,9 @@ vi.mock("@/lib/prisma", () => ({
         },
         session: {
             deleteMany: (...args: any[]) => mockSessionDeleteMany(...args),
+        },
+        userProfile: {
+            updateMany: (...args: any[]) => mockProfileUpdateMany(...args),
         },
     },
 }));
@@ -46,12 +50,18 @@ describe("revokeDiscordAccountSession (APPLICATION_DEAUTHORIZED)", () => {
 
     it("dé-lie le compte OAuth ET purge les sessions (hygiène complète)", async () => {
         mockAccountFindFirst.mockResolvedValue({ userId: "user-42" });
+        mockProfileUpdateMany.mockResolvedValue({ count: 1 });
         mockAccountDeleteMany.mockResolvedValue({ count: 1 });
         mockSessionDeleteMany.mockResolvedValue({ count: 3 });
 
         const result = await revokeDiscordAccountSession("123456789012345678");
 
         expect(result).toEqual({ revoked: true, userId: "user-42" });
+        // #8 : les profils ACTIVE sont archivés AVANT la dé-liaison (anti-fantôme)
+        expect(mockProfileUpdateMany).toHaveBeenCalledWith({
+            where: { userId: "user-42", status: "ACTIVE" },
+            data: expect.objectContaining({ status: "ARCHIVED", archiveReason: "DEAUTHORIZED" }),
+        });
         expect(mockAccountDeleteMany).toHaveBeenCalledWith({
             where: { userId: "user-42", provider: "discord" },
         });

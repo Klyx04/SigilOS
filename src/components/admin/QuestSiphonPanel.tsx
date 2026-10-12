@@ -44,18 +44,26 @@ export function QuestSiphonPanel() {
                     <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                         <Download className="w-5 h-5 text-sky-400" />
                         Siphonner les quêtes DofusDB
+                        <span className="text-caption text-sky-400/80 font-black uppercase tracking-wider">· Import initial</span>
                     </h3>
                     <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-                        Importe des quêtes depuis DofusDB dans la base locale <strong className="text-foreground">GameQuest</strong>.
-                        Elles deviennent alors proposables dans les posts Donjons/Quêtes (recherche locale d'abord,
+                        <strong className="text-foreground">Étape 1</strong> · importe EN MASSE des quêtes depuis DofusDB dans la base locale <strong className="text-foreground">GameQuest</strong>.
+                        Une fois importées, elles deviennent proposables dans les posts Donjons/Quêtes (recherche locale d&apos;abord,
                         fallback DofusDB si absentes). Les doublons (par ID ou par nom) sont ignorés.
+                    </p>
+                    <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
+                        ℹ️ Cet <strong className="text-foreground">import initial</strong> (avec plafond) ne se confond pas avec le
+                        suivi des <strong className="text-foreground">écarts</strong> DofusDB : celui-ci se lance depuis
+                        {' '}<strong className="text-foreground">📊 Tableau</strong> (dataset « Quêtes » — nouvelles/modifiées, en
+                        arrière-plan), et la synchro <strong className="text-foreground">sélective</strong> quête par quête vit dans
+                        l&apos;onglet <strong className="text-foreground">🛰️ Siphons DofusDB</strong>.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Input
                         type="number"
                         min={10}
-                        max={300}
+                        max={500}
                         value={limit}
                         onChange={e => setLimit(e.target.value)}
                         className="w-28 bg-black/40 border-border h-10 rounded-xl text-sm"
@@ -90,7 +98,7 @@ export function QuestSiphonPanel() {
 
             <p className="flex items-start gap-1.5 text-caption text-muted-foreground">
                 <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground/70" />
-                <span>Bouton « Vérifier les modifications » : analyse des écarts sur les quêtes déjà suivies. Bouton « Siphonner » : import en masse de nouvelles quêtes pour alimenter la base locale.</span>
+                <span><strong className="text-foreground">Ici</strong> : import initial en masse (nouvelles quêtes DofusDB). <strong className="text-foreground">Panneau suivant (« Synchronisation »)</strong> : analyse puis applique les écarts sur les quêtes déjà importées.</span>
             </p>
         </div>
     );

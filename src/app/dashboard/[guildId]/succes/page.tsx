@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { Trophy } from "lucide-react";
 import { getUserContext } from "@/server/actions/user-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 import { SuccesClient } from "@/components/succes/SuccesClient";
+import { SuccesHeaderActions } from "@/components/succes/SuccesHeaderActions";
 
 export const metadata = {
     title: "Mes Succès | SigilOS",
@@ -25,7 +25,7 @@ export default async function SuccesPage({
         return <AccessDenied />;
     }
 
-    if (!user.isAdmin && !(await isModuleEnabled(guildId, "succes"))) {
+    if (!user.isSuperAdmin && !(await isModuleEnabled(guildId, "succes"))) {
         redirect(`/dashboard/${guildId}`);
     }
 
@@ -33,10 +33,10 @@ export default async function SuccesPage({
         <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
                 title="Mes Succès"
-                description="Coche, trouve, enchaîne. Tes donjons. Ta guilde."
-                icon={Trophy}
-                iconColor="#f59e0b"
+                description="Tes succès de donjons, boss par boss — et ce que la guilde a déjà validé."
+                imageSrc="/assets/dofus/game-icons/trophy-1.png"
                 backHref={`/dashboard/${guildId}`}
+                actions={<SuccesHeaderActions guildId={guildId} />}
             />
 
             <Suspense

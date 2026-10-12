@@ -267,7 +267,7 @@ export function PollCreator({
             const pollData = {
                 guildId,
                 title: title.trim(),
-                description: description.trim() || undefined,
+                description: description.trim(),
                 category: category as any,
                 options: options.filter(o => o.label.trim()).map(o => ({
                     label: o.label.trim(),
@@ -299,7 +299,11 @@ export function PollCreator({
         });
     };
 
-    const isValid = title.trim().length >= 3 && options.filter(o => o.label.trim()).length >= 2;
+    const isValid =
+        title.trim().length >= 3 &&
+        title.trim().length <= 80 &&
+        description.trim().length >= 5 &&
+        options.filter(o => o.label.trim()).length >= 2;
 
     return (
         <>
@@ -415,12 +419,23 @@ export function PollCreator({
                                     {/* Title + Category */}
                                     <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <label className="text-caption font-bold uppercase tracking-widest text-muted-foreground ml-1">Question de la consultation</label>
+                                            <div className="flex items-center justify-between ml-1">
+                                                <label className="text-caption font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                                                    <span>Question de la consultation</span>
+                                                    <span className="text-danger font-black">*</span>
+                                                </label>
+                                                <span className={cn(
+                                                    "text-caption font-bold",
+                                                    title.length > 70 ? "text-warning" : "text-muted-foreground/60"
+                                                )}>
+                                                    {title.length}/80
+                                                </span>
+                                            </div>
                                             <Input
                                                 value={title}
                                                 onChange={(e) => setTitle(e.target.value)}
                                                 placeholder="Ex: Quelle refonte pour les grades ?"
-                                                maxLength={200}
+                                                maxLength={80}
                                                 className="h-14 bg-surface/60 border-border text-foreground placeholder:text-muted-foreground text-lg font-bold rounded-xl focus:ring-info/20 focus:border-info/30 transition-all shadow-inner focus:outline-none"
                                             />
                                         </div>
@@ -453,6 +468,57 @@ export function PollCreator({
                                                 })}
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Description — obligatoire */}
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between ml-1">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-caption font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                                                    <span>Description</span>
+                                                    <span className="text-danger font-black">*</span>
+                                                </p>
+                                                <span className="text-[10px] text-danger/80 font-bold uppercase tracking-tight bg-danger/10 px-1.5 py-0.5 rounded border border-danger/20">
+                                                    Obligatoire
+                                                </span>
+                                            </div>
+                                            <span className={cn(
+                                                "text-caption font-bold",
+                                                description.trim().length === 0
+                                                    ? "text-muted-foreground/60"
+                                                    : description.trim().length < 5
+                                                    ? "text-warning"
+                                                    : "text-muted-foreground/60"
+                                            )}>
+                                                {description.length}/500 {description.trim().length > 0 && description.trim().length < 5 && "(min. 5 car.)"}
+                                            </span>
+                                        </div>
+                                        <textarea
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                            rows={3}
+                                            placeholder="Contextualisez votre question, expliquez les choix et les enjeux... (sera affiché sur Discord et dans le dashboard)"
+                                            maxLength={500}
+                                            className={cn(
+                                                "w-full bg-surface/60 hover:bg-surface/80 border rounded-2xl px-5 py-4 text-sm text-foreground focus:outline-none transition-all resize-none placeholder:text-muted-foreground",
+                                                description.trim().length > 0 && description.trim().length < 5
+                                                    ? "border-warning/50 focus:border-warning focus:ring-2 focus:ring-warning/10"
+                                                    : "border-border focus:border-info/50 focus:ring-2 focus:ring-info/10"
+                                            )}
+                                        />
+                                        {/* Aperçu Discord temps réel */}
+                                        {description.trim() && (
+                                            <div className="rounded-xl border border-[#5865F2]/20 bg-[#2b2d31]/80 p-4 space-y-2">
+                                                <p className="text-caption font-black text-[#5865F2] uppercase tracking-widest flex items-center gap-2">
+                                                    <span className="w-2 h-2 rounded-full bg-[#5865F2] inline-block" />
+                                                    Aperçu Discord
+                                                </p>
+                                                <div className="border-l-4 border-[#5865F2] pl-3">
+                                                    <p className="text-sm font-bold text-white/90 truncate">{title || "Titre du sondage..."}</p>
+                                                    <p className="text-xs text-white/60 mt-1 whitespace-pre-wrap leading-relaxed">{description}</p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Options */}
@@ -615,18 +681,6 @@ export function PollCreator({
                                         </div>
                                     </div>
 
-                                    {/* Description */}
-                                    <div className="space-y-3">
-                                        <p className="text-caption font-black text-muted-foreground uppercase tracking-widest ml-1">Description (Optionnel)</p>
-                                        <textarea
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                            rows={3}
-                                            placeholder="Contextualisez votre question..."
-                                            maxLength={2000}
-                                            className="w-full bg-surface/60 hover:bg-surface/80 border border-border focus:border-info/50 focus:ring-2 focus:ring-info/10 rounded-2xl px-5 py-4 text-sm text-foreground focus:outline-none transition-all resize-none shadow-xl placeholder:text-muted-foreground"
-                                        />
-                                    </div>
 
                                     {/* Footer - Details Step */}
                                     <div className="pt-8 border-t border-border mt-4">

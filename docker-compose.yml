@@ -189,7 +189,7 @@ services:
       - '--storage.tsdb.retention.time=15d' # Keep 15 days of data
       - '--web.enable-lifecycle'
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     networks:
       - internal-net

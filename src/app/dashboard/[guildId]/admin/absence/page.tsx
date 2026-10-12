@@ -6,6 +6,7 @@ import AccessDenied from "@/components/access-denied";
 import { AbsenceSettingsClient } from "./_components/absence-settings-client";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Bell } from "lucide-react";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 export default async function AbsenceSettingsPage({
     params
@@ -31,6 +32,7 @@ export default async function AbsenceSettingsPage({
                 description="Configurez les notifications Discord pour les absences des membres."
                 imageSrc="/assets/ui/icons/calendar.png"
                 backHref={`/dashboard/${guildId}/admin/settings`}
+                actions={<ModuleHelpActions docSlug="planning" docTitle="Notifications Absences" />}
             />
             <AbsenceSettingsClient guildId={guildId} />
         </div>

@@ -11,6 +11,18 @@ export interface MapData {
     subAreaId: number;
 }
 
+const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Correspondance mot à mot (avec variantes de pluriel français kw, kw+s, kw+x) pour les
+// mots-clés simples, afin d'éviter les faux positifs de sous-chaîne (ex: "villa" qui
+// matcherait à tort "village", "cave" qui matcherait "caverne"). Les phrases multi-mots
+// (ex: "salle du trône", "map de combat") restent en correspondance de sous-chaîne.
+function keywordMatch(name: string, keyword: string): boolean {
+    if (keyword.includes(' ')) return name.includes(keyword);
+    const variants = [keyword, keyword + 's', keyword + 'x'];
+    return variants.some(v => new RegExp(`(^|[^a-zà-ÿ])${escapeRegExp(v)}($|[^a-zà-ÿ])`).test(name));
+}
+
 export class WorldMapService {
     private static instance: WorldMapService;
     private maps = new Map<number, MapData>();
@@ -72,15 +84,20 @@ export class WorldMapService {
             if (data.maps) {
                 data.maps.forEach((m: any) => {
                     const subAreaName = subAreaNames.get(m.subAreaId) || "";
-                    const isExcluded = excludedKeywords.some(key => subAreaName.includes(key));
+                    const isExcluded = excludedKeywords.some(key => keywordMatch(subAreaName, key));
 
                     // Strict check: must be outdoor AND from a primary world map AND not excluded by keyword
                     // Allowed worlds: Amakna(1), Incarnam(2), and valid external world maps.
                     // We exclude World 3 (Souterrains) and other known technical/interior worlds.
                     const isPlayableWorld = m.worldMap > 0 && m.worldMap !== 3;
                     
-                    // Tactical / technical maps often have extreme IDs
-                    const isTechnicalMap = m.id >= 200000000;
+                    // Tactical / technical maps often have extreme IDs.
+                    // NOTE: les mondes Dofus 3 (37, 39, 40, 41...) utilisent des IDs de cartes >= 200 000 000.
+                    // On n'exclut donc que les cartes "techniques" qui n'appartiennent PAS à un monde officiellement
+                    // déclaré dans worldmap.json.worlds (ex: 37, 40 siphonnés). Les autres mondes Dofus 3 ajoutés
+                    // à worldmap.json.worlds seront automatiquement jouables.
+                    const declaredWorldIds = new Set((data.worlds || []).map((w: any) => w.id));
+                    const isTechnicalMap = m.id >= 200000000 && !declaredWorldIds.has(m.worldMap);
 
                     // FIX KANOJEDO / [0, 0] BUG:
                     // In Dofus client dumps, unanchored interior/dungeon maps default to (0, 0).

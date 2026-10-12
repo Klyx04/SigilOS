@@ -41,6 +41,7 @@ export function RecentStuffGallery({
                                     tags={build.tags} 
                                     classId={build.classId ? Number(build.classId) : undefined} 
                                     initialData={build.previewData as any}
+                                    guildId={guildId}
                                     className="!max-w-none !p-4 !rounded-[2rem] shadow-2xl"
                                 />
                                 <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-20">

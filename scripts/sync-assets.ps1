@@ -72,7 +72,12 @@ $wslCmd = Get-Command wsl -ErrorAction SilentlyContinue
 if ($wslCmd) {
     Write-Host "Synchronisation rapide via rsync (WSL)..." -ForegroundColor Green
     $dryFlag = if ($DryRun) { "--dry-run" } else { "" }
-    wsl rsync -avzc --progress --human-readable $dryFlag "$LocalPath" "$VpsAlias`:$RemotePath"
+    # --chmod : PARITÉ avec `sync-assets.sh` (l.99-105). Sans lui, `-a` PRÉSERVE les permissions
+    # de la source (montage Windows/WSL) ⇒ les fichiers arrivent en `775` sur le VPS alors que le
+    # dépôt les a en `644` : git les voit « modifiés » à CHAQUE déploiement et le `stash pop` de
+    # `--autostash` les ré-applique indéfiniment (mesure du 30/09/2026 : 448 fichiers suivis de
+    # `public/game-data/**`, dont 11 JSON dont le CONTENU est pourtant identique au dépôt).
+    wsl rsync -avzc --progress --human-readable --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r $dryFlag "$LocalPath" "$VpsAlias`:$RemotePath"
 } else {
     Write-Host "Synchronisation via SCP (PowerShell)..." -ForegroundColor Green
     if ($DryRun) {

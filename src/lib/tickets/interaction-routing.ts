@@ -1,0 +1,274 @@
+/**
+ * 🎫 Tickets v2 — **routage des interactions Discord** (pur, testable, sans I/O).
+ *
+ * Constat de l'audit du 24/09/2026 : le préfixe `tb` était **absent de
+ * `DISCORD_PERM_MAP`** (`interactions/route.ts:90-96`), donc
+ * `isDiscordPrefixAuthorized` retournait `true` **sans aucun contrôle** — un
+ * demandeur pouvait « Prendre en charge », ajouter une note « interne » et fermer
+ * son propre ticket depuis son salon.
+ *
+ * Ce fichier est la **source unique** qui remplace ce trou : il dit, pour chaque
+ * `custom_id`, *quelle action* est demandée et *qui* peut la déclencher. La route
+ * traduit ; le service applique. Un `custom_id` inconnu renvoie `null` ⇒ refus
+ * (fail-closed : jamais d'action devinée, jamais de droit supposé).
+ */
+
+/** Préfixe des boutons, menus et modales du module (`tb:...`). */
+export const TICKET_PREFIX = "tb";
+
+import { TICKET_MODAL_PAGES_MAX } from "./form-schema";
+
+/** Préfixe de l'étape « choix » (Oui/Non et sélecteurs avant la modale). */
+export const TICKET_PICK_PREFIX = "tb_pick";
+
+/** `custom_id` borné : Discord refuse au-delà de 100 caractères. */
+export const TICKET_CUSTOM_ID_MAX = 100;
+
+/** Actions reconnues du module. */
+export type TicketActionKind =
+    | "open"
+    | "select_open"
+    | "select_journey"
+    | "modal_open"
+    | "modal_page"
+    | "modal_add"
+    | "modal_remove"
+    | "pick"
+    | "claim"
+    | "release"
+    | "note"
+    | "rename"
+    | "add"
+    | "remove"
+    | "close"
+    | "close_confirm"
+    | "reopen"
+    | "transcript"
+    | "delete"
+    | "delete_confirm"
+    | "csat"
+    | "approve"
+    | "refuse";
+
+/** Niveau d'accès minimal exigé par une action. */
+export type TicketAccessLevel = "public" | "staff" | "creator" | "staff_or_creator";
+
+export type TicketActionDescriptor = {
+    kind: TicketActionKind;
+    access: TicketAccessLevel;
+    /** `tb` = bouton/menu/modale ; `tb_pick` = étape choix. */
+    source: "tb" | "tb_pick";
+    panelId?: string;
+    journeyId?: string;
+    ticketId?: string;
+    fieldId?: string;
+    /** Page de modale demandée par le bouton « Continuer » (0 = première). */
+    page?: number;
+    /** Valeur d'un choix (`yes` / `no`). */
+    value?: string;
+    /** Note de CSAT (1-5). */
+    rating?: number;
+};
+
+/** Niveaux d'accès par action — table **exhaustive** (aucune action oubliée). */
+const ACTION_ACCESS: Record<TicketActionKind, TicketAccessLevel> = {
+    // Ouverture : tout membre du serveur (le parcours publié est vérifié par le service).
+    open: "public",
+    select_open: "public",
+    select_journey: "public",
+    modal_open: "public",
+    modal_page: "public",
+    pick: "public",
+    // Actions de staff — vérifiées par `decideTicketAccess`.
+    claim: "staff",
+    release: "staff",
+    note: "staff",
+    rename: "staff",
+    add: "staff",
+    remove: "staff",
+    modal_add: "staff",
+    modal_remove: "staff",
+    transcript: "staff",
+    delete: "staff",
+    delete_confirm: "staff",
+    approve: "staff",
+    refuse: "staff",
+    // Fermeture : staff, ou le demandeur si le parcours le publie.
+    close: "staff_or_creator",
+    close_confirm: "staff_or_creator",
+    reopen: "staff_or_creator",
+    // Avis : seul le demandeur du ticket.
+    csat: "creator",
+};
+
+const FIELD_ID_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
+
+/**
+ * Segment d'identifiant technique (`journeyId`, `panelId`, `ticketId`) : alphanumérique
+ * borné — aucun caractère de séparation, donc impossible de fabriquer un faux `custom_id`
+ * en collant un « : » dans un identifiant.
+ */
+function isTicketIdSegment(value: string | undefined): value is string {
+    return typeof value === "string" && /^[A-Za-z0-9_-]{6,40}$/.test(value);
+}
+
+/**
+ * Analyse un `custom_id` du module. Renvoie `null` si le format est inconnu :
+ * l'appelant **doit** refuser (jamais de `catch`-all silencieux).
+ */
+export function parseTicketCustomId(customId: string): TicketActionDescriptor | null {
+    if (typeof customId !== "string" || customId.length === 0 || customId.length > TICKET_CUSTOM_ID_MAX) {
+        return null;
+    }
+
+    const parts = customId.split(":");
+    const [prefix, action, first, second] = parts;
+
+    // Étape « choix » : `tb_pick:<journeyId>:<fieldId>` ou `...:<fieldId>:<yes|no>`.
+    // ⚠️ Ici le segment 1 est le **parcours** et le segment 2 l'**identifiant de champ**
+    // (il n'y a pas d'« action ») : compter les segments évite d'accepter un
+    // `tb_pick:a:b:c:d` fantaisiste, et le parcours permet de retrouver le brouillon.
+    if (prefix === TICKET_PICK_PREFIX) {
+        if (parts.length !== 3 && parts.length !== 4) return null;
+        const journeyId = action;
+        const fieldId = first;
+        if (!isTicketIdSegment(journeyId)) return null;
+        if (!fieldId || !FIELD_ID_PATTERN.test(fieldId)) return null;
+        const value = second;
+        if (value !== undefined && value !== "yes" && value !== "no") return null;
+        return { kind: "pick", access: ACTION_ACCESS.pick, source: "tb_pick", journeyId, fieldId, value };
+    }
+
+    if (prefix !== TICKET_PREFIX || !action) return null;
+
+    const kind = action as TicketActionKind;
+    if (!(kind in ACTION_ACCESS)) return null;
+
+    const descriptor: TicketActionDescriptor = { kind, access: ACTION_ACCESS[kind], source: "tb" };
+
+    // Nombre de segments attendu par action : tout segment surnuméraire est un refus.
+    // (`pick` est traité plus haut : sa forme n'a pas d'« action ».)
+    const expectedSegments: Partial<Record<TicketActionKind, number>> = {
+        open: 4,
+        modal_open: 4,
+        modal_page: 4,
+        modal_add: 3,
+        modal_remove: 3,
+        select_open: 3,
+        select_journey: 3,
+        claim: 3,
+        release: 3,
+        note: 3,
+        rename: 3,
+        add: 3,
+        remove: 3,
+        close: 3,
+        close_confirm: 3,
+        reopen: 3,
+        transcript: 3,
+        delete: 3,
+        delete_confirm: 3,
+        approve: 3,
+        refuse: 3,
+        csat: 4,
+    };
+    const expectedLength = expectedSegments[kind];
+    if (expectedLength !== undefined && parts.length !== expectedLength) return null;
+
+    switch (kind) {
+        case "open":
+        case "modal_open": {
+            if (!first || !second) return null;
+            descriptor.panelId = first;
+            descriptor.journeyId = second;
+            return descriptor;
+        }
+        case "modal_add":
+        case "modal_remove": {
+            if (!isTicketIdSegment(first)) return null;
+            descriptor.ticketId = first;
+            return descriptor;
+        }
+        case "modal_page": {
+            // `tb:modal_page:{journeyId}:{page}` — la page suivante du questionnaire.
+            if (!isTicketIdSegment(first) || !second) return null;
+            const page = Number.parseInt(second, 10);
+            if (!Number.isInteger(page) || page < 0 || page >= TICKET_MODAL_PAGES_MAX) return null;
+            descriptor.journeyId = first;
+            descriptor.page = page;
+            return descriptor;
+        }
+        case "select_open":
+        case "select_journey": {
+            if (!first) return null;
+            descriptor.panelId = first;
+            return descriptor;
+        }
+        case "csat": {
+            if (!first || !second) return null;
+            const rating = Number.parseInt(second, 10);
+            if (!Number.isInteger(rating) || rating < 1 || rating > 5) return null;
+            descriptor.ticketId = first;
+            descriptor.rating = rating;
+            return descriptor;
+        }
+        case "claim":
+        case "release":
+        case "note":
+        case "rename":
+        case "add":
+        case "remove":
+        case "close":
+        case "close_confirm":
+        case "reopen":
+        case "transcript":
+        case "delete":
+        case "delete_confirm":
+        case "approve":
+        case "refuse": {
+            if (!first) return null;
+            descriptor.ticketId = first;
+            return descriptor;
+        }
+        default:
+            return null;
+    }
+}
+
+/** Niveau d'accès à appliquer pour un `custom_id` donné (`null` = action inconnue). */
+export function resolveTicketAccessLevel(customId: string): TicketAccessLevel | null {
+    return parseTicketCustomId(customId)?.access ?? null;
+}
+
+/** Libellé FR d'une action (journal d'audit, inbox, messages d'erreur). */
+export const TICKET_ACTION_LABELS: Record<TicketActionKind, string> = {
+    open: "Ouverture d'un ticket",
+    select_open: "Ouverture d'un ticket (menu)",
+    select_journey: "Ouverture d'un ticket (menu des parcours)",
+    modal_open: "Formulaire d'ouverture",
+    modal_page: "Questionnaire (page suivante)",
+    modal_add: "Ajout d'un membre (formulaire)",
+    modal_remove: "Retrait d'un membre (formulaire)",
+    pick: "Réponse à un choix",
+    claim: "Prise en charge",
+    release: "Remise en file",
+    note: "Note interne",
+    rename: "Renommage",
+    add: "Ajout d'un membre",
+    remove: "Retrait d'un membre",
+    close: "Clôture",
+    close_confirm: "Confirmation de clôture",
+    reopen: "Réouverture",
+    transcript: "Copie des messages",
+    delete: "Suppression du salon",
+    delete_confirm: "Confirmation de suppression",
+    csat: "Avis de satisfaction",
+    approve: "Acceptation de la demande",
+    refuse: "Refus de la demande",
+};
+
+/** Le `custom_id` appartient-il au module ? (garde : toute la famille `tb*` passe ici) */
+export function isTicketCustomId(customId: string): boolean {
+    return customId.startsWith(`${TICKET_PREFIX}:`) || customId.startsWith(`${TICKET_PICK_PREFIX}:`);
+}
+

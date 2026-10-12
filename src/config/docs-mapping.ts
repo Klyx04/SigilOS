@@ -8,6 +8,7 @@ export const DOCS_MAPPING: Record<string, string> = {
 
     // Features
     "/dashboard/missions": "guide/missions",
+    "/dashboard/marche": "marche",
     "/dashboard/quete-ocre": "guide/ocre",
     "/dashboard/songes": "guide/songes",
 

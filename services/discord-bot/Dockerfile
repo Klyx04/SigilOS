@@ -10,7 +10,10 @@ RUN npm install
 # 2. Setup Prisma
 COPY prisma/ ./prisma/
 COPY prisma.config.js ./
-RUN POSTGRES_USER=build POSTGRES_PASSWORD=build POSTGRES_DB=build npx prisma generate
+# Pin `prisma` au projet (^7.9.1) : sans cela, `npx prisma` tire `prisma@latest`
+# (actuellement une RC cassée 8.0.0-rc.10 qui n'a pas la commande `generate`)
+# → build KO. Le CLI est aligné sur la version du projet.
+RUN POSTGRES_USER=build POSTGRES_PASSWORD=build POSTGRES_DB=build npx prisma@7.9.1 generate
 
 # 3. Copy bot source code
 COPY services/discord-bot/ ./

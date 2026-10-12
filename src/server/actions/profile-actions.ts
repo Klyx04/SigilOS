@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { resolveDofusServerName } from "@/lib/presentation-constants";
 import { Prisma } from "@prisma/client";
+import { isDofusbookBuildUrl, isDofusRoomBuildUrl } from "@/lib/dofusbook-utils";
 import { revalidatePath } from "next/cache";
 import { getUserContext, checkGuildPermission } from "./user-actions";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -13,13 +14,25 @@ import { analyzeImage, hashImage, shouldAutoValidate } from "@/lib/llm-ocr";
 import { writeFile, mkdir } from "fs/promises";
 import { auth } from "@/auth";
 import { rateLimit } from "@/lib/ratelimit";
+import { clearCachePattern } from "@/lib/cache";
 import { buildProfileSlug } from "@/lib/profile-slug";
+import { getDefaultDiscordAvatar } from "@/lib/discord-avatars";
 import { z } from "zod";
 import { formatDofusPseudo } from "@/lib/utils";
+// Règle de pseudo PARTAGÉE (profil interne ↔ guide public) : une seule définition.
+import {
+    PSEUDO_PATTERN,
+    PSEUDO_MIN_LENGTH,
+    PSEUDO_MAX_LENGTH,
+    PSEUDO_TOO_SHORT_MESSAGE,
+    PSEUDO_TOO_LONG_MESSAGE,
+    PSEUDO_FORMAT_MESSAGE,
+} from "@/lib/pseudo-validation";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
 import { PREFERRED_ACTIVITY_IDS } from "@/lib/profile-activities";
+import { metierIds } from "@/lib/metiers";
 import { postChannelMessage } from "@/server/discord";
 
 const rankingCache = new Map<string, { data: any[], expiresAt: number }>();
@@ -52,7 +65,14 @@ const UpdateProfileSchema = z.object({
         .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s\[\]]*$/, "Le pseudo ne doit contenir que des lettres, espaces, tirets et crochets (pas de chiffres ni d'autres caractères spéciaux)")
         .optional(),
     classe: z.string().optional(),
-    metiers: z.array(z.string()).optional(),
+    metiers: z.array(z.union([
+        z.string(),
+        z.object({
+            id: z.string().optional(),
+            name: z.string(),
+            level: z.number().int().min(1).max(200).optional(),
+        }),
+    ])).optional(),
     forgemagieStatus: z.enum(["FREE", "PAID", "UNAVAILABLE"]).optional(),
     fmPriceClassic: z.number().min(0, "Prix invalide").nullable().optional(),
     fmPriceTrans: z.number().min(0, "Prix invalide").nullable().optional(),
@@ -112,6 +132,19 @@ const UpdateNotificationPrefsSchema = z.object({
         admin_validations: z.boolean().optional(),
         ocre: z.boolean().optional(),
         donjons: z.boolean().optional(),
+        // §11.9 — Marché : un booléen **par type** de notification. Clés
+        // explicites (jamais un `record` libre) : le Json du profil ne peut
+        // recevoir que ces huit clés connues.
+        market: z.object({
+            offer_received: z.boolean().optional(),
+            reserved: z.boolean().optional(),
+            reservation_ended: z.boolean().optional(),
+            offer_answered: z.boolean().optional(),
+            sold: z.boolean().optional(),
+            reminder: z.boolean().optional(),
+            archived: z.boolean().optional(),
+            report_opened: z.boolean().optional(),
+        }).optional(),
     }),
     targetUserId: z.string().optional(),
 });
@@ -769,6 +802,15 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             return { success: false, error: "Vous n'avez pas la permission de modifier ce profil." };
         }
 
+        // Snapshot ladder immédiat (rempli ci-dessous si un pseudo est fourni).
+        let ladderSnapshot: {
+            successPoints?: number;
+            totalXp?: bigint;
+            dofusLevel?: number;
+            classe?: string;
+            lastLadderUpdate?: Date;
+        } = {};
+
         // Uniqueness Check for Pseudo Dofus
         if (pseudoDofus) {
             const existing = await db.userProfile.findFirst({
@@ -785,16 +827,73 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
             // 🛡️ ANKAMA LADDER CHECK: Le pseudo doit exister sur les pages officielles Ankama
             // SuperAdmins sont exemptés (bypass pour les overrides admin)
+            const serverId = (guildConfig as any).dofusServerId || "295";
+            const serverName = resolveDofusServerName((guildConfig as any).dofusServerName, (guildConfig as any).dofusServerId);
             if (!isGod) {
-                const serverId = (guildConfig as any).dofusServerId || "295";
-                const serverName = resolveDofusServerName((guildConfig as any).dofusServerName, (guildConfig as any).dofusServerId);
                 const existsOnLadder = await checkPseudoExistsOnLadder(pseudoDofus, serverId);
                 if (existsOnLadder === false) {
-                    return { success: false, error: `Pseudo "${pseudoDofus}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
+                    // Toggle God « Fallback Pseudo Manuel » : saisie assumée sans
+                    // preuve ladder (liaison Ankama KO). Sans lui → refus.
+                    const manualFallback = await isLadderManualFallbackEnabled();
+                    if (!manualFallback) {
+                        return { success: false, error: `Pseudo "${pseudoDofus}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
+                    }
                 }
                 // null = service indisponible → on laisse passer (fail-open)
             }
+
+            // Snapshot ladder immédiat : la vérif ci-dessus prouve l'existence mais
+            // n'importait aucun point — le nouveau restait à 0 PTS + "MAUVAIS ÉLÈVE"
+            // jusqu'à la prochaine bulk (22 h). On importe dès la saisie du pseudo
+            // (meilleur effort : un ladder KO n'échoue jamais la sauvegarde).
+            if (pseudoDofus) {
+                try {
+                    const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
+                    const workerSecret = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
+                    if (workerUrl) {
+                        const headers: Record<string, string> = { "Accept": "application/json" };
+                        if (workerSecret) headers["X-SigilOS-Key"] = workerSecret;
+                        const base = `${workerUrl}?server_id=${encodeURIComponent(serverId)}&name=${encodeURIComponent(pseudoDofus)}`;
+
+                        const [succesRes, generalRes] = await Promise.all([
+                            fetch(base, { headers, cache: "no-store", signal: AbortSignal.timeout(15000) }).catch(() => null),
+                            fetch(`${base}&type=general`, { headers, cache: "no-store", signal: AbortSignal.timeout(15000) }).catch(() => null),
+                        ]);
+
+                        let level: number | undefined;
+                        if (succesRes?.ok) {
+                            const s = await succesRes.json().catch(() => null);
+                            if (s?.success && s?.found) {
+                                if (typeof s.points === "number") ladderSnapshot.successPoints = s.points;
+                                if (typeof s.level === "number") level = s.level;
+                            }
+                        }
+                        if (generalRes?.ok) {
+                            const g = await generalRes.json().catch(() => null);
+                            if (g?.success && g?.found) {
+                                if (g.totalXp) {
+                                    const cleanXp = String(g.totalXp).replace(/\D/g, "").slice(0, 15);
+                                    if (cleanXp) ladderSnapshot.totalXp = BigInt(cleanXp);
+                                }
+                                if (g.level && level === undefined) {
+                                    const lvl = Math.min(Math.max(Number(g.level), 1), 300);
+                                    if (Number.isFinite(lvl)) level = lvl;
+                                }
+                                if (g.classe) ladderSnapshot.classe = String(g.classe).slice(0, 50);
+                            }
+                        }
+                        if (level !== undefined) ladderSnapshot.dofusLevel = level;
+                        if (ladderSnapshot.successPoints !== undefined || ladderSnapshot.totalXp !== undefined) {
+                            ladderSnapshot.lastLadderUpdate = new Date();
+                        }
+                    }
+                } catch {
+                    // Snapshot raté : la sauvegarde du profil ne doit pas échouer pour ça
+                }
+            }
         }
+        // La classe explicite reste prioritaire : on l'isole du spread.
+        const { classe: ladderClasse, ...ladderRest } = ladderSnapshot;
 
         const now = new Date();
         await db.userProfile.upsert({
@@ -806,7 +905,8 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             },
             update: {
                 pseudoDofus: pseudoDofus !== undefined ? (pseudoDofus || null) : undefined,
-                classe,
+                // Choix explicite prioritaire : la classe ladder ne remplit que si absente.
+                classe: classe ?? ladderClasse,
                 metiers: metiers ? (metiers as any) : undefined,
                 forgemagieStatus,
                 fmPriceClassic: fmPriceClassic !== undefined ? fmPriceClassic : undefined,
@@ -821,12 +921,13 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 preferredActivities: preferredActivities !== undefined ? (preferredActivities as any) : undefined,
                 discordContact: discordContact !== undefined ? (discordContact || null) : undefined,
                 userUpdatedAt: now,
+                ...ladderRest,
             },
             create: {
                 userId: effectiveUserId,
                 guildId: guildConfig.id,
                 pseudoDofus: pseudoDofus || null,
-                classe,
+                classe: classe ?? ladderClasse ?? null,
                 metiers: metiers ? (metiers as any) : undefined,
                 forgemagieStatus,
                 fmPriceClassic: fmPriceClassic || null,
@@ -842,6 +943,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 discordContact: discordContact || null,
                 status: "ACTIVE",
                 userUpdatedAt: now,
+                ...ladderRest,
             }
         });
 
@@ -851,6 +953,8 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/members`);
+        // Snapshot ladder éventuel : purger le cache du module ladder aussi.
+        await clearCachePattern(`ladder:*:${guildId}*`);
         return { success: true };
     } catch (error) {
         logger.error("Update Profile Error", { error });
@@ -1033,7 +1137,14 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
         });
 
         const currentPrefs = (currentProfile?.notificationPrefs as any) || {};
-        const newPrefs = { ...currentPrefs, ...prefs };
+        // §11.9 — `market` est un objet imbriqué : une fusion **superficielle**
+        // écraserait les sept autres interrupteurs quand le client n'en envoie
+        // qu'un seul. On fusionne donc explicitement cette clé.
+        const newPrefs = {
+            ...currentPrefs,
+            ...prefs,
+            ...(prefs.market ? { market: { ...(currentPrefs.market ?? {}), ...prefs.market } } : {}),
+        };
 
         await db.userProfile.update({
             where: {
@@ -1103,9 +1214,9 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
 const AltPseudoObjectSchema = z.object({
     id: z.string().optional(),
     pseudo: z.string()
-        .min(2, "Pseudo trop court")
-        .max(20, "Pseudo trop long")
-        .regex(/^[A-Z\u00C0-\u017F][a-zA-Z\u00C0-\u017F]*(-[a-zA-Z\u00C0-\u017F]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule - Pas de chiffres ni caractères spéciaux)"),
+        .min(PSEUDO_MIN_LENGTH, PSEUDO_TOO_SHORT_MESSAGE)
+        .max(PSEUDO_MAX_LENGTH, PSEUDO_TOO_LONG_MESSAGE)
+        .regex(PSEUDO_PATTERN, PSEUDO_FORMAT_MESSAGE),
     classe: z.string().optional(),
     level: z.number().min(0).max(200).optional(),
     alignment: z.string().nullable().optional(),
@@ -1198,8 +1309,8 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
 const UpdateMuleAlignmentSchema = z.object({
     guildId: z.string(),
     pseudo: z.string()
-        .min(2, "Pseudo trop court")
-        .max(20, "Pseudo trop long"),
+        .min(PSEUDO_MIN_LENGTH, PSEUDO_TOO_SHORT_MESSAGE)
+        .max(PSEUDO_MAX_LENGTH, PSEUDO_TOO_LONG_MESSAGE),
     alignment: z.string().nullable(),
     alignmentOrder: z.string().nullable(),
     alignmentLevel: z.number().min(0).max(100),
@@ -1277,12 +1388,12 @@ const UpdateDofusBookLinksSchema = z.object({
             .min(1, "Nom requis")
             .max(30, "Nom trop long (max 30)"),
         url: z.string().refine(
-            (url) => {
-                const dofusbookPattern = /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/;
-                const dofusroomPattern = /^https:\/\/(www\.)?dofusroom\.com\/(buildroom\/build\/show\/\d+|b-\d+)\/?$/;
-                return dofusbookPattern.test(url) || dofusroomPattern.test(url);
-            },
-            { message: "Format de lien invalide (DofusBook: d-bk.net/dofusbook.net ou DofusRoom: dofusroom.com)" }
+            // 🎯 Source unique de vérité (`src/lib/dofusbook-utils.ts`) : accepte le site,
+            // l'app « desktop » (`/desktop/fr/equipement/<id>-slug/objets`) et les liens
+            // courts d-bk.net. Les regex locales les refusaient (bug du 18/09/2026 :
+            // « FORMAT DE LIEN INVALIDE » à l'enregistrement).
+            (url) => isDofusbookBuildUrl(url) || isDofusRoomBuildUrl(url),
+            { message: "Format de lien invalide (DofusBook : …/equipement/<id> ou d-bk.net — DofusRoom : dofusroom.com)" }
         ),
         tags: z.array(z.string()).optional(),
         classId: z.number().nullable().optional(),
@@ -1291,7 +1402,7 @@ const UpdateDofusBookLinksSchema = z.object({
         discordMessageId: z.string().nullable().optional(),
         createdAt: z.string().nullable().optional(),
         updatedAt: z.string().nullable().optional(),
-    }).passthrough()).max(20, "Maximum 20 builds"),
+    }).passthrough()).max(30, "Maximum 30 builds"),
     targetUserId: z.string().optional(),
 });
 
@@ -1673,8 +1784,8 @@ export async function getGuildMembers(
 
         if (filters?.job) {
             result = result.filter((p: any) => {
-                const jobs = (p.metiers as string[]) || [];
-                return jobs.includes(filters.job!);
+                const ids = metierIds(p.metiers);
+                return ids.includes(filters.job!);
             });
         }
 
@@ -1738,7 +1849,17 @@ export async function getGuildMembers(
                 // un membre avait une valeur non-null (JSON.stringify throw sur BigInt).
                 // Converti explicitement en string pour être sérialisable.
                 totalXp: p.totalXp != null ? p.totalXp.toString() : null,
-                user: { id: p.user.id, name: getDisplayName(p), image: p.user.image },
+                user: {
+                    id: p.user.id,
+                    name: getDisplayName(p),
+                    // Avatar — `user.image` est le hash Discord figé au login OAuth. S'il est
+                    // absent (membre jamais connecté, hash purgé, Discord injoignable), on sert
+                    // l'avatar **par défaut officiel** de Discord (`embed/avatars/{n}.png`, jamais
+                    // 404) plutôt que de ne rien afficher : même règle que `ui/avatar.tsx`, mais
+                    // appliquée **à la source** pour que l'annuaire et la démo publique rendent
+                    // exactement la même chose. `null` reste possible → repli initiales côté UI.
+                    image: p.user.image ?? getDefaultDiscordAvatar(discordId as string | undefined),
+                },
                 displayName: getDisplayName(p),
                 roleColor: p.discordRoleColor || 0,
                 roleName: p.discordRoleName || "Membre",
@@ -2324,12 +2445,45 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
 
         // 4. Update Database
         const updatedPoints = result.points;
-        const updatedLevel = result.level;
+        let updatedLevel: number | undefined = typeof result.level === "number" ? result.level : undefined;
+
+        // 5. Second appel : ladder général (XP) — sans lui, le bouton ne faisait
+        // que les succès et l'XP restait à 0 (en prime, le stamp lastLadderUpdate
+        // ci-dessous bloquait la sync bulk 22 h).
+        let updatedXp: bigint | undefined;
+        try {
+            const generalUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(profile.pseudoDofus)}&type=general`;
+            const generalResponse = await fetch(generalUrl, {
+                headers: {
+                    "Accept": "application/json",
+                    ...(workerSecret ? { "X-SigilOS-Key": workerSecret } : {}),
+                },
+                cache: "no-store",
+                signal: AbortSignal.timeout(15000),
+            });
+            if (generalResponse.ok) {
+                const generalResult = await generalResponse.json();
+                if (generalResult?.success && generalResult?.found) {
+                    if (generalResult.totalXp) {
+                        const cleanXp = String(generalResult.totalXp).replace(/\D/g, "").slice(0, 15);
+                        if (cleanXp) updatedXp = BigInt(cleanXp);
+                    }
+                    if (generalResult.level && updatedLevel === undefined) {
+                        const lvl = Math.min(Math.max(Number(generalResult.level), 1), 300);
+                        if (Number.isFinite(lvl)) updatedLevel = lvl;
+                    }
+                }
+            }
+        } catch {
+            // XP indisponible : on garde au moins les succès (pas d'échec global)
+        }
 
         await db.userProfile.update({
             where: { id: profile.id },
             data: {
                 successPoints: updatedPoints,
+                ...(updatedXp !== undefined ? { totalXp: updatedXp } : {}),
+                ...(updatedLevel ? { dofusLevel: updatedLevel } : {}),
                 lastLadderUpdate: new Date(),
                 // Optionally update level if we have a field for it, SigilOS usually focuses on pseudo/points
             }
@@ -2337,12 +2491,14 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
 
         revalidatePath(`/dashboard/${guildId}/ladder`);
         revalidatePath(`/dashboard/${guildId}/profile`);
+        // Cache ladder Redis : sinon le module affiche les anciennes valeurs 5-10 min.
+        await clearCachePattern(`ladder:*:${guildId}*`);
 
         return {
             success: true,
             data: {
                 points: updatedPoints,
-                level: updatedLevel
+                level: updatedLevel ?? 0
             }
         };
 
@@ -2355,7 +2511,7 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
 /**
  * Fetch a preview of the external ladder data without saving to DB.
  */
-export async function getLadderPreview(guildId: string): Promise<ActionResponse<{ points: number, level: number, className?: string, rank?: number, guildRank?: number }>> {
+export async function getLadderPreview(guildId: string, target?: { pseudoDofus?: string | null, dofusServerId?: string | null }): Promise<ActionResponse<{ points: number, level: number, className?: string, rank?: number, guildRank?: number }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
@@ -2363,23 +2519,29 @@ export async function getLadderPreview(guildId: string): Promise<ActionResponse<
     if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
 
     try {
-        const profile = await db.userProfile.findFirst({
-            where: {
-                userId: session.user.id,
-                guild: { discordGuildId: guildId }
-            },
-            include: { guild: true }
-        });
+        // #231 — Le God qui consulte le profil d'un membre ne doit pas recevoir SES propres
+        // données de ladder. On cible explicitement le membre (pseudoDofus) passé par le composant ;
+        // à défaut (profil perso) on retombe sur le profil du session.user.
+        const profile = target?.pseudoDofus
+            ? await db.userProfile.findFirst({
+                where: { pseudoDofus: target.pseudoDofus, guild: { discordGuildId: guildId } },
+                include: { guild: true },
+            })
+            : await db.userProfile.findFirst({
+                where: { userId: session.user.id, guild: { discordGuildId: guildId } },
+                include: { guild: true },
+            });
 
-        if (!profile || !profile.pseudoDofus) return { success: false, error: "Pseudo manquant." };
+        const pseudo = target?.pseudoDofus || profile?.pseudoDofus;
+        if (!pseudo) return { success: false, error: "Pseudo manquant." };
 
         const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
         const workerSecret = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
 
         if (!workerUrl) return { success: false, error: "Service indisponible." };
 
-        const serverId = profile.guild.dofusServerId || "295";
-        const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(profile.pseudoDofus)}`;
+        const serverId = target?.dofusServerId || profile?.guild?.dofusServerId || "295";
+        const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(pseudo)}`;
 
         const response = await fetch(targetUrl, {
             headers: {
@@ -2425,18 +2587,18 @@ export async function getLadderPreview(guildId: string): Promise<ActionResponse<
         
         // Determine Class (Fallback to DB if Worker doesn't provide it)
         const workerClass = findValue(raw, ["className", "class", "character_class", "classe", "class_id"]);
-        const className = workerClass ? workerClass.toString() : (profile.classe || undefined);
+        const className = workerClass ? workerClass.toString() : (profile?.classe || undefined);
 
         // Calculate Guild Rank (comparing fresh Ankama points with last known guild points)
-        const guildRank = await db.userProfile.count({
-            where: {
-                guildId: profile.guildId,
-                status: "ACTIVE",
-                successPoints: {
-                    gt: points
+        const guildRank = profile
+            ? (await db.userProfile.count({
+                where: {
+                    guildId: profile.guildId,
+                    status: "ACTIVE",
+                    successPoints: { gt: points }
                 }
-            }
-        }) + 1;
+            })) + 1
+            : undefined;
 
         return {
             success: true,
@@ -2495,9 +2657,9 @@ export async function getMemberDofusSummaryForProfile(guildId: string, profileId
         const mainName = profile.pseudoDofus || "Principal";
         const mainMap = progressByChar.get("PRINCIPAL") || new Map();
 
-        // #206 — le Dofoobz utilise l'asset LOCAL (comme les autres Dofus sur les
-        // pages profil/membres) ; l'imageUrl en base (dofusdb) pointait sur le mauvais
-        // icône et restait KO. Normalisation lue à la volée via resolveDofusImageUrl
+        // Les icônes Dofus sont désormais servies depuis nos ASSETS LOCAUX
+        // (/module-dofus/*.png) pour ne plus dépendre du CDN dofusdb.fr.
+        // Normalisation appliquée à la lecture via resolveDofusImageUrl(slug, imageUrl, nameShort)
         // (src/lib/dofus-image-url.ts) → couvre les bases existantes + le hub Quêtes Dofus.
         const mainDofusList = dofusItems.map((d: any) => {
             const prog = mainMap.get(d.id);
@@ -2505,7 +2667,7 @@ export async function getMemberDofusSummaryForProfile(guildId: string, profileId
                 slug: d.slug,
                 name: d.nameShort,
                 color: d.color,
-                imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl),
+                imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl, d.nameShort),
                 isObtained: prog?.isObtained ?? false,
                 progressPercent: prog?.isObtained ? 100 : (prog?.percent ?? 0)
             };
@@ -2523,7 +2685,7 @@ export async function getMemberDofusSummaryForProfile(guildId: string, profileId
                     slug: d.slug,
                     name: d.nameShort,
                     color: d.color,
-                    imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl),
+                    imageUrl: resolveDofusImageUrl(d.slug, d.imageUrl, d.nameShort),
                     isObtained: prog?.isObtained ?? false,
                     progressPercent: prog?.isObtained ? 100 : (prog?.percent ?? 0)
                 };

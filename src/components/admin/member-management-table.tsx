@@ -64,7 +64,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { updateMemberProfileStatus, updateMemberPseudo, updateMemberAnkamaId } from "@/server/actions/user-actions";
 import { deleteProfileByAdmin, reactivateProfileByAdmin, getGuildMemberBans, liftGuildMemberBan } from "@/server/actions/lifecycle-actions";
-import { transferGuildOwnership } from "@/server/actions/god-lifecycle-actions";
+import { transferGuildOwnershipAction } from "@/server/actions/guild-owner-actions";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
@@ -106,9 +106,11 @@ interface MemberManagementTableProps {
     isAdmin?: boolean; // Guild admin (canManageMembers) — can delete & reactivate
     ownerId?: string | null;
     currentUserId?: string; // NextAuth user ID of the logged-in admin
+    /** Affiche les colonnes d'ID (Discord / Ankama). Faux quand le Registre les porte déjà. */
+    showIds?: boolean;
 }
 
-export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false, isAdmin = false, ownerId = null, currentUserId = "" }: MemberManagementTableProps) {
+export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false, isAdmin = false, ownerId = null, currentUserId = "", showIds = true }: MemberManagementTableProps) {
     const [search, setSearch] = useState("");
     const [members, setMembers] = useState(initialMembers);
     const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED" | "BANNED" | "EXCLUDED">("ACTIVE");
@@ -129,6 +131,8 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     
     const [vacationTarget, setVacationTarget] = useState<Member | null>(null);
     const [archiveTarget, setArchiveTarget] = useState<{ id: string, name: string } | null>(null);
+    const [transferTarget, setTransferTarget] = useState<{ userId: string, memberName: string } | null>(null);
+    const [confirmationGuildName, setConfirmationGuildName] = useState("");
 
     // ── F-01 : exclusions (tombstones) — membres supprimés/bannis dont le profil n'existe plus ──
     const [excludedBans, setExcludedBans] = useState<any[]>([]);
@@ -264,14 +268,21 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     };
 
     const handleDelete = async (profileId: string) => {
-        if (!confirm("⚠️ Action irréversible. Supprimer définitivement toutes les données de ce membre pour cette guilde ?")) return;
+        if (!confirm(
+            "⚠️ EXCLURE ce membre de SigilOS ?\n\n" +
+            "IMPACTS RÉELS :\n" +
+            "• Ses données SigilOS pour CETTE guilde (missions, succès, progression) sont définitivement supprimées.\n" +
+            "• Si c'est sa SEULE guilde : son COMPTE entier (identifiant, connexion Discord, sessions) est effacé.\n" +
+            "• Il GARDE son rôle Discord : sans protection, il serait réinstancié dès son prochain accès. On pose donc un blocage (tombstone) → il apparaît dans l'onglet « Exclus ».\n\n" +
+            "Action RÉVERSIBLE : vous pouvez le RÉINTÉGRER depuis l'onglet « Exclus » à tout moment."
+        )) return;
 
         setIsUpdating(profileId);
         try {
             const res = await deleteProfileByAdmin(guildId, profileId);
             if (res.success) {
                 setMembers(prev => prev.filter(m => m.id !== profileId));
-                toast.success("Profil supprimé définitivement");
+                toast.success("Membre exclu (réintégrable depuis l'onglet Exclus)");
                 loadExcludedBans(); // F-01 : la suppression crée un tombstone → le membre ne peut plus être ré-provisionné
             } else {
                 toast.error(res.error || "Erreur lors de la suppression");
@@ -283,15 +294,20 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
         }
     };
 
-    const handleTransferOwnership = async (userId: string, memberName: string) => {
-        if (!confirm(`⚠️ ATTENTION : Transférer la PROPRIÉTÉ de cette guilde à ${memberName} ?\n\nCette personne deviendra le nouvel administrateur principal.`)) return;
-        
-        setIsUpdating(userId);
+    const handleOpenTransferModal = (userId: string, memberName: string) => {
+        setTransferTarget({ userId, memberName });
+        setConfirmationGuildName("");
+    };
+
+    const handleExecuteTransferOwnership = async () => {
+        if (!transferTarget) return;
+        setIsUpdating(transferTarget.userId);
         try {
-            const res = await transferGuildOwnership(guildId, userId);
+            const res = await transferGuildOwnershipAction(guildId, transferTarget.userId, confirmationGuildName);
             if (res.success) {
-                toast.success(`Propriété transférée avec succès à ${memberName} !`);
-                window.location.reload(); // Refresh to update context
+                toast.success(`Propriété transférée avec succès à ${res.newOwnerName || transferTarget.memberName} !`);
+                setTransferTarget(null);
+                window.location.reload();
             } else {
                 toast.error(res.error || "Échec du transfert");
             }
@@ -502,8 +518,12 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                 </button>
                             </TableHead>
                             <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Activité</TableHead>
-                            <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Discord ID</TableHead>
-                            <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Ankama ID</TableHead>
+                            {showIds && (
+                                <>
+                                    <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Discord ID</TableHead>
+                                    <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Ankama ID</TableHead>
+                                </>
+                            )}
                             <TableHead className="text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6">Suppression</TableHead>
                             <TableHead className="text-right text-caption font-semibold uppercase tracking-wide text-muted-foreground py-6 pr-8">Actions</TableHead>
                         </TableRow>
@@ -511,7 +531,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     <TableBody>
                         {paginatedMembers.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground italic">
+                                    <TableCell colSpan={showIds ? 8 : 6} className="h-32 text-center text-muted-foreground italic">
                                         Aucun membre trouvé pour ces critères.
                                     </TableCell>
                                 </TableRow>
@@ -581,38 +601,42 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                 <TableCell className="text-caption text-muted-foreground font-bold uppercase tracking-tight">
                                     {formatDistanceToNow(new Date(member.updatedAt ?? member.archivedAt ?? new Date()), { addSuffix: true, locale: fr })}
                                 </TableCell>
-                                <TableCell>
-                                    <div 
-                                        onClick={() => copyToClipboard(member.user.accounts[0]?.providerAccountId || "", "ID Discord")}
-                                        className="flex items-center gap-2 group/copy cursor-pointer w-fit"
-                                    >
-                                        <code className="text-caption px-2 py-1 rounded bg-elevated text-muted-foreground font-mono border border-border group-hover/copy:border-border-strong transition-all">
-                                            {member.user.accounts[0]?.providerAccountId || "Unknown"}
-                                        </code>
-                                        <Copy className="w-3 h-3 text-muted-foreground group-hover/copy:text-muted-foreground opacity-0 group-hover/copy:opacity-100 transition-all" />
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    {member.ankamaId ? (
+                                {showIds && (
+                                    <TableCell>
                                         <div 
-                                            onClick={() => copyToClipboard(member.ankamaId!, "ID Dofus")}
-                                            className="flex items-center gap-2 group/id relative cursor-pointer w-fit"
+                                            onClick={() => copyToClipboard(member.user.accounts[0]?.providerAccountId || "", "ID Discord")}
+                                            className="flex items-center gap-2 group/copy cursor-pointer w-fit"
                                         >
-                                            <div className="px-2 py-1 rounded bg-info/20 border border-info/40 group-hover/id:border-info transition-all">
-                                                <span className="text-caption font-black text-info font-mono tracking-tight uppercase">{member.ankamaId}</span>
-                                            </div>
-                                            <Copy className="w-3 h-3 text-info group-hover/id:text-info opacity-0 group-hover/id:opacity-100 transition-all" />
+                                            <code className="text-caption px-2 py-1 rounded bg-elevated text-muted-foreground font-mono border border-border group-hover/copy:border-border-strong transition-all">
+                                                {member.user.accounts[0]?.providerAccountId || "Unknown"}
+                                            </code>
+                                            <Copy className="w-3 h-3 text-muted-foreground group-hover/copy:text-muted-foreground opacity-0 group-hover/copy:opacity-100 transition-all" />
                                         </div>
-                                    ) : (
-                                        <button 
-                                            onClick={() => openIdDialog(member)}
-                                            className="text-caption font-black uppercase text-muted-foreground hover:text-muted-foreground transition-colors italic flex items-center gap-1"
-                                        >
-                                            <Edit className="w-3 h-3" />
-                                            Ajouter ID
-                                        </button>
-                                    )}
-                                </TableCell>
+                                    </TableCell>
+                                )}
+                                {showIds && (
+                                    <TableCell>
+                                        {member.ankamaId ? (
+                                            <div 
+                                                onClick={() => copyToClipboard(member.ankamaId!, "ID Dofus")}
+                                                className="flex items-center gap-2 group/id relative cursor-pointer w-fit"
+                                            >
+                                                <div className="px-2 py-1 rounded bg-info/20 border border-info/40 group-hover/id:border-info transition-all">
+                                                    <span className="text-caption font-black text-info font-mono tracking-tight uppercase">{member.ankamaId}</span>
+                                                </div>
+                                                <Copy className="w-3 h-3 text-info group-hover/id:text-info opacity-0 group-hover/id:opacity-100 transition-all" />
+                                            </div>
+                                        ) : (
+                                            <button 
+                                                onClick={() => openIdDialog(member)}
+                                                className="text-caption font-black uppercase text-muted-foreground hover:text-muted-foreground transition-colors italic flex items-center gap-1"
+                                            >
+                                                <Edit className="w-3 h-3" />
+                                                Ajouter ID
+                                            </button>
+                                        )}
+                                    </TableCell>
+                                )}
                                 <TableCell>
                                     {member.scheduledDeletion ? (() => {
                                         const deletionDate = new Date(member.scheduledDeletion);
@@ -690,16 +714,16 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             {(isAdmin || isSuperAdmin) && (
                                                 <>
                                                     <DropdownMenuSeparator className="bg-surface" />
-                                                    {isSuperAdmin && (
-                                                        <DropdownMenuItem onClick={() => handleTransferOwnership(member.userId, getGameDisplayName(member) || "Membre")} className="gap-2 focus:bg-violet-600 focus:text-foreground text-violet-400 cursor-pointer text-caption font-black uppercase tracking-wider">
+                                                    {(isSuperAdmin || (ownerId && currentUserId === ownerId)) && !isProtected && member.status === "ACTIVE" && (
+                                                        <DropdownMenuItem onClick={() => handleOpenTransferModal(member.userId, getGameDisplayName(member) || "Membre")} className="gap-2 focus:bg-warning/15 focus:text-warning text-warning cursor-pointer text-caption font-black uppercase tracking-wider">
                                                             <UserCheck className="h-3.5 w-3.5" />
-                                                            Proprietaire
+                                                            Transférer Propriété
                                                         </DropdownMenuItem>
                                                     )}
                                                     {(isSuperAdmin || member.status !== "ACTIVE") && !isProtected && (
                                                         <DropdownMenuItem onClick={() => handleDelete(member.id)} className="gap-2 focus:bg-danger focus:text-foreground text-danger cursor-pointer text-caption font-black uppercase tracking-wider">
                                                             <Trash2 className="h-3.5 w-3.5" />
-                                                            Supprimer
+                                                            Exclure (réintégrable)
                                                         </DropdownMenuItem>
                                                     )}
                                                 </>
@@ -856,6 +880,59 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                         ));
                     }}
                 />
+            )}
+
+            {transferTarget && (
+                <Dialog open={!!transferTarget} onOpenChange={(open) => !open && setTransferTarget(null)}>
+                    <DialogContent className="sm:max-w-[460px] bg-background border-border text-foreground p-0 overflow-hidden rounded-[24px]">
+                        <div className="p-6 space-y-4">
+                            <DialogHeader>
+                                <DialogTitle className="text-lg font-black tracking-tight text-warning flex items-center gap-2">
+                                    <ShieldAlert className="w-5 h-5" />
+                                    Transférer la Propriété de Guilde
+                                </DialogTitle>
+                                <DialogDescription className="text-muted-foreground text-sm space-y-2 pt-2">
+                                    <p>
+                                        Vous êtes sur le point de transférer la <strong>propriété totale</strong> de cet espace SigilOS à <strong className="text-foreground">{transferTarget.memberName}</strong>.
+                                    </p>
+                                    <p className="text-danger/90 font-semibold text-xs">
+                                        ⚠️ Cette action est irréversible. Vous céderez vos droits d'administrateur principal.
+                                    </p>
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="space-y-2 pt-2">
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                    Tapez le nom de la guilde pour confirmer :
+                                </label>
+                                <Input
+                                    value={confirmationGuildName}
+                                    onChange={(e) => setConfirmationGuildName(e.target.value)}
+                                    placeholder="Nom exact de la guilde"
+                                    className="bg-surface border-border text-foreground"
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-surface/50 border-t border-border flex justify-end gap-3">
+                            <Button 
+                                variant="ghost" 
+                                onClick={() => setTransferTarget(null)} 
+                                className="font-bold text-muted-foreground hover:text-foreground"
+                            >
+                                Annuler
+                            </Button>
+                            <Button
+                                onClick={handleExecuteTransferOwnership}
+                                disabled={!confirmationGuildName.trim() || isUpdating === transferTarget.userId}
+                                className="bg-warning hover:bg-warning/90 text-warning-foreground font-black px-6 rounded-xl"
+                            >
+                                {isUpdating === transferTarget.userId ? "Transfert en cours..." : "Confirmer le Transfert"}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             )}
         </div>
     );

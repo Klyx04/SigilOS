@@ -1,25 +1,17 @@
 "use client";
 
-import { useTour } from "@/components/tour/tour-provider";
-import { Button } from "@/components/ui/button";
-import { CircleHelp } from "lucide-react";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 /**
- * Bouton « Tutoriel » — relance le tutoriel du profil perso à la demande.
- * Contextualisé : ne pointe que les blocs du profil visibles par l'utilisateur.
+ * Bouton d'aide unifié (Documentation + Tutoriel) pour le profil personnel.
  */
-export function ProfileTourReplayButton() {
-    const { startTour } = useTour();
+export function ProfileTourReplayButton({ className }: { className?: string }) {
     return (
-        <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => startTour("profile")}
-            className="border-warning/30 bg-warning/10 hover:bg-warning/20 hover:text-warning text-warning text-caption font-black uppercase tracking-widest rounded-xl transition-all gap-2"
-        >
-            <CircleHelp className="w-4 h-4 text-warning" />
-            Tutoriel
-        </Button>
+        <ModuleHelpActions
+            docSlug="introduction"
+            docTitle="Profil & Synchronisation"
+            tourPhase="profile"
+            className={className}
+        />
     );
 }

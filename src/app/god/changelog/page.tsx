@@ -70,6 +70,11 @@ export default function GODChangelogPage() {
         content: '',
         category: 'FEATURE' as ChangelogCategory,
         isInternal: false,
+        // Traductions EN (facultatif) — laissées vides, l'affichage anglais
+        // retombe automatiquement sur le français.
+        titleEn: '',
+        summaryEn: '',
+        contentEn: '',
     });
 
     useEffect(() => {
@@ -195,6 +200,9 @@ export default function GODChangelogPage() {
             content: entry.content,
             category: entry.category,
             isInternal: entry.isInternal ?? false,
+            titleEn: entry.titleEn ?? '',
+            summaryEn: entry.summaryEn ?? '',
+            contentEn: entry.contentEn ?? '',
         });
         setPreviewMode(false);
         setIsCreating(true);
@@ -208,6 +216,9 @@ export default function GODChangelogPage() {
             content: '',
             category: 'FEATURE',
             isInternal: false,
+            titleEn: '',
+            summaryEn: '',
+            contentEn: '',
         });
         setIsCreating(false);
         setEditingId(null);
@@ -481,6 +492,26 @@ export default function GODChangelogPage() {
                                 <div className="space-y-2">
                                     <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Contenu complet (modale utilisateur)</Label>
                                     <AdvancedEditor key={`content-${editingId ?? 'new'}`} initialContent={form.content} onChange={(c) => handleChange('content', c)} contentClassName="min-h-[220px]" />
+                                </div>
+                                <div className="pt-5 border-t border-white/10 space-y-5">
+                                    <div>
+                                        <p className="text-caption font-black text-zinc-400 uppercase tracking-widest">Traductions anglaises (facultatif)</p>
+                                        <p className="text-caption text-zinc-500 mt-1">
+                                            Laissées vides, la page et la modale en anglais affichent le texte français. Le contenu EN est saisi à la main : aucune traduction automatique.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Title (EN)</Label>
+                                        <Input value={form.titleEn} onChange={e => handleChange('titleEn', e.target.value)} placeholder="Ex: Dashboard V2 overhaul" className="h-11 bg-zinc-900/50 border-white/10 rounded-xl" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Summary (EN) — Discord announcement / preview</Label>
+                                        <AdvancedEditor key={`summaryEn-${editingId ?? 'new'}`} initialContent={form.summaryEn} onChange={(c) => handleChange('summaryEn', c)} contentClassName="min-h-[80px]" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-caption font-black text-zinc-500 uppercase tracking-widest">Full content (EN) — user modal</Label>
+                                        <AdvancedEditor key={`contentEn-${editingId ?? 'new'}`} initialContent={form.contentEn} onChange={(c) => handleChange('contentEn', c)} contentClassName="min-h-[220px]" />
+                                    </div>
                                 </div>
                             </>
                         )}

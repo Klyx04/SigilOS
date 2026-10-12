@@ -12,6 +12,12 @@ export interface WorldData {
     subareas: SubArea[];
     dungeons: Dungeon[];
     maps: MapNode[];
+    /**
+     * Noms de zones dont le libellé (nom + niveau) ne doit pas être dessiné — liste tenue à la
+     * main depuis God (`/game-data/hidden-map-zones.json`, cf. `map-viewer`). Optionnel : sans
+     * ce fichier, tous les libellés de zone s'affichent comme avant.
+     */
+    hiddenZoneLabels?: string[];
 }
 
 export interface WorldInfo {

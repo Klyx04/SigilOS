@@ -5,15 +5,16 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import {
-    Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
-    Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, Maximize2, Minimize2
+    Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
+    Clock, ZoomIn, Compass, ChevronDown, ChevronLeft, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, FileText
 } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
 import { getBombLadder } from '@/server/actions/bomb-actions';
-import { searchArchimonstresForMap, getArchimonstresByFilter, type MapSearchFilter } from '@/server/actions/game-data-actions';
+import { getBountiesForMap } from '@/server/actions/game-data-actions';
 import { getOcreDungeonMapIds } from '@/server/actions/ocre-map-actions';
 import {
     createGeoguesserSession,
@@ -32,13 +33,15 @@ import { io, Socket } from "socket.io-client";
 import { buildWsUrl } from "@/lib/socket-utils";
 import { cn } from "@/lib/utils";
 import { playSoundEffect } from "@/lib/sounds";
+import { parseZoneShape } from "@/lib/zone-minimap";
+import { hasKnownGameCoords } from "@/lib/worldmap-tiles";
 
 const LeafletMapCore = dynamic<any>(() => import('./leaflet-map-core'), {
     ssr: false,
     loading: () => (
         <div className="w-full h-full bg-background flex items-center justify-center">
             <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-4 border-success/20 border-t-emerald-500 rounded-full animate-spin" />
+                <div className="w-12 h-12 border-4 border-success/20 border-t-success rounded-full animate-spin" />
                 <p className="text-success/50 font-black text-xs uppercase tracking-widest italic">Chargement du Monde...</p>
             </div>
         </div>
@@ -46,12 +49,14 @@ const LeafletMapCore = dynamic<any>(() => import('./leaflet-map-core'), {
 });
 
 const GeoguesserHUD = dynamic<any>(() => import('./GeoguesserHUD'), { ssr: false });
-const MapDetailsPanel = dynamic<any>(() => import('./MapDetailsPanel'), { ssr: false });
 const DungeonDetailModal = dynamic<any>(() => import('./DungeonDetailModal').then(mod => mod.DungeonDetailModal), { ssr: false });
 const ZoneDetailModal = dynamic<any>(() => import('./ZoneDetailModal').then(mod => mod.ZoneDetailModal), { ssr: false });
 const MapHelpCard = dynamic<any>(() => import('./MapHelpCard').then(mod => mod.MapHelpCard), { ssr: false });
 const HarvestOptiFarmPanel = dynamic<any>(() => import('./harvest-opti-farm-panel').then(mod => mod.HarvestOptiFarmPanel), { ssr: false });
 const HarvestGpsController = dynamic<any>(() => import('./harvest-gps-controller').then(mod => mod.HarvestGpsController), { ssr: false });
+const RaidStratDrawer = dynamic<any>(() => import('./RaidStratDrawer').then(mod => mod.RaidStratDrawer), { ssr: false });
+const BountyMapPanel = dynamic<any>(() => import('./bounty-map-panel').then(mod => mod.BountyMapPanel), { ssr: false });
+const ArchimonsterMapModal = dynamic<any>(() => import('./archimonster-map-modal').then(mod => mod.ArchimonsterMapModal), { ssr: false });
 
 interface InteractiveMapProps {
     worldMap: WorldData;
@@ -69,6 +74,14 @@ interface InteractiveMapProps {
     interactive?: boolean;
     /** Affiche le bouton "Choix du Jeu" (navigation vers /mini-jeux) dans le header de la carte. */
     showGameEntry?: boolean;
+    /** Active le plein écran à l'arrivée (module carte ouvert via le bouton "Ouvrir en plein écran"). */
+    startFullscreen?: boolean;
+    /** Mode overlay autonome (tailles réduites des panneaux et barres d'outils). */
+    isOverlay?: boolean;
+    /** Mode public : désactive toutes les interactions de guilde (succès, dungeon finder, mini-jeux). */
+    isPublic?: boolean;
+    /** Sous-zones à activer à l'arrivée (calque « Zones », lien profond des fiches). */
+    initialZoneIds?: number[];
 }
 
 // Retourne l'élément plein écran actif (worldmap, mini-jeux ou bomb)
@@ -76,6 +89,19 @@ function getFullscreenEl(): HTMLElement | null {
     return document.getElementById('worldmap-page')
         || document.getElementById('mini-games-page')
         || document.getElementById('sigil-bomb-page');
+}
+
+// Icônes des métiers de récolte
+function getHarvestJobIcon(name: string): string | null {
+    if (!name) return null;
+    const n = name.toLowerCase();
+    if (n.includes('bûch') || n.includes('buch')) return '/assets/dofus/jobs/bucheron.png';
+    if (n.includes('min')) return '/assets/dofus/jobs/mineur.png';
+    if (n.includes('alch')) return '/assets/dofus/jobs/alchimiste.png';
+    if (n.includes('pays')) return '/assets/dofus/jobs/paysan.png';
+    if (n.includes('pêch') || n.includes('pech')) return '/assets/dofus/jobs/pecheur.png';
+    if (n.includes('chass')) return '/assets/dofus/jobs/chasseur.png';
+    return null;
 }
 
 // Force le plein écran du guesser quand une partie est active (monté directement dans le rendu du jeu)
@@ -113,7 +139,11 @@ export default function InteractiveMapV2({
     userAvatar,
     isAdmin,
     interactive,
-    showGameEntry = false
+    showGameEntry = false,
+    startFullscreen = false,
+    isOverlay = false,
+    isPublic = false,
+    initialZoneIds
 }: InteractiveMapProps) {
     const { data: sessionData } = useSession();
     const router = useRouter();
@@ -125,9 +155,8 @@ export default function InteractiveMapV2({
     const autoJoinAttempted = useRef(false);
 
     // UI States
-    const [search, setSearch] = useState('');
     const [showDebugGrid, setShowDebugGrid] = useState(false);
-    const [zoneHighlight, setZoneHighlight] = useState(false);
+    const [zoneHighlight, setZoneHighlight] = useState((initialZoneIds?.length ?? 0) > 0);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [selectedPosition, setSelectedPosition] = useState<any>(null);
     const [selectedDungeon, setSelectedDungeon] = useState<Dungeon[] | null>(null);
@@ -145,33 +174,14 @@ export default function InteractiveMapV2({
     const [activePanelTab, setActivePanelTab] = useState<'map' | 'scores'>('map');
     // Dropdown cliquable du sélecteur de monde (évite le débordement hover + UX claire)
     const [worldDropdownOpen, setWorldDropdownOpen] = useState(false);
+    const [overlayWorldDropdownOpen, setOverlayWorldDropdownOpen] = useState(false);
     const worldDropdownBtnRef = useRef<HTMLButtonElement>(null);
     const [worldDropdownPos, setWorldDropdownPos] = useState<{ top: number; left: number } | null>(null);
+    // Panneau strat raid (monde 37 Gigalodon / monde 40 Sanctuaire uniquement)
+    const [showStratPanel, setShowStratPanel] = useState(false);
+    // Monde actif est un monde de raid (affiche le bouton Strat)
+    const isRaidWorld = selectedWorldId === 37 || selectedWorldId === 40;
 
-    // Archimonstre search state
-    const [archiResults, setArchiResults] = useState<any[]>([]);
-    const [isSearchingArchi, setIsSearchingArchi] = useState(false);
-    const [highlightSubareaIds, setHighlightSubareaIds] = useState<number[]>([]);
-    const [searchFilter, setSearchFilter] = useState<MapSearchFilter>('all');
-    // Pré-chargement : résultats affichés quand on clique un filtre sans texte (ex: 🟡 Ocre)
-    const [preloadedFilterResults, setPreloadedFilterResults] = useState<any[]>([]);
-    const [pendingFilter, setPendingFilter] = useState<MapSearchFilter | null>(null);
-    const [isLoadingFilter, setIsLoadingFilter] = useState(false);
-
-    // Charger les résultats du filtre quand on clique une chip SANS texte de recherche
-    const loadFilterResults = useCallback(async (f: MapSearchFilter) => {
-        if (!search || search.trim().length < 2) {
-            setIsLoadingFilter(true);
-            try {
-                const res = await getArchimonstresByFilter(f);
-                setPreloadedFilterResults(res.success ? (res.data || []) : []);
-            } catch {
-                setPreloadedFilterResults([]);
-            } finally {
-                setIsLoadingFilter(false);
-            }
-        }
-    }, [search]);
 
     // Ocre quest dungeons (donjons marqués "Quête Ocre" → icône Dofus Ocre sur la carte)
     const [ocreMapIds, setOcreMapIds] = useState<Set<number>>(new Set());
@@ -180,10 +190,41 @@ export default function InteractiveMapV2({
     const [harvestJobs, setHarvestJobs] = useState<any[]>([]);
     const [zaaps, setZaaps] = useState<any[]>([]);
     const [showHarvestPanel, setShowHarvestPanel] = useState(false);
-    const [showZaaps, setShowZaaps] = useState(true);
+    const [showZaaps, setShowZaaps] = useState(false);
+    const [showPassages, setShowPassages] = useState(false);
+    const [showDungeons, setShowDungeons] = useState(false);
+    // Avis de recherche : panneau latéral, zone encadrée et icône clignotante.
+    const [showBountyPanel, setShowBountyPanel] = useState(false);
+    // Modale « Archimonstres » : recherche + filtres, un clic ouvre la zone.
+    const [showArchiPanel, setShowArchiPanel] = useState(false);
+    const [bountyPanelQuery, setBountyPanelQuery] = useState('');
+    const [bountyList, setBountyList] = useState<any[]>([]);
+    const [isLoadingBounties, setIsLoadingBounties] = useState(false);
+    const [activeBountyId, setActiveBountyId] = useState<string | null>(null);
+    const [pinnedSubareaId, setPinnedSubareaId] = useState<number | null>(initialZoneIds?.[0] ?? null);
+    const [highlightMarker, setHighlightMarker] = useState<{ gameX: number; gameY: number; iconUrl: string | null; worldId: number } | null>(null);
     const [selectedHarvestJobId, setSelectedHarvestJobId] = useState<number>(2); // Bûcheron
     const [selectedHarvestResourceIds, setSelectedHarvestResourceIds] = useState<Set<number>>(new Set());
     const [activeCircuit, setActiveCircuit] = useState<any | null>(null);
+
+    // Overlay harvest bar — refs pour scroll automatique vers la pill active
+    const overlayJobsScrollRef = useRef<HTMLDivElement>(null);
+    const overlayResScrollRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to active job pill when job changes
+    useEffect(() => {
+        if (!isOverlay || !overlayJobsScrollRef.current) return;
+        const active = overlayJobsScrollRef.current.querySelector('[data-active-job="true"]') as HTMLElement | null;
+        active?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }, [selectedHarvestJobId, isOverlay]);
+
+    // Scroll to active resource pill when selection changes
+    useEffect(() => {
+        if (!isOverlay || !overlayResScrollRef.current) return;
+        const active = overlayResScrollRef.current.querySelector('[data-active-res="true"]') as HTMLElement | null;
+        active?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }, [selectedHarvestResourceIds, isOverlay]);
+
 
     // Load Ocre dungeon mapIds once
     useEffect(() => {
@@ -193,6 +234,13 @@ export default function InteractiveMapV2({
         }).catch(() => {});
         return () => { cancelled = true; };
     }, []);
+
+    // Fermer le panneau strat si on quitte un monde de raid (37/40)
+    useEffect(() => {
+        if (selectedWorldId !== 37 && selectedWorldId !== 40) {
+            setShowStratPanel(false);
+        }
+    }, [selectedWorldId]);
 
     // Load harvest resources and zaaps data once
     useEffect(() => {
@@ -329,30 +377,27 @@ export default function InteractiveMapV2({
         };
     }, [worldDropdownOpen]);
 
-    // ── Debounced archimonstre search (transmet le filtre actif au serveur) ──
+    // ── Avis de recherche du panneau latéral : liste locale, filtrée par nom ──
     useEffect(() => {
-        if (!search || search.trim().length < 2) {
-            setArchiResults([]);
-            // Note: highlightSubareaIds has its own 8s timer — don't clear it here
-            return;
-        }
+        if (!showBountyPanel) return;
+        let cancelled = false;
+        const term = bountyPanelQuery.trim();
         const timer = setTimeout(async () => {
-            setIsSearchingArchi(true);
+            setIsLoadingBounties(true);
             try {
-                const res = await searchArchimonstresForMap(search.trim(), searchFilter);
-                if (res.success && res.data) {
-                    setArchiResults(res.data);
-                } else {
-                    setArchiResults([]);
-                }
+                const res = await getBountiesForMap(term);
+                if (!cancelled) setBountyList(res.success ? (res.data || []) : []);
             } catch {
-                setArchiResults([]);
+                if (!cancelled) setBountyList([]);
             } finally {
-                setIsSearchingArchi(false);
+                if (!cancelled) setIsLoadingBounties(false);
             }
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [search, searchFilter]);
+        }, term.length >= 2 ? 300 : 0);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [showBountyPanel, bountyPanelQuery]);
 
     // --- HOOKS DE CALCUL (useMemo) ---
     // On les place au début pour éviter les erreurs "Used before assigned" dans les useEffect
@@ -393,111 +438,95 @@ export default function InteractiveMapV2({
         return withMaps.length > 0 ? withMaps : (worldMap.worlds || []);
     }, [worldMap.worlds, worldMap.maps]);
 
-    const searchResults = useMemo(() => {
-        if (!search) return [];
-        const t = search.toLowerCase();
+    /**
+     * Focus d'une cible sur la carte (avis de recherche **ou** archimonstre) :
+     * recentre, encadre la zone et y fait clignoter l'icône de la cible.
+     *
+     * 🎯 Un seul comportement partagé par les deux panneaux, et volontairement
+     * **sans minuterie** : l'encadrement reste tant que la cible est sélectionnée
+     * (avant, tout s'effaçait au bout de 8 s — ressenti « ça disparaît tout seul »).
+     * L'aplat orange « pulsé » qui recouvrait la zone est supprimé : l'encadrement
+     * est celui du calque « Zones » (voile + contour), identique au survol. Le
+     * bouton « Zones » reste donc maître de l'affichage — on l'active à la
+     * sélection pour que la cible soit lisible, jamais pour le bloquer.
+     */
+    const focusZone = useCallback((target: {
+        worldMapId?: number | null;
+        centerX?: number | null;
+        centerY?: number | null;
+        subAreaIds?: number[] | null;
+        iconUrl?: string | null;
+    }) => {
+        const subAreaIds = Array.isArray(target.subAreaIds)
+            ? target.subAreaIds.filter((id) => Number.isFinite(id))
+            : [];
+        const targetWorld = Number(target.worldMapId) > 0 ? Number(target.worldMapId) : (selectedWorldId || 1);
+        const pinned = subAreaIds.length > 0 ? subAreaIds[0] : null;
 
-        // Handle coordinate search (e.g. "0,0" or "0 -5")
-        const coordMatch = search.match(/^(-?\d+)[, ]+(-?\d+)$/);
-        if (coordMatch) {
-            const x = parseInt(coordMatch[1]);
-            const y = parseInt(coordMatch[2]);
-            // Search in ALL maps, not just current world
-            const map = worldMap.maps?.find(m => m.x === x && m.y === y);
-            if (map) {
-                return [{
-                    id: -999,
-                    name: `Position [${x}, ${y}]`,
-                    x, y,
-                    worldMap: map.worldMap,
-                    level: 0,
-                    isCoord: true
-                } as any];
+        setPinnedSubareaId(pinned);
+        setZoneHighlight(true);
+
+        // Icône clignotante : centre officiel de la cible quand il est connu, sinon
+        // centroïde du tracé de la zone encadrée (jamais deux zones différentes).
+        let gameX = target.centerX ?? null;
+        let gameY = target.centerY ?? null;
+        if ((gameX === null || gameY === null) && pinned !== null) {
+            const zone = worldMap.subareas?.find((subArea) => subArea.id === pinned);
+            const frame = zone ? parseZoneShape((zone as any).shape) : null;
+            if (frame) {
+                gameX = frame.focus.x;
+                gameY = frame.focus.y;
             }
         }
-
-        const isNumeric = /^\d+$/.test(t);
-        const searchId = isNumeric ? parseInt(t) : -1;
-
-        // Function for accent normalization
-        const normalize = (str: string) =>
-            str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-
-        const normalizedSearch = normalize(t);
-
-        return worldMap.subareas?.filter(s => {
-            if (s.id === searchId) return true;
-            const name = typeof s.name === 'string' ? s.name : s.name?.fr;
-            if (!name) return false;
-            return normalize(name).includes(normalizedSearch);
-        }).slice(0, 10) || [];
-    }, [search, worldMap.subareas, worldMap.maps, selectedWorldId]);
-
-    const handleSearchResultClick = useCallback((item: any) => {
-        if (!item) return;
-
-        if (item.isCoord) {
-            if (item.worldMap !== undefined && item.worldMap !== selectedWorldId) {
-                setSelectedWorldId(item.worldMap);
-            }
-            setTriggerCenterPosition({ x: item.x, y: item.y });
-            setSearch('');
-            return;
+        if (gameX !== null && gameY !== null) {
+            setTriggerCenterPosition({ x: gameX, y: gameY });
+            setHighlightMarker({ gameX, gameY, iconUrl: target.iconUrl ?? null, worldId: targetWorld });
+        } else {
+            setHighlightMarker(null);
         }
 
-        // Archimonstre result
-        if (item.isArchi) {
-            // Résout le monde cible : refuse les mondes invalides (<=0) pour éviter `w-1` (map vide).
-            let targetWorld = Number(item.worldMapId);
-            if (!targetWorld || targetWorld <= 0) {
-                const m = item.centerX !== null && item.centerY !== null
-                    ? worldMap.maps?.find(mm => mm.x === item.centerX && mm.y === item.centerY)
-                    : undefined;
-                targetWorld = m && m.worldMap > 0 ? m.worldMap : (selectedWorldId || 1);
-            }
-            const needsWorldChange = targetWorld > 0 && targetWorld !== selectedWorldId;
-
-            const applyHighlight = () => {
-                if (item.centerX !== null && item.centerY !== null) {
-                    setTriggerCenterPosition({ x: item.centerX, y: item.centerY });
-                }
-                if (item.subAreaIds?.length > 0) {
-                    setHighlightSubareaIds(item.subAreaIds);
-                    setTimeout(() => setHighlightSubareaIds([]), 8000);
-                }
-            };
-
-            if (needsWorldChange) {
-                setSelectedWorldId(targetWorld);
-                // Wait for Leaflet canvas to remount before applying highlight
-                setTimeout(applyHighlight, 650);
-            } else {
-                applyHighlight();
-            }
-
-            setSearch('');
-            setArchiResults([]);
-            return;
+        if (targetWorld > 0 && targetWorld !== selectedWorldId) {
+            // Un SEUL commit React : la nouvelle carte monte déjà centrée sur la
+            // zone, au bon zoom et avec l'encadrement. Avant, elle montait au
+            // centre du monde, chargeait un écran entier de tuiles, puis sautait
+            // sur la cible 650 ms plus tard (double chargement = transition qui
+            // rame, ressenti « lag » de bascule de monde).
+            setSelectedWorldId(targetWorld);
         }
+    }, [selectedWorldId, worldMap.subareas]);
 
-        // Search the maps to find one belonging to this subarea
-        const map = worldMap.maps?.find(m => m.subAreaId === item.id);
-        if (map) {
-            setSelectedWorldId(map.worldMap);
-            setTriggerCenterPosition({ x: map.x, y: map.y });
-        } else if (item.mapIds?.length > 0) {
-            const m = worldMap.maps?.find(m => m.id === item.mapIds[0]);
-            if (m) {
-                setSelectedWorldId(m.worldMap);
-                setTriggerCenterPosition({ x: m.x, y: m.y });
-            }
-        }
-        setSearch('');
-    }, [worldMap.maps, selectedWorldId]);
+    /** Avis choisi dans le panneau latéral → focus sur sa zone de traque. */
+    const handleBountySelect = useCallback((bounty: any) => {
+        if (!bounty) return;
+        setActiveBountyId(bounty.id);
+        focusZone({
+            worldMapId: bounty.worldMapId,
+            centerX: bounty.centerX,
+            centerY: bounty.centerY,
+            subAreaIds: bounty.subAreaIds,
+            iconUrl: bounty.imageUrl ?? null,
+        });
+    }, [focusZone]);
+
+    /**
+     * Bascule de monde MANUELLE (dropdown « Changer de monde ») : la cible
+     * courante (avis, quête, recherche) appartient à l'ancien monde — son
+     * recentrage et son tracé n'ont plus aucun sens ici et sont donc oubliés.
+     */
+    const switchWorld = useCallback((worldId: number) => {
+        setSelectedWorldId(worldId);
+        setTriggerCenterPosition(null);
+        setPinnedSubareaId(null);
+        setHighlightMarker(null);
+    }, []);
 
     const mapsByCoords = useMemo(() => {
         const index = new Map<string, any>();
-        activeMaps.forEach(m => index.set(`${m.x},${m.y}`, m));
+        // Le couple (0, 0) n'est pas un lieu : c'est le tas des maps sans
+        // coordonnées de `worldmap.json` (1 784 maps du monde 1). L'indexer
+        // faisait afficher une zone arbitraire (« Marécages sans fond ») et sa
+        // tuile HD (une map de combat) au clic sur [0, 0].
+        activeMaps.forEach(m => { if (hasKnownGameCoords(m)) index.set(`${m.x},${m.y}`, m); });
         return index;
     }, [activeMaps]);
 
@@ -550,7 +579,9 @@ export default function InteractiveMapV2({
         const index = new Map<string, MapNode[]>();
         worldMap.maps?.forEach(m => {
             const isRelevant = m.worldMap === selectedWorldId || (selectedWorldId === 1 && m.worldMap === -1);
-            if (isRelevant) {
+            // (0, 0) = position inconnue : jamais indexée (le clic/survol y
+            // tombait sur la première map du tas, donc une zone au hasard).
+            if (isRelevant && hasKnownGameCoords(m)) {
                 const key = `${m.x},${m.y}`;
                 if (!index.has(key)) index.set(key, []);
                 index.get(key)!.push(m);
@@ -658,11 +689,15 @@ export default function InteractiveMapV2({
     }, []);
 
     useEffect(() => {
-        // Plein écran uniquement pendant une partie (gamePhase != idle) → se retire en revenant au menu
+        // Plein écran à l'arrivée pour le module carte (prop startFullscreen, ouvert via le
+        // bouton "Ouvrir la carte en plein écran" depuis la page d'accueil de la carte).
+        // Sans ce prop, et pour les mini-cartes (hideUI), on reste en plein écran uniquement
+        // pendant une partie.
+        const startFs = !!startFullscreen && !hideUI;
         const inGame = gamePhase !== 'idle';
-        applyFullscreen(inGame);
+        applyFullscreen(startFs || inGame);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gamePhase]);
+    }, [gamePhase, hideUI, startFullscreen, applyFullscreen]);
 
     // Secours : vérifie périodiquement et force le plein écran tant qu'une partie est active
     useEffect(() => {
@@ -672,12 +707,22 @@ export default function InteractiveMapV2({
         return () => clearInterval(interval);
     }, [gamePhase, applyFullscreen]);
 
-    // Nettoyage du plein écran à la sortie de la page (retour dashboard = normal)
+    // Nettoyage du plein écran à la sortie de la page (retour accueil carte / dashboard = normal).
+    // On réinitialise aussi les styles inline posés par applyFullscreen (position:fixed,
+    // width:100vw, z-index:9999, inset...) sinon la carte reste en overlay et casse l'accueil
+    // après fermeture (vue « par-dessus la navbar »).
     useEffect(() => {
         return () => {
             setIsFullscreen(false);
-            const el = document.getElementById('worldmap-page');
-            if (el) el.classList.remove('worldmap-fullscreen');
+            ['worldmap-page', 'mini-games-page', 'sigil-bomb-page'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.remove('worldmap-fullscreen');
+                    ['position', 'top', 'left', 'right', 'bottom', 'width', 'height', 'margin', 'borderRadius', 'border', 'padding', 'zIndex', 'inset'].forEach((prop) => {
+                        (el.style as any)[prop] = '';
+                    });
+                }
+            });
             document.body.classList.remove('map-fullscreen');
         };
     }, []);
@@ -1054,7 +1099,7 @@ export default function InteractiveMapV2({
     };
 
     const handleNextRound = () => {
-        if (!socket) return;
+        if (!socket || gamePhase !== 'result') return;
         playSoundEffect('tick');
         socket.emit("geoguesser:game:next-round");
     };
@@ -1165,8 +1210,18 @@ export default function InteractiveMapV2({
             // SECURITY: Prevent moving the marker if already guessed
             if (me?.hasGuessed) return;
             setSelectedPosition(pos);
-        } else if (activeTab === 'map' && !hideUI) {
-            setSelectedPosition(pos);
+            return;
+        }
+
+        // Mode Exploration normale de la WorldMap : sélectionne ou déverrouille la case
+        if (activeTab === 'map') {
+            setSelectedPosition((prev: any) => {
+                if (!pos) return null;
+                if (prev && prev.x === pos.x && prev.y === pos.y) {
+                    return null; // Déverrouille si reclic sur la même case
+                }
+                return pos;
+            });
         }
     };
 
@@ -1251,8 +1306,8 @@ export default function InteractiveMapV2({
                             {visibleWorlds.map(w => (
                                 <button
                                     key={w.id}
-                                    onClick={() => { setSelectedWorldId(w.id); setWorldDropdownOpen(false); }}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-surface ${selectedWorldId === w.id ? 'text-success' : 'text-foreground/50'}`}
+                                    onClick={() => { switchWorld(w.id); setWorldDropdownOpen(false); }}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-elevated ${selectedWorldId === w.id ? 'text-success' : 'text-muted-foreground'}`}
                                 >{w.name.fr}</button>
                             ))}
                         </div>
@@ -1260,8 +1315,8 @@ export default function InteractiveMapV2({
                 </>,
                 document.body
             )}
-            {/* Header & Controls (Hidden in focused games mode) */}
-            {!hideUI && (activeTab === 'map' || !initialTab) && (
+            {/* Header & Controls (Hidden in focused games mode and overlay mode) */}
+            {!hideUI && !isOverlay && (activeTab === 'map' || !initialTab) && (
                 <div className="flex-shrink-0 bg-background/90 backdrop-blur-md border-b border-border px-8 flex items-center justify-between h-[64px] z-[600]">
                     {/* Left: Navigation Tabs (Only if not in focused mode) */}
                     {!initialTab ? (
@@ -1286,7 +1341,7 @@ export default function InteractiveMapV2({
                     ) : showGameEntry ? (
                         <button 
                             onClick={() => router.push(`/dashboard/${guildId}/mini-jeux`)}
-                            className="group flex items-center gap-4 bg-surface hover:bg-surface px-6 py-2.5 rounded-2xl border border-border transition-all  active:scale-95"
+                            className="group flex items-center gap-4 bg-surface hover:bg-elevated px-6 py-2.5 rounded-2xl border border-border transition-all  active:scale-95"
                         >
                             <div className="text-success transition-transform group-hover:rotate-12">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
@@ -1296,7 +1351,7 @@ export default function InteractiveMapV2({
                                     <rect x="3" y="14" width="7" height="7" />
                                 </svg>
                             </div>
-                            <span className="text-caption font-black uppercase text-foreground/60 tracking-widest italic">Choix du Jeu</span>
+                            <span className="text-caption font-black uppercase text-muted-foreground tracking-widest italic">Choix du Jeu</span>
                         </button>
                     ) : null}
 
@@ -1312,350 +1367,125 @@ export default function InteractiveMapV2({
                             >
                                 {/* Essential Tools (Visible everywhere) */}
                                 <div className="flex items-center gap-2 sm:gap-3">
-                                    {/* World Selection (bouton déclencheur ; le panel est porté via portal au-dessus de la navbar) */}
-                                    <div className="relative">
-                                        <button
-                                            ref={worldDropdownBtnRef}
-                                            onClick={() => { setWorldDropdownPos(null); setWorldDropdownOpen(o => !o); }}
-                                            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface/90 hover:bg-elevated border border-border text-foreground font-bold text-caption uppercase tracking-wider transition-all shadow-sm backdrop-blur-md"
-                                            title="Changer de Monde ou de Carte"
-                                        >
-                                            <MapIcon size={13} className="text-emerald-400 shrink-0" />
-                                            <span className="truncate max-w-[90px] sm:max-w-[150px]">{activeWorld.name.fr}</span>
-                                            <ChevronDown size={12} className={`text-muted-foreground transition-transform ${worldDropdownOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-                                    </div>
+                                    {/* World Selection (bouton déclencheur ; masqué en mode overlay car déplacé dans la barre latérale) */}
+                                    {!isOverlay && (
+                                        <div className="relative">
+                                            <button
+                                                ref={worldDropdownBtnRef}
+                                                onClick={() => { setWorldDropdownPos(null); setWorldDropdownOpen(o => !o); }}
+                                                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface/90 hover:bg-elevated border border-border text-foreground font-bold text-caption uppercase tracking-wider transition-all shadow-sm backdrop-blur-md"
+                                                title="Changer de Monde ou de Carte"
+                                            >
+                                                <MapIcon size={13} className="text-success shrink-0" />
+                                                <span className="truncate max-w-[90px] sm:max-w-[150px]">{activeWorld.name.fr}</span>
+                                                <ChevronDown size={12} className={`text-muted-foreground transition-transform ${worldDropdownOpen ? 'rotate-180' : ''}`} />
+                                            </button>
+                                        </div>
+                                    )}
 
-                                    {/* Unified Map View Controls Toolbar */}
-                                    <div className="hidden lg:flex items-center rounded-xl bg-surface/60 border border-border p-0.5 gap-0.5 backdrop-blur-md">
-                                        {/* Grid Toggle */}
+                                    {/* 🗡️ Bouton Strat Raid — uniquement mondes 37 (Gigalodon) et 40 (Sanctuaire) */}
+                                    {isRaidWorld && (
                                         <button
-                                            onClick={() => setShowDebugGrid(!showDebugGrid)}
+                                            onClick={() => setShowStratPanel(v => !v)}
                                             className={cn(
-                                                "px-2.5 py-1.5 rounded-lg text-caption font-bold uppercase transition-all flex items-center gap-1.5",
-                                                showDebugGrid 
-                                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" 
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent"
+                                                "flex items-center gap-2 px-3 py-1.5 rounded-xl font-black text-caption uppercase tracking-wider transition-all border",
+                                                showStratPanel
+                                                    ? "bg-cyan-500/20 text-cyan-300 border-cyan-400/40 shadow-[0_0_15px_rgba(6,182,212,0.25)]"
+                                                    : "bg-surface/90 hover:bg-elevated border-border text-muted-foreground hover:text-foreground"
                                             )}
-                                            title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
+                                            title="Afficher la stratégie du raid et lancer l'overlay in-game"
                                         >
-                                            {showDebugGrid ? <Eye size={12} className="text-emerald-400" /> : <EyeOff size={12} />}
-                                            <span className="hidden xl:inline">Grille</span>
+                                            <FileText size={13} className="shrink-0 text-cyan-400" />
+                                            <span className="hidden sm:inline">Stratégie</span>
                                         </button>
+                                    )}
 
-                                        {/* Zone Highlight Toggle */}
-                                        <button
-                                            onClick={() => setZoneHighlight(!zoneHighlight)}
-                                            className={cn(
-                                                "px-2.5 py-1.5 rounded-lg text-caption font-bold uppercase transition-all flex items-center gap-1.5",
-                                                zoneHighlight 
-                                                    ? "bg-sky-500/20 text-sky-300 border border-sky-500/30" 
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent"
-                                            )}
-                                            title={zoneHighlight ? "Masquer le surlignage de zone" : "Afficher le surlignage de zone"}
-                                        >
-                                            <MapPin size={12} className={zoneHighlight ? "text-sky-400" : ""} />
-                                            <span className="hidden xl:inline">Zones</span>
-                                        </button>
-
-                                        {/* Fullscreen Toggle */}
-                                        <button
-                                            onClick={() => applyFullscreen(!isFullscreen)}
-                                            className={cn(
-                                                "p-1.5 rounded-lg transition-all",
-                                                isFullscreen 
-                                                    ? "bg-teal-500/20 text-teal-300 border border-teal-500/30" 
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent"
-                                            )}
-                                            title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
-                                        >
-                                            {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-                                        </button>
-
-                                        {/* Help Toggle */}
-                                        <button
-                                            onClick={() => setShowMapHelp(true)}
-                                            className={cn(
-                                                "p-1.5 rounded-lg transition-all",
-                                                showMapHelp 
-                                                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" 
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent"
-                                            )}
-                                            title="Aide & Raccourcis"
-                                        >
-                                            <HelpCircle size={13} />
-                                        </button>
-                                    </div>
                                 </div>
 
 
                                 {/* Selection Quick Action */}
                                 <AnimatePresence mode="wait">
-                                    {selectedPosition && (
-                                        <motion.button
-                                            key={`copy-${selectedPosition.x}-${selectedPosition.y}`}
-                                            initial={{ opacity: 0, x: 20, scale: 0.95 }}
-                                            animate={{ opacity: 1, x: 0, scale: 1 }}
-                                            exit={{ opacity: 0, x: -10, scale: 0.95 }}
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                            onClick={() => {
-                                                const cmd = `/travel ${selectedPosition.x} ${selectedPosition.y}`;
-                                                navigator.clipboard.writeText(cmd);
-                                                toast.success("Position copiée !", {
-                                                    description: cmd,
-                                                    icon: <Rocket className="w-4 h-4 text-success" />
-                                                });
-                                            }}
-                                            className="px-3 sm:px-4 py-1.5 rounded-xl bg-success text-success-foreground font-black text-caption uppercase italic flex items-center gap-1.5 shadow-[0_10px_20px_rgba(16,185,129,0.25)] border-b-2 border-emerald-600 transition-all origin-right"
-                                        >
-                                            <Rocket size={12} className="fill-emerald-950" />
-                                            <span className="hidden sm:inline">Copier [ {selectedPosition.x}, {selectedPosition.y} ]</span>
-                                            <span className="sm:hidden">[ {selectedPosition.x}, {selectedPosition.y} ]</span>
-                                        </motion.button>
-                                    )}
-                                </AnimatePresence>
-
-                                {/* Zone Search + Filter */}
-                                <div className="relative hidden md:block">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={13} />
-                                    {isSearchingArchi && (
-                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400/50 animate-spin" size={10} />
-                                    )}
-                                    <input
-                                        type="text"
-                                        value={search}
-                                        onChange={e => { setSearch(e.target.value); setSearchFilter('all'); setPendingFilter(null); setPreloadedFilterResults([]); }}
-                                        placeholder="Zone, monstre, boss, archimonstre..."
-                                        className="w-48 lg:w-64 xl:w-72 rounded-xl bg-surface/90 hover:bg-elevated py-1.5 pl-8 pr-3 text-foreground text-caption font-medium border border-border focus:border-emerald-500/50 outline-none transition-all focus:bg-elevated placeholder:text-muted-foreground shadow-inner backdrop-blur-md"
-                                    />
-
-                                    {/* Dropdown with filter chips + results (TOUJOURS visible, pré-chargement possible) */}
-                                    {(searchResults.length > 0 || archiResults.length > 0 || preloadedFilterResults.length > 0 || isSearchingArchi || isLoadingFilter) && (
-                                        <div className="absolute top-full right-0 mt-2 w-80 bg-[#0d1117] border border-border rounded-2xl shadow-2xl overflow-hidden z-[700]">
-
-                                            {/* Filter chips (permanents) */}
-                                            <div className="flex items-center flex-wrap gap-1.5 px-3 py-2 border-b border-border bg-white/2">
-                                                {(['all', 'zones', 'archis', 'boss', 'mobs', 'ocre'] as MapSearchFilter[]).map(f => (
-                                                    <button
-                                                        key={f}
-                                                        onClick={() => {
-                                                            setSearchFilter(f);
-                                                            setPendingFilter(f);
-                                                            if (!search || search.trim().length < 2) loadFilterResults(f);
-                                                        }}
-                                                        className={cn(
-                                                            "px-2.5 py-1 rounded-lg text-caption font-black uppercase tracking-widest transition-all",
-                                                            searchFilter === f
-                                                                ? f === 'ocre'
-                                                                    ? 'bg-warning/20 text-warning border border-warning/30'
-                                                                    : f === 'archis'
-                                                                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
-                                                                        : 'bg-surface text-foreground border border-border-strong'
-                                                                : 'text-foreground/30 hover:text-foreground/60 border border-transparent'
-                                                        )}
+                                    {selectedPosition && (() => {
+                                        // Vérifier si cette position a un donjon/boss (pour ouvrir la modale en 1 clic)
+                                        const posMapNode = selectedPosition.mapId
+                                            ? (mapsById.get(selectedPosition.mapId) || allMapsById.get(selectedPosition.mapId))
+                                            : (mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`) || allWorldMapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`));
+                                        const posMapId = selectedPosition.mapId || posMapNode?.id;
+                                        let posDungeons = posMapId ? dungeonsByMapId.get(posMapId) : undefined;
+                                        if (!posDungeons || posDungeons.length === 0) {
+                                            const matched = worldMap.dungeons?.filter(d => {
+                                                const dMapId = d.mapId || d.entranceMapId;
+                                                const m = dMapId ? allMapsById.get(dMapId) : undefined;
+                                                return m && m.x === selectedPosition.x && m.y === selectedPosition.y;
+                                            });
+                                            if (matched && matched.length > 0) {
+                                                posDungeons = matched;
+                                            }
+                                        }
+                                        return (
+                                            <div key={`action-${selectedPosition.x}-${selectedPosition.y}`} className="flex items-center gap-2">
+                                                {posDungeons && posDungeons.length > 0 && (
+                                                    <motion.button
+                                                        initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                                                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                                                        exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={() => setSelectedDungeon(posDungeons)}
+                                                        className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black text-caption uppercase italic flex items-center gap-1.5 transition-all"
+                                                        title="Voir ce boss"
                                                     >
-                                                        {f === 'all' ? 'Tout' :
-                                                         f === 'zones' ? '🗺 Zones' :
-                                                         f === 'archis' ? '🎯 Archis' :
-                                                         f === 'boss' ? '👑 Boss' :
-                                                         f === 'mobs' ? '👹 Mobs' : '🟡 Ocre'}
-                                                    </button>
-                                                ))}
+                                                        <Crown size={12} />
+                                                        <span className="hidden sm:inline">{typeof posDungeons[0].name === 'string' ? posDungeons[0].name : posDungeons[0].name?.fr || 'Boss'}</span>
+                                                        <span className="sm:hidden">Boss</span>
+                                                    </motion.button>
+                                                )}
+                                                <motion.button
+                                                    key={`copy-${selectedPosition.x}-${selectedPosition.y}`}
+                                                    initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                                                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    onClick={() => {
+                                                        const cmd = `/travel ${selectedPosition.x} ${selectedPosition.y}`;
+                                                        navigator.clipboard.writeText(cmd);
+                                                        toast.success("Position copiée !", {
+                                                            description: cmd,
+                                                            icon: <Rocket className="w-4 h-4 text-success" />
+                                                        });
+                                                    }}
+                                                    className="px-3 sm:px-4 py-1.5 rounded-xl bg-success text-success-foreground font-black text-caption uppercase italic flex items-center gap-1.5 shadow-[0_10px_20px_rgba(16,185,129,0.25)] border-b-2 border-success transition-all origin-right"
+                                                >
+                                                    <Rocket size={12} className="fill-success-foreground" />
+                                                    <span className="hidden sm:inline">Copier [ {selectedPosition.x}, {selectedPosition.y} ]</span>
+                                                    <span className="sm:hidden">[ {selectedPosition.x}, {selectedPosition.y} ]</span>
+                                                </motion.button>
                                             </div>
-
-                                            {/* Subarea / Zone results */}
-                                            {(searchFilter === 'all' || searchFilter === 'zones') && searchResults.length > 0 && (
-                                                <>
-                                                    {searchFilter === 'all' && archiResults.length > 0 && (
-                                                        <div className="px-3 py-1.5 bg-white/3 border-b border-border">
-                                                            <span className="text-foreground/20 text-caption font-black uppercase tracking-widest">🗺 Zones</span>
-                                                        </div>
-                                                    )}
-                                                    {searchResults.slice(0, searchFilter === 'zones' ? 10 : 4).map((s: any) => (
-                                                        <button key={s.id === -999 ? `coord-${s.x}-${s.y}` : s.id} onClick={() => handleSearchResultClick(s)} className="w-full text-left px-4 py-2.5 hover:bg-surface border-b border-border last:border-0 transition-colors">
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-foreground text-caption font-black uppercase italic">{typeof s.name === 'string' ? s.name : s.name?.fr || 'Inconnu'}</span>
-                                                                {!s.isCoord && (
-                                                                    <span className="text-success/50 text-caption uppercase font-black px-1.5 py-0.5 rounded-md bg-success/5">Lvl {s.level || '?'}</span>
-                                                                )}
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                </>
-                                            )}
-
-                                            {/* Pré-chargement du filtre (clic sans texte, ex: 🟡 Ocre) */}
-                                            {pendingFilter && pendingFilter !== 'all' && pendingFilter !== 'zones' && preloadedFilterResults.length > 0 && (
-                                                <>
-                                                    <div className="px-3 py-1.5 bg-warning/5 border-b border-warning/10">
-                                                        <span className="text-warning/70 text-caption font-black uppercase tracking-widest">
-                                                            {pendingFilter === 'ocre' ? '🟡 Quête Ocre' : pendingFilter === 'archis' ? '🎯 Archimonstres' : pendingFilter === 'boss' ? '👑 Boss' : '👹 Monstres'}
-                                                        </span>
-                                                    </div>
-                                                    {preloadedFilterResults.map((a: any) => (
-                                                        <button
-                                                            key={a.id}
-                                                            onClick={() => handleSearchResultClick({ ...a, isArchi: true })}
-                                                            className={cn(
-                                                                "w-full text-left px-4 py-2.5 border-b border-border last:border-0 transition-colors group",
-                                                                a.subAreaIds?.length > 0 ? "hover:bg-warning/5" : "hover:bg-white/3 opacity-70"
-                                                            )}
-                                                        >
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <div className="flex items-center gap-2 min-w-0">
-                                                                    {a.imageUrl ? (
-                                                                        <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
-                                                                    ) : (
-                                                                        <div className="w-7 h-7 rounded bg-warning/10 flex items-center justify-center flex-shrink-0">
-                                                                            <span className="text-caption">{a.type === 'monstre' ? '👹' : a.type === 'boss' ? '👑' : '🎯'}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    <div className="min-w-0">
-                                                                        <div className="text-warning text-caption font-black uppercase italic truncate">{a.name}</div>
-                                                                        <div className="text-foreground/25 text-caption uppercase truncate">{a.zoneName || 'Zone inconnue'}</div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                                                    {a.level > 0 && (
-                                                                        <span className="text-warning/60 text-caption uppercase font-black px-1.5 py-0.5 rounded-md bg-warning/5">Lvl {a.level}</span>
-                                                                    )}
-                                                                    {a.worldMapId > 1 && (
-                                                                        <span className="text-sky-400/50 text-caption font-black px-1.5 py-0.5 rounded-md bg-sky-500/5">Monde {a.worldMapId}</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                </>
-                                            )}
-
-                                            {/* Bounty / Archimonstre / Monstre results */}
-                                            {searchFilter !== 'zones' && archiResults.length > 0 && (
-                                                <>
-                                                    {searchFilter === 'all' && searchResults.length > 0 && (
-                                                        <div className="px-3 py-1.5 bg-orange-500/5 border-b border-orange-500/10 border-t border-t-white/5">
-                                                            <span className="text-orange-400/60 text-caption font-black uppercase tracking-widest">🎯 Avis & Archimonstres</span>
-                                                        </div>
-                                                    )}
-                                                    {archiResults.slice(0, searchFilter !== 'all' ? 10 : 5).map((a: any) => (
-                                                        <button
-                                                            key={a.id}
-                                                            onClick={() => handleSearchResultClick({ ...a, isArchi: true })}
-                                                            className={cn(
-                                                                "w-full text-left px-4 py-2.5 border-b border-border last:border-0 transition-colors group",
-                                                                a.subAreaIds?.length > 0 ? "hover:bg-orange-500/5" : "hover:bg-white/3 opacity-70"
-                                                            )}
-                                                        >
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <div className="flex items-center gap-2 min-w-0">
-                                                                    {a.imageUrl ? (
-                                                                        <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
-                                                                    ) : (
-                                                                        <div className="w-7 h-7 rounded bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                                                                            <span className="text-caption">{a.type === 'monstre' ? '👹' : a.type === 'boss' ? '👑' : '🎯'}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    <div className="min-w-0">
-                                                                        <div className="flex items-center gap-1.5">
-                                                                            <span className={cn(
-                                                                                "text-caption font-black uppercase italic truncate",
-                                                                                a.isOcre ? "text-warning" : a.type === 'monstre' ? "text-foreground/70" : "text-orange-300"
-                                                                            )}>{a.name}</span>
-                                                                            {a.isOcre && (
-                                                                                <img src="/module-dofus/Dofus_Ocre.png" alt="Ocre" className="w-3.5 h-3.5 shrink-0" title="Quête Ocre" />
-                                                                            )}
-                                                                            {a.type === 'boss' && <span className="text-caption text-warning/70 font-black uppercase px-1 py-0.5 rounded bg-warning/10 border border-warning/10">Boss</span>}
-                                                                        </div>
-                                                                        <div className="text-foreground/25 text-caption uppercase truncate">
-                                                                            {a.zoneName
-                                                                                ? a.subAreaIds?.length > 0
-                                                                                    ? a.zoneName
-                                                                                    : `⚠ ${a.zoneName} (zone introuvable)`
-                                                                                : '⚠ Zone inconnue'
-                                                                            }
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                                                    {a.level > 0 && (
-                                                                        <span className="text-orange-500/50 text-caption uppercase font-black px-1.5 py-0.5 rounded-md bg-orange-500/5">Lvl {a.level}</span>
-                                                                    )}
-                                                                    {a.worldMapId > 1 && (
-                                                                        <span className="text-sky-400/50 text-caption font-black px-1.5 py-0.5 rounded-md bg-sky-500/5">Monde {a.worldMapId}</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                </>
-                                            )}
-
-                                            {isSearchingArchi && archiResults.length === 0 && searchResults.length === 0 && (
-                                                <div className="px-4 py-3 text-foreground/20 text-caption italic text-center flex items-center justify-center gap-2">
-                                                    <Loader2 size={10} className="animate-spin" />
-                                                    Recherche...
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                        );
+                                    })()}
+                                </AnimatePresence>
 
 
                                 {/* Mobile Tools Overflow */}
                                 <div className="lg:hidden relative group">
-                                    <button className="p-2 rounded-xl bg-surface border border-border text-foreground/40 hover:text-foreground/70">
+                                    <button className="p-2 rounded-xl bg-surface border border-border text-muted-foreground hover:text-foreground">
                                         <Plus size={16} />
                                     </button>
                                     <div className="absolute top-full right-0 pt-2 w-48 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-[700]">
                                         <div className="bg-surface border border-border rounded-xl shadow-2xl p-2 space-y-1">
-                                            <button onClick={() => setShowDebugGrid(!showDebugGrid)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-caption font-bold uppercase text-foreground/50 hover:bg-surface">
+                                            <button onClick={() => setShowDebugGrid(!showDebugGrid)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-caption font-bold uppercase text-muted-foreground hover:bg-elevated">
                                                 {showDebugGrid ? <Eye size={14} className="text-success" /> : <EyeOff size={14} />}
                                                 Grille
                                             </button>
-                                            <button onClick={() => setAutoCopyTravel(!autoCopyTravel)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-caption font-bold uppercase text-foreground/50 hover:bg-surface">
-                                                <Zap size={14} className={autoCopyTravel ? "text-warning fill-amber-500" : ""} />
+                                            <button onClick={() => setAutoCopyTravel(!autoCopyTravel)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-caption font-bold uppercase text-muted-foreground hover:bg-elevated">
+                                                <Zap size={14} className={autoCopyTravel ? "text-warning fill-warning" : ""} />
                                                 Copie Auto
                                             </button>
-                                            <button onClick={() => setShowMapHelp(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-caption font-bold uppercase text-foreground/50 hover:bg-surface">
-                                                <HelpCircle size={14} />
-                                                Aide
-                                            </button>
-                                            <div className="md:hidden pt-2 border-t border-border">
-                                                <div className="relative">
-                                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-foreground/20" size={10} />
-                                                    <input
-                                                        type="text"
-                                                        value={search}
-                                                        onChange={e => setSearch(e.target.value)}
-                                                        placeholder="Zone..."
-                                                        className="w-full rounded-lg bg-black/40 py-1.5 pl-7 pr-3 text-foreground text-caption uppercase font-bold border border-border outline-none"
-                                                    />
-                                                </div>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* 🪓 Bouton GPS Opti-Farm & Récolte */}
-                                <button
-                                    onClick={() => setShowHarvestPanel(!showHarvestPanel)}
-                                    className={cn(
-                                        "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-caption font-bold uppercase tracking-wider transition-all border shadow-sm backdrop-blur-md",
-                                        showHarvestPanel || selectedHarvestResourceIds.size > 0
-                                            ? "bg-emerald-500/25 text-emerald-300 border-emerald-500/50 shadow-emerald-500/20"
-                                            : "bg-surface/90 hover:bg-elevated border-border text-muted-foreground hover:text-foreground"
-                                    )}
-                                    title="GPS Opti-Farm, Récolte & Zaaps"
-                                >
-                                    <Compass size={13} className={cn("text-emerald-400", showHarvestPanel && "animate-spin-slow")} />
-                                    <span>Opti-Farm</span>
-                                    {selectedHarvestResourceIds.size > 0 && (
-                                        <span className="w-4 h-4 rounded-full bg-emerald-500 text-black text-[10px] font-black flex items-center justify-center">
-                                            {selectedHarvestResourceIds.size}
-                                        </span>
-                                    )}
-                                </button>
 
                                 {/* 🏷️ DofusDB Attribution — tout à droite */}
                                 {!hideUI && (
@@ -1727,20 +1557,20 @@ export default function InteractiveMapV2({
                                         {/* Close button for HD Map */}
                                         <button 
                                             onClick={() => setShowHDMap(false)}
-                                            className="absolute top-3 right-3 z-50 w-8 h-8 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-white/80 flex items-center justify-center opacity-0 group-hover/hdmap:opacity-100 transition-all hover:bg-rose-600 hover:text-white"
+                                            className="absolute top-3 right-3 z-50 w-8 h-8 rounded-full bg-black/70 backdrop-blur-md border border-border text-muted-foreground flex items-center justify-center opacity-0 group-hover/hdmap:opacity-100 transition-all hover:bg-danger hover:text-danger-foreground"
                                             title="Masquer l'aperçu"
                                         >
                                             <X size={16} />
                                         </button>
 
                                         {/* Hint Overlay (Sobre & Lisible) */}
-                                        <div className="absolute bottom-3 left-3 flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 shadow-lg z-20">
-                                            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                                                <Target className="w-4 h-4 text-emerald-400" />
+                                        <div className="absolute bottom-3 left-3 flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-md border border-border shadow-lg z-20">
+                                            <div className="w-7 h-7 rounded-lg bg-success/20 border border-success/30 flex items-center justify-center">
+                                                <Target className="w-4 h-4 text-success" />
                                             </div>
                                             <div>
-                                                <h4 className="text-white font-bold text-xs">Où est-ce ?</h4>
-                                                <p className="text-emerald-400/80 text-caption font-medium">Analyse le décor et sélectionne ta position</p>
+                                                <h4 className="text-foreground font-bold text-xs">Où est-ce ?</h4>
+                                                <p className="text-success/80 text-caption font-medium">Analyse le décor et sélectionne ta position</p>
                                             </div>
                                         </div>
                                     </motion.div>
@@ -1783,7 +1613,7 @@ export default function InteractiveMapV2({
                                     activePanelTab === 'scores' ? "flex-1 h-full" : "hidden lg:flex" // Mobile toggle
                                 )}>
                                     <div className="flex items-center justify-between p-4 md:p-6 pb-2 md:pb-4">
-                                        <h4 className="text-foreground/20 text-caption font-black uppercase tracking-widest flex items-center gap-2 italic">
+                                        <h4 className="text-muted-foreground text-caption font-black uppercase tracking-widest flex items-center gap-2 italic">
                                             <Users size={14} /> Joueurs du Salon
                                         </h4>
                                         <span className="text-success/40 text-caption font-black uppercase tracking-widest italic">{activeSession?.participants?.length || 1} Connectés</span>
@@ -1799,7 +1629,9 @@ export default function InteractiveMapV2({
                                                                 <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
                                                             ) : (
                                                                 <div className={`w-full h-full flex items-center justify-center text-caption font-black italic ${i === 0 && p.score > 0 ? 'bg-warning text-warning-foreground' : 'bg-surface text-warning-foreground/40'}`}>
-                                                                    {i === 0 && p.score > 0 ? '👑' : i + 1}
+                                                                    {i === 0 && p.score > 0 ? (
+                                                                        <img src="/assets/dofus/game-icons/crown.png" alt="1er" className="w-4 h-4 object-contain" />
+                                                                    ) : i + 1}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1809,7 +1641,7 @@ export default function InteractiveMapV2({
                                                                 {isMe && <span className="px-1 py-0.5 rounded bg-success text-caption text-success-foreground font-black uppercase italic">Toi</span>}
                                                             </div>
                                                             {!p.hasGuessed ? (
-                                                                <span className="text-caption text-foreground/20 font-bold uppercase italic flex items-center gap-1">
+                                                                <span className="text-caption text-muted-foreground font-bold uppercase italic flex items-center gap-1">
                                                                     <Clock size={8} className="animate-spin-slow" /> Réfléchit...
                                                                 </span>
                                                             ) : (
@@ -1837,7 +1669,7 @@ export default function InteractiveMapV2({
                                             onClick={() => setActivePanelTab('map')}
                                             className={cn(
                                                 "p-1.5 rounded-lg transition-all",
-                                                activePanelTab === 'map' ? "bg-success text-success-foreground shadow-lg" : "text-success-foreground/20 hover:text-success-foreground/40"
+                                                activePanelTab === 'map' ? "bg-success text-success-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
                                             )}
                                         >
                                             <MapIcon size={12} />
@@ -1846,7 +1678,7 @@ export default function InteractiveMapV2({
                                             onClick={() => setActivePanelTab('scores')}
                                             className={cn(
                                                 "p-1.5 rounded-lg transition-all",
-                                                activePanelTab === 'scores' ? "bg-success text-success-foreground shadow-lg" : "text-success-foreground/20 hover:text-success-foreground/40"
+                                                activePanelTab === 'scores' ? "bg-success text-success-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
                                             )}
                                         >
                                             <Trophy size={12} />
@@ -1859,14 +1691,14 @@ export default function InteractiveMapV2({
                                     <div className="flex items-center gap-1 mr-2 border-r border-border pr-3">
                                         <button
                                             onClick={() => setMinimapRecenterTrigger(t => t + 999)} // Use specific pattern for zoom in
-                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface hover:bg-surface text-foreground/40 hover:text-foreground border border-border transition-all active:scale-95"
+                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface hover:bg-elevated text-muted-foreground hover:text-foreground border border-border transition-all active:scale-95"
                                             title="Zoomer"
                                         >
                                             <Plus size={14} />
                                         </button>
                                         <button
                                             onClick={() => setMinimapRecenterTrigger(t => t - 999)} // Use specific pattern for zoom out
-                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface hover:bg-surface text-foreground/40 hover:text-foreground border border-border transition-all active:scale-95"
+                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface hover:bg-elevated text-muted-foreground hover:text-foreground border border-border transition-all active:scale-95"
                                             title="Dézoomer"
                                         >
                                             <Minus size={14} />
@@ -1874,7 +1706,7 @@ export default function InteractiveMapV2({
                                     </div>
                                     <button
                                         onClick={() => setMinimapRecenterTrigger(t => t > 0 && t < 900 ? t + 1 : 1)}
-                                        className="px-3 md:px-4 py-1.5 rounded-lg bg-surface hover:bg-surface text-foreground/40 hover:text-foreground border border-border transition-all flex items-center gap-2 active:scale-95"
+                                        className="px-3 md:px-4 py-1.5 rounded-lg bg-surface hover:bg-elevated text-muted-foreground hover:text-foreground border border-border transition-all flex items-center gap-2 active:scale-95"
                                     >
                                         <Compass size={12} />
                                         <span className="hidden sm:inline text-caption font-black uppercase italic">Recentrer</span>
@@ -1883,7 +1715,7 @@ export default function InteractiveMapV2({
                                     {/* Minimize / Toggle UI button - user request */}
                                     <button
                                         onClick={() => setIsMinimapHidden(!isMinimapHidden)}
-                                        className="p-1.5 rounded-lg bg-surface hover:bg-danger/20 text-foreground/40 hover:text-danger border border-border transition-all active:scale-95 ml-auto"
+                                        className="p-1.5 rounded-lg bg-surface hover:bg-danger/20 text-muted-foreground hover:text-danger border border-border transition-all active:scale-95 ml-auto"
                                         title={isMinimapHidden ? "Afficher l'interface" : "Masquer l'interface"}
                                     >
                                         <X size={14} />
@@ -1905,6 +1737,7 @@ export default function InteractiveMapV2({
                                     dungeonsByMapId={dungeonsByMapId}
                                     groupedDungeons={groupedDungeons}
                                     showDebugGrid={showDebugGrid}
+                                    showGameOverlays={true}
                                     selectedPosition={selectedPosition}
                                     setSelectedPosition={handleMapClick}
                                     setSelectedDungeon={setSelectedDungeon}
@@ -1925,14 +1758,31 @@ export default function InteractiveMapV2({
                                 />
 
                                 {/* Floating Validation Overlay inside panel */}
-                                {selectedPosition && gamePhase === 'playing' && !isCurrentUserSpectator && (
+                                {selectedPosition && gamePhase === 'playing' && !isCurrentUserSpectator && !activeSession?.participants?.find((p: any) => p.userId === currentUserId)?.hasGuessed && (
                                     <div className="absolute bottom-6 inset-x-6 z-[1000] animate-in slide-in-from-bottom-6 duration-300">
                                         <button
                                             onClick={handleSubmitGuess}
-                                            className="w-full py-5 rounded-2xl bg-success hover:bg-success text-success-foreground font-black uppercase text-xs italic tracking-widest shadow-[0_20px_40px_rgba(16,185,129,0.3)] border border-success/50 transition-all active:scale-95 flex items-center justify-center gap-4"
+                                            className="w-full py-5 rounded-2xl bg-success hover:bg-success text-success-foreground font-black uppercase text-xs italic tracking-widest shadow-[0_20px_40px_rgba(16,185,129,0.3)] border border-success/50 transition-all active:scale-95 flex items-center justify-center gap-4 cursor-pointer"
                                         >
                                             Confirmer ma position <Target size={20} />
                                         </button>
+                                    </div>
+                                )}
+
+                                {/* Floating "Waiting for other players" overlay inside tactical map */}
+                                {gamePhase === 'playing' && !isCurrentUserSpectator && activeSession?.participants?.find((p: any) => p.userId === currentUserId)?.hasGuessed && (
+                                    <div className="absolute bottom-6 inset-x-6 z-[1000] animate-in slide-in-from-bottom-6 duration-300">
+                                        <div className="w-full py-4 px-6 rounded-2xl bg-success/15 backdrop-blur-xl border border-success/40 text-success shadow-[0_20px_40px_rgba(16,185,129,0.25)] flex items-center justify-center gap-3">
+                                            <CheckCircle2 className="text-success w-5 h-5 shrink-0" />
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 text-center sm:text-left">
+                                                <span className="font-black uppercase text-xs tracking-wider">Position validée !</span>
+                                                <span className="text-success/80 text-caption font-medium">
+                                                    {(activeSession?.participants?.filter((p: any) => !p.isSpectator).length || 1) > 1
+                                                        ? "En attente des autres joueurs..."
+                                                        : "Calcul des résultats..."}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 
@@ -1952,15 +1802,202 @@ export default function InteractiveMapV2({
                 {/* 🗺️ MODE NAVIGATION CARTE CLASSIQUE */}
                 {activeTab === 'map' && (
                     <div className="relative w-full h-full">
-                        <AnimatePresence>
-                            {(showMapHelp && !hideUI) && (
-                                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-4xl px-4 pointer-events-none">
-                                    <div className="pointer-events-auto">
-                                        <MapHelpCard onClose={() => setShowMapHelp(false)} />
-                                    </div>
+                        {/* Croix propre : quitter le plein écran et revenir à la page explicative du module — masquée en overlay */}
+                        {!hideUI && !isOverlay && (guildId || isPublic) && (
+                            <button
+                                onClick={() => {
+                                    applyFullscreen(false);
+                                    if (isPublic) {
+                                        window.location.href = '/carte-du-monde';
+                                    } else {
+                                        window.location.href = `/dashboard/${guildId}/worldmap`;
+                                    }
+                                }}
+                                className="absolute top-3 right-3 z-[1200] w-9 h-9 rounded-full bg-surface/90 border border-border hover:bg-danger/20 hover:text-danger hover:border-danger/50 text-foreground backdrop-blur-md shadow-lg flex items-center justify-center transition-all active:scale-90 cursor-pointer"
+                                title="Quitter la carte et revenir à la présentation"
+                                aria-label="Quitter la carte et revenir à la présentation"
+                            >
+                                <X size={16} />
+                            </button>
+                        )}
+
+                        {/* 🎛️ Panel de Calques Flottant — Style DofusDB */}
+                        {!hideUI && (
+                            <div className={cn(
+                                "absolute z-[1100] flex flex-col pointer-events-auto transition-all",
+                                isOverlay ? "right-1.5 top-1/2 -translate-y-1/2 scale-[0.72] origin-right" : "right-4 top-1/2 -translate-y-1/2 gap-1.5"
+                            )}>
+                                <div className={cn(
+                                    "flex flex-col bg-[#030712]/90 backdrop-blur-xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.85)]",
+                                    isOverlay ? "gap-1 p-1 rounded-2xl" : "gap-1.5 p-2 rounded-2xl"
+                                )}>
+                                    {/* Sélecteur de Monde (Mode Overlay uniquement) */}
+                                    {isOverlay && (
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setOverlayWorldDropdownOpen(o => !o)}
+                                                title={`Monde actuel : ${activeWorld.name.fr}`}
+                                                className={cn(
+                                                    "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                                    overlayWorldDropdownOpen
+                                                        ? "bg-emerald-500/30 border-emerald-400/80 shadow-[0_0_16px_rgba(16,185,129,0.5)] scale-105"
+                                                        : "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-sm"
+                                                )}
+                                            >
+                                                <MapIcon size={18} className="text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                                                <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">
+                                                    Monde ({activeWorld.name.fr})
+                                                </span>
+                                            </button>
+
+                                            {/* Menu flyout des mondes à gauche de la toolbar */}
+                                            {overlayWorldDropdownOpen && (
+                                                <>
+                                                    <div className="fixed inset-0 z-[1200]" onClick={() => setOverlayWorldDropdownOpen(false)} />
+                                                    <div className="absolute right-full mr-2 top-0 z-[1250] w-56 bg-[#030712]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.9)] p-1.5 max-h-[60vh] overflow-y-auto no-scrollbar">
+                                                        <div className="text-[10px] font-black uppercase tracking-wider text-emerald-300/70 px-2 py-1 border-b border-white/10 mb-1">
+                                                            Changer de monde
+                                                        </div>
+                                                        {visibleWorlds.map(w => (
+                                                            <button
+                                                                key={w.id}
+                                                                onClick={() => {
+                                                                    switchWorld(w.id);
+                                                                    setOverlayWorldDropdownOpen(false);
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all truncate block",
+                                                                    selectedWorldId === w.id
+                                                                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                                                        : "text-white/70 hover:bg-white/10 hover:text-white"
+                                                                )}
+                                                            >
+                                                                {w.name.fr}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Grille */}
+                                    <button
+                                        onClick={() => setShowDebugGrid(!showDebugGrid)}
+                                        title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showDebugGrid
+                                                ? "bg-emerald-500/30 border-emerald-400/80 shadow-[0_0_16px_rgba(16,185,129,0.5)] scale-105"
+                                                : "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/dofus/map-layers/icon-grid.png" alt="Grille" className="w-5 h-5 object-contain brightness-125 drop-shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Grille</span>
+                                    </button>
+
+                                    {/* Zones */}
+                                    <button
+                                        onClick={() => setZoneHighlight(!zoneHighlight)}
+                                        title={zoneHighlight ? "Masquer les zones" : "Afficher les zones"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            zoneHighlight
+                                                ? "bg-sky-500/30 border-sky-400/80 shadow-[0_0_16px_rgba(56,189,248,0.5)] scale-105"
+                                                : "bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20 hover:border-sky-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src={zoneHighlight ? "/assets/dofus/map-layers/icon-zones-on.png" : "/assets/dofus/map-layers/icon-zones.png"} alt="Zones" className="w-5 h-5 object-contain drop-shadow-[0_0_6px_rgba(56,189,248,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Zones</span>
+                                    </button>
+
+
+                                    {/* Donjons */}
+                                    <button
+                                        onClick={() => setShowDungeons(!showDungeons)}
+                                        title={showDungeons ? "Masquer les donjons" : "Afficher les donjons"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showDungeons
+                                                ? "bg-red-500/30 border-red-400/80 shadow-[0_0_16px_rgba(239,68,68,0.5)] scale-105"
+                                                : "bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/dofus/map-layers/icon-dungeon-bright.png" alt="Donjons" className="w-6 h-6 object-contain drop-shadow-[0_0_6px_rgba(239,68,68,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Donjons</span>
+                                    </button>
+
+                                    {/* Séparateur */}
+                                    <div className="w-full h-px bg-white/10 my-0.5" />
+
+                                    {/* Moyens de transport */}
+                                    <button
+                                        onClick={() => { setShowPassages(!showPassages); setShowZaaps(!showPassages); }}
+                                        title={showPassages ? "Masquer les moyens de transport" : "Moyens de transport (Zaaps, bateaux, foreuses, diligences...)"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showPassages
+                                                ? "bg-amber-500/30 border-amber-400/80 shadow-[0_0_16px_rgba(245,158,11,0.5)] scale-105"
+                                                : "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/dofus/map-layers/icon-zaap-bright.png" alt="Moyens de transport" className="w-6 h-6 object-contain drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Moyens de transport</span>
+                                    </button>
+
+                                    {/* Récolte & Métiers */}
+                                    <button
+                                        onClick={() => setShowHarvestPanel(!showHarvestPanel)}
+                                        title={showHarvestPanel ? "Fermer le panneau Récolte" : "Métiers & Ressources récoltables"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showHarvestPanel || selectedHarvestResourceIds.size > 0
+                                                ? "bg-emerald-500/30 border-emerald-400/80 shadow-[0_0_16px_rgba(16,185,129,0.5)] scale-105"
+                                                : "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/dofus/map-layers/icon-harvest-bright.png" alt="Récolte" className="w-6 h-6 object-contain drop-shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                                        {selectedHarvestResourceIds.size > 0 && (
+                                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-black text-[9px] font-black flex items-center justify-center">
+                                                {selectedHarvestResourceIds.size}
+                                            </span>
+                                        )}
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Récolte</span>
+                                    </button>
+
+                                    {/* Avis de recherche (liste + zones de traque) — picto « avis », jamais
+                                        celui des archimonstres : les deux entrées sont distinctes. */}
+                                    <button
+                                        onClick={() => setShowBountyPanel(!showBountyPanel)}
+                                        title={showBountyPanel ? "Fermer le panneau Avis" : "Avis de recherche — liste et zones de traque"}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showBountyPanel
+                                                ? "bg-rose-500/30 border-rose-400/80 shadow-[0_0_16px_rgba(244,63,94,0.5)] scale-105"
+                                                : "bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20 hover:border-rose-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/avis/avitons.png" alt="Avis" className="w-5 h-5 object-contain drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Avis de recherche</span>
+                                    </button>
+
+                                    {/* Archimonstres — recherche + filtres, un clic ouvre la zone de la cible. */}
+                                    <button
+                                        onClick={() => setShowArchiPanel(true)}
+                                        title="Archimonstres — recherche et zones"
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border relative group",
+                                            showArchiPanel
+                                                ? "bg-amber-500/30 border-amber-400/80 shadow-[0_0_16px_rgba(245,158,11,0.5)] scale-105"
+                                                : "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/60 shadow-sm"
+                                        )}
+                                    >
+                                        <img src="/assets/nav/archimonster.png" alt="Archimonstres" className="w-5 h-5 object-contain drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                                        <span className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-black/95 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10 shadow-xl">Archimonstres</span>
+                                    </button>
                                 </div>
-                            )}
-                        </AnimatePresence>
+                            </div>
+                        )}
                         <LeafletMapCore
                             activeWorld={activeWorld}
                             selectedWorldId={selectedWorldId}
@@ -1968,12 +2005,17 @@ export default function InteractiveMapV2({
                             mapsByCoords={allWorldMapsByCoords}
                             subAreasById={subAreasById}
                             dungeonsByMapId={dungeonsByMapId}
-                            groupedDungeons={groupedDungeons}
+                            groupedDungeons={showDungeons ? groupedDungeons : []}
                             showDebugGrid={showDebugGrid}
+                            showGameOverlays={false}
                             zoneHighlight={zoneHighlight}
+                            pinnedSubareaId={pinnedSubareaId}
+                            highlightMarker={highlightMarker}
                             selectedPosition={selectedPosition}
                             setSelectedPosition={handleMapClick}
-                            setSelectedDungeon={setSelectedDungeon}
+                            setSelectedDungeon={isOverlay ? () => {} : setSelectedDungeon}
+                            // Libellés de zone retirés depuis God (fichier statique, cf. `map-viewer`).
+                            hiddenZoneLabels={worldMap?.hiddenZoneLabels ?? []}
                             triggerCenterPosition={triggerCenterPosition}
                             triggerWorldId={initialWorldId}
                             mapsBySubAreaId={mapsBySubAreaId}
@@ -1986,50 +2028,279 @@ export default function InteractiveMapV2({
                             isSpectator={isCurrentUserSpectator}
                             hideUI={hideUI}
                             minZoom={Math.max(selectedWorldId !== 1 ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
-                            highlightSubareaIds={highlightSubareaIds}
                             interactive={interactive}
+                            isOverlay={isOverlay}
+                            autoCopyTravel={isOverlay || autoCopyTravel}
                             zaaps={zaaps}
                             showZaaps={showZaaps}
                             selectedHarvestResources={selectedHarvestResources}
-                            activeCircuit={activeCircuit}
+                            activeCircuit={null}
                             completedHarvestSteps={completedHarvestSteps}
                             onToggleHarvestStep={handleToggleHarvestStep}
+                            showPassages={showPassages}
+                            onOpenZoneDetails={(pos?: any) => {
+                                if (pos) {
+                                    setSelectedPosition({
+                                        x: pos.x,
+                                        y: pos.y,
+                                        displayX: pos.x,
+                                        displayY: pos.y,
+                                        mapId: pos.mapId,
+                                        subAreaId: pos.subAreaId
+                                    });
+                                }
+                                setShowZoneDetail(true);
+                            }}
                         />
 
-                        {/* 🪓 Panneau Latéral Récolte, Métiers & GPS Opti-Farm */}
-                        <AnimatePresence>
-                            {showHarvestPanel && (
-                                <HarvestOptiFarmPanel
-                                    jobsData={harvestJobs}
-                                    selectedJobId={selectedHarvestJobId}
-                                    onSelectJobId={setSelectedHarvestJobId}
-                                    selectedResourceIds={selectedHarvestResourceIds}
-                                    onToggleResource={handleToggleHarvestResource}
-                                    onSelectAllUpToLevel={handleSelectAllHarvestUpToLevel}
-                                    onClearResources={handleClearHarvestResources}
-                                    activeCircuit={activeCircuit}
-                                    onSelectCircuit={handleSelectCircuit}
-                                    showZaaps={showZaaps}
-                                    onToggleShowZaaps={() => setShowZaaps(prev => !prev)}
-                                    isOpen={showHarvestPanel}
-                                    onClose={() => setShowHarvestPanel(false)}
-                                    activeWorldId={selectedWorldId}
-                                    onSelectWorld={setSelectedWorldId}
-                                    worlds={visibleWorlds}
-                                />
-                            )}
-                        </AnimatePresence>
+                        {/* 🪓 Panneau Récolte — plein en mode normal, barre compacte en overlay */}
+                        {isOverlay ? (
+                            // ── Barre compacte overlay avec navigation explicite (flèches) ──
+                            <AnimatePresence>
+                                {showHarvestPanel && (() => {
+                                    const jobIndex = harvestJobs.findIndex((j: any) => j.id === selectedHarvestJobId);
+                                    const prevJob = jobIndex > 0 ? harvestJobs[jobIndex - 1] : null;
+                                    const nextJob = jobIndex < harvestJobs.length - 1 ? harvestJobs[jobIndex + 1] : null;
+                                    const currentJob = harvestJobs[jobIndex];
 
-                        {/* 🧭 Télécommande Flottante Guidage GPS Opti-Farm */}
-                        <HarvestGpsController
-                            circuit={activeCircuit}
-                            onClose={() => setActiveCircuit(null)}
-                            onGoToCoord={(x: number, y: number) => {
-                                setTriggerCenterPosition({ x, y });
-                                setMinimapRecenterTrigger(prev => prev + 1);
-                            }}
-                            completedStepIndices={completedHarvestSteps}
-                            onToggleStepCompleted={handleToggleHarvestStep}
+                                    const availableResources = currentJob
+                                        ? (currentJob.resources as any[]).filter((r: any) =>
+                                            r.spots.some((sp: any) => (sp.worldId || 1) === (selectedWorldId || 1))
+                                          )
+                                        : [];
+
+                                    // Index de la ressource active (si exactement 1 sélectionnée)
+                                    const activeResIds = [...selectedHarvestResourceIds];
+                                    const singleActiveId = activeResIds.length === 1 ? activeResIds[0] : null;
+                                    const resIndex = singleActiveId !== null
+                                        ? availableResources.findIndex((r: any) => r.id === singleActiveId)
+                                        : -1;
+
+                                    return (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            transition={{ duration: 0.15 }}
+                                            className="absolute top-0 left-0 right-0 z-[1100] bg-[#030712]/97 backdrop-blur-xl border-b border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.9)] pointer-events-auto"
+                                        >
+                                            {/* ── Ligne 1 : Sélection du Métier ── */}
+                                            <div className="flex items-center gap-1 px-2 pt-1.5 pb-1 border-b border-white/[0.06]">
+                                                {/* Flèche précédent métier */}
+                                                <button
+                                                    onClick={() => prevJob && setSelectedHarvestJobId(prevJob.id)}
+                                                    disabled={!prevJob}
+                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-white/5 border border-white/10 text-white/40 hover:bg-white/15 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all shrink-0"
+                                                    title={prevJob ? `← ${prevJob.name}` : undefined}
+                                                >
+                                                    <ChevronLeft size={12} />
+                                                </button>
+
+                                                {/* Métiers pills */}
+                                                <div
+                                                    ref={overlayJobsScrollRef}
+                                                    onWheel={(e) => { if (e.deltaY !== 0) e.currentTarget.scrollLeft += e.deltaY; }}
+                                                    className="flex items-center gap-1 overflow-x-auto no-scrollbar flex-1 min-w-0 overscroll-x-contain touch-pan-x"
+                                                >
+                                                    {harvestJobs.map((job: any) => {
+                                                        const isSelected = selectedHarvestJobId === job.id;
+                                                        const jobCount = job.resources?.filter((r: any) => r.spots.some((sp: any) => (sp.worldId || 1) === (selectedWorldId || 1))).length || 0;
+                                                        const iconSrc = getHarvestJobIcon(job.name);
+                                                        return (
+                                                            <button
+                                                                key={job.id}
+                                                                data-active-job={isSelected ? 'true' : undefined}
+                                                                onClick={() => setSelectedHarvestJobId(job.id)}
+                                                                className={cn(
+                                                                    "flex items-center gap-1.5 px-2 py-0.5 rounded-lg transition-all border shrink-0 text-[11px] font-bold",
+                                                                    isSelected
+                                                                        ? "bg-emerald-500/25 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.35)]"
+                                                                        : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
+                                                                )}
+                                                                title={`${job.name} (${jobCount} ressources)`}
+                                                            >
+                                                                {iconSrc ? (
+                                                                    <img
+                                                                        src={iconSrc}
+                                                                        alt={job.name}
+                                                                        className="w-3.5 h-3.5 object-contain shrink-0"
+                                                                        onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-xs">{job.icon || "⛏️"}</span>
+                                                                )}
+                                                                <span className="whitespace-nowrap">{job.name}</span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Flèche suivant métier */}
+                                                <button
+                                                    onClick={() => nextJob && setSelectedHarvestJobId(nextJob.id)}
+                                                    disabled={!nextJob}
+                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-white/5 border border-white/10 text-white/40 hover:bg-white/15 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all shrink-0"
+                                                    title={nextJob ? `${nextJob.name} →` : undefined}
+                                                >
+                                                    <ChevronRight size={12} />
+                                                </button>
+
+                                                {/* Divider + Effacer + Fermer */}
+                                                <div className="flex items-center gap-1 shrink-0 pl-1 border-l border-white/10">
+                                                    {selectedHarvestResourceIds.size > 0 && (
+                                                        <button
+                                                            onClick={handleClearHarvestResources}
+                                                            className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-500/20 border border-red-500/40 text-red-400 text-[9px] font-black uppercase hover:bg-red-500/30 transition-all shrink-0"
+                                                            title="Tout désélectionner"
+                                                        >
+                                                            <X size={9} />
+                                                            <span>{selectedHarvestResourceIds.size}</span>
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => setShowHarvestPanel(false)}
+                                                        className="w-5 h-5 rounded-md bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all shrink-0"
+                                                        title="Fermer"
+                                                    >
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* ── Ligne 2 : Sélection de la Ressource ── */}
+                                            <div className="flex items-center gap-1 px-2 py-1">
+                                                {/* Flèche précédent ressource */}
+                                                <button
+                                                    onClick={() => {
+                                                        if (availableResources.length === 0) return;
+                                                        const newIdx = resIndex > 0 ? resIndex - 1 : availableResources.length - 1;
+                                                        handleClearHarvestResources();
+                                                        handleToggleHarvestResource(availableResources[newIdx].id);
+                                                    }}
+                                                    disabled={availableResources.length === 0}
+                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-white/5 border border-white/10 text-white/40 hover:bg-white/15 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all shrink-0"
+                                                    title="Ressource précédente"
+                                                >
+                                                    <ChevronLeft size={12} />
+                                                </button>
+
+                                                {/* Ressources pills */}
+                                                <div
+                                                    ref={overlayResScrollRef}
+                                                    onWheel={(e) => { if (e.deltaY !== 0) e.currentTarget.scrollLeft += e.deltaY; }}
+                                                    className="flex items-center gap-1 overflow-x-auto no-scrollbar flex-1 min-w-0 py-0.5 overscroll-x-contain touch-pan-x"
+                                                >
+                                                    {availableResources.length === 0 ? (
+                                                        <span className="text-[10px] text-white/30 italic px-1">Aucune ressource disponible ici</span>
+                                                    ) : (
+                                                        availableResources.map((res: any) => {
+                                                            const active = selectedHarvestResourceIds.has(res.id);
+                                                            const spotsCount = res.spots
+                                                                .filter((sp: any) => (sp.worldId || 1) === (selectedWorldId || 1))
+                                                                .reduce((acc: number, s: any) => acc + s.count, 0);
+                                                            return (
+                                                                <button
+                                                                    key={res.id}
+                                                                    data-active-res={active ? 'true' : undefined}
+                                                                    onClick={() => handleToggleHarvestResource(res.id)}
+                                                                    className={cn(
+                                                                        "flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold transition-all shrink-0 whitespace-nowrap",
+                                                                        active
+                                                                            ? "bg-emerald-500/30 border-emerald-400 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.4)] ring-1 ring-emerald-400/50"
+                                                                            : "bg-white/5 border-white/10 text-white/55 hover:bg-white/10 hover:text-white"
+                                                                    )}
+                                                                    title={`${res.name} (Niv. ${res.level}) — ${spotsCount} spots`}
+                                                                >
+                                                                    {res.img && (
+                                                                        <img
+                                                                            src={res.img}
+                                                                            alt={res.name}
+                                                                            className="w-3 h-3 object-contain shrink-0"
+                                                                            onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                                                                        />
+                                                                    )}
+                                                                    <span>{res.name}</span>
+                                                                    <span className={cn(
+                                                                        "text-[9px] px-1 rounded-full font-mono",
+                                                                        active ? "bg-emerald-400/20 text-emerald-300" : "bg-white/10 text-white/35"
+                                                                    )}>
+                                                                        {spotsCount}
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+
+                                                {/* Flèche suivant ressource */}
+                                                <button
+                                                    onClick={() => {
+                                                        if (availableResources.length === 0) return;
+                                                        const newIdx = resIndex < availableResources.length - 1 ? resIndex + 1 : 0;
+                                                        handleClearHarvestResources();
+                                                        handleToggleHarvestResource(availableResources[newIdx].id);
+                                                    }}
+                                                    disabled={availableResources.length === 0}
+                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-white/5 border border-white/10 text-white/40 hover:bg-white/15 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all shrink-0"
+                                                    title="Ressource suivante"
+                                                >
+                                                    <ChevronRight size={12} />
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })()}
+                            </AnimatePresence>
+                        ) : (
+                            <AnimatePresence>
+                                {showHarvestPanel && (
+                                    <HarvestOptiFarmPanel
+                                        jobsData={harvestJobs}
+                                        selectedJobId={selectedHarvestJobId}
+                                        onSelectJobId={setSelectedHarvestJobId}
+                                        selectedResourceIds={selectedHarvestResourceIds}
+                                        onToggleResource={handleToggleHarvestResource}
+                                        onSelectAllUpToLevel={handleSelectAllHarvestUpToLevel}
+                                        onClearResources={handleClearHarvestResources}
+                                        activeCircuit={null}
+                                        onSelectCircuit={() => {}}
+                                        showZaaps={showZaaps}
+                                        onToggleShowZaaps={() => setShowZaaps(prev => !prev)}
+                                        isOpen={showHarvestPanel}
+                                        onClose={() => setShowHarvestPanel(false)}
+                                        activeWorldId={selectedWorldId}
+                                        onSelectWorld={setSelectedWorldId}
+                                        worlds={visibleWorlds}
+                                    />
+                                )}
+                            </AnimatePresence>
+                        )}
+
+                        {/* 🎯 Panneau Avis de recherche (public + interne) */}
+                        <BountyMapPanel
+                            isOpen={showBountyPanel}
+                            onClose={() => { setShowBountyPanel(false); setActiveBountyId(null); }}
+                            bounties={bountyList}
+                            loading={isLoadingBounties}
+                            query={bountyPanelQuery}
+                            onQueryChange={setBountyPanelQuery}
+                            activeBountyId={activeBountyId}
+                            onSelect={handleBountySelect}
+                        />
+
+                        {/* 🎯 Modale Archimonstres (public + interne) : recherche + filtres,
+                            un clic ouvre la zone de la cible — même focus que le panneau Avis. */}
+                        <ArchimonsterMapModal
+                            isOpen={showArchiPanel}
+                            onClose={() => setShowArchiPanel(false)}
+                            currentWorldId={selectedWorldId}
+                            onSelect={(entry: any) => focusZone({
+                                worldMapId: entry.worldMapId,
+                                centerX: entry.centerX,
+                                centerY: entry.centerY,
+                                subAreaIds: entry.subAreaIds,
+                                iconUrl: entry.imageUrl ?? null,
+                            })}
                         />
 
                         {/* 🏷️ DofusDB Attribution Badge — déplacé dans le bandeau du haut */}
@@ -2072,7 +2343,7 @@ export default function InteractiveMapV2({
                             createPortal(
                                 <button
                                     onClick={handleLeaveSession}
-                                    className="px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl bg-[#ff4757] hover:bg-[#ff6b81] text-foreground font-black uppercase text-caption sm:text-xs italic border-b-[4px] border-black/20 transition-all flex items-center gap-2 shadow-[0_10px_20px_rgba(255,71,87,0.2)] active:translate-y-1 active:border-b-0 "
+                                    className="px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl bg-danger hover:bg-danger/90 text-danger-foreground font-black uppercase text-caption sm:text-xs italic border-b-[4px] border-black/20 transition-all flex items-center gap-2 shadow-[0_10px_20px_rgba(255,71,87,0.2)] active:translate-y-1 active:border-b-0 "
                                 >
                                     <LogOut size={16} />
                                     <span>Quitter la partie</span>
@@ -2083,7 +2354,7 @@ export default function InteractiveMapV2({
                             <div className="absolute top-4 left-4 sm:top-6 sm:left-8 pointer-events-auto z-[800] flex flex-col gap-2">
                                 <button
                                     onClick={handleLeaveSession}
-                                    className="px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl bg-[#ff4757] hover:bg-[#ff6b81] text-foreground font-black uppercase text-caption sm:text-xs italic border-b-[4px] sm:border-b-[8px] border-black/20 transition-all flex items-center gap-3 shadow-[0_20px_40px_rgba(255,71,87,0.3)] active:translate-y-1 active:border-b-0 "
+                                    className="px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl bg-danger hover:bg-danger/90 text-danger-foreground font-black uppercase text-caption sm:text-xs italic border-b-[4px] sm:border-b-[8px] border-black/20 transition-all flex items-center gap-3 shadow-[0_20px_40px_rgba(255,71,87,0.3)] active:translate-y-1 active:border-b-0 "
                                 >
                                     <LogOut size={18} className="sm:w-5 sm:h-5" />
                                     <span>Quitter la partie</span>
@@ -2105,7 +2376,7 @@ export default function InteractiveMapV2({
                         <motion.div
                             initial={{ y: 50, opacity: 0, scale: 0.95 }}
                             animate={{ y: 0, opacity: 1, scale: 1 }}
-                            className="w-full h-full max-h-full max-w-[1600px] bg-[#0d111a]/95 backdrop-blur-[40px] border border-border rounded-[2rem] md:rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-4 sm:p-6 md:p-10 pointer-events-auto relative overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar"
+                            className="w-full h-full max-h-full max-w-[1600px] bg-elevated/95 backdrop-blur-[40px] border border-border rounded-[2rem] md:rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-4 sm:p-6 md:p-10 pointer-events-auto relative overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar"
                         >
                                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-success/[0.03] rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
 
@@ -2122,7 +2393,7 @@ export default function InteractiveMapV2({
                                                     {activeSession.state === 'IN_PROGRESS' ? 'En attente des joueurs' : 'Terminé'}
                                                 </span>
                                             </div>
-                                            <p className="text-foreground/20 text-caption font-black uppercase tracking-widest italic">Analyse des Précisions Géographiques</p>
+                                            <p className="text-muted-foreground text-caption font-black uppercase tracking-widest italic">Analyse des Précisions Géographiques</p>
                                         </div>
                                     </div>
 
@@ -2131,7 +2402,7 @@ export default function InteractiveMapV2({
                                             "px-5 py-3 rounded-2xl border flex flex-col items-center min-w-[110px] transition-colors",
                                             timeLeft <= 3 ? "bg-warning/15 border-warning/30" : "bg-surface border-border"
                                         )}>
-                                            <span className="text-foreground/40 text-caption font-bold uppercase tracking-widest mb-1">Prochaine map dans</span>
+                                            <span className="text-muted-foreground text-caption font-bold uppercase tracking-widest mb-1">Prochaine map dans</span>
                                             <span className={cn(
                                                 "font-black text-3xl leading-none tabular-nums",
                                                 timeLeft <= 3 ? "text-warning animate-pulse" : "text-foreground"
@@ -2165,7 +2436,7 @@ export default function InteractiveMapV2({
                                             <>
                                                 <div className="p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] bg-surface border border-border flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between overflow-hidden relative group shrink-0">
                                                     <div className="flex items-center gap-4 sm:gap-6 relative z-10">
-                                                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-success/10 flex items-center justify-center border border-success/20 shadow-inner shrink-0">
+                                                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-success/10 flex items-center justify-center border border-success/20 shrink-0">
                                                             <Target className="text-success w-6 h-6 sm:w-8 sm:h-8" />
                                                         </div>
                                                         <div>
@@ -2179,7 +2450,7 @@ export default function InteractiveMapV2({
 
                                                     {/* Points gagnés au round */}
                                                     <div className="flex flex-col sm:items-end justify-center shrink-0 border-t sm:border-t-0 sm:border-l border-border pt-3 sm:pt-0 sm:pl-6">
-                                                        <div className="text-foreground/40 text-caption font-black uppercase tracking-widest italic">Gain du Round</div>
+                                                        <div className="text-muted-foreground text-caption font-black uppercase tracking-widest italic">Gain du Round</div>
                                                         <div className="text-success font-black text-2xl sm:text-3xl italic flex items-baseline gap-1.5">
                                                             +{(guessResult.guess?.score || 0).toLocaleString()}
                                                             <span className="text-caption text-success/60 font-bold uppercase">pts</span>
@@ -2191,7 +2462,7 @@ export default function InteractiveMapV2({
                                                     {/* Your Choice */}
                                                     <div className="flex flex-col gap-2 sm:gap-3 h-full">
                                                         <div className="flex items-center justify-between px-2">
-                                                            <div className="text-caption font-black text-foreground/30 uppercase tracking-[0.2em] italic flex items-center gap-2">
+                                                            <div className="text-caption font-black text-muted-foreground uppercase tracking-[0.2em] italic flex items-center gap-2">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-success" />
                                                                 Ton Choix
                                                             </div>
@@ -2215,7 +2486,7 @@ export default function InteractiveMapV2({
                                                                 return null;
                                                             })()}
                                                         </div>
-                                                        <div className="flex-1 min-h-[120px] sm:min-h-[200px] bg-surface rounded-[1.5rem] sm:rounded-[2rem] border border-border overflow-hidden shadow-2xl relative group ring-1 ring-white/5">
+                                                        <div className="flex-1 min-h-[120px] sm:min-h-[200px] bg-surface rounded-[1.5rem] sm:rounded-[2rem] border border-border overflow-hidden shadow-2xl relative group">
                                                             {(() => {
                                                                 const me = activeSession.participants?.find((p: any) =>
                                                                     String(p.userId) === String(currentUserId) ||
@@ -2252,7 +2523,7 @@ export default function InteractiveMapV2({
                                                                             </div>
                                                                             <div className="text-center">
                                                                                 <span className="text-caption uppercase font-black italic tracking-widest text-success/50">Position Validée</span>
-                                                                                <p className="text-caption font-mono text-foreground/20 mt-1">[{bestGuess.x}, {bestGuess.y}]</p>
+                                                                                <p className="text-caption font-mono text-muted-foreground mt-1">[{bestGuess.x}, {bestGuess.y}]</p>
                                                                             </div>
                                                                         </div>
                                                                     );
@@ -2334,7 +2605,7 @@ export default function InteractiveMapV2({
                                                                 </>
                                                             ) : (
                                                                 <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-background/50 backdrop-blur-sm px-6">
-                                                                    <div className="w-12 h-12 border-4 border-danger/20 border-t-rose-500 rounded-full animate-spin" />
+                                                                    <div className="w-12 h-12 border-4 border-danger/20 border-t-danger rounded-full animate-spin" />
                                                                     <p className="text-danger/50 text-caption font-black uppercase italic tracking-widest text-center">
                                                                         Analyse en cours...<br />
                                                                         La solution sera révélée dès que tout le monde aura joué.
@@ -2363,7 +2634,7 @@ export default function InteractiveMapV2({
                                             const myGuess = guessResult?.guess || me?.lastGuess;
 
                                             return (
-                                                <div className="h-[350px] xl:h-[450px] shrink-0 bg-surface rounded-[2.5rem] border border-border overflow-hidden relative group shadow-2xl ring-1 ring-white/5">
+                                                <div className="h-[350px] xl:h-[450px] shrink-0 bg-surface rounded-[2.5rem] border border-border overflow-hidden relative group shadow-2xl">
                                                     {targetWorld && (
                                                         <LeafletMapCore
                                                             activeWorld={targetWorld}
@@ -2374,6 +2645,7 @@ export default function InteractiveMapV2({
                                                             dungeonsByMapId={dungeonsByMapId}
                                                             groupedDungeons={[]}
                                                             showDebugGrid={false}
+                                                            showGameOverlays={true}
                                                             selectedPosition={null}
                                                             setSelectedPosition={() => {}}
                                                             setSelectedDungeon={() => {}}
@@ -2394,17 +2666,17 @@ export default function InteractiveMapV2({
                                                     <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
                                                     <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-xl border border-border">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                                                        <span className="text-caption font-black text-foreground/50 uppercase italic tracking-widest">Analyse Géographique</span>
+                                                        <span className="text-caption font-black text-muted-foreground uppercase italic tracking-widest">Analyse Géographique</span>
                                                     </div>
                                                     
                                                     <div className="absolute bottom-4 left-4 z-[1000] flex items-center gap-3">
                                                         <div className="flex items-center gap-1.5">
                                                             <div className="w-2 h-2 rounded-full bg-danger" />
-                                                            <span className="text-caption font-black text-foreground/40 uppercase italic">Solution</span>
+                                                            <span className="text-caption font-black text-muted-foreground uppercase italic">Solution</span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5">
                                                             <div className="w-2 h-2 rounded-full bg-success" />
-                                                            <span className="text-caption font-black text-foreground/40 uppercase italic">Ton Choix</span>
+                                                            <span className="text-caption font-black text-muted-foreground uppercase italic">Ton Choix</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2413,8 +2685,8 @@ export default function InteractiveMapV2({
 
                                         <div className="flex flex-col flex-1 min-h-0 bg-surface border border-border rounded-3xl p-4">
                                             <div className="flex items-center justify-between mb-5 px-4 shrink-0">
-                                                <div className="text-foreground/20 text-caption font-black uppercase tracking-widest italic">Classement Round</div>
-                                                <div className="px-3 py-1 bg-elevated rounded-lg text-foreground/40 text-caption font-black italic tracking-widest">
+                                                <div className="text-muted-foreground text-caption font-black uppercase tracking-widest italic">Classement Round</div>
+                                                <div className="px-3 py-1 bg-elevated rounded-lg text-muted-foreground text-caption font-black italic tracking-widest">
                                                     {activeSession.participants?.filter((p: any) => !p.isSpectator).length} / 8 JOUEURS
                                                 </div>
                                             </div>
@@ -2433,7 +2705,7 @@ export default function InteractiveMapV2({
                                                     >
                                                         <div className="flex items-center gap-4">
                                                             <div className="relative shrink-0">
-                                                                <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center overflow-hidden shadow-inner">
+                                                                <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center overflow-hidden">
                                                                     {p.userAvatar ? (
                                                                         <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
                                                                     ) : (
@@ -2442,7 +2714,7 @@ export default function InteractiveMapV2({
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                <div className={`absolute -top-1.5 -left-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-caption font-black italic shadow-2xl z-10 ${i === 0 ? 'bg-warning text-warning-foreground shadow-amber-500/30' : i === 1 ? 'bg-surface text-warning-foreground' : i === 2 ? 'bg-warning text-warning-foreground' : 'bg-surface text-warning-foreground/40'}`}>
+                                                                <div className={`absolute -top-1.5 -left-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-caption font-black italic shadow-2xl z-10 ${i === 0 ? 'bg-warning text-warning-foreground shadow-warning/30' : i === 1 ? 'bg-surface text-warning-foreground' : i === 2 ? 'bg-warning text-warning-foreground' : 'bg-surface text-warning-foreground/40'}`}>
                                                                     {i + 1}
                                                                 </div>
                                                             </div>
@@ -2466,10 +2738,10 @@ export default function InteractiveMapV2({
                                                                 <span className={`font-black text-2xl italic leading-none ${isMe ? 'text-success' : 'text-foreground'} ${(p.lastGuess?.score || 0) > 4000 ? 'text-warning drop-shadow-[0_0_10px_rgba(251,191,36,0.2)]' : ''}`}>
                                                                     +{p.lastGuess?.score || 0}
                                                                 </span>
-                                                                {i === 0 && <Crown size={14} className="text-warning" strokeWidth={2.5} />}
+                                                                {i === 0 && <img src="/assets/dofus/game-icons/crown.png" alt="1er" className="w-3.5 h-3.5 object-contain" />}
                                                             </div>
                                                             {p.lastGuess?.mapId && (
-                                                                <span className="text-caption font-black text-foreground/20 uppercase tracking-[0.1em] italic truncate max-w-[90px]">
+                                                                <span className="text-caption font-black text-muted-foreground uppercase tracking-[0.1em] italic truncate max-w-[90px]">
                                                                     {subAreasById.get(allMapsById.get(p.lastGuess.mapId)?.subAreaId)?.name?.fr || "Zone Cache"}
                                                                 </span>
                                                             )}
@@ -2498,14 +2770,14 @@ export default function InteractiveMapV2({
                             <motion.div
                                 initial={{ scale: 0.9, y: 20 }}
                                 animate={{ scale: 1, y: 0 }}
-                                className="max-w-2xl w-full bg-[#0d111a] border border-border rounded-3xl md:rounded-[3rem] p-6 md:p-12 shadow-[0_50px_100px_rgba(0,0,0,0.8)] flex flex-col items-center my-auto"
+                                className="max-w-2xl w-full bg-elevated border border-border rounded-3xl md:rounded-[3rem] p-6 md:p-12 shadow-[0_50px_100px_rgba(0,0,0,0.8)] flex flex-col items-center my-auto"
                             >
                                 <div className="w-16 h-16 md:w-24 md:h-24 rounded-[1.5rem] md:rounded-[2rem] bg-info/5 flex items-center justify-center mb-4 md:mb-8 shrink-0">
-                                    <Trophy className="w-8 h-8 md:w-12 md:h-12 text-info drop-shadow-[0_0_20px_rgba(129,140,248,0.5)]" />
+                                    <img src="/assets/dofus/game-icons/trophy-1.png" alt="Partie terminée" className="w-10 h-10 md:w-14 md:h-14 object-contain" />
                                 </div>
 
                                 <h2 className="text-foreground font-black text-2xl md:text-5xl uppercase italic tracking-tighter mb-2 text-center">Partie Terminée</h2>
-                                <p className="text-foreground/20 font-black uppercase tracking-widest text-caption md:text-caption mb-6 md:mb-12 italic">Stats Globales SigilGuesser</p>
+                                <p className="text-muted-foreground font-black uppercase tracking-widest text-caption md:text-caption mb-6 md:mb-12 italic">Stats Globales SigilGuesser</p>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full mb-6 md:mb-12">
                                     <div className="p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] bg-info/5 border border-info/10 flex flex-col items-center">
@@ -2528,13 +2800,13 @@ export default function InteractiveMapV2({
                                                 {p.userAvatar ? (
                                                     <img src={p.userAvatar} alt="" className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <span className="text-foreground/20 font-bold text-xs">?</span>
+                                                    <span className="text-muted-foreground font-bold text-xs">?</span>
                                                 )}
                                             </div>
                                             <div className="flex flex-col">
                                                 <span className="text-foreground font-black text-xs uppercase italic">{p.userName}</span>
                                             </div>
-                                            <div className="ml-auto text-foreground font-black italic">{p.score} <span className="text-caption text-foreground/30 font-normal">pts</span> </div>
+                                            <div className="ml-auto text-foreground font-black italic">{p.score} <span className="text-caption text-muted-foreground font-normal">pts</span> </div>
                                         </div>
                                     ))}
                                 </div>
@@ -2542,14 +2814,14 @@ export default function InteractiveMapV2({
                                 <div className="flex gap-4">
                                     <button
                                         onClick={handleReplay}
-                                        className="px-10 py-5 rounded-2xl bg-success text-success-foreground font-black uppercase text-sm italic shadow-2xl shadow-emerald-500/20 hover:scale-[1.05] transition-all active:scale-[0.98] flex items-center gap-2"
+                                        className="px-10 py-5 rounded-2xl bg-success text-success-foreground font-black uppercase text-sm italic shadow-2xl shadow-success/20 hover:scale-[1.05] transition-all active:scale-[0.98] flex items-center gap-2"
                                     >
                                         <RotateCcw size={18} />
                                         Rejouer
                                     </button>
                                     <button
                                         onClick={handleLeaveSession}
-                                        className="px-10 py-5 rounded-2xl bg-info text-info-foreground font-black uppercase text-sm italic shadow-2xl shadow-indigo-500/20 hover:scale-[1.05] transition-all active:scale-[0.98]"
+                                        className="px-10 py-5 rounded-2xl bg-info text-info-foreground font-black uppercase text-sm italic shadow-2xl shadow-info/20 hover:scale-[1.05] transition-all active:scale-[0.98]"
                                     >
                                         Retour au Menu
                                     </button>
@@ -2561,31 +2833,92 @@ export default function InteractiveMapV2({
 
                 {/* Global Modals */}
                 <AnimatePresence>
-                    {showZoneDetail && selectedPosition && (
-                        <ZoneDetailModal
-                            isOpen={showZoneDetail}
-                            onClose={() => setShowZoneDetail(false)}
-                            guildId={guildId}
-                            position={selectedPosition}
-                            zoneName={
-                                (subAreasById.get(
-                                    (selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId
-                                )?.name?.fr) ||
-                                (typeof subAreasById.get(
-                                    (selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId)?.name === 'string'
-                                    ? subAreasById.get((selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId)?.name
-                                    : "Zone Inconnue")
-                            }
-                            worldId={selectedWorldId}
-                        />
-                    )}
+                    {showZoneDetail && selectedPosition && (() => {
+                        const currentSubAreaId = (selectedPosition.mapId 
+                            ? mapsById.get(selectedPosition.mapId) 
+                            : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId;
+                        const subAreaObj = currentSubAreaId ? subAreasById.get(currentSubAreaId) : null;
+                        const resolvedZoneName = subAreaObj?.name?.fr || (typeof subAreaObj?.name === 'string' ? subAreaObj.name : "Zone Inconnue");
+                        const exactMapId = selectedPosition.mapId || mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`)?.id;
 
-                    {selectedDungeon && (
+                        // En mode overlay : modale sombre responsive affichant UNIQUEMENT la tuile HD
+                        if (isOverlay) {
+                            return (
+                                <Dialog open={showZoneDetail} onOpenChange={(open) => !open && setShowZoneDetail(false)}>
+                                    <DialogContent className="max-w-[92vw] sm:max-w-2xl bg-[#030712]/95 backdrop-blur-2xl border border-white/10 p-4 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.9)] text-white overflow-hidden">
+                                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono font-black text-xs text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                                                    [{selectedPosition.x}, {selectedPosition.y}]
+                                                </span>
+                                                <span className="text-sm font-bold text-white/90 truncate">
+                                                    {resolvedZoneName}
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={() => setShowZoneDetail(false)}
+                                                className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 text-white/60 hover:text-white flex items-center justify-center transition-all"
+                                                title="Fermer"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+
+                                        <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-white/10 bg-black/60 shadow-inner flex items-center justify-center">
+                                            {exactMapId ? (
+                                                <img
+                                                    src={`/game-data/hd_maps/${exactMapId}.webp`}
+                                                    alt={`Tuile HD [${selectedPosition.x}, ${selectedPosition.y}]`}
+                                                    className="w-full h-full object-cover select-none"
+                                                    onError={(e) => {
+                                                        const el = e.currentTarget;
+                                                        el.style.display = 'none';
+                                                        const fallback = el.parentElement?.querySelector('.hd-fallback') as HTMLElement | null;
+                                                        if (fallback) fallback.style.display = 'flex';
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <div className="hd-fallback hidden flex-col items-center justify-center gap-2 text-white/40 text-xs font-semibold p-6 text-center">
+                                                <span>Aperçu HD non disponible pour cette carte</span>
+                                            </div>
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
+                            );
+                        }
+
+                        // Mode normal : grand analyseur complet de zone
+                        return (
+                            <ZoneDetailModal
+                                isOpen={showZoneDetail}
+                                onClose={() => setShowZoneDetail(false)}
+                                guildId={guildId}
+                                isPublic={isPublic}
+                                position={selectedPosition}
+                                zoneName={resolvedZoneName}
+                                subAreaId={currentSubAreaId}
+                                worldId={selectedWorldId}
+                            />
+                        );
+                    })()}
+
+                    {!isOverlay && selectedDungeon && (
                         <DungeonDetailModal
                             isOpen={!!selectedDungeon}
                             onClose={() => setSelectedDungeon(null)}
                             dungeons={selectedDungeon}
                             guildId={guildId}
+                            isPublic={isPublic || !guildId}
+                        />
+                    )}
+
+                    {/* 🗡️ Panneau Strat Raid — aligné à gauche dans le style Registre avec bouton Overlay PiP */}
+                    {!isOverlay && isRaidWorld && (
+                        <RaidStratDrawer
+                            isOpen={showStratPanel}
+                            onClose={() => setShowStratPanel(false)}
+                            worldId={selectedWorldId}
+                            onSelectCoords={(x: number, y: number) => setTriggerCenterPosition({ x, y })}
                         />
                     )}
                 </AnimatePresence>
@@ -2621,8 +2954,8 @@ export default function InteractiveMapV2({
                                         className={cn(
                                             "flex-1 px-6 py-3 rounded-xl text-caption font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
                                             gamesSubTab === 'arena' 
-                                                ? "bg-success text-success-foreground shadow-lg shadow-emerald-500/20" 
-                                                : "text-foreground/70 hover:text-foreground hover:bg-surface"
+                                                ? "bg-success text-success-foreground shadow-lg shadow-success/20" 
+                                                : "text-foreground/70 hover:text-foreground hover:bg-elevated"
                                         )}
                                     >
                                         <Rocket size={14} className={cn("transition-transform", gamesSubTab === 'arena' && "animate-bounce-subtle")} />
@@ -2633,8 +2966,8 @@ export default function InteractiveMapV2({
                                         className={cn(
                                             "flex-1 px-6 py-3 rounded-xl text-caption font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
                                             gamesSubTab === 'ladder' 
-                                                ? "bg-warning text-warning-foreground shadow-lg shadow-amber-500/20" 
-                                                : "text-foreground/70 hover:text-foreground hover:bg-surface"
+                                                ? "bg-warning text-warning-foreground shadow-lg shadow-warning/20" 
+                                                : "text-foreground/70 hover:text-foreground hover:bg-elevated"
                                         )}
                                     >
                                         <Trophy size={14} className={cn("transition-transform", gamesSubTab === 'ladder' && "animate-bounce-subtle")} />
@@ -2679,7 +3012,7 @@ export default function InteractiveMapV2({
                                                             <button 
                                                                 onClick={() => handleJoinRoom(room)} 
                                                                 disabled={joiningId === room.id}
-                                                                className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-success text-success-foreground font-black uppercase text-caption shadow-md shadow-emerald-500/20 opacity-90 hover:opacity-100 transition-all disabled:opacity-50"
+                                                                className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-success text-success-foreground font-black uppercase text-caption shadow-md shadow-success/20 opacity-90 hover:opacity-100 transition-all disabled:opacity-50"
                                                             >
                                                                 {joiningId === room.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Rejoindre"}
                                                             </button>
@@ -2759,13 +3092,13 @@ export default function InteractiveMapV2({
                                                         <button
                                                             onClick={handleCreateRoom}
                                                             disabled={isCreating || joiningId !== null}
-                                                            className="w-full py-3.5 rounded-xl bg-success hover:bg-success text-success-foreground font-bold uppercase text-xs tracking-wider shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
+                                                            className="w-full py-3.5 rounded-xl bg-success hover:bg-success text-success-foreground font-bold uppercase text-xs tracking-wider shadow-lg shadow-success/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
                                                         >
                                                             {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus size={16} /> Créer un Salon</>}
                                                         </button>
                                                         <button
                                                             onClick={handleSoloMode}
-                                                            className="w-full py-3.5 rounded-xl bg-elevated text-foreground font-bold uppercase text-xs tracking-wider border border-border hover:bg-surface hover:text-foreground transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                            className="w-full py-3.5 rounded-xl bg-elevated text-foreground font-bold uppercase text-xs tracking-wider border border-border hover:bg-elevated hover:text-foreground transition-all flex items-center justify-center gap-2 active:scale-95"
                                                         >
                                                             <Compass size={16} /> Jouer Solo
                                                         </button>
@@ -2855,8 +3188,8 @@ export default function InteractiveMapV2({
                                                 className={cn(
                                                     "px-6 py-2.5 rounded-xl text-xs font-black uppercase italic transition-all flex items-center gap-2",
                                                     ladderGame === 'guesser' 
-                                                        ? "bg-success text-success-foreground shadow-lg shadow-emerald-500/20" 
-                                                        : "text-foreground/20 hover:text-foreground/40"
+                                                        ? "bg-success text-success-foreground shadow-lg shadow-success/20" 
+                                                        : "text-muted-foreground hover:text-foreground"
                                                 )}
                                             >
                                                 <Target size={14} />
@@ -2867,8 +3200,8 @@ export default function InteractiveMapV2({
                                                 className={cn(
                                                     "px-6 py-2.5 rounded-xl text-xs font-black uppercase italic transition-all flex items-center gap-2",
                                                     ladderGame === 'bomb' 
-                                                        ? "bg-danger text-danger-foreground shadow-lg shadow-red-500/20" 
-                                                        : "text-foreground/20 hover:text-foreground/40"
+                                                        ? "bg-danger text-danger-foreground shadow-lg shadow-danger/20" 
+                                                        : "text-muted-foreground hover:text-foreground"
                                                 )}
                                             >
                                                 <Bomb size={14} />
@@ -2881,7 +3214,7 @@ export default function InteractiveMapV2({
                                                 onClick={() => setLadderType('all_time')}
                                                 className={cn(
                                                     "px-6 py-2.5 rounded-xl text-caption font-black uppercase transition-all",
-                                                    ladderType === 'all_time' ? 'bg-surface text-foreground' : 'text-foreground/20 hover:text-foreground/40'
+                                                    ladderType === 'all_time' ? 'bg-elevated text-foreground' : 'text-muted-foreground hover:text-foreground'
                                                 )}
                                             >
                                                 Général
@@ -2890,7 +3223,7 @@ export default function InteractiveMapV2({
                                                 onClick={() => setLadderType('month')}
                                                 className={cn(
                                                     "px-6 py-2.5 rounded-xl text-caption font-black uppercase transition-all",
-                                                    ladderType === 'month' ? 'bg-surface text-foreground' : 'text-foreground/20 hover:text-foreground/40'
+                                                    ladderType === 'month' ? 'bg-elevated text-foreground' : 'text-muted-foreground hover:text-foreground'
                                                 )}
                                             >
                                                 Mensuel
@@ -2900,8 +3233,8 @@ export default function InteractiveMapV2({
 
                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 overflow-y-auto pr-2 custom-scrollbar flex-1 pb-10">
                                          {isLoadingLadder ? (
-                                            <div className="col-span-full h-64 flex flex-col items-center justify-center text-foreground/10 font-black uppercase text-sm animate-pulse gap-4">
-                                                <div className="w-12 h-12 border-4 border-warning/20 border-t-amber-500 rounded-full animate-spin" />
+                                            <div className="col-span-full h-64 flex flex-col items-center justify-center text-muted-foreground font-black uppercase text-sm animate-pulse gap-4">
+                                                <div className="w-12 h-12 border-4 border-warning/20 border-t-warning rounded-full animate-spin" />
                                                 Chargement du Panthéon...
                                             </div>
                                         ) : ladder.length > 0 ? (
@@ -2921,25 +3254,25 @@ export default function InteractiveMapV2({
                                                     <div className="flex items-center gap-5 min-w-0 pr-2">
                                                         <div className={cn(
                                                             "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg italic shrink-0",
-                                                            index === 0 ? "bg-warning text-warning-foreground shadow-xl shadow-amber-500/40" :
-                                                            index === 1 ? "bg-surface text-foreground shadow-xl shadow-slate-300/20" :
-                                                            index === 2 ? "bg-warning text-warning-foreground shadow-xl shadow-amber-700/20" :
-                                                            "text-foreground/20 bg-surface border border-border"
+                                                            index === 0 ? "bg-warning text-warning-foreground shadow-xl shadow-warning/40" :
+                                                            index === 1 ? "bg-surface text-foreground shadow-xl shadow-muted/20" :
+                                                            index === 2 ? "bg-warning text-warning-foreground shadow-xl shadow-warning/20" :
+                                                            "text-muted-foreground bg-surface border border-border"
                                                         )}>
-                                                            {index === 0 ? <Crown size={20} /> : index + 1}
+                                                            {index === 0 ? <img src="/assets/dofus/game-icons/crown.png" alt="1er" className="w-5 h-5 object-contain" /> : index + 1}
                                                         </div>
                                                         <div className="flex flex-col min-w-0">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-foreground font-black text-sm uppercase italic truncate">{entry.userName}</span>
                                                                 {index < 3 && <div className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse shrink-0" />}
                                                             </div>
-                                                            <span className="text-foreground/20 text-caption font-black uppercase tracking-[0.2em]">{ladderGame === 'guesser' ? 'Explorateur' : 'Artificier'}</span>
+                                                            <span className="text-muted-foreground text-caption font-black uppercase tracking-[0.2em]">{ladderGame === 'guesser' ? 'Explorateur' : 'Artificier'}</span>
                                                         </div>
                                                     </div>
                                                     <div className="text-right shrink-0">
                                                         <div className={cn(
                                                             "font-black text-lg italic whitespace-nowrap",
-                                                            index === 0 ? "text-warning" : "text-foreground/60"
+                                                            index === 0 ? "text-warning" : "text-muted-foreground"
                                                         )}>
                                                             {entry.bestScore || 0} 
                                                             <span className="text-caption ml-1.5 opacity-40 not-italic">pts</span>
@@ -2967,7 +3300,7 @@ export default function InteractiveMapV2({
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="max-w-6xl w-full h-full md:max-h-full md:aspect-video bg-[#0d111a] border border-border rounded-[2rem] md:rounded-[3rem] flex flex-col md:flex-row shadow-[0_50px_100px_rgba(0,0,0,0.8)] overflow-hidden relative"
+                            className="max-w-6xl w-full h-full md:max-h-full md:aspect-video bg-elevated border border-border rounded-[2rem] md:rounded-[3rem] flex flex-col md:flex-row shadow-[0_50px_100px_rgba(0,0,0,0.8)] overflow-hidden relative"
                         >
                             {/* Lobby Sidebar */}
                             <div className="w-full md:w-80 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-border p-6 md:p-10 bg-black/40 flex flex-col justify-between relative shrink-0">
@@ -2980,17 +3313,17 @@ export default function InteractiveMapV2({
 
                                     {!isSoloMode && (
                                         <div className="mb-8">
-                                            <span className="text-foreground/20 text-caption font-black uppercase tracking-[0.2em] block mb-3 pl-1">Invitation</span>
+                                            <span className="text-muted-foreground text-caption font-black uppercase tracking-[0.2em] block mb-3 pl-1">Invitation</span>
                                             <button
                                                 onClick={() => {
                                                     const url = `${window.location.origin}${window.location.pathname}#mini-jeux`;
                                                     navigator.clipboard.writeText(url);
                                                     toast.success("Lien copié !");
                                                 }}
-                                                className="group flex items-center gap-3 px-5 py-4 rounded-2xl bg-surface border border-border hover:bg-surface hover:border-success/30 transition-all w-full"
+                                                className="group flex items-center gap-3 px-5 py-4 rounded-2xl bg-surface border border-border hover:bg-elevated hover:border-success/30 transition-all w-full"
                                             >
                                                 <Copy size={14} className="text-success" />
-                                                <span className="text-foreground/40 font-bold text-caption uppercase truncate">Copié le lien</span>
+                                                <span className="text-muted-foreground font-bold text-caption uppercase truncate">Copié le lien</span>
                                             </button>
                                         </div>
                                     )}
@@ -3079,10 +3412,10 @@ export default function InteractiveMapV2({
                             </div>
  
                              {/* Player List */}
-                            <div className="flex-1 p-6 lg:p-10 flex flex-col relative bg-[#0a0d14] h-full overflow-hidden">
+                            <div className="flex-1 p-6 lg:p-10 flex flex-col relative bg-background h-full overflow-hidden">
                                 <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4 border-b border-border pb-6 shrink-0">
                                     <div className="flex flex-col w-full sm:w-auto">
-                                        <h3 className="text-foreground/40 font-black uppercase text-caption tracking-widest">Participants connectés</h3>
+                                        <h3 className="text-muted-foreground font-black uppercase text-caption tracking-widest">Participants connectés</h3>
                                         <div className="flex items-center gap-2 mt-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
                                             <span className="text-success/60 text-caption font-black uppercase tracking-widest italic">
@@ -3125,11 +3458,11 @@ export default function InteractiveMapV2({
                                                     className="relative group shrink-0"
                                                     title={`${s.userName} regarde la partie`}
                                                 >
-                                                    <div className="w-10 h-10 rounded-2xl border-2 border-[#0a0d14] bg-surface flex items-center justify-center overflow-hidden  hover:-translate-y-1 transition-all z-10 hover:z-20 relative shadow-xl">
+                                                    <div className="w-10 h-10 rounded-2xl border-2 border-background bg-surface flex items-center justify-center overflow-hidden  hover:-translate-y-1 transition-all z-10 hover:z-20 relative shadow-xl">
                                                         {s.userAvatar ? (
                                                             <img src={s.userAvatar} alt="" className="w-full h-full object-cover" />
                                                         ) : (
-                                                            <span className="text-foreground/40 font-black text-caption uppercase italic">{s.userName?.[0] || 'S'}</span>
+                                                            <span className="text-muted-foreground font-black text-caption uppercase italic">{s.userName?.[0] || 'S'}</span>
                                                         )}
                                                         <div className="absolute inset-0 bg-success/10" />
                                                     </div>
@@ -3176,7 +3509,7 @@ export default function InteractiveMapV2({
                                                 <div className="w-2 h-2 rounded-full bg-surface" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-foreground/20 font-black uppercase text-caption tracking-widest italic">Libre</span>
+                                                <span className="text-muted-foreground font-black uppercase text-caption tracking-widest italic">Libre</span>
                                             </div>
                                         </div>
                                     )))}
@@ -3215,21 +3548,21 @@ export default function InteractiveMapV2({
                             transition={{ duration: 0.25 }}
                             className="fixed inset-x-0 top-6 z-[2600] flex justify-center px-4 pointer-events-none"
                         >
-                            <div className="pointer-events-auto bg-zinc-950/95 border border-amber-500/30 rounded-2xl px-5 py-4 shadow-2xl flex items-center gap-4 max-w-lg w-full">
-                                <div className="w-10 h-10 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
-                                    <Users size={18} className="text-amber-400" />
+                            <div className="pointer-events-auto bg-elevated border border-warning/30 rounded-2xl px-5 py-4 shadow-2xl flex items-center gap-4 max-w-lg w-full">
+                                <div className="w-10 h-10 rounded-full bg-warning/15 border border-warning/30 flex items-center justify-center shrink-0">
+                                    <Users size={18} className="text-warning" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-bold text-white">
+                                    <p className="text-sm font-bold text-foreground">
                                         {playerLeftNotice} a quitté la partie
                                     </p>
-                                    <p className="text-caption text-zinc-400 mt-0.5">
+                                    <p className="text-caption text-muted-foreground mt-0.5">
                                         Le tour en cours continue — les prochaines maps partent quand même.
                                     </p>
                                 </div>
                                 <button
                                     onClick={() => setPlayerLeftNotice(null)}
-                                    className="shrink-0 w-8 h-8 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 flex items-center justify-center"
+                                    className="shrink-0 w-8 h-8 rounded-lg bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground flex items-center justify-center"
                                     aria-label="Fermer"
                                 >
                                     <X size={14} />
@@ -3259,7 +3592,7 @@ export default function InteractiveMapV2({
                                 <span className="text-[180px] font-black italic text-success drop-shadow-[0_0_50px_rgba(16,185,129,0.5)] leading-none">
                                     {timeLeft}
                                 </span>
-                                <span className="text-foreground/20 font-black uppercase tracking-widest text-xl mt-4 italic">
+                                <span className="text-muted-foreground font-black uppercase tracking-widest text-xl mt-4 italic">
                                     Préparez-vous
                                 </span>
                             </motion.div>
@@ -3282,7 +3615,7 @@ export default function InteractiveMapV2({
                                 animate={{ scale: 1, y: 0 }}
                                 exit={{ scale: 0.9, y: 30 }}
                                 onClick={e => e.stopPropagation()}
-                                className="max-w-xl w-full bg-[#0d111a] border border-border rounded-[3rem] p-12 relative overflow-hidden"
+                                className="max-w-xl w-full bg-elevated border border-border rounded-[3rem] p-12 relative overflow-hidden"
                             >
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-info/10 rounded-full blur-[100px] pointer-events-none" />
                                 <h2 className="text-foreground font-black text-4xl uppercase italic mb-8 tracking-tighter">Règles du SigilGuesser</h2>
@@ -3299,14 +3632,14 @@ export default function InteractiveMapV2({
                                             </div>
                                             <div>
                                                 <h4 className="text-foreground font-black text-xs uppercase italic mb-1">{rule.t}</h4>
-                                                <p className="text-foreground/40 text-caption font-medium leading-relaxed">{rule.d}</p>
+                                                <p className="text-muted-foreground text-caption font-medium leading-relaxed">{rule.d}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                                 <button
                                     onClick={() => setShowRules(false)}
-                                    className="mt-12 w-full py-5 rounded-2xl bg-surface text-foreground/40 font-black uppercase text-xs italic hover:bg-surface hover:text-foreground transition-all border border-border"
+                                    className="mt-12 w-full py-5 rounded-2xl bg-surface text-muted-foreground font-black uppercase text-xs italic hover:bg-elevated hover:text-foreground transition-all border border-border"
                                 >
                                     J'ai compris
                                 </button>
@@ -3315,44 +3648,7 @@ export default function InteractiveMapV2({
                     )}
                 </AnimatePresence>
 
-                {/* Map Detail Panel - Classic Exploration */}
-                {selectedPosition && activeTab === 'map' && (
-                    <MapDetailsPanel
-                        position={(() => {
-                            // If we already have a specialized mapId (e.g. from layer switcher), use it
-                            if (selectedPosition.mapId) return selectedPosition;
-                            // Otherwise find the best map for these coords
-                            const bestMap = allWorldMapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`);
-                            return {
-                                ...selectedPosition,
-                                mapId: bestMap?.id,
-                                subAreaId: bestMap?.subAreaId
-                            };
-                        })()}
-                        allLayers={allLayersByCoords.get(`${selectedPosition.x},${selectedPosition.y}`) || []}
-                        subAreaName={(() => {
-                            // Determine which subAreaId to use
-                            const currentMap = selectedPosition.mapId 
-                                ? allMapsById.get(selectedPosition.mapId) 
-                                : allWorldMapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`);
-                            
-                            const saId = currentMap?.subAreaId || selectedPosition.subAreaId || 0;
-                            const sa = subAreasById.get(saId);
-                            if (!sa) return undefined;
-                            return typeof sa.name === 'string' ? sa.name : sa.name?.fr;
-                        })()}
-                        guildId={guildId}
-                        onClose={() => setSelectedPosition(null)}
-                        onOpenZoneDetails={() => setShowZoneDetail(true)}
-                        onSelectMap={(map: MapNode) => {
-                            setSelectedPosition({
-                                ...selectedPosition,
-                                mapId: map.id,
-                                subAreaId: map.subAreaId
-                            });
-                        }}
-                    />
-                )}
+
                 {/* Perfect Guess Celebration Overlay */}
                 <AnimatePresence>
                     {showPerfectCelebration && (
@@ -3392,7 +3688,7 @@ export default function InteractiveMapV2({
                                     y: 0
                                 }}
                                 exit={{ scale: 0, opacity: 0, y: 100 }}
-                                className="bg-[#0d111a]/95 backdrop-blur-3xl border-4 border-success/50 rounded-[4rem] px-24 py-20 flex flex-col items-center gap-10 shadow-[0_60px_120px_rgba(16,185,129,0.4)] relative"
+                                className="bg-elevated/95 backdrop-blur-3xl border-4 border-success/50 rounded-[4rem] px-24 py-20 flex flex-col items-center gap-10 shadow-[0_60px_120px_rgba(16,185,129,0.4)] relative"
                             >
                                 {/* Bouton fermer — ferme la célébration immédiatement */}
                                 <button

@@ -5,6 +5,7 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { getUserContext } from "@/server/actions/user-actions";
 import { verifyStorageToken } from "@/lib/storage-utils";
+import { logger } from "@/lib/logger";
 
 /**
  * RBAC-Protected Asset Server
@@ -40,8 +41,7 @@ export async function GET(
     // 🌟 Identify Public vs Private Assets
     // Pattern: guilds/{guildId}/{filename} -> Presentation Banner/Photo
     // Pattern: assets/ -> General public assets
-    // Pattern: landing/ -> Screens de la landing (#140, publics)
-    const isPublicPresentationAsset = (segment === "guilds" && !!guildId && rest.length === 1) || segment === "assets" || segment === "guides" || segment === "landing";
+    const isPublicPresentationAsset = (segment === "guilds" && !!guildId && rest.length === 1) || segment === "assets" || segment === "guides";
 
     // 🛡️ Authentication Check (Bypass for public images)
     let session = null;
@@ -106,7 +106,16 @@ export async function GET(
             },
         });
     } catch (error) {
-        console.error("[Storage API] Error serving file:", error);
+        const code = (error as NodeJS.ErrnoException | undefined)?.code;
+        if (code === "ENOENT" || code === "ENOTDIR" || code === "EISDIR") {
+            // Course : le fichier a disparu (ou c'est un dossier) entre l'`existsSync` et la
+            // lecture — un déploiement le déplace à cet instant précis. C'est un **404**, pas
+            // une panne : jamais `error` (sinon Issue Sentry), et aucun chemin dans le log.
+            logger.debug("[Storage API] asset disparu entre le contrôle et la lecture");
+            return new Response("Not Found", { status: 404 });
+        }
+        // Vraie panne (EACCES, EIO…) : on **garde** le signal Sentry, mais via `logger`.
+        logger.error("[Storage API] Error serving file", { error });
         return new Response("Internal Server Error", { status: 500 });
     }
 }

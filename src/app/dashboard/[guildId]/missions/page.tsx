@@ -5,15 +5,13 @@ import { getMyWeeklyKamaStatus, getKamaStats } from "@/server/actions/kama-actio
 import { getUserProfile } from "@/server/actions/profile-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect } from "next/navigation";
-import { ScrollText, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 import { MissionsErrorState } from "@/components/missions/missions-error-state";
 import { GuildProgressBar } from "@/components/missions/guild-progress-bar";
 import { isModuleEnabled } from "@/server/actions/module-actions";
-import { ActivitiesNav } from "@/components/layout/activities-nav";
 import { getDofusWeek } from "@/lib/date-utils";
-import { PersonalGuildatonWidget } from "@/components/missions/personal-guildaton-widget";
 import { db } from "@/lib/prisma";
 import { GuildHallWidget } from "@/components/missions/guild-hall-widget";
 import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
@@ -27,11 +25,13 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
 
     const { guildId } = await params;
 
-    if (!await isModuleEnabled(guildId, "missions")) {
+    const user = await getUserContext(guildId);
+
+    // Module guard (verrou inclus) — le God garde l'accès (`bypassModules = isGod`)
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "missions")) {
         redirect(`/dashboard/${guildId}`);
     }
 
-    const user = await getUserContext(guildId);
     if (!user.canViewMissions) {
         return <AccessDenied />;
     }
@@ -105,7 +105,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     // Kama status for the widget
     const kamaStatus = (kamaRes.success && kamaRes.data) ? kamaRes.data : null;
 
-    const vitrineMode = !!guildConfig?.missionVitrineMode && !user.isAdmin;
+    const vitrineMode = !!guildConfig?.missionVitrineMode || !user.isMember;
 
     return (
         <div className="space-y-6 pb-12">
@@ -113,8 +113,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                 <UnifiedModuleHeader
                     title="Missions de Guilde"
                     description={`Semaine ${week} • Année ${year} | Relevez les défis pour faire briller votre guilde.`}
-                    icon={ScrollText}
-                    iconColor="#ef4444"
+                    imageSrc="/assets/dofus/game-icons/parchment.png"
                     backHref={`/dashboard/${guildId}`}
                     actions={<ModuleTourReplayButton phase="missions" />}
                 />

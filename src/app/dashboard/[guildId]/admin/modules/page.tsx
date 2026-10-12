@@ -3,13 +3,13 @@ import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
-import { getGuildModules } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { Puzzle, ShieldAlert } from "lucide-react";
 import { db } from "@/lib/prisma";
 import Link from "next/link";
 import { ModulesClient } from "./_components/modules-client";
+import { AdminConsoleNav } from "@/components/admin/admin-console-nav";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -27,13 +27,23 @@ export default async function AdminModulesPage({ params }: Props) {
         return <AccessDenied />;
     }
 
-    const modules = await getGuildModules(guildId);
+    const { getGuildModuleConfig } = await import("@/server/actions/module-actions");
+    // Toggles BRUTS (propriété de la guilde) + état EFFECTIF par module (verrou
+    // plateforme ∪ guilde + message de maintenance), issus d'une seule lecture.
+    const { toggles, states: moduleStates } = await getGuildModuleConfig(guildId);
     const guild = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
         select: { rolesMapping: true }
     });
-    const rolesMapping = (guild?.rolesMapping as Record<string, string[]>) || {};
-    const isRbacConfigured = Array.isArray(rolesMapping["dashboard:login"]) && rolesMapping["dashboard:login"].length > 0;
+    // FIX (rapport beta onboarding) : le test historique lisait
+    // `rolesMapping["dashboard:login"]` — une clé qui n'existe jamais (le format
+    // réel est `{ [roleId]: ["dashboard:login", …] }`) → le bandeau ne partait
+    // jamais, même RBAC configuré. Helper unique (exclut @everyone, fail-closed).
+    const { isRbacConfigured } = await import("@/lib/onboarding-gating");
+    const rbacConfigured = isRbacConfigured(
+        (guild?.rolesMapping as Record<string, string[]>) || {},
+        guildId
+    );
 
     return (
         <div className="space-y-6 pb-12">
@@ -43,11 +53,19 @@ export default async function AdminModulesPage({ params }: Props) {
                     description="Activez ou désactivez les fonctionnalités de votre guilde"
                     icon={Puzzle}
                     backHref={`/dashboard/${guildId}/admin`}
-                    actions={<AdminTourReplay phase="adminModulesMgmt" />}
+                    actions={<ModuleHelpActions docSlug="admin-modules" docTitle="Gestion des Modules" tourPhase="adminModulesMgmt" />}
                 />
             </div>
 
-            {!isRbacConfigured && (
+            <AdminConsoleNav
+                guildId={guildId}
+                showModules={true}
+                showAccess={user.canManageRBAC || user.isAdmin}
+                showOnboarding={user.isAdmin}
+                showPilotage={true}
+            />
+
+            {!rbacConfigured && (
                 <div className="p-4 rounded-xl border border-warning/20 bg-warning/10 flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
                     <ShieldAlert className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                     <div className="space-y-2 flex-1">
@@ -66,7 +84,7 @@ export default async function AdminModulesPage({ params }: Props) {
             )}
 
             <div data-tour="admin-modules-list">
-                <ModulesClient guildId={guildId} initialModules={modules} />
+                <ModulesClient guildId={guildId} initialModules={toggles} moduleStates={moduleStates} />
             </div>
         </div>
     );

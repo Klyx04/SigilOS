@@ -152,6 +152,13 @@ export default function BombGame({
     }, []);
 
     const { playTick, playUrgentTick, playExplosion, playSuccess, playDoubleKill, playTripleKill, playRampage, playGodlike, playSuddenDeath } = useBombSounds(masterVolume, tickVolume);
+    // Les fonctions son sont recréées quand le volume change, mais les handlers socket sont
+    // enregistrés une seule fois → on passe par une ref pour TOUJOURS utiliser le volume courant
+    // (sinon l'ajustement du volume ne fait rien : le handler garde l'ancien volume).
+    const soundRef = useRef({ playTick, playUrgentTick, playExplosion, playSuccess, playDoubleKill, playTripleKill, playRampage, playGodlike, playSuddenDeath });
+    useEffect(() => {
+        soundRef.current = { playTick, playUrgentTick, playExplosion, playSuccess, playDoubleKill, playTripleKill, playRampage, playGodlike, playSuddenDeath };
+    });
 
 
     // WebSocket Connection — wait for session to fully load before connecting
@@ -214,15 +221,15 @@ export default function BombGame({
         });
         s.on("bomb:tick", (data) => {
             setLocalTimeLeft(data.timeLeft);
-            if (data.timeLeft <= 3) playUrgentTick();
-            else playTick();
+            if (data.timeLeft <= 3) soundRef.current.playUrgentTick();
+            else soundRef.current.playTick();
         });
         s.on("bomb:room:list", (list) => setLobbyRooms(list));
         s.on("bomb:explosion", (data) => {
             setExplosionFlash(true);
             triggerShake();
             setExplosionPlayerId(data.playerId);
-            playExplosion();
+            soundRef.current.playExplosion();
             const newSplats = Array.from({ length: 5 }).map(() => ({
                 id: Math.random(),
                 x: Math.random() * 100,
@@ -244,15 +251,15 @@ export default function BombGame({
             if (isMe) {
                 setMyStreak(prev => {
                     const next = prev + 1;
-                    if (next >= 10) { playGodlike(); toast("🌟 GODLIKE ! Tu es inarrêtable !", { duration: 3000 }); }
-                    else if (next >= 5) { playRampage(); toast("🔥 RAMPAGE ! " + next + " mots d'affilée !", { duration: 2500 }); }
-                    else if (next === 3) { playTripleKill(); toast("⚡ TRIPLE ! En feu !", { duration: 2000 }); }
-                    else if (next === 2) { playDoubleKill(); }
-                    else { playSuccess(); }
+                    if (next >= 10) { soundRef.current.playGodlike(); toast("🌟 GODLIKE ! Tu es inarrêtable !", { duration: 3000 }); }
+                    else if (next >= 5) { soundRef.current.playRampage(); toast("🔥 RAMPAGE ! " + next + " mots d'affilée !", { duration: 2500 }); }
+                    else if (next === 3) { soundRef.current.playTripleKill(); toast("⚡ TRIPLE ! En feu !", { duration: 2000 }); }
+                    else if (next === 2) { soundRef.current.playDoubleKill(); }
+                    else { soundRef.current.playSuccess(); }
                     return next;
                 });
             } else {
-                playSuccess();
+                soundRef.current.playSuccess();
             }
         });
         s.on("bomb:typing-update", (data: { playerId: string; text: string }) => {
@@ -271,12 +278,18 @@ export default function BombGame({
         s.on("bomb:sudden-death", (data) => {
             setIsSuddenDeath(true);
             setShowSuddenDeathFlash(true);
-            playSuddenDeath();
+            soundRef.current.playSuddenDeath();
             toast.error("⚠️ MORT SUBITE : TEMPS RÉDUIT !", {
                 description: `Le temps de réflexion est réduit de ${data.reductionPercent}%. Bonne chance.`,
                 duration: 5000,
             });
             setTimeout(() => setShowSuddenDeathFlash(false), 3000);
+        });
+        s.on("bomb:sudden-death-soon", (data) => {
+            toast.warning(`⚠️ Mort subite dans ~${data.exchangesLeft} échange(s)...`, {
+                description: `Le temps de réflexion sera réduit de ${data.reductionPercent}%. Préparez-vous !`,
+                duration: 6000,
+            });
         });
 
         return () => { s.disconnect(); };
@@ -345,19 +358,6 @@ export default function BombGame({
         });
         window.history.replaceState(null, "", `?room=${id}`);
     };
-
-    // Synchronisation sonore du décompte de départ
-    const prevStartingTimeRef = useRef<number>(-1);
-    useEffect(() => {
-        if (gameState?.state === 'STARTING' && localTimeLeft > 0) {
-            if (localTimeLeft !== prevStartingTimeRef.current) {
-                prevStartingTimeRef.current = localTimeLeft;
-                playUrgentTick();
-            }
-        } else {
-            prevStartingTimeRef.current = -1;
-        }
-    }, [gameState?.state, localTimeLeft, playUrgentTick]);
 
     const handleStartGame = () => socket?.emit("bomb:start-game");
     const handleToggleReady = () => socket?.emit("bomb:toggle-ready");
@@ -1385,6 +1385,48 @@ export default function BombGame({
                                         }}
                                         className="w-full accent-info h-2 bg-surface rounded-full appearance-none cursor-pointer" 
                                     />
+                                </div>
+
+                                {/* Mort subite (temps réduit) */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-caption font-black text-foreground/40 uppercase tracking-[0.2em]">Mort subite (temps réduit)</label>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleUpdateConfig({ suddenDeathEnabled: !gameState.config?.suddenDeathEnabled });
+                                            }}
+                                            className={cn(
+                                                "w-12 h-6 rounded-full transition-colors relative p-1 shrink-0 cursor-pointer",
+                                                gameState.config?.suddenDeathEnabled ? "bg-info" : "bg-surface"
+                                            )}
+                                        >
+                                            <div className={cn(
+                                                "w-4 h-4 rounded-full bg-background transition-transform",
+                                                gameState.config?.suddenDeathEnabled ? "translate-x-6" : "translate-x-0"
+                                            )} />
+                                        </button>
+                                    </div>
+                                    {gameState.config?.suddenDeathEnabled && (
+                                        <>
+                                            <div className="flex justify-between items-end">
+                                                <label className="text-caption font-black text-foreground/40 uppercase tracking-[0.2em]">Échanges avant réduction</label>
+                                                <span className="text-base font-black text-info italic">{gameState.config.suddenDeathExchanges}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="5" max="40" step="1"
+                                                value={gameState.config.suddenDeathExchanges}
+                                                onChange={(e) => {
+                                                    e.stopPropagation();
+                                                    handleUpdateConfig({ suddenDeathExchanges: parseInt(e.target.value, 10) });
+                                                }}
+                                                className="w-full accent-info h-2 bg-surface rounded-full appearance-none cursor-pointer"
+                                            />
+                                        </>
+                                    )}
                                 </div>
 
                                 {/* Dictionary Mode */}

@@ -47,11 +47,12 @@ if [ -z "$ENV_FILE_LOADED" ] && [ -f "$ROOT_DIR/.env" ]; then
 fi
 
 # Nova API God Notify URL
-GOD_NOTIFY_URL="${NEXT_PUBLIC_APP_URL:-$FALLBACK_URL}"
-if [[ "$GOD_NOTIFY_URL" == *"localhost"* ]]; then
-    GOD_NOTIFY_URL="$FALLBACK_URL"
+# → priorité à GOD_NOTIFY_BASE (surcharge), sinon NEXT_PUBLIC_APP_URL, sinon FALLBACK_URL.
+GOD_NOTIFY_BASE="${GOD_NOTIFY_BASE:-${NEXT_PUBLIC_APP_URL:-$FALLBACK_URL}}"
+if [[ "$GOD_NOTIFY_BASE" == *"localhost"* ]]; then
+    GOD_NOTIFY_BASE="$FALLBACK_URL"
 fi
-export GOD_NOTIFY_URL="$GOD_NOTIFY_URL/api/god/notify"
+export GOD_NOTIFY_URL="$GOD_NOTIFY_BASE/api/god/notify"
 
 # Container detection
 DB_CONTAINER="sigilos-db-beta"

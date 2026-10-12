@@ -288,8 +288,8 @@ export class GeoguesserManager {
 
                 // [NEW] DISCORD ADMIN NOTIFICATION
                 if ((config as any).godNotifyChannelId) {
-                    const { sendChannelMessage } = await import("@/server/discord");
-                    const ping = (config as any).godNotifyRoleId ? `<@&${(config as any).godNotifyRoleId}>` : "";
+                    const { sendChannelMessage, buildSafeRoleMention } = await import("@/server/discord");
+                    const ping = await buildSafeRoleMention((config as any).godNotifyChannelId, (config as any).godNotifyRoleId);
                     
                     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
                     await sendChannelMessage((config as any).godNotifyChannelId, ping, {
@@ -304,7 +304,7 @@ export class GeoguesserManager {
                             `▸ [Gérer les maps sur Dashboard](${appUrl}/god/mini-games?game=SigilGuesser)`,
                         ].join("\n"),
                         embedFooter: "SigilOS Administration · SigilGuesser",
-                        embedThumbnail: `${appUrl}/assets/ui/icons/geoguesser.png`
+                        embedThumbnail: `${appUrl}/assets/screenshots/map-monde.png`
                     });
                 }
             }

@@ -19,7 +19,7 @@ interface ValidatorInboxClientProps {
 
 type FilterType = "all" | "missions" | "achievements" | "kamas" | "reactivations";
 
-const FILTER_CFG: Record<FilterType, { label: string; color: string; textActive: string; textInactive: string; icon: any; shadow: string }> = {
+const FILTER_CFG: Record<FilterType, { label: string; color: string; textActive: string; textInactive: string; icon: any; img?: string; shadow: string }> = {
     all: { 
         label: "Tout", 
         color: "bg-warning", 
@@ -42,6 +42,7 @@ const FILTER_CFG: Record<FilterType, { label: string; color: string; textActive:
         textActive: "text-foreground", 
         textInactive: "text-warning", 
         icon: Trophy,
+        img: "/assets/dofus/game-icons/trophy-1.png",
         shadow: "shadow-amber-500/20"
     },
     kamas: { 
@@ -50,6 +51,7 @@ const FILTER_CFG: Record<FilterType, { label: string; color: string; textActive:
         textActive: "text-foreground", 
         textInactive: "text-warning", 
         icon: Coins,
+        img: "/assets/dofus/game-icons/kamas.png",
         shadow: "shadow-yellow-500/20"
     },
     reactivations: { 
@@ -116,7 +118,12 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
                     </p>
                 </div>
                 <div className="p-2 bg-surface rounded-xl border border-border group-hover:border-border transition-all">
-                    <currentCfg.icon className={cn("w-3.5 h-3.5 transition-all", currentCfg.textInactive)} />
+                    {currentCfg.img ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={currentCfg.img} alt="" className="w-3.5 h-3.5 object-contain" />
+                    ) : (
+                        <currentCfg.icon className={cn("w-3.5 h-3.5 transition-all", currentCfg.textInactive)} />
+                    )}
                 </div>
             </div>
 
@@ -139,7 +146,12 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
                                     : "bg-surface text-muted-foreground border-border hover:bg-surface hover:text-foreground"
                             )}
                         >
-                            <cfg.icon className="w-2.5 h-2.5" />
+                            {cfg.img ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={cfg.img} alt="" className="w-2.5 h-2.5 object-contain" />
+                            ) : (
+                                <cfg.icon className="w-2.5 h-2.5" />
+                            )}
                             {cfg.label}
                             <span className={cn("ml-1 tabular-nums font-black opacity-60", active && "opacity-100")}>{count}</span>
                         </button>

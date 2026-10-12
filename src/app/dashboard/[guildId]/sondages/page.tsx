@@ -18,7 +18,7 @@ export default async function PollsPage({ params }: { params: Promise<{ guildId:
     }
 
     const isAdmin = user.isAdmin;
-    if (!isAdmin && !await isModuleEnabled(guildId, "polls")) {
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "polls")) {
         redirect(`/dashboard/${guildId}`);
     }
 

@@ -24,9 +24,13 @@ import {
     Activity,
     ShieldAlert,
     Coins,
+    Ticket,
+    Key,
+    Terminal,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 // ============================================================================
 // TYPES
@@ -39,8 +43,16 @@ type AdminCard = {
     description: string;
     accent: string; // Tailwind color token (e.g. "violet")
     permission?: keyof typeof PERMISSIONS | ((user: any) => boolean);
+    /**
+     * Refonte onboarding §9 — module(s) de guilde requis pour afficher la carte.
+     * Absent = carte structurelle (toujours affichée si la permission passe).
+     * Au moins un des modules doit être effectif (toggle guilde + verrou God).
+     */
+    modules?: string | string[];
     /** Identifiant stable pour le tour admin (data-tour). */
     tourId?: string;
+    /** Official Dofus 2x UI asset path (e.g. /assets/dofus/modules/guild.png) */
+    dofusAsset?: string;
 };
 
 type AdminSection = {
@@ -67,6 +79,7 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "amber",
                     permission: (u) => u.canViewSettings,
                     tourId: "admin-overview-card-settings",
+                    dofusAsset: "/assets/dofus/modules/guildBonus.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/permissions`,
@@ -76,6 +89,7 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "blue",
                     permission: (u) => u.canManageRBAC,
                     tourId: "admin-overview-card-permissions",
+                    dofusAsset: "/assets/dofus/modules/guildShop.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/modules`,
@@ -85,6 +99,39 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "violet",
                     permission: (u) => u.isDiscordAdmin,
                     tourId: "admin-overview-card-modules",
+                    dofusAsset: "/assets/dofus/modules/build.png",
+                },
+                {
+                    href: `/dashboard/${guildId}/reaction-roles`,
+                    icon: Sparkles,
+                    title: "Rôles par Réaction (Reaction Roles)",
+                    description: "Panneaux de sélection de rôles interactifs avec boutons, menus déroulants et icônes pour Discord.",
+                    accent: "violet",
+                    modules: "reactionRoles",
+                    permission: (u) => u.canManageReactionRoles,
+                    tourId: "admin-overview-card-reaction-roles",
+                    dofusAsset: "/assets/dofus/modules/starShield.png",
+                },
+                {
+                    href: `/dashboard/${guildId}/tickets`,
+                    icon: Ticket,
+                    title: "Bot Tickets & Support Discord",
+                    description: "Gestion des formulaires d'intake, réclamations staff, notes internes et transcripts.",
+                    accent: "amber",
+                    modules: "tickets",
+                    permission: (u) => u.canManageTickets,
+                    tourId: "admin-overview-card-tickets",
+                    dofusAsset: "/assets/dofus/modules/ticket.png",
+                },
+                {
+                    href: `/dashboard/${guildId}/admin/commandes`,
+                    icon: Terminal,
+                    title: "Commandes Slash Discord",
+                    description: "Gestion des commandes bot : restrictions par salon Discord, rôles autorisés et activation.",
+                    accent: "emerald",
+                    permission: (u) => u.canManageRBAC || u.isAdmin,
+                    tourId: "admin-overview-card-slash-commands",
+                    dofusAsset: "/assets/dofus/modules/chat.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/presentation`,
@@ -92,8 +139,10 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Identité de Guilde",
                     description: "Édition de la page publique, recrutement et présentation des objectifs.",
                     accent: "indigo",
+                    modules: "presentation",
                     permission: (u) => u.canEditPresentation,
                     tourId: "admin-overview-card-presentation",
+                    dofusAsset: "/assets/dofus/modules/guild.png",
                 },
             ],
         },
@@ -107,8 +156,10 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Gestion des Missions",
                     description: "Préparation du reset hebdomadaire, création des missions et bonus de guilde.",
                     accent: "emerald",
+                    modules: "missions",
                     permission: (u) => u.canManageMissions,
                     tourId: "admin-overview-card-missions",
+                    dofusAsset: "/assets/dofus/modules/guildatons.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/validation`,
@@ -116,17 +167,21 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Validation",
                     description: "Centre de tri des screens. Récompensez les efforts de vos membres.",
                     accent: "green",
+                    modules: "missions",
                     permission: (u) => u.canValidateMissions,
                     tourId: "admin-overview-card-validation",
+                    dofusAsset: "/assets/dofus/modules/success.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/members`,
                     icon: Users,
-                    title: "Gestion des Membres",
-                    description: "Annuaire admin, synchronisation des pseudos, archivage et relances Discord.",
+                    title: "Membres & Recrutement",
+                    description: "Audit Discord vs Dashboard, registre du staff, essais, mules, archivage et relances Discord.",
                     accent: "cyan",
+                    modules: "roster",
                     permission: (u) => u.canManageMembers || u.canManageRelance,
                     tourId: "admin-overview-card-members",
+                    dofusAsset: "/assets/dofus/modules/social.png",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/points`,
@@ -134,8 +189,10 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Points de Contribution",
                     description: "Personnalisez les points de la clôture des posts DJ / quêtes et des runs Songes.",
                     accent: "amber",
+                    modules: ["missions", "donjons"],
                     permission: (u) => u.canManagePoints,
                     tourId: "admin-overview-card-points",
+                    dofusAsset: "/assets/dofus/modules/kama.png",
                 },
             ],
         },
@@ -151,6 +208,17 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "slate",
                     permission: (u) => u.canViewAuditLogs,
                     tourId: "admin-overview-card-logs",
+                    dofusAsset: "/assets/dofus/modules/hourglass.png",
+                },
+                {
+                    href: `/dashboard/${guildId}/admin/api-keys`,
+                    icon: Key,
+                    title: "Clés d'API & Dev",
+                    description: "Générez des jetons d'accès programmatiques sécurisés (Bearer Token) pour vos applications tierces.",
+                    accent: "amber",
+                    permission: (u) => u.isAdmin,
+                    tourId: "admin-overview-card-api-keys",
+                    dofusAsset: "/assets/dofus/modules/key.png",
                 },
             ],
         },
@@ -200,22 +268,37 @@ export default async function AdminPage({
     });
     const isDofusConfigured = !!guild?.dofusServerId;
 
-    // 🔒 FIX: rolesMapping keys are Discord Role IDs, NOT permission IDs.
-    // Check by scanning permission arrays for DASHBOARD_LOGIN.
-    const rolesMapping = (guild?.rolesMapping as Record<string, string[]>) || {};
-    const isRbacConfigured = Object.values(rolesMapping).some(perms =>
-        Array.isArray(perms) && perms.includes("dashboard:login")
+    // Helper unique (fail-closed : @everyone exclu), cohérent getting-started
+    // + /admin/modules — le test inline historique divergeait (pas d'exclusion).
+    const { isRbacConfigured } = await import("@/lib/onboarding-gating");
+    const rbacConfigured = isRbacConfigured(
+        (guild?.rolesMapping as Record<string, string[]>) || {},
+        guildId
     );
 
     const sections = buildSections(guildId);
-    
+
+    // Refonte onboarding §9 — filtre modules : une carte liée à des modules tous
+    // désactivés (toggle guilde OFF ou verrou God) disparaît du panel.
+    const { getGuildModules } = await import("@/server/actions/module-actions");
+    const effectiveModules = await getGuildModules(guildId).catch(() => null) as unknown as Record<string, boolean> | null;
+    const cardVisibleFor = (card: AdminCard): boolean => {
+        if (!user.isSuperAdmin) {
+            if (typeof card.permission === 'function') {
+                if (!card.permission(user)) return false;
+            } else if (!user.isAdmin) {
+                return false;
+            }
+        }
+        if (!card.modules) return true;
+        if (!effectiveModules) return true;
+        const keys = Array.isArray(card.modules) ? card.modules : [card.modules];
+        return keys.some((k) => !!effectiveModules[k]);
+    };
+
     // Check if any management card is visible for this user
-    const hasVisibleCards = sections.some(section => 
-        section.cards.some(card => {
-            if (user.isSuperAdmin) return true;
-            if (typeof card.permission === 'function') return card.permission(user);
-            return user.isAdmin;
-        })
+    const hasVisibleCards = sections.some(section =>
+        section.cards.some(card => cardVisibleFor(card))
     );
 
     // Allow access if user is admin OR has at least one visible management tool.
@@ -234,22 +317,18 @@ export default async function AdminPage({
         <div className="space-y-16 pb-32 max-w-[1600px] mx-auto pt-10 px-6">
             <div data-tour="admin-overview-header">
                 <UnifiedModuleHeader
-                    title="Supervision"
-                    description="Administration centrale de la guilde • Contrôle des systèmes et monitoring des opérations."
+                    title="Staff"
+                    description="Vos modules et outils de modération — filtrés par vos droits et les modules activés."
                     icon={Shield}
                     iconColor="#f43f5e"
                     backHref={`/dashboard/${guildId}`}
-                    actions={<AdminTourReplay phase="adminOverview" />}
+                    actions={<ModuleHelpActions docSlug="admin-getting-started" docTitle="Guide de Démarrage Admin" tourPhase="adminOverview" />}
                 />
             </div>
 
             <div className="space-y-24">
                 {sections.map((section) => {
-                    const visibleCards = section.cards.filter(card => {
-                        if (user.isSuperAdmin) return true;
-                        if (typeof card.permission === 'function') return card.permission(user);
-                        return user.isAdmin;
-                    });
+                    const visibleCards = section.cards.filter(card => cardVisibleFor(card));
 
                     if (visibleCards.length === 0) return null;
 
@@ -283,7 +362,7 @@ export default async function AdminPage({
                                     if (card.title === "Paramètres Généraux" && !isDofusConfigured) {
                                         warningBadge = "Config. Requise";
                                     }
-                                    if (card.title === "Rôles & Permissions" && !isRbacConfigured) {
+                                    if (card.title === "Rôles & Permissions" && !rbacConfigured) {
                                         warningBadge = "Rôle Requis";
                                     }
 
@@ -299,6 +378,7 @@ export default async function AdminPage({
                                             initialPinned={user.pinnedNavItems?.includes(card.href) || false}
                                             warningBadge={warningBadge}
                                             tourId={card.tourId}
+                                            dofusAsset={card.dofusAsset}
                                         />
                                     );
                                 })}

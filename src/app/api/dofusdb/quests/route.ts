@@ -37,6 +37,8 @@ export async function GET(request: NextRequest) {
                 levelMin: true,
                 levelMax: true,
                 category: true,
+                // Visuel éventuel d'une quête (curé en God) : la liste du chercheur de groupe l'affiche.
+                imageUrl: true,
             },
         }).catch(() => []);
 
@@ -47,6 +49,7 @@ export async function GET(request: NextRequest) {
                 levelMin: lq.levelMin ?? undefined,
                 levelMax: lq.levelMax ?? undefined,
                 slug: { fr: lq.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") },
+                imageUrl: lq.imageUrl ?? undefined,
                 isLocal: true,
             })).filter((x) => x.id !== undefined);
 

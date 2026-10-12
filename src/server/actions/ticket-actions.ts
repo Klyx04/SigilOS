@@ -184,7 +184,8 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
                     // [NEW] GLOBAL GOD NOTIFICATION (Discord Ping)
                     const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
                     if ((platformConfig as any)?.godNotifyChannelId) {
-                        const ping = (platformConfig as any).godNotifyRoleId ? `<@&${(platformConfig as any).godNotifyRoleId}>` : "";
+                        const { buildSafeRoleMention } = await import("@/server/discord");
+                        const ping = await buildSafeRoleMention((platformConfig as any).godNotifyChannelId, (platformConfig as any).godNotifyRoleId);
                         await sendChannelMessage((platformConfig as any).godNotifyChannelId, ping, {
                             embedTitle: `🎫 Nouveau Ticket #${ticket.ticketNumber}`,
                             embedColor,

@@ -6,6 +6,8 @@
  * 1. GDPR: Delete User + Account records with no UserProfile (>7 days).
  * 2. Audit: Delete audit logs older than 30 days.
  * 6. Anti-surcharge : purge des notifications de dialogue service.
+ * 12. Tickets : purge des transcripts expirés, notes des tickets clôturés et
+ *    journal d'audit (durées God `PlatformConfig`, 28/09/2026).
  * 
  * Usage:
  *   npx tsx scripts/database-janitor.ts           # Dry-run (default)
@@ -15,9 +17,18 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { AUDIT_RETENTION_DAYS, MS_PER_DAY } from '../src/lib/audit-retention-policy';
+import { readTicketPlatformLimits } from '../src/lib/tickets/platform-limits';
 
 const GRACE_PERIOD_DAYS = 7;
-const AUDIT_RETENTION_DAYS = 30;
+// ⚠️ Politique d'audit : SOURCE UNIQUE dans `src/lib/audit-retention-policy.ts`
+// (import relatif — ce script ne connaît pas les alias `@/`, il est bundlé par
+// esbuild sans résolution de chemins). Avant l'audit du 24/09, ce script purgeait
+// les logs God à 30 j alors que la décision user est **90 j**.
+const AUDIT_RETENTION_DAYS_GUILD = AUDIT_RETENTION_DAYS.GUILD;
+const AUDIT_RETENTION_DAYS_GOD = AUDIT_RETENTION_DAYS.GOD;
 const GOD_NOTIF_RETENTION_DAYS = 90;
 // Rétention des journaux/grants God (P4) — limite la croissance des tables PIM.
 const GOD_LOG_RETENTION_DAYS = 90;
@@ -28,7 +39,14 @@ const ACCESS_ATTEMPT_RETENTION_DAYS = 90;
 
 async function main() {
     const isDryRun = !process.argv.includes('--execute');
-    const db = new PrismaClient();
+
+    if (!process.env.DATABASE_URL) {
+        throw new Error('DATABASE_URL is required to run the database janitor.');
+    }
+
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const adapter = new PrismaPg(pool as any);
+    const db = new PrismaClient({ adapter });
 
     console.log('--------------------------------------------------');
     console.log(`🧹 Database Janitor - ${new Date().toISOString()}`);
@@ -61,24 +79,29 @@ async function main() {
             }
         }
 
-        // 2. Audit Log Cleanup
-        const auditCutoff = new Date();
-        auditCutoff.setDate(auditCutoff.getDate() - AUDIT_RETENTION_DAYS);
+        // 2. Audit Log Cleanup — 30 j pour les journaux de guilde, 90 j pour les
+        //    actions plateforme (`isGodLog: true`, sans guilde). Deux coupures
+        //    distinctes : c'est la politique décidée le 24/09/2026.
+        const now2 = new Date();
+        const guildCutoff = new Date(now2.getTime() - AUDIT_RETENTION_DAYS_GUILD * MS_PER_DAY);
+        const godCutoff = new Date(now2.getTime() - AUDIT_RETENTION_DAYS_GOD * MS_PER_DAY);
 
-        const auditCount = await db.auditLog.count({
-            where: { createdAt: { lt: auditCutoff } }
-        });
+        const [guildAuditCount, godAuditCount] = await Promise.all([
+            db.auditLog.count({ where: { isGodLog: false, createdAt: { lt: guildCutoff } } }),
+            db.auditLog.count({ where: { isGodLog: true, createdAt: { lt: godCutoff } } }),
+        ]);
 
-        console.log(`[Audit] Found ${auditCount} audit logs older than ${AUDIT_RETENTION_DAYS} days.`);
+        console.log(`[Audit] Found ${guildAuditCount} guild audit log(s) older than ${AUDIT_RETENTION_DAYS_GUILD} days and ${godAuditCount} God log(s) older than ${AUDIT_RETENTION_DAYS_GOD} days.`);
 
-        if (auditCount > 0) {
+        if (guildAuditCount + godAuditCount > 0) {
             if (isDryRun) {
-                console.log(`  [DRY] Would delete ${auditCount} audit log entries.`);
+                console.log(`  [DRY] Would delete ${guildAuditCount + godAuditCount} audit log entries.`);
             } else {
-                const result = await db.auditLog.deleteMany({
-                    where: { createdAt: { lt: auditCutoff } }
-                });
-                console.log(`  [DEL] Successfully deleted ${result.count} audit log entries.`);
+                const [guildRemoved, godRemoved] = await Promise.all([
+                    db.auditLog.deleteMany({ where: { isGodLog: false, createdAt: { lt: guildCutoff } } }),
+                    db.auditLog.deleteMany({ where: { isGodLog: true, createdAt: { lt: godCutoff } } }),
+                ]);
+                console.log(`  [DEL] Successfully deleted ${guildRemoved.count} guild + ${godRemoved.count} God audit log entries.`);
             }
         }
 
@@ -313,6 +336,67 @@ async function main() {
             }
         }
 
+        // 12. Tickets — purge des expirés (plafonds plateforme God, 28/09/2026).
+        // Les transcripts HTML vivent en Postgres (2 docs/ticket) : sans purge, la
+        // base grossit sans limite sur le VPS. Durées God : archives/notes/audit.
+        const platformRow = await (db as any).platformConfig.findUnique({
+            where: { id: "singleton" },
+        }).catch(() => null);
+        const ticketLimits = readTicketPlatformLimits(platformRow);
+        const ticketNow = new Date();
+
+        const expiredTranscripts = await (db as any).ticketTranscript.count({
+            where: { expiresAt: { lt: ticketNow } },
+        });
+        console.log(`[Tickets] Found ${expiredTranscripts} expired transcript(s) (archives > ${ticketLimits.retentionArchivesDays}d).`);
+        if (expiredTranscripts > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${expiredTranscripts} expired transcript(s).`);
+            } else {
+                const res = await (db as any).ticketTranscript.deleteMany({
+                    where: { expiresAt: { lt: ticketNow } },
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} expired transcript(s).`);
+            }
+        }
+
+        const notesCutoff = new Date(ticketNow.getTime() - ticketLimits.retentionNotesDays * MS_PER_DAY);
+        const oldClosedTickets = await (db as any).ticketRecord.findMany({
+            where: { status: "CLOSED", closedAt: { lt: notesCutoff } },
+            select: { id: true },
+        });
+        const oldTicketIds = oldClosedTickets.map((t: { id: string }) => t.id);
+        const oldNotesCount = oldTicketIds.length > 0
+            ? await (db as any).ticketNote.count({ where: { ticketId: { in: oldTicketIds } } })
+            : 0;
+        console.log(`[Tickets] Found ${oldNotesCount} internal note(s) on tickets closed > ${ticketLimits.retentionNotesDays}d.`);
+        if (oldNotesCount > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldNotesCount} old internal note(s).`);
+            } else {
+                const res = await (db as any).ticketNote.deleteMany({
+                    where: { ticketId: { in: oldTicketIds } },
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} old internal note(s).`);
+            }
+        }
+
+        const ticketAuditCutoff = new Date(ticketNow.getTime() - ticketLimits.retentionAuditDays * MS_PER_DAY);
+        const oldTicketAuditCount = await (db as any).ticketAuditLog.count({
+            where: { createdAt: { lt: ticketAuditCutoff } },
+        });
+        console.log(`[Tickets] Found ${oldTicketAuditCount} ticket audit log(s) older than ${ticketLimits.retentionAuditDays}d.`);
+        if (oldTicketAuditCount > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldTicketAuditCount} old ticket audit log entries.`);
+            } else {
+                const res = await (db as any).ticketAuditLog.deleteMany({
+                    where: { createdAt: { lt: ticketAuditCutoff } },
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} old ticket audit log entries.`);
+            }
+        }
+
         console.log('--------------------------------------------------');
         console.log(`✨ Janitor finished! ${isDryRun ? 'Dry run complete.' : 'Maintenance executed successfully.'}`);
     } catch (error) {
@@ -320,6 +404,7 @@ async function main() {
         process.exit(1);
     } finally {
         await db.$disconnect();
+        await pool.end();
     }
 }
 

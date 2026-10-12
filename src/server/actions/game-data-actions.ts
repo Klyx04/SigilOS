@@ -9,8 +9,79 @@ import { withCache } from "@/lib/cache";
 import fs from 'fs';
 import path from 'path';
 import { logger } from "@/lib/logger";
+import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
+import { resolveSubAreaCenter } from "@/lib/zone-minimap";
+import { internalDofusDbImageUrl, normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
+import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement";
 import { sanitizeHtml } from "@/lib/security";
-import { getLocalMonsterStat, persistMonsterStat } from "@/lib/dofensive-sync";
+import { dofusDbFetch } from "@/lib/dofusdb-limiter";
+import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
+import { getDofensiveDungeonForBoss } from "@/server/actions/dofensive-actions";
+import { resolveUniqueDungeonSlug } from "@/server/game/dungeon-slug";
+import {
+    getIgnoredFamilies,
+    getIgnoredZones,
+    isIgnoredFamily,
+    isIgnoredZone,
+    getHiddenMapZones,
+    HIDDEN_MAP_ZONES_PATH,
+    IGNORED_FAMILIES_PATH,
+    IGNORED_ZONES_PATH,
+} from "@/lib/game-data-ignores";
+import { zoneNameKey } from "@/lib/zone-label";
+import { syncZonesFromDofusDbCore } from "@/lib/zones-siphon";
+import { syncMonsterFamiliesCore } from "@/lib/monster-families-siphon";
+import { dofusdbFicheInit, getMonsterStats as getMonsterStatsCore, getLocalMonsterFiche, type MonsterFicheSource } from "@/lib/monster-stats-core";
+import {
+    listUnityMonsters,
+    getUnityBestiary,
+} from "@/lib/unity-bestiary";
+import {
+    searchNormalMonsters as searchNormalMonstersRule,
+    listNormalMonsters,
+    groupMonsterFamilies,
+    monsterSpriteUrl,
+    type MonsterFamilyFacet,
+} from "@/lib/monster-fiche";
+import {
+    buildSubareaFamilies,
+    subareaMonsterIds,
+    subareaIdsForMonster,
+} from "@/lib/subarea-monsters";
+import { BOUNTY_RACE_IDS } from "@/lib/bounty";
+import { slugifyBossName } from "@/lib/boss-slug";
+import { excludedNormalMonsterKeys, listSiphonedNormalMonsterSlugs } from "@/server/game/normal-monster-scope";
+import { monsterRaces, monsterSuperRaces } from "@/lib/monster-races";
+
+const normStr = (s: string | null | undefined): string =>
+    (s ?? "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "")
+        .trim();
+
+let localDungeonMonstersDataCache: {
+    updatedAt: string;
+    totalDungeons: number;
+    totalMonsters: number;
+    dungeons: any[];
+    monsters: any[];
+} | null = null;
+
+function getLocalDungeonMonstersData() {
+    if (localDungeonMonstersDataCache) return localDungeonMonstersDataCache;
+    try {
+        const filePath = path.join(process.cwd(), 'public', 'game-data', 'dungeon-monsters.json');
+        if (fs.existsSync(filePath)) {
+            localDungeonMonstersDataCache = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            return localDungeonMonstersDataCache;
+        }
+    } catch (e) {
+        logger.error("[getLocalDungeonMonstersData] Erreur lecture dungeon-monsters.json:", { error: e });
+    }
+    return null;
+}
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -23,19 +94,14 @@ type ActionResponse<T = void> = {
  * Autorise super-admin OU un sous-god avec la brique "game-data" (scope game-data).
  * Sans ça, un sous-god légitime voyait des listes vides / erreurs "Non autorisé"
  * (#108 — passe sous-god).
+ *
+ * 🛡️ Fusion **D-4** (28/09/2026) : les avis de recherche sont un **éditeur** de cette interface
+ * (`game-data > Éditeurs > Avis de recherche`) ⇒ la brique ciblée `game-data-bounties` n'existe
+ * plus : cette fonction est la seule garde (une règle, un nom — pas de variante qui diverge).
  */
 async function canAccessGameData(): Promise<boolean> {
     if (await isSuperAdmin()) return true;
     return canAccessBrick("game-data");
-}
-
-/**
- * 🛡️ Variante "Avis de Recherche" : la brique "game-data-bounties" ouvre le module
- * bounties même si le scope global game-data n'est pas actif (grant PIM ciblé).
- */
-async function canAccessBounties(): Promise<boolean> {
-    if (await isSuperAdmin()) return true;
-    return (await canAccessBrick("game-data")) || (await canAccessBrick("game-data-bounties"));
 }
 
 // 🛡️ Trace une écriture God UNIQUEMENT pour un sous-god (qui/quoi/sur quoi).
@@ -118,8 +184,15 @@ export async function getMonsterFamilies(filters: { zoneId?: string; search?: st
         if (filters.search) whereClause.name = { contains: filters.search, mode: 'insensitive' };
         const families = await db.monsterFamily.findMany({
             where: whereClause,
-            include: { monsters: true },
-            take: filters.search ? 20 : 100,
+            include: {
+                monsters: true,
+                zones: { select: { id: true, name: true } }
+            },
+            // 🐛 Mesure du 12/10/2026 : `take: 100` sur **249** familles ⇒ l'éditeur de zone
+            // (God) affichait le **cuid brut** de toute famille dont le nom triait après le
+            // 100ᵉ (constat user : « ces chaînes illisibles »). Une recherche reste bornée ;
+            // une liste complète ne l'est plus (249 lignes, volume déjà maîtrisé ailleurs).
+            take: filters.search ? 20 : undefined,
             orderBy: { name: 'asc' }
         });
         return { success: true, data: families };
@@ -168,11 +241,14 @@ export async function searchZonesDetected(query: string = ""): Promise<ActionRes
                 const areaLimit = q.length > 0 ? 8 : 60;
                 const nameFilter = q.length > 0 ? `&name.fr=${encodeURIComponent(q)}` : "";
                 const [subRes, areaRes] = await Promise.all([
-                    fetch(`https://api.dofusdb.fr/subareas?${nameFilter}&$limit=${subLimit}&lang=fr`, {
+                    // ⚠️ 23/09/2026 — `dofusDbFetch` : ces 2 appels de la recherche de zones
+                    // contournaient eux aussi le limiteur partagé (même famille que les 2 de
+                    // `getMonsterStats`). Un seul chemin réseau poli pour tout le fichier.
+                    dofusDbFetch(`https://api.dofusdb.fr/subareas?${nameFilter}&$limit=${subLimit}&lang=fr`, {
                         headers: { Accept: "application/json" },
                         signal: AbortSignal.timeout(10000),
                     }),
-                    fetch(`https://api.dofusdb.fr/areas?${nameFilter}&$limit=${areaLimit}&lang=fr`, {
+                    dofusDbFetch(`https://api.dofusdb.fr/areas?${nameFilter}&$limit=${areaLimit}&lang=fr`, {
                         headers: { Accept: "application/json" },
                         signal: AbortSignal.timeout(10000),
                     }),
@@ -223,12 +299,522 @@ export async function getDungeonsWithAchievements(): Promise<ActionResponse<any[
             include: { achievements: { include: { challenge: true } } },
             orderBy: { level: 'asc' }
         });
-        return { success: true, data: dungeons };
+        // « Donjon validé » retiré (11/10/2026) : ce pseudo-succès n'est plus publié à AUCUN
+        // consommateur (hub Succès **et** « Mes Succès », qui compte `achievements.length` pour ses
+        // totaux et ses « tranches complètes ») — même si une ligne résiduelle traîne en base avant
+        // la purge (`scripts/succes-speciaux.ts retirer-donjon-valide`).
+        const data = dungeons.map((dungeon) => ({
+            ...dungeon,
+            achievements: (dungeon.achievements ?? []).filter(
+                (achievement: any) => achievement?.challenge?.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG
+            ),
+        }));
+        return { success: true, data };
     } catch (error) {
         logger.error('[getDungeonsWithAchievements] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement' };
     }
 }
+
+export interface BestiaireEntry {
+    id: string;
+    name: string;
+    bossName: string;
+    /** Segment d'URL publique (`/boss/<slug>`) — repli sur `id` s'il est absent. */
+    slug?: string | null;
+    level: number;
+    imageUrl?: string | null;
+    dofensiveUrl?: string | null;
+    dpnlUrl?: string | null;
+    dofusdbId?: number | null;
+    dofensiveMonsterName?: string | null;
+    dofensiveDungeonName?: string | null;
+    isOcreQuest: boolean;
+    /* 🎯 `bounty` = avis de recherche (chantier 16/09/2026) : ni donjon, ni titan, ni monstre de salle. */
+    type: 'boss' | 'monstre' | 'titan' | 'anomalie' | 'bounty' | 'raid';
+    /** 🎯 Filtre « Monstres » : famille officielle du monstre (« Monstres de quête », « Blops »…). */
+    familyName?: string | null;
+    /** 🎯 Filtre « Monstres » : `raceId` Ankama de la famille (2ᵉ niveau de filtre). */
+    raceId?: number | null;
+}
+
+/**
+ * Retourne la liste unifiée pour l'overlay Bestiaire :
+ * - Boss de donjons
+ * - Monstres réguliers (archis / monstres sauvages)
+ * - Données nécessaires pour filtrer Boss Donjons, Monstres, Boss Ocre
+ */
+export async function getBestiaireCatalog(): Promise<ActionResponse<BestiaireEntry[]>> {
+    try {
+        const dungeons = await db.dungeon.findMany({
+            orderBy: { level: 'asc' },
+            select: {
+                id: true,
+                slug: true,
+                name: true,
+                bossName: true,
+                level: true,
+                imageUrl: true,
+                dofensiveUrl: true,
+                dpnlUrl: true,
+                dofuspourlesnoobsUrl: true,
+                dofusdbId: true,
+                dofensiveMonsterName: true,
+                dofensiveDungeonName: true,
+                isOcreQuest: true,
+                isAnomalyBoss: true,
+                anomalyFamily: true,
+                isRaidBoss: true,
+            }
+        });
+
+        const bossEntries: BestiaireEntry[] = dungeons
+            .filter(d => d && (d.bossName || d.name))
+            .map(d => ({
+                id: d.id,
+                slug: d.slug,
+                name: d.name,
+                bossName: d.bossName || d.name,
+                level: d.level ?? 0,
+                imageUrl: d.imageUrl ?? null,
+                dofensiveUrl: d.dofensiveUrl ?? null,
+                dpnlUrl: d.dpnlUrl ?? d.dofuspourlesnoobsUrl ?? null,
+                dofusdbId: d.dofusdbId ?? null,
+                dofensiveMonsterName: d.dofensiveMonsterName ?? null,
+                dofensiveDungeonName: d.dofensiveDungeonName ?? null,
+                isOcreQuest: !!d.isOcreQuest,
+                // 🐉 Boss de raid & 🌀 Boss d'anomalie : catégories dédiées
+                type: d.isRaidBoss ? ('raid' as const) : d.isAnomalyBoss ? ('anomalie' as const) : ('boss' as const),
+            }));
+
+        // Fail-soft : le seed référence des visuels `/game-data/...` qui n'existent
+        // pas forcément sur ce checkout (siphonés ailleurs). Une URL morte = 404
+        // DevTools + case vide côté UI → on la neutralise, la carte bascule sur
+        // le proxy `/api/assets-dofus` (jamais de 404) ou son placeholder.
+        for (const e of bossEntries) {
+            if (e.imageUrl?.startsWith('/game-data/')) {
+                try {
+                    if (!fs.existsSync(path.join(process.cwd(), 'public', e.imageUrl))) {
+                        e.imageUrl = null;
+                    }
+                } catch {
+                    e.imageUrl = null;
+                }
+            }
+        }
+
+        // Onglet "Monstres" = TOUS les monstres des familles et salles de boss de donjons.
+        // Lu en local depuis public/game-data/dungeon-monsters.json (0ms, 100% autonome, zéro dépendance DofusDB).
+        const localData = getLocalDungeonMonstersData();
+        let monsterEntries: BestiaireEntry[] = [];
+
+        if (localData?.monsters?.length) {
+            const seenNames = new Set<string>();
+            monsterEntries = localData.monsters
+                .filter((m: any) => {
+                    const k = normStr(m.name);
+                    if (!k || seenNames.has(k)) return false;
+                    seenNames.add(k);
+                    return true;
+                })
+                .map((m: any) => ({
+                    id: `mob-${m.id}`,
+                    name: m.raceName || "Famille",
+                    bossName: m.name,
+                    level: m.level || 0,
+                    imageUrl: m.imageUrl || null,
+                    dofensiveUrl: null,
+                    dpnlUrl: null,
+                    dofusdbId: m.id || null,
+                    dofensiveMonsterName: m.name,
+                    dofensiveDungeonName: null,
+                    isOcreQuest: false,
+                    type: 'monstre' as const,
+                }));
+        }
+
+        // Onglet "Titans" (Événements Krosmiques) — boss Ankama référencé via dofusdbId (ex. 8062).
+        let titanEntries: BestiaireEntry[] = [];
+        try {
+            const titans = await db.titan.findMany({ orderBy: { level: 'asc' } });
+            titanEntries = titans.map((t) => ({
+                id: t.id,
+                slug: t.slug,
+                name: t.zone || "Titan",
+                bossName: t.name,
+                level: t.level ?? 0,
+                imageUrl: t.imageUrl ?? null,
+                dofensiveUrl: t.dofensiveUrl ?? null,
+                dpnlUrl: t.dpnlUrl ?? t.dofuspourlesnoobsUrl ?? null,
+                dofusdbId: t.dofusdbId ?? null,
+                dofensiveMonsterName: t.name,
+                dofensiveDungeonName: t.mapName ?? null,
+                isOcreQuest: false,
+                type: 'titan' as const,
+            }));
+        } catch (e) {
+            logger.error('[getBestiaireCatalog] Erreur chargement titans:', { error: String(e) });
+        }
+
+        // 🎯 Avis de recherche (chantier « Avis de recherche ») — contenu 100 % SIPHONNÉ : seules
+        // les lignes marquées `isBountyMonster` sortent ici (les 51 lignes historiques de la table
+        // `Bounty` — archimonstres/boss de la carte du monde — ne sont JAMAIS servies comme avis).
+        let bountyEntries: BestiaireEntry[] = [];
+        try {
+            const bounties = await db.bounty.findMany({
+                where: { isBountyMonster: true },
+                orderBy: [{ level: 'asc' }, { name: 'asc' }],
+                select: {
+                    id: true,
+                    slug: true,
+                    name: true,
+                    level: true,
+                    imageUrl: true,
+                    zoneName: true,
+                    dpnlUrl: true,
+                    dofusdbId: true,
+                },
+            });
+            bountyEntries = bounties.map((b) => buildBountyBestiaireEntry(b as any));
+        } catch (e) {
+            logger.error('[getBestiaireCatalog] Erreur chargement avis de recherche:', { error: String(e) });
+        }
+
+        return { success: true, data: [...bossEntries, ...monsterEntries, ...titanEntries, ...bountyEntries] };
+    } catch (error) {
+        logger.error('[getBestiaireCatalog] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement du bestiaire' };
+    }
+}
+
+/**
+ * Familles des monstres du bestiaire local : **référentiel complet** (`monster-races.json`,
+ * 264 races + 35 super-races) complété, en repli, par les libellés portés par
+ * `dungeon-monsters.json`. Sert de libellé d'appoint dans les listes **et** de 2ᵉ niveau de
+ * filtre (une race sans libellé connu n'est jamais proposée — aucun nom inventé).
+ */
+let monsterRaceLabelsCache: Map<number, LocalMonsterRace> | null = null;
+
+interface LocalMonsterRace {
+    name: string;
+    superRaceId: number | null;
+    superRaceName: string | null;
+}
+
+function localMonsterRaces(): Map<number, LocalMonsterRace> {
+    if (monsterRaceLabelsCache) return monsterRaceLabelsCache;
+    const races = new Map<number, LocalMonsterRace>();
+    const superRaces = monsterSuperRaces();
+
+    // 1. Référentiel officiel (races + super-races).
+    for (const [id, race] of monsterRaces()) {
+        races.set(id, {
+            name: race.name,
+            superRaceId: race.superRaceId,
+            superRaceName: race.superRaceId ? (superRaces.get(race.superRaceId) ?? null) : null,
+        });
+    }
+
+    // 2. Repli : les libellés déjà siphonnés dans `dungeon-monsters.json` (si le référentiel
+    //    manque sur un environnement, on garde les 132 familles des donjons).
+    try {
+        for (const m of getLocalDungeonMonstersData()?.monsters ?? []) {
+            const id = Math.floor(Number(m?.raceId) || 0);
+            const label = String(m?.raceName ?? '').trim();
+            if (id > 0 && label && !races.has(id)) {
+                races.set(id, { name: label, superRaceId: null, superRaceName: null });
+            }
+        }
+    } catch (e) {
+        logger.warn('[localMonsterRaces] Familles locales de repli indisponibles:', { error: String(e) });
+    }
+
+    monsterRaceLabelsCache = races;
+    return races;
+}
+
+/**
+ * Construit les lignes du bestiaire local avec leur famille connue (`raceId` → libellé) et
+ * leur drapeau « a déjà sa fiche » (exclusions lues en base, **source unique**
+ * `@/server/game/normal-monster-scope`). Une seule préparation pour la liste, la recherche
+ * et les facettes de familles.
+ */
+async function normalMonsterRows() {
+    const [excluded, races] = await Promise.all([
+        excludedNormalMonsterKeys(),
+        Promise.resolve(localMonsterRaces()),
+    ]);
+    return listUnityMonsters()
+        .filter((m) => m && m.id > 0 && m.name)
+        .map((m) => {
+            const raceId = Math.floor(Number(m.raceId) || 0);
+            const race = races.get(raceId) ?? null;
+            return {
+                monsterId: m.id,
+                name: m.name,
+                raceId,
+                raceName: race?.name ?? null,
+                superRaceId: race?.superRaceId ?? null,
+                superRaceName: race?.superRaceName ?? null,
+                level: Math.floor(Number(m.grades?.[0]?.level) || 0),
+                isBoss: excluded.has(slugifyBossName(m.name)),
+            };
+        });
+}
+
+/**
+ * Liste / recherche des **monstres normaux** — hors boss de donjon (dont raid et anomalie),
+ * avis de recherche et titans. Source : le **bestiaire local du client**
+ * (`public/game-data/unity-bestiary.json`, 5 129 monstres, versionné), zéro réseau et zéro
+ * appel tiers ; seules les exclusions viennent de la base.
+ *
+ * 🎯 Demande user (11/10/2026) : l'onglet « Monstres » du Bestiaire ne trouvait que les
+ * 800 monstres référencés par les familles de donjons (`dungeon-monsters.json`) ⇒
+ * « piou » ne rendait rien. Ici, TOUT le bestiaire est couvert, avec un **2ᵉ niveau de
+ * filtre** par famille (`familyId`) — dont « Monstres de quête » et « Monstres de quête
+ * d'alignement », les deux familles réelles les plus peuplées (2 274 et 341 monstres).
+ */
+export async function searchNormalMonsters(
+    query = '',
+    limit = 60,
+    familyId: number | null = null
+): Promise<ActionResponse<BestiaireEntry[]>> {
+    try {
+        const rows = await normalMonsterRows();
+        return {
+            success: true,
+            data: searchNormalMonstersRule(rows, query, limit, familyId).map((m) => ({
+                id: `mob-${m.monsterId}`,
+                slug: slugifyBossName(m.name),
+                name: m.raceName || 'Monstre',
+                bossName: m.name,
+                level: m.level,
+                imageUrl: `/api/assets-dofus/monsters/${m.monsterId}`,
+                dofensiveUrl: null,
+                dpnlUrl: null,
+                dofusdbId: m.monsterId,
+                dofensiveMonsterName: m.name,
+                dofensiveDungeonName: null,
+                isOcreQuest: false,
+                type: 'monstre' as const,
+                familyName: m.raceName,
+                raceId: m.raceId,
+            })),
+        };
+    } catch (error) {
+        logger.error('[searchNormalMonsters] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement des monstres' };
+    }
+}
+
+/**
+ * Facettes du **2ᵉ niveau de filtre** : les familles réelles des monstres normaux, avec leur
+ * poids (`count`) et un monstre représentatif dont le sprite officiel sert d'icône (proxy
+ * d'assets, jamais un asset inventé). Aucune catégorie n'est fabriquée : les noms de famille
+ * sont ceux de DofusDB (`raceId` → libellé).
+ */
+export async function getNormalMonsterFamilies(): Promise<ActionResponse<MonsterFamilyFacet[]>> {
+    try {
+        const rows = await normalMonsterRows();
+        const normal = listNormalMonsters(rows);
+        return { success: true, data: groupMonsterFamilies(normal) };
+    } catch (error) {
+        logger.error('[getNormalMonsterFamilies] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement des familles' };
+    }
+}
+
+/** Une fiche de monstre **documentée** (siphonnée) listée par le sommaire `/bestiaire`. */
+export interface BestiaryHubMonster {
+    slug: string;
+    name: string;
+    /** Niveau du premier palier (`0` = non renseigné par le bestiaire local). */
+    level: number;
+    monsterId: number;
+}
+
+/** Famille du sommaire : ses fiches documentées, sous leur libellé officiel DofusDB. */
+export interface BestiaryHubFamily {
+    raceId: number;
+    /** Libellé officiel de la race (« Blops », « Monstres de quête »…) ; `null` = famille inconnue. */
+    name: string | null;
+    superRaceName: string | null;
+    monsters: BestiaryHubMonster[];
+}
+
+export interface BestiaryHubResponse {
+    /** Nombre de fiches **documentées** (contenu siphonné, indexables/sitemap). */
+    documented: number;
+    /** Nombre d'espèces réellement **listées** dans le sommaire (toutes les espèces normales). */
+    listed: number;
+    /** Taille du bestiaire local du client (5 129) — pour dire « N sur M » sans mentir. */
+    bestiarySize: number;
+    families: BestiaryHubFamily[];
+    /** Vrai si le sommaire est tronqué (garde-fou : jamais des milliers de liens d'un coup). */
+    truncated: boolean;
+}
+
+/**
+ * Garde-fou du sommaire. Relevé le 12/10/2026 (Lot D) : le sommaire liste désormais **toutes**
+ * les espèces normales, pas seulement les fiches siphonnées. La borne reste au-dessus de la
+ * taille du bestiaire local (5 129) pour ne rien cacher en pratique, tout en protégeant d'un
+ * bestiaire anormalement gonflé.
+ */
+const BESTIARY_HUB_MAX_LINKS = 6000;
+
+/**
+ * 🚦 Cache du sommaire (Redis, `withCache`) — **mesure du 12/10/2026**.
+ *
+ * `/bestiaire` est une page **dynamique** (`auth()` + nonce CSP par requête ⇒ `Cache-Control:
+ * private, no-store`, donc aucun cache HTTP ; `src/lib/csp.ts` : `script-src` nonce-based, une page
+ * 100 % statique bloquerait les JSON-LD). Or elle relisait **5 129** monstres à **chaque** visite
+ * pour reconstruire ~9 000 objets : 6,4 Mo de HTML, 4 399 `<img>`, 1,9 s de TTFB mesurés en bêta
+ * (« ça fait lagger notre site »). La donnée ne change qu'au siphon ⇒ 1 h de cache est sûre, et
+ * `withCache` retombe sur la source si Redis est indisponible (jamais d'écran vide, jamais d'erreur).
+ */
+const BESTIARY_HUB_CACHE_KEY = "bestiary:hub:v1";
+const BESTIARY_HUB_TTL_SECONDS = 3600;
+
+/**
+ * Sommaire du **bestiaire** (page publique `/bestiaire`) : **toutes** les espèces de monstres
+ * normales, groupées par famille officielle.
+ *
+ * 🎯 Demande user (11/10/2026 puis 12/10/2026) : « un hub `/bestiaire` : familles + fiches
+ * siphonnées listées en HTML » puis **« il manque un paquet de monstres, les types de créatures
+ * sont jamais complets »**. Le sommaire ne listait que les **58** fiches siphonnées ⇒ chaque
+ * famille affichait « 1 fiche » et le sommaire paraissait vide. Il liste maintenant **toutes**
+ * les espèces normales (source : bestiaire local du client, 5 129), sous leur libellé de famille
+ * complet (`monster-races.json`, 264 races + 35 super-races).
+ *
+ * L'indexation reste **bornée** : les fiches auto-générées (sans contenu siphonné) sont servies
+ * en `noindex, follow` (voir `/bestiaire/[slug]`) ; seules les fiches **documentées** vont au
+ * sitemap (`listSiphonedNormalMonsterSlugs`, même source). Boss / avis / titans sont écartés
+ * (ils ont leur URL `/boss/<slug>`).
+ */
+export async function getBestiaryHub(): Promise<ActionResponse<BestiaryHubResponse>> {
+    try {
+        // 🚦 Voir `BESTIARY_HUB_CACHE_KEY` : la donnée (5 129 monstres) est calculée 1×/h au lieu
+        // d'à chaque visite — c'est le coût par visite qui faisait ramper la page et le site.
+        const data = await withCache(BESTIARY_HUB_CACHE_KEY, BESTIARY_HUB_TTL_SECONDS, async () => {
+            const [documentedSlugs, rows] = await Promise.all([
+                listSiphonedNormalMonsterSlugs(),
+                normalMonsterRows(),
+            ]);
+            return buildBestiaryHubPayload(documentedSlugs, rows);
+        });
+        return { success: true, data };
+    } catch (error) {
+        logger.error('[getBestiaryHub] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement du bestiaire' };
+    }
+}
+
+type BestiaryHubSlugs = Awaited<ReturnType<typeof listSiphonedNormalMonsterSlugs>>;
+type BestiaryHubRows = Awaited<ReturnType<typeof normalMonsterRows>>;
+
+/**
+ * Construit le sommaire — **pur** (aucune IO, donc cachable tel quel) : groupement par famille
+ * officielle, familles les plus fournies d'abord, budget global de liens (`BESTIARY_HUB_MAX_LINKS`).
+ */
+function buildBestiaryHubPayload(
+    documentedSlugs: BestiaryHubSlugs,
+    rows: BestiaryHubRows
+): BestiaryHubResponse {
+    const documented = new Set(documentedSlugs.map((row) => row.slug));
+    const all = listNormalMonsters(rows);
+    const byFamily = new Map<number, BestiaryHubFamily>();
+    let listed = 0;
+    let documentedCount = 0;
+    for (const monster of all) {
+        const slug = slugifyBossName(monster.name);
+        if (!slug) continue;
+        // Toutes les espèces sont listées ; `documented` ne sert qu'au compteur « documentées ».
+        if (documented.has(slug)) documentedCount += 1;
+        const raceId = Math.floor(Number(monster.raceId) || 0);
+        let family = byFamily.get(raceId);
+        if (!family) {
+            family = {
+                raceId,
+                name: monster.raceName ?? null,
+                superRaceName: monster.superRaceName ?? null,
+                monsters: [],
+            };
+            byFamily.set(raceId, family);
+        }
+        family.monsters.push({
+            slug,
+            name: monster.name,
+            level: monster.level,
+            monsterId: monster.monsterId,
+        });
+        listed += 1;
+    }
+
+    // Familles les plus fournies d'abord (jamais de famille vide : `byFamily` ne se remplit
+    // qu'avec des monstres réels).
+    const families = [...byFamily.values()].sort(
+        (a, b) =>
+            b.monsters.length - a.monsters.length ||
+            (a.name ?? "").localeCompare(b.name ?? "", "fr")
+    );
+    let budget = BESTIARY_HUB_MAX_LINKS;
+    let truncated = false;
+    for (const family of families) {
+        family.monsters.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+        if (family.monsters.length > budget) {
+            family.monsters = family.monsters.slice(0, budget);
+            truncated = true;
+        }
+        budget -= family.monsters.length;
+    }
+
+    return { documented: documentedCount, listed, bestiarySize: all.length, families, truncated };
+}
+
+/** Segment d'URL de la fiche OFFICIELLE d'une créature (donjon → avis → titan), sinon `null`. */
+async function officialFicheSegmentForName(name: string): Promise<string | null> {
+    const insensitive = { equals: name, mode: 'insensitive' as const };
+    const [dungeon, bounty, titan] = await Promise.all([
+        db.dungeon.findFirst({ where: { OR: [{ name: insensitive }, { bossName: insensitive }] }, select: { slug: true, id: true } }),
+        db.bounty.findFirst({ where: { name: insensitive }, select: { slug: true, id: true } }),
+        db.titan.findFirst({ where: { name: insensitive }, select: { slug: true, id: true } }),
+    ]);
+    const found = dungeon ?? bounty ?? titan;
+    return found ? (found.slug || found.id) : null;
+}
+
+export interface MonsterFicheResponse {
+    monsterId: number;
+    name: string;
+    source: MonsterFicheSource;
+    /** Payload de fiche (grades, sorts, butin, encyclopédie, passif). */
+    data: any;
+    /** Fiche officielle DÉJÀ publiée (boss / avis / titan) ⇒ l'appelant y renvoie. */
+    officialSegment: string | null;
+}
+
+/**
+ * Fiche d'un monstre par **segment d'URL** (`/bestiaire/<slug>` ou son id Ankama).
+ * Lecture **locale** uniquement (siphon puis bestiaire du client) : aucune source tiers
+ * n'est appelée au rendu d'une page publique. `officialSegment` non nul ⇒ on redirige vers
+ * la fiche officielle (jamais deux pages pour la même bête).
+ */
+export async function getMonsterFicheBySegment(segment: string): Promise<ActionResponse<MonsterFicheResponse>> {
+    try {
+        const key = decodeURIComponent(String(segment ?? '')).trim();
+        if (!key) return { success: false, error: 'Monstre introuvable' };
+        const fiche = await getLocalMonsterFiche(key);
+        if (!fiche) return { success: false, error: 'Monstre introuvable' };
+        return {
+            success: true,
+            data: { ...fiche, officialSegment: await officialFicheSegmentForName(fiche.name) },
+        };
+    } catch (error) {
+        logger.error('[getMonsterFicheBySegment] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement de la fiche' };
+    }
+}
+
 
 /** Advanced dungeon search — supports event-only and zone filtering */
 export async function searchDungeonsAdvanced(filters: {
@@ -238,6 +824,7 @@ export async function searchDungeonsAdvanced(filters: {
     isExpedition?: boolean;
     isEventDungeon?: boolean;
     zoneId?: string;
+    subAreaId?: number; // Réservé pour usage futur (mapId lookup)
 }): Promise<ActionResponse<any[]>> {
     try {
         const where: any = {};
@@ -263,6 +850,7 @@ export async function searchDungeonsAdvanced(filters: {
         return { success: false, error: 'Erreur lors de la recherche' };
     }
 }
+
 
 // ─── Event Zone Management (super-admin only) ────────────────
 
@@ -350,11 +938,19 @@ export async function unlinkFamilyFromZone(zoneId: string, familyId: string): Pr
 export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
     zonesScanned: number;
     familiesLinked: number;
+    archisWithZone: number;
     matches: { zoneName: string; familyName: string }[];
+    /** Zones dont le nom correspond à une zone d'archimonstre (mesure « à jour ou non »). */
+    matchedZones: number;
+    /** Parmi elles, celles qui n'avaient **rien** à ajouter (déjà liées). */
+    alreadyUpToDate: number;
 }>> {
     if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
 
     try {
+        const norm = (s: string | null | undefined) =>
+            (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
         const zones = await db.zone.findMany({
             select: { id: true, name: true, families: { select: { id: true } } },
             orderBy: { name: 'asc' },
@@ -365,37 +961,66 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
             select: { zone: true, subzone: true, name: true },
         });
 
-        // Index zone name → archimonstres (nom exact uniquement).
-        const archisByZone = new Map<string, string[]>();
+        // Index zone (normalisée) → monstres / archis présents
+        const monstersByZone = new Map<string, string[]>();
         for (const a of allArchis) {
             for (const zoneName of [a.zone, a.subzone]) {
                 if (!zoneName) continue;
-                const list = archisByZone.get(zoneName) ?? [];
+                const key = norm(zoneName);
+                const list = monstersByZone.get(key) ?? [];
                 if (!list.includes(a.name)) list.push(a.name);
-                archisByZone.set(zoneName, list);
+                monstersByZone.set(key, list);
             }
         }
 
-        // Précharge les familles par nom de monstre (nom exact, un seul par famille).
-        const allMonsters = await db.monster.findMany({ select: { name: true, familyId: true } });
+        const archisWithZone = allArchis.length;
+
+        // Précharge les familles
+        const allFamilies = await db.monsterFamily.findMany({
+            select: { id: true, name: true, monsters: { select: { id: true, name: true } } }
+        });
+
         const familyByMonsterName = new Map<string, string>();
-        for (const m of allMonsters) {
-            if (!familyByMonsterName.has(m.name)) familyByMonsterName.set(m.name, m.familyId);
+        const familyByName = new Map<string, string>();
+
+        for (const f of allFamilies) {
+            familyByName.set(norm(f.name), f.id);
+            for (const m of f.monsters) {
+                if (!familyByMonsterName.has(m.name)) familyByMonsterName.set(m.name, f.id);
+            }
         }
 
         let familiesLinked = 0;
+        let matchedZones = 0;
+        let alreadyUpToDate = 0;
         const matches: { zoneName: string; familyName: string }[] = [];
 
         for (const zone of zones) {
-            const monsterNames = archisByZone.get(zone.name) ?? [];
-            if (monsterNames.length === 0) continue;
-
+            const zNorm = norm(zone.name);
+            const monsterNames = monstersByZone.get(zNorm) ?? [];
             const linkedIds = new Set(zone.families.map(f => f.id));
             const familyIdsToLink = new Set<string>();
+            // « Matchée » = son nom correspond à une zone d'archi (par nom de monstre) OU
+            // contient un nom de famille. C'est CE compteur qui dit si le bouton est à jour.
+            let matched = monsterNames.length > 0;
 
+            // 1. Correspondance directe par nom de famille contenue dans la zone (ex: "Porkass" dans "Plaine des Porkass")
+            for (const [fNorm, fId] of familyByName.entries()) {
+                if (fNorm.length >= 4 && (zNorm.includes(fNorm) || fNorm.includes(zNorm))) {
+                    matched = true;
+                    if (!linkedIds.has(fId)) familyIdsToLink.add(fId);
+                }
+            }
+
+            // 2. Correspondance par les monstres de la zone
             for (const name of monsterNames) {
                 const fid = familyByMonsterName.get(name);
                 if (fid && !linkedIds.has(fid)) familyIdsToLink.add(fid);
+            }
+
+            if (matched) {
+                matchedZones++;
+                if (familyIdsToLink.size === 0) alreadyUpToDate++;
             }
 
             if (familyIdsToLink.size === 0) continue;
@@ -416,8 +1041,13 @@ export async function autoAssociateAllZoneFamilies(): Promise<ActionResponse<{
             for (const f of families) matches.push({ zoneName: zone.name, familyName: f.name });
         }
 
-        logger.info(`[autoAssociateAllZoneFamilies] ${matches.length} familles liées sur ${zones.length} zones`);
-        return { success: true, data: { zonesScanned: zones.length, familiesLinked, matches } };
+        logger.info(
+            `[autoAssociateAllZoneFamilies] ${matches.length} famille(s) liée(s) · ${matchedZones} zone(s) matchée(s) (${alreadyUpToDate} déjà à jour) sur ${zones.length}`,
+        );
+        return {
+            success: true,
+            data: { zonesScanned: zones.length, familiesLinked, archisWithZone, matches, matchedZones, alreadyUpToDate },
+        };
     } catch (error) {
         logger.error('[autoAssociateAllZoneFamilies] Error:', { error });
         return { success: false, error: 'Erreur lors de l\'association automatique' };
@@ -548,15 +1178,63 @@ export async function deleteGameDataMonster(monsterId: string): Promise<ActionRe
 }
 
 /** Get monsters and bounties for a specific zone */
-export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<{
+export async function getZoneMonsters(zoneName: string, subAreaId?: number): Promise<ActionResponse<{
     zoneName: string;
     normalMonsters: any[];
     avisDeRecherche: any[];
     families: any[];
 }>> {
     try {
-        const zone = await db.zone.findFirst({
-            where: { name: { contains: zoneName, mode: 'insensitive' } },
+        const norm = (s: string | null | undefined) =>
+            (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const cleanArticle = (s: string) =>
+            norm(s).replace(/^(le|la|les|l')\s+/, '').trim();
+
+        const zNorm = norm(zoneName);
+        const zClean = cleanArticle(zoneName);
+
+        // ⓪ SOURCE SOUVERAINE (12/10/2026) : la sous-zone RÉELLE de la carte du monde.
+        // `subarea-monsters.json` (siphon DofusDB `monsters[].subareas`, 445 sous-zones,
+        // versionné) dit exactement quels monstres peuplent la sous-zone ⇒ plus aucune
+        // résolution par nom (donc plus aucun faux positif « nom ressemblant ») et aucune
+        // dépendance à la base : les familles viennent des référentiels locaux.
+        if (subAreaId) {
+            const { families: subFamilies, monsters: subMonsters } = buildSubareaFamilies(subAreaId);
+            if (subMonsters.length > 0) {
+                return {
+                    success: true,
+                    data: {
+                        zoneName: zoneName || `Sous-zone ${subAreaId}`,
+                        normalMonsters: subMonsters.map((m) => ({
+                            id: m.id,
+                            name: m.name,
+                            imageUrl: m.imageUrl,
+                            level: m.level,
+                            familyName: m.raceName,
+                            raceId: m.raceId,
+                            // Aucune fiche lue en base : `monsterFicheHref` retombe alors sur
+                            // `/bestiaire/<slug>` (LA fiche du monstre) — jamais d'URL inventée.
+                            ficheSlug: null,
+                            ficheKind: null,
+                        })),
+                        avisDeRecherche: [],
+                        families: subFamilies.map((f) => ({
+                            id: `subarea:${subAreaId}:${f.raceId}`,
+                            name: f.name,
+                            imageUrl: f.imageUrl,
+                            level: f.level,
+                            monstersCount: f.monsters.length,
+                            superRaceName: f.superRaceName,
+                        })),
+                    },
+                };
+            }
+        }
+
+        // 1. Recherche par match EXACT de la zone (insensible casse et accents)
+        // Évite le piège du 'contains' aveugle (ex: "Cimetière" qui résolvait "Cimetière des Torturés" !)
+        let zone = await db.zone.findFirst({
+            where: { name: { equals: zoneName, mode: 'insensitive' } },
             include: {
                 families: {
                     include: {
@@ -566,32 +1244,147 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
             }
         });
 
-        if (!zone) return { success: false, error: 'Zone introuvable' };
+        // 2. Si pas trouvé par equals strict SQL, recherche parmi toutes les zones par équivalence normalisée ou sans article
+        if (!zone) {
+            const allZones = await db.zone.findMany({
+                include: {
+                    families: {
+                        include: {
+                            monsters: true
+                        }
+                    }
+                }
+            });
+
+            // A. Match strict normalisé
+            zone = allZones.find(z => norm(z.name) === zNorm) ?? null;
+
+            // B. Match sans article (ex: "La Bourgade" <-> "Bourgade", "Le Cimetière" <-> "Cimetière")
+            if (!zone) {
+                zone = allZones.find(z => cleanArticle(z.name) === zClean) ?? null;
+            }
+
+            // C. Match de sous-zone explicite avec le meilleur recouvrement (plus petite différence de longueur)
+            if (!zone) {
+                const candidates = allZones.filter(z => {
+                    const zNameNorm = norm(z.name);
+                    return zNameNorm.includes(zNorm) || zNorm.includes(zNameNorm);
+                });
+                if (candidates.length > 0) {
+                    // Trier par proximité de longueur pour éviter les faux positifs lointains
+                    candidates.sort((a, b) => Math.abs(a.name.length - zoneName.length) - Math.abs(b.name.length - zoneName.length));
+                    zone = candidates[0] ?? null;
+                }
+            }
+        }
 
         const normalMonsters: any[] = [];
         const avisDeRecherche: any[] = [];
         const families: any[] = [];
+        const seenFamilies = new Set<string>();
+        const seenMonsters = new Set<string>();
 
-        zone.families.forEach(family => {
-            const isAvis = family.name.toLowerCase().includes('avis de recherche');
-            if (!isAvis) {
-                families.push({
-                    id: family.id,
-                    name: family.name,
-                    imageUrl: family.imageUrl,
-                    monstersCount: family.monsters.length
+        if (zone && zone.families.length > 0) {
+            zone.families.forEach(family => {
+                if (isIgnoredFamily(family.name)) return;
+                const isAvis = family.name.toLowerCase().includes('avis de recherche');
+                if (!isAvis && !seenFamilies.has(family.name)) {
+                    seenFamilies.add(family.name);
+                    families.push({
+                        id: family.id,
+                        name: family.name,
+                        imageUrl: family.imageUrl,
+                        level: family.level,
+                        monstersCount: family.monsters.length
+                    });
+                }
+                family.monsters.forEach(monster => {
+                    if (isAvis) {
+                        if (!seenMonsters.has(monster.name)) {
+                            seenMonsters.add(monster.name);
+                            avisDeRecherche.push(monster);
+                        }
+                    } else {
+                        if (!seenMonsters.has(monster.name)) {
+                            seenMonsters.add(monster.name);
+                            normalMonsters.push({
+                                ...monster,
+                                familyName: family.name
+                            });
+                        }
+                    }
                 });
-            }
-            family.monsters.forEach(monster => {
-                if (isAvis) avisDeRecherche.push(monster);
-                else normalMonsters.push({ ...monster, familyName: family.name });
             });
-        });
+        }
+
+        // Si la zone n'a pas de familles liées (ou zone non déclarée dans Zone), auto-détection dynamique stricte
+        // ATTENTION : Aucun faux positif ! Ne matcher que les familles dont le nom correspond
+        // fidèlement à la zone (nom exact ou terminaison géographique spécifique)
+        if (families.length === 0) {
+            const candidateFamilies = await db.monsterFamily.findMany({
+                include: { monsters: true }
+            });
+
+            for (const f of candidateFamilies) {
+                if (isIgnoredFamily(f.name)) continue;
+                const fNorm = norm(f.name);
+                const isExact = fNorm === zNorm || cleanArticle(f.name) === zClean;
+
+                // Match strict de sous-partie : le nom de zone mentionne explicitement la famille entière
+                // ex: Zone "Plaine des Scarafeuilles" -> Famille "Scarafeuilles"
+                // ex: Zone "Péninsule des gelées" -> Famille "Gelées"
+                // On interdit le match si fNorm est trop court (< 5 lettres) pour éviter les faux positifs.
+                const isGeographicSub = fNorm.length >= 5 && zNorm.endsWith(' ' + fNorm);
+
+                if (isExact || isGeographicSub) {
+                    if (!seenFamilies.has(f.name)) {
+                        seenFamilies.add(f.name);
+                        families.push({
+                            id: f.id,
+                            name: f.name,
+                            imageUrl: f.imageUrl,
+                            level: f.level,
+                            monstersCount: f.monsters.length
+                        });
+                        f.monsters.forEach(m => {
+                            if (!seenMonsters.has(m.name)) {
+                                seenMonsters.add(m.name);
+                                normalMonsters.push({ ...m, familyName: f.name });
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        // Fiche publiée de chaque monstre : on ne DEVINE jamais d'URL — un monstre n'a
+        // de fiche que s'il est un **avis de recherche** (`Bounty`) ou le **boss d'un
+        // donjon** (`Dungeon`). Les slugs sont lus en base et rapprochés par nom
+        // normalisé (même clé que les familles) ⇒ « pas de fail » : un monstre sans
+        // fiche publiée reste sans lien (aucun 404 fabriqué depuis son nom).
+        if (normalMonsters.length > 0) {
+            const [bountyRows, dungeonRows] = await Promise.all([
+                db.bounty.findMany({ select: { name: true, slug: true } }),
+                db.dungeon.findMany({ select: { bossName: true, slug: true } }),
+            ]);
+            const ficheByName = new Map<string, { slug: string; kind: 'boss' | 'bounty' }>();
+            for (const d of dungeonRows) {
+                if (d.slug && d.bossName) ficheByName.set(norm(d.bossName), { slug: d.slug, kind: 'boss' });
+            }
+            for (const b of bountyRows) {
+                if (b.slug && b.name) ficheByName.set(norm(b.name), { slug: b.slug, kind: 'bounty' });
+            }
+            for (const monster of normalMonsters) {
+                const fiche = ficheByName.get(norm(monster.name));
+                monster.ficheSlug = fiche?.slug ?? null;
+                monster.ficheKind = fiche?.kind ?? null;
+            }
+        }
 
         return {
             success: true,
             data: {
-                zoneName: zone.name,
+                zoneName: zone?.name || zoneName,
                 normalMonsters,
                 avisDeRecherche,
                 families
@@ -603,582 +1396,225 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
     }
 }
 
-/** Fetch bounties (Avis de recherche) for a specific zone from DofusDB */
-export async function getBountiesForZone(zoneName: string): Promise<ActionResponse<any[]>> {
+/**
+ * Fetch bounties (Avis de recherche) for a specific zone — lecture **locale** (siphon).
+ *
+ * 🐛 Mesure du 27/09/2026 : cette action avait une 2ᵉ jambe (« enrichir l'image depuis DofusDB »)
+ * qui interrogeait `monsters?typeId=23` — requête **morte** (`total: 0`, mesuré au `curl`) : elle
+ * ne pouvait rien enrichir (`dofusDbMatch` restait toujours `undefined`) tout en coûtant un appel
+ * réseau de 5 s dans un écran **public** (volet Worldmap). Supprimée : la ligne `Bounty` produite
+ * par le siphon est la source de vérité, et l'image est publiée sous **une seule forme**, la forme
+ * canonique du proxy d'assets (le chemin du cache disque `/uploads/assets-dofus/monsters/N.webp`
+ * rend 404 ⇒ il n'est jamais publié, même règle que `buildBountyBestiaireEntry`).
+ */
+export async function getBountiesForZone(zoneName: string, subAreaId?: number): Promise<ActionResponse<any[]>> {
     try {
-        const normalizedZone = zoneName.toLowerCase().trim();
-        const unaccentedZone = normalizedZone.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const baseZone = unaccentedZone.replace(/^(cité d'|village d'|champs d'|forêt d'|prairies d'|bordure d'|massif d'|routes? d'|forêt |lac )/i, "").trim();
+        const norm = (s: string | null | undefined) =>
+            (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
-        const localBounties = await db.bounty.findMany({
-            where: {
-                OR: [
-                    { zoneName: { contains: zoneName, mode: 'insensitive' } },
-                    { zoneName: { contains: normalizedZone, mode: 'insensitive' } },
-                    { zoneName: { contains: unaccentedZone, mode: 'insensitive' } },
-                    { zoneName: { contains: baseZone, mode: 'insensitive' } },
-                ]
-            }
-        });
+        // ① SOURCE SOUVERAINE (12/10/2026) : l'appartenance d'un avis à une sous-zone est lue
+        // dans le dataset `subarea-monsters.json` (races d'avis 32/90/127/147/156).
+        //
+        // 🐛 Cause racine du « Qil Bil dans Cimetière » : l'ancien filtre comparait des NOMS
+        // avec un préfixe (`bNorm.startsWith(zNorm)`) ⇒ « cimetière » ⊂ « cimetière des
+        // torturés » = faux positif. Comparer la sous-zone **réelle** supprime le problème par
+        // construction (mesuré en base : Qil Bil → `subareaIds [61]`, Roub' Ignolles → `[6]`).
+        if (subAreaId) {
+            const avisRaceIds = new Set<number>(BOUNTY_RACE_IDS);
+            const bestiary = getUnityBestiary();
+            const candidates = subareaMonsterIds(subAreaId)
+                .map((id) => bestiary[String(id)])
+                .filter((m) => Boolean(m?.name) && avisRaceIds.has(Math.floor(Number(m?.raceId) || 0)));
 
-        logger.debug(`[Bounties] Requested zone: "${zoneName}" -> normalized: "${normalizedZone}" -> base: "${baseZone}". Found local: ${localBounties.length}`);
+            if (candidates.length === 0) return { success: true, data: [] };
 
-        // 2. Fallback/Merge with DofusDB for dynamic data or missing entries
-        const regionMapping: Record<string, string[]> = {
-            'saharach': ['ali grothor', 'ka\'youloud', 'le khepricorne', 'simbadas'],
-            'frigost': ['monsieur pingouin', 'mekamouth', 'bouflouth'],
-            'pandala': ['le flib', 'marzwel le gobelin', 'musha l\'oni']
-        };
-
-        const response = await fetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=100&lang=fr`);
-        const data = await response.json();
-        const monsters = data.data || [];
-
-        const regionKey = Object.keys(regionMapping).find(k => normalizedZone.includes(k));
-        const regionalBounties = regionKey ? regionMapping[regionKey] : [];
-
-        const externalFiltered = monsters.filter((m: any) => {
-            const subAreaMatch = m.subareas && m.subareas.some((sa: any) =>
-                sa.name.fr.toLowerCase().includes(normalizedZone) ||
-                normalizedZone.includes(sa.name.fr.toLowerCase())
-            );
-            if (subAreaMatch) return true;
-            if (regionalBounties.length > 0) {
-                return regionalBounties.includes(m.name.fr.toLowerCase());
-            }
-            return false;
-        });
-
-        // 3. Merged result: prioritize localDB info (like guide links), but fix minimap images
-        const merged = [...localBounties.map(b => {
-            const dofusDbMatch = monsters.find((m: any) => m.name.fr.toLowerCase() === b.name.toLowerCase());
-            let finalImage = b.imageUrl;
-
-            if (finalImage && finalImage.startsWith('/images/bounties/') && dofusDbMatch) {
-                finalImage = dofusDbMatch.img || `https://static.ankama.com/dofus/www/game/monsters/${dofusDbMatch.id}.png`;
-            }
+            // La fiche (butin, mécanique, récompenses) vit en base : on y joint par
+            // `dofusdbId` (clé de rattachement du siphon), jamais par le nom.
+            const rows = await db.bounty.findMany({ where: { dofusdbId: { in: candidates.map((m) => m.id) } } });
+            const byDofusDbId = new Map(rows.map((row) => [Math.floor(Number(row.dofusdbId) || 0), row]));
 
             return {
-                id: b.id,
-                name: b.name,
-                imageUrl: finalImage,
-                mapUrl: b.mapUrl || (b.imageUrl?.startsWith('/images/bounties/') ? b.imageUrl : null),
-                level: b.level,
-                subarea: b.zoneName,
-                guideUrl: b.dpnlUrl,
-                doplons: b.doplons,
-                rewardType: b.rewardType,
-                rewards: b.rewards,
-                milice: b.milice,
-                mechanics: b.mechanics
+                success: true,
+                data: candidates.map((monster) => {
+                    const row = byDofusDbId.get(monster.id);
+                    if (!row) {
+                        // Avis réel de la zone sans fiche siphonnée : nom + sprite réels, pas de
+                        // lien de fiche (`bountyId: null`) ⇒ l'UI n'ouvre rien, aucun 404.
+                        return {
+                            id: `subarea:${subAreaId}:${monster.id}`,
+                            bountyId: null,
+                            name: monster.name,
+                            imageUrl: monsterSpriteUrl(monster.id),
+                            level: 0,
+                            subarea: null,
+                            guideUrl: null,
+                            doplons: 0,
+                            rewardType: "Doplon",
+                            rewards: [],
+                            milice: null,
+                            mechanics: null,
+                        };
+                    }
+                    return {
+                        id: row.id,
+                        bountyId: row.id,
+                        name: row.name,
+                        imageUrl: normalizeDofusAssetStoredUrl("monsters", row.imageUrl, row.dofusdbId),
+                        level: row.level,
+                        subarea: row.zoneName,
+                        guideUrl: row.dpnlUrl,
+                        doplons: row.doplons,
+                        rewardType: row.rewardType,
+                        rewards: row.rewards,
+                        milice: row.milice,
+                        mechanics: row.mechanics,
+                    };
+                }),
             };
-        })];
+        }
 
-        // Add external bounties that aren't in local DB yet
-        externalFiltered.forEach((m: any) => {
-            if (!merged.find(b => b.name.toLowerCase() === m.name.fr.toLowerCase())) {
-                merged.push({
-                    id: m.id,
-                    name: m.name.fr,
-                    imageUrl: m.img || `https://static.ankama.com/dofus/www/game/monsters/${m.id}.png`,
-                    level: m.grades?.[0]?.level || 0,
-                    subarea: m.subareas?.[0]?.name?.fr || "Région",
-                    guideUrl: null,
-                    doplons: 0,
-                    rewardType: 'Doplon',
-                    rewards: [],
-                    milice: null,
-                    mechanics: null,
-                    mapUrl: null,
-                });
-            }
-        });
+        // ② Repli (aucune sous-zone fournie) : nom de zone **EXACT** sur les seuls avis
+        // siphonnés (`isBountyMonster`) — jamais de préfixe, et les 83 lignes historiques
+        // (archimonstres/boss) ne sont plus jamais servies comme avis.
+        const zNorm = norm(zoneName);
+        const localBounties = (await db.bounty.findMany({ where: { isBountyMonster: true } }))
+            .filter((b) => Boolean(b.zoneName) && norm(b.zoneName) === zNorm);
+
+        logger.debug(`[Bounties] Requested zone: "${zoneName}". Found local: ${localBounties.length}`);
+
+        const merged = localBounties.map(b => ({
+            id: b.id,
+            bountyId: b.id,
+            name: b.name,
+            imageUrl: normalizeDofusAssetStoredUrl("monsters", b.imageUrl, b.dofusdbId),
+            level: b.level,
+            subarea: b.zoneName,
+            guideUrl: b.dpnlUrl,
+            doplons: b.doplons,
+            rewardType: b.rewardType,
+            rewards: b.rewards,
+            milice: b.milice,
+            mechanics: b.mechanics
+        }));
 
         return { success: true, data: merged };
     } catch (error) {
         logger.error('[getBountiesForZone] Error:', { error });
-        return { success: false, error: 'Erreur lors de la récupération des avis' };
+        return { success: false, error: 'Erreur lors du chargement des avis de recherche' };
     }
 }
-// #138 — cache mémoire 1h pour les fiches monstres (dofusdb externe, jusqu'à 5 requêtes/boss).
-const monsterStatsCache = new Map<string, { data: any; expiresAt: number }>();
-const MONSTER_STATS_TTL = 60 * 60 * 1000; // 1 h — data de jeu statique
+
+/** Index `sous-zone → donjons` construit depuis `worldmap.json` (lu une fois par process). */
+let dungeonLocationCache: { bySubAreaId: Map<number, { id: number; name: string; level: number }[]> } | null = null;
+
+function loadDungeonLocationIndex() {
+    if (dungeonLocationCache) return dungeonLocationCache;
+    const bySubAreaId = new Map<number, { id: number; name: string; level: number }[]>();
+    try {
+        const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
+        if (fs.existsSync(filePath)) {
+            const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            // La carte d'entrée d'un donjon porte sa sous-zone : c'est le seul lien RÉEL
+            // entre un donjon et une zone (aucune recherche par nom, donc aucun faux positif).
+            const subAreaByMapId = new Map<number, number>();
+            for (const m of (raw.maps || [])) {
+                const mapId = Math.floor(Number(m?.id) || 0);
+                const subAreaId = Math.floor(Number(m?.subAreaId) || 0);
+                if (mapId > 0 && subAreaId > 0) subAreaByMapId.set(mapId, subAreaId);
+            }
+            for (const dungeon of (raw.dungeons || [])) {
+                const subAreaId = subAreaByMapId.get(Math.floor(Number(dungeon?.entranceMapId) || 0));
+                if (!subAreaId) continue;
+                const list = bySubAreaId.get(subAreaId) ?? [];
+                list.push({
+                    id: Math.floor(Number(dungeon?.id) || 0),
+                    name: String(dungeon?.name ?? ''),
+                    level: Math.floor(Number(dungeon?.optimalPlayerLevel) || 0),
+                });
+                bySubAreaId.set(subAreaId, list);
+            }
+        }
+    } catch (error) {
+        logger.error('[loadDungeonLocationIndex] worldmap.json error:', { error });
+    }
+    dungeonLocationCache = { bySubAreaId };
+    return dungeonLocationCache;
+}
+
+/**
+ * Donjons **réellement situés** dans une sous-zone de la carte du monde.
+ *
+ * 🎯 Demande user (12/10/2026) : « une map analysée, si elle est dans la zone d'un donjon,
+ * on affiche bien “1 donjon” ou plusieurs si y en a plusieurs avec le nom et l'icône du dj ».
+ *
+ * 🐛 Mesure : l'ancien code appelait `searchDungeonsAdvanced({ query: zoneName })` — une
+ * recherche **floue par nom**, pas les donjons de la zone. La vérité est dans `worldmap.json`
+ * (`dungeons[].entranceMapId` → `maps[].subAreaId`, mesuré : 190 donjons sur 191 résolvent,
+ * 128 sous-zones portent au moins un donjon). Le nom et le boss viennent de
+ * `dungeon-monsters.json` (souverain, aucun appel réseau).
+ */
+export async function getDungeonsForSubArea(subAreaId?: number): Promise<ActionResponse<Array<{
+    id: number;
+    name: string;
+    level: number;
+    bossName: string | null;
+    imageUrl: string | null;
+}>>> {
+    try {
+        const id = Math.floor(Number(subAreaId) || 0);
+        if (id <= 0) return { success: true, data: [] };
+
+        const entries = loadDungeonLocationIndex().bySubAreaId.get(id) ?? [];
+        if (entries.length === 0) return { success: true, data: [] };
+
+        const localData = getLocalDungeonMonstersData();
+        const byCleanName = new Map<string, any>();
+        for (const dungeon of (localData?.dungeons ?? [])) {
+            const key = String(dungeon?.cleanName ?? '');
+            if (key) byCleanName.set(key, dungeon);
+        }
+        const clean = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+        return {
+            success: true,
+            data: entries.map((entry) => {
+                const local = byCleanName.get(clean(entry.name));
+                const boss = Array.isArray(local?.bosses) ? local.bosses[0] : null;
+                return {
+                    id: entry.id,
+                    name: entry.name,
+                    level: entry.level,
+                    bossName: boss?.name ?? null,
+                    imageUrl: boss?.imageUrl ?? null,
+                };
+            }),
+        };
+    } catch (error) {
+        logger.error('[getDungeonsForSubArea] Error:', { error });
+        return { success: false, error: 'Erreur lors du chargement des donjons de la zone' };
+    }
+}
 
 // Cache court pour la famille (race DofusDB) d'un boss — 24 h.
 const dungeonFamilyCache = new Map<string, { data: any; expiresAt: number }>();
 const DUNGEON_FAMILY_TTL = 24 * 60 * 60 * 1000;
 
+/**
+ * ENVELOPPE — le CŒUR de la fiche monstre vit dans `src/lib/monster-stats-core.ts` (A1, 28/09/2026).
+ * Cause racine mesurée du `ENOENT: /browser/default-stylesheet.css` des datasets d'arrière-plan :
+ * les siphons `src/lib/{anomaly-boss,bounty}-siphon.ts` importaient cette action pour appeler
+ * `getMonsterStats` ⇒ `@/lib/security` → `isomorphic-dompurify` → jsdom embarqué dans le bundle
+ * worker, dont le `path.resolve(__dirname, …)` ne tombe plus juste une fois déployé en `/app/`.
+ * Ici : délégation pure — nom, signature et chemin d'action INCHANGÉS (contrat des composants).
+ */
 export async function getMonsterStats(
     monsterName: string,
     dungeonName?: string,
-    forceRefresh = false
+    forceRefresh = false,
+    monsterId?: number,
+    locale: "fr" | "en" = "fr"
 ): Promise<ActionResponse<any>> {
-    // #138 — évite de re-frapper dofusdb à chaque sélection de donjon (la fiche est statique).
-    const cacheKey = `${monsterName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
-    const cached = monsterStatsCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-        return { success: true, data: cached.data };
-    }
-
-    let coordinates = null;
-
-    // Attempt local coordinate lookup first (very fast and reliable)
-    try {
-        const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
-        if (fs.existsSync(filePath)) {
-            const worldMapData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-
-            // 1. Try to find the dungeon by name if provided
-            let dungeonInfo = null;
-            if (dungeonName) {
-                const searchName = dungeonName.toLowerCase().replace("défi du ", "").trim();
-                dungeonInfo = worldMapData.dungeons?.find((d: any) =>
-                    d.name.toLowerCase().includes(searchName) ||
-                    searchName.includes(d.name.toLowerCase())
-                );
-            }
-
-            // 2. If no dungeon match, try to find monster subarea coordinate from file
-            const entranceMapId = dungeonInfo?.entranceMapId || dungeonInfo?.mapId;
-            if (entranceMapId) {
-                const mapNode = worldMapData.maps?.find((m: any) => m.id === entranceMapId);
-                if (mapNode) {
-                    coordinates = {
-                        x: mapNode.x,
-                        y: mapNode.y,
-                        worldMapId: mapNode.worldMap === -1 ? 1 : mapNode.worldMap
-                    };
-                }
-            }
-        }
-    } catch (err) {
-        logger.error("[getMonsterStats] Local coordinate fetch error:", { error: err });
-    }
-
-    // Local-first (siphon local, chantier 2) : fiche fraîche (< 24 h) → zéro appel
-    // DofusDB en direct. Les coordonnées du donjon sont ré-attachées si absentes
-    // (le cron de sync ne les stocke pas — elles viennent du worldmap.json local).
-    // `forceRefresh` (crons de sync) re-fetch TOUJOURS la source.
-    if (process.env.VITEST !== "true" && !forceRefresh) {
-        try {
-            const local = await getLocalMonsterStat(monsterName);
-            if (local) {
-                if (!local.coordinates && coordinates) local.coordinates = coordinates;
-                monsterStatsCache.set(cacheKey, { data: local, expiresAt: Date.now() + MONSTER_STATS_TTL });
-                return { success: true, data: local };
-            }
-        } catch (err) {
-            logger.warn("[getMonsterStats] Local-first échec:", { error: String(err) });
-        }
-    }
-
-    try {
-        // Search for the monster - search by name.fr
-        const searchRes = await fetch(
-            `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(monsterName.trim())}&lang=fr&$limit=5`,
-            { cache: 'no-store' }
-        );
-        if (!searchRes.ok) throw new Error("DofusDB search failed");
-
-        const searchData = await searchRes.json();
-        // Try to find exact match or take first
-        const monsterHeader = searchData.data?.find((m: any) => m.name.fr.toLowerCase() === monsterName.toLowerCase().trim()) || searchData.data?.[0];
-
-        if (!monsterHeader) return { success: false, error: 'Monstre non trouvé' };
-
-        // Fetch FULL details
-        const fullRes = await fetch(
-            `https://api.dofusdb.fr/monsters/${monsterHeader.id}?lang=fr`,
-            { cache: 'no-store' }
-        );
-        if (!fullRes.ok) throw new Error("DofusDB details failed");
-        const monster = await fullRes.json();
-
-        // Get items and spells mappings in parallel
-        const rawDropObjectIds = monster.drops?.map((d: any) => d.objectId) || [];
-        const dropObjectIds = Array.from(new Set(rawDropObjectIds)); // Deduplicate
-
-        const allSpellIds = [...(monster.spells || [])];
-        monster.grades?.forEach((g: any) => {
-            if (g.startingSpellId) allSpellIds.push(g.startingSpellId);
-        });
-        const spellIds = Array.from(new Set(allSpellIds));
-
-        const itemsMap: Record<number, any> = {};
-        let spellsArr: any[] = [];
-
-        const fetchPromises = [];
-
-        // Chunk items fetch by 40 to prevent any URI length limits or DofusDB $limit=50 truncations
-        for (let i = 0; i < dropObjectIds.length; i += 40) {
-            const chunk = dropObjectIds.slice(i, i + 40);
-            const queryQuery = chunk.map((id: unknown) => `id[$in][]=${id}`).join('&');
-            fetchPromises.push(
-                fetch(`https://api.dofusdb.fr/items?${queryQuery}&$limit=50&lang=fr`, { cache: 'no-store' })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data && Array.isArray(data.data)) {
-                            data.data.forEach((it: any) => { itemsMap[it.id] = it; });
-                        }
-                    })
-                    .catch(logger.error)
-            );
-        }
-
-        if (spellIds.length > 0) {
-            const spellQuery = spellIds.map((id: unknown) => `id[$in][]=${id}`).join('&');
-            fetchPromises.push(
-                fetch(`https://api.dofusdb.fr/spells?${spellQuery}&$limit=50&lang=fr`, { cache: 'no-store' })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data && Array.isArray(data.data)) {
-                            spellsArr = data.data;
-                        }
-                    })
-                    .catch(logger.error)
-            );
-        }
-
-        await Promise.all(fetchPromises);
-
-        // Fetch spell levels details AFTER we have spells data
-        const spellLevelsMap: Record<number, any> = {};
-        if (spellsArr.length > 0) {
-            const requestedLevels = spellsArr.flatMap(s => {
-                const levels = s.spellLevels || [];
-                // Use the last level for bosses as they are high level
-                return levels.length > 0 ? levels[levels.length - 1] : null;
-            }).filter(Boolean);
-
-            if (requestedLevels.length > 0) {
-                const levelQuery = requestedLevels.map((id: unknown) => `id[$in][]=${id}`).join('&');
-                const levelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${levelQuery}&$limit=50&lang=fr`, { cache: 'no-store' });
-                if (levelRes.ok) {
-                    const levelData = await levelRes.json();
-                    if (levelData && Array.isArray(levelData.data)) {
-                        levelData.data.forEach((l: any) => {
-                            spellLevelsMap[l.id] = l;
-                        });
-                    }
-                }
-            }
-        }
-
-        // 1. Scan for triggered spell IDs
-        const triggeredSpellIds: number[] = [];
-        spellsArr.forEach(s => {
-            const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
-            const level = spellLevelsMap[levelId];
-            if (level && Array.isArray(level.effects)) {
-                level.effects.forEach((eff: any) => {
-                    if (eff.effectId === 1160 || eff.effectId === 2160 || eff.effectId === 2161) {
-                        const tid = eff.diceNum || eff.value;
-                        if (tid && typeof tid === 'number') {
-                            triggeredSpellIds.push(tid);
-                        }
-                    }
-                });
-            }
-        });
-
-        // Deduplicate triggeredSpellIds and remove any that are already in spellIds
-        const uniqueTriggeredIds = Array.from(new Set(triggeredSpellIds)).filter((id: number) => !spellIds.includes(id));
-        const subSpellsMap: Record<number, { name: string, effects: any[] }> = {};
-
-        // Also add main spells to subSpellsMap in case they trigger each other
-        spellsArr.forEach(s => {
-            const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
-            const level = spellLevelsMap[levelId];
-            subSpellsMap[s.id] = {
-                name: s.name?.fr || "Sort",
-                effects: level?.effects || []
-            };
-        });
-
-        if (uniqueTriggeredIds.length > 0) {
-            try {
-                // Fetch sub-spells
-                const subSpellQuery = uniqueTriggeredIds.map((id: number) => `id[$in][]=${id}`).join('&');
-                const subSpellsRes = await fetch(`https://api.dofusdb.fr/spells?${subSpellQuery}&$limit=50&lang=fr`, { cache: 'no-store' });
-                if (subSpellsRes.ok) {
-                    const subSpellsData = await subSpellsRes.json();
-                    const subSpellsArr = subSpellsData.data || [];
-
-                    // Fetch sub-spells levels
-                    const subLevelsToFetch = subSpellsArr.flatMap((s: any) => {
-                        const levels = s.spellLevels || [];
-                        return levels.length > 0 ? levels[levels.length - 1] : null;
-                    }).filter(Boolean);
-
-                    if (subLevelsToFetch.length > 0) {
-                        const subLevelQuery = subLevelsToFetch.map((id: any) => `id[$in][]=${id}`).join('&');
-                        const subLevelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${subLevelQuery}&$limit=50&lang=fr`, { cache: 'no-store' });
-                        if (subLevelRes.ok) {
-                            const subLevelData = await subLevelRes.json();
-                            const subLevelsMap: Record<number, any> = {};
-                            if (subLevelData && Array.isArray(subLevelData.data)) {
-                                subLevelData.data.forEach((l: any) => {
-                                    subLevelsMap[l.id] = l;
-                                });
-                            }
-
-                            subSpellsArr.forEach((s: any) => {
-                                const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
-                                const level = subLevelsMap[levelId];
-                                subSpellsMap[s.id] = {
-                                    name: s.name?.fr || "Effet secondaire",
-                                    effects: level?.effects || []
-                                };
-                            });
-                        }
-                    }
-                }
-            } catch (err) {
-                logger.error("[getMonsterStats] Failed to fetch triggered sub-spells:", { error: err });
-            }
-        }
-
-        // Final monster grade for scaling calculations
-        const g5 = monster.grades?.[monster.grades.length - 1] || {};
-        const monsterStats = {
-            earth: g5.strength || 0,
-            water: g5.chance || 0,
-            fire: g5.intelligence || 0,
-            air: g5.agility || 0,
-            neutral: 0 // Le Neutre n'est boosté par aucune stat élémentaire.
-        };
-
-        // Mapping effect types for description with Stat Scaling & comprehensive effect dictionary
-        const parseEffects = (effects: any[], isSubSpell = false): string | null => {
-            if (!effects || effects.length === 0) return null;
-            const parsed = effects.map(eff => {
-                // If DofusDB provides a pre-formatted string, use it directly
-                if (eff.formatted?.fr) return eff.formatted.fr;
-                if (eff.description?.fr) return eff.description.fr;
-                if (typeof eff.formatted === 'string' && eff.formatted.trim()) return eff.formatted.trim();
-
-                const id = eff.effectId;
-                const min = eff.diceNum || eff.value || 0;
-                const max = eff.diceSide || 0;
-                // Traction/repoussement : la distance vit parfois dans la zone (diceNum=0).
-                const zoneParam = eff.zoneDescr?.param1 || 0;
-                let text = "";
-
-                // Helper to scale damage
-                const scale = (val: number, stat: number) => Math.floor(val * (1 + stat / 100));
-                const dmg = (scaledMin: number, scaledMax: number) =>
-                    scaledMax > 0 && scaledMax !== scaledMin ? `${scaledMin} à ${scaledMax}` : `${scaledMin}`;
-
-                // Element-based direct damage IDs — effectElement: 1=Terre 2=Feu 3=Eau 4=Air 5+=Neutre
-                const elementDamageIds = [91, 92, 93, 94, 95, 112, 113, 117];
-                if (elementDamageIds.includes(id) && min > 0) {
-                    const elem = eff.effectElement;
-                    if (elem === 1)      text = `Dommages Terre : ${dmg(scale(min, monsterStats.earth),   scale(max, monsterStats.earth))}`;
-                    else if (elem === 2) text = `Dommages Feu : ${dmg(scale(min, monsterStats.fire),    scale(max, monsterStats.fire))}`;
-                    else if (elem === 3) text = `Dommages Eau : ${dmg(scale(min, monsterStats.water),   scale(max, monsterStats.water))}`;
-                    else if (elem === 4) text = `Dommages Air : ${dmg(scale(min, monsterStats.air),     scale(max, monsterStats.air))}`;
-                    else                text = `Dommages Neutre : ${dmg(scale(min, monsterStats.neutral), scale(max, monsterStats.neutral))}`;
-                // Vol de vie / classic steal-damage IDs
-                } else if (id === 100 || id === 108) {
-                    text = `Vol de vie Neutre : ${dmg(scale(min, monsterStats.neutral), scale(max, monsterStats.neutral))}`;
-                } else if (id === 97) {
-                    text = `Dommages Terre : ${dmg(scale(min, monsterStats.earth), scale(max, monsterStats.earth))}`;
-                } else if (id === 96) {
-                    text = `Dommages Eau : ${dmg(scale(min, monsterStats.water), scale(max, monsterStats.water))}`;
-                } else if (id === 99) {
-                    text = `Dommages Feu : ${dmg(scale(min, monsterStats.fire), scale(max, monsterStats.fire))}`;
-                } else if (id === 98) {
-                    text = `Dommages Air : ${dmg(scale(min, monsterStats.air), scale(max, monsterStats.air))}`;
-                } else if (id === 275 || id === 276 || id === 277 || id === 278 || id === 279) {
-                    // Dégâts en % de PV érodés / PV max
-                    text = `Dommages : ${min}% des PV max`;
-                } else if (id === 85 || id === 86 || id === 87 || id === 88 || id === 89) {
-                    // Dégâts en % de la vie actuelle
-                    text = `Dommages : ${min}% de la vie de la cible`;
-                } else if (id === 6 || id === 8) {
-                    const dist = min > 0 ? min : zoneParam;
-                    text = dist > 0 ? `Attire de ${dist} case${dist > 1 ? "s" : ""}` : "";
-                } else if (id === 5 || id === 4) {
-                    const dist = min > 0 ? min : zoneParam;
-                    text = dist > 0 ? `Repousse de ${dist} case${dist > 1 ? "s" : ""}` : "";
-                } else if (id === 1103) {
-                    const val = eff.value || min;
-                    text = val > 0 ? `Repousse différée de ${val} case${val > 1 ? "s" : ""}` : `Repousse (effet différé)`;
-                } else if (id === 753 || id === 754) {
-                    text = `+${min} Tacle`;
-                } else if (id === 752) {
-                    text = `-${min} Fuite`;
-                } else if (id === 132) {
-                    text = `Retire tous les PM (État Pesanteur / Enraciné)`;
-                } else if (id === 1039 || id === 1040) {
-                    text = `Donne ${min} points de Bouclier`;
-                } else if (id === 293 || id === 294) {
-                    text = `+${eff.diceSide || eff.value || min || 5} Dommages fixes`;
-                } else if (id === 138 || id === 114) {
-                    text = `+${min} Puissance`;
-                } else if (id === 115) {
-                    text = `+${min} % Critique`;
-                } else if (id === 1160 || id === 2160 || id === 2161) {
-                    const triggeredId = eff.diceNum || eff.value;
-                    if (isSubSpell) {
-                        text = `Déclenche un sous-effet`;
-                    } else {
-                        const subSpell = subSpellsMap[triggeredId];
-                        if (subSpell) {
-                            const subEffectsParsed = parseEffects(subSpell.effects, true);
-                            text = subEffectsParsed ? `Déclenche ${subSpell.name} : ${subEffectsParsed}` : `Déclenche ${subSpell.name}`;
-                        } else {
-                            text = `Déclenche un effet passif / secondaire`;
-                        }
-                    }
-                } else if (id === 181 || id === 623) {
-                    text = `Invoque une créature alliée`;
-                } else if (id === 82 || id === 108) {
-                    text = `Soigne : ${min}${max > 0 && max !== min ? ` à ${max}` : ""} PV`;
-                } else if (id === 81) {
-                    text = `Soigne ${min}% des PV max`;
-                } else if (id === 1) {
-                    text = `Transpose / Échange de place`;
-                } else if (id === 4) {
-                    text = `Avance de ${min} case${min > 1 ? "s" : ""}`;
-                } else if (id === 140 || id === 126) {
-                    text = `Retrait direct : ${min} PV`;
-                } else if (id === 950 || id === 951 || id === 952) {
-                    const stateId = eff.value || eff.diceNum || eff.diceSide;
-                    text = `Applique un État`;
-                } else if (id === 168 || id === 101) {
-                    text = `Retrait de ${min} PA`;
-                } else if (id === 169 || id === 127) {
-                    text = `Retrait de ${min} PM`;
-                } else if (id === 174) {
-                    text = `Retrait de ${min} Portée`;
-                } else if (id === 111) {
-                    text = `+${min} PA`;
-                } else if (id === 128) {
-                    text = `+${min} PM`;
-                } else if (id === 160) {
-                    text = `Téléporte la cible`;
-                } else if (id === 121) {
-                    text = `Dommages subis x${(min / 100 + 1).toFixed(2)}`;
-                } else if (id === 1122) {
-                    text = `Applique ${min}% d'Érosion`;
-                } else if (id === 131) {
-                    text = `Applique un Poison élémentaire (${min} dégâts)`;
-                } else if (id === 400 || id === 401 || id === 402) {
-                    text = `Pose un Glyphe / Piège sur le terrain`;
-                } else if (id === 141) {
-                    text = `Tue instantanément la cible (OS)`;
-                } else if (id === 265) {
-                    text = `Réduit les dégâts de ${min}`;
-                } else {
-                    // Effet inconnu / mécanique scriptée → on ne l'affiche pas (pas de brut API).
-                    text = "";
-                }
-
-                return text;
-            }).filter((t): t is string => Boolean(t) && t.trim().length > 0);
-
-            return parsed.length > 0 ? parsed.join(" · ") : null;
-        };
-
-        // Fallback to subarea lookup via local file if coordinates is still null
-        if (!coordinates && monster.subareas?.length > 0) {
-            try {
-                const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
-                if (fs.existsSync(filePath)) {
-                    const worldMapData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-                    const firstMapInSubarea = worldMapData.maps?.find((m: any) =>
-                        m.subAreaId === monster.subareas[0]
-                    );
-                    if (firstMapInSubarea) {
-                        coordinates = {
-                            x: firstMapInSubarea.x,
-                            y: firstMapInSubarea.y,
-                            worldMapId: firstMapInSubarea.worldMap === -1 ? 1 : firstMapInSubarea.worldMap
-                        };
-                    }
-                }
-            } catch (err) { logger.error("Fallback coordinate fetch error:", err); }
-        }
-
-        const resultData = {
-            id: monster.id,
-                name: monster.name.fr,
-                imageUrl: monster.img || `https://static.ankama.com/dofus/www/game/monsters/${monster.id}.png`,
-                familyId: monster.race ?? null,
-                coordinates,
-                grades: monster.grades.map((g: any, idx: number) => ({
-                    level: g.level,
-                    lifePoints: g.lifePoints,
-                    actionPoints: g.pa || g.actionPoints,
-                    movementPoints: g.pm || g.movementPoints,
-                    resists: {
-                        neutral: g.neutralResistance,
-                        earth: g.earthResistance,
-                        fire: g.fireResistance,
-                        water: g.waterResistance,
-                        air: g.airResistance
-                    }
-                })),
-                drops: monster.drops?.map((d: any) => {
-                    const item = itemsMap[d.objectId];
-                    const iconId = item?.iconId || d.objectId;
-                    const gradePercents = [d.percentDropForGrade1, d.percentDropForGrade2, d.percentDropForGrade3, d.percentDropForGrade4, d.percentDropForGrade5]
-                        .filter((pg): pg is number => typeof pg === 'number');
-                    const rawPercent = d.percentDropForGrade5 ?? d.percentDropForGrade1 ?? d.minPercentDrop ?? d.percent ?? 0;
-                    const formattedPercent = parseFloat(Number(rawPercent).toFixed(3));
-                    return {
-                        objectId: d.objectId,
-                        name: item?.name?.fr || "Objet",
-                        imageUrl: item?.img || `https://static.dofusdb.fr/items/illustr/${iconId}.png`,
-                        percent: formattedPercent,
-                        percentByGrade: gradePercents.length > 0 ? gradePercents.map((pg) => parseFloat(Number(pg).toFixed(3))) : undefined
-                    };
-                }) || [],
-                spells: spellsArr.map(s => {
-                    const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
-                    const level = spellLevelsMap[levelId] || {};
-                    const effectDesc = parseEffects(level.effects);
-
-                    // Priority for images: 
-                    // 1. s.img (sometimes relative)
-                    // 2. static.ankama.com
-                    // 3. dofusdb.fr/img/spells/sort_{iconId}.png (last resort usually works)
-                    let spellImg = s.img;
-                    if (!spellImg && s.iconId) {
-                        spellImg = `https://api.dofusdb.fr/img/spells/sort_${s.iconId}.png`;
-                    }
-                    if (spellImg && spellImg.startsWith('/')) {
-                        spellImg = `https://api.dofusdb.fr${spellImg}`;
-                    }
-
-                    return {
-                        id: s.id,
-                        name: s.name?.fr || "Sort",
-                        imageUrl: spellImg,
-                        description: s.description?.fr || effectDesc || "",
-                        apCost: level.apCost || level.paCost || 0,
-                        minRange: level.minRange || 0,
-                        range: level.range || level.maxRange || 0,
-                        castTestLos: level.castTestLos ?? true,
-                        castInLine: level.castInLine ?? false,
-                        castInDiagonal: level.castInDiagonal ?? false
-                    };
-                })
-        };
-        monsterStatsCache.set(cacheKey, { data: resultData, expiresAt: Date.now() + MONSTER_STATS_TTL });
-        // Self-healing (sync intelligente) : copie locale de la fiche pour le
-        // mode local-first (prochaines lectures sans DofusDB). Jamais bloquant.
-        try {
-            if (process.env.VITEST !== "true") await persistMonsterStat({ ...resultData, dungeonName });
-        } catch (err) {
-            logger.warn("[getMonsterStats] Persist local échec:", { error: String(err) });
-        }
-        return { success: true, data: resultData };
-    } catch (error) {
-        logger.error('[getMonsterStats] Error:', { error });
-        return { success: false, error: 'Erreur DofusDB' };
-    }
+    return getMonsterStatsCore(monsterName, dungeonName, forceRefresh, monsterId, locale);
 }
 
 /**
@@ -1196,37 +1632,170 @@ export async function getDungeonMonsters(
         return { success: true, data: cached.data };
     }
 
+    const localData = getLocalDungeonMonstersData();
+    if (localData) {
+        const bNorm = normStr(bossName);
+        const dNorm = dungeonName ? normStr(dungeonName.replace(/\s*\(\d+\)$/, "")) : "";
+
+        // 1. Recherche par correspondance donjon
+        let matchedDungeon = localData.dungeons.find((d: any) => {
+            if (dNorm && (d.cleanName === dNorm || d.cleanName.includes(dNorm) || dNorm.includes(d.cleanName))) {
+                return true;
+            }
+            if (bNorm && d.bosses?.some((b: any) => normStr(b.name) === bNorm)) {
+                return true;
+            }
+            return false;
+        });
+
+        if (!matchedDungeon && bNorm) {
+            // Chercher par présence dans les monstres du donjon
+            matchedDungeon = localData.dungeons.find((d: any) =>
+                d.monsters?.some((m: any) => normStr(m.name) === bNorm)
+            );
+        }
+
+        if (matchedDungeon) {
+            // Fusionner les monstres du donjon et de la famille pour une complétude totale
+            const mapById = new Map<number, { id: number; name: string; imageUrl: string | null; isBoss: boolean }>();
+
+            // Priorité aux monstres du donjon (salles réelles)
+            (matchedDungeon.monsters || []).forEach((m: any) => {
+                mapById.set(m.id, {
+                    id: m.id,
+                    name: m.name,
+                    imageUrl: m.imageUrl || null,
+                    isBoss: !!m.isBoss,
+                });
+            });
+
+            // Ajouter également les monstres de la famille si absents
+            (matchedDungeon.familyMonsters || []).forEach((m: any) => {
+                if (!mapById.has(m.id)) {
+                    mapById.set(m.id, {
+                        id: m.id,
+                        name: m.name,
+                        imageUrl: m.imageUrl || null,
+                        isBoss: !!m.isBoss,
+                    });
+                }
+            });
+
+            const monsters = Array.from(mapById.values());
+            if (monsters.length > 0) {
+                const result = { familyId: matchedDungeon.raceId ?? null, monsters };
+                dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+                return { success: true, data: result };
+            }
+        }
+
+        // 2. Recherche par monstre isolé dans localData.monsters
+        if (bNorm) {
+            const mob = localData.monsters.find((m: any) => normStr(m.name) === bNorm);
+            if (mob?.raceId) {
+                const famMobs = localData.monsters
+                    .filter((m: any) => m.raceId === mob.raceId)
+                    .map((m: any) => ({
+                        id: m.id,
+                        name: m.name,
+                        imageUrl: m.imageUrl || null,
+                        isBoss: !!m.isBoss,
+                    }));
+                if (famMobs.length > 0) {
+                    const result = { familyId: mob.raceId, monsters: famMobs };
+                    dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+                    return { success: true, data: result };
+                }
+            }
+        }
+    }
+
     try {
-        const searchRes = await fetch(
+        const searchRes = await dofusDbFetch(
             `https://api.dofusdb.fr/monsters?name.fr=${encodeURIComponent(bossName.trim())}&lang=fr&$limit=5`,
-            { cache: 'no-store' }
+            dofusdbFicheInit()
         );
         if (!searchRes.ok) throw new Error('DofusDB search failed');
         const searchData = await searchRes.json();
         const bossHeader = searchData.data?.find((m: any) => m.name?.fr?.toLowerCase() === bossName.toLowerCase().trim()) || searchData.data?.[0];
         const race = bossHeader?.race ?? null;
-
-        if (!race) {
-            return { success: true, data: { familyId: null, monsters: [] } };
+        if (race) {
+            const familyRes = await dofusDbFetch(
+                `https://api.dofusdb.fr/monsters?race=${race}&lang=fr&$limit=50`,
+                dofusdbFicheInit()
+            );
+            if (familyRes.ok) {
+                const familyData = await familyRes.json();
+                const monsters = (familyData.data || []).map((m: any) => ({
+                    id: m.id,
+                    name: m.name?.fr || 'Monstre',
+                    imageUrl: m.img || null,
+                    isBoss: !!m.isBoss,
+                }));
+                if (monsters.length > 0) {
+                    const result = { familyId: race, monsters };
+                    dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+                    return { success: true, data: result };
+                }
+            }
         }
 
-        const familyRes = await fetch(
-            `https://api.dofusdb.fr/monsters?race=${race}&lang=fr&$limit=50`,
-            { cache: 'no-store' }
-        );
-        if (!familyRes.ok) throw new Error('DofusDB family fetch failed');
-        const familyData = await familyRes.json();
+        // Fallback 1: via DofusDB Dungeons API si dungeonName fourni
+        if (dungeonName && dungeonName.trim()) {
+            try {
+                const cleanDungeonQuery = dungeonName.replace(/\s*\(\d+\)$/, "").trim();
+                const djRes = await dofusDbFetch(
+                    `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(cleanDungeonQuery)}&lang=fr&$limit=5`,
+                    dofusdbFicheInit()
+                );
+                if (djRes.ok) {
+                    const djData = await djRes.json();
+                    const dj = djData.data?.[0];
+                    if (dj && Array.isArray(dj.monsters) && dj.monsters.length > 0) {
+                        const mobList: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[] = [];
+                        for (const mobId of dj.monsters) {
+                            try {
+                                const mRes = await dofusDbFetch(`https://api.dofusdb.fr/monsters/${mobId}?lang=fr`, dofusdbFicheInit());
+                                if (mRes.ok) {
+                                    const m = await mRes.json();
+                                    mobList.push({
+                                        id: m.id,
+                                        name: m.name?.fr || 'Monstre',
+                                        imageUrl: m.img || null,
+                                        isBoss: !!m.isBoss,
+                                    });
+                                }
+                            } catch {}
+                        }
+                        if (mobList.length > 0) {
+                            const result = { familyId: null, monsters: mobList };
+                            dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+                            return { success: true, data: result };
+                        }
+                    }
+                }
+            } catch {}
+        }
 
-        const monsters = (familyData.data || []).map((m: any) => ({
-            id: m.id,
-            name: m.name?.fr || 'Monstre',
-            imageUrl: m.img || null,
-            isBoss: !!m.isBoss,
-        }));
+        // Fallback 2: via Dofensive preview
+        if (dungeonName && dungeonName.trim()) {
+            try {
+                const dofDungeon = await getDofensiveDungeonForBoss(bossName, dungeonName);
+                if (dofDungeon.success && dofDungeon.data?.monsters?.length) {
+                    const monsters = dofDungeon.data.monsters.map((m, idx) => ({
+                        id: m.id,
+                        name: m.name,
+                        imageUrl: null,
+                        isBoss: idx === 0 || dofDungeon.data?.bossMonsterId === m.id,
+                    }));
+                    const result = { familyId: null, monsters };
+                    dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
+                    return { success: true, data: result };
+                }
+            } catch {}
+        }
 
-        const result = { familyId: race, monsters };
-        dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
-        return { success: true, data: result };
+        return { success: true, data: { familyId: null, monsters: [] } };
     } catch (error) {
         logger.error('[getDungeonMonsters] Error:', { error });
         return { success: false, error: 'Erreur DofusDB' };
@@ -1248,7 +1817,7 @@ export async function updateGodBountyRecord(bountyId: string, data: {
     dpnlUrl?: string;
     position?: string;
 }): Promise<ActionResponse> {
-    if (!(await canAccessBounties())) return { success: false, error: 'Non autorisé' };
+    if (!(await canAccessGameData())) return { success: false, error: 'Non autorisé' };
 
     try {
         await db.bounty.update({
@@ -1276,7 +1845,8 @@ export async function updateGodBountyRecord(bountyId: string, data: {
     }
 }
 
-/** Fetch quests from the Dofus module that are linked to a specific zone/subarea */
+/**
+ * Fetch quests from the Dofus module that are linked to a specific zone/subarea */
 export async function getQuestsByZone(zoneName: string): Promise<ActionResponse<any[]>> {
     try {
         const normalized = zoneName.toLowerCase().trim();
@@ -1497,6 +2067,8 @@ export async function createDungeonAction(
             data: {
                 name: data.name.trim(),
                 bossName: data.bossName.trim(),
+                // Slug public `/boss/<slug>` (nom du boss, suffixé si déjà pris).
+                slug: await resolveUniqueDungeonSlug(data.bossName.trim()),
                 level: Number(data.level),
                 dofusdbId: data.dofusdbId ? Number(data.dofusdbId) : null,
                 dpnlUrl: data.dpnlUrl || null,
@@ -1567,20 +2139,17 @@ export async function updateDungeonNoobsUrl(
 
 // ─── Bounty / Archimonstre Search (for WorldMap) ──────────────────────
 
-/** Shared: resolve subAreaIds + center coords + worldMapId from a zone name against worldmap.json */
-function resolveZoneInWorldmap(
+/**
+ * Sous-zones d'une cible dont la **zone est nommée** : correspondance exacte sur
+ * le nom de la sous-zone, sinon correspondance partielle (le nom saisi peut être
+ * plus long ou plus court que celui de `worldmap.json`).
+ */
+function matchZoneSubAreaIds(
     zoneName: string | null,
     subareas: any[],
-    mapsBySubAreaId: Map<number, any[]>,
     normalize: (s: string) => string
-): { subAreaIds: number[]; centerX: number | null; centerY: number | null; worldMapId: number } {
-    const subAreaIds: number[] = [];
-    let centerX: number | null = null;
-    let centerY: number | null = null;
-    let worldMapId = 1;
-
-    if (!zoneName || subareas.length === 0) return { subAreaIds, centerX, centerY, worldMapId };
-
+): number[] {
+    if (!zoneName || subareas.length === 0) return [];
     const normalizedZone = normalize(zoneName);
 
     // Strategy 1: exact match
@@ -1596,29 +2165,110 @@ function resolveZoneInWorldmap(
             return n.includes(normalizedZone) || normalizedZone.includes(n);
         });
     }
-    matching.forEach(sa => subAreaIds.push(sa.id));
+    return matching.map(sa => sa.id);
+}
 
-    if (subAreaIds.length > 0) {
-        let bestMap: any = null;
-        for (const saId of subAreaIds) {
-            for (const m of mapsBySubAreaId.get(saId) || []) {
-                if (!bestMap) { bestMap = m; continue; }
-                const mOut = m.outdoor !== false;
-                const bOut = bestMap.outdoor !== false;
-                if (mOut && !bOut) { bestMap = m; continue; }
-                const mW = m.worldMap === -1 ? 1 : m.worldMap;
-                const bW = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
-                if (mOut === bOut && mW > bW) { bestMap = m; }
+/**
+ * Position d'une cible à partir de ses sous-zones : **une seule règle** pour
+ * tout le dépôt (`resolveSubAreaCenter` — centroïde du tracé officiel, repli sur
+ * la première map positionnée, jamais le tas (0, 0) de `worldmap.json`).
+ * Aucune sous-zone exploitable → aucun centre (jamais (0, 0) « par défaut »).
+ */
+function centerFromSubAreaIds(
+    subAreaIds: number[],
+    subareas: any[],
+    mapsBySubAreaId: Map<number, any[]>
+): { centerX: number | null; centerY: number | null; worldMapId: number } {
+    const center = resolveSubAreaCenter(subAreaIds, subareas, mapsBySubAreaId);
+    return center
+        ? { centerX: center.x, centerY: center.y, worldMapId: center.worldId }
+        : { centerX: null, centerY: null, worldMapId: 1 };
+}
+
+/**
+ * Centre **stocké** d'une cible (colonne `centerX`/`centerY`) : le couple (0, 0)
+ * y est le sentinelle « position inconnue » (507 lignes `Archimonstre` en base)
+ * — il est recalculé depuis les sous-zones au lieu d'être publié tel quel.
+ */
+function readStoredCenter(
+    centerX: number | null,
+    centerY: number | null,
+    worldMapId: number,
+    subAreaIds: number[],
+    subareas: any[],
+    mapsBySubAreaId: Map<number, any[]>
+): { centerX: number | null; centerY: number | null; worldMapId: number } {
+    if (centerX !== 0 || centerY !== 0) return { centerX, centerY, worldMapId };
+    return centerFromSubAreaIds(subAreaIds, subareas, mapsBySubAreaId);
+}
+
+/**
+ * Zones **réelles** d'un monstre (donnée souveraine `subarea-monsters.json`) : chaque
+ * sous-zone est nommée par `worldmap.json` et porte son centre calculé.
+ *
+ * 🎯 Demande user (12/10/2026) : « un archi a parfois plusieurs zones disponibles, il faut
+ * afficher chaque zone dispo en dropdown ». La liste vient du **jeu** (les `subareas`
+ * DofusDB d'un monstre), pas d'une supposition : un archimonstre EST un monstre (race 78).
+ */
+function monsterZoneEntries(
+    monsterId: number | null | undefined,
+    fallbackSubAreaIds?: number[] | null
+): Array<{ subAreaId: number; name: string; centerX: number | null; centerY: number | null; worldMapId: number }> {
+    const ids = subareaIdsForMonster(monsterId);
+    const list = ids.length > 0 ? ids : (Array.isArray(fallbackSubAreaIds) ? fallbackSubAreaIds : []);
+    if (list.length === 0) return [];
+
+    const { subareas, mapsBySubAreaId } = loadWorldmapIndex();
+    const byId = new Map<number, any>();
+    for (const sub of subareas) byId.set(Math.floor(Number(sub?.id) || 0), sub);
+
+    return list.map((subAreaId) => {
+        const sub = byId.get(subAreaId);
+        const rawName = sub?.name?.fr ?? (typeof sub?.name === 'string' ? sub.name : null);
+        return {
+            subAreaId,
+            name: String(rawName ?? `Sous-zone ${subAreaId}`),
+            ...centerFromSubAreaIds([subAreaId], subareas, mapsBySubAreaId),
+        };
+    });
+}
+
+/** Shared: resolve subAreaIds + center coords + worldMapId from a zone name against worldmap.json */
+function resolveZoneInWorldmap(
+    zoneName: string | null,
+    subareas: any[],
+    mapsBySubAreaId: Map<number, any[]>,
+    normalize: (s: string) => string
+): { subAreaIds: number[]; centerX: number | null; centerY: number | null; worldMapId: number } {
+    const subAreaIds = matchZoneSubAreaIds(zoneName, subareas, normalize);
+    return { subAreaIds, ...centerFromSubAreaIds(subAreaIds, subareas, mapsBySubAreaId) };
+}
+
+/** Index `worldmap.json` (sous-zones + maps groupées par sous-zone) — lu une fois par process. */
+let worldmapIndexCache: { subareas: any[]; mapsBySubAreaId: Map<number, any[]> } | null = null;
+
+function loadWorldmapIndex(): { subareas: any[]; mapsBySubAreaId: Map<number, any[]> } {
+    if (worldmapIndexCache) return worldmapIndexCache;
+
+    let subareas: any[] = [];
+    const mapsBySubAreaId = new Map<number, any[]>();
+    try {
+        const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
+        if (fs.existsSync(filePath)) {
+            const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            subareas = raw.subareas || [];
+            for (const m of (raw.maps || [])) {
+                if (m.subAreaId == null) continue;
+                if (!mapsBySubAreaId.has(m.subAreaId)) mapsBySubAreaId.set(m.subAreaId, []);
+                mapsBySubAreaId.get(m.subAreaId)!.push(m);
             }
         }
-        if (bestMap) {
-            centerX = bestMap.x;
-            centerY = bestMap.y;
-            worldMapId = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
-        }
+    } catch (error) {
+        logger.error('[loadWorldmapIndex] worldmap.json error:', { error });
     }
 
-    return { subAreaIds, centerX, centerY, worldMapId };
+    worldmapIndexCache = { subareas, mapsBySubAreaId };
+    return worldmapIndexCache;
 }
 
 /**
@@ -1679,23 +2329,8 @@ export async function searchArchimonstresForMap(
             return where;
         };
 
-        // ── 1. Load worldmap.json once (pour résolution zones des bounties & fallback) ──
-        let subareas: any[] = [];
-        const mapsBySubAreaId = new Map<number, any[]>();
-        try {
-            const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
-            if (fs.existsSync(filePath)) {
-                const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-                subareas = raw.subareas || [];
-                for (const m of (raw.maps || [])) {
-                    if (m.subAreaId == null) continue;
-                    if (!mapsBySubAreaId.has(m.subAreaId)) mapsBySubAreaId.set(m.subAreaId, []);
-                    mapsBySubAreaId.get(m.subAreaId)!.push(m);
-                }
-            }
-        } catch (err) {
-            logger.error('[searchArchimonstresForMap] worldmap.json error:', { error: err });
-        }
+        // ── 1. Index worldmap.json (zones des avis + fallback), mis en cache ──
+        const { subareas, mapsBySubAreaId } = loadWorldmapIndex();
 
         // ── 2. Archimonstre table (LOCAL-FIRST, filtrée par type/isOcre) ──
         const archiRows = await db.archimonstre.findMany({
@@ -1704,20 +2339,28 @@ export async function searchArchimonstresForMap(
             orderBy: { name: 'asc' },
         });
 
-        const archiResults = archiRows.map(a => ({
-            id: a.id,
-            name: a.name,
-            type: a.type,
-            isOcre: a.isOcre,
-            imageUrl: a.imageUrl,
-            level: a.level,
-            zoneName: a.zone,
-            source: 'local' as const,
-            subAreaIds: Array.isArray(a.subareaIds) ? (a.subareaIds as number[]) : [],
-            centerX: a.centerX,
-            centerY: a.centerY,
-            worldMapId: a.worldMapId,
-        }));
+        const archiResults = archiRows.map(a => {
+            const subAreaIds = Array.isArray(a.subareaIds) ? (a.subareaIds as number[]) : [];
+            return {
+                id: a.id,
+                name: a.name,
+                type: a.type,
+                isOcre: a.isOcre,
+                // 🛡️ Souveraineté (constat user du 12/10/2026, onglet Réseau : le navigateur
+                // appelait `https://api.dofusdb.fr/img/monsters/<id>.png` EN DIRECT) : un visuel
+                // DofusDB est toujours publié via le proxy interne. Autres sources inchangées.
+                imageUrl: internalDofusDbImageUrl(a.imageUrl) ?? a.imageUrl,
+                level: a.level,
+                zoneName: a.zone,
+                source: 'local' as const,
+                subAreaIds,
+                dofusdbId: a.dofusdbId ?? null,
+                // Toutes les zones RÉELLES de la cible (dataset souverain) : le menu
+                // déroulant du volet Archimonstres s'en sert pour proposer chaque zone.
+                zones: monsterZoneEntries(a.dofusdbId, subAreaIds),
+                ...readStoredCenter(a.centerX, a.centerY, a.worldMapId, subAreaIds, subareas, mapsBySubAreaId),
+            };
+        });
 
         const seenFromArchi = new Set(archiResults.map(r => normalize(r.name)));
 
@@ -1738,7 +2381,7 @@ export async function searchArchimonstresForMap(
                     name: b.name,
                     type: 'boss',
                     isOcre: false,
-                    imageUrl: b.imageUrl,
+                    imageUrl: internalDofusDbImageUrl(b.imageUrl) ?? b.imageUrl,
                     level: b.level,
                     zoneName: b.zoneName,
                     source: 'local' as const,
@@ -1763,12 +2406,17 @@ export async function searchArchimonstresForMap(
             try {
                 // Use (?i) inline flag — DofusDB rejects $options=i (not whitelisted)
                 const encodedQuery = encodeURIComponent(`(?i)${query.trim()}`);
-                // Le filtre "boss" n'a de sens que sur les boss de donjon DofusDB (typeId=23)
-                const bossOnly = filter === 'boss' ? `&typeId=23` : '';
+                // Le filtre "boss" interroge le drapeau `isBoss` de DofusDB.
+                // 🐛 Mesure du 27/09/2026 : ce filtre posait `typeId=23` — requête **morte**
+                // (`monsters?typeId=23` → `total: 0`) ⇒ la recherche « boss » du volet Worldmap ne
+                // remontait **jamais** rien par le fallback DofusDB. Vérifié : `isBoss=true` renvoie
+                // bien la cible attendue (`name.fr=(?i)qilby` → 1 entité, 0 avec `typeId=23`).
+                const bossOnly = filter === 'boss' ? `&isBoss=true` : '';
                 const url = `https://api.dofusdb.fr/monsters?lang=fr&name.fr[$regex]=${encodedQuery}${bossOnly}&$limit=10`;
-                const resp = await fetch(url, {
+                const resp = await dofusDbFetch(url, {
                     headers: { 'Accept': 'application/json' },
-                    cache: 'no-store'
+                    cache: 'no-store',
+                    signal: AbortSignal.timeout(8_000),
                 });
                 if (!resp.ok) {
                     logger.error('[searchArchimonstresForMap] DofusDB non-ok:', { status: resp.status });
@@ -1811,23 +2459,7 @@ export async function searchArchimonstresForMap(
                         if (firstSa) {
                             zoneName = typeof firstSa.name === 'string' ? firstSa.name : (firstSa.name?.fr || null);
                         }
-                        let bestMap: any = null;
-                        for (const saId of rawSubareaIds) {
-                            for (const map of mapsBySubAreaId.get(saId) || []) {
-                                if (!bestMap) { bestMap = map; continue; }
-                                const mOut = map.outdoor !== false;
-                                const bOut = bestMap.outdoor !== false;
-                                if (mOut && !bOut) { bestMap = map; continue; }
-                                const mW = map.worldMap === -1 ? 1 : map.worldMap;
-                                const bW = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
-                                if (mOut === bOut && mW > bW) { bestMap = map; }
-                            }
-                        }
-                        if (bestMap) {
-                            centerX = bestMap.x;
-                            centerY = bestMap.y;
-                            worldMapId = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
-                        }
+                        ({ centerX, centerY, worldMapId } = centerFromSubAreaIds(rawSubareaIds, subareas, mapsBySubAreaId));
                     }
 
                     results.push({
@@ -1942,25 +2574,105 @@ export async function getArchimonstresByFilter(
             orderBy: { name: 'asc' },
         });
 
-        const results = rows.map(a => ({
-            id: a.id,
-            name: a.name,
-            type: a.type,
-            isOcre: a.isOcre,
-            imageUrl: a.imageUrl,
-            level: a.level,
-            zoneName: a.zone,
-            source: 'local' as const,
-            subAreaIds: Array.isArray(a.subareaIds) ? (a.subareaIds as number[]) : [],
-            centerX: a.centerX,
-            centerY: a.centerY,
-            worldMapId: a.worldMapId,
-        }));
+        // ⚠️ Le sentinelle (0, 0) est stocké en base (507 lignes mesurées) : il est
+        // recalculé depuis les sous-zones, jamais publié tel quel.
+        const { subareas, mapsBySubAreaId } = loadWorldmapIndex();
+
+        const results = rows.map(a => {
+            const subAreaIds = Array.isArray(a.subareaIds) ? (a.subareaIds as number[]) : [];
+            return {
+                id: a.id,
+                name: a.name,
+                type: a.type,
+                isOcre: a.isOcre,
+                imageUrl: internalDofusDbImageUrl(a.imageUrl) ?? a.imageUrl,
+                level: a.level,
+                zoneName: a.zone,
+                source: 'local' as const,
+                subAreaIds,
+                dofusdbId: a.dofusdbId ?? null,
+                // Toutes les zones RÉELLES de la cible : un archimonstre apparaît souvent dans
+                // plusieurs sous-zones, et le volet doit pouvoir proposer chacune d'elles.
+                zones: monsterZoneEntries(a.dofusdbId, subAreaIds),
+                ...readStoredCenter(a.centerX, a.centerY, a.worldMapId, subAreaIds, subareas, mapsBySubAreaId),
+            };
+        });
 
         return { success: true, data: results };
     } catch (error) {
         logger.error('[getArchimonstresByFilter] Error:', { error });
         return { success: false, error: 'Erreur chargement filtre' };
+    }
+}
+
+/**
+ * Avis de recherche du panneau « Avis » de la carte du monde (public + interne) :
+ * nom, visuel, niveau, zone de traque et **zone résolue** (les `subareaIds`
+ * stockés en base font foi ; repli sur la résolution du nom contre
+ * `worldmap.json`). LOCAL-ONLY, zéro réseau. `query` vide = toute la liste.
+ */
+export async function getBountiesForMap(query?: string): Promise<ActionResponse<Array<{
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    level: number;
+    zoneName: string | null;
+    subAreaIds: number[];
+    centerX: number | null;
+    centerY: number | null;
+    worldMapId: number;
+    dpnlUrl: string | null;
+}>>> {
+    const normalize = (s: string) =>
+        s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    try {
+        const term = String(query ?? '').trim();
+        const rows = await db.bounty.findMany({
+            where: {
+                isBountyMonster: true,
+                ...(term.length >= 2 ? { name: { contains: term, mode: 'insensitive' as const } } : {}),
+            },
+            select: {
+                id: true,
+                name: true,
+                imageUrl: true,
+                dofusdbId: true,
+                level: true,
+                zoneName: true,
+                subareaIds: true,
+                dpnlUrl: true,
+            },
+            orderBy: { name: 'asc' },
+            take: 200,
+        });
+
+        const { subareas, mapsBySubAreaId } = loadWorldmapIndex();
+
+        const results = rows.map((b) => {
+            const stored = (Array.isArray(b.subareaIds) ? b.subareaIds : [])
+                .map((value: unknown) => Math.floor(Number(value)))
+                .filter((id: number) => Number.isInteger(id) && id > 0);
+            // Les sous-zones STOCKÉES font foi : le centre est calculé sur elles
+            // (et non sur le nom), sinon la carte se recentrait ailleurs que sur
+            // la zone encadrée — voire sur le tas (0, 0) de `worldmap.json`.
+            const subAreaIds = stored.length > 0 ? stored : matchZoneSubAreaIds(b.zoneName, subareas, normalize);
+            return {
+                id: b.id,
+                name: b.name,
+                imageUrl: normalizeDofusAssetStoredUrl("monsters", b.imageUrl, b.dofusdbId),
+                level: b.level,
+                zoneName: b.zoneName,
+                subAreaIds,
+                ...centerFromSubAreaIds(subAreaIds, subareas, mapsBySubAreaId),
+                dpnlUrl: b.dpnlUrl,
+            };
+        });
+
+        return { success: true, data: results };
+    } catch (error) {
+        logger.error('[getBountiesForMap] Error:', { error });
+        return { success: false, error: 'Erreur chargement des avis' };
     }
 }
 
@@ -1996,8 +2708,6 @@ export async function getArchimonstres(filter?: { type?: string; search?: string
 }
 
 const IGNORED_MONSTERS_PATH = path.join(process.cwd(), 'public', 'game-data', 'ignored-monsters.json');
-const IGNORED_FAMILIES_PATH = path.join(process.cwd(), 'public', 'game-data', 'ignored-families.json');
-const IGNORED_ZONES_PATH = path.join(process.cwd(), 'public', 'game-data', 'ignored-zones.json');
 
 function getIgnoredMonsters(): { names: string[]; dofusdbIds: number[] } {
     try {
@@ -2043,17 +2753,6 @@ function isIgnoredMonster(name?: string | null, dofusdbId?: number | null): bool
 }
 
 // --- Familles Exclues ---
-function getIgnoredFamilies(): string[] {
-    try {
-        if (fs.existsSync(IGNORED_FAMILIES_PATH)) {
-            const raw = fs.readFileSync(IGNORED_FAMILIES_PATH, 'utf-8');
-            const data = JSON.parse(raw);
-            return Array.isArray(data.names) ? data.names : [];
-        }
-    } catch { }
-    return [];
-}
-
 export async function addIgnoredFamily(name: string) {
     try {
         const current = getIgnoredFamilies();
@@ -2070,12 +2769,6 @@ export async function addIgnoredFamily(name: string) {
     } catch (e) {
         logger.error('[addIgnoredFamily] Error:', { error: e });
     }
-}
-
-function isIgnoredFamily(name?: string | null): boolean {
-    if (!name) return false;
-    const ignored = getIgnoredFamilies();
-    return ignored.includes(name.trim().toLowerCase());
 }
 
 export async function getIgnoredFamiliesAction(): Promise<ActionResponse<string[]>> {
@@ -2114,17 +2807,6 @@ export async function clearAllIgnoredFamiliesAction(): Promise<ActionResponse> {
 }
 
 // --- Zones Exclues ---
-function getIgnoredZones(): string[] {
-    try {
-        if (fs.existsSync(IGNORED_ZONES_PATH)) {
-            const raw = fs.readFileSync(IGNORED_ZONES_PATH, 'utf-8');
-            const data = JSON.parse(raw);
-            return Array.isArray(data.names) ? data.names : [];
-        }
-    } catch { }
-    return [];
-}
-
 export async function addIgnoredZone(name: string) {
     try {
         const current = getIgnoredZones();
@@ -2141,12 +2823,6 @@ export async function addIgnoredZone(name: string) {
     } catch (e) {
         logger.error('[addIgnoredZone] Error:', { error: e });
     }
-}
-
-function isIgnoredZone(name?: string | null): boolean {
-    if (!name) return false;
-    const ignored = getIgnoredZones();
-    return ignored.includes(name.trim().toLowerCase());
 }
 
 export async function getIgnoredZonesAction(): Promise<ActionResponse<string[]>> {
@@ -2180,6 +2856,112 @@ export async function clearAllIgnoredZonesAction(): Promise<ActionResponse> {
         return { success: true };
     } catch (e: any) {
         logger.error('[clearAllIgnoredZonesAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors de la réinitialisation' };
+    }
+}
+
+// --- Libellés masqués de la carte du monde (God → Données de jeu → Éditeurs → Zones) ---
+//
+// 🐛 Mesure du 11/10/2026 : ces libellés sont dessinés depuis `worldmap.json` (fichier
+// statique lu par le navigateur), **jamais** depuis la table `Zone` — les exclusions
+// ci-dessus n'avaient donc aucun effet visible sur la carte (demande user : « je peux
+// les modifier / en supprimer depuis God ? »). Ici le God écrit la liste que le
+// renderer lit : le retrait est immédiat et **siphon-proof** (aucun script de siphon
+// n'écrit ce fichier, et `deploy-cd.sh` le préserve).
+
+/** Écrit la liste (crée le dossier au besoin). Un échec remonte à l'appelant, jamais muet. */
+function writeHiddenMapZones(names: string[]): void {
+    const dir = path.dirname(HIDDEN_MAP_ZONES_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(HIDDEN_MAP_ZONES_PATH, JSON.stringify({
+        names,
+        updatedAt: new Date().toISOString()
+    }, null, 2));
+}
+
+/**
+ * Le nom correspond-il à un libellé **réellement dessiné** (sous-zone de `worldmap.json`) ?
+ * Sans ce contrôle, un « masquer » sur un nom mal orthographié n'aurait aucun effet visible
+ * et le God croirait l'avoir fait : `worldmap.json` est la seule source des libellés.
+ */
+function isDrawnZoneLabel(name: string): boolean {
+    const key = zoneNameKey(name);
+    if (!key) return false;
+    return loadWorldmapIndex().subareas.some((subArea) => {
+        const label = typeof subArea?.name === 'string' ? subArea.name : subArea?.name?.fr;
+        return zoneNameKey(label) === key;
+    });
+}
+export async function getHiddenMapZonesAction(): Promise<ActionResponse<string[]>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    return { success: true, data: getHiddenMapZones() };
+}
+
+/**
+ * Masque un libellé de zone sur la carte du monde (le nom **tel qu'il s'affiche**).
+ * Idempotent : la même zone (accents/casse ignorés) remplace son entrée précédente.
+ * `matched` dit si le nom correspond à un libellé réellement dessiné (`worldmap.json`) —
+ * un nom mal orthographié est accepté mais signalé, jamais validé en silence.
+ */
+export async function hideMapZoneLabelAction(name: string): Promise<ActionResponse<{ names: string[]; matched: boolean }>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) return { success: false, error: 'Accès refusé' };
+    const limiter = await rateLimit(`god:hide-map-zone:${userId}`, 30, 60_000);
+    if (!limiter.success) return { success: false, error: 'Trop de modifications — réessayez dans une minute' };
+
+    const label = String(name ?? '').trim();
+    if (!label) return { success: false, error: 'Nom de zone requis' };
+    try {
+        const key = zoneNameKey(label);
+        const names = [...getHiddenMapZones().filter(n => zoneNameKey(n) !== key), label]
+            .sort((a, b) => a.localeCompare(b));
+        const matched = isDrawnZoneLabel(label);
+        writeHiddenMapZones(names);
+        await logGameDataWrite('hide-map-zone-label', label, { total: names.length, matched });
+        return { success: true, data: { names, matched } };
+    } catch (e) {
+        logger.error('[hideMapZoneLabelAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors du masquage du libellé' };
+    }
+}
+
+/** Réaffiche un libellé masqué — retourne la liste restante. */
+export async function restoreHiddenMapZoneAction(name: string): Promise<ActionResponse<string[]>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) return { success: false, error: 'Accès refusé' };
+    const limiter = await rateLimit(`god:hide-map-zone:${userId}`, 30, 60_000);
+    if (!limiter.success) return { success: false, error: 'Trop de modifications — réessayez dans une minute' };
+
+    try {
+        const key = zoneNameKey(name);
+        const names = getHiddenMapZones().filter(n => zoneNameKey(n) !== key);
+        writeHiddenMapZones(names);
+        await logGameDataWrite('restore-map-zone-label', String(name ?? '').trim(), { total: names.length });
+        return { success: true, data: names };
+    } catch (e) {
+        logger.error('[restoreHiddenMapZoneAction] Error:', { error: e });
+        return { success: false, error: 'Erreur lors du réaffichage du libellé' };
+    }
+}
+
+export async function clearHiddenMapZonesAction(): Promise<ActionResponse<string[]>> {
+    if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) return { success: false, error: 'Accès refusé' };
+    const limiter = await rateLimit(`god:hide-map-zone:${userId}`, 30, 60_000);
+    if (!limiter.success) return { success: false, error: 'Trop de modifications — réessayez dans une minute' };
+
+    try {
+        writeHiddenMapZones([]);
+        await logGameDataWrite('clear-map-zone-labels');
+        return { success: true, data: [] };
+    } catch (e) {
+        logger.error('[clearHiddenMapZonesAction] Error:', { error: e });
         return { success: false, error: 'Erreur lors de la réinitialisation' };
     }
 }
@@ -2316,7 +3098,7 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
         }
 
         const zoneUrl = `https://www.metamob.fr/api/v1/quests/${encodeURIComponent(slug)}/zones?monster_type_id=3`;
-        const zoneRes = await fetch(zoneUrl, { headers, signal: AbortSignal.timeout(30000) });
+        const zoneRes = await dofusDbFetch(zoneUrl, { headers, signal: AbortSignal.timeout(30000) });
         if (!zoneRes.ok) {
             return { success: false, error: `Metamob zones API erreur ${zoneRes.status}. Vérifiez la clé API.` };
         }
@@ -2370,7 +3152,7 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
                     // DofusDB search by exact name
                     const encoded = encodeURIComponent(`(?i)^${monster.name.trim()}$`);
                     const url = `https://api.dofusdb.fr/monsters?lang=fr&name.fr[$regex]=${encoded}&$limit=1`;
-                    const resp = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+                    const resp = await dofusDbFetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
 
                     let imageUrl: string | null = null;
                     let level = 0;
@@ -2425,7 +3207,7 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
                     // B2 — Détecter si c'est une nouvelle entrée Ocre (absent avant upsert)
                     const existingOcre = await db.archimonstre.findFirst({
                         where: { name: monster.name, type: ocreType },
-                        select: { id: true },
+                        select: { id: true, imageUrl: true, level: true, dofusdbId: true, zone: true, isOcre: true },
                     });
                     if (!existingOcre) {
                         newOcreMonsters.push({ name: monster.name, type: ocreType, zone: monster.zone || '' });
@@ -2461,6 +3243,29 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
                             centerY,
                         },
                     });
+
+                    // 🔍 Journal (fiches éditoriales Ocre) : nouvelle fiche ou détail du changement.
+                    await recordGameDataChanges('ANOMALY_BOSSES', [
+                        {
+                            entityType: 'archimonstre',
+                            entityId: existingOcre?.id ?? `ocre:${dofusdbId}`,
+                            entityName: monster.name,
+                            changeType: existingOcre ? 'MODIFIED' : 'NEW',
+                            fields: existingOcre
+                                ? diffFields(
+                                      existingOcre as unknown as Record<string, unknown>,
+                                      {
+                                          imageUrl,
+                                          level,
+                                          dofusdbId,
+                                          zone: monster.zone || null,
+                                          isOcre: true,
+                                      },
+                                      ['imageUrl', 'level', 'dofusdbId', 'zone', 'isOcre'],
+                                  )
+                                : null,
+                        },
+                    ]);
                     synced++;
                 } catch (err) {
                     logger.error('[syncOcreArchimonstres] Error for monster:', { name: monster.name, error: err });
@@ -2552,7 +3357,7 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
 
         // ── 2. Pagination DofusDB (UN batch par appel) ────────────────────
         const url = `https://api.dofusdb.fr/monsters?lang=fr&$limit=${batchSize}&$skip=${skip}`;
-        const resp = await fetch(url, {
+        const resp = await dofusDbFetch(url, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(30000)
         });
@@ -2778,7 +3583,7 @@ export async function syncDofusBosses(): Promise<ActionResponse<{ synced: number
         let skip = 0;
         let total = 1;
         while (skip < total) {
-            const res = await fetch(`https://api.dofusdb.fr/monsters?$limit=50&$skip=${skip}&isBoss=true`, {
+            const res = await dofusDbFetch(`https://api.dofusdb.fr/monsters?$limit=50&$skip=${skip}&isBoss=true`, {
                 headers: { 'Accept': 'application/json' },
                 signal: AbortSignal.timeout(15000)
             });
@@ -2833,6 +3638,14 @@ export async function syncDofusBosses(): Promise<ActionResponse<{ synced: number
                 where: { name: nameFr, type: { not: 'boss' } }
             });
 
+            // 🔍 Image **avant** (fiche éditoriale « boss ») : permet de journaliser *quoi* a changé.
+            const previousBoss = await db.archimonstre
+                .findFirst({
+                    where: { name: nameFr, type: 'boss' },
+                    select: { id: true, imageUrl: true, level: true, dofusdbId: true, zone: true, centerX: true, centerY: true },
+                })
+                .catch(() => null);
+
             await db.archimonstre.upsert({
                 where: { name_type: { name: nameFr, type: 'boss' } },
                 update: {
@@ -2859,6 +3672,30 @@ export async function syncDofusBosses(): Promise<ActionResponse<{ synced: number
                     centerY
                 }
             });
+
+            // 🔍 Journal (dataset ANOMALY_BOSSES = fiches monstres/boss) : création ou détail du change.
+            await recordGameDataChanges('ANOMALY_BOSSES', [
+                {
+                    entityType: 'boss',
+                    entityId: previousBoss?.id ?? `boss:${b.id}`,
+                    entityName: nameFr,
+                    changeType: previousBoss ? 'MODIFIED' : 'NEW',
+                    fields: previousBoss
+                        ? diffFields(
+                              previousBoss as unknown as Record<string, unknown>,
+                              {
+                                  imageUrl: b.img || null,
+                                  level: b.grades?.[0]?.level ?? 0,
+                                  dofusdbId: b.id,
+                                  zone: zoneName,
+                                  centerX,
+                                  centerY,
+                              },
+                              ['imageUrl', 'level', 'dofusdbId', 'zone', 'centerX', 'centerY'],
+                          )
+                        : null,
+                },
+            ]);
             synced++;
         }
 
@@ -2956,7 +3793,7 @@ export async function checkDofusDbApiHealth(): Promise<ActionResponse<{
         testUrls.map(async (ep) => {
             const start = performance.now();
             try {
-                const res = await fetch(ep.url, {
+                const res = await dofusDbFetch(ep.url, {
                     headers: { 'Accept': 'application/json', 'User-Agent': 'SigilOS-SyncEngine/2.0' },
                     signal: AbortSignal.timeout(6000)
                 });
@@ -2994,48 +3831,17 @@ export async function checkDofusDbApiHealth(): Promise<ActionResponse<{
 }
 
 /**
- * 🦎 Synchronisation automatique des Familles de Monstres depuis DofusDB (/monster-races).
- * Préserve les modifications manuelles tout en ajoutant les familles officielles manquantes.
+ * 🦎 Synchronisation des familles de monstres et de leurs créatures (DofusDB).
+ * Le CŒUR vit dans `src/lib/monster-families-siphon.ts` : il est donc exécutable
+ * par la file d'arrière-plan (fermer l'onglet ne perd plus la passe).
  */
-export async function syncMonsterFamiliesFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number }>> {
+export async function syncMonsterFamiliesFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number; monstersSynced?: number }>> {
     if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
 
     try {
-        let skip = 0;
-        let total = 1;
-        let synced = 0;
-
-        while (skip < total) {
-            const res = await fetch(`https://api.dofusdb.fr/monster-races?$limit=50&$skip=${skip}`, {
-                headers: { 'Accept': 'application/json' },
-                signal: AbortSignal.timeout(15000)
-            });
-            if (!res.ok) break;
-            const json = await res.json();
-            total = json.total || 0;
-            const items = json.data || [];
-            if (items.length === 0) break;
-
-            for (const item of items) {
-                const nameFr = typeof item.name === 'string' ? item.name : (item.name?.fr || item.name?.en || '');
-                if (!nameFr || !nameFr.trim()) continue;
-                if (isIgnoredFamily(nameFr)) continue;
-
-                await db.monsterFamily.upsert({
-                    where: { name: nameFr.trim() },
-                    update: {}, // Préserve les données manuelles existantes
-                    create: {
-                        name: nameFr.trim(),
-                        level: null,
-                    }
-                });
-                synced++;
-            }
-            skip += items.length;
-        }
-
-        await logGameDataWrite("sync-monster-families", `synced-${synced}`);
-        return { success: true, data: { synced, total } };
+        const result = await syncMonsterFamiliesCore();
+        await logGameDataWrite("sync-monster-families", `families-${result.synced}_monsters-${result.monstersSynced}`);
+        return { success: true, data: result };
     } catch (e: any) {
         logger.error('[syncMonsterFamiliesFromDofusDb] Error:', { error: e });
         return { success: false, error: 'Erreur lors de la synchronisation des familles' };
@@ -3043,91 +3849,16 @@ export async function syncMonsterFamiliesFromDofusDb(): Promise<ActionResponse<{
 }
 
 /**
- * 🗺️ Synchronisation automatique des Zones & Sous-zones du Monde des Douze depuis DofusDB (/subareas & /areas).
- * Ingestion complète des 562+ sous-zones réelles avec leurs niveaux exacts et des macro-régions.
- * Préserve les zones custom et configurations existantes.
+ * 🗺️ Synchronisation des zones & sous-zones du Monde des Douze (DofusDB `/subareas` & `/areas`).
+ * Le CŒUR vit dans `src/lib/zones-siphon.ts` (exécutable en arrière-plan).
  */
 export async function syncZonesFromDofusDb(): Promise<ActionResponse<{ synced: number; total: number }>> {
     if (!(await canAccessGameData())) return { success: false, error: 'Accès refusé' };
 
     try {
-        let synced = 0;
-        let totalProcessed = 0;
-
-        // 1. Synchronisation des 562 Sous-Zones (lieux réels de présence : Montagne des Craqueleurs, Port de Madrestam...)
-        let subSkip = 0;
-        let subTotal = 1;
-
-        while (subSkip < subTotal) {
-            const res = await fetch(`https://api.dofusdb.fr/subareas?$limit=50&$skip=${subSkip}`, {
-                headers: { 'Accept': 'application/json' },
-                signal: AbortSignal.timeout(15000)
-            });
-            if (!res.ok) break;
-            const json = await res.json();
-            subTotal = json.total || 0;
-            const items = json.data || [];
-            if (items.length === 0) break;
-
-            for (const item of items) {
-                const nameFr = typeof item.name === 'string' ? item.name : (item.name?.fr || item.name?.en || '');
-                if (!nameFr || !nameFr.trim()) continue;
-                if (isIgnoredZone(nameFr)) continue;
-
-                const lvl = typeof item.level === 'number' && item.level > 0 ? item.level : 200;
-
-                await db.zone.upsert({
-                    where: { name: nameFr.trim() },
-                    update: {
-                        // Met à jour le niveau officiel si présent
-                        level: lvl
-                    },
-                    create: {
-                        name: nameFr.trim(),
-                        level: lvl,
-                    }
-                });
-                synced++;
-            }
-            subSkip += items.length;
-            totalProcessed = subTotal;
-        }
-
-        // 2. Synchronisation des 69 Grandes Régions (Amakna, Cania, Frigost...)
-        let areaSkip = 0;
-        let areaTotal = 1;
-
-        while (areaSkip < areaTotal) {
-            const res = await fetch(`https://api.dofusdb.fr/areas?$limit=50&$skip=${areaSkip}`, {
-                headers: { 'Accept': 'application/json' },
-                signal: AbortSignal.timeout(15000)
-            });
-            if (!res.ok) break;
-            const json = await res.json();
-            areaTotal = json.total || 0;
-            const items = json.data || [];
-            if (items.length === 0) break;
-
-            for (const item of items) {
-                const nameFr = typeof item.name === 'string' ? item.name : (item.name?.fr || item.name?.en || '');
-                if (!nameFr || !nameFr.trim()) continue;
-                if (isIgnoredZone(nameFr)) continue;
-
-                await db.zone.upsert({
-                    where: { name: nameFr.trim() },
-                    update: {}, // Préserve les réglages existants
-                    create: {
-                        name: nameFr.trim(),
-                        level: 200,
-                    }
-                });
-                synced++;
-            }
-            areaSkip += items.length;
-        }
-
-        await logGameDataWrite("sync-zones", `synced-${synced}`);
-        return { success: true, data: { synced, total: totalProcessed + areaTotal } };
+        const result = await syncZonesFromDofusDbCore();
+        await logGameDataWrite("sync-zones", `synced-${result.synced}`);
+        return { success: true, data: result };
     } catch (e: any) {
         logger.error('[syncZonesFromDofusDb] Error:', { error: e });
         return { success: false, error: 'Erreur lors de la synchronisation des zones et sous-zones' };

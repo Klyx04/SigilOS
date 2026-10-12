@@ -13,6 +13,10 @@ import { Prisma } from "@prisma/client";
 import { createAuditLog } from "./audit-actions";
 import { getDisplayName } from "@/lib/display-name";
 import { auth } from "@/auth";
+import {
+    withdrawMarketListingsForGuildMember,
+    withdrawMarketListingsForProfileCore,
+} from "@/server/market/lifecycle";
 
 /**
  * Archive a profile (Self-service or Admin)
@@ -74,7 +78,7 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
             });
         }
 
-        const duration = durationMonths || 3; // Default to 3 months for self archival
+        const duration = durationMonths || 12; // Défaut : 12 mois d'archivage automatique
         const days = duration * 30.5;
         const scheduledDeletion = new Date(Date.now() + Math.floor(days * 24 * 60 * 60 * 1000));
 
@@ -383,6 +387,14 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
             await db.user.delete({ where: { id: targetUserId } });
         }
 
+        // 3bis. Succession automatique si l'utilisateur supprimé était le propriétaire de la guilde (#230)
+        if (guildConfig?.ownerId === targetUserId || (targetDiscordId && guildConfig?.ownerId === targetDiscordId)) {
+            const { handleGuildOwnerSuccession } = await import("./guild-owner-actions");
+            await handleGuildOwnerSuccession(target.guildId, targetUserId).catch(err => {
+                logger.error("[Lifecycle] Failed auto-succession after owner deletion:", err);
+            });
+        }
+
         await createAuditLog({
             guildId,
             action: "MEMBER_PURGED" as any,
@@ -471,10 +483,12 @@ export async function reactivateProfileByAdmin(
         }
 
         // Invalidate Redis cache to ensure the user sees their restored access immediately
+        // (⚠️ 2ᵉ arg = UUID interne de la guilde, 3ᵉ = discordGuildId — sinon la clé mémoire
+        // `profile:{userId}:{internalGuildId}` que lit getUserContext reste périmée 60s)
         await invalidateUserContextCache(
-            updated.userId, 
-            guildId, 
-            profile.user.accounts[0]?.providerAccountId
+            updated.userId,
+            profile.guildId,
+            guildId
         );
 
         // Invalidate sessions so they must re-auth (picks up new ACTIVE status)
@@ -503,14 +517,14 @@ export async function reactivateProfileByAdmin(
     }
 }
 
-// Retention periods in days
+// Retention periods in days — politique d'archivage automatique : 12 mois (365 j)
 const RETENTION_DAYS = {
-    USER_LEAVE: 90,    // Voluntary departure: 90 days
-    LEFT: 90,          // Left via sync: 90 days
-    ADMIN_ACTION: 30,  // Archived by admin: 30 days
-    KICKED: 30,        // Wiped by admin: 30 days
-    BANNED: 0,         // Already anonymized immediately
-    GDPR_REQUEST: 0    // Immediate deletion on GDPR request
+    USER_LEAVE: 365,    // Départ volontaire : 12 mois
+    LEFT: 365,          // Départ via sync : 12 mois
+    ADMIN_ACTION: 365,  // Archivé par un admin : 12 mois
+    KICKED: 365,        // Nettoyé par un admin : 12 mois
+    BANNED: 0,          // Déjà anonymisé immédiatement
+    GDPR_REQUEST: 0     // Suppression immédiate sur demande RGPD
 };
 
 /**
@@ -661,11 +675,9 @@ export async function handleGdprDeletionRequest() {
         let ownedCount = 0;
         let blockedGuildName = "";
 
-        // Send notifications BEFORE deletion while we still have profile data
-        for (const profile of userProfiles) {
-            await sendLifecycleNotification(profile.guild.discordGuildId, profile, "DELETED", "RGPD (Suppression de compte)");
-        }
-
+        // 🔒 VÉRIFICATION STRICTE DE PROPRIÉTÉ EN PREMIER (Fail-Closed)
+        // Ne JAMAIS envoyer de notification Discord ou d'audit log de suppression
+        // tant qu'on n'a pas validé que le compte est autorisé à être supprimé !
         for (const profile of userProfiles) {
             let currentOwnerId = (profile.guild as any).ownerId;
 
@@ -690,8 +702,24 @@ export async function handleGdprDeletionRequest() {
                 ownedCount++;
                 blockedGuildName = profile.guild.name;
             }
+        }
 
-            // Create Audit Log BEFORE deletion so it persist in God Dashboard
+        // Si l'utilisateur possède au moins une guilde, on BLOQUE IMMÉDIATEMENT sans AUCUNE notification
+        if (ownedCount > 0) {
+            logger.warn(`[GDPR Deletion] Blocked: User is technical owner of ${ownedCount} guilds (ex: ${blockedGuildName})`);
+            return {
+                success: false,
+                error: `Impossible de supprimer : vous êtes propriétaire de ${ownedCount} guilde(s) (ex: ${blockedGuildName}). Transférez la propriété sur Discord d'abord.`
+            };
+        }
+
+        // ✅ L'utilisateur n'est propriétaire d'aucune guilde : la suppression est autorisée.
+        // On peut maintenant envoyer les notifications Discord et créer les audit logs.
+        for (const profile of userProfiles) {
+            // Notification Discord de suppression de compte
+            await sendLifecycleNotification(profile.guild.discordGuildId, profile, "DELETED", "RGPD (Suppression de compte)");
+
+            // Audit log de suppression RGPD
             try {
                 await createAuditLog({
                     guildId: profile.guild.discordGuildId,
@@ -708,22 +736,30 @@ export async function handleGdprDeletionRequest() {
                 });
             } catch (auditErr) {
                 logger.error(`[GDPR Deletion] Audit log failed for guild ${profile.guild.name}:`, auditErr);
-                // Don't block deletion if audit log fails, but it's bad
             }
-        }
-
-        if (ownedCount > 0) {
-            logger.warn(`[GDPR Deletion] Blocked: User is technical owner of ${ownedCount} guilds`);
-            return {
-                success: false,
-                error: `Impossible de supprimer : vous êtes propriétaire de ${ownedCount} guilde(s) (ex: ${blockedGuildName}). Transférez la propriété sur Discord d'abord.`
-            };
         }
 
         // Supprimons simplement le user (Cascade s'occupe du reste)
         // Mais invalidons d'abord les caches pour éviter les sessions fantômes
         for (const profile of userProfiles) {
             await invalidateUserContextCache(userId, profile.guild.id, profile.guild.discordGuildId);
+        }
+
+        // S5.11/S8.20 — RGPD : les annonces **encore vivantes** du membre partent en
+        // `WITHDRAWN` (journal d'audit du marché) AVANT la suppression du `User`
+        // (dont la cascade effacerait les annonces). Best-effort : un échec du
+        // marché ne doit jamais bloquer la suppression RGPD.
+        for (const profile of userProfiles) {
+            try {
+                await withdrawMarketListingsForProfileCore({
+                    guildConfigId: profile.guild.id,
+                    profileId: profile.id,
+                    reason: "GDPR_DELETION",
+                    actorUserId: userId,
+                });
+            } catch (marketError) {
+                logger.warn("[GDPR Deletion] cascade Marché différée", { err: String(marketError) });
+            }
         }
 
         await db.user.delete({
@@ -751,17 +787,18 @@ export async function syncGuildMembers(discordGuildId: string) {
     }
 
     try {
-        const { listGuildMembers, fetchGuildBans } = await import("@/server/discord");
+        const { listGuildMembers, fetchGuildBans, fetchAuditExecutor, executorMetadata, DISCORD_AUDIT_ACTIONS } = await import("@/server/discord");
 
         // 1. Fetch current members from Discord
         const discordMembers = await listGuildMembers(discordGuildId);
         const discordUserIds = new Set(discordMembers.map(m => m.user.id));
 
         // 2. Fetch all profiles for this guild with their Discord Accounts
+        // #1 validé : inclut ARCHIVED pour détecter un ban Discord APRÈS le départ.
         const profiles = await db.userProfile.findMany({
             where: {
                 guild: { discordGuildId },
-                status: "ACTIVE"
+                status: { in: ["ACTIVE", "ARCHIVED"] }
             },
             include: {
                 user: {
@@ -781,16 +818,41 @@ export async function syncGuildMembers(discordGuildId: string) {
 
         let archivedCount = 0;
         let bannedCount = 0;
+        let nicknamesRefreshed = 0;
+
+        // Pseudo serveur (nick Discord) par compte, pour rafraîchir le registre.
+        const nickByDiscordId = new Map(discordMembers.map((m) => [m.user.id, m.nick ?? null]));
 
         // 4. Compare and archive/anonymize
         for (const profile of profiles) {
             const discordId = profile.user.accounts[0]?.providerAccountId;
 
+            if (discordId && discordUserIds.has(discordId)) {
+                // Registre : le pseudo serveur se remplit et se met à jour seul.
+                // On n'écrase que si Discord a un nick différent (NULL = pas de nick → on garde).
+                const serverNick = nickByDiscordId.get(discordId) ?? null;
+                if (serverNick && serverNick !== profile.discordNickname) {
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: { discordNickname: serverNick.slice(0, 32) },
+                    });
+                    nicknamesRefreshed++;
+                }
+            }
+
             if (discordId && !discordUserIds.has(discordId)) {
                 // Check if they are banned or just left
                 const isBanned = bannedUserIds.has(discordId);
 
+                // #1 validé : déjà ARCHIVED et pas banni → on ne touche à rien
+                // (évite de reset la rétention 12 mois à chaque sync).
+                if (!isBanned && (profile as { status?: string }).status === "ARCHIVED") {
+                    continue;
+                }
+
                 if (isBanned) {
+                    // Exécutant réel du ban (staff ou bot tiers).
+                    const banExOld = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_ADD, discordId).catch(() => null);
                     await db.userProfile.update({
                         where: { id: profile.id },
                         data: {
@@ -823,13 +885,13 @@ export async function syncGuildMembers(discordGuildId: string) {
                             create: {
                                 guildId: profile.guildId,
                                 discordId,
-                                reason: "BANNED (Discord)",
+                                reason: "Banni sur le serveur Discord",
                                 bannedBy: "SYSTEM",
-                                bannedByName: "Sync System",
+                                bannedByName: "Vérification auto",
                                 memberName
                             },
                             update: {
-                                reason: "BANNED (Discord)",
+                                reason: "Banni sur le serveur Discord",
                                 liftedAt: null,
                                 liftedBy: null,
                                 liftedByName: null,
@@ -844,7 +906,7 @@ export async function syncGuildMembers(discordGuildId: string) {
                     await closeMemberPublishedContent(discordGuildId, profile.id, profile.userId, "BANNED (Discord)");
 
                     // 🔔 Lifecycle Notification
-                    await sendLifecycleNotification(discordGuildId, profile, "BANNED", "SYNC (Détection automatique)");
+                    await sendLifecycleNotification(discordGuildId, profile, "BANNED", "Vérification automatique");
 
                     // 📝 AUDIT LOG Departure (Banned)
                     try {
@@ -852,19 +914,31 @@ export async function syncGuildMembers(discordGuildId: string) {
                         await log({
                             guildId: discordGuildId,
                             actorUserId: "SYSTEM",
-                            actorName: "Sync System",
+                            actorName: "Vérification auto",
                             action: "MEMBER_BANNED" as any,
                             targetType: "PROFILE",
                             targetId: profile.id,
                             metadata: { 
                                 description: profile.pseudoDofus || profile.discordNickname || "Inconnu",
-                                reason: "Bannissement Discord détecté lors de la synchro"
+                                reason: "Banni sur Discord",
+                                ...executorMetadata(banExOld, discordId)
                             }
                         });
                     } catch (e) { logger.error("[Lifecycle Sync] Audit failed", e); }
 
                     bannedCount++;
                 } else {
+                    // Auteur réel : exclu par un staff/bot ou parti de lui-même.
+                    // « lui-même » uniquement si le journal a bien été lu (checked).
+                    let kickExOld = null;
+                    let kickCheckedOld = false;
+                    try {
+                        kickExOld = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.KICK, discordId);
+                        kickCheckedOld = true;
+                    } catch {
+                        kickCheckedOld = false;
+                    }
+                    const kickedOld = kickExOld && kickExOld.userId !== discordId ? kickExOld : null;
                     const twelveMonthsFromNow = new Date();
                     twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
 
@@ -882,7 +956,7 @@ export async function syncGuildMembers(discordGuildId: string) {
                     await closeMemberPublishedContent(discordGuildId, profile.id, profile.userId, "LEFT");
 
                     // 🔔 Lifecycle Notification
-                    await sendLifecycleNotification(discordGuildId, profile, "LEFT", "SYNC (Détection automatique)");
+                    await sendLifecycleNotification(discordGuildId, profile, "LEFT", "Vérification automatique");
 
                     // 📝 AUDIT LOG Departure (Left)
                     try {
@@ -890,13 +964,18 @@ export async function syncGuildMembers(discordGuildId: string) {
                         await log({
                             guildId: discordGuildId,
                             actorUserId: "SYSTEM",
-                            actorName: "Sync System",
+                            actorName: "Vérification auto",
                             action: "MEMBER_LEFT" as any,
                             targetType: "PROFILE",
                             targetId: profile.id,
                             metadata: { 
                                 description: profile.pseudoDofus || profile.discordNickname || "Inconnu",
-                                reason: "Départ Discord détecté lors de la synchro"
+                                reason: kickedOld ? "Exclu du serveur" : "A quitté le serveur",
+                                ...(kickedOld
+                                    ? executorMetadata(kickedOld, discordId)
+                                    : kickCheckedOld
+                                      ? { executorId: discordId, executorIsSelf: true }
+                                      : {})
                             }
                         });
                     } catch (e) { logger.error("[Lifecycle Sync] Audit failed", e); }
@@ -909,7 +988,7 @@ export async function syncGuildMembers(discordGuildId: string) {
         revalidatePath(`/dashboard/${discordGuildId}/admin`);
         return {
             success: true,
-            message: `${archivedCount} archivés et ${bannedCount} nettoyés (bans) sur ${profiles.length} vérifiés.`,
+            message: `${archivedCount} archivés et ${bannedCount} nettoyés (bans) sur ${profiles.length} vérifiés, ${nicknamesRefreshed} pseudo(s) serveur actualisé(s).`,
             count: archivedCount + bannedCount
         };
     } catch (error) {
@@ -958,6 +1037,35 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
         // 🔔 Lifecycle Notification — before anonymization
         await sendLifecycleNotification(discordGuildId, profile, "BANNED", ctx.name ?? "Un administrateur");
 
+        // ── F-01 : tombstone guild-scopé — le membre « nettoyé » (status BANNED) reste
+        // bloqué et visible/réintégrable dans l'onglet « Exclus ». Sans tombstone, il était
+        // en « Accès Banni » mais INVISIBLE dans Exclus (impossible à réintégrer via l'UI).
+        if (targetDiscordId) {
+            try {
+                const memberName = profile.pseudoDofus || profile.discordNickname || profile.user?.name || null;
+                await db.guildMemberBan.upsert({
+                    where: { guildId_discordId: { guildId: profile.guildId, discordId: targetDiscordId } },
+                    create: {
+                        guildId: profile.guildId,
+                        discordId: targetDiscordId,
+                        reason: "KICKED (RGPD wipe)",
+                        bannedBy: ctx.id ?? "system",
+                        bannedByName: ctx.name ?? "Un administrateur",
+                        memberName
+                    },
+                    update: {
+                        reason: "KICKED (RGPD wipe)",
+                        liftedAt: null,
+                        liftedBy: null,
+                        liftedByName: null,
+                        memberName
+                    }
+                });
+            } catch (banErr) {
+                logger.error("[GuildMemberBan] tombstone on wipe failed:", banErr);
+            }
+        }
+
         await db.userProfile.update({
             where: { id: profileId },
             data: {
@@ -979,6 +1087,19 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
                 lastActivityDesc: "Données nettoyées manuellement par un administrateur.",
             }
         });
+
+        // S5.11/S8.20 — un profil nettoyé (BANNED) ne garde pas d'annonces actives :
+        // cascade marché best-effort, jamais bloquante pour le nettoyage RGPD.
+        try {
+            await withdrawMarketListingsForGuildMember({
+                discordGuildId,
+                profileId,
+                reason: "KICKED (RGPD wipe)",
+                actorUserId: ctx.id ?? null,
+            });
+        } catch (marketError) {
+            logger.warn("[Manual Wipe] cascade Marché différée", { err: String(marketError) });
+        }
 
         revalidatePath(`/dashboard/${discordGuildId}/admin`);
         return { success: true };
@@ -1177,10 +1298,11 @@ export async function getGuildMemberBans(guildId: string) {
     });
     if (!guild) return { success: false, error: "Guild not found", data: [] };
 
+    // ⚠️ F-01 — pas de `take` : une limite (ex. 100) rendait certains exclusions invisibles
+    // dans l'onglet « Exclus » (le membre apparaissait « Accès Banni » sans être réintégrable).
     const bans = await db.guildMemberBan.findMany({
         where: { guildId: guild.id, liftedAt: null },
-        orderBy: { createdAt: "desc" },
-        take: 100
+        orderBy: { createdAt: "desc" }
     });
 
     return { success: true, data: bans };
@@ -1223,6 +1345,18 @@ export async function liftGuildMemberBan(guildId: string, discordId: string) {
             }
         });
 
+        // F-01 : lever le tombstone en BDD ne suffit pas — il faut invalider le
+        // contexte user (`user:ctx` = isBanned) + purger les sessions du membre,
+        // sinon il reste bloqué sur « Accès Banni » jusqu'à expiration du cache.
+        const account = await db.account.findFirst({
+            where: { provider: "discord", providerAccountId: discordId },
+            select: { userId: true }
+        });
+        if (account) {
+            await invalidateUserContextCache(account.userId, guild.id, guildId);
+            await db.session.deleteMany({ where: { userId: account.userId } });
+        }
+
         revalidatePath(`/dashboard/${guildId}/admin/members`);
         return { success: true };
     } catch (e) {
@@ -1235,6 +1369,7 @@ export async function liftGuildMemberBan(guildId: string, discordId: string) {
  * Ferme TOUT le contenu publié par un membre exclu (archivé / banni / supprimé) :
  * - Posts DJ & quêtes en cours (OPEN/FULL) → CLOSED + suppression de l'embed Discord
  * - Runs songes en cours (leader) → ABANDONED + suppression de l'embed Discord
+ * - Annonces du Marché encore vivantes → WITHDRAWN (S5.11/S8.20, §15.2) + audit du marché
  * Best-effort et non bloquant. Aucune auto-expiration temporelle : un post ne se ferme
  * que si son émetteur quitte le dashboard (chantier #31).
  */
@@ -1243,8 +1378,8 @@ export async function closeMemberPublishedContent(
     profileId: string,
     userId: string,
     reason: string
-): Promise<{ dj: number; runs: number }> {
-    const closed = { dj: 0, runs: 0 };
+): Promise<{ dj: number; runs: number; market: number }> {
+    const closed = { dj: 0, runs: 0, market: 0 };
     try {
         // 1. Posts DJ / quêtes actifs du membre → CLOSED
         const djPosts = await (db as any).djSearchPost.findMany({
@@ -1273,6 +1408,20 @@ export async function closeMemberPublishedContent(
             closed.runs = dreamRuns.length;
         }
 
+        // 2bis. S5.11/S8.20 — annonces du Marché encore vivantes → WITHDRAWN.
+        // Le core est **non bloquant** (try/catch local + Discord jamais attendu) :
+        // un échec du marché ne doit jamais empêcher l'archivage / la suppression.
+        try {
+            const marketOutcome = await withdrawMarketListingsForGuildMember({
+                discordGuildId: guildId,
+                profileId,
+                reason,
+            });
+            closed.market = marketOutcome.withdrawn;
+        } catch (marketError) {
+            logger.warn("[Lifecycle] cascade Marché différée", { err: String(marketError) });
+        }
+
         // 3. Suppression des embeds Discord (best-effort, jamais bloquant)
         if (closed.dj > 0 || closed.runs > 0) {
             const { deleteChannelMessage } = await import("@/server/discord");
@@ -1288,7 +1437,7 @@ export async function closeMemberPublishedContent(
                 }
             }
             await Promise.allSettled(deleteTasks);
-            logger.info(`[Lifecycle] Contenu fermé pour exclusion (${reason}): ${closed.dj} post(s) DJ, ${closed.runs} run(s) songes`);
+            logger.info(`[Lifecycle] Contenu fermé pour exclusion (${reason}): ${closed.dj} post(s) DJ, ${closed.runs} run(s) songes, ${closed.market} annonce(s) Marché`);
         }
     } catch (e) {
         logger.error("[closeMemberPublishedContent] error:", e);

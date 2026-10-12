@@ -2,6 +2,7 @@
 // This file configures Sentry on the server side
 
 import * as Sentry from "@sentry/nextjs";
+import { COMMON_IGNORE_ERRORS, SERVER_IGNORE_ERRORS } from "./src/lib/sentry-ignores";
 
 Sentry.init({
     dsn: process.env.SENTRY_DSN,
@@ -21,6 +22,10 @@ Sentry.init({
             levels: ["error"], // Only capture console.error
         }),
     ],
+
+    // 🧹 Filtres d'entrée — **source unique partagée** (`src/lib/sentry-ignores.ts`) : les
+    // mesures qui justifient chaque filtre y vivent, jamais dupliquées ici.
+    ignoreErrors: [...COMMON_IGNORE_ERRORS, ...SERVER_IGNORE_ERRORS],
 
     // Before sending, add extra context
     beforeSend(event) {

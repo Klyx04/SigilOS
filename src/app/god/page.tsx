@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
@@ -12,7 +11,6 @@ import {
     MapPin,
     Trophy,
     Gamepad2,
-    Flag,
     Book
 } from "lucide-react";
 import {
@@ -34,10 +32,8 @@ import {
 import { LiveStats } from "./components/live-stats";
 import { GuildTable } from "./components/guild-table";
 import { ActivityChart } from "./activity-chart";
-import { JanitorButton } from "./janitor-button";
 import { GodDashboardClient } from "./god-dashboard-client";
 import { AnnouncementPanel } from "./components/announcement-panel";
-import { GhostRadarPanel } from "./components/ghost-radar-panel";
 import { StorageOverviewPanel } from "@/components/admin/storage-overview-panel";
 import { TicketDashboard } from "./components/ticket-dashboard";
 import GameDataInterface from "@/components/admin/GameDataInterface";
@@ -46,13 +42,14 @@ import { EventZoneManager } from "@/components/admin/EventZoneManager";
 import { OverviewTabs } from "./components/overview-tabs";
 import { GodLoadingSkeleton } from "./ui";
 import { BlacklistSection } from "./components/blacklist-section";
-import { DeletionPendingPanel } from "@/components/admin/deletion-pending-panel";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
 import { WorkerTester } from "./components/worker-tester";
 import { getPlatformConfig } from "@/server/actions/god-mini-games-actions";
 import { getTelemetryStats } from "@/server/actions/telemetry-actions";
 import { TelemetryDashboard } from "./components/telemetry-dashboard";
+import { CronStatusPanel } from "./components/cron-status-panel";
+import { GodSlashCommandsPanel } from "./components/god-slash-commands-panel";
 import { getGodRoute } from "@/lib/god-route";
 
 
@@ -67,13 +64,13 @@ export default async function SuperAdminPage(props: {
         telemetry: "telemetry",
         "game-data": "game-data",
         "mini-games": "mini-games",
+        modules: "modules",
         guilds: "guilds",
         infrastructure: "infrastructure",
+        "cron-status": "infrastructure",
         storage: "storage",
         notifications: "notifications",
         tickets: "tickets",
-        security: "security",
-        "game-data/bounties": "game-data-bounties",
     };
     // 🔄 R1/P2 — Résout la cible d'atterrissage la plus pertinente pour un sub-god.
     // Priorité : briques accessibles (PIM), puis scopes globaux. Chaque cible pointe
@@ -130,6 +127,10 @@ export default async function SuperAdminPage(props: {
 
     const resolvedSearchParams = await props.searchParams;
     const requestedTab = resolvedSearchParams.tab || "overview";
+    // 🧭 G11 — **une seule porte** pour les journaux : l'ancien onglet `security`
+    // affichait le même `AuditLog` que `/god/logs`. Des liens existent (menu God,
+    // favoris du staff) ⇒ on **redirige**, on ne supprime jamais la route à sec.
+    if (requestedTab === "security") redirect(`${godRoute}/logs`);
     let tab = requestedTab;
 
     // 🔄 P2 — Guard fail-closed STRICT (fix #108) : un sous-god n'accède à un onglet
@@ -288,35 +289,9 @@ export default async function SuperAdminPage(props: {
                         </div>
                     )}
 
-                    {tab === "security" && (
-                        <div className="space-y-12">
-                            <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Sécurité</h1>
-                                <p className="text-zinc-500 text-base md:text-lg font-medium">Logs d'audit, détections sensibles et archivage.</p>
-                            </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                <div className="lg:col-span-2 bg-zinc-900/10 border border-white/5 rounded-3xl">
-                                    <Suspense fallback={<div className="animate-pulse h-96 rounded-3xl" />}>
-                                        <GlobalLogsServer />
-                                    </Suspense>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                                <div className="lg:col-span-3 bg-zinc-900/10 border border-white/5 rounded-3xl p-1 shadow-2xl">
-                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-64 rounded-3xl" />}>
-                                        <LifecycleServer />
-                                    </Suspense>
-                                </div>
-                                <div className="lg:col-span-1">
-                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-64 rounded-3xl" />}>
-                                        <DeletionPendingPanel />
-                                    </Suspense>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {/* 🧭 G11 — l'onglet `security` est **redirigé** vers `/god/logs` en tête
+                        de page (une seule porte : les journaux y vivent en 5 onglets). Rien à
+                        monter ici : garder un second panneau recréerait le doublon supprimé. */}
 
                     {tab === "tickets" && (
                         <div className="space-y-12">
@@ -339,6 +314,38 @@ export default async function SuperAdminPage(props: {
                             <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-96 rounded-3xl" />}>
                                 <NotificationsServer />
                             </Suspense>
+                        </div>
+                    )}
+
+                    {tab === "cron-status" && (
+                        <div className="space-y-8">
+                            <div className="space-y-3 pb-8 border-b border-border">
+                                <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight">Tâches CRON</h1>
+                                <p className="text-muted-foreground text-sm md:text-base font-medium">
+                                    Statut des scripts automatisés du VPS — dernière exécution, succès/échec, logs en direct.
+                                </p>
+                            </div>
+                            <CronStatusPanel />
+                        </div>
+                    )}
+
+                    {tab === "modules" && (
+                        <Suspense fallback={<GodLoadingSkeleton rows={4} />}>
+                            <PlatformModulesServer />
+                        </Suspense>
+                    )}
+
+                    {tab === "api-keys" && (
+                        <div className="space-y-8">
+                            <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
+                                <GodApiKeysServer />
+                            </Suspense>
+                        </div>
+                    )}
+
+                    {tab === "slash-commands" && (
+                        <div className="space-y-8">
+                            <GodSlashCommandsPanel />
                         </div>
                     )}
 
@@ -368,24 +375,9 @@ export default async function SuperAdminPage(props: {
                                 </Suspense>
                             </div>
 
-                            {/* Avis de Recherche Quick Access */}
-                            <div className="border-t border-border pt-8">
-                                <Link
-                                    href={`${godRoute}/game-data/bounties`}
-                                    className="group flex items-center gap-6 p-6 sm:p-8 rounded-3xl bg-surface border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/5 transition-all shadow-sm"
-                                >
-                                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 group-hover:scale-105 transition-all shrink-0">
-                                        <Flag className="w-7 h-7 text-rose-500" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-lg sm:text-xl font-black text-foreground tracking-tight mb-1">Avis de Recherche</h3>
-                                        <p className="text-muted-foreground text-xs sm:text-sm font-medium">
-                                            Éditez les mécaniques, doplons, zones et résumés tactiques de tous les avis de recherche de la base de données.
-                                        </p>
-                                    </div>
-                                    <div className="shrink-0 text-rose-500/40 group-hover:text-rose-500 group-hover:translate-x-1 transition-all text-2xl font-black">→</div>
-                                </Link>
-                            </div>
+                            {/* Avis de recherche : **éditeur** de l'interface Game Data (onglet « Avis de
+                                recherche » des Éditeurs) — plus de route dédiée ni de carte d'accès :
+                                une seule porte d'entrée par outil. */}
                         </div>
                     )}
 
@@ -408,20 +400,6 @@ export default async function SuperAdminPage(props: {
             </Suspense>
         </div>
     );
-}
-
-async function GlobalLogsServer() {
-    try {
-        const { getGlobalAuditLogs } = await import("@/server/actions/audit-actions");
-        const { AuditFeedPanel } = await import("./components/audit-feed-panel");
-
-        const result = await getGlobalAuditLogs({ limit: 200 });
-        const safeLogs = JSON.parse(JSON.stringify(result.data?.logs || []));
-
-        return <AuditFeedPanel logs={safeLogs} total={result.data?.total || 0} />;
-    } catch {
-        return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading global logs</div>;
-    }
 }
 
 async function LiveStatsServer() {
@@ -513,18 +491,27 @@ async function GuildsServer({ isReadOnly = false }: { isReadOnly?: boolean }) {
             isWhitelistOnly: !config,
             notes: allowed.notes,
             tier: allowed.tier,
+            addedBy: allowed.addedBy,
             _count: { profiles: config?._count.profiles || 0 }
         };
     });
     return <GuildTable guilds={mergedGuilds} isReadOnly={isReadOnly} />;
 }
 
-async function LifecycleServer() {
-    return (
-        <div className="p-8 text-center text-zinc-500 italic text-xs">
-            Le Lifecycle Server est désormais intégré à l'onglet Guildes via LifecyclePanel pour plus de clarté.
-        </div>
-    );
+/**
+ * Vue God « Modules » (A2 · G12) : coupure globale des modules de la plateforme.
+ * `getPlatformModuleOverview` est gardée super-admin (fail-closed) — l'erreur est
+ * affichée telle quelle, jamais un refus déguisé.
+ */
+async function PlatformModulesServer() {
+    try {
+        const { getPlatformModuleOverview } = await import("@/server/actions/module-actions");
+        const { PlatformModulesPanel } = await import("./components/platform-modules-panel");
+        const overview = await getPlatformModuleOverview();
+        return <PlatformModulesPanel overview={overview} />;
+    } catch {
+        return <div className="p-8 text-center text-muted-foreground text-xs">Erreur de chargement des modules.</div>;
+    }
 }
 
 function StatsLoading() { return <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 animate-pulse">{[...Array(5)].map((_, i) => <div key={i} className="bg-zinc-900/50 h-32 rounded-3xl" />)}</div>; }
@@ -604,13 +591,40 @@ async function GameDataStatsServer() {
 
 async function TelemetryServer() {
     try {
+        const { getProductStats } = await import("@/server/actions/telemetry-product-actions");
+        const { getPublicStats } = await import("@/server/actions/telemetry-public-actions");
+        // Les mesures produit et les compteurs publics sont chargés **à côté** de la télémétrie de
+        // navigation : si l'un échoue, l'écran reste lisible et dit explicitement ce qui manque
+        // (jamais un chiffre de remplacement).
+        const product = await getProductStats().catch(async (error: unknown) => {
+            const { logger } = await import("@/lib/logger");
+            logger.error("[Telemetry PRODUCT ERROR]", { error: String(error) });
+            return null;
+        });
+        const publicStats = await getPublicStats().catch(async (error: unknown) => {
+            const { logger } = await import("@/lib/logger");
+            logger.error("[Telemetry PUBLIC ERROR]", { error: String(error) });
+            return null;
+        });
         const stats = await getTelemetryStats();
-        return <TelemetryDashboard initialStats={stats} />;
+        return <TelemetryDashboard initialStats={stats} initialProduct={product} initialPublic={publicStats} />;
     } catch (err) {
         const { logger } = await import("@/lib/logger");
         logger.error("[Telemetry ERROR]", { error: String(err) });
         return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading telemetry data</div>;
     }
 }
+
+async function GodApiKeysServer() {
+    try {
+        const { getPlatformApiKeysOverviewAction } = await import("@/server/actions/api-key-actions");
+        const { GodApiKeysPanel } = await import("./components/god-api-keys-panel");
+        const res = await getPlatformApiKeysOverviewAction();
+        return <GodApiKeysPanel initialKeys={res.success ? res.data || [] : []} />;
+    } catch {
+        return <div className="p-8 text-center text-red-500 text-xs font-mono">Erreur chargement clés API</div>;
+    }
+}
+
 
 

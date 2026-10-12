@@ -10,6 +10,7 @@ import { verifyCronSecret } from "@/lib/cron-auth";
  * ✅ Protégé par x-cron-secret (fail-closed si secret absent)
  */
 export async function GET(req: Request) {
+    const startedAt = Date.now();
     try {
         // CRIT-02 FIX — suppression du fallback ?token= (secret dans l'URL = fuite dans les logs)
         if (!verifyCronSecret(req)) {
@@ -92,7 +93,7 @@ export async function GET(req: Request) {
                     embedDescription,
                     embedColor: 0x6366f1, // Indigo
                     mentionContent: pings,
-                    embedThumbnail: "https://sigilos.fr/assets/ui/mission-reset.png",
+                    embedThumbnail: "https://sigilos.fr/assets/icons/icone-quete.png",
                     components: [
                         {
                             type: 1, // Action Row
@@ -121,7 +122,8 @@ export async function GET(req: Request) {
         try {
             const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
             if ((platformConfig as any)?.godNotifyChannelId) {
-                const ping = (platformConfig as any).godNotifyRoleId ? `<@&${(platformConfig as any).godNotifyRoleId}>` : "";
+                const { buildSafeRoleMention } = await import("@/server/discord");
+                const ping = await buildSafeRoleMention((platformConfig as any).godNotifyChannelId, (platformConfig as any).godNotifyRoleId);
                 await sendChannelMessage(
                     (platformConfig as any).godNotifyChannelId,
                     "",
@@ -131,7 +133,7 @@ export async function GET(req: Request) {
                         embedColor: 0x8b5cf6, // Violet
                         mentionContent: ping,
                         embedFooter: "SigilOS Platform Management",
-                        embedThumbnail: "https://sigilos.fr/assets/ui/icons/admin-reset.png"
+                        embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png"
                     }
                 );
             }
@@ -139,14 +141,30 @@ export async function GET(req: Request) {
             console.error("[Cron] God notification failed:", e);
         }
 
+        const durationMs = Date.now() - startedAt;
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("mission_reset", {
+            success: true,
+            durationMs,
+            summary: `Reset missions : ${guilds.length} guilde(s) notifiée(s)`,
+            details: { guildsCount: guilds.length, results },
+        });
+
         return NextResponse.json({
             message: "Notifications process completed",
             guildsCount: guilds.length,
-            results
+            results,
+            durationMs
         });
 
     } catch (error) {
         console.error("Cron Mission Management Reset Error:", error);
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("mission_reset", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur reset missions: ${(error as Error).message}`,
+        });
         return new NextResponse("Internal Server Error", { status: 500 });
     }
 }

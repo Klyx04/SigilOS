@@ -17,7 +17,7 @@ export default async function StatsPage({ params }: { params: Promise<{ guildId:
         return <AccessDenied />;
     }
 
-    if (!user.isAdmin && !await isModuleEnabled(guildId, "stats")) {
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "stats")) {
         redirect(`/dashboard/${guildId}`);
     }
 

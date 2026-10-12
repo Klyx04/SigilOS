@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { LadderEntry } from "@/server/actions/ladder-actions";
-import { discordAvatarErrorFallback } from "@/lib/discord-avatars";
-import { Crown, Medal, Trophy, ShieldCheck, User, Zap, Ghost, Utensils, Coffee, Plane, Clock, Umbrella } from "lucide-react";
+import { discordAvatarErrorFallback, extractUserIdFromAvatarUrl, getDefaultDiscordAvatar } from "@/lib/discord-avatars";
+import { Crown, ShieldCheck, User, Zap, Ghost, Utensils, Coffee, Plane, Clock, Umbrella } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getClass } from "@/lib/dofus-assets";
 
@@ -99,12 +99,9 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             {/* 1. Rank & Portrait */}
             <div className="flex items-center gap-3 shrink-0">
                 <div className="w-8 flex justify-center shrink-0">
-                    {entry.rank === 1 ? (
-                        <Trophy className="h-5 w-5 text-warning" />
-                    ) : entry.rank === 2 ? (
-                        <Medal className="h-5 w-5 text-foreground" />
-                    ) : entry.rank === 3 ? (
-                        <Medal className="h-5 w-5 text-warning" />
+                    {entry.rank <= 3 ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={`/assets/dofus/game-icons/trophy-${entry.rank}.png`} alt={`Top ${entry.rank}`} className="h-6 w-6 object-contain" />
                     ) : (
                         <span className="text-caption font-black italic text-muted-foreground group-hover:text-muted-foreground transition-colors">
                             #{entry.rank.toString().padStart(2, '0')}
@@ -125,9 +122,15 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                                 const mirror = discordAvatarErrorFallback(entry.discordImage);
                                 if (mirror && mirror !== e.currentTarget.src) {
                                     e.currentTarget.src = mirror;
-                                } else {
-                                    setAvatarFailed(true);
+                                    return;
                                 }
+                                // #134 — hash périmé → avatar Discord par défaut officiel (jamais 404).
+                                const defaultAvatar = getDefaultDiscordAvatar(extractUserIdFromAvatarUrl(entry.discordImage));
+                                if (defaultAvatar && defaultAvatar !== e.currentTarget.src) {
+                                    e.currentTarget.src = defaultAvatar;
+                                    return;
+                                }
+                                setAvatarFailed(true);
                             }}
                         />
                     ) : (
@@ -210,7 +213,7 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                                     {entry.isInVacation ? "En Vacances" : "Mauvais Élève"}
                                 </span>
                             </div>
-                        ) : accentColor === "purple" && (
+                        ) : (accentColor === "blue" || accentColor === "amber") && (
                             <div className="text-caption text-muted-foreground font-black uppercase tracking-widest mt-1.5 opacity-40">Sync auto</div>
                         )}
                     </div>

@@ -19,6 +19,7 @@ const DOFUS_ITEMS = [
     { slug: 'argent-scintillant', name: 'Dofus Argenté Scintillant', nameShort: 'Scintillant', rarity: 'MAJEUR', levelRecommended: 200 },
     { slug: 'sylvestre', name: 'Dofus Sylvestre', nameShort: 'Sylvestre', rarity: 'MAJEUR', levelRecommended: 200 },
     { slug: 'tachete', name: 'Dofus Tacheté', nameShort: 'Tacheté', rarity: 'MAJEUR', levelRecommended: 200 },
+    { slug: 'dokille', name: 'Dokille', nameShort: 'Dokille', rarity: 'MAJEUR', levelRecommended: 200, imageUrl: '/module-dofus/Dokille.png' },
 ];
 
 async function main() {

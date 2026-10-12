@@ -28,6 +28,13 @@ export default async function AdminLogsPage({ params }: Props) {
         return <AccessDenied />;
     }
 
+    // 🔒 Verrou de module (guilde ∪ plateforme) : une URL directe reboucle (A1).
+    // Le God plateforme garde l'accès (`bypassModules = isGod`).
+    if (!user.isSuperAdmin) {
+        const { isModuleLocked } = await import("@/server/actions/module-actions");
+        if (await isModuleLocked(guildId, "logs")) redirect(`/dashboard/${guildId}`);
+    }
+
     // Lazy Cleanup: Trigger automatic cleanup of old logs (fire & forget)
     // Retention policy is exactly 30 days (consistent with UI notice)
     cleanupOldAuditLogs(guildId).catch(err =>

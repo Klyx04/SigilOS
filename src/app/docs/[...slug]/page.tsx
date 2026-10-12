@@ -56,12 +56,11 @@ export default async function DocPage({ params }: Props) {
         content={doc.content}
         title={doc.title}
         lastUpdate={doc.updatedAt}
-        canEdit={ctx.isAdmin}
-        editUrl={`/god/docs/${doc.id}`}
         prev={prevDoc}
         next={nextDoc}
         breadcrumbs={breadcrumbs}
         guildId={ctx.guildId}
+        slug={doc.slug}
     />;
 }
 

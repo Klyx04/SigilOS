@@ -4,7 +4,7 @@ import { useState, useTransition, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { updateRBACMapping } from "@/server/actions/admin-actions";
-import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, MODULE_ORDER as PERM_MODULE_ORDER, type PermissionId, type PermissionModule } from "@/lib/permissions";
+import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, MODULE_ORDER as PERM_MODULE_ORDER, PERMISSION_GUILD_MODULES, type PermissionId, type PermissionModule } from "@/lib/permissions";
 import { PermissionCard } from "./permission-card";
 import { type Option } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
@@ -29,11 +29,22 @@ type Props = {
     // quand la plateforme le désactive, les sélecteurs par membre sont masqués
     // (lecture seule) ; le serveur rejette de toute façon toute écriture.
     usersMappingEnabled: boolean;
+    /**
+     * Refonte onboarding §9 — permissions masquées car leurs modules sont
+     * désactivés (toggle guilde OFF ou verrou God). Mappings conservés en BDD
+     * (affichage seul) ; le compteur est affiché, pas le contenu.
+     */
+    hiddenPermissions?: PermissionId[];
+    /**
+     * Liens croisés §9 — état effectif des toggles (pour les chips
+     * "Module : Actif/Inactif" des cartes). Absent = pas de chips.
+     */
+    moduleStates?: Record<string, boolean>;
 };
 
 const MODULE_ORDER = PERM_MODULE_ORDER;
 
-export function PermissionsManager({ guildId, roles, members, currentMapping, currentUsersMapping, usersMappingEnabled }: Props) {
+export function PermissionsManager({ guildId, roles, members, currentMapping, currentUsersMapping, usersMappingEnabled, hiddenPermissions = [], moduleStates }: Props) {
     // Transform: DB (Role -> Perms)  ==>  UI (Perm -> Roles)
     const initialPermState: Record<PermissionId, string[]> = Object.values(PERMISSIONS).reduce((acc, perm) => {
         acc[perm] = [];
@@ -173,9 +184,11 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
     }, []);
 
     const visiblePermissions = useMemo(() => {
-        const base = activeModule === "all"
+        const hidden = new Set(hiddenPermissions);
+        const base = (activeModule === "all"
             ? Object.keys(PERMISSION_DETAILS) as PermissionId[]
-            : permissionsByModule[activeModule] || [];
+            : permissionsByModule[activeModule] || []
+        ).filter((permId) => !hidden.has(permId));
 
         if (!searchQuery.trim()) return base;
 
@@ -196,9 +209,19 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
             if (assignedRoleNames.toLowerCase().includes(q)) return true;
             return false;
         });
-    }, [activeModule, permissionsByModule, searchQuery, permState, roles]);
+    }, [activeModule, permissionsByModule, searchQuery, permState, roles, hiddenPermissions]);
+    const hiddenCount = hiddenPermissions.length;
 
     const isSearchActive = searchQuery.trim().length > 0;
+
+    // Liens croisés §9 : toggles gouvernant chaque permission (chips des cartes).
+    const guildModulesFor = (permId: PermissionId): Array<{ key: string; enabled: boolean }> => {
+        if (!moduleStates) return [];
+        return (PERMISSION_GUILD_MODULES[permId] || []).map((key) => ({
+            key,
+            enabled: !!moduleStates[key],
+        }));
+    };
 
     const moduleStats = useMemo(() => {
         const stats = {} as Record<PermissionModule, number>;
@@ -279,6 +302,23 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                             L'option par membre est temporairement coupée (panel God). Les sélecteurs individuels
                             sont masqués et aucune modification ne sera enregistrée. Les permissions de <strong>rôles</strong>
                             restent entièrement configurables.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Refonte onboarding §9 — permissions masquées (modules désactivés) */}
+            {hiddenCount > 0 && (
+                <div className="flex items-start gap-4 bg-info/10 border border-info/30 rounded-2xl px-6 py-4">
+                    <span className="text-2xl mt-0.5">🔒</span>
+                    <div>
+                        <p className="text-info font-black uppercase tracking-widest text-sm">
+                            {hiddenCount} permission{hiddenCount > 1 ? "s" : ""} masquée{hiddenCount > 1 ? "s" : ""} — module{hiddenCount > 1 ? "s" : ""} désactivé{hiddenCount > 1 ? "s" : ""}
+                        </p>
+                        <p className="text-info/80 text-xs mt-1 leading-relaxed">
+                            Leurs modules sont coupés (réglage guilde ou verrou staff) : inutile de les
+                            attribuer pour l&apos;instant. Les attributions existantes sont conservées et
+                            redeviendront effectives à la réactivation.
                         </p>
                     </div>
                 </div>
@@ -390,6 +430,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                 moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
                                 locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
                                 hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN || !usersMappingEnabled}
+                                guildModules={guildModulesFor(permId)}
                             />
                         ))
                     )}
@@ -455,6 +496,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                             moduleColor={module.color}
                                             locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
                                             hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN || !usersMappingEnabled}
+                                            guildModules={guildModulesFor(permId)}
                                         />
                                     ))}
                                 </div>
@@ -482,6 +524,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                             moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
                             locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
                             hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN || !usersMappingEnabled}
+                            guildModules={guildModulesFor(permId)}
                         />
                     ))}
                 </div>

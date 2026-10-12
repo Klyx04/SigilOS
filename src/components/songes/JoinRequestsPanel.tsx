@@ -11,6 +11,7 @@ import {
     respondToJoinRequest
 } from "@/server/actions/songes/dream-run-actions";
 import { ClassIcon } from "@/components/shared/class-icon";
+import { PseudoChip } from "@/components/shared/pseudo-chip";
 
 interface JoinRequest {
     id: string;
@@ -89,27 +90,25 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
                     {requests.map((request) => (
                         <div
                             key={request.id}
-                            className="p-3 rounded-lg bg-info/30 border border-info/30"
+                            className="p-3 rounded-lg bg-surface/40 border border-border"
                         >
                             <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
-                                    {/* Candidate Name */}
-                                    <h4 className="font-medium text-foreground mb-1">
-                                        {request.displayName || "Joueur"}
-                                    </h4>
+                                    {/* Pseudo du candidat : icône de classe + copie unitaire `/w` */}
+                                    <PseudoChip
+                                        pseudo={request.displayName || "Joueur"}
+                                        classe={request.classe}
+                                        className="mb-1 text-sm font-medium text-foreground"
+                                    />
                                     <div className="flex items-center gap-2 mb-1">
-                                        <Badge variant="secondary" className="bg-info/20 text-info border-info/30">
-                                            <ClassIcon classId={request.classe} size={14} className="mr-1.5" />
-                                            {request.classe}
-                                        </Badge>
-                                        <span className="text-xs text-info/50">
+                                        <span className="text-xs text-foreground/40">
                                             {new Date(request.createdAt).toLocaleDateString("fr-FR")}
                                         </span>
                                     </div>
 
                                     {request.message && (
-                                        <div className="flex items-start gap-1 text-sm text-info mt-2">
-                                            <MessageSquare className="w-4 h-4 text-info mt-0.5 shrink-0" />
+                                        <div className="flex items-start gap-1 text-sm text-foreground/70 mt-2">
+                                            <MessageSquare className="w-4 h-4 mt-0.5 shrink-0" />
                                             <span className="line-clamp-2">{request.message}</span>
                                         </div>
                                     )}

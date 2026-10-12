@@ -126,6 +126,25 @@ export async function searchDofusItems(
     const cached = getCached(cacheKey);
     if (cached) return cached;
 
+    // 0. LOCAL-FIRST : Recherche en BDD locale si le catalogue GameItem est peuplé
+    try {
+        const { searchLocalGameItems } = await import("@/server/actions/game-item-actions");
+        const localRes = await searchLocalGameItems(query, category as any, limit);
+        if (localRes.success && localRes.data && localRes.data.length > 0) {
+            const items: DofusItem[] = localRes.data.map((it) => ({
+                ankamaId: it.ankamaId,
+                name: it.name,
+                level: it.level,
+                type: it.typeName,
+                iconUrl: it.iconUrl || `/uploads/assets-dofus/items/${it.ankamaId}.webp`,
+            }));
+            setCache(cacheKey, items);
+            return items;
+        }
+    } catch {
+        // Fallback silencieux vers Dofusdude
+    }
+
     const endpoints = CATEGORY_ENDPOINTS[category] ?? CATEGORY_ENDPOINTS.all;
 
     const results: DofusItem[] = [];

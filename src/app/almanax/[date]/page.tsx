@@ -1,5 +1,6 @@
 import { getUpcomingAlmanax, type AlmanaxItem } from "@/server/actions/resources-actions";
 import { getAppBaseUrl } from "@/lib/utils";
+import { isServableAlmanaxDay } from "@/lib/seo";
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import Image from "next/image";
@@ -9,12 +10,10 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
 import { auth } from "@/auth";
-import { Calendar, Sparkles, Coins, Gift, ArrowRight, ShieldCheck, HelpCircle } from "lucide-react";
+import { Coins, Gift, ArrowRight } from "lucide-react";
+import { getServerI18n } from "@/lib/i18n/server";
 
 export const revalidate = 3600; // Cache ISR 1h
-
-// #101 — SEO : route publique par date d'Almanax (/almanax/YYYY-MM-DD),
-// indexable, avec canonical + OpenGraph + breadcrumb JSON-LD.
 
 function parseDate(raw: string): Date | null {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
@@ -24,8 +23,8 @@ function parseDate(raw: string): Date | null {
     return d;
 }
 
-function formatFr(date: Date): string {
-    return date.toLocaleDateString("fr-FR", {
+function formatDate(date: Date, locale: string): string {
+    return date.toLocaleDateString(locale === "en" ? "en-US" : "fr-FR", {
         timeZone: "UTC",
         weekday: "long",
         year: "numeric",
@@ -49,22 +48,31 @@ export async function generateMetadata({
     const parsed = parseDate(date);
     if (!parsed) return {};
 
-    const almanaxList = await getUpcomingAlmanax();
+    // Hors de la fenêtre servie par la source (30 jours) : la donnée n'existe pas ⇒ la page est
+    // un 404 (métadonnées vides, la page appelle `notFound()`).
+    if (!isServableAlmanaxDay(date)) return {};
+
+    const { t, locale } = await getServerI18n();
+    const almanaxList = await getUpcomingAlmanax(locale);
     const item = almanaxList.find((a) => a.date.slice(0, 10) === date) as AlmanaxItem | undefined;
     const baseUrl = getAppBaseUrl();
-    const label = formatFr(parsed);
+    const label = formatDate(parsed, locale);
 
     const title = item
-        ? `Almanax Dofus du ${label} : ${item.tribute.item.name} x${item.tribute.quantity} | SigilOS`
-        : `Almanax Dofus du ${label} | SigilOS`;
+        ? `${t.almanaxPage.breadcrumbAlmanax} — ${label} : ${item.tribute.item.name} x${item.tribute.quantity} | SigilOS`
+        : `${t.almanaxPage.breadcrumbAlmanax} — ${label} | SigilOS`;
     const description = item
-        ? `Offrande du jour : ${item.tribute.item.name} x${item.tribute.quantity}. Bonus du Meryde : ${item.bonus.description}. Prenez une longueur d'avance sur l'Almanax Dofus.`
-        : `Retrouvez l'offrande et le bonus de l'Almanax Dofus du ${label}.`;
+        ? `${t.almanaxPage.offering} : ${item.tribute.item.name} x${item.tribute.quantity}. ${t.almanaxPage.bonusMeryde} : ${item.bonus.description}.`
+        : `${t.almanaxPage.subtitle}`;
 
     return {
-        title,
+        // `absolute` : le titre porte déjà la marque (sinon le template du layout l'ajoute une 2ᵉ fois).
+        title: { absolute: title },
         description,
         alternates: { canonical: `${baseUrl}/almanax/${date}` },
+        // Source muette (API indisponible) : la page reste servie au visiteur — le message le dit —
+        // mais elle n'est **pas** offerte à l'index : une page vide indexée est un « soft 404 ».
+        robots: item ? { index: true, follow: true } : { index: false, follow: true },
         openGraph: {
             title,
             description,
@@ -83,11 +91,18 @@ export default async function AlmanaxDatePage({
     const parsed = parseDate(date);
     if (!parsed) notFound();
 
+    // ⚠️ La source Almanax ne sert que **30 jours** (jour courant → +29, Europe/Paris) et **ignore**
+    // `range[date]` : une date passée ou lointaine n'a rien à montrer. Avant ce garde, n'importe
+    // quelle date répondait **200 `index, follow`** avec « Donnée temporairement indisponible »
+    // (`1999-01-01`, `2030-01-01` mesurées le 29/09/2026) ⇒ une usine à pages vides indexables.
+    if (!isServableAlmanaxDay(date)) notFound();
+
+    const { t, locale } = await getServerI18n();
     const session = await auth();
     const { getUserContext } = await import("@/server/actions/user-actions");
     const userContext = await getUserContext();
 
-    const almanaxList = await getUpcomingAlmanax();
+    const almanaxList = await getUpcomingAlmanax(locale);
     const item = almanaxList.find((a) => a.date.slice(0, 10) === date) as AlmanaxItem | undefined;
 
     const headersList = await headers();
@@ -98,12 +113,13 @@ export default async function AlmanaxDatePage({
     const nextDate = addDays(parsed, 1);
     const prevKey = prevDate.toISOString().slice(0, 10);
     const nextKey = nextDate.toISOString().slice(0, 10);
+    const formattedDate = formatDate(parsed, locale);
 
     const jsonLd = item
         ? {
             "@context": "https://schema.org",
             "@type": "Article",
-            headline: `Almanax Dofus du ${formatFr(parsed)}`,
+            headline: `${t.almanaxPage.breadcrumbAlmanax} — ${formattedDate}`,
             description: item.bonus.description,
             datePublished: item.date.slice(0, 10),
             url: `${baseUrl}/almanax/${date}`,
@@ -112,116 +128,109 @@ export default async function AlmanaxDatePage({
         : null;
 
     return (
-        <div className="relative min-h-screen landing-theme bg-background text-foreground selection:bg-accent-teal/30 font-sans flex flex-col">
+        <div className="registre relative min-h-screen landing-theme bg-background text-foreground selection:bg-success/30 font-sans flex flex-col">
             <PublicHeader user={session?.user} activePage="almanax" isMember={userContext.isMember} />
 
             {jsonLd && <JsonLd id={`json-ld-almanax-${date}`} nonce={nonce} data={[jsonLd]} />}
 
-            <main className="flex-1 w-full relative z-10">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10 sm:py-14">
+            <main className="flex-1">
+                <div className="reg-shell py-10 lg:py-14">
                     {/* Fil d'Ariane */}
-                    <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap" aria-label="Fil d'Ariane">
-                        <Link href="/" className="hover:text-foreground transition-colors">Accueil</Link>
+                    <nav className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" aria-label="Fil d'Ariane">
+                        <Link href="/" className="reg-link-quiet">{t.almanaxPage.breadcrumbHome}</Link>
                         <span aria-hidden>›</span>
-                        <Link href="/almanax" className="hover:text-foreground transition-colors">Almanax</Link>
+                        <Link href="/almanax" className="reg-link-quiet">{t.almanaxPage.breadcrumbAlmanax}</Link>
                         <span aria-hidden>›</span>
-                        <span className="text-foreground capitalize">{formatFr(parsed)}</span>
+                        <span className="text-foreground capitalize">{formattedDate}</span>
                     </nav>
 
-                    <div className="rounded-3xl border border-border bg-surface/70 p-6 sm:p-8">
-                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                            <Calendar className="w-4 h-4" /> Almanax Dofus
-                        </p>
-                        <h1 className="text-2xl sm:text-3xl font-black text-foreground mt-2 capitalize">
-                            Offrande du {formatFr(parsed)}
+                    {/* En-tête */}
+                    <header className="mt-8">
+                        <p className="reg-eyebrow">{t.almanaxPage.breadcrumbAlmanax}</p>
+                        <h1 className="mt-3 text-[clamp(1.6rem,2.8vw,2rem)] font-bold tracking-tight text-foreground capitalize">
+                            {t.almanaxPage.dayOff} — {formattedDate}
                         </h1>
+                    </header>
 
-                        {item ? (
-                            <div className="mt-6 space-y-5">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl bg-background border border-border">
-                                    {item.tribute.item.image_urls?.icon ? (
-                                        <Image
-                                            src={item.tribute.item.image_urls.icon}
-                                            alt={item.tribute.item.name}
-                                            width={72}
-                                            height={72}
-                                            className="w-16 h-16 sm:w-18 sm:h-18 object-contain shrink-0"
-                                            unoptimized
-                                        />
-                                    ) : (
-                                        <div className="w-16 h-16 rounded-xl bg-elevated border border-border flex items-center justify-center shrink-0">
-                                            <Gift className="w-7 h-7 text-muted-foreground/50" />
-                                        </div>
+                    {item ? (
+                        <section className="reg-panel mt-6">
+                            {/* Offrande requise */}
+                            <div className="flex items-start gap-4 border-b border-border px-4 py-5 sm:px-6">
+                                {item.tribute.item.image_urls?.icon ? (
+                                    <Image
+                                        src={item.tribute.item.image_urls.icon}
+                                        alt={item.tribute.item.name}
+                                        width={64}
+                                        height={64}
+                                        className="h-16 w-16 shrink-0 object-contain"
+                                        unoptimized
+                                    />
+                                ) : (
+                                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
+                                        <Gift className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+                                    </div>
+                                )}
+                                <div className="min-w-0">
+                                    <p className="text-xs text-muted-foreground">{t.almanaxPage.offering}</p>
+                                    <p className="mt-0.5 text-lg font-semibold text-foreground">
+                                        {item.tribute.item.name} <span className="reg-mono text-accent">x{item.tribute.quantity}</span>
+                                    </p>
+                                    {typeof item.reward_kamas === "number" && (
+                                        <p className="reg-mono mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <Coins className="h-3.5 w-3.5" aria-hidden="true" />
+                                            {item.reward_kamas.toLocaleString(locale === "en" ? "en-US" : "fr-FR")} {locale === "en" ? "kamas reward" : "kamas offerts"}
+                                        </p>
                                     )}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Offrande requise</p>
-                                        <p className="text-lg font-black text-foreground mt-1">
-                                            {item.tribute.item.name} <span className="text-accent">x{item.tribute.quantity}</span>
-                                        </p>
-                                        {typeof item.reward_kamas === "number" && (
-                                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-                                                <Coins className="w-3.5 h-3.5" /> {item.reward_kamas.toLocaleString("fr-FR")} kamas offerts
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl bg-background border border-border">
-                                    <div className="w-12 h-12 rounded-xl bg-warning/15 border border-warning/30 text-warning flex items-center justify-center shrink-0">
-                                        <Sparkles className="w-5 h-5" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                                            Bonus du Meryde
-                                        </p>
-                                        <p className="text-base font-bold text-foreground mt-1">{item.bonus.description}</p>
-                                        {item.bonus.type?.name && (
-                                            <p className="text-xs text-muted-foreground mt-0.5">Type : {item.bonus.type.name}</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                                    <Link
-                                        href={`/almanax/${prevKey}`}
-                                        className="inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
-                                    >
-                                        <ArrowRight className="w-4 h-4 rotate-180" /> Jour précédent
-                                    </Link>
-                                    <Link
-                                        href={`/almanax/${nextKey}`}
-                                        className="inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
-                                    >
-                                        Jour suivant <ArrowRight className="w-4 h-4" />
-                                    </Link>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="mt-6 p-5 rounded-2xl bg-background border border-border">
-                                <p className="text-sm text-foreground">
-                                    La donnée Almanax pour cette date n'est pas encore disponible (prévision sur 30 jours).
-                                </p>
+
+                            {/* Bonus du Méryde */}
+                            <div className="border-t border-border px-4 py-5 sm:px-6">
+                                <p className="text-xs text-muted-foreground">{t.almanaxPage.bonusMeryde}</p>
+                                <p className="mt-1 text-sm font-semibold text-foreground">{item.bonus.description}</p>
+                                {item.bonus.type?.name && (
+                                    <p className="mt-1 text-xs text-muted-foreground">Type : {item.bonus.type.name}</p>
+                                )}
+                            </div>
+
+                            {/* Navigation entre les jours */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-4 sm:px-6">
                                 <Link
-                                    href="/almanax"
-                                    className="inline-flex items-center gap-2 mt-4 text-sm font-bold text-accent hover:underline"
+                                    href={`/almanax/${prevKey}`}
+                                    className="reg-link-quiet inline-flex items-center gap-1.5 text-sm"
                                 >
-                                    Voir l&apos;Almanax d&apos;aujourd&apos;hui <ArrowRight className="w-4 h-4" />
+                                    <ArrowRight className="h-4 w-4 rotate-180" aria-hidden="true" /> {t.almanaxPage.prevDay}
+                                </Link>
+                                <Link
+                                    href={`/almanax/${nextKey}`}
+                                    className="reg-link-quiet inline-flex items-center gap-1.5 text-sm"
+                                >
+                                    {t.almanaxPage.nextDay} <ArrowRight className="h-4 w-4" aria-hidden="true" />
                                 </Link>
                             </div>
-                        )}
-
-                        <div className="mt-6 flex items-start gap-2.5 text-xs text-muted-foreground border-t border-border pt-5">
-                            <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-success" />
-                            <p>
-                                Les données Almanax sont fournies par l&apos;API communautaire DofusDB (dofusdu.de). Les offrandes
-                                changent chaque jour à minuit (heure de Paris). En cas de doute, vérifiez dans le jeu via le Temple de l&apos;Almanax.
-                            </p>
+                        </section>
+                    ) : (
+                        <div className="reg-callout mt-6 border-warning/40">
+                            <div>
+                                <p>{t.almanaxPage.dataUnavailable}</p>
+                                <p className="mt-3">
+                                    <Link href="/almanax" className="reg-link inline-flex items-center gap-1.5 text-sm">
+                                        {t.almanaxPage.backToCalendar} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                                    </Link>
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    )}
+
+                    <p className="mt-8 max-w-[70ch] border-t border-border pt-5 text-xs text-muted-foreground leading-relaxed">
+                        {locale === "en"
+                            ? "Almanax data is provided by the official community API (dofusdu.de). Offerings reset daily at midnight (Paris time)."
+                            : "Les données Almanax sont fournies par l'API communautaire (dofusdu.de). Les offrandes changent chaque jour à minuit (heure de Paris)."}
+                    </p>
                 </div>
             </main>
 
-            <GalacticFooter />
+            <GalacticFooter isMember={userContext.isMember} />
         </div>
     );
 }

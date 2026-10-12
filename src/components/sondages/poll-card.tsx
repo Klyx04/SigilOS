@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, MessageSquare, ChevronRight, Crown } from "lucide-react";
 import Link from "next/link";
@@ -79,7 +78,7 @@ interface PollCardProps {
     index?: number;
 }
 
-export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
+export function PollCard({ poll, guildId }: PollCardProps) {
     const cat = CATEGORY_CONFIG[poll.category];
     const status = STATUS_CONFIG[poll.status];
     const StatusIcon = status.icon;
@@ -90,12 +89,10 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
     const isActive = poll.status === "ACTIVE";
     const timeLeft = poll.expiresAt ? getTimeLeft(poll.expiresAt) : null;
 
+    // PERF : pas d'animation d'entrée JS (framer-motion) — le stagger
+    // index * délai rejouait du JS main-thread sur chaque carte au scroll.
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.06, duration: 0.4, ease: "easeOut" }}
-        >
+        <div>
             <Link href={`/dashboard/${guildId}/sondages/${poll.id}`}>
                 <div className={cn(
                     "group relative overflow-hidden rounded-2xl border transition-colors",
@@ -222,7 +219,7 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
                     </div>
                 </div>
             </Link>
-        </motion.div>
+        </div>
     );
 }
 

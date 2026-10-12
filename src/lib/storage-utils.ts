@@ -29,17 +29,26 @@ function getLegacySecret(): string | null {
     return process.env.AUTH_SECRET || null;
 }
 
-/** Delete a proof file from the filesystem and clean up empty parent dirs. */
-export async function deleteProofFile(proofUrl: string) {
-    if (!proofUrl) return;
+/** Issue d'une suppression d'objet — aucune exception n'est jamais remontée. */
+export type StorageDeleteResult = "deleted" | "missing" | "ignored" | "blocked" | "failed";
+
+/**
+ * Cœur **unique** de la suppression d'un objet de `private_uploads`.
+ *
+ * Une seule implémentation pour tout le projet (§13.4, aucune logique dupliquée) :
+ * elle refuse tout chemin hors de `private_uploads` (anti path-traversal), tolère
+ * un fichier déjà absent (`missing`) et ne fait jamais échouer l'appelant.
+ */
+async function deleteStoredFileCore(fileRef: string): Promise<StorageDeleteResult> {
+    if (!fileRef) return "ignored";
 
     let relativePath = "";
-    if (proofUrl.startsWith("/uploads/")) {
-        relativePath = proofUrl.replace(/^\/uploads\//, "");
-    } else if (proofUrl.startsWith("/api/storage/")) {
-        relativePath = proofUrl.replace(/^\/api\/storage\//, "");
+    if (fileRef.startsWith("/uploads/")) {
+        relativePath = fileRef.replace(/^\/uploads\//, "");
+    } else if (fileRef.startsWith("/api/storage/")) {
+        relativePath = fileRef.replace(/^\/api\/storage\//, "");
     } else {
-        return; // Ignore any other paths
+        return "ignored"; // Ignore any other paths
     }
 
     const safePath = normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, "");
@@ -47,13 +56,13 @@ export async function deleteProofFile(proofUrl: string) {
     const uploadsRoot = join(process.cwd(), "private_uploads");
 
     if (!absolutePath.startsWith(uploadsRoot)) {
-        logger.warn(`[Storage] Path traversal attempt blocked`, { proofUrl });
-        return;
+        logger.warn(`[Storage] Path traversal attempt blocked`, { fileRef });
+        return "blocked";
     }
 
     try {
         await unlink(absolutePath);
-        logger.info(`[Storage] Deleted proof file`, { proofUrl });
+        logger.info(`[Storage] Deleted stored file`, { fileRef });
 
         // Safely attempt to delete empty parent directories
         try {
@@ -64,11 +73,27 @@ export async function deleteProofFile(proofUrl: string) {
         } catch {
             // Ignore — directory not empty, that's fine
         }
+        return "deleted";
     } catch (error: any) {
-        if (error.code !== "ENOENT") {
-            logger.warn(`[Storage] Failed to delete file`, { proofUrl, error });
-        }
+        if (error.code === "ENOENT") return "missing";
+        logger.warn(`[Storage] Failed to delete file`, { fileRef, error });
+        return "failed";
     }
+}
+
+/** Delete a proof file from the filesystem and clean up empty parent dirs. */
+export async function deleteProofFile(proofUrl: string) {
+    await deleteStoredFileCore(proofUrl);
+}
+
+/**
+ * S5.5 — Variante **rapportée** du même cœur, pour la purge des médias du
+ * marché : la passe doit compter ce qui a réellement disparu du disque
+ * (supprimé / absent / refusé / en erreur) afin de le tracer dans l'audit
+ * (`MEDIA_PURGED`, §15.2).
+ */
+export async function deleteStoredFile(fileRef: string): Promise<StorageDeleteResult> {
+    return deleteStoredFileCore(fileRef);
 }
 
 /** Compute HMAC over `${path}:${expiry}` using a given secret. */

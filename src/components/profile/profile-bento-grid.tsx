@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { HeroHeader } from "./hero-header";
 import { ClassDisplay } from "./class-display";
@@ -21,16 +21,19 @@ import { SkinLibrary } from "./skin-library";
 import { AlignmentSection } from "./alignment-section";
 import { LegendaryCrafting } from "./legendary-crafting";
 import { LegendaryPetToggle } from "./legendary-pet-toggle";
+import { BadgesVitrine } from "./badges-vitrine";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
 import type { ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import { UserCircle, LayoutDashboard, Shield, Sparkles, Users, Calendar, Trophy, Settings, Hammer, Wrench, Activity } from "lucide-react";
+import { UserCircle, LayoutDashboard, Settings, Hammer, Wrench, Activity, ChevronLeft, ChevronRight, Palette } from "lucide-react";
+import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
 import Link from "next/link";
 import { ProfileReminderBanner } from "./profile-reminder-banner";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/lib/dofus-assets";
+import { metierIds, type MetierEntry } from "@/lib/metiers";
 import { useTour } from "@/components/tour/tour-provider";
 
 interface ProfileBentoGridProps {
@@ -40,7 +43,7 @@ interface ProfileBentoGridProps {
         pseudoDofus?: string | null;
         classe?: string | null;
         classeSecondaires?: string[] | null;
-        metiers?: string[] | null;
+        metiers?: string[] | MetierEntry[] | null;
         forgemagieStatus?: string | null;
         fmPriceClassic?: number | null;
         fmPriceTrans?: number | null;
@@ -152,21 +155,87 @@ export function ProfileBentoGrid({
     const searchParams = useSearchParams();
     const initialTab = initialTabProp || searchParams.get("tab") || "overview";
     const [activeTab, setActiveTab] = useState(initialTab);
+    const tabsScrollRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
 
-    const { tourPhase, currentStep } = useTour();
+    const updateScrollState = useCallback(() => {
+        const el = tabsScrollRef.current;
+        if (!el) return;
+        setCanScrollLeft(el.scrollLeft > 4);
+        setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    }, []);
 
-    // Synchronize activeTab with onboarding tour phase & step
     useEffect(() => {
-        if (tourPhase === "profile") {
-            if (currentStep === 4) setActiveTab("metiers");
-            else if (currentStep === 5) setActiveTab("planning");
-            else if (currentStep === 6) setActiveTab("combat");
-            else if (currentStep === 7) setActiveTab("dofus");
-            else if (currentStep === 8) setActiveTab("activity");
-            else if (currentStep === 9) setActiveTab("settings");
-            else if (currentStep >= 1 && currentStep <= 3) setActiveTab("overview");
+        const el = tabsScrollRef.current;
+        if (!el) return;
+        updateScrollState();
+        el.addEventListener("scroll", updateScrollState, { passive: true });
+        const ro = new ResizeObserver(updateScrollState);
+        ro.observe(el);
+        return () => {
+            el.removeEventListener("scroll", updateScrollState);
+            ro.disconnect();
+        };
+    }, [updateScrollState]);
+
+    const scrollTabs = useCallback((dir: "left" | "right") => {
+        const el = tabsScrollRef.current;
+        if (!el) return;
+        el.scrollBy({ left: dir === "left" ? -160 : 160, behavior: "smooth" });
+    }, []);
+
+    const { tourPhase, activeStepData } = useTour();
+
+    // Synchronize activeTab with onboarding tour phase & active step target
+    useEffect(() => {
+        if (tourPhase === "profile" && activeStepData?.target) {
+            const target = activeStepData.target;
+            if (target.includes("metiers")) setActiveTab("metiers");
+            else if (target.includes("planning")) setActiveTab("planning");
+            else if (target.includes("combat")) setActiveTab("combat");
+            else if (target.includes("dofus")) setActiveTab("dofus");
+            else if (target.includes("activity")) setActiveTab("activity");
+            else if (target.includes("settings")) setActiveTab("settings");
+            else if (target.includes("profile-header") || target.includes("profile-class") || target.includes("overview")) setActiveTab("overview");
         }
-    }, [currentStep, tourPhase]);
+    }, [activeStepData, tourPhase]);
+
+    /**
+     * Constat beta « tes préférences KO » — le bandeau d'onglets est
+     * **défilable horizontalement** (`overflow-x-auto` + onglets `min-w-max`) :
+     * l'onglet « Réglages » (`[data-tour="profile-tab-settings"]`), dernier de la
+     * liste, vit **hors du cadre visible** sur un écran normal. Le spotlight de
+     * l'étape « Tes préférences » encadrait donc… du vide (le tutoriel semblait
+     * pointer nulle part).
+     *
+     * On amène l'onglet visé dans le cadre dès que l'étape change. L'overlay relit
+     * la position à chaque frame : le spotlight suit le défilement.
+     */
+    useEffect(() => {
+        if (tourPhase !== "profile" || !activeStepData) return;
+        const target = activeStepData.target;
+        if (!target.includes("profile-tab-")) return;
+
+        // Deux rAF : on attend le re-rendu déclenché par `setActiveTab` ci-dessus.
+        let frame = requestAnimationFrame(() => {
+            frame = requestAnimationFrame(() => {
+                const strip = tabsScrollRef.current;
+                const tabElement = document.querySelector<HTMLElement>(target);
+                if (!strip || !tabElement) return;
+
+                const stripRect = strip.getBoundingClientRect();
+                const tabRect = tabElement.getBoundingClientRect();
+                // Déjà entièrement visible → rien à faire.
+                if (tabRect.left >= stripRect.left && tabRect.right <= stripRect.right) return;
+
+                const delta = tabRect.left - stripRect.left - (stripRect.width - tabRect.width) / 2;
+                strip.scrollTo({ left: strip.scrollLeft + delta, behavior: "smooth" });
+            });
+        });
+
+        return () => cancelAnimationFrame(frame);
+    }, [activeStepData, tourPhase]);
 
     // Default permissions to true if not provided (internal consistency)
     const { 
@@ -242,10 +311,9 @@ export function ProfileBentoGrid({
     const isUpcoming = Boolean(startDate && startDate > now);
     const isOnVacation = Boolean(startDate && startDate <= now && (!endDate || endDate >= now));
 
-    // canEdit logic: Normal users can only edit if NOT readOnly. 
-    // SuperAdmins can ALWAYS edit (God Mode).
-    const canEdit = !readOnly || isSuperAdmin;
-    const targetUserId = isSuperAdmin ? profile.userId : undefined;
+    // canEdit logic: Édition autorisée uniquement sur son propre profil (readOnly === false).
+    const canEdit = !readOnly;
+    const targetUserId = undefined;
 
     // Handlers
     const handleClassSave = async (mainClass: string, pseudo: string) => {
@@ -270,7 +338,7 @@ export function ProfileBentoGrid({
         }
     };
 
-    const handleJobsSave = async (jobs: string[]) => {
+    const handleJobsSave = async (jobs: MetierEntry[]) => {
         setLocalProfile(prev => ({ ...prev, metiers: jobs }));
         const res = await updateUserProfile({
             guildId,
@@ -289,29 +357,6 @@ export function ProfileBentoGrid({
         const res = await updateForgemagieStatus({ guildId, status, targetUserId });
         if (res.success) {
             toast.success("Statut Forgemagie mis à jour");
-        } else {
-            toast.error(res.error || "Erreur");
-        }
-    };
-
-    const handleForgemagiePricesSave = async (prices: { classic: number | null, trans: number | null, exo: number | null }) => {
-        setLocalProfile(prev => ({
-            ...prev,
-            fmPriceClassic: prices.classic,
-            fmPriceTrans: prices.trans,
-            fmPriceExo: prices.exo
-        }));
-
-        const res = await updateUserProfile({
-            guildId,
-            fmPriceClassic: prices.classic,
-            fmPriceTrans: prices.trans,
-            fmPriceExo: prices.exo,
-            targetUserId
-        });
-
-        if (res.success) {
-            toast.success("Tarifs Forgemagie mis à jour");
         } else {
             toast.error(res.error || "Erreur");
         }
@@ -436,27 +481,57 @@ export function ProfileBentoGrid({
                 />
             </div>
 
-            {/* Sigma 2026 Sleek Glass Navigation Bar (Horizontal Figma 2026 UX) */}
+            {/* Sigma 2026 Sleek Glass Navigation Bar */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-                <div className="sticky top-20 z-30 w-full bg-background/90 backdrop-blur-xl border border-border p-2 rounded-2xl shadow-2xl overflow-x-auto scrollbar-width-none [&::-webkit-scrollbar]:hidden">
-                    <TabsList className="bg-transparent flex flex-row items-center gap-1.5 h-auto justify-start border-none w-max">
+                <div className="sticky top-20 z-30 w-full min-w-0 relative">
+                    {/* Scroll shadow + arrow — left */}
+                    <div className={cn(
+                        "absolute left-0 top-0 bottom-0 z-10 flex items-center pl-1 pointer-events-none transition-opacity duration-200",
+                        canScrollLeft ? "opacity-100" : "opacity-0"
+                    )}>
+                        <button
+                            aria-label="Faire défiler vers la gauche"
+                            onClick={() => scrollTabs("left")}
+                            className="pointer-events-auto flex items-center justify-center w-7 h-7 rounded-xl bg-surface/90 border border-border/80 shadow-md text-muted-foreground hover:text-foreground hover:bg-elevated transition-all"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <div
+                        ref={tabsScrollRef}
+                        className="w-full bg-surface/75 dark:bg-surface/80 backdrop-blur-2xl border border-border/80 p-1.5 rounded-2xl shadow-xl shadow-black/10 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                        <TabsList className="bg-transparent inline-flex flex-row items-center gap-1 h-auto justify-start border-none min-w-max p-0">
                         {(() => {
                             const hasServices = !readOnly || ((localProfile as any).activeServices && (localProfile as any).activeServices.length > 0);
-                            const ALL_TABS = [
-                                { id: "overview", label: "Général", icon: UserCircle, activeColor: "text-success", bgActive: "bg-success/15 border-success/30 text-success " },
-                                { id: "intro", label: "Présentation", icon: LayoutDashboard, activeColor: "text-sky-400", bgActive: "bg-sky-500/15 border-sky-500/30 text-sky-300 " },
-                                { id: "dofus", label: "Quêtes Dofus", icon: Sparkles, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " },
-                                { id: "combat", label: "Stuffs", icon: Shield, activeColor: "text-danger", bgActive: "bg-danger/15 border-danger/30 text-danger " },
-                                { id: "skins", label: "Skins", icon: Sparkles, activeColor: "text-pink-400", bgActive: "bg-pink-500/15 border-pink-500/30 text-pink-300 " },
-                                { id: "mules", label: "Mules", icon: Users, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " },
-                                { id: "achievements", label: "Succès", icon: Trophy, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " },
-                                { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " },
-                                { id: "artisanat", label: "Légendaire", icon: Sparkles, activeColor: "text-fuchsia-400", bgActive: "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300 " },
-                                { id: "activity", label: "Présence & Feed", icon: Activity, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " },
-                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", icon: Calendar, activeColor: "text-info", bgActive: "bg-info/15 border-info/30 text-info " }] : []),
-                                ...(hasServices ? [{ id: "services", label: "Services Proposés", icon: Wrench, activeColor: "text-warning", bgActive: "bg-warning/15 border-warning/30 text-warning " }] : []),
-                                ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, activeColor: "text-foreground", bgActive: "bg-elevated border-border-strong text-foreground" }] : []),
-                            ].filter(t => !isEmpty[t.id]);
+
+                            // iconType: 'dofus' = DofusUiIcon asset, 'lucide' = composant Lucide
+                            type TabDef = {
+                                id: string;
+                                label: string;
+                                activeColor: string;
+                                bgActive: string;
+                            } & (
+                                | { iconType: 'dofus'; dofusIcon: DofusUiIconName }
+                                | { iconType: 'lucide'; LucideIcon: React.ElementType }
+                            );
+
+                            const ALL_TABS: TabDef[] = [
+                                { id: "overview",      label: "Général",       iconType: "lucide",  LucideIcon: UserCircle,     activeColor: "text-emerald-400", bgActive: "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-sm shadow-emerald-500/15" },
+                                { id: "intro",         label: "Présentation",  iconType: "lucide",  LucideIcon: LayoutDashboard,activeColor: "text-sky-400",     bgActive: "bg-sky-500/20 border-sky-500/40 text-sky-300 shadow-sm shadow-sky-500/15" },
+                                { id: "dofus",         label: "Quêtes",        iconType: "dofus",   dofusIcon: "quest",         activeColor: "text-amber-400",  bgActive: "bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-sm shadow-amber-500/15" },
+                                { id: "combat",        label: "Stuffs",        iconType: "dofus",   dofusIcon: "dungeon",       activeColor: "text-rose-400",   bgActive: "bg-rose-500/20 border-rose-500/40 text-rose-300 shadow-sm shadow-rose-500/15" },
+                                { id: "skins",         label: "Skins",         iconType: "lucide",  LucideIcon: Palette,        activeColor: "text-pink-400",   bgActive: "bg-pink-500/20 border-pink-500/40 text-pink-300 shadow-sm shadow-pink-500/15" },
+                                { id: "mules",         label: "Mules",         iconType: "dofus",   dofusIcon: "player",        activeColor: "text-cyan-400",   bgActive: "bg-cyan-500/20 border-cyan-500/40 text-cyan-300 shadow-sm shadow-cyan-500/15" },
+                                { id: "achievements",  label: "Succès",        iconType: "dofus",   dofusIcon: "success",       activeColor: "text-yellow-400", bgActive: "bg-yellow-500/20 border-yellow-500/40 text-yellow-300 shadow-sm shadow-yellow-500/15" },
+                                { id: "metiers",       label: "Métiers",       iconType: "lucide",  LucideIcon: Hammer,         activeColor: "text-orange-400", bgActive: "bg-orange-500/20 border-orange-500/40 text-orange-300 shadow-sm shadow-orange-500/15" },
+                                { id: "artisanat",     label: "Légendaire",    iconType: "dofus",   dofusIcon: "chest",         activeColor: "text-fuchsia-400",bgActive: "bg-fuchsia-500/20 border-fuchsia-500/40 text-fuchsia-300 shadow-sm shadow-fuchsia-500/15" },
+                                { id: "activity",      label: "Activité",      iconType: "lucide",  LucideIcon: Activity,       activeColor: "text-indigo-400", bgActive: "bg-indigo-500/20 border-indigo-500/40 text-indigo-300 shadow-sm shadow-indigo-500/15" },
+                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", iconType: "dofus" as const, dofusIcon: "calendar" as DofusUiIconName, activeColor: "text-blue-400", bgActive: "bg-blue-500/20 border-blue-500/40 text-blue-300 shadow-sm shadow-blue-500/15" }] : []),
+                                ...(hasServices ? [{ id: "services", label: "Services", iconType: "lucide" as const, LucideIcon: Wrench, activeColor: "text-orange-400", bgActive: "bg-orange-500/20 border-orange-500/40 text-orange-300 shadow-sm shadow-orange-500/15" }] : []),
+                                ...(canEdit ? [{ id: "settings", label: "Réglages", iconType: "lucide" as const, LucideIcon: Settings, activeColor: "text-foreground", bgActive: "bg-elevated border-border-strong text-foreground shadow-sm" }] : []),
+                            ].filter(t => !isEmpty[t.id]) as TabDef[];
 
                             return ALL_TABS.map((tab) => {
                                 const isActive = activeTab === tab.id;
@@ -466,19 +541,42 @@ export function ProfileBentoGrid({
                                         value={tab.id}
                                         data-tour={`profile-tab-${tab.id}`}
                                         className={cn(
-                                            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer shrink-0",
+                                            "relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold tracking-wide transition-all border cursor-pointer shrink-0 select-none",
                                             isActive
-                                                ? cn("scale-[1.02]", tab.bgActive)
-                                                : "bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-surface hover:border-border"
+                                                ? cn(tab.bgActive)
+                                                : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-surface-hover/80 hover:border-border/40"
                                         )}
                                     >
-                                        <tab.icon className={cn("w-3.5 h-3.5", isActive ? tab.activeColor : "text-muted-foreground")} />
+                                        {tab.iconType === 'dofus' ? (
+                                            <DofusUiIcon
+                                                name={tab.dofusIcon}
+                                                size={14}
+                                                className={cn("transition-opacity", isActive ? "opacity-100" : "opacity-50")}
+                                            />
+                                        ) : (
+                                            <tab.LucideIcon className={cn("w-3.5 h-3.5 transition-colors shrink-0", isActive ? tab.activeColor : "text-muted-foreground/60")} />
+                                        )}
                                         <span>{tab.label}</span>
                                     </TabsTrigger>
                                 );
                             });
                         })()}
                     </TabsList>
+                    </div>
+
+                    {/* Scroll shadow + arrow — right */}
+                    <div className={cn(
+                        "absolute right-0 top-0 bottom-0 z-10 flex items-center pr-1 pointer-events-none transition-opacity duration-200",
+                        canScrollRight ? "opacity-100" : "opacity-0"
+                    )}>
+                        <button
+                            aria-label="Faire défiler vers la droite"
+                            onClick={() => scrollTabs("right")}
+                            className="pointer-events-auto flex items-center justify-center w-7 h-7 rounded-xl bg-surface/90 border border-border/80 shadow-md text-muted-foreground hover:text-foreground hover:bg-elevated transition-all"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Main Content Area (Full Width) */}
@@ -520,6 +618,14 @@ export function ProfileBentoGrid({
                                 readOnly={!canEdit}
                             />
                         )}
+
+                        {/* Badges & Achievements Vitrine (#198.2) */}
+                        <div className="sm:col-span-2">
+                            <BadgesVitrine
+                                profileId={profile.id}
+                                displayName={displayName}
+                            />
+                        </div>
                     </div>
                 </TabsContent>
 
@@ -642,13 +748,13 @@ export function ProfileBentoGrid({
                                     href={`/dashboard/${guildId}/planning`}
                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-success/30 bg-success/10 text-success text-sm font-semibold hover:bg-success/20 transition-colors duration-200"
                                 >
-                                    <Calendar className="w-4 h-4" />
+                                    <DofusUiIcon name="calendar" size={16} />
                                     Planning de Guilde
                                 </Link>
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className="lg:col-span-2">
+                                <div className="lg:col-span-2" data-tour="profile-planning">
                                     <AvailabilityHeatmap
                                         availability={localProfile.availability || {}}
                                         onSave={handleAvailabilitySave}
@@ -706,12 +812,8 @@ export function ProfileBentoGrid({
                          <JobsGrid
                              jobs={localProfile.metiers || []}
                              forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
-                             fmPriceClassic={localProfile.fmPriceClassic}
-                             fmPriceTrans={localProfile.fmPriceTrans}
-                             fmPriceExo={localProfile.fmPriceExo}
                              onSaveJobs={handleJobsSave}
                              onSaveForgemagieStatus={handleForgemagieStatusSave}
-                             onSaveForgemagiePrices={handleForgemagiePricesSave}
                              readOnly={!canEdit}
                          />
                      )}
@@ -724,7 +826,7 @@ export function ProfileBentoGrid({
                              <LegendaryCrafting 
                                  guildId={guildId}
                                  profileId={localProfile.id}
-                                 metiers={localProfile.metiers || []}
+                                 metiers={metierIds(localProfile.metiers)}
                                  readOnly={!canEdit}
                              />
                              {/* #69 — en lecture seule, la « Croquette Légendaire » n'apparaît QUE si

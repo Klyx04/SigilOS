@@ -127,20 +127,42 @@ export function DungeonFinderClient({
         });
     }, [posts, filters]);
 
-    const myActivePosts = posts.filter((p) => p.profileId === currentProfileId && p.status === "OPEN");
+    /**
+     * Répartition des posts par mode, dans le même périmètre que la liste affichée
+     * (posts fermés exclus tant que « Posts fermés » n'est pas coché) : le compteur
+     * des segments de filtre ne peut donc pas mentir.
+     */
+    const modeCounts = useMemo(() => {
+        const scope = posts.filter(
+            (p) => filters.showClosed || (p.status !== "CLOSED" && p.status !== "EXPIRED")
+        );
+        const counts: Record<string, number> = { "": scope.length };
+        for (const p of scope) counts[p.mode] = (counts[p.mode] ?? 0) + 1;
+        return counts;
+    }, [posts, filters.showClosed]);
+
+    const myActivePosts = useMemo(
+        () => posts.filter((p) => p.profileId === currentProfileId && p.status === "OPEN"),
+        [posts, currentProfileId]
+    );
+    const activePostsCount = useMemo(
+        () => posts.filter((p) => p.status === "OPEN" || p.status === "FULL").length,
+        [posts]
+    );
     const canCreate = myActivePosts.length < 3;
 
     return (
         <div className="space-y-8">
             <div className="space-y-5">
-                {/* Toolbar */}
-                <div className="flex flex-col xl:flex-row xl:items-start gap-4">
+                {/* Toolbar — sticky sous la navbar : dissociée du scroll des résultats */}
+                <div className="flex flex-col xl:flex-row xl:items-start gap-4 sticky top-14 z-20 bg-background/95 backdrop-blur-md pb-3">
                     <div className="flex-1">
                         <DjFiltersBar
                             filters={filters}
                             onChange={setFilters}
-                            total={posts.filter((p) => p.status === "OPEN" || p.status === "FULL").length}
+                            total={activePostsCount}
                             filtered={filteredPosts.length}
+                            modeCounts={modeCounts}
                         />
                     </div>
 
@@ -159,8 +181,8 @@ export function DungeonFinderClient({
                             disabled={!canCreate}
                             title={canCreate ? "Créer un post" : "Tu as atteint la limite de 3 posts actifs"}
                             className={`font-black h-10 gap-2 ${canCreate
-                                ? "bg-background hover:bg-surface text-foreground"
-                                : "bg-elevated/50 text-muted-foreground border border-border cursor-not-allowed opacity-70"
+                                ? "bg-info text-info-foreground hover:bg-info/90 border border-info/40 shadow-lg shadow-info/20"
+                                : "bg-elevated/50 text-muted-foreground border border-border-strong cursor-not-allowed opacity-70"
                                 }`}
                         >
                             {canCreate ? (
@@ -170,7 +192,7 @@ export function DungeonFinderClient({
                             )}
                             Nouveau post
                             {!canCreate && (
-                                <span className="ml-1 text-xs font-bold bg-warning/20 px-1.5 py-0.5 rounded">
+                                <span className="ml-1 text-xs font-bold bg-warning/20 text-warning-foreground px-1.5 py-0.5 rounded">
                                     {myActivePosts.length}/3
                                 </span>
                             )}
@@ -219,7 +241,7 @@ export function DungeonFinderClient({
                     </div>
                 ) : (
                     <div
-                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-tour="donjons-list"
+                        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 min-h-[420px] content-start" data-tour="donjons-list"
                     >
                         {filteredPosts.map((post) => (
                             <DjPostCard
@@ -229,7 +251,6 @@ export function DungeonFinderClient({
                                 currentProfileId={currentProfileId}
                                 isAdmin={isAdmin}
                                 onRefresh={handleRefresh}
-                                isDiscordConfigured={isDiscordConfigured}
                             />
                         ))}
                     </div>

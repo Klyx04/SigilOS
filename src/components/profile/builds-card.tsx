@@ -16,6 +16,7 @@ import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
 import { AddBuildModal } from "@/components/profile/add-build-modal";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import type { BUILD_TAG_TYPE } from "@/lib/dofus-tags";
+import { TagWithIcons } from "@/components/gallery/gallery-filters";
 
 export type DofusBookLink = {
     id: string;
@@ -95,6 +96,7 @@ const ClassSelector = ({
                                     src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
                                     alt={cls.name}
                                     fill
+                                    sizes="(min-width: 640px) 36px, 28px"
                                     className="object-contain"
                                 />
                             </div>
@@ -228,12 +230,12 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                     <h3 className="text-base font-semibold text-foreground">Mes Builds</h3>
                     {!readOnly && (
                         <span className="text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded border border-border">
-                            {links.length}/20
+                            {links.length}/30
                         </span>
                     )}
                 </div>
 
-                {!readOnly && links.length < 20 && (
+                {!readOnly && links.length < 30 && (
                     <AddBuildModal
                         guildId={guildId}
                         links={links}
@@ -274,7 +276,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             selectedTagFilter === id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                         )}
                                     >
-                                        {tag.label}
+                                        <TagWithIcons tag={tag} size={13} />
                                     </button>
                                 );
                             })}
@@ -298,7 +300,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                     selectedTagFilter === tag.id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-muted-foreground hover:text-foreground hover:bg-surface"
                                                 )}
                                             >
-                                                {tag.label}
+                                                <TagWithIcons tag={tag} size={13} />
                                             </button>
                                         );
                                     })}
@@ -326,7 +328,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 {filteredLinks.length > 0 ? (
                     filteredLinks.map(link => (
                         <div key={link.id} className="relative group/card h-full flex flex-col justify-between gap-2">
-                            <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
+                            <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} guildId={guildId} />
 
                             {/* Upload / Update Date Bar (Gallery parity) */}
                             <div className="flex items-center justify-between px-2 pt-1 text-caption text-muted-foreground border-t border-border">
@@ -394,7 +396,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             </button>
                                             <button
                                                 onClick={() => setEditingLink({ ...link })}
-                                                className="p-2 bg-surface/80 hover:bg-info text-info-foreground/50 hover:text-info-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
+                                                className="p-2 bg-surface/80 hover:bg-info text-muted-foreground hover:text-info-foreground rounded-xl border border-border hover:border-border shadow-lg transition-all"
                                                 title="Modifier ce build"
                                             >
                                                 <Pencil className="w-3.5 h-3.5" strokeWidth={2.5} />
@@ -511,7 +513,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                         : "bg-surface border-border text-muted-foreground hover:border-border-strong hover:text-foreground opacity-60 hover:opacity-100"
                                                 )}
                                             >
-                                                {tag.label}
+                                                <TagWithIcons tag={tag} size={13} />
                                             </button>
                                         );
                                     })}

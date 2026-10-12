@@ -154,8 +154,21 @@ model PlatformConfig {
   godNotifyWebEnabled    Boolean  @default(true)
   geoguesserReportedMaps Int[]    @default([])
   donationsEnabled       Boolean  @default(true)
+  kofiChannelId          String?  // Salon Discord public des remerciements Ko-fi (#DONS-KOFI)
   maintenanceMode        Boolean  @default(false)
   maintenanceMessage     String?
+  // Kill-switch God de l'auto-onboarding : OFF = les NOUVELLES guildes ne sont
+  // plus déployables en autonomie (file God) ; guildes existantes intouchées.
+  autoOnboardingEnabled  Boolean  @default(true)
+  // Kill-switch God des MODULES, au niveau PLATEFORME (A2 · G12) : un module
+  // listé ici est « Indisponible — maintenance » pour TOUTES les guildes
+  // (toggle de guilde conservé en BDD, restauré au déverrouillage). Le message
+  // libre affiché sur la carte du module vit dans `moduleNotices`
+  // (`{ [moduleKey]: string }`), borné à 200 caractères.
+  disabledModules          String[]  @default([])
+  moduleNotices            Json?
+  disabledModulesUpdatedAt DateTime?
+  disabledModulesUpdatedBy String?
   questFeedbackChannelId String?  // Canal Discord dédié aux feedbacks Dofus
   // Toggle God : si le ladder Ankama est indisponible, on autorise la saisie
   // manuelle du pseudo Dofus à la place de la vérification Ankama.
@@ -182,6 +195,16 @@ model PlatformConfig {
   // deviennent inopérants.
   forceDarkMode Boolean @default(false)
   forceDarkModeUpdatedAt DateTime?
+  // 🎫 Tickets — plafonds plateforme (God) : rétentions, transcripts et quotas
+  // max. Les guildes règlent en dessous (Max/membre), jamais au-dessus.
+  // Voir `src/lib/tickets/platform-limits.ts` (défauts) + migration
+  // `20261228000000_ticket_platform_limits`.
+  ticketTranscriptsEnabled      Boolean @default(true)
+  ticketRetentionArchivesDays   Int     @default(90)
+  ticketRetentionNotesDays      Int     @default(90)
+  ticketRetentionAuditDays      Int     @default(180)
+  ticketMaxPerUserCap           Int     @default(5)
+  ticketMaxGuildCap             Int     @default(100)
   forceDarkModeUpdatedBy String?
 }
 
@@ -422,12 +445,17 @@ model GuildConfig {
   kamaDonations                    KamaDonation[]
   welcomePosts                     MemberWelcome[]
   missions                         Mission[]
+  marketListings                   MarketListing[]
   ocreTradeRequests                OcreTradeRequest[]
+  reactionRoleGroups               ReactionRoleGroup[]
+  reactionRoleIconPacks            ReactionRoleIconPack[]
   polls                            Poll[]
   relances                         Relance[]
   resourceCategories               ResourceCategory[]
   serviceActivityLogs              ServiceActivityLog[]
+  serviceFeedbacks                 ServiceFeedback[]
   serviceListings                  ServiceListing[]
+  serviceRequests                  ServiceRequest[]
   sigilRoles                       SigilRole[]
   profiles                         UserProfile[]
   vaultEntries                     VaultEntry[]
@@ -442,6 +470,54 @@ model GuildConfig {
   raidHubConfig                    Json?
   notifications                    Notification[]
   memberBans                       GuildMemberBan[]
+  ticketConfig                     TicketGuildConfig?
+  ticketCategories                 TicketBotCategory[]
+  ticketPanels                     TicketBotPanel[]
+  ticketRecords                    TicketRecord[]
+  ticketNotes                      TicketNote[]
+  ticketTranscripts                TicketTranscript[]
+  ticketFeedbacks                  TicketFeedback[]
+  ticketAuditLogs                  TicketAuditLog[]
+  // 🆕 Tickets v2 — parcours, formulaires versionnés, équipes
+  ticketJourneys                   TicketJourney[]
+  ticketForms                      TicketForm[]
+  ticketFormVersions               TicketFormVersion[]
+  ticketTeams                      TicketTeam[]
+  ticketDrafts                     TicketDraft[]
+  apiKeys                          GuildApiKey[]
+  slashCommandPermissions          GuildSlashCommandPermission[]
+  // 👥 Module Cycle de vie des membres & Recrutement
+  trialEnabled                     Boolean                 @default(true)
+  trialDurationDays                Int                     @default(14)
+  muleLimitEnabled                 Boolean                 @default(true)
+  maxGuildMules                    Int                     @default(35)
+  recruitmentAlertChannelId        String?
+  arrivingRoleId                   String?
+  trialRoleId                      String?
+  confirmedRoleId                  String?
+  recruitmentWelcomeTemplate       String?
+  // ── Module « Marché » (chantier 2026-09-10) — réglages par guilde (§9.1) ──
+  // Toutes les valeurs sont lues côté serveur, jamais depuis un paramètre client.
+  marketNotifyChannelId            String?  // salon de publication (texte / annonces / forum)
+  marketNotifyRoleId               String?  // rôle mentionné à la publication (facultatif)
+  marketAllowedPingRoleIds         Json     @default("[]") // rôles que le créateur peut pinger
+  marketModeratorRoleId            String?  // rôle modérateur du marché (facultatif)
+  marketMinRoleId                  String?  // rôle minimum pour publier (facultatif)
+  marketMaxActivePerMember         Int      @default(5)
+  /// Lot M1 — plafond d'annonces **WANTED** (recherches d'achat) actives par
+  /// membre, compteur SÉPARÉ des ventes (défaut 5, même règle anti-abus §8.4).
+  marketMaxWantedPerMember          Int      @default(5)
+  marketDefaultDurationDays        Int      @default(7)
+  marketMaxLifetimeDays            Int      @default(20)   // D18 — plafond de survie
+  marketReminderDays               Json     @default("[7, 15]") // D18 — paliers de rappel
+  marketReservationHours           Int      @default(12)
+  marketOfferHours                 Int      @default(48)
+  marketNegotiationsEnabled        Boolean  @default(true)
+  marketProofsEnabled              Boolean  @default(true)
+  marketMediaRetentionDays         Int      @default(30)
+  marketLogRetentionDays           Int      @default(365)
+  marketChannelKind                String?  // TEXT | FORUM — posé automatiquement (D19)
+  marketForumTags                  Json?    // mapping type/statut → tagId forum (D20)
 }
 
 model UserSkin {
@@ -507,7 +583,36 @@ model GuildModules {
   manualLadderSync Boolean     @default(true)
   availability     Boolean     @default(false)
   succes           Boolean     @default(false)
+  reactionRoles    Boolean     @default(true)
+  tickets          Boolean     @default(false)
+  commandes       Boolean     @default(true)
+  /** Module « Marché » — OFF par défaut pour les nouvelles guildes (D15). */
+  marche          Boolean     @default(false)
   guild            GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  /**
+   * Modules verrouillés par le staff (noms de ModuleKey). Un module verrouillé
+   * est effectif OFF quelle que soit la bascule guilde (qui est conservée) ;
+   * sa RBAC associée est masquée de la matrice (mappings conservés).
+   */
+  disabledByGod    String[]    @default([])
+}
+
+/**
+ * Demande de récupération d'une guilde orpheline (zéro admin natif + zéro
+ * délégué). Créée par le membre actif le plus ancien, approuvée par un God
+ * via le transfert de propriété existant. Jamais d'auto-élévation.
+ */
+model GuildRecoveryClaim {
+  id              String    @id @default(cuid())
+  guildId         String
+  claimantUserId  String
+  status          String    @default("PENDING")
+  createdAt       DateTime  @default(now())
+  decidedAt       DateTime?
+  decidedBy       String?
+
+  @@index([guildId])
+  @@index([status])
 }
 
 model AuditLog {
@@ -529,6 +634,11 @@ model AuditLog {
   @@index([guildId, createdAt])
   @@index([actorUserId])
   @@index([action])
+  // 🔎 Séparation audit/sécurité (audit du 24/09/2026) : les écrans God filtrent
+  // désormais EN BASE (`isGodLog` + catégorie d'action) au lieu de trancher une
+  // première page en mémoire. Ces deux index portent les requêtes correspondantes.
+  @@index([isGodLog, createdAt])
+  @@index([guildId, isGodLog, createdAt])
 }
 
 model GuildActivity {
@@ -608,6 +718,8 @@ model UserProfile {
   alignment                  String?
   alignmentOrder             String?
   alignmentLevel             Int?                       @default(0)
+  /// Alignement « manuel » mémorisé avant que le rush ne l'écrase (restauré au décochage).
+  alignmentBefore            Json?
   ankamaId                   String?
   discordMessageCountWeekly  Int                        @default(0)
   discordVoiceTimeWeekly     Int                        @default(0)
@@ -639,6 +751,19 @@ model UserProfile {
   pinnedNavItems             String[]                   @default([])
   lastGalleryShareAt         DateTime?
   userUpdatedAt              DateTime?                  @default(now())
+  // 👥 Cycle de vie membre & Recrutement
+  lifecycleStatus            String?                    @default("CONFIRMED")
+  trialEndsAt                DateTime?
+  /// Essai validé (Oui) ou non (Non / Prolongé via trialEndsAt).
+  /// Remplace les anciennes étiquettes CANDIDATE / ARRIVING / TRIAL / CONFIRMED.
+  trialValidated             Boolean                    @default(false)
+  /// Date d'arrivée en guilde saisie à la main (registre). Repli = createdAt.
+  guildJoinedAt              DateTime?
+  recruitedById              String?
+  departureReason            String?
+  departureCategory          String?
+  recruitedByProfile         UserProfile?               @relation("RecruiterProfile", fields: [recruitedById], references: [id], onDelete: SetNull)
+  recruits                   UserProfile[]              @relation("RecruiterProfile")
   achievementSubmissions     AchievementSubmission[]
   djParticipations           DjSearchParticipant[]
   djSearchPosts              DjSearchPost[]
@@ -657,24 +782,53 @@ model UserProfile {
   polls                      Poll[]                     @relation("PollCreator")
   pollVotes                  PollVote[]
   serviceActivityLogs        ServiceActivityLog[]
+  serviceFeedbacksReceived   ServiceFeedback[]
   serviceListings            ServiceListing[]
+  serviceRequestsAsClient    ServiceRequest[]           @relation("ServiceRequestsAsClient")
+  serviceRequestsAsProvider  ServiceRequest[]           @relation("ServiceRequestsAsProvider")
   roleGrants                 SigilRoleGrant[]
   submissions                Submission[]
   userDungeonAchievements    UserDungeonAchievement[]
   dungeonProgress            UserDungeonProgress[]
+  defiProgress               UserDefiProgress[]
+  titanProgress              UserTitanProgress[]
+  badges                     UserBadge[]
   legendaryCrafts            LegendaryItem[]            @relation("LegendaryCrafters")
   hasLegendaryPrerequisites  Boolean                    @default(false)
   hasLegendaryPet            Boolean                    @default(false)
   playerGuideProgress        PlayerGuideProgress[]
+  /** Coches manuelles de ressources du Rush (par personnage) — cf. PlayerGuideResourceCheck. */
+  rushResourceChecks         PlayerGuideResourceCheck[]
   guild                      GuildConfig                @relation(fields: [guildId], references: [id], onDelete: Cascade)
   user                       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   skins                      UserSkin[]
   vaultEntries               VaultEntry[]
+  /** Module « Marché » — annonces du vendeur (relation nommée, cf. §6.10). */
+  marketListings             MarketListing[]            @relation("MarketListingsAsSeller")
   helpedSubmissions          Submission[]               @relation("SubmissionHelpers")
+  /** Registre : commentaires du staff (10 max, horodatés et signés). */
+  registryComments           MemberRegistryComment[]
 
   @@unique([userId, guildId])
   @@index([guildId])
   @@index([userId])
+}
+
+/// Registre Membres & Recrutement — commentaires du staff : plusieurs par
+/// membre (10 max), horodatés et signés par leur auteur.
+model MemberRegistryComment {
+  id           String      @id @default(cuid())
+  guildId      String
+  profileId    String
+  /// Auteur (compte staff) ; null seulement pour la reprise de l'ancienne note unique.
+  authorUserId String?
+  authorName   String
+  body         String
+  createdAt    DateTime    @default(now())
+  profile      UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+  @@index([guildId])
 }
 
 model LegendaryItem {
@@ -777,6 +931,10 @@ model Dungeon {
   id                   String                @id @default(cuid())
   name                 String
   bossName             String
+  /// Segment d'URL publique (`/boss/<slug>`) : généré depuis `bossName`, stable
+  /// dans le temps (une fois publié, on ne le change plus — sinon 308 depuis
+  /// l'ancien slug ET l'ancien identifiant, cf. src/app/boss/[dungeonId]/page.tsx).
+  slug                 String                @unique
   level                Int
   dpnlUrl              String?
   dofuspourlesnoobsUrl String?
@@ -791,6 +949,25 @@ model Dungeon {
   isOcreQuest          Boolean               @default(false) // Donjon de la Quête Ocre (Éternelle Moisson)
   dofusdbId            Int?                  // Identifiant DofusDB pour croisement avec les données du jeu
   mapId                Int?                  // Identifiant map worldmap.json pour l'icône sur la carte
+  // Chantier double boss — dissociation affichage / résolution Dofensive.
+  // `dofensiveMonsterName` = nom EXACT du monstre Dofensive (ex. "Sylargh") pour retrouver la map « Balcon de … » ;
+  // `dofensiveDungeonName` = nom EXACT du donjon Dofensive (ex. "Donjon du Comte Harebourg") pour lever l'ambiguïté
+  // avec les donjons solo homonymes (Sylargh existe aussi en donjon seul). Vides pour un donjon classique.
+  dofensiveMonsterName String?
+  dofensiveDungeonName String?
+  /* donjon sans succès : le « succès » est d'être validé → un pseudo-succès « Donjon validé » est créé. */
+  isNoAchievement      Boolean               @default(false) // Donjon sans succès (validable en un clic)
+  /* Chantier « boss d'anomalie » (Gardiens des anomalies temporelles) — contenu SIPHONNÉ
+     (Dofensive `/monsters/{id}` + DofusDB `monsters?race=191`), jamais saisi à la main.
+     `anomalyMapId`  = map de combat Dofensive du gardien (map par défaut si le gardien n'est
+                       pas exposé par Dofensive, ex. Qilby) ;
+     `anomalyFamily` = libellé de famille affiché (« Créatures des Anomalies Temporelles »). */
+  isAnomalyBoss        Boolean               @default(false) // Boss d'anomalie temporelle (Gardiens des anomalies)
+  anomalyMapId         Int?                  // Map de combat Dofensive (résolue par le siphon)
+  anomalyFamily        String?               // Famille/race Dofensive du gardien (affichage)
+  /* Chantier « boss de raid » (Créatures des raids, ex. Willorque, Mureine, Gigalodon...) */
+  isRaidBoss           Boolean               @default(false) // Boss de raid
+  raidId               String?               // Identifiant du raid associé (ex. "gigalodon", "jardin-eternel")
   djSearchPosts        DjSearchPost[]
   achievements         DungeonAchievement[]
   userProgress         UserDungeonProgress[]
@@ -801,6 +978,8 @@ model Dungeon {
   @@index([level])
   @@index([isExpedition])
   @@index([isEventDungeon])
+  @@index([isAnomalyBoss])
+  @@index([isRaidBoss])
   @@index([dofusdbId])
 }
 
@@ -822,7 +1001,7 @@ model Zone {
 
 model Bounty {
   id         String   @id @default(cuid())
-  name       String   @unique
+  name       String
   level      Int
   zoneName   String?
   imageUrl   String?
@@ -839,9 +1018,29 @@ model Bounty {
   mapUrl     String?
   rewards    Json?    @default("[]")
   position   String?
+  /* ── Chantier « Avis de recherche » (fiches + Succès + overlay) ────────────────
+     Contenu 100 % SIPHONNÉ (DofusDB `monster-races/32|90|127|147|156` + Dofensive
+     `/monsters/{id}`), écrit par la phase 4 du cron `sync-monster-stats` : jamais saisi
+     à la main (règle de la maison). `dofusdbId` = id Ankama/DofusDB, **clé de
+     rattachement** — des homonymes existent (3 × « Ronce ») donc `name` n'est plus
+     unique. `isBountyMonster` marque les 96 avis siphonnés ; les lignes historiques
+     (archimonstres/boss utilisés par la carte du monde) restent à `false` et ne sont
+     jamais servies comme avis. `subareaIds` = sous-zones de traque (worldmap.json) ;
+     `battleMapId`/`battleMapSource` = carte de la simulation (`default` = repli
+     DÉCLARÉ : Dofensive n'expose pas la grille des maps sauvages). */
+  dofusdbId       Int?     @unique
+  slug            String?
+  raceId          Int?
+  raceName        String?
+  subareaIds      Json     @default("[]")
+  isBountyMonster Boolean  @default(false)
+  battleMapId     Int?
+  battleMapSource String?
+  dofusdbSyncedAt DateTime?
 
   @@index([name])
   @@index([zoneName])
+  @@index([isBountyMonster])
 }
 
 /// Catalogue de monstres/boss/archimonstres de Dofus — stockés localement pour la carte.
@@ -901,6 +1100,32 @@ model MonsterFamily {
 
 /// Monstres spéciaux gérés par les super-admins (GOD) pour les missions événement.
 /// Contiennent les infos affichées dans le flow d'édition de mission (sélecteur "Monstre Spécial").
+/// 🔍 **Journal des changements** détectés par les siphons game-data — « quoi a changé, sur
+/// quelle fiche, avant → après ». C'est ce qui manquait : les cœurs calculaient des écarts
+/// (items par hash, quêtes NEW/MODIFIED) puis **les oubliaient**.
+///
+/// ⚠️ **Borné par construction** (demande user : « faut pas remplir le VPS à l'infini ») :
+/// rétention appliquée **à chaque écriture** — 30 jours + 500 entrées par dataset
+/// (`GAME_DATA_CHANGELOG_*` dans `src/lib/game-data-changelog.ts`). Un journal qui remplit le
+/// disque serait un bug, pas une fonctionnalité. Purge manuelle possible via le cron
+/// `cleanup-logs` si besoin.
+model GameDataChangeLog {
+  id         String   @id @default(cuid())
+  dataset    String   // GameDataDataset : ITEMS, QUESTS, FAMILIES, CLASS_SPELLS…
+  entityType String   // item | quest | spell | monster | zone | family | boss | bounty
+  entityId   String   // id Ankama / DofusDB / slug (jamais un id interne)
+  entityName String?
+  changeType String   // NEW | MODIFIED | REMOVED
+  /// Détail des champs modifiés : `{ champ: { before, after } }` — **jamais** le payload entier.
+  fields     Json?
+  runId      String?
+  createdAt  DateTime @default(now())
+
+  @@index([dataset, createdAt])
+  @@index([dataset, entityId])
+  @@index([createdAt])
+}
+
 /// `zone` est un libellé libre (comme Archimonstre) — pas de relation stricte pour couvrir
 /// les événements (zones non répertoriées, monstres d'event, etc.).
 model GameDataMonster {
@@ -938,6 +1163,11 @@ model DungeonAchievement {
   challengeId  String
   points       Int                      @default(10)
   imageUrl     String?
+  /// Mécanique **propre au donjon** du succès « Spécial » (lue chez DofusDB, cf.
+  /// `src/lib/achievement-details-siphon.ts`). Le `Challenge` visé (« Spécial ») est une ligne
+  /// **partagée** (`slug` unique) : c'est ici que vit le texte qui dépend du boss.
+  /// `null` ⇒ l'affichage retombe sur `challenge.description` (les autres succès).
+  description  String?
   createdAt    DateTime                 @default(now())
   challenge    Challenge                @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   dungeon      Dungeon                  @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
@@ -1160,6 +1390,29 @@ model EventParticipant {
   @@index([eventId, position])
 }
 
+/// Session live d'un raid (lot 2) : chrono SERVEUR + étape imposée +
+/// objectifs cochés par le lead (avec points théoriques).
+/// Un event = une session (`eventId` unique). Pilotée par créateur/capitaine ;
+/// lue par les inscrits (overlay live) — le chrono jeu démarre au lancement,
+/// pas à l'heure planifiée. Zéro sel déclaré (retour terrain : le jeu l'affiche).
+model RaidLiveSession {
+  id              String   @id @default(cuid())
+  guildId         String   // = GuildConfig.id (JAMAIS le discordGuildId)
+  eventId         String   @unique // GuildEvent.id du raid
+  raidType        String   // "gigalodon" | "jardin"
+  createdByUserId String   // User.id du lanceur (créateur ou capitaine)
+  startedAt       DateTime @default(now())
+  endsAt          DateTime // startedAt + 60 min (fenêtre de lancement du Gigalodon)
+  status          String   @default("LIVE") // LIVE | ENDED
+  currentStepIndex Int     @default(0)
+  objectives      Json     // [{ id, label, points, done }] — source : siphon guides
+  endedAt         DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([guildId, status])
+}
+
 model ImageHash {
   id         String   @id @default(cuid())
   guildId    String
@@ -1204,24 +1457,116 @@ model OcrApiUsage {
 }
 
 model OcreTradeRequest {
-  id              String      @id @default(cuid())
-  guildId         String
-  requesterId     String
-  targetId        String
-  monsterId       Int
-  status          TradeStatus @default(PENDING)
-  message         String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  monsterImageUrl String?
-  monsterName     String?
-  guild           GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  requester       UserProfile @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
-  target          UserProfile @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
+  id                    String      @id @default(cuid())
+  guildId               String
+  requesterId           String
+  targetId              String
+  monsterId             Int
+  monsterName           String?
+  monsterImageUrl       String?
+  monsterStep           Int?
+  offeredMonsterId      Int?
+  offeredMonsterName    String?
+  offeredMonsterImageUrl String?
+  offeredMonsterStep    Int?
+  status                TradeStatus @default(PENDING)
+  message               String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  guild                 GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  requester             UserProfile @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target                UserProfile @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
 
   @@index([guildId, status])
   @@index([targetId, status])
   @@index([requesterId, status])
+}
+
+model ReactionRoleGroup {
+  id               String               @id @default(cuid())
+  guildId          String
+  name             String
+  description      String?
+  channelId        String
+  messageId        String?
+  logChannelId     String?
+  mode             String               @default("NORMAL") // NORMAL, UNIQUE, VERIFY, REVERSE
+  style            String               @default("BUTTONS") // BUTTONS, SELECT_MENU, REACTIONS
+  maxRoles         Int?
+  embedTitle       String?
+  embedDescription String?
+  embedColor       String?              @default("#10b981")
+  embedThumbnail   String?
+  embedImage       String?
+  embedFooter      String?
+  showRoleCount    Boolean              @default(false)
+  isActive         Boolean              @default(true)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  options          ReactionRoleOption[]
+  guild            GuildConfig          @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+}
+
+model ReactionRoleOption {
+  id                  String            @id @default(cuid())
+  groupId             String
+  roleId              String
+  roleName            String
+  roleColor           String?
+  emoji               String?
+  label               String?
+  description         String?
+  buttonStyle         String            @default("SECONDARY") // PRIMARY, SECONDARY, SUCCESS, DANGER
+  position            Int               @default(0)
+  maxMembers          Int?
+  removeRoleId        String?           // Rôle à retirer automatiquement lors de l'attribution
+  removeRoleName      String?
+  requiredRoleId      String?           // Rôle prérequis obligatoire pour pouvoir cliquer
+  requiredRoleName    String?
+  blacklistedRoleId   String?           // Rôle interdit (bloque l'attribution si possédé)
+  blacklistedRoleName String?
+  /// Multi-rôles sur un seul clic (#222)
+  extraRoleIds        String[]          @default([])
+  /// Rôle temporaire (durée en jours ou null si permanent) (#222)
+  durationDays        Int?
+  group               ReactionRoleGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+}
+
+/// Rôles temporaires actifs à révoquer à expiration (#222)
+model TimedRoleGrant {
+  id              String      @id @default(cuid())
+  guildId         String
+  discordGuildId  String
+  discordUserId   String
+  roleId          String
+  roleName        String?
+  grantedAt       DateTime    @default(now())
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  source          String      @default("REACTION_ROLE")
+
+  @@index([discordGuildId, expiresAt, revokedAt])
+  @@index([discordUserId])
+}
+
+model ReactionRoleIconPack {
+  id          String       @id @default(cuid())
+  name        String
+  category    String       @default("CUSTOM") // DOFUS_CLASSES, ELEMENTS, ALIGNMENTS, PROFESSIONS, NOTIFICATIONS, CUSTOM
+  description String?
+  icons       Json
+  isGodOnly   Boolean      @default(false)
+  guildId     String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  guild       GuildConfig? @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+  @@index([category])
 }
 
 model GuildBonus {
@@ -1277,6 +1622,11 @@ model ChangelogEntry {
   updatedAt   DateTime          @updatedAt
   summary     String?
   isInternal  Boolean           @default(false)
+  // Traductions anglaises (facultatives). NULL = repli automatique sur le FR à
+  // l'affichage (cf. localizeChangelogEntry dans changelog-actions.ts).
+  titleEn     String?
+  summaryEn   String?
+  contentEn   String?
 
   @@index([publishedAt])
   @@index([category])
@@ -1402,6 +1752,14 @@ model DjSearchPost {
   dungeonsJson         Json?
   participants         DjSearchParticipant[]
   dungeon              Dungeon?              @relation(fields: [dungeonId], references: [id], onDelete: Cascade)
+  /* Mode Défi (# — chantier double boss/défi) : post rattaché à un défi (simple ou multi). */
+  defiId               String?
+  defiName             String?
+  defi                 Defi?                 @relation(fields: [defiId], references: [id], onDelete: Cascade)
+  /* Mode Titan (# — Événement Krosmique) : post rattaché à un titan (ex. Gargandyas). */
+  titanId              String?
+  titanName            String?
+  titan                Titan?                @relation(fields: [titanId], references: [id], onDelete: Cascade)
   guild                GuildConfig           @relation(fields: [guildId], references: [id], onDelete: Cascade)
   profile              UserProfile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -1457,6 +1815,148 @@ model UserDungeonProgress {
   @@index([achievementId])
 }
 
+/// Défi (événement / combat one-shot, ex. « Défi du Xélor fou », « Faille inattendue »).
+/// Un défi référence un ou plusieurs boss (noms + ids Dofensive optionnels), une zone, une image.
+/// Côté membre : l'onglet « Défi » de /succes permet de cocher « je l'ai fait » et « qui a quoi ».
+model Defi {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  zone         String?
+  level        Int?
+  imageUrl     String?
+  dofensiveUrl String?
+  dpnlUrl      String?
+  dofuspourlesnoobsUrl String?
+  /// Boss du défi + infos pour l'affichage / la fiche : [{ name, dofusdbId?, imageUrl? }]
+  bossNames    Json?    @default("[]")
+  /// Fenêtre d'événement. Si `isPermanent` = true, le défi est dispo en permanence sur le jeu
+  /// (startDate/endDate ignorés) ; sinon `startDate` (début) et `endDate` (fin) bornent l'événement.
+  isPermanent  Boolean  @default(true)
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userProgress UserDefiProgress[]
+  djPosts     DjSearchPost[]
+
+  @@index([name])
+  @@index([zone])
+  @@index([level])
+}
+
+/// Progression « je l'ai fait » sur un défi (par membre).
+model UserDefiProgress {
+  id          String   @id @default(cuid())
+  profileId   String
+  defiId      String
+  source      String   @default("MANUAL") // MANUAL | GROUP
+  completedAt DateTime @default(now())
+  defi        Defi     @relation(fields: [defiId], references: [id], onDelete: Cascade)
+  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, defiId])
+  @@index([profileId])
+  @@index([defiId])
+}
+
+/// Titan (Événement Krosmique, ex. Gargandyas) — boss de week-end, contenu ÉVOLUTIF.
+/// Chaque Titan porte SA PROPRE config de disponibilité (jours/créneaux/maxVictoires), ce qui
+/// permet d'ajouter de futurs Titans avec des contraintes différentes sans figer le modèle.
+model Titan {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  level         Int      @default(200)
+  description   String?
+  zone          String?                    // Dimension / zone (ex. Osavora) — libellé libre
+  imageUrl      String?
+  dpnlUrl       String?
+  dofensiveUrl  String?
+  dofuspourlesnoobsUrl String?
+  mapName       String?                    // Nom de la map isométrique à télécharger (ex. « Temple de Gargandyas — Salle du Graogarm »)
+  dofusdbId     Int?                       // ID DofusDB du monstre/boss titan (ex. 8062 pour Gargandyas)
+  questName     String?                    // Quête associée au titan (ex. « Destructeur de mondes »)
+  questUrl      String?                    // Lien vers la quête (DofusDB / DofusPourLesNoobs)
+  /// Config de disponibilité FLEXIBLE (ne PAS figer les contraintes horaires/jours) :
+  ///  { daysOfWeek?: number[], startTime?: "19:00", endTime?: "08:00", maxWinsPerWeekend?: 5, onlyWeekend?: true }
+  scheduleConfig Json?  @default("{}")
+  /// Mapping du boss de phase 4 par saison : [{ season, bossName, imageUrl? }]
+  seasonBosses  Json?    @default("[]")
+  seasons       String[] @default([])       // Libellés des saisons connues (ex. "Naissances", "Chasse", "Repos")
+  currentSeason String?                     // Saison en cours (affichage « saison en cours »)
+  maxMembers    Int      @default(4)        // 4 personnes maximum (limitation)
+  isPermanent   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userProgress  UserTitanProgress[]
+  djPosts       DjSearchPost[]
+
+  @@index([name])
+  @@index([zone])
+  @@index([level])
+}
+
+/// Progression « je l'ai vaincu » sur un titan (par membre).
+model UserTitanProgress {
+  id          String   @id @default(cuid())
+  profileId   String
+  titanId     String
+  source      String   @default("MANUAL") // MANUAL | GROUP
+  completedAt DateTime @default(now())
+  titan       Titan    @relation(fields: [titanId], references: [id], onDelete: Cascade)
+  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, titanId])
+  @@index([profileId])
+  @@index([titanId])
+}
+
+/// 🏅 #198.2 — Système de Badges & Succès Plateforme SigilOS
+model Badge {
+  id              String      @id @default(cuid())
+  slug            String      @unique
+  name            String
+  description     String?
+  imageUrl        String
+  rarity          String      @default("COMMON") // COMMON | RARE | EPIC | LEGENDARY | MYTHIC
+  category        String      @default("COMMUNITY") // COMMUNITY | GAMEPLAY | EVENT | STAFF | GUILD
+  isSecret        Boolean     @default(false)
+  isGodOnly       Boolean     @default(false)
+  sortOrder       Int         @default(0)
+  /// Déclencheur automatique (#198.2 No-Code Rules Engine)
+  triggerType     String      @default("MANUAL") // MANUAL | KOFI_DONATION | DOFUS_SPECIFIC | DOFUS_COUNT | DEFI_COUNT | SONGES_FLOOR | MISSIONS_COUNT
+  triggerValue    String?     // ex: "5", "200", "dofus-ocre"
+  triggerMetadata Json?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  userBadges  UserBadge[]
+
+  @@index([category])
+  @@index([rarity])
+  @@index([triggerType])
+}
+
+/// Attribution de badge à un profil de guilde
+model UserBadge {
+  id          String      @id @default(cuid())
+  badgeId     String
+  profileId   String
+  unlockedAt  DateTime    @default(now())
+  source      String      @default("MANUAL") // MANUAL | AUTOMATIC | EVENT
+  reason      String?
+  badge       Badge       @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  profile     UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, badgeId])
+  @@index([profileId])
+  @@index([badgeId])
+}
+
 model DreamBonus {
   id          String   @id @default(cuid())
   name        String   @unique
@@ -1480,28 +1980,105 @@ model GameQuest {
   description String?
   imageUrl    String?
   category    String?
+  /// 📜 Résumé **canonique** du contenu (étapes, objectifs, récompenses — FR borné) : c'est ce qui
+  /// permet de dire « l'objectif 115 a changé » (`src/lib/quest-content.ts`).
+  contentJson Json?
+  /// Empreinte du résumé (comparaison bon marché, reprise après migration).
+  contentHash String?
+  /// `updatedAt` DofusDB : **détecte tout changement, contenu inclus** (mesuré le 24/09/2026 —
+  /// `/quests` expose `updatedAt`, seul moyen de voir une modification d'étape).
+  dofusDbUpdatedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([category])
 }
 
-/// 🖼️ #140 — Screens de la landing pilotés par le God (upload/suppression à la volée).
-/// `section` = emplacement sur la landing (ex. "product-story"). `sortOrder` = ordre d'affichage.
-model LandingScreen {
-  id        String   @id @default(cuid())
-  section   String   @default("product-story")
-  label     String?
-  title     String?
-  description String?
-  imageUrl  String
-  alt       String?
-  sortOrder Int      @default(0)
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now())
+/// 📦 #38 — Catalogue complet d'items et ressources Dofus 3 (100% autonome et local-first).
+model GameItem {
+  id           String   @id @default(cuid())
+  ankamaId     Int      @unique
+  name         String
+  level        Int      @default(1)
+  typeId       Int?
+  typeName     String   @default("Item")
+  category     String   @default("equipment") // equipment | resources | consumables | cosmetics
+  description  String?  @db.Text
+  effects      Json?    // Array d'effets min/max avec caractéristique
+  recipe       Json?    // Array d'ingrédients [{ id, name, qty, iconUrl }]
+  hasRecipe    Boolean  @default(false)
+  iconUrl      String?
+  dataHash     String?  // MD5 des stats/recette pour détection différentielle (nerf/buff/modifs)
+  isDeprecated Boolean  @default(false)
+  // ── S2 (chantier Marché) — extension ADDITIVE issue de DofusDB (§6.11) ────
+  realWeight    Int?      // POIDS (pods)
+  priceNpc      Int?      // `price` DofusDB → prix PNJ de référence
+  itemSetId     Int?      // panoplie (-1 = aucune)
+  itemSetName   String?   // « Panoplie du Katcheur »
+  isLegendary   Boolean   @default(false)   // familiers / objets légendaires
+  isSaleable    Boolean   @default(true)
+  superTypeId   Int?      // famille (Arme, Consommable, Ressource…)
+  superTypeName String?   // libellé FR de la famille
+  // Version LÉGÈRE des effets natifs (plages min–max) — indispensable à l'éditeur FM
+  // et à la carte d'item : [{ effectId, characteristic, from, to, category, elementId }]
+  nativeEffects Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([name])
+  @@index([category])
+  @@index([typeName])
+  @@index([level])
+  @@index([itemSetId])      // filtre « panoplie » (éditeur FM)
+  @@index([superTypeId])    // filtre « famille » (éditeur FM)
+}
+
+/// 📚 Référentiel DofusDB `/effects` — siphonné (S2.5bis).
+/// Rend les libellés FR, le « % » et la caractéristique **data-driven** :
+/// `CHAR_NAMES` (codé en dur côté composant) est remplacé par cette table.
+model GameEffect {
+  id             Int      @id                  // = effectId DofusDB
+  name           String                        // libellé FR (« Vitalité », « Dommages Feu »)
+  characteristic Int?                          // caractéristique associée (→ GameCharacteristic.id)
+  isInPercent    Boolean  @default(false)      // l'effet s'exprime en % (résistances…)
+  category       Int?                          // catégorie DofusDB (utile au tri d'affichage)
+  iconKey        String?                       // slug d'icône locale (`vi`, `fo`, `dmg`, `po`…)
+  // ── Fidélité DofusDB (correction 13/09) — sens de la ligne ───────────────
+  // DofusDB expose `characteristicOperator` (« + » / « - ») et un gabarit de
+  // description qui **porte le signe** (« -#1{{~1~2 à -}}#2 Esquive PA »).
+  // Les dés bruts d'un item (`possibleEffects`) sont TOUJOURS positifs : sans
+  // ces drapeaux, un malus s'affiche « +6 à +8 » (constat user du 13/09).
+  characteristicOperator String?               // « + » | « - » (source DofusDB)
+  isNegativeValue        Boolean @default(false) // la ligne s'AFFICHE négative (ex. Esquive PA)
+  updatedAt      DateTime @updatedAt
+
+  @@index([characteristic])
+}
+
+/// 📚 Référentiel DofusDB `/characteristics` — siphonné (S2.5bis).
+/// Alimente l'icône + la couleur d'une caractéristique **data-driven**
+/// (remplace `STAT_ICONS` codé en dur côté composant).
+model GameCharacteristic {
+  id        Int      @id                       // = characteristicId DofusDB
+  name      String                             // libellé FR (« Vitalité », « Force »…)
+  keyword   String?                            // code court historique (`vi`, `fo`, `dmg`…)
+  iconKey   String?                            // slug d'icône locale (public/assets/dofus/stats)
   updatedAt DateTime @updatedAt
 
-  @@index([section, enabled, sortOrder])
+  @@index([keyword])
+}
+
+/// 📖 Cache persistant des sorts de classes (19 lignes max, une par classe).
+/// Remplace le seul cache Redis 24 h de `getClassSpells` : les sorts (tous grades
+/// + lignes de dégâts `zoneDescr`) survivent au restart/expire Redis. Le grade
+/// par défaut reste sélectionné à la LECTURE selon le niveau du perso
+/// (`applyCharLevelToSpells`) : une seule ligne par classe suffit.
+model ClassSpellbook {
+  classId    Int      @id                       // 1-19 (ordre Dofusbook)
+  className  String                             // « Huppermage »
+  spells     Json                               // ClassSpellDamage[] canonique (grade niv. 200 + tous grades)
+  spellCount Int      @default(0)
+  updatedAt  DateTime @updatedAt
 }
 
 model ServiceListing {
@@ -1534,10 +2111,68 @@ model ServiceListing {
   selectedAchievementNames Json?
   guild                    GuildConfig     @relation(fields: [guildId], references: [id], onDelete: Cascade)
   profile                  UserProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  requests                 ServiceRequest[]
 
   @@index([guildId, status])
   @@index([guildId, category])
   @@index([profileId])
+}
+
+model ServiceFeedback {
+  id                String          @id @default(cuid())
+  guildId           String
+  providerProfileId String
+  clientUserId      String
+  clientName        String
+  clientAvatar      String?
+  serviceListingId  String?
+  serviceRequestId  String?         @unique // lié à une demande fermée
+  serviceTitle      String
+  category          ServiceCategory
+  rating            Int             // 1 à 5
+  comment           String?
+  isModerated       Boolean         @default(false) // masqué par un admin
+  createdAt         DateTime        @default(now())
+
+  guild             GuildConfig     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  providerProfile   UserProfile     @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  request           ServiceRequest? @relation(fields: [serviceRequestId], references: [id])
+
+  @@index([guildId, providerProfileId])
+  @@index([providerProfileId])
+}
+
+model ServiceRequest {
+  id                 String                @id @default(cuid())
+  guildId            String
+  listingId          String
+  clientProfileId    String                // profil du client qui demande
+  clientUserId       String                // userId pour les notifications
+  clientName         String
+  clientAvatar       String?
+  providerProfileId  String                // profil du passeur
+  providerUserId     String
+  options            Json?                 // options sélectionnées
+  customMessage      String?               // message du client
+  status             ServiceRequestStatus  @default(PENDING)
+  discordMessageId   String?               // id du message embed Discord envoyé
+  closedAt           DateTime?
+  feedbackToken      String?               @unique // token one-time pour le feedback
+  lastReminderAt     DateTime?                       // dernier rappel de nettoyage envoyé au demandeur
+  reminderCount      Int                    @default(0) // nombre de rappels de nettoyage envoyés
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  guild              GuildConfig           @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  listing            ServiceListing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  clientProfile      UserProfile           @relation("ServiceRequestsAsClient", fields: [clientProfileId], references: [id], onDelete: Cascade)
+  providerProfile    UserProfile           @relation("ServiceRequestsAsProvider", fields: [providerProfileId], references: [id], onDelete: Cascade)
+  feedback           ServiceFeedback?
+
+  @@index([guildId, status])
+  @@index([listingId])
+  @@index([clientProfileId])
+  @@index([providerProfileId])
 }
 
 model GuildLoan {
@@ -1976,6 +2611,12 @@ model DofusQuestEntry {
   localImageUrl      String?
   externalRef        String?
   weight             Int                        @default(1)
+  /// Succès imbriqués : QUEST (quête jouable) | ACHIEVEMENT (succès conteneur d'objectifs).
+  entryKind          String                     @default("QUEST")
+  /// Id de l'entrée parente quand cette entrée est un objectif d'un autre succès.
+  /// Pas de FK volontaire : une section est purgée/re-seedée en bloc (`deleteMany`),
+  /// l'intégrité (même section, anti-cycle, cascade) est tenue par les Server Actions God.
+  parentEntryId      String?
   dungeonsRequired   Json?
   positions          Json?                      @default("[]")
   dofusdbUrl         String?
@@ -1987,6 +2628,7 @@ model DofusQuestEntry {
 
   @@index([chainId])
   @@index([chainId, stepOrder])
+  @@index([parentEntryId])
 }
 
 /// Progression d'un joueur sur un Dofus spécifique (obtenu ou non)
@@ -2100,10 +2742,14 @@ model OptimizedGuide {
   isActive            Boolean              @default(false)
   isUnderConstruction Boolean              @default(false) // God toggle: affiche "En construction" côté membres
   displayMode         String               @default("TREE") // "TREE" | "TIMELINE" — mode d'affichage membre
+  // Config UI/UX GOD (édition membre) — pense-bête + options de la modale de lancement.
+  // Optionnel : si vide, l'app retombe sur les valeurs par défaut (voir rush-sylvestre-pense-bete.ts).
+  rushUIConfig        Json?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   steps               OptimizedGuideStep[]
   milestones          GuideMilestone[]
+  resourceChecks      PlayerGuideResourceCheck[]
 }
 
 model OptimizedGuideStep {
@@ -2232,6 +2878,27 @@ model PlayerGuideProgress {
   @@index([characterSlot])
 }
 
+/// Coche MANUELLE d'une ressource du guide (Rush Sylvestre) : « j'ai déjà préparé
+/// cet objet ». Une ligne = une ressource cochée, par MEMBRE et par PERSONNAGE
+/// (principale ou mule) : ce qu'on a acheté avec une mule ne l'est pas avec la
+/// principale. Une quête invalidée remet à zéro les coches de ses ressources.
+model PlayerGuideResourceCheck {
+  id            String   @id @default(cuid())
+  profileId     String
+  guideId       String
+  characterSlot String   @default("PRINCIPAL") // "PRINCIPAL" = main, pseudo = mule
+  /// Clé STABLE de la ressource (voir `rushResourceKey`, `id:<id>|<nom normalisé>`).
+  resourceKey   String
+  checkedAt     DateTime @default(now())
+
+  profile       UserProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  guide         OptimizedGuide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, guideId, resourceKey, characterSlot])
+  @@index([guideId, characterSlot])
+  @@index([profileId])
+}
+
 enum GuideMilestoneType {
   DOFUS           // Obtention d'un Dofus
   DOFUS_OBTAINED  // Bloc visuel premium "Dofus Obtenu" (grande icône, message personnalisable, non cochable)
@@ -2340,6 +3007,14 @@ enum NotificationType {
   FINDER_POST_CLOSED
   SERVICE_REQUEST
   SERVICE_REPLY
+  MARKET_OFFER_RECEIVED
+  MARKET_RESERVED
+  MARKET_RESERVATION_ENDED
+  MARKET_OFFER_ANSWERED
+  MARKET_SOLD
+  MARKET_REMINDER
+  MARKET_ARCHIVED
+  MARKET_REPORT_OPENED
 }
 
 enum NotificationCategory {
@@ -2352,6 +3027,7 @@ enum NotificationCategory {
   SYSTEM
   DONJONS
   OCRE
+  MARKET
 }
 
 enum DreamDifficulty {
@@ -2496,6 +3172,8 @@ enum PollStatus {
 enum DjSearchMode {
   DONJON
   QUETE
+  DEFI
+  TITAN
 }
 
 enum DjSearchStatus {
@@ -2525,6 +3203,13 @@ enum ServiceStatus {
   ACTIVE
   PAUSED
   CLOSED
+}
+
+enum ServiceRequestStatus {
+  PENDING   // demande envoyée, en attente de réponse du passeur
+  REPLIED   // le passeur a répondu
+  CLOSED    // le passeur a clôturé → feedback possible
+  CANCELLED // annulée
 }
 
 enum LoanType {
@@ -2676,5 +3361,922 @@ model MonsterStat {
 
   @@index([monsterName])
   @@index([lastSyncedAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TICKET BOT DISCORD (GOD + MODULE GUILDE)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TicketBotStatus {
+  OPEN
+  CLAIMED
+  PENDING_USER
+  RESOLVED
+  CLOSED
+  /// 🆕 v2 — demande d'ouverture en attente d'approbation staff (avant création du salon)
+  REQUESTED
+  /// 🆕 v2 — le salon a été supprimé mais l'archive/le nettoyage a échoué (rejouable)
+  ARCHIVE_FAILED
+  /// 🆕 v2 — demande d'ouverture refusée par le staff : aucun salon n'a jamais existé
+  REFUSED
+}
+
+enum TicketChannelType {
+  CHANNEL_TEXT
+  THREAD_PRIVATE
+}
+
+enum TicketButtonStyle {
+  PRIMARY
+  SECONDARY
+  SUCCESS
+  DANGER
+}
+
+/// 🆕 v2 — cycle de vie d'un formulaire (brouillon éditable / version publiée figée).
+enum TicketFormStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// 🆕 v2 — immédiat ou file d'approbation (le salon n'existe qu'après acceptation).
+enum TicketOpenMode {
+  INSTANT
+  APPROVAL
+}
+
+/// 🆕 v2 — qui peut fermer un ticket (politique publiée du parcours).
+enum TicketClosePolicy {
+  STAFF_ONLY
+  STAFF_OR_CREATOR
+}
+
+/// 🆕 v2 — deux archives distinctes : partageable (sans notes) et annexe interne.
+enum TicketArchiveKind {
+  SHAREABLE
+  INTERNAL
+}
+
+model TicketGuildConfig {
+  id                      String              @id @default(cuid())
+  guildId                 String              @unique
+  isEnabled               Boolean             @default(false)
+  activatedAt             DateTime?
+  activatedBy             String?
+  logChannelId            String?
+  transcriptsChannelId    String?
+  staffRoleIds            String[]            @default([])
+  maxActiveTicketsPerUser Int                 @default(1)
+  maxTicketsTotalGuild    Int                 @default(50)
+  enableCsat              Boolean             @default(true)
+  enableDmNotifications   Boolean             @default(true)
+  enableTranscripts       Boolean             @default(true)
+  /// 🆕 v2 — rétention par type de donnée, en jours (0 = illimité). Consommée par
+  /// la purge (`src/server/tickets/archive.ts`), jamais affichée sans mécanisme.
+  transcriptRetentionDays Int                 @default(365)
+  noteRetentionDays       Int                 @default(365)
+  auditRetentionDays      Int                 @default(730)
+  settingsJson            Json?               @default("{}")
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  guild                   GuildConfig         @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, isEnabled])
+}
+
+model TicketBotCategory {
+  id                    String            @id @default(cuid())
+  guildId               String
+  name                  String
+  slug                  String
+  description           String?
+  emoji                 String?           @default("🎫")
+  buttonStyle           TicketButtonStyle @default(PRIMARY)
+  channelType           TicketChannelType @default(CHANNEL_TEXT)
+  channelParentId       String?
+  staffRoleIds          String[]          @default([])
+  namingPattern         String            @default("ticket-{num}")
+  formSchemaJson        Json              @default("[]")
+  slaFirstResponseMin   Int?
+  slaResolutionMin      Int?
+  autoCloseWarningHours Int?
+  autoCloseHours        Int?
+  order                 Int               @default(0)
+  isEnabled             Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  guild                 GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  tickets               TicketRecord[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, isEnabled, order])
+}
+
+model TicketBotPanel {
+  id               String            @id @default(cuid())
+  guildId          String
+  name             String
+  channelId        String
+  messageId        String?
+  embedTitle       String            @default("Centre de Support & Assistance")
+  embedDescription String            @default("Cliquez sur l'un des boutons ci-dessous pour ouvrir un ticket.")
+  embedColor       String            @default("#6366f1")
+  embedThumbnail   String?
+  embedImage       String?
+  embedFooter      String?           @default("SigilOS Tickets")
+  style            String            @default("BUTTONS") // BUTTONS, SELECT_MENU
+  /// ⚠️ v1 — conservé en lecture (panneaux déjà déployés). Les parcours v2 utilisent `journeyIds`.
+  categoryIds      String[]          @default([])
+  /// 🆕 v2 — parcours exposés par ce message Discord (l'ordre = celui des boutons).
+  journeyIds       String[]          @default([])
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  guild            GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+}
+
+/// 🆕 v2 — équipe répondante réutilisable (rôles Discord staff + rôles à notifier).
+model TicketTeam {
+  id            String          @id @default(cuid())
+  guildId       String
+  name          String
+  slug          String
+  description   String?
+  /// Rôles Discord considérés comme **staff de cette équipe** (voient et traitent).
+  staffRoleIds  String[]        @default([])
+  /// Rôles mentionnés à l'ouverture. Vide par défaut : jamais `@everyone` implicitement.
+  notifyRoleIds String[]        @default([])
+  isEnabled     Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  guild         GuildConfig     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  journeys      TicketJourney[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, isEnabled])
+}
+
+/// 🆕 v2 — formulaire réutilisable. Le brouillon est éditable ; publier crée une
+/// `TicketFormVersion` **figée** que les tickets référencent ⇒ une réponse reste
+/// relisible même si la question est renommée plus tard.
+model TicketForm {
+  id               String             @id @default(cuid())
+  guildId          String
+  name             String
+  slug             String
+  description      String?
+  status           TicketFormStatus   @default(DRAFT)
+  /// Version courante (incrémentée à chaque publication).
+  currentVersion   Int                @default(0)
+  /// Version publiée (null = jamais publié ⇒ aucun parcours ne peut la référencer).
+  publishedVersion Int?
+  /// Brouillon éditable — validé par `parseFormSchema` (`src/lib/tickets/form-schema.ts`).
+  draftSchemaJson  Json               @default("[]")
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  guild            GuildConfig        @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  versions         TicketFormVersion[]
+  journeys         TicketJourney[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, status])
+}
+
+/// 🆕 v2 — version **figée** d'un formulaire (jamais modifiée après publication).
+model TicketFormVersion {
+  id            String      @id @default(cuid())
+  formId        String
+  guildId       String
+  version       Int
+  schemaJson    Json
+  publishedById String?
+  createdAt     DateTime    @default(now())
+
+  guild         GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  form          TicketForm  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  tickets       TicketRecord[]
+
+  @@unique([formId, version])
+  @@index([guildId])
+  @@index([formId, createdAt])
+}
+
+/// 🆕 v2 — brouillon d'ouverture : les réponses déjà données avant la création du ticket
+/// (étape « choix » Oui/Non & sélecteurs, puis modale des textes). TTL court, supprimé
+/// à la création réussie ou par la purge — jamais affiché comme un ticket.
+model TicketDraft {
+  id            String        @id @default(cuid())
+  guildId       String
+  journeyId     String
+  formVersionId String?
+  discordUserId String
+  /// Réponses déjà collectées, clés par `id` de champ (jamais par libellé).
+  answersJson   Json          @default("{}")
+  /// `CHOICES` = en attente de choix ; `TEXTS` = en attente de la modale.
+  step          String        @default("CHOICES")
+  expiresAt     DateTime
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  guild         GuildConfig   @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  journey       TicketJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, journeyId, discordUserId])
+  @@index([guildId, expiresAt])
+}
+
+/// 🆕 v2 — **le parcours** : l'unité éditable que comprend le chef de guilde
+/// (« Candidature », « Contacter le staff », « Signaler »). Il remplace la catégorie
+/// v1 (`TicketBotCategory`, conservée en lecture pour les tickets déjà ouverts).
+model TicketJourney {
+  id              String            @id @default(cuid())
+  guildId         String
+  name            String
+  slug            String
+  description     String?
+  emoji           String            @default("🎫")
+  buttonStyle     TicketButtonStyle @default(PRIMARY)
+  channelType     TicketChannelType @default(CHANNEL_TEXT)
+  channelParentId String?
+  /// Rôles staff **du parcours** (s'ajoutent à ceux de l'équipe et de la config guilde).
+  staffRoleIds    String[]          @default([])
+  /// 🆕 Rôles **mentionnés à l'ouverture** du ticket (« @Candidatures »). Vide = on
+  /// reprend ceux de l'équipe (`TicketTeam.notifyRoleIds`) ; jamais `@everyone` par défaut.
+  /// Résolution : `resolveTicketNotifyRoleIds` (`src/lib/tickets/notifications.ts`).
+  notifyRoleIds   String[]          @default([])
+  teamId          String?
+  formId          String?
+  /// Version du formulaire **figée** à la publication (les réponses sont relues avec).
+  formVersion     Int?
+  namingPattern   String            @default("ticket-{num}")
+  openMode        TicketOpenMode    @default(INSTANT)
+  closePolicy     TicketClosePolicy @default(STAFF_ONLY)
+  order           Int               @default(0)
+  isEnabled       Boolean           @default(true)
+  isPublished     Boolean           @default(false)
+  publishedAt     DateTime?
+  publishedVersion Int              @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  guild           GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  team            TicketTeam?       @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  form            TicketForm?       @relation(fields: [formId], references: [id], onDelete: SetNull)
+  tickets         TicketRecord[]
+  drafts          TicketDraft[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, isEnabled, order])
+  @@index([guildId, isPublished])
+}
+
+model TicketRecord {
+  id                   String            @id @default(cuid())
+  ticketNumber         Int               @default(autoincrement())
+  guildId              String
+  /// ⚠️ v1 — catégorie d'origine. `null` pour un ticket v2 ouvert via un parcours.
+  categoryId           String?
+  /// 🆕 v2 — parcours d'origine (`null` pour un ticket v1).
+  journeyId            String?
+  /// 🆕 v2 — version de formulaire **figée** à l'ouverture : les réponses restent
+  /// relisibles et validables même si le formulaire change ensuite.
+  formVersionId        String?
+  discordGuildId       String
+  discordChannelId     String?           @unique
+  discordThreadId      String?           @unique
+  creatorDiscordId     String
+  creatorDiscordName   String
+  creatorAvatarUrl     String?
+  creatorProfileId     String?
+  status               TicketBotStatus   @default(OPEN)
+  /// 🆕 v2 — file d'approbation (`REQUESTED` → `OPEN` ou `REFUSED`), avant tout salon.
+  approvedByDiscordId  String?
+  approvedAt           DateTime?
+  refusedByDiscordId   String?
+  refusedAt            DateTime?
+  refusalReason        String?
+  claimedByDiscordId   String?
+  claimedByName        String?
+  claimedAt            DateTime?
+  firstStaffResponseAt DateTime?
+  slaResponseBreached  Boolean           @default(false)
+  slaResolveBreached   Boolean           @default(false)
+  lastActivityAt       DateTime          @default(now())
+  warningSentAt        DateTime?
+  closedAt             DateTime?
+  closedByDiscordId    String?
+  closedByName         String?
+  closedReason         String?
+  /// 🆕 v2 — étiquettes libres (bornées côté service) et priorité (0 normale, 2 urgente).
+  tags                 String[]          @default([])
+  priority             Int               @default(0)
+  intakeAnswersJson    Json?             @default("{}")
+  metadataJson         Json?             @default("{}")
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  guild                GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  category             TicketBotCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  journey              TicketJourney?    @relation(fields: [journeyId], references: [id], onDelete: SetNull)
+  formVersion          TicketFormVersion? @relation(fields: [formVersionId], references: [id], onDelete: SetNull)
+  notes                TicketNote[]
+  /// 🆕 v2 — jusqu'à deux archives : `SHAREABLE` (sans notes) et `INTERNAL` (annexe staff).
+  transcripts          TicketTranscript[]
+  feedback             TicketFeedback?
+  auditLogs            TicketAuditLog[]
+
+  @@index([guildId, status])
+  @@index([guildId, categoryId])
+  @@index([guildId, journeyId])
+  @@index([creatorDiscordId, status])
+  @@index([discordChannelId])
+  @@index([discordThreadId])
+}
+
+model TicketNote {
+  id              String       @id @default(cuid())
+  ticketId        String
+  guildId         String
+  authorDiscordId String
+  authorName      String
+  content         String
+  createdAt       DateTime     @default(now())
+
+  guild           GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  ticket          TicketRecord @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([guildId])
+}
+
+model TicketTranscript {
+  id             String            @id @default(cuid())
+  ticketId       String
+  guildId        String
+  /// 🆕 v2 — `SHAREABLE` (sans notes internes) ou `INTERNAL` (annexe staff).
+  kind           TicketArchiveKind @default(SHAREABLE)
+  /// Contenu HTML complet, ou chemin de fichier si la valeur ne commence pas par `<!DOCTYPE`.
+  storageRef     String
+  /// Messages **réellement capturés** (jamais gonflé : voir `partial`).
+  messageCount   Int               @default(0)
+  sizeBytes      Int               @default(0)
+  /// 🆕 v2 — messages présents dans le salon, si la pagination a pu les compter.
+  totalCount     Int?
+  /// 🆕 v2 — `true` = la capture est incomplète : jamais présentée comme « archive complète ».
+  partial        Boolean           @default(false)
+  secretToken    String            @unique @default(cuid())
+  /// 🆕 v2 — expiration (`null` = jamais) et révocation ; l'accès est journalisé.
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  accessCount    Int               @default(0)
+  lastAccessedAt DateTime?
+  createdAt      DateTime          @default(now())
+
+  guild          GuildConfig       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  ticket         TicketRecord      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, kind])
+  @@index([guildId])
+  @@index([guildId, kind])
+  @@index([expiresAt])
+}
+
+model TicketFeedback {
+  id               String       @id @default(cuid())
+  ticketId         String       @unique
+  guildId          String
+  creatorDiscordId String
+  rating           Int
+  comment          String?
+  createdAt        DateTime     @default(now())
+
+  guild            GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  ticket           TicketRecord @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, rating])
+}
+
+model TicketAuditLog {
+  id             String       @id @default(cuid())
+  ticketId       String
+  guildId        String
+  actorDiscordId String
+  actorName      String
+  action         String
+  detailsJson    Json?        @default("{}")
+  createdAt      DateTime     @default(now())
+
+  guild          GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  ticket         TicketRecord @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@index([guildId, action])
+}
+
+// 🔐 #196 — Clés d'API Publique par guilde (scopes stricts, rate-limit, audit GOD)
+model GuildApiKey {
+  id              String      @id @default(cuid())
+  guildId         String
+  name            String
+  keyHash         String      @unique
+  prefix          String      // e.g. "sigil_live_ab12"
+  scopes          String[]    @default(["read:members"])
+  rateLimitPerMin Int         @default(60)
+  lastUsedAt      DateTime?
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  createdById     String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  guild           GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+  @@index([prefix])
+  @@index([revokedAt])
+}
+
+// ⚡ #158 — Matrice RBAC Commandes Slash Discord par Guilde
+model GuildSlashCommandPermission {
+  id          String      @id @default(cuid())
+  guildId     String
+  commandName String      // e.g. "almanax", "dofus", "profil", "sorties", "defi"
+  roleIds     String[]    @default([])
+  channelIds  String[]    @default([])
+  isEnabled   Boolean     @default(true)
+  /// Réglages propres à la commande (ex. valider-recrue : rôles à ajouter/retirer par défaut).
+  config      Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, commandName])
+  @@index([guildId])
+}
+
+
+
+
+// ============================================================================
+// 🛒 MODULE « MARCHÉ » (chantier 2026-09-10) — plan maître §6 (source de vérité)
+// Isolation multi-tenant : `guildId` = GuildConfig.id (JAMAIS le snowflake).
+// Toute requête filtre dessus ; l'isolation vient du contexte serveur.
+// ============================================================================
+
+enum MarketListingType {
+  EQUIPMENT
+  RESOURCE
+  SERVICE
+  WANTED
+  /// 🧺 Décision user du 14/09/2026 — **lot multiple** : jusqu'à 5 objets
+  /// différents (familles mélangées) vendus **ensemble**, chaque objet portant
+  /// **son propre prix** (réservable séparément) et publié dans **son** message
+  /// Discord. Cf. `refonte-marche/PLAN-LOT-MULTIPLE.md`.
+  BUNDLE
+}
+
+/// Statut d'**un objet** d'un lot multiple (le lot lui-même garde son
+/// `MarketListingStatus`).
+enum MarketComponentStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+}
+
+enum MarketListingStatus {
+  DRAFT
+  ACTIVE
+  RESERVED
+  SOLD
+  EXPIRED
+  WITHDRAWN
+}
+
+enum MarketStatOrigin {
+  NATIVE
+  EXO
+}
+
+enum MarketStatQuality {
+  LOW
+  NORMAL
+  GOOD
+  PERFECT
+  OVER
+}
+
+enum MarketOfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+
+enum MarketReservationStatus {
+  ACTIVE
+  CANCELLED_BY_BUYER
+  CANCELLED_BY_SELLER
+  EXPIRED
+  COMPLETED
+}
+
+enum MarketMediaType {
+  PROOF_SCREENSHOT
+  OTHER
+}
+
+enum MarketReportReason {
+  JET_MISMATCH
+  SELLER_UNREACHABLE
+  BUYER_ABSENT
+  SUSPICIOUS
+  FORBIDDEN
+  OTHER
+}
+
+enum MarketReportStatus {
+  OPEN
+  REVIEWED
+  CLOSED
+}
+
+
+/// L'annonce — entité principale du marché.
+model MarketListing {
+  id             String              @id @default(cuid())
+
+  // ── Isolation multi-tenant + propriété ──────────────────────────────────
+  guildId        String              // = GuildConfig.id (JAMAIS le discordGuildId)
+  profileId      String              // UserProfile du vendeur (membre de la guilde)
+  userId         String              // propriétaire logique (autorisations, notifications)
+
+  // ── Nature de l'annonce ─────────────────────────────────────────────────
+  type           MarketListingType   @default(EQUIPMENT)
+  status         MarketListingStatus @default(DRAFT)
+
+  // ── Référence au catalogue d'objets (item réel, jamais inventé) ─────────
+  dofusDbItemId  Int?                // = GameItem.ankamaId
+  itemName       String?             // dénormalisé pour robustesse d'affichage
+  itemIconUrl    String?
+  itemLevel      Int?
+  itemTypeName   String?             // « Anneau », « Bottes », « Familier »…
+
+  // ── Forge réelle DÉCLARÉE (S8.10 · D40/D41) — additif, AUCUN backfill ────
+  // L'état « Transcendé » est un CHOIX DU VENDEUR (jamais déduit du jet) :
+  // la présence de `transcendenceRuneId` vaut `transcended` (aucun booléen
+  // redondant). Une rune de Transcendance exclut tout over/exo (garde S8.11).
+  transcendenceRuneId Int?      // = GameItem.ankamaId d'une rune (typeId 211)
+  transcendenceLabel  String?   // libellé d'effet dénormalisé (repli : « Empêche les futures forgemagies »)
+  strikeElement       String?   // élément de frappe (Feu|Eau|Terre|Air) — ARMES uniquement
+  elementPotionId     Int?      // = GameItem.ankamaId de la potion (typeId 26) ; null si non siphonnée
+  elementPotionTier   Int?      // palier de la potion (50|65|80) — porte la donnée de jeu
+  huntingWeapon       String?   // libellé DÉCLARÉ de l'arme de chasse (ARMES uniquement)
+
+  // ── Contenu ─────────────────────────────────────────────────────────────
+  title          String              // titre affiché (pré-rempli : nom de l'item)
+  description    String?             // note du vendeur (nettoyée, liens filtrés)
+  forgedBy       String?             // « Modifié par » DÉCLARÉ (D11)
+
+  // ── Prix & conditions (D4) ──────────────────────────────────────────────
+  priceKamas     Int?                // ≤ 2 147 483 647 (garde Zod)
+  negotiable     Boolean             @default(true)
+  acceptsTrade   Boolean             @default(false)
+
+  // ── Ressources / lots (D23, MVP) ────────────────────────────────────────
+  quantity       Int?                // taille du lot (lot simple)
+  unitLabel      String?             // « lot de 1 000 », « unité »…
+  minQuantity    Int?                // quantité minimale par acheteur
+
+  // ── Cycle de vie / échéances (indexé pour les crons) ────────────────────
+  publishedAt    DateTime?
+  expiresAt      DateTime?           // J+20 par défaut (D18) — échéance MAXIMALE
+  reservedUntil  DateTime?
+  soldAt         DateTime?
+  withdrawnAt    DateTime?
+  // Cycle de rappels piloté par paliers (D18) : 0 = aucun, 1 = J+7, 2 = J+15
+  reminderStage  Int       @default(0)
+  lastReminderAt DateTime?           // horodatage du dernier rappel (idempotence + anti-spam)
+  renewCount     Int       @default(0)   // Q10=C : prolongation UNE SEULE fois
+  // « Aucun échange ni interaction » : mis à jour à chaque offre, réservation, vente
+  lastActivityAt DateTime  @default(now())
+  // Suppression automatique à J+20 (D18) : soft-delete (traçabilité) puis purge différée
+  deletedAt      DateTime?
+  deletedReason  String?             // AUTO_EXPIRED | SELLER | MODERATION | GUILD
+
+  // ── Lot M1 — recherche d'achat (WANTED) ───────────────────────────────
+  // Souhait de forge sur l'objet recherché : ANY (indifférent) | REQUIRED
+  // (transcendé exigé) | FORBIDDEN (non-transcendé exigé, pour forgemager
+  // soi-même). Colonne générique (tous types) pour éviter une migration
+  // conditionnelle ; seuls les WANTED la portent.
+  wantedTranscendence String @default("ANY")
+
+  // ── Anticipation inter-guilde (D24) — réservé, NON utilisé au MVP ───────
+  visibility     String    @default("GUILD")   // GUILD | INTER_GUILD (V2)
+
+  // ── Anti-duplication & intégrité serveur ────────────────────────────────
+  statsHash      String?             // MD5 des stats déclarées → cache de la carte PNG
+  moderationNote String?             // motif du dernier retrait modo
+
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  // ── Relations ───────────────────────────────────────────────────────────
+  guild          GuildConfig           @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  profile        UserProfile           @relation("MarketListingsAsSeller", fields: [profileId], references: [id], onDelete: Cascade)
+  stats          MarketListingStat[]
+  components     MarketListingComponent[]
+  /// Lot M1 — critères de jet d'une recherche d'achat (WANTED).
+  wantedCriteria MarketWantedCriterion[]
+  offers         MarketOffer[]
+  reservations   MarketReservation[]
+  media          MarketListingMedia[]
+  reports        MarketReport[]
+  discordMessage MarketDiscordMessage?
+  auditLogs      MarketAuditLog[]
+
+  @@index([guildId, status])
+  @@index([guildId, type, status])
+  @@index([guildId, status, expiresAt])   // cron d'expiration
+  @@index([profileId, status])            // « Mes annonces »
+  @@index([guildId, dofusDbItemId])       // prix moyen guilde par item
+}
+
+
+/// Le jet déclaré (le cœur de la valeur). `quality` est TOUJOURS recalculée serveur.
+model MarketListingStat {
+  id             String            @id @default(cuid())
+  listingId      String
+
+  effectId       Int               // identifiant d'effet DofusDB (stabilité inter-versions)
+  characteristic Int?              // identifiant de caractéristique (icône/couleur)
+  label          String            // libellé FR figé au moment de la déclaration
+
+  naturalMin     Int?              // plage native (issue du CATALOGUE, jamais du client)
+  naturalMax     Int?
+  actualValue    Int               // valeur déclarée par le vendeur
+
+  origin         MarketStatOrigin  @default(NATIVE)   // NATIVE | EXO
+  quality        MarketStatQuality @default(NORMAL)   // RECALCULÉE côté serveur (D17)
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  listing        MarketListing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, effectId, origin])   // une ligne par effet et par origine
+  @@index([listingId])
+}
+
+/// Contenu d'un lot de ressources (lot simple ou composite, D23).
+model MarketListingComponent {
+  id            String        @id @default(cuid())
+  listingId     String
+  position      Int           @default(0)     // ordre d'affichage dans le lot
+
+  dofusDbItemId Int?                          // référence catalogue (ressource)
+  name          String                        // « Bois de Frêne »
+  iconUrl       String?
+  quantity      Int                           // 1 000
+  unitLabel     String?                       // « unité », « lot », « kamas »…
+
+  // ── 🧺 Lot multiple (décision user du 14/09/2026) ─────────────────────────
+  // Le **prix vit sur l'objet** (et non sur l'annonce) : chaque objet est
+  // réservable séparément. `status` suit l'objet, pas le lot.
+  priceKamas    Int?                          // prix de CET objet (kamas)
+  status        MarketComponentStatus @default(AVAILABLE)
+  reservedAt    DateTime?
+  soldAt        DateTime?
+
+  // ── 🧺 Jet par objet (correctif 10/10/2026) ──────────────────────────────
+  // Un objet de type équipement porte son **propre jet déclaré** (comme une
+  // annonce unitaire) : sa miniature Discord est la carte des stats, régénérée
+  // à chaque édition du jet. `NULL` = vente brute (ressource, cosmétique…).
+  statsHash     String?
+
+  // ── 🧺 Option A — un message Discord **par objet** ────────────────────────
+  // Le message de l'**annonce** reste dans `MarketDiscordMessage`
+  // (`componentId = NULL`) ; ces deux colonnes portent le message **dédié à cet
+  // objet** (embed + boutons propres, réservation à son prix).
+  discordChannelId String?
+  discordMessageId String?
+
+  createdAt     DateTime      @default(now())
+
+  listing       MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  /// Réservations **ciblant cet objet** (lot multiple).
+  reservations  MarketReservation[]
+  /// Messages Discord **de cet objet** (un message par objet, option A).
+  discordMessages MarketDiscordMessage[]
+  /// Jet déclaré **de cet objet** (équipement d'un lot multiple, 10/10/2026).
+  componentStats MarketListingComponentStat[]
+
+  @@index([listingId, position])
+  @@index([listingId, status])   // « quels objets restent disponibles ? »
+}
+
+/// Le jet déclaré **d'un objet de lot** (miroir de `MarketListingStat`,
+/// scopé par `componentId` : deux objets peuvent porter le même `effectId`).
+model MarketListingComponentStat {
+  id             String            @id @default(cuid())
+  componentId    String
+
+  effectId       Int               // identifiant d'effet DofusDB (stabilité inter-versions)
+  characteristic Int?              // identifiant de caractéristique (icône/couleur)
+  label          String            // libellé FR figé au moment de la déclaration
+
+  naturalMin     Int?              // plage native (issue du CATALOGUE, jamais du client)
+  naturalMax     Int?
+  actualValue    Int               // valeur déclarée par le vendeur
+
+  origin         MarketStatOrigin  @default(NATIVE)   // NATIVE | EXO
+  quality        MarketStatQuality @default(NORMAL)   // RECALCULÉE côté serveur (D17)
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  component      MarketListingComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@unique([componentId, effectId, origin])   // une ligne par effet et par origine
+  @@index([componentId])
+}
+
+/// Lot M1 — critère de jet d'une recherche d'achat (WANTED) : effet exigé
+/// (natifs) ou toléré en exo, valeur minimale, pastille calculée serveur
+/// (`tag` : NATIVE | EXO | OVER). Un critère par effet et par annonce.
+model MarketWantedCriterion {
+  id             String   @id @default(cuid())
+  listingId      String
+
+  effectId       Int                // identifiant d'effet DofusDB
+  characteristic Int?               // identifiant de caractéristique (icône/couleur)
+  label          String             // libellé FR figé (référentiel GameEffect)
+  minValue       Int                // valeur minimale exigée
+  naturalMax     Int?               // plage native catalogue (null si exo pur)
+  exo            Boolean  @default(false) // effet hors-natif accepté
+  tag            String   @default("NATIVE") // NATIVE | EXO | OVER (calculé serveur)
+
+  createdAt      DateTime @default(now())
+
+  listing        MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, effectId])
+  @@index([listingId])
+}
+
+/// La négociation (offre / contre-offre).
+model MarketOffer {
+  id                String            @id @default(cuid())
+  listingId         String
+  buyerProfileId    String            // UserProfile de l'acheteur
+  buyerUserId       String
+
+  offeredKamas      Int?              // au moins UN des deux (kamas OU troc)
+  tradeDescription  String?           // description libre du troc
+  note              String?           // message au vendeur (max 500, nettoyé)
+
+  status            MarketOfferStatus @default(PENDING)
+  counterOfId       String?           // si contre-offre : offre d'origine
+  respondedAt       DateTime?
+  respondedByUserId String?
+  expiresAt         DateTime?         // 48 h par défaut
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  listing           MarketListing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, status])
+  @@index([buyerProfileId, status])
+  @@index([status, expiresAt])       // cron d'expiration des offres
+}
+
+/// L'intention d'achat au prix.
+model MarketReservation {
+  id                 String                   @id @default(cuid())
+  listingId          String
+  /// 🧺 Lot multiple — **objet ciblé** (`null` = annonce entière, cas
+  /// historique). Une réservation ne porte que sur **un** objet.
+  componentId        String?
+  buyerProfileId     String
+  buyerUserId        String
+
+  status             MarketReservationStatus  @default(ACTIVE)
+  expiresAt          DateTime                  // durée de guilde (12 h par défaut)
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  cancelledByUserId  String?
+  cancellationReason String?
+
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  listing            MarketListing             @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  component          MarketListingComponent?   @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, status])
+  @@index([buyerProfileId, status])
+  @@index([status, expiresAt])       // cron de libération
+  @@index([componentId, status])     // « cet objet est-il déjà réservé ? »
+}
+
+
+/// Preuves facultatives (captures) — clé de stockage, jamais une URL fragile.
+model MarketListingMedia {
+  id              String          @id @default(cuid())
+  listingId       String
+  type            MarketMediaType @default(PROOF_SCREENSHOT)
+
+  storageKey      String          // /api/storage/...
+  mimeType        String          // image/png | image/jpeg | image/webp uniquement
+  sizeBytes       Int
+  createdByUserId String
+
+  createdAt       DateTime        @default(now())
+
+  listing         MarketListing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+}
+
+/// Suivi du message Discord publié (1 annonce = 1 message au MVP).
+model MarketDiscordMessage {
+  id                       String        @id @default(cuid())
+  listingId                String        @unique
+  /// 🧺 Lot multiple (option A) — **objet** dont ce message porte l'embed et
+  /// les boutons (`null` = message de l'annonce elle-même, cas historique).
+  componentId              String?
+
+  discordGuildId           String        // snowflake Discord (traçabilité de l'app utilisée)
+  discordChannelId         String
+  discordMessageId         String
+
+  generatedImageStorageKey String?       // clé locale de la carte PNG mise en cache
+  lastSyncedAt             DateTime      @default(now())
+  syncStatus               String        @default("OK")   // OK | PENDING | FAILED
+  lastError                String?
+
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+
+  listing                  MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  component                MarketListingComponent? @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@index([discordGuildId, syncStatus])
+  @@index([componentId])
+}
+
+/// Signalement d'une annonce (dossiers humains, aucune sanction automatique).
+model MarketReport {
+  id                String             @id @default(cuid())
+  listingId         String
+  reporterUserId    String
+  reporterProfileId String
+
+  reason            MarketReportReason @default(OTHER)
+  details           String?            // texte libre, nettoyé
+  snapshot          Json?              // état figé de l'annonce au moment du signalement
+
+  status            MarketReportStatus @default(OPEN)
+  reviewedByUserId  String?
+  reviewedAt        DateTime?
+  resolution        String?
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  listing           MarketListing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, status])
+  @@index([status, createdAt])
+}
+
+/// Journal d'audit du marché (rétention 365 j par défaut, cf. §15.2).
+model MarketAuditLog {
+  id           String         @id @default(cuid())
+  guildId      String
+  listingId    String?
+  actorUserId  String?        // qui (null = système / cron)
+
+  action       String         // cf. MARKET_AUDIT_ACTIONS (constantes typées)
+  previousData Json?
+  nextData     Json?
+  reason       String?
+
+  createdAt    DateTime       @default(now())
+
+  listing      MarketListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([guildId, createdAt])
+  @@index([listingId])
 }
 

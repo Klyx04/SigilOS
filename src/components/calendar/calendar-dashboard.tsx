@@ -12,17 +12,14 @@ import {
     Plus,
     LayoutGrid,
     Loader2,
-    Sparkles,
-    Swords,
-    PartyPopper,
-    Target,
-    Wheat,
     Filter,
     ChevronLeft,
     ChevronRight,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -31,6 +28,7 @@ import { toast } from "sonner";
 import {
     getCalendarEvents,
     getCalendarEventDetails,
+    updateMyRegistrationClass,
     createCalendarEvent,
     deleteCalendarEvent,
     updateCalendarEvent,
@@ -52,7 +50,6 @@ import { CalendarGrid } from "./calendar-grid";
 import { EventDetailModal } from "./event-detail-modal";
 import { EventCard } from "./event-card";
 import { EventForm } from "./event-form";
-import { RaidHubModal } from "./raid-hub-modal";
 import { cn } from "@/lib/utils";
 
 export interface DiscordChannels {
@@ -70,6 +67,8 @@ interface CalendarDashboardProps {
     userPseudo?: string;
     discordChannels?: DiscordChannels;
     isAdmin?: boolean;
+    /** Personnages Dofus du membre : raccourci « Mes personnages » des modales d'inscription. */
+    myCharacters?: { main: string | null; secondaries: string[] };
 }
 
 type ViewMode = "grid";
@@ -80,38 +79,10 @@ interface DiscordRole {
     color?: number;
 }
 
-const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg: string; border: string; }> = {
-    RAID_OFFICIAL: {
-        label: "Raid 3.6",
-        icon: Swords,
-        color: "text-danger",
-        bg: "bg-danger/15",
-        border: "border-danger/40",
-    },
-    EVENT_GUILD: {
-        label: "Event Guilde",
-        icon: PartyPopper,
-        color: "text-info",
-        bg: "bg-info/15",
-        border: "border-info/40",
-    },
-    SESSION_MISSIONS: {
-        label: "Missions",
-        icon: Target,
-        color: "text-warning",
-        bg: "bg-warning/15",
-        border: "border-warning/40",
-    },
-    SORTIE_FARM: {
-        label: "Farm",
-        icon: Wheat,
-        color: "text-success",
-        bg: "bg-success/15",
-        border: "border-success/40",
-    },
-};
+/** Types filtrables (dans l'ordre d'affichage) — libellés/couleurs via `calendarEventTheme`. */
+const FILTER_TYPE_KEYS = ["RAID_OFFICIAL", "EVENT_GUILD", "SESSION_MISSIONS", "SORTIE_FARM", "DUNGEON_FARM", "SONGES_RUN"] as const;
 
-export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false }: CalendarDashboardProps) {
+export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false, myCharacters }: CalendarDashboardProps) {
     const [displayMode] = useState<ViewMode>("grid");
     const [gridType, setGridType] = useState<"week" | "month">("week");
     // Chantier #87/#88 : `new Date()` en SSR (serveur UTC) vs client (Europe/Paris) peut
@@ -142,9 +113,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     // Filter state
     const [selectedFilter, setSelectedFilter] = useState<string | "ALL">("ALL");
     const [showFilters, setShowFilters] = useState(false);
-
-    // Hub Raid modal
-    const [isRaidHubOpen, setIsRaidHubOpen] = useState(false);
 
     // Day events modal (click on "+N" badge)
     const [selectedDayEvents, setSelectedDayEvents] = useState<{ date: Date; events: any[] } | null>(null);
@@ -312,6 +280,23 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
             fetchEvents();
         } else {
             toast.error(result.error);
+        }
+    };
+
+    /**
+     * Change MA classe sur un événement depuis le site — même règle serveur que le menu
+     * classe Discord (`updateRegistrationClass`). Une valeur vide efface la classe choisie :
+     * le profil Dofus reprend alors la main à l'affichage.
+     */
+    const handleMyClassChange = async (classe: string) => {
+        if (!selectedEventId) return;
+        const result = await updateMyRegistrationClass(guildId, selectedEventId, classe);
+        if (result.success) {
+            toast.success(classe ? `Classe mise à jour : ${classe}` : "Classe effacée");
+            fetchEventDetails(selectedEventId);
+            fetchEvents();
+        } else {
+            toast.error(result.error || "Erreur lors du changement de classe");
         }
     };
 
@@ -483,26 +468,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                 )}
                             </Button>
 
-                            {/* Raid Hub (ghost) */}
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => setIsRaidHubOpen(true)}
-                                            className="h-9 px-3 rounded-lg text-xs font-semibold text-muted-foreground hover:text-danger hover:bg-danger/10 transition-all"
-                                        >
-                                            <Swords className="h-4 w-4 mr-1.5 text-danger/70" />
-                                            Raids
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="bg-background border-border text-xs">
-                                        Guides et conseils raid
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-
                             {canManage && (
                                 <Button
                                     data-tour="calendar-create"
@@ -538,9 +503,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                             </span>
                         </button>
 
-                        {Object.entries(FILTER_TYPES).map(([type, config]) => {
+                        {FILTER_TYPE_KEYS.map((type) => {
+                            const config = calendarEventTheme(type);
                             const count = typeCounts[type] || 0;
-                            const Icon = config.icon;
                             const isActive = selectedFilter === type;
 
                             return (
@@ -554,8 +519,8 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                             : "bg-surface/60 text-muted-foreground border border-border hover:border-border hover:text-foreground"
                                     )}
                                 >
-                                    <Icon className={cn("h-3.5 w-3.5", isActive ? config.color : "")} />
-                                    {config.label}
+                                    <DofusUiIcon name={config.picto} size={14} />
+                                    {config.shortLabel}
                                     <span className={cn(
                                         "px-1.5 py-0.5 rounded-full text-caption font-bold",
                                         isActive ? "bg-elevated" : "bg-elevated text-muted-foreground"
@@ -572,7 +537,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
             {/* ============ COMPACT PERIOD BAR ============ */}
             <div className="flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl bg-surface/40 border border-border">
                 <div className="flex items-center gap-3">
-                    <Sparkles className="h-4 w-4 text-warning/80" />
+                    <DofusUiIcon name="calendar" size={16} />
                     <h3 className="text-base font-bold capitalize text-foreground">
                         {format(currentDate, "MMMM yyyy", { locale: fr })}
                         <span className="ml-2 text-xs font-semibold text-muted-foreground normal-case">
@@ -712,6 +677,8 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 everyoneAllowed={everyoneAllowed}
                 hasMetamobKey={hasMetamobKey}
                 raidEligibility={raidEligibility}
+                myCharacters={myCharacters}
+                onMyClassChange={handleMyClassChange}
                 onRegister={handleRegister}
                 onUnregister={handleUnregister}
                 onEdit={() => {
@@ -752,14 +719,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     </div>
                 </DialogContent>
             </Dialog>
-
-            {/* ============ RAID HUB MODAL ============ */}
-            <RaidHubModal
-                open={isRaidHubOpen}
-                onOpenChange={setIsRaidHubOpen}
-                guildId={guildId}
-                isAdmin={isAdmin}
-            />
 
             {/* ============ EDIT DIALOG ============ */}
             <Dialog open={!!editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)}>

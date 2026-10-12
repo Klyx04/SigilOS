@@ -66,17 +66,17 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
         <Popover open={isOpen} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className={cn("relative text-muted-foreground hover:text-foreground transition-colors", className)}>
-                    <Rss className="h-5 w-5" />
+                    <Rss className="h-4 w-4" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-success text-caption font-black text-success-foreground ring-2 ring-border animate-in zoom-in duration-300 ">
+                        <span className="absolute -top-1 -right-1 z-10 flex min-w-[1rem] h-4 px-1 items-center justify-center rounded-full bg-success text-[9px] font-black text-success-foreground ring-2 ring-background animate-in zoom-in duration-200 shadow-sm">
                             {unreadCount > 9 ? "9+" : unreadCount}
                         </span>
                     )}
                     <span className="sr-only">Nouveautés Communauté</span>
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0 overflow-hidden rounded-2xl border-border bg-popover/95 backdrop-blur-3xl shadow-[0_30px_60px_rgba(0,0,0,0.7)]" align="end">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-success/10 to-transparent">
+            <PopoverContent className="w-84 p-0 overflow-hidden rounded-2xl border border-border bg-popover/98 backdrop-blur-xl shadow-2xl" align="end">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
                     <div className="flex items-center gap-2">
                         <Rss className="h-4 w-4 text-success" />
                         <h4 className="font-bold text-xs uppercase tracking-widest text-foreground">Créateurs & Dofus</h4>
@@ -84,7 +84,7 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-caption font-black uppercase tracking-widest text-muted-foreground hover:text-success hover:bg-success/10 gap-1.5 transition-all"
+                        className="h-7 px-2 text-caption font-bold uppercase tracking-wider text-muted-foreground hover:text-success hover:bg-success/10 gap-1.5 transition-colors"
                         onClick={async (e) => { 
                             e.stopPropagation(); 
                             await fetchFeed(true); 
@@ -107,10 +107,10 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                         </div>
                     ) : feed.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground gap-4">
-                            <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center">
-                                <Rss className="h-6 w-6 opacity-20" />
+                            <div className="w-12 h-12 rounded-full bg-surface border border-border flex items-center justify-center">
+                                <Rss className="h-6 w-6 opacity-30 text-muted-foreground" />
                             </div>
-                            <p className="text-xs font-medium uppercase tracking-widest">Aucune nouveauté</p>
+                            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Aucune nouveauté</p>
                         </div>
                     ) : (
                         <div className="grid divide-y divide-border">
@@ -120,9 +120,9 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                                     href={n.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="p-4 hover:bg-surface transition-colors flex items-start gap-3 group"
+                                    className="p-4 hover:bg-elevated/50 transition-colors flex items-start gap-3 group"
                                 >
-                                    <div className="mt-1 h-8 w-8 rounded bg-black/50 border border-border flex items-center justify-center overflow-hidden shrink-0 relative">
+                                    <div className="mt-1 h-8 w-8 rounded-lg bg-surface border border-border flex items-center justify-center overflow-hidden shrink-0 relative">
                                         {n.thumbnail ? (
                                             <img
                                                 src={n.thumbnail}
@@ -133,28 +133,27 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                                         ) : (
                                             getIcon(n.type)
                                         )}
-                                        <div className="absolute inset-0 ring-1 ring-inset ring-black/50 pointer-events-none" />
                                     </div>
-                                    <div className="space-y-1 overflow-hidden">
+                                    <div className="space-y-1 overflow-hidden flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5">
                                             {getIcon(n.type)}
-                                            <span className="text-caption uppercase font-black tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
+                                            <span className="text-caption uppercase font-bold tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
                                                 {n.creatorId}
                                             </span>
                                         </div>
-                                        <p className="text-sm font-bold text-foreground leading-tight group-hover:text-foreground transition-colors">{n.title}</p>
+                                        <p className="text-sm font-bold text-foreground leading-tight truncate group-hover:text-foreground transition-colors">{n.title}</p>
                                         <p className="text-caption text-muted-foreground font-mono pt-1">
-                                            {new Date(n.published).toLocaleDateString()} à {new Date(n.published).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {new Date(n.published).toLocaleDateString("fr-FR")} à {new Date(n.published).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
-                                    <ExternalLink className="w-3 h-3 text-foreground/20 group-hover:text-foreground/60 transition-colors shrink-0 mt-1 opacity-0 group-hover:opacity-100" />
+                                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors shrink-0 mt-1 opacity-0 group-hover:opacity-100" />
                                 </a>
                             ))}
                         </div>
                     )}
                 </ScrollArea>
                 <div className="p-2 border-t border-border bg-surface">
-                    <Button variant="ghost" size="sm" className="w-full text-caption font-black uppercase tracking-widest h-10 hover:bg-surface hover:text-foreground transition-all" asChild>
+                    <Button variant="ghost" size="sm" className="w-full text-caption font-bold uppercase tracking-wider h-9 hover:bg-elevated hover:text-foreground transition-colors" asChild>
                         <Link href={`/dashboard/${guildId}/ressources`}>
                             Ouvrir le module Ressources
                         </Link>

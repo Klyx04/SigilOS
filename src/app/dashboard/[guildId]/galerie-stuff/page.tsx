@@ -15,7 +15,7 @@ export default async function GalleryStuffPage({ params }: { params: Promise<{ g
         redirect("/login");
     }
 
-    if (!user.canViewStuffGallery || !await isModuleEnabled(guildId, "gallery")) {
+    if (!user.canViewStuffGallery || (!user.isSuperAdmin && !await isModuleEnabled(guildId, "gallery"))) {
         redirect(`/dashboard/${guildId}`);
     }
 

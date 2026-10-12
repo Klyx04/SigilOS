@@ -15,6 +15,7 @@ import { sendChannelMessage } from "@/server/discord";
 import { rateLimit } from "@/lib/ratelimit";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveSongesContributionPoints } from "@/lib/points-config";
+import { syncSongesMirror } from "@/server/agenda-mirror-sync";
 
 // ============================================
 // CONSTANTS & HELPERS
@@ -226,15 +227,23 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         });
     }
 
-    // Auto-publish to Discord if requested
+    // Auto-publish to Discord if requested — l'échec n'est jamais MUET : la run existe,
+    // mais si rien n'a été posté dans la guilde, on le remonte au client (avertissement).
+    let discordWarning: string | undefined;
     if (validated.data.publishToDiscord) {
         const { publishDiscordRun } = await import("@/server/songes-service");
-        await publishDiscordRun(ctx.guildId, run.id);
+        const published = await publishDiscordRun(ctx.guildId, run.id);
+        if (!published.success) {
+            discordWarning = published.error ?? "notification Discord non envoyée";
+            logger.warn("[Songes] publication Discord impossible", { runId: run.id, error: discordWarning });
+        }
     }
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    // Miroir agenda (R1) : best-effort, n'interrompt jamais la création.
+    await syncSongesMirror(guildId, run.id);
 
-    return { success: true, runId: run.id };
+    return { success: true, runId: run.id, discordWarning };
 }
 
 // ============================================
@@ -330,6 +339,8 @@ export async function updateDreamRun(
         }
 
         revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+        // Miroir agenda (R1) : la date a peut-être changé → patch ou sortie.
+        await syncSongesMirror(guildId, runId);
         return { success: true };
     } catch (error) {
         logger.error("[updateDreamRun] error:", error);
@@ -511,10 +522,14 @@ export async function joinDreamRun(guildId: string, runId: string) {
         });
 
         revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+        // Miroir agenda (R1) : la composition affichée suit les membres.
+        await syncSongesMirror(guildId, runId);
         return { success: true, waitlisted: true };
     }
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    // Miroir agenda (R1) : la composition affichée suit les membres.
+    await syncSongesMirror(guildId, runId);
     return { success: true, waitlisted: false };
 }
 
@@ -539,6 +554,8 @@ export async function leaveDreamRun(guildId: string, runId: string) {
         });
 
         revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+        // Miroir agenda (R1) : run abandonnée par le leader → CANCELLED.
+        await syncSongesMirror(guildId, runId);
         return { success: true, runAbandoned: true };
     }
 
@@ -572,6 +589,9 @@ export async function leaveDreamRun(guildId: string, runId: string) {
         // Update Discord embed if it exists
         const { updateDiscordRunEmbed } = await import("@/server/songes-service");
         await updateDiscordRunEmbed(ctx.guildId, runId);
+
+        // Miroir agenda (R1) : la composition affichée suit les membres.
+        await syncSongesMirror(guildId, runId);
 
         return { success: true };
     }
@@ -664,6 +684,8 @@ export async function completeDreamRun(guildId: string, runId: string, success: 
     await deleteDiscordRunEmbed(ctx.guildId, runId);
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    // Miroir agenda (R1) : run terminée → COMPLETED (filigrane « Terminé »).
+    await syncSongesMirror(guildId, runId);
     return { success: true };
 }
 
@@ -1178,58 +1200,8 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
     }
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
-    return { success: true };
-}
-
-// ============================================
-// DELETE RUN
-// ============================================
-
-export async function deleteDreamRun(guildId: string, runId: string) {
-    const ctx = await getGuildUserContext(guildId);
-    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
-
-    const run = await db.dreamRun.findFirst({
-        where: { id: runId, guildId: ctx.guildId },
-    });
-
-    if (!run) {
-        return { success: false, error: "Run non trouvée" };
-    }
-
-    // Only leader or admin can delete
-    if (run.leaderId !== ctx.userId && !ctx.isAdmin) {
-        return { success: false, error: "Seul le leader ou un administrateur peut supprimer la run" };
-    }
-
-    // Remove Discord embed if it exists
-    const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
-    await deleteDiscordRunEmbed(ctx.guildId, runId);
-
-    // Delete run (cascade will handle related records)
-    await db.dreamRun.delete({
-        where: { id: runId },
-    });
-
-    // Audit Log for admin deletion
-    if (ctx.isAdmin && run.leaderId !== ctx.userId) {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
-        if (guildConfig) {
-            await db.auditLog.create({
-                data: {
-                    guildId: guildConfig.id,
-                    actorUserId: ctx.userId,
-                    actorName: ctx.name || "Admin",
-                    action: "SONGES_RUN_DELETED_BY_ADMIN",
-                    targetType: "DREAM_RUN",
-                    targetId: runId,
-                    metadata: { leaderId: run.leaderId, difficulty: run.difficulty } as any,
-                }
-            });
-        }
-    }
-
-    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    // Miroir agenda (R1) : la composition affichée suit les membres.
+    await syncSongesMirror(guildId, request.runId);
     return { success: true };
 }
 
@@ -1301,6 +1273,9 @@ export async function kickMember(guildId: string, runId: string, targetUserId: s
     // Update Discord embed
     const { updateDiscordRunEmbed } = await import("@/server/songes-service");
     await updateDiscordRunEmbed(ctx.guildId, runId);
+
+    // Miroir agenda (R1) : la composition affichée suit les membres.
+    await syncSongesMirror(guildId, runId);
 
     // Audit Log if kick by admin (redundant with leader check but for completeness)
     if (ctx.isAdmin && run.leaderId !== ctx.userId) {
@@ -1543,6 +1518,8 @@ export async function closeDreamRun(guildId: string, runId: string) {
     await deleteDiscordRunEmbed(ctx.guildId, runId);
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    // Miroir agenda (R1) : run clôturée → COMPLETED (filigrane « Terminé »).
+    await syncSongesMirror(guildId, runId);
     return { success: true };
 }
 
@@ -1579,6 +1556,8 @@ export async function reopenDreamRun(guildId: string, runId: string) {
     });
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+    // Miroir agenda (R1) : run réouverte → de nouveau visible si datée.
+    await syncSongesMirror(guildId, runId);
     return { success: true };
 }
 
@@ -1689,6 +1668,48 @@ export async function triggerRunNotification(guildId: string, runId: string, mes
     return result;
 }
 
+/**
+ * Statut vocal avant rappel manuel Songes — lecture seule (aucun ping).
+ * Visible par : seul le leader de la run (même règle que `triggerRunNotification`).
+ */
+export async function getSongesVoiceStatus(guildId: string, runId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+    try {
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId: ctx.guildId },
+            select: { id: true, leaderId: true, members: { select: { userId: true } } },
+        });
+        if (!run) return { success: false, error: "Run non trouvée" };
+        if (run.leaderId !== ctx.userId) return { success: false, error: "Seul le leader peut voir ce statut" };
+
+        const accounts = await db.account.findMany({
+            where: { userId: { in: run.members.map(m => m.userId) }, provider: "discord" },
+            select: { providerAccountId: true },
+        });
+        const leaderAccount = await db.account.findFirst({
+            where: { userId: run.leaderId, provider: "discord" },
+            select: { providerAccountId: true },
+        });
+        const { splitByVoice } = await import("@/server/voice-reminder-service");
+        const split = await splitByVoice(
+            guildId,
+            accounts.map(a => a.providerAccountId),
+            leaderAccount?.providerAccountId ?? null
+        );
+        return {
+            success: true,
+            total: accounts.length,
+            present: split.presentCount,
+            absent: split.absentCount,
+            captainInVoice: !!split.captainChannelId,
+        };
+    } catch (error) {
+        logger.error("[getSongesVoiceStatus] error:", error);
+        return { success: false, error: "Erreur lors de la lecture du vocal" };
+    }
+}
+
 // ============================================
 // CONTRIBUTION POINTS — CLOSE RUN WITH DISTRIBUTION
 // ============================================
@@ -1792,6 +1813,22 @@ export async function closeRunWithContributions(
         (pid) => pid !== leaderProfileId
     );
 
+    // Remove Discord embed before deleting run from DB
+    try {
+        const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
+        await deleteDiscordRunEmbed(ctx.guildId, runId);
+    } catch (_) {
+        // Non-fatal
+    }
+
+    // Miroir agenda (R1) : la run est clôturée mais le miroir reste en
+    // COMPLETED (filigrane « Terminé ») — on le fige AVANT de supprimer la run.
+    await db.dreamRun.update({
+        where: { id: runId },
+        data: { status: "COMPLETED", completedAt: new Date() },
+    });
+    await syncSongesMirror(guildId, runId);
+
     // Delete the run (Ménage Time)
     await db.dreamRun.delete({
         where: { id: runId },
@@ -1806,14 +1843,6 @@ export async function closeRunWithContributions(
             },
             data: { contributionPoints: { increment: pts } },
         });
-    }
-
-    // Remove Discord embed (fire-and-forget)
-    try {
-        const { deleteDiscordRunEmbed } = await import("@/server/songes-service");
-        await deleteDiscordRunEmbed(ctx.guildId, runId);
-    } catch (_) {
-        // Non-fatal
     }
 
     // Audit log

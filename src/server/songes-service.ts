@@ -2,6 +2,11 @@ import { db } from "@/lib/prisma";
 import { sendChannelMessage, updateChannelMessage, validateChannelBelongsToGuild, fetchChannel, createForumPost } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
 import { createNotification } from "@/server/actions/notification-actions";
+import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
+import { loadEmojiResolver } from "@/server/discord-app-emojis";
+import { getEpreuve, OBJECTIVES, type ObjectiveKey } from "@/lib/songes/types";
+import { resolveSongesForumTag, songesLevelTagName } from "@/lib/songes/forum-tags";
+import { logger } from "@/lib/logger";
 
 // ============================================
 // CONSTANTS
@@ -20,21 +25,6 @@ const DIFFICULTY_CONFIG: Record<string, { emoji: string; color: number; label: s
     CAUCHEMAR_I: { emoji: "🔴", color: 0xdc2626, label: "Cauchemar I" },
     CAUCHEMAR_II: { emoji: "🔴", color: 0xdc2626, label: "Cauchemar II" },
     CAUCHEMAR_III: { emoji: "🔴", color: 0xdc2626, label: "Cauchemar III" },
-};
-
-const OBJECTIVE_LABELS: Record<string, string> = {
-    MISSION_GUILDE: "🎯 Mission Guilde",
-    DROP_LEGENDE: "💎 Drop Légende",
-    SUCCES_NO_ACHAT: "🏆 Succès No Achat",
-    FUN: "🎮 Fun",
-    QUETE: "📜 Quête",
-};
-
-const EPREUVE_META: Record<string, { icon: string; label: string }> = {
-    FONSOCAC: { icon: "⚔️", label: "Épreuve FONSOCAC" },
-    REVERSED: { icon: "🔄", label: "Épreuve REVERSED" },
-    NILEZAFF: { icon: "🌀", label: "Épreuve NILEZAFF" },
-    SINJSONJ: { icon: "🐵", label: "Épreuve SINJSONJ" },
 };
 
 // ============================================
@@ -93,6 +83,8 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     if (!run) return null;
 
     const diffConfig = DIFFICULTY_CONFIG[run.difficulty] || { emoji: "🌙", color: 0x9333ea, label: run.difficulty };
+    // Pictos Dofus (emojis d'application si la synchro a été jouée, sinon replis unicode).
+    const emo = await loadEmojiResolver();
 
     // Robust URL detection: prioritize app URL but fallback to NextAuth URL
     // If the context suggests we are in a beta environment, force beta link
@@ -102,24 +94,27 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     // Get leader more info
     const leaderProfile = await getUserProfileData(run.leaderId, guildConfig.id);
 
-    // Get member details for list
-    const memberLines: string[] = [];
+    // Get member details for list — dispatch par classe (UN field inline PAR classe).
+    const teamEntries: DispatchEntry[] = [];
     for (const m of run.members) {
         const p = await getUserProfileData(m.userId, guildConfig.id);
         const reqClass = run.joinRequests.find(r => r.userId === m.userId)?.classe;
         const displayClass = reqClass || p.classe;
-        const classTag = displayClass ? `[${displayClass}] ` : "";
-        
+
         // Add stuff info if available
         let stuffInfo = "";
         const memberStuff = m as any;
         if (memberStuff.linkedStuffId && memberStuff.linkedStuffUrl) {
             stuffInfo = ` 🛡️ [${memberStuff.linkedStuffName || "Stuff"}](${memberStuff.linkedStuffUrl})`;
         }
-        
-        memberLines.push(`• ${classTag}**${p.name}**${stuffInfo}`);
+
+        teamEntries.push({ line: `• **${p.name}**${stuffInfo}`, classe: displayClass });
     }
-    const membersList = memberLines.length > 0 ? memberLines.join("\n") : "*Aucun membre*";
+    const teamFields = buildClassDispatchFields(teamEntries, {
+        emptyField: { name: `✅ Équipe (${run.members.length})`, value: "*Aucun membre*" },
+        maxGroups: 15,
+        emoji: emo,
+    });
 
     // Get waitlist details
     const waitlistLines: string[] = [];
@@ -134,28 +129,32 @@ async function buildRunEmbedData(guildId: string, runId: string) {
 
     // Format objectives
     const objectivesStr = run.objectives.length > 0
-        ? run.objectives.map(o => OBJECTIVE_LABELS[o] || o).join(", ")
+        ? run.objectives.map((o) => OBJECTIVES[o as ObjectiveKey]?.label ?? o).join(", ")
         : "*Aucun objectif*";
 
     // Épreuve de Songe (if applicable)
-    const epreuveMeta = run.epreuveCode ? EPREUVE_META[run.epreuveCode] : null;
+    const epreuveMeta = getEpreuve(run.epreuveCode);
     const embedTitle = epreuveMeta
-        ? `${epreuveMeta.icon} ${epreuveMeta.label} — ${diffConfig.label}`
+        ? `${epreuveMeta.label} — ${diffConfig.label}`
         : `🌙 Run Songes — ${diffConfig.label}`;
 
     const fields = [
         { name: "💀 Difficulté", value: `${diffConfig.emoji} **${diffConfig.label}**`, inline: true },
-        { name: "👑 Leader", value: `**${leaderProfile.name}**`, inline: true },
-        { name: "👥 Places", value: `**${run.members.length}/${MAX_MEMBERS}**`, inline: true },
-        ...(run.scheduledAt ? [{ 
-            name: "📅 Date & Heure", 
-            value: `<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:F> (<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:R>)`, 
-            inline: false 
-        }] : []),
-        ...(epreuveMeta ? [{ name: "🏆 Épreuve de Songe", value: `${epreuveMeta.icon} **${epreuveMeta.label}**\n*Pas de butin ni d'expérience*`, inline: false }] : []),
-        { name: "🎯 Objectifs", value: objectivesStr, inline: false },
-        { name: `✅ Équipe (${run.members.length})`, value: membersList, inline: true },
-        { name: `⏳ File d'attente (${run.waitlist.length})`, value: waitlistList, inline: true },
+        { name: `${emo("dofus_leader")} Leader`, value: `**${leaderProfile.name}**`, inline: true },
+        { name: `${emo("dofus_players")} Places`, value: `**${run.members.length}/${MAX_MEMBERS}**`, inline: true },
+        // Date de la session — TOUJOURS affichée : « Sans date pour l'instant » quand le
+        // leader n'en a pas fixé (la date est optionnelle à la création).
+        {
+            name: `${emo("dofus_date")} Date & Heure`,
+            value: run.scheduledAt
+                ? `<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:F> (<t:${Math.floor(run.scheduledAt.getTime() / 1000)}:R>)`
+                : "*Sans date pour l'instant*",
+            inline: false,
+        },
+        ...(epreuveMeta ? [{ name: `${emo("dofus_success")} Épreuve de Songe`, value: `**${epreuveMeta.label}**\n*Pas de butin ni d'expérience*`, inline: false }] : []),
+        { name: `${emo("dofus_trophy")} Objectifs`, value: objectivesStr, inline: false },
+        ...teamFields,
+        { name: `${emo("dofus_waitlist")} File d'attente (${run.waitlist.length})`, value: waitlistList, inline: true },
         { name: "🔗 Dashboard", value: `[📋 Voir la Run](${dashboardUrl})`, inline: false },
     ];
 
@@ -194,6 +193,9 @@ async function buildRunEmbedData(guildId: string, runId: string) {
                 },
             ],
         },
+        // Menu classe en PLUS des boutons : postuler avec cette classe (ou changer
+        // la sienne si déjà candidat / membre).
+        buildClassSelectRow(`songes:class:${run.id}`, "Choisir ma classe pour cette run…"),
     ] : [];
 
     return {
@@ -255,12 +257,22 @@ export async function publishDiscordRun(guildId: string, runId: string) {
         };
 
         if (channel && channel.type === 15) {
-            // C'est un salon forum
+            // Salon forum : le sujet porte le TAG DU PALIER (un seul) — retrouvé par son nom
+            // dans les tags EXISTANTS du salon. SigilOS ne crée jamais de tag (design A) et
+            // l'absence de tag ne bloque rien : la publication reste normale.
+            const levelTagId = resolveSongesForumTag(channel.available_tags, run.difficulty);
+            if (!levelTagId && channel.available_tags?.length) {
+                logger.info("[Songes] aucun tag de forum ne correspond à ce palier", {
+                    difficulty: run.difficulty,
+                    attendu: songesLevelTagName(run.difficulty),
+                    tagsDisponibles: channel.available_tags.length,
+                });
+            }
             const res = await createForumPost(
                 guildConfig.songesNotifyChannelId,
                 data.embedTitle,
                 mentions,
-                messageOptions
+                { ...messageOptions, appliedTags: levelTagId ? [levelTagId] : undefined }
             );
             if (res) {
                 messageId = res.messageId;
@@ -384,6 +396,8 @@ export async function deleteRunJoinRequestsDiscordMessages(guildId: string, runI
 
 /**
  * Deletes all Discord leader reminder messages sent for a specific run.
+ * Best-effort + awaited (allSettled) : un ID `outbox:<jobId>` non encore résolu
+ * est ignoré par `deleteChannelMessage` (le message n'existe pas encore côté Discord).
  */
 export async function deleteRunRemindersDiscordMessages(guildId: string, runId: string) {
     try {
@@ -394,11 +408,13 @@ export async function deleteRunRemindersDiscordMessages(guildId: string, runId: 
 
         const { deleteChannelMessage } = await import("@/server/discord");
 
+        const tasks: Promise<unknown>[] = [];
         for (const rem of reminders) {
             if (rem.discordChannelId && rem.discordMessageId) {
-                await deleteChannelMessage(rem.discordChannelId, rem.discordMessageId);
+                tasks.push(deleteChannelMessage(rem.discordChannelId, rem.discordMessageId).catch(() => false));
             }
         }
+        if (tasks.length > 0) await Promise.allSettled(tasks);
     } catch (error) {
         console.error("[Songes Service] deleteRunRemindersDiscordMessages Error:", error);
     }
@@ -416,23 +432,34 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
         const { run, diffConfig, dashboardUrl, fields } = embedData;
         if (!run.discordChannelId) return { success: false, error: "Run ou canal introuvable" };
 
-        const mentions: string[] = [];
+        const discordIds: string[] = [];
         for (const member of run.members) {
             const discordId = await getDiscordId(member.userId);
-            if (discordId) mentions.push(`<@${discordId}>`);
+            if (discordId) discordIds.push(discordId);
         }
 
-        if (mentions.length === 0) return { success: false, error: "Aucun ID Discord trouvé" };
+        if (discordIds.length === 0) return { success: false, error: "Aucun ID Discord trouvé" };
+
+        // Filtre vocal « suivre le leader » (fail-open : sans état, on pinge tout le monde).
+        const leaderDiscordId = await getDiscordId(run.leaderId);
+        const { splitByVoice } = await import("@/server/voice-reminder-service");
+        const { buildRaidReminderMentions } = await import("@/lib/raid-reminder");
+        const split = await splitByVoice(guildId, discordIds, leaderDiscordId);
+        const mentionsStr = buildRaidReminderMentions(split.absentDiscordIds);
+        if (!mentionsStr) {
+            return { success: true, messageId: null, pinged: 0, skipped: split.presentCount };
+        }
 
         const { sendChannelMessage } = await import("@/server/discord");
 
         // Build a nice reminder embed
+        const manualSongesKey = `manual-songes:msg:${runId}:${Date.now()}`;
         const messageId = await sendChannelMessage(
             run.discordChannelId,
             message, // Becomes embed.description
             {
-                mentionContent: mentions.join(" "), // Triggers the ping
-                embedTitle: `🔔 Rappel Songes : ${diffConfig.emoji} ${diffConfig.label}${embedData.run.epreuveCode ? ` — ${EPREUVE_META[embedData.run.epreuveCode]?.label ?? ""}` : ""}`,
+                mentionContent: mentionsStr, // Triggers the ping (absents du vocal uniquement)
+                embedTitle: `🔔 Rappel Songes : ${diffConfig.emoji} ${diffConfig.label}${embedData.run.epreuveCode ? ` — ${getEpreuve(embedData.run.epreuveCode)?.label ?? ""}` : ""}`,
                 embedUrl: dashboardUrl,
                 embedColor: diffConfig.color,
                 fields: [
@@ -441,16 +468,19 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
                         f.name.includes("Équipe") ||
                         f.name.includes("Places")
                     ),
-                    ...(embedData.run.epreuveCode && EPREUVE_META[embedData.run.epreuveCode]
-                        ? [{ name: "🏆 Épreuve", value: `${EPREUVE_META[embedData.run.epreuveCode].icon} **${EPREUVE_META[embedData.run.epreuveCode].label}**`, inline: true }]
-                        : []),
+                    ...(() => {
+                        const epreuve = getEpreuve(embedData.run.epreuveCode);
+                        return epreuve ? [{ name: "🏆 Épreuve", value: `**${epreuve.label}**`, inline: true }] : [];
+                    })(),
                 ],
-                embedFooter: `SigilOS • Songes Infinis`,
-                embedThumbnail: embedData.thumbnailUrl
+                embedFooter: `SigilOS • Songes Infinis${split.presentCount > 0 ? ` • ${split.presentCount} déjà en vocal` : ""}`,
+                embedThumbnail: embedData.thumbnailUrl,
+                storeMessageIdKey: manualSongesKey,
+                storeMessageIdTTL: 30 * 24 * 3600,
             }
         );
 
-        return { success: true, messageId };
+        return { success: true, messageId, pinged: split.absentCount, skipped: split.presentCount, messageKey: manualSongesKey };
     } catch (error) {
         console.error("[Songes Service] notifyRunMembers Error:", error);
         return { success: false, error: "Erreur serveur" };
@@ -605,6 +635,71 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
         return { success: true };
     } catch (error) {
         console.error("[Songes Service] processRunJoin Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Met à jour la classe d'un candidat/membre EXISTANT (menu select Discord).
+ * - Candidature PENDING → classe de la demande mise à jour.
+ * - Membre → classe de sa demande (ACCEPTED…) mise à jour si elle existe,
+ *   sinon classe du profil (repli d'affichage de l'embed).
+ * Retourne `{ updated: false }` si ni membre ni candidat : l'appelant bascule
+ * alors sur `processRunJoin` (nouvelle candidature avec cette classe).
+ */
+export async function updateRunCandidateClass(
+    guildId: string,
+    runId: string,
+    userId: string,
+    classe: string
+): Promise<{ success: boolean; error?: string; updated?: boolean }> {
+    try {
+        const guildConfig = await getGuildConfig(guildId);
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId },
+            include: { members: { select: { userId: true } } },
+        });
+        if (!run) return { success: false, error: "Run non trouvée" };
+        if (run.status !== "RECRUITING" && run.status !== "IN_PROGRESS") {
+            return { success: false, error: "Cette run n'accepte plus de candidatures" };
+        }
+        if (run.leaderId === userId) {
+            return { success: false, error: "Tu es le leader de cette run !" };
+        }
+
+        const cleanClasse = classe.trim().slice(0, 30);
+        const isMember = run.members.some((m) => m.userId === userId);
+
+        const latestRequest = await db.dreamJoinRequest.findFirst({
+            where: { runId: run.id, userId },
+            orderBy: { createdAt: "desc" },
+        });
+
+        if (latestRequest) {
+            if (latestRequest.status !== "PENDING" && !isMember) {
+                // Demande traitée (refusée…) et pas membre → nouvelle candidature.
+                return { success: true, updated: false };
+            }
+            await db.dreamJoinRequest.update({
+                where: { id: latestRequest.id },
+                data: { classe: cleanClasse },
+            });
+        } else if (isMember) {
+            // Membre sans demande (ajouté à la main) → repli profil (affiché par l'embed).
+            await db.userProfile.updateMany({
+                where: { userId, guildId: guildConfig.id },
+                data: { classe: cleanClasse },
+            });
+        } else {
+            return { success: true, updated: false };
+        }
+
+        await updateDiscordRunEmbed(guildId, runId).catch(() => { });
+        return { success: true, updated: true };
+    } catch (error) {
+        console.error("[Songes Service] updateRunCandidateClass Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

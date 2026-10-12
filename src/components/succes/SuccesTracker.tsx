@@ -13,15 +13,20 @@ import {
     Loader2,
     Users,
     X,
+    CheckCheck,
+    RotateCcw,
 } from "lucide-react";
 import {
     toggleAchievementCompleted,
     toggleDungeonAchievements,
+    toggleLevelBracketAchievements,
     getUserDungeonProgress,
     findMissingAchievements,
 } from "@/server/actions/dungeon-finder-actions";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
+import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 interface Achievement {
@@ -37,6 +42,9 @@ interface Dungeon {
     level: number;
     imageUrl?: string | null;
     isOcreQuest?: boolean;
+    /* Chantier « boss d'anomalie » : contenu siphonné (Gardiens des anomalies). */
+    isAnomalyBoss?: boolean | null;
+    anomalyFamily?: string | null;
     // #171 — liens guides externes (rendus avec favicon dans le détail donjon)
     dpnlUrl?: string | null;
     dofuspourlesnoobsUrl?: string | null;
@@ -73,6 +81,11 @@ const LEVEL_PRESETS = [
     { label: "200+", min: 200, max: 1000 },
 ] as const;
 
+/** Libellé lisible d'une tranche de niveau (contrôle compact du filtre « Mes Succès »). */
+function levelPresetLabel(label: (typeof LEVEL_PRESETS)[number]["label"]): string {
+    return label === "Tous" ? "Tous les niveaux" : `Niveau ${label}`;
+}
+
 /**
  * #138 — Vue « Moi » du module Succès (refonte d'AchievementTracker).
  * Split view : liste de donjons à gauche, détail à droite (mobile : plein écran + Retour).
@@ -91,12 +104,49 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
     const [status, setStatus] = useState<StatusFilter>("all");
     const [minLevel, setMinLevel] = useState(1);
     const [maxLevel, setMaxLevel] = useState(1000);
+    // Filtre « Boss Anomalie » (chantier gardiens des anomalies) — cumulable avec la tranche de niveau.
+    const [anomalyOnly, setAnomalyOnly] = useState(searchParams.get("anomaly") === "1");
     const [partners, setPartners] = useState<Record<string, Partner[]>>({});
     const [loadingPartners, setLoadingPartners] = useState(false);
+    const [bracketLoading, setBracketLoading] = useState(false);
     const toastFired = useRef(false);
     const autoSelectedRef = useRef(false);
 
     const selectedDungeonId = searchParams.get("dungeon");
+
+    const handleToggleLevelBracket = useCallback(
+        async (action: "validate" | "unvalidate") => {
+            if (!canEdit || bracketLoading) return;
+            setBracketLoading(true);
+            try {
+                const res = await toggleLevelBracketAchievements(guildId, minLevel, maxLevel, action);
+                if (res.success && res.data) {
+                    const affectedIds = res.data.achievementIds;
+                    setCompletedIds((prev) => {
+                        const next = new Set(prev);
+                        if (action === "validate") {
+                            affectedIds.forEach((id) => next.add(id));
+                        } else {
+                            affectedIds.forEach((id) => next.delete(id));
+                        }
+                        return next;
+                    });
+                    toast.success(
+                        action === "validate"
+                            ? `Tous les succès de la tranche (Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}) ont été validés !`
+                            : `Tous les succès de la tranche ont été décochés.`
+                    );
+                } else {
+                    toast.error(res.error || "Erreur lors de la mise à jour");
+                }
+            } catch {
+                toast.error("Erreur de communication avec le serveur");
+            } finally {
+                setBracketLoading(false);
+            }
+        },
+        [canEdit, bracketLoading, guildId, minLevel, maxLevel]
+    );
 
     const updateParam = useCallback(
         (key: string, value: string | null) => {
@@ -119,9 +169,9 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             if (cancelled) return;
             if (dungeonsRes.success && dungeonsRes.data) {
                 setDungeons(
-                    (dungeonsRes.data as Dungeon[])
-                        .filter((d) => d.achievements.length > 0)
-                        .sort((a, b) => a.level - b.level)
+                    // On inclut AUSSI les donjons sans succès associé (ils doivent rester visibles,
+                    // p.ex. via /succes?dungeon=<id>). L'écran gère l'état « 0 succès ».
+                    (dungeonsRes.data as Dungeon[]).sort((a, b) => a.level - b.level)
                 );
             }
             if (progressRes.success && progressRes.data) {
@@ -147,8 +197,8 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
             );
             if (fresh.length > 0) {
                 toast.success(
-                    `${fresh.length} succès validé${fresh.length > 1 ? "s" : ""} par un groupe de donjon — ta checklist a été mise à jour. 🏆`
-                );
+                        `${fresh.length} succès validé${fresh.length > 1 ? "s" : ""} par un groupe de donjon — ta checklist a été mise à jour.`
+                    );
             }
             localStorage.setItem(key, String(Date.now()));
         } catch {
@@ -237,21 +287,35 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
         [canEdit, selectedDungeon, completedIds, guildId]
     );
 
+    // ── Une seule bascule par contexte : l'état décide du sens du bouton ────────
+    /** Tous les succès du donjon ouvert sont-ils déjà cochés ? */
+    const selectedAllDone = useMemo(
+        () =>
+            !!selectedDungeon &&
+            selectedDungeon.achievements.length > 0 &&
+            selectedDungeon.achievements.every((a) => completedIds.has(a.id)),
+        [selectedDungeon, completedIds]
+    );
+
+    /** Donjons de la tranche de niveau sélectionnée (portée réelle du bouton « tranche »). */
+    const bracketDungeons = useMemo(
+        () => dungeons.filter((d) => d.level >= minLevel && d.level <= maxLevel),
+        [dungeons, minLevel, maxLevel]
+    );
+    /** Toute la tranche de niveau est-elle déjà validée ? */
+    const bracketAllDone = useMemo(
+        () =>
+            bracketDungeons.some((d) => d.achievements.length > 0) &&
+            bracketDungeons.every((d) => d.achievements.every((a) => completedIds.has(a.id))),
+        [bracketDungeons, completedIds]
+    );
+    const bracketLabel = minLevel === 1 && maxLevel === 1000 ? "du jeu" : `Niv. ${minLevel}-${maxLevel === 1000 ? "200+" : maxLevel}`;
+
     const doneCount = useMemo(
         () => dungeons.reduce((acc, d) => acc + d.achievements.filter((a) => completedIds.has(a.id)).length, 0),
         [dungeons, completedIds]
     );
     const totalCount = useMemo(() => dungeons.reduce((acc, d) => acc + d.achievements.length, 0), [dungeons]);
-    const totalPoints = useMemo(
-        () =>
-            dungeons.reduce(
-                (acc, d) =>
-                    acc +
-                    d.achievements.filter((a) => completedIds.has(a.id)).reduce((p, a) => p + (a.points || 0), 0),
-                0
-            ),
-        [dungeons, completedIds]
-    );
     const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
     const filteredDungeons = useMemo(() => {
@@ -259,13 +323,17 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
         return dungeons.filter((d) => {
             const matchSearch = d.name.toLowerCase().includes(term) || d.bossName.toLowerCase().includes(term);
             const matchLevel = d.level >= minLevel && d.level <= maxLevel;
-            if (!matchSearch || !matchLevel) return false;
+            // Filtre « Boss Anomalie » : uniquement le contenu siphonné (isAnomalyBoss).
+            const matchKind = !anomalyOnly || !!d.isAnomalyBoss;
+            if (!matchSearch || !matchLevel || !matchKind) return false;
             const done = d.achievements.filter((a) => completedIds.has(a.id)).length;
+            // Un donjon sans aucun succès n'est ni « done » ni « todo » → il reste visible sous « Tous ».
+            if (d.achievements.length === 0) return true;
             if (status === "done") return done === d.achievements.length;
             if (status === "todo") return done < d.achievements.length;
             return true;
         });
-    }, [dungeons, search, status, minLevel, maxLevel, completedIds]);
+    }, [dungeons, search, status, minLevel, maxLevel, anomalyOnly, completedIds]);
 
     const selectedPartners = selectedDungeon ? partners[selectedDungeon.id] : undefined;
 
@@ -280,42 +348,36 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
 
     return (
         <div className="space-y-5">
-            {/* Glance (progressive disclosure) : où j'en suis sans scroll */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="col-span-2 lg:col-span-2 bg-surface border border-border rounded-2xl p-5">
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-warning/15 border border-warning/30 text-warning flex items-center justify-center shrink-0">
-                                <Trophy className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold text-foreground">Progression globale</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    {doneCount}/{totalCount} succès validés
-                                </p>
-                            </div>
+            {/* Glance compact & épuré : résumé de progression */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5 p-3.5 rounded-2xl bg-surface/80 border border-border">
+                <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
+                        <Trophy className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <span className="text-xs font-bold text-foreground truncate">Progression globale des succès</span>
+                            <span className="text-xs font-black text-foreground tabular-nums shrink-0">{progressPct}% ({doneCount}/{totalCount})</span>
                         </div>
-                        <span className="text-2xl font-black text-warning tabular-nums">{progressPct}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-background border border-border overflow-hidden">
-                        <div
-                            className="h-full bg-warning transition-all duration-300"
-                            style={{ width: `${progressPct}%` }}
-                        />
+                        <div className="h-2 rounded-full bg-background border border-border/80 overflow-hidden">
+                            <div
+                                className="h-full bg-warning transition-all duration-300"
+                                style={{ width: `${progressPct}%` }}
+                            />
+                        </div>
                     </div>
                 </div>
-                <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col justify-center">
-                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Donjons</p>
-                    <p className="text-2xl font-black text-foreground tabular-nums mt-1">{dungeons.length}</p>
-                </div>
-                <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col justify-center">
-                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Points</p>
-                    <p className="text-2xl font-black text-warning tabular-nums mt-1">{totalPoints}</p>
+
+                <div className="flex items-center gap-2 shrink-0 sm:border-l sm:border-border sm:pl-3.5">
+                    <div className="px-3 py-1.5 rounded-xl bg-background/60 border border-border text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Donjons</p>
+                        <p className="text-sm font-black text-foreground tabular-nums">{dungeons.length}</p>
+                    </div>
                 </div>
             </div>
 
-            {/* Filtres */}
-            <div className="flex flex-col md:flex-row md:items-center gap-3" data-tour="succes-filters">
+            {/* Filtres compacts */}
+            <div className="flex flex-col md:flex-row md:items-center gap-2.5" data-tour="succes-filters">
                 <div className="relative flex-1" data-tour="succes-search">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
@@ -325,7 +387,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                             updateParam("q", e.target.value || null);
                         }}
                         placeholder="Rechercher un donjon ou un boss…"
-                        className="w-full h-11 pl-9 pr-8 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-warning/40"
+                        className="w-full h-9 pl-9 pr-8 rounded-xl bg-surface/70 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     {search && (
                         <button
@@ -336,46 +398,103 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                             className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             aria-label="Effacer la recherche"
                         >
-                            <X className="w-4 h-4" />
+                            <X className="w-3.5 h-3.5" />
                         </button>
                     )}
                 </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-                    {(["all", "todo", "done"] as StatusFilter[]).map((s) => (
-                        <button
-                            key={s}
-                            onClick={() => {
-                                setStatus(s);
-                                updateParam("status", s === "all" ? null : s);
-                            }}
-                            className={cn(
-                                "px-4 py-2 min-h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition-colors shrink-0",
-                                status === s
-                                    ? "bg-warning/15 border-warning/40 text-warning"
-                                    : "bg-surface border-border text-muted-foreground hover:text-foreground"
-                            )}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+                    {/* Statut — un seul contrôle segmenté (Tous / À faire / Finis) */}
+                    <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-border bg-surface/70 shrink-0">
+                        {(["all", "todo", "done"] as StatusFilter[]).map((s) => (
+                            <button
+                                key={s}
+                                onClick={() => {
+                                    setStatus(s);
+                                    updateParam("status", s === "all" ? null : s);
+                                }}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-colors",
+                                    status === s
+                                        ? "bg-elevated text-foreground"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                {s === "all" ? "Tous" : s === "todo" ? "À faire" : "Finis"}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="w-px h-5 bg-border shrink-0" />
+                    {/* Filtre « Fiches Anomalies » (gardiens des anomalies temporelles). */}
+                    <button
+                        type="button"
+                        data-tour="succes-filter-anomaly"
+                        onClick={() => {
+                            const next = !anomalyOnly;
+                            setAnomalyOnly(next);
+                            updateParam("anomaly", next ? "1" : null);
+                        }}
+                        title="N'afficher que les boss d'anomalie (gardiens des anomalies temporelles)"
+                        className={cn(
+                            "inline-flex items-center gap-1.5 px-2.5 h-9 rounded-xl border text-xs font-bold transition-colors shrink-0",
+                            anomalyOnly
+                                ? "bg-elevated border-border-strong text-foreground"
+                                : "bg-surface/70 border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
+                        )}
+                    >
+                        <img src="/assets/missions/ano1.png" alt="" aria-hidden className="w-3.5 h-3.5 object-contain" />
+                        Boss d&apos;anomalie
+                    </button>
+                    {/* Niveau — un seul contrôle compact (remplace les 5 puces de tranche) */}
+                    <Select
+                        value={`${minLevel}-${maxLevel}`}
+                        onValueChange={(value) => {
+                            const preset = LEVEL_PRESETS.find((p) => `${p.min}-${p.max}` === value);
+                            if (!preset) return;
+                            setMinLevel(preset.min);
+                            setMaxLevel(preset.max);
+                        }}
+                    >
+                        <SelectTrigger
+                            aria-label="Filtrer par tranche de niveau"
+                            className="h-9 w-[9.5rem] shrink-0 rounded-xl border-border bg-surface/70 text-xs font-bold text-foreground"
                         >
-                            {s === "all" ? "Tous" : s === "todo" ? "À faire" : "Finis"}
-                        </button>
-                    ))}
-                    <div className="w-px h-6 bg-border shrink-0" />
-                    {LEVEL_PRESETS.map((p) => (
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-surface border-border">
+                            {LEVEL_PRESETS.map((p) => (
+                                <SelectItem key={p.label} value={`${p.min}-${p.max}`} className="text-xs font-bold">
+                                    {levelPresetLabel(p.label)}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Une seule bascule pour la tranche : valider ↔ décocher, selon l'état réel */}
+                    {canEdit && (
                         <button
-                            key={p.label}
-                            onClick={() => {
-                                setMinLevel(p.min);
-                                setMaxLevel(p.max);
-                            }}
+                            type="button"
+                            disabled={bracketLoading}
+                            onClick={() => handleToggleLevelBracket(bracketAllDone ? "unvalidate" : "validate")}
                             className={cn(
-                                "px-3 py-2 min-h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition-colors shrink-0",
-                                minLevel === p.min && maxLevel === p.max
-                                    ? "bg-elevated border-border-strong text-foreground"
-                                    : "bg-surface border-border text-muted-foreground hover:text-foreground"
+                                "inline-flex items-center gap-1.5 px-3 h-9 rounded-xl border border-border bg-surface/70 text-xs font-black text-foreground hover:bg-elevated transition-all shrink-0 disabled:opacity-50",
+                                bracketAllDone && "text-muted-foreground hover:text-danger"
                             )}
+                            title={
+                                bracketAllDone
+                                    ? `Décocher tous les succès ${bracketLabel}`
+                                    : `Valider tous les succès ${bracketLabel}`
+                            }
                         >
-                            {p.label}
+                            {bracketLoading ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : bracketAllDone ? (
+                                <RotateCcw className="w-3.5 h-3.5" />
+                            ) : (
+                                <CheckCheck className="w-3.5 h-3.5" />
+                            )}
+                            <span>{bracketAllDone ? "Décocher la tranche" : "Valider la tranche"}</span>
                         </button>
-                    ))}
+                    )}
                 </div>
             </div>
 
@@ -392,7 +511,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                         filteredDungeons.map((d) => {
                             const done = d.achievements.filter((a) => completedIds.has(a.id)).length;
                             const pct = d.achievements.length ? Math.round((done / d.achievements.length) * 100) : 0;
-                            const complete = done === d.achievements.length;
+                            const complete = d.achievements.length > 0 && done === d.achievements.length;
                             const active = d.id === selectedDungeonId;
                             return (
                                 <button
@@ -401,24 +520,39 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                     className={cn(
                                         "w-full flex items-center gap-3 p-3 rounded-2xl border text-left transition-colors min-h-16",
                                         active
-                                            ? "bg-elevated/90 border-warning/50"
+                                            ? "bg-elevated/90 border-border-strong"
                                             : "bg-surface/70 border-border hover:bg-elevated/70"
                                     )}
                                 >
                                     <div className="relative shrink-0">
-                                        {d.imageUrl ? (
-                                            <img src={d.imageUrl} alt="" className="w-11 h-11 rounded-xl object-cover border border-border bg-background" loading="lazy" />
-                                        ) : (
-                                            <div className="w-11 h-11 rounded-xl bg-background border border-border flex items-center justify-center">
-                                                <Trophy className="w-5 h-5 text-muted-foreground/50" />
-                                            </div>
-                                        )}
+                                        <div className="w-11 h-11 rounded-xl bg-background border border-border flex items-center justify-center overflow-hidden">
+                                            {d.imageUrl ? (
+                                                <img
+                                                    src={d.imageUrl}
+                                                    alt=""
+                                                    className="w-full h-full object-cover"
+                                                    loading="lazy"
+                                                    onError={(e) => {
+                                                        e.currentTarget.style.display = "none";
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <Trophy className="w-5 h-5 text-muted-foreground/30 absolute" />
+                                        </div>
                                         {d.isOcreQuest && (
                                             <img
                                                 src="/module-dofus/Dofus_Ocre.png"
                                                 alt="Quête Ocre"
                                                 title="Donjon de la Quête Ocre"
                                                 className="absolute -bottom-1 -right-1 w-5 h-5 object-contain rounded-full bg-background border border-warning/30 p-0.5"
+                                            />
+                                        )}
+                                        {d.isAnomalyBoss && (
+                                            <img
+                                                src="/assets/missions/ano1.png"
+                                                alt="Boss Anomalie"
+                                                title={d.anomalyFamily ? `Boss d'anomalie — ${d.anomalyFamily}` : "Boss d'anomalie"}
+                                                className="absolute -bottom-1 -right-1 w-5 h-5 object-contain rounded-full bg-background border border-info/30 p-0.5"
                                             />
                                         )}
                                     </div>
@@ -429,13 +563,13 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                         </p>
                                         <div className="h-1.5 rounded-full bg-background border border-border mt-1.5 overflow-hidden">
                                             <div
-                                                className={cn("h-full transition-all duration-300", complete ? "bg-success" : "bg-warning")}
+                                                className="h-full bg-warning transition-all duration-300"
                                                 style={{ width: `${pct}%` }}
                                             />
                                         </div>
                                     </div>
                                     {complete ? (
-                                        <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+                                        <CheckCircle2 className="w-5 h-5 text-foreground shrink-0" />
                                     ) : (
                                         <Circle className="w-5 h-5 text-muted-foreground/40 shrink-0" />
                                     )}
@@ -458,13 +592,19 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                 </button>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                     <div className="relative shrink-0">
-                                        {selectedDungeon.imageUrl ? (
-                                            <img src={selectedDungeon.imageUrl} alt="" className="w-16 h-16 rounded-2xl object-cover border border-border" />
-                                        ) : (
-                                            <div className="w-16 h-16 rounded-2xl bg-background border border-border flex items-center justify-center">
-                                                <Trophy className="w-7 h-7 text-muted-foreground/50" />
-                                            </div>
-                                        )}
+                                        <div className="w-16 h-16 rounded-2xl bg-background border border-border flex items-center justify-center overflow-hidden">
+                                            {selectedDungeon.imageUrl ? (
+                                                <img
+                                                    src={selectedDungeon.imageUrl}
+                                                    alt={selectedDungeon.name}
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        e.currentTarget.style.display = "none";
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <Trophy className="w-7 h-7 text-muted-foreground/30 absolute" />
+                                        </div>
                                         {selectedDungeon.isOcreQuest && (
                                             <img
                                                 src="/module-dofus/Dofus_Ocre.png"
@@ -498,28 +638,11 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 Guide DPNL
                                             </a>
                                         )}
-                                        {selectedDungeon.dofensiveUrl && (
-                                            <a
-                                                href={selectedDungeon.dofensiveUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 px-3.5 py-2.5 min-h-11 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated transition-colors"
-                                                title="Guide Dofensive"
-                                            >
-                                                <img
-                                                    src="https://www.google.com/s2/favicons?domain=dofensive.com&sz=32"
-                                                    alt=""
-                                                    className="w-4 h-4 rounded-sm"
-                                                    loading="lazy"
-                                                />
-                                                Dofensive
-                                            </a>
-                                        )}
                                         <Link
                                             href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${selectedDungeon.id}`}
-                                            className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-info/30 bg-info/10 text-info text-xs font-bold uppercase tracking-wide hover:bg-info/20 transition-colors"
+                                            className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-border bg-surface text-foreground text-xs font-bold uppercase tracking-wide hover:bg-elevated transition-colors"
                                         >
-                                            <Swords className="w-4 h-4" /> Chercher un groupe
+                                            <Swords className="w-4 h-4 text-muted-foreground" /> Chercher un groupe
                                         </Link>
                                     </div>
                                 </div>
@@ -529,21 +652,19 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                             Succès — {selectedDungeon.achievements.filter((a) => completedIds.has(a.id)).length}/{selectedDungeon.achievements.length}
                                         </p>
-                                        {canEdit && (
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => toggleAll(false)}
-                                                    className="px-3 py-2 min-h-11 rounded-lg border border-border text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-                                                >
-                                                    Décocher tout
-                                                </button>
-                                                <button
-                                                    onClick={() => toggleAll(true)}
-                                                    className="px-3 py-2 min-h-11 rounded-lg bg-warning/15 border border-warning/40 text-warning text-xs font-black uppercase tracking-wide hover:bg-warning/25 transition-colors"
-                                                >
-                                                    Tout cocher
-                                                </button>
-                                            </div>
+                                        {canEdit && selectedDungeon.achievements.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleAll(!selectedAllDone)}
+                                                title={selectedAllDone ? "Décocher les succès de ce donjon" : "Valider les succès de ce donjon"}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1.5 px-3 py-2 min-h-11 rounded-xl border border-border bg-surface text-xs font-black uppercase tracking-wide text-foreground hover:bg-elevated transition-colors shrink-0",
+                                                    selectedAllDone && "text-muted-foreground hover:text-danger"
+                                                )}
+                                            >
+                                                {selectedAllDone ? <RotateCcw className="w-3.5 h-3.5" /> : <CheckCheck className="w-3.5 h-3.5" />}
+                                                {selectedAllDone ? "Tout décocher" : "Tout cocher"}
+                                            </button>
                                         )}
                                     </div>
                                     <div className="h-2 rounded-full bg-background border border-border overflow-hidden">
@@ -562,39 +683,51 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                     {selectedDungeon.achievements.map((a) => {
                                         const isDone = completedIds.has(a.id);
+                                        // Icône résolue en source unique (proxy d'abord) — plus le
+                                        // chemin brut : l'interne affiche la même icône que le public.
+                                        const iconSrc = getDungeonAchievementIconUrl(a);
                                         return (
                                             <button
                                                 key={a.id}
                                                 onClick={() => toggleOne(a.id)}
                                                 disabled={!canEdit}
                                                 className={cn(
-                                                    "flex items-center gap-3 p-3 rounded-xl border text-left transition-colors min-h-12",
+                                                    "flex items-center gap-3 p-3 rounded-xl border text-left transition-all min-h-12 group",
                                                     isDone
-                                                        ? "bg-success/5 border-success/25"
-                                                        : "bg-background/50 border-border hover:bg-elevated/70",
+                                                        ? "bg-surface/60 border-border-strong"
+                                                        : "bg-surface/60 border-border hover:bg-elevated hover:border-border-strong",
                                                     !canEdit && "cursor-default opacity-80"
                                                 )}
                                             >
                                                 <div
                                                     className={cn(
-                                                        "w-6 h-6 rounded-full flex items-center justify-center shrink-0 border transition-colors",
-                                                        isDone ? "bg-success border-success" : "bg-surface border-border"
+                                                        "w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-all",
+                                                        isDone ? "bg-foreground border-foreground text-background" : "bg-background border-border group-hover:border-border-strong"
                                                     )}
                                                 >
-                                                    {isDone && <CheckCircle2 className="w-4 h-4 text-foreground" />}
+                                                    {isDone && <CheckCircle2 className="w-3.5 h-3.5" />}
                                                 </div>
-                                                {a.challenge.iconUrl ? (
-                                                    <img src={a.challenge.iconUrl} alt="" className="w-8 h-8 rounded-lg bg-surface border border-border p-1 object-contain shrink-0" loading="lazy" />
-                                                ) : (
-                                                    <Trophy className="w-5 h-5 text-warning/50 shrink-0" />
-                                                )}
+
+                                                <div className="w-8 h-8 rounded-lg bg-background border border-border/80 flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                                                    {iconSrc ? (
+                                                        <img
+                                                            src={iconSrc}
+                                                            alt=""
+                                                            className="w-full h-full object-contain"
+                                                            loading="lazy"
+                                                            onError={(e) => {
+                                                                e.currentTarget.style.display = "none";
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <img src="/assets/dofus/icons/challenges.png" alt="" className="w-4 h-4 object-contain opacity-70" />
+                                                    )}
+                                                </div>
+
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-bold text-foreground truncate">
+                                                    <p className={cn("text-xs font-bold truncate", isDone ? "text-muted-foreground" : "text-foreground")}>
                                                         {a.challenge.name}
                                                     </p>
-                                                    {a.points > 0 && (
-                                                        <p className="text-xs text-warning font-semibold mt-0.5">+{a.points} pts</p>
-                                                    )}
                                                 </div>
                                             </button>
                                         );
@@ -603,10 +736,10 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
 
                                 {/* Hint partenaires — le lien métier avec les posts, sans ouvrir le board ici */}
                                 {selectedPartners && selectedPartners.filter((p) => !completedIds.has(p.achievementId) && p.membersWhoHaveIt.length > 0).length > 0 && (
-                                    <div data-tour="succes-partners" className="mt-5 border border-warning/20 bg-warning/5 rounded-xl p-4">
+                                    <div data-tour="succes-partners" className="mt-5 border border-border bg-surface/60 rounded-xl p-4">
                                         <div className="flex items-center gap-2 mb-3">
-                                            <Users className="w-4 h-4 text-warning" />
-                                            <p className="text-xs font-bold uppercase tracking-widest text-warning">Partenaires potentiels</p>
+                                            <Users className="w-4 h-4 text-muted-foreground" />
+                                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Partenaires potentiels</p>
                                         </div>
                                         <div className="space-y-2">
                                             {selectedPartners
@@ -614,7 +747,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 .map((p) => (
                                                     <div key={p.achievementId} className="flex items-center justify-between gap-3">
                                                         <span className="text-sm text-foreground truncate">{p.achievementName}</span>
-                                                        <span className="text-xs font-bold text-warning shrink-0">
+                                                        <span className="text-xs font-bold text-foreground shrink-0">
                                                             {p.membersWhoHaveIt.length} membre{p.membersWhoHaveIt.length > 1 ? "s" : ""} l'ont déjà
                                                         </span>
                                                     </div>

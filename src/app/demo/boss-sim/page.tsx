@@ -4,7 +4,7 @@ import { BossMapSimClient } from "@/components/demo/BossMapSimClient";
 export const dynamic = "force-dynamic";
 
 /**
- * Démo — simulation de fiche boss avec sélecteur de map façon Dofensive.
+ * Démo — simulation de fiche boss avec sélecteur de salle.
  * Paramètres (optionnels) : ?boss=NomDuBoss&dungeon=NomDuDonjon
  * Exemple : /demo/boss-sim?boss=Servitude&dungeon=Fers de la Tyrannie
  * Défaut : Donjon du Comte Harebourg.
@@ -34,10 +34,10 @@ export default async function BossSimDemoPage({
     return (
         <main className="min-h-screen max-w-6xl mx-auto px-4 py-8">
             <header className="mb-6 space-y-1">
-                <p className="text-xs font-black uppercase tracking-widest text-warning">Démo — sélecteur de map façon Dofensive</p>
+                <p className="text-xs font-black uppercase tracking-widest text-warning">Démo — sélecteur de salle</p>
                 <h1 className="text-2xl font-black text-foreground">{res.data.dungeonName}</h1>
                 <p className="text-sm text-muted-foreground">
-                    {res.data.maps.length} salles réelles (obstacles + placements de départ) · source : dofensive.com/api
+                    {res.data.maps.length} salles réelles (obstacles + placements de départ)
                 </p>
             </header>
             <BossMapSimClient dungeon={res.data} />

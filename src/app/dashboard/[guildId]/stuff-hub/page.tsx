@@ -12,10 +12,12 @@ import {
     Joystick
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 type HubCard = {
     href: string;
     icon: any;
+    imgSrc?: string;
     title: string;
     description: string;
     accent: "emerald" | "amber" | "indigo" | "violet" | "rose" | "cyan" | "slate";
@@ -64,6 +66,7 @@ export default async function StuffHubPage({
         {
             href: `/dashboard/${guildId}/worldmap`,
             icon: Compass,
+            imgSrc: "/assets/dofus/modules/map.png",
             title: "Carte du Monde",
             description: "Visualisez les zones importantes et les ressources stratégiques sur la carte.",
             accent: "emerald",
@@ -79,6 +82,7 @@ export default async function StuffHubPage({
                 icon={Briefcase}
                 iconColor="#6366f1"
                 backHref={`/dashboard/${guildId}`}
+                actions={<ModuleHelpActions docSlug="galerie-stuff" docTitle="Galerie & Outils" tourPhase="galerie" />}
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-300">
@@ -100,7 +104,11 @@ export default async function StuffHubPage({
                                             a.bg,
                                             a.border.replace("hover:", "")
                                         )}>
-                                            <Icon className={cn("w-7 h-7", a.text)} strokeWidth={1.5} />
+                                            {(card as any).imgSrc ? (
+                                                <img src={(card as any).imgSrc} alt="" className="w-8 h-8 object-contain" />
+                                            ) : (
+                                                <Icon className={cn("w-7 h-7", a.text)} strokeWidth={1.5} />
+                                            )}
                                         </div>
                                     </div>
 

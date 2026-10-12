@@ -192,7 +192,7 @@ export async function canAccessBrick(
  * 🛡️ Guard fail-closed pour les actions serveur des modules ouverts aux sous-gods.
  * Autorise si super-admin OU (page ouvrable + grant/scope sur la brique).
  * Lève une erreur sinon (utilisable dans les server actions), et trace le refus
- * (GodAccessLog) pour l'anti-scout, cohérent avec la sécurité RULES.md.
+ * (GodAccessLog) pour l'anti-scout, cohérent avec la sécurité docs/RULES.md.
  */
 export async function requireGodBrick(brickId: string): Promise<true> {
     if (await isSuperAdmin()) return true;
@@ -530,8 +530,18 @@ export async function toggleGuildActive(discordGuildId: string) {
         data: { isActive: !guild.isActive }
     });
 
-    // 🔄 Invalide le cache `guild_allowed:{id}` pour que le changement de statut soit immédiat.
+    // Synchroniser l'état dans GuildConfig si la guilde est déployée
+    await db.guildConfig.updateMany({
+        where: { discordGuildId },
+        data: { isActive: updated.isActive }
+    });
+
+    // 🔄 Invalide les caches pour que le changement de statut soit immédiat
     await invalidateAllowedGuildCache(discordGuildId);
+    try {
+        const { invalidateGuildCache } = await import("./user-actions");
+        await invalidateGuildCache(discordGuildId);
+    } catch { /* non bloquant */ }
 
     // 📝 LOG ACTION
     const session = await auth();
@@ -1126,65 +1136,6 @@ export async function cleanupOrphanedProfiles() {
 
     revalidatePath("/god");
     return { success: true, count: orphanIds.length, message: `${orphanIds.length} profils orphelins supprimés.` };
-}
-
-/**
- * [ADM-8] Platform-wide: Get all users who have requested account deletion
- * or have a scheduled deletion pending. Includes their guild profile(s) for context.
- * Super-admin only.
- */
-export async function getPendingDeletionUsers() {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) throw new Error("Unauthorized: Super-admin access required");
-
-    const users = await db.user.findMany({
-        where: {
-            OR: [
-                { deletionRequestedAt: { not: null } },
-                { scheduledDeletion: { not: null } },
-            ]
-        },
-        select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            deletionRequestedAt: true,
-            scheduledDeletion: true,
-            createdAt: true,
-            profiles: {
-                select: {
-                    id: true,
-                    status: true,
-                    pseudoDofus: true,
-                    discordNickname: true,
-                    archiveReason: true,
-                    guild: {
-                        select: { name: true, discordGuildId: true }
-                    }
-                }
-            }
-        },
-        orderBy: { deletionRequestedAt: "desc" },
-        take: 100
-    });
-
-    return users.map(u => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        image: u.image,
-        deletionRequestedAt: u.deletionRequestedAt?.toISOString() || null,
-        scheduledDeletion: u.scheduledDeletion?.toISOString() || null,
-        createdAt: u.createdAt.toISOString(),
-        guilds: u.profiles.map(p => ({
-            guildName: p.guild.name,
-            discordGuildId: p.guild.discordGuildId,
-            displayName: p.pseudoDofus || p.discordNickname || u.name || "Inconnu",
-            profileStatus: p.status,
-            archiveReason: p.archiveReason,
-        }))
-    }));
 }
 
 /**

@@ -42,7 +42,7 @@
     "services/discord-bot",
     "scripts",
     "scratch",
-    ".agents",
+    "temp",
     ".next"
   ]
 }

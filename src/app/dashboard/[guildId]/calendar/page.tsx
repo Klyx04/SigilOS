@@ -24,8 +24,9 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
 
     const ctx = await getUserContext(guildId);
 
-    // Module guard (admins bypass module toggle)
-    if (!ctx.isAdmin && !(await isModuleEnabled(guildId, "calendar"))) {
+    // Module guard (seul le God plateforme contourne : « désactivé = invisible »,
+    // verrou God inclus — cf. `applyGodLocks` dans getUserContext)
+    if (!ctx.isSuperAdmin && !(await isModuleEnabled(guildId, "calendar"))) {
         redirect(`/dashboard/${guildId}`);
     }
 
@@ -54,6 +55,21 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
         raidSanctuaireNotifyChannelId: guildConfig?.raidSanctuaireNotifyChannelId,
     };
 
+    // Personnages Dofus du membre (classe principale + secondaires) : alimente le
+    // raccourci « Mes personnages » des modales d'inscription — aucun autre usage.
+    const myProfile = await db.userProfile.findFirst({
+        where: { userId: session.user.id, guild: { discordGuildId: guildId } },
+        select: { classe: true, classeSecondaires: true },
+    });
+    const myCharacters = {
+        main: myProfile?.classe ?? null,
+        secondaries: Array.isArray(myProfile?.classeSecondaires)
+            ? (myProfile!.classeSecondaires as unknown[]).filter(
+                (c): c is string => typeof c === "string" && c.trim().length > 0
+            )
+            : [],
+    };
+
     return (
         <div className="flex flex-col h-full bg-foreground/[0.02] pb-12">
             <main className="flex-1 overflow-auto">
@@ -79,6 +95,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
                                 canManageRaid={ctx.canManageRaid}
                                 userPseudo={ctx.pseudoDofus || ctx.name}
                                 isAdmin={ctx.isAdmin}
+                                myCharacters={myCharacters}
                             />
                         </Suspense>
                     </div>

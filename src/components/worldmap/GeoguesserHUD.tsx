@@ -46,12 +46,12 @@ export default function GeoguesserHUD({
     return (
         <div className="flex flex-col items-center gap-2 pointer-events-auto select-none">
             {/* Top Bar: Round + Timer + Score */}
-            <div className="flex items-center justify-center gap-2 sm:gap-3 bg-zinc-950/90 backdrop-blur-md border border-white/10 p-1.5 sm:p-2 rounded-2xl shadow-2xl">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 bg-surface/90 backdrop-blur-md border border-border p-1.5 sm:p-2 rounded-2xl shadow-2xl">
                 {/* Round */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900/90 rounded-xl border border-white/5">
-                    <span className="text-caption font-bold text-zinc-400 uppercase">Round</span>
-                    <span className="text-sm font-black text-white">
-                        {round}<span className="text-zinc-500 font-normal text-xs">/{maxRounds}</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-background/80 rounded-xl border border-border">
+                    <span className="text-caption font-bold text-muted-foreground uppercase">Round</span>
+                    <span className="text-sm font-black text-foreground">
+                        {round}<span className="text-muted-foreground font-normal text-xs">/{maxRounds}</span>
                     </span>
                 </div>
 
@@ -59,10 +59,10 @@ export default function GeoguesserHUD({
                 <div className={cn(
                     "flex items-center gap-2.5 px-5 py-2 rounded-xl border transition-all",
                     timeLeft <= 5
-                        ? "bg-rose-500/25 border-rose-500/60 text-rose-300 animate-pulse"
+                        ? "bg-rose-500/25 border-rose-500/60 text-rose-500 animate-pulse"
                         : timeLeft <= 10
-                            ? "bg-amber-500/25 border-amber-500/50 text-amber-300"
-                            : "bg-zinc-900/90 border-white/5 text-white"
+                            ? "bg-amber-500/25 border-amber-500/50 text-amber-500"
+                            : "bg-background/80 border-border text-foreground"
                 )}>
                     <Clock size={18} className={cn("shrink-0", timeLeft <= 5 && "animate-spin")} />
                     <span className="text-lg font-black font-mono tabular-nums leading-none">
@@ -71,10 +71,10 @@ export default function GeoguesserHUD({
                 </div>
 
                 {/* Score */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900/90 rounded-xl border border-white/5">
-                    <Trophy size={14} className="text-amber-400" />
-                    <span className="text-caption font-bold text-zinc-400 uppercase hidden sm:inline">Score</span>
-                    <span className="text-sm font-black text-amber-300 font-mono">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-background/80 rounded-xl border border-border">
+                    <Trophy size={14} className="text-amber-500" />
+                    <span className="text-caption font-bold text-muted-foreground uppercase hidden sm:inline">Score</span>
+                    <span className="text-sm font-black text-amber-500 font-mono">
                         {score}
                     </span>
                 </div>
@@ -82,12 +82,12 @@ export default function GeoguesserHUD({
 
             {/* Sub-bar: Player Progress & Validation Status in Multiplayer */}
             {activePlayers.length > 1 && gamePhase === 'playing' && (
-                <div className="flex items-center gap-2 px-3 py-1 bg-zinc-950/80 backdrop-blur-md border border-white/10 rounded-full text-xs shadow-lg animate-in fade-in duration-200">
-                    <span className="text-zinc-400 text-caption font-medium">
-                        Validations : <strong className="text-white font-bold">{guessedCount}/{totalActive}</strong>
+                <div className="flex items-center gap-2 px-3 py-1 bg-surface/80 backdrop-blur-md border border-border rounded-full text-xs shadow-lg animate-in fade-in duration-200">
+                    <span className="text-muted-foreground text-caption font-medium">
+                        Validations : <strong className="text-foreground font-bold">{guessedCount}/{totalActive}</strong>
                     </span>
 
-                    <div className="h-3 w-px bg-white/10 mx-1" />
+                    <div className="h-3 w-px bg-border mx-1" />
 
                     <div className="flex items-center gap-1.5 overflow-x-auto max-w-[280px] sm:max-w-md custom-scrollbar">
                         {activePlayers.map((p) => {
@@ -98,15 +98,15 @@ export default function GeoguesserHUD({
                                     className={cn(
                                         "flex items-center gap-1 px-2 py-0.5 rounded-full text-caption border transition-all",
                                         p.hasGuessed
-                                            ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
-                                            : "bg-zinc-900 border-white/5 text-zinc-400"
+                                            ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-300"
+                                            : "bg-background border-border text-muted-foreground"
                                     )}
                                     title={`${p.userName} : ${p.hasGuessed ? 'A validé son choix' : 'En recherche...'}`}
                                 >
                                     {p.hasGuessed ? (
-                                        <CheckCircle2 size={10} className="text-emerald-400 shrink-0" />
+                                        <CheckCircle2 size={10} className="text-emerald-500 shrink-0" />
                                     ) : (
-                                        <Loader2 size={10} className="animate-spin text-zinc-500 shrink-0" />
+                                        <Loader2 size={10} className="animate-spin text-muted-foreground shrink-0" />
                                     )}
                                     <span className="truncate max-w-[70px] font-medium">
                                         {isMe ? 'Toi' : p.userName}

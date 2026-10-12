@@ -6,6 +6,8 @@ import type { NextRequest } from "next/server"
 import { getGodRoutePrefix, isValidGodSecret } from "./lib/god-route"
 import { buildCsp, generateCspNonce } from "./lib/csp"
 import { logger } from "@/lib/logger"
+import { LOCALE_COOKIE_NAME, isSupportedLocale } from "./lib/i18n/types"
+import { isLegacyBossIdPath } from "@/lib/legacy-routes"
 
 const { auth } = NextAuth(authConfig)
 
@@ -16,9 +18,9 @@ const { auth } = NextAuth(authConfig)
 const MAX_IP_COUNTER_ENTRIES = 10_000
 const ipCounters = new Map<string, { count: number; reset: number }>()
 
-// ─── Maintenance Mode Cache (30s TTL, avoids a DB fetch on every request) ───
+// ─── Maintenance Mode Cache (10s TTL, avoids a DB fetch on every request) ───
 let _maintenanceCache: { value: boolean; expiresAt: number } | null = null
-const MAINTENANCE_CACHE_TTL_MS = 30_000
+const MAINTENANCE_CACHE_TTL_MS = 10_000
 
 // ─── God route prefix (R3 anti-scout, computed at build — env inlined) ─────
 const GOD_PREFIX = getGodRoutePrefix()
@@ -114,7 +116,11 @@ export default auth(async (req) => {
     const csp = buildCsp({ nonce: cspNonce, enforce: process.env.CSP_ENFORCE === "true" });
 
     // ─── REWRITE UPLOADS: Must happen before any performance short-circuit ───
-    if (nextUrl.pathname.startsWith("/uploads/")) {
+    // ⚠️ Exclusion : les assets de jeu siphonnés vivent dans `public/uploads/assets-dofus`
+    // (données publiques DofusDB/Dofensive, servies statiquement). Sans elle, le rewrite
+    // ci-dessous les masque (404) alors que les fichiers existent sur disque.
+    // Seuls les uploads utilisateurs (preuves, docs…) passent par `/api/storage/*`.
+    if (nextUrl.pathname.startsWith("/uploads/") && !nextUrl.pathname.startsWith("/uploads/assets-dofus/")) {
         const protectedPath = nextUrl.pathname.replace("/uploads/", "/api/storage/");
         return NextResponse.rewrite(new URL(protectedPath, req.url));
     }
@@ -122,6 +128,22 @@ export default auth(async (req) => {
     // ─── PERFORMANCE GAIN: Short-circuit for images and common assets ───
     if (nextUrl.pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf)$/) || nextUrl.pathname.startsWith("/images/") || nextUrl.pathname.startsWith("/icons/")) {
         return NextResponse.next();
+    }
+
+    // ─── 410 GONE : anciennes URL de fiche boss (`/boss/<cuid>`) ────────────────
+    // Les fiches sont passées aux slugs (`/boss/<nom-du-boss>`) et Google garde les anciens
+    // identifiants en mémoire (constat GSC du 21/09/2026 : « Explorée, non indexée »).
+    // 410 = « supprimé définitivement » → purge plus rapide qu'un 404, et **sans accès base**
+    // (motif purement syntaxique, cf. `src/lib/legacy-routes.ts`).
+    if (isLegacyBossIdPath(nextUrl.pathname)) {
+        return new NextResponse("Cette fiche boss a été déplacée : voir /boss", {
+            status: 410,
+            headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+                "X-Robots-Tag": "noindex, nofollow",
+                "Cache-Control": "public, max-age=86400",
+            },
+        });
     }
 
     // ─── R3 ANTI-SCOUT: route secrète → vérifier le secret DANS le proxy ────
@@ -165,19 +187,39 @@ export default auth(async (req) => {
     const isPublicApi = 
         nextUrl.pathname.startsWith("/api/auth") || 
         nextUrl.pathname.startsWith("/api/health") ||
+        nextUrl.pathname.startsWith("/api/assets-dofus") ||
+        nextUrl.pathname.startsWith("/api/dofusdb") ||
+        nextUrl.pathname.startsWith("/api/proxy-image") ||
         nextUrl.pathname.startsWith("/api/god/notify") || 
         nextUrl.pathname.startsWith("/api/cron/") ||       // ✅ Protected by verifyCronSecret (x-cron-secret header)
-        nextUrl.pathname.startsWith("/api/discord/interactions") || 
+        nextUrl.pathname.startsWith("/api/discord/interactions") ||
+        // Webhooks entrants (Ko-fi…) : pas de session par nature, chacun a sa
+        // propre vérification de signature/token fail-closed dans sa route.
+        nextUrl.pathname.startsWith("/api/webhooks/") ||
         nextUrl.pathname.startsWith("/api/storage") || 
         nextUrl.pathname.startsWith("/api/csp-report") || 
+        // Géométrie des zones de la carte du monde (encarts « Localisation ») :
+        // donnée publique, déjà servie telle quelle par `/game-data/worldmap.json`.
+        nextUrl.pathname.startsWith("/api/worldmap") ||
         nextUrl.pathname.startsWith("/api/og"); 
 
     // ─── IP Rate Limiting on public unauthenticated API routes ────────────────
-    if (isPublicApi && !nextUrl.pathname.startsWith("/api/auth") && !nextUrl.pathname.startsWith("/api/storage")) {
+    // NOTE: /api/assets-dofus serves cached images/icons (like /api/storage) and must not be throttled at 60 req/min
+    if (
+        isPublicApi &&
+        !nextUrl.pathname.startsWith("/api/auth") &&
+        !nextUrl.pathname.startsWith("/api/storage") &&
+        !nextUrl.pathname.startsWith("/api/assets-dofus")
+    ) {
         const ip = getClientIp(req)
         // Discord interactions: 30 req/min (bots can legitimately hit this fast)
+        // DofusDB search proxy: 120 req/min (interactive search typing with debounce)
         // All other public routes: 60 req/min
-        const limit = nextUrl.pathname.startsWith("/api/discord/interactions") ? 30 : 60
+        const limit = nextUrl.pathname.startsWith("/api/discord/interactions")
+            ? 30
+            : nextUrl.pathname.startsWith("/api/dofusdb")
+            ? 120
+            : 60
         const allowed = ipRateLimit(`${ip}:${nextUrl.pathname.split("/")[2]}`, limit, 60_000)
 
         if (!allowed) {
@@ -246,22 +288,28 @@ export default auth(async (req) => {
     }
 
     // --- MAINTENANCE MODE CHECK ---
+    // Seules les routes God (panel + API) contournent la maintenance : c'est
+    // le seul moyen de la désactiver une fois active. AUCUN bypass par cookie
+    // (un cookie posé côté client est falsifiable en une ligne de console) et
+    // AUCUNE exception pour les sessions loggées — God compris : la maintenance
+    // verrouille tout le site, dashboards inclus.
     const isMaintenanceBypassPath = nextUrl.pathname.startsWith("/maintenance") || isGodRoute(nextUrl.pathname) || nextUrl.pathname.startsWith("/api");
-    const isGodUser = req.cookies.get("sigil-god-bypass")?.value;
 
-    if (!isMaintenanceBypassPath && !isGodUser) {
+    if (!isMaintenanceBypassPath) {
         // 1. Fast path: read env var set by the admin panel action (no network, no Turbopack cold-start 404)
         const envMaintenance = process.env.MAINTENANCE_MODE;
         let isInMaintenance = envMaintenance === "true";
 
-        // 2. Slow path (prod only): if env var not explicitly set, fallback to cached DB check
-        if (envMaintenance === undefined && process.env.NODE_ENV === "production") {
+        // 2. Slow path: if env var not explicitly set, fallback to cached DB check.
+        // Actif dans TOUS les environnements (dev compris) : restreindre à la
+        // prod rendait la maintenance intestable en local (jamais appliquée).
+        if (envMaintenance === undefined) {
             const now = Date.now()
             if (_maintenanceCache && now < _maintenanceCache.expiresAt) {
                 // Cache hit: reuse last known value
                 isInMaintenance = _maintenanceCache.value
             } else {
-                // Cache miss: fetch from API and store result for 30s
+                // Cache miss: fetch from API and store result for 10s
                 try {
                     const res = await fetch(`${nextUrl.origin}/api/health/maintenance`, {
                         headers: { "x-middleware-check": "1" },
@@ -302,6 +350,15 @@ export default auth(async (req) => {
         requestHeaders.set("X-Robots-Tag", "noindex, nofollow");
     }
 
+    // ─── I18N LOCALE: gestion du paramètre ?lang=fr / ?lang=en ──────────────
+    const queryLang = nextUrl.searchParams.get("lang");
+    let targetLocale: string | null = null;
+    if (isSupportedLocale(queryLang)) {
+        targetLocale = queryLang;
+        // Poser sur requestHeaders pour que les Server Components lisent la bonne locale
+        requestHeaders.set("x-sigilos-locale", targetLocale);
+    }
+
     // ─── CSP NONCE: exposer la CSP au NAVIGATEUR (réponse) ───────────────────
     // Le header de requête ne suffit pas — le navigateur reçoit sa propre
     // réponse et n'exécute que les scripts qui portent le nonce présent ici.
@@ -311,6 +368,16 @@ export default auth(async (req) => {
         },
     });
     response.headers.set(csp.headerName, csp.headerValue);
+
+    if (targetLocale) {
+        // Enregistrer la préférence pour 1 an dans le cookie
+        response.cookies.set(LOCALE_COOKIE_NAME, targetLocale, {
+            path: "/",
+            maxAge: 31536000,
+            sameSite: "lax",
+            httpOnly: false,
+        });
+    }
 
     return response;
 })

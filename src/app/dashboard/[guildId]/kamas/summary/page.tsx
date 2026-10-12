@@ -8,6 +8,7 @@ import AccessDenied from "@/components/access-denied";
 import { KamaWeeklySummary } from "@/components/kamas/kama-weekly-summary";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { getDofusWeek } from "@/lib/date-utils";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +22,13 @@ export default async function KamaWeeklySummaryPage({
 
     const { guildId } = await params;
 
-    // Module guard — missions doit être activé (le module kamas est lié aux missions)
-    if (!await isModuleEnabled(guildId, "missions")) {
+    const user = await getUserContext(guildId);
+
+    // Module guard — missions doit être activé (le module kamas est lié aux
+    // missions) ; le God garde l'accès (`bypassModules = isGod`)
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "missions")) {
         redirect(`/dashboard/${guildId}`);
     }
-
-    const user = await getUserContext(guildId);
 
     // Accessible à tous les membres authentifiés (COMMUNITY_ACCESS minimum)
     // Les officiers voient en plus les preuves screenshots
@@ -65,6 +67,7 @@ export default async function KamaWeeklySummaryPage({
                 icon={Coins}
                 iconColor="#f59e0b"
                 backHref={`/dashboard/${guildId}/kamas`}
+                actions={<ModuleHelpActions docSlug="kamas" docTitle="Récap Kamas de Semaine" />}
             />
 
             <KamaWeeklySummary

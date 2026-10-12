@@ -28,6 +28,40 @@ import { getDisplayName } from "@/lib/display-name";
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 
+/**
+ * Purge tous les caches d'une guilde (contexte membres Redis, config mémoire,
+ * whitelist 60 s). Best-effort : un échec de purge ne fait jamais échouer
+ * l'opération God appelante.
+ */
+export async function purgeGuildCaches(discordGuildId: string): Promise<void> {
+    try {
+        const { invalidateGuildCache, flushGuildUserContextCache } = await import("./user-actions");
+        await invalidateGuildCache(discordGuildId);
+        await flushGuildUserContextCache(discordGuildId);
+    } catch (e) {
+        logger.warn("[GOD] purgeGuildCaches (user-actions) échouée:", e as any);
+    }
+    try {
+        const { invalidateAllowedGuildCache } = await import("./super-admin-actions");
+        await invalidateAllowedGuildCache(discordGuildId);
+    } catch (e) {
+        logger.warn("[GOD] purgeGuildCaches (allowed) échouée:", e as any);
+    }
+}
+
+/** Variante par ID interne GuildConfig (soft/reactivate ne connaissent que lui). */
+async function purgeGuildCachesByInternalId(guildConfigId: string): Promise<void> {
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { id: guildConfigId },
+            select: { discordGuildId: true },
+        });
+        if (config?.discordGuildId) await purgeGuildCaches(config.discordGuildId);
+    } catch (e) {
+        logger.warn("[GOD] purgeGuildCachesByInternalId échouée:", e as any);
+    }
+}
+
 export async function softDeleteGuild(
     guildId: string,
     reason: string,
@@ -65,6 +99,11 @@ export async function softDeleteGuild(
                 scheduledDeletion
             }
         });
+
+        // Éviction immédiate : sans cela les membres gardent leur contexte
+        // (Redis `user:ctx:*` + cache mémoire `config:` + whitelist 60 s) et
+        // continuent de naviguer sur une guilde supprimée jusqu'à expiration.
+        await purgeGuildCachesByInternalId(guildId);
 
         // NOTIFY GOD (Platform Alert)
         const { notifyGod } = await import('./god-notif-actions');
@@ -126,6 +165,9 @@ export async function reactivateGuild(guildId: string) {
             }
         });
 
+        // Les contextes « guilde supprimée » mis en cache doivent mourir aussi.
+        await purgeGuildCachesByInternalId(guildId);
+
         // 🔔 NOTIFY GOD
         const guildName = guild?.name || guildId;
         const { notifyGod } = await import('./god-notif-actions');
@@ -173,6 +215,20 @@ export async function hardDeleteGuild(guildId: string) {
             await db.allowedGuild.deleteMany({
                 where: { discordGuildId: guildConfig.discordGuildId }
             });
+        // Éviction immédiate (cf. softDeleteGuild) : sinon les membres
+        // restent dans le dashboard jusqu'à expiration des caches.
+        await purgeGuildCaches(guildConfig.discordGuildId);
+
+        // 4. Expulser le bot du serveur Discord (best-effort, comme le ban) :
+        // sans ça, le portail re-provisionne silencieusement la guilde au
+        // retour de l'owner (le bot étant toujours sur le serveur) et le hard
+        // delete semble n'avoir rien fait. Un échec n'annule jamais le delete.
+        try {
+            const { leaveGuild } = await import("@/server/discord");
+            await leaveGuild(guildConfig.discordGuildId);
+        } catch (botErr) {
+            logger.warn(`[GOD] hardDeleteGuild: bot leave failed for ${guildConfig.discordGuildId}`, { botErr });
+        }
         }
 
         // 🔔 NOTIFY GOD
@@ -461,11 +517,41 @@ export async function banEntity(type: 'GUILD' | 'USER', discordId: string, reaso
             }
         });
 
+        if (type === 'GUILD') {
+            // 1. Désactiver la guilde en base de données
+            await db.allowedGuild.updateMany({
+                where: { discordGuildId: discordId },
+                data: { isActive: false }
+            });
+            await db.guildConfig.updateMany({
+                where: { discordGuildId: discordId },
+                data: { isActive: false }
+            });
+
+            // 2. Invalider immédiatement les caches Redis pour couper tout accès
+            try {
+                const { invalidateGuildCache } = await import("./user-actions");
+                const { invalidateAllowedGuildCache } = await import("./super-admin-actions");
+                await invalidateGuildCache(discordId);
+                await invalidateAllowedGuildCache(discordId);
+            } catch (cacheErr) {
+                logger.warn(`[Ban] Failed to invalidate caches for guild ${discordId}:`, cacheErr);
+            }
+
+            // 3. Expulser le bot du serveur Discord
+            try {
+                const { leaveGuild } = await import("@/server/discord");
+                await leaveGuild(discordId);
+            } catch (botErr) {
+                logger.warn(`[Ban] Failed to force bot to leave guild ${discordId}:`, botErr);
+            }
+        }
+
         // 🔔 NOTIFY GOD
         const adminName = session?.user?.name || "Super Admin";
         const { notifyGod } = await import('./god-notif-actions');
         await notifyGod({
-            title: type === 'GUILD' ? "🚫 Guilde Bannie" : "🚫 Utilisateur Banni",
+            title: type === 'GUILD' ? "🚫 Guilde Bannie & Bot Expulsé" : "🚫 Utilisateur Banni",
             message: `**${type}** \`${discordId}\` a été banni de la plateforme (Raison: ${reason}).\n👤 Par: **${adminName}**`,
             type: "SYSTEM",
             success: false,
@@ -511,13 +597,26 @@ export async function unbanEntity(banId: string) {
 }
 /**
  * Get all members for a specific guild (God view)
+ *
+ * 🔒 **Contrat** : `{ ok: true, ownerId, members }` ou `{ ok: false, error }`. Le refus est
+ * renvoyé, **jamais** levé — l'appelant est une **Server Component** (`/god/guilds/[id]`).
  */
 export async function getGuildMembersForGod(guildId: string) {
     const isAdmin = await isSuperAdmin();
     // #108 — un sous-god avec la brique "guilds" (whitelist + roster en lecture seule)
     // accède aussi au roster God.
     const isGuildBrick = isAdmin ? true : await canAccessBrick("guilds");
-    if (!isAdmin && !isGuildBrick) throw new Error("Unauthorized");
+    // 🐛 Constat du 12/10/2026 : `throw new Error("Unauthorized")` ne refusait rien — dans une
+    // Server Component un `throw` **fait tomber tout l'écran** (« Application error ») et ouvre
+    // une Issue Sentry à chaque clic. On refuse donc **proprement**, avec la même garantie :
+    // rien n'est lu avant ce point (fail-closed), et l'appelant reçoit de quoi dire la vérité.
+    if (!isAdmin && !isGuildBrick) {
+        logger.warn("[getGuildMembersForGod] Roster refusé (ni super-admin ni brique « guilds »)");
+        return {
+            ok: false as const,
+            error: "Accès refusé : le roster d'une guilde demande le rôle God ou la brique « Guildes ».",
+        };
+    }
 
     const [members, guild] = await Promise.all([
         db.userProfile.findMany({
@@ -553,7 +652,8 @@ export async function getGuildMembersForGod(guildId: string) {
     ]);
 
     return {
-        ownerId: guild?.ownerId,
+        ok: true as const,
+        ownerId: guild?.ownerId ?? null,
         members: members.map(m => ({
             id: m.id,
             userId: m.userId,
@@ -576,29 +676,64 @@ export async function getGuildMembersForGod(guildId: string) {
 
 /**
  * Transfer full ownership of a guild to another user (Super-admin only)
+ * #230 — Durcissement : validation du destinataire (membre ACTIF de la guilde),
+ * garde contre le no-op (déjà propriétaire) et résolution robuste de la guilde.
  */
 export async function transferGuildOwnership(guildId: string, newOwnerUserId: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
+    if (!newOwnerUserId || typeof newOwnerUserId !== "string" || !newOwnerUserId.trim()) {
+        return { success: false, error: "Destinataire manquant." };
+    }
+
     try {
         const session = await auth();
         const adminName = session?.user?.name || "Super Admin";
 
-        await db.guildConfig.update({
+        // Résoudre la guilde en interne (id court = discordGuildId, sinon id interne)
+        const guild = await db.guildConfig.findFirst({
             where: {
-                // Use OR to support both internal ID and discordGuildId (ID mismatch fix)
                 id: guildId.length < 25 ? undefined : guildId,
                 discordGuildId: guildId.length < 25 ? guildId : undefined
             },
+            select: { id: true, name: true, ownerId: true }
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable." };
+
+        // Garde anti no-op
+        if (guild.ownerId === newOwnerUserId) {
+            return { success: false, error: "Cet utilisateur est déjà propriétaire de la guilde." };
+        }
+
+        // Le destinataire doit être un membre ACTIF de cette guilde
+        const targetMember = await db.userProfile.findFirst({
+            where: { userId: newOwnerUserId, guildId: guild.id, status: "ACTIVE" },
+            select: { id: true }
+        });
+        if (!targetMember) {
+            return { success: false, error: "Le destinataire doit être un membre actif de cette guilde." };
+        }
+
+        await db.guildConfig.update({
+            where: { id: guild.id },
             data: { ownerId: newOwnerUserId }
         });
+
+        // P2 — un transfert God réussi solde les éventuels claims de récupération ouverts.
+        // Best-effort isolé : ne doit jamais faire échouer le transfert.
+        try {
+            await db.guildRecoveryClaim.updateMany({
+                where: { guildId: guild.id, status: { in: ["PENDING", "ORPHAN_DETECTED"] } },
+                data: { status: "APPROVED", decidedAt: new Date(), decidedBy: adminName },
+            });
+        } catch { /* suivi non bloquant */ }
 
         // 🔔 NOTIFY GOD
         const { notifyGod } = await import('./god-notif-actions');
         await notifyGod({
             title: "👑 Propriété Transférée",
-            message: `La propriété de la guilde "${guildId}" a été transférée à l'utilisateur "${newOwnerUserId}".\n👤 Par: **${adminName}**`,
+            message: `La propriété de la guilde "${guild.name || guildId}" a été transférée.\n👤 Par: **${adminName}**`,
             type: "SYSTEM",
             success: true,
             metadata: { guildId, newOwnerUserId, performedBy: adminName, operation: "TRANSFER_OWNERSHIP" },

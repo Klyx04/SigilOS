@@ -1,0 +1,807 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SigilOS — vitrine statique de sigilos.fr (`/maintenance.html`)
+
+   ── Pourquoi une feuille EXTERNE ──────────────────────────────────────────
+   La CSP de production (Caddyfile, bloc `sigilos.fr`) impose `style-src 'self'` :
+   un `<style>` inline est **refusé par le navigateur**. Mesuré le 19/09/2026 sur
+   la page précédente : `body` en Times New Roman, fond transparent, 2 violations
+   CSP (« Applying inline style… », plus le `<link>` Google Fonts bloqué par
+   `default-src 'self'`). Un fichier servi depuis `/assets/*` (bloc `handle
+   /assets/*` du Caddyfile) est donc la seule forme qui rend correctement.
+
+   ── Ce que cette feuille reprend ──────────────────────────────────────────
+   Les jetons OKLCH de `src/app/globals.css` (`:root` sombre / `.light` clair) et
+   les primitives de la couche « registre » (`.reg-*`) : mêmes valeurs, mêmes
+   rayons 3/4/6 px, aucune ombre, aucun dégradé, aucune pilule décorative.
+   Le thème suit `prefers-color-scheme` (la landing a un toggle ; une page
+   statique n'a pas d'état, elle suit l'OS).
+
+   ── Polices ───────────────────────────────────────────────────────────────
+   Zéro requête distante (Google Fonts est bloqué par la CSP, et `public/fonts/`
+   n'existe pas) : on chaîne Source Sans 3 / IBM Plex Mono — utilisées par la
+   landing, donc présentes si la machine les a — puis la pile système.
+
+   ⚠️ Ne jamais remettre de `<style>` ni de `style="…"` dans la page : la page
+   redeviendrait brutalement dénudée en production.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Jetons (verbatim `globals.css`) ─────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+
+  --guild-hue: 155;
+  --guild-chroma-dark: 0.15;
+  --guild-chroma-light: 0.17;
+  --success-hue: 150;
+
+  --background: oklch(0.145 0.008 260);
+  --surface: oklch(0.185 0.010 260);
+  --elevated: oklch(0.225 0.012 260);
+  --foreground: oklch(0.83 0.005 260);
+  --muted: oklch(0.225 0.012 260);
+  --muted-foreground: oklch(0.68 0.01 260);
+  --subtle-foreground: oklch(0.55 0.01 260);
+  --border: oklch(1 0 0 / 7%);
+  --border-strong: oklch(1 0 0 / 13%);
+
+  --accent: oklch(0.72 var(--guild-chroma-dark) var(--guild-hue));
+  --accent-foreground: oklch(0.16 0.02 var(--guild-hue));
+
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas,
+    "Liberation Mono", monospace;
+}
+
+/* Thème clair : mêmes jetons mesurés (contraste ≥ 4,5) que `.light` de l'app. */
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+
+    --background: oklch(0.975 0.004 260);
+    --surface: oklch(0.995 0.002 260);
+    --elevated: oklch(0.98 0.002 260);
+    --foreground: oklch(0.21 0.01 260);
+    --muted: oklch(0.96 0.006 260);
+    --muted-foreground: oklch(0.45 0.01 260);
+    --subtle-foreground: oklch(0.58 0.01 260);
+    --border: oklch(0 0 0 / 9%);
+    --border-strong: oklch(0 0 0 / 16%);
+
+    --accent: oklch(0.48 var(--guild-chroma-light) var(--guild-hue));
+    --accent-foreground: oklch(0.98 0.005 var(--guild-hue));
+  }
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+
+/* ── Couche « registre » (primitive par primitive, cf. globals.css) ──────── */
+
+/* Lien d'évitement — visible uniquement au focus clavier. */
+.reg-skip {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 100;
+  transform: translateY(-160%);
+  padding: 0.6rem 0.9rem;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+.reg-skip:focus-visible {
+  transform: none;
+}
+
+/* Données de jeu : dates, versions, compteurs, statuts. */
+.reg-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colonne de lecture : 1120 px, ligne de 55–70 caractères. */
+.reg-shell {
+  width: min(100% - 2.5rem, 1120px);
+  margin-inline: auto;
+}
+@media (max-width: 640px) {
+  .reg-shell {
+    width: min(100% - 1.75rem, 1120px);
+  }
+}
+
+.reg-section {
+  padding-block: clamp(3.5rem, 6vw, 5.5rem);
+  border-bottom: 1px solid var(--border);
+}
+.reg-section-tight {
+  padding-block: clamp(2.5rem, 4vw, 3.5rem);
+}
+
+/* Métadonnée de section : petite, en mono, en accent, jamais décorative. */
+.reg-eyebrow {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* Panneau : un niveau de surface et un trait net. */
+.reg-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.reg-panel-strong {
+  border-color: var(--border-strong);
+}
+
+.reg-btn {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+}
+.reg-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-foreground);
+}
+.reg-btn-primary:hover {
+  background: color-mix(in oklab, var(--accent) 86%, var(--foreground));
+}
+
+/* L'action secondaire reste un lien souligné, pas un second bouton. */
+.reg-link {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.28em;
+}
+.reg-link:hover {
+  color: var(--foreground);
+}
+.reg-link-quiet {
+  color: var(--muted-foreground);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.28em;
+}
+.reg-link-quiet:hover {
+  color: var(--foreground);
+}
+.reg-external::after {
+  content: " ↗";
+  font-weight: 400;
+}
+
+/* Statut court — rayon 3 px, jamais une pilule. */
+.reg-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--foreground);
+}
+.reg-tag-accent {
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+}
+
+/* Tableau de données (outils ouverts, faits vérifiables). */
+.reg-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.reg-table th {
+  padding: 0.5rem 1rem 0.5rem 0;
+  border-bottom: 1px solid var(--border-strong);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.reg-table td {
+  padding: 0.85rem 1rem 0.85rem 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  font-size: 0.9375rem;
+}
+.reg-table tr:last-child td {
+  border-bottom: 0;
+}
+.reg-table td:last-child,
+.reg-table th:last-child {
+  padding-right: 0;
+}
+
+/* Colonne « Outil » : l'asset Dofus du jeu précède le libellé (20 px, coloré).
+   Mêmes fichiers que le menu « Outils » du header et que l'app (œuf Sylvestre,
+   marqueur de donjon/boss, œuf Dolmanax, boussole de carte, calendrier des
+   sorties) : aucun asset redessiné, jamais de tuile, de pastille ni d'ombre —
+   l'icône illustre un libellé déjà écrit (`alt` vide, décorative). */
+.reg-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.reg-tool__mark {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+/* Séquence de mise en route : trois lignes, pas trois cartes. */
+.reg-step {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding-block: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.reg-step:last-child {
+  border-bottom: 0;
+}
+.reg-step__num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--accent);
+}
+.reg-step__title {
+  font-weight: 700;
+}
+.reg-step__detail {
+  margin-top: 0.15rem;
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+}
+
+/* FAQ compacte : filet supérieur, aucun cadre autour de chaque question. */
+.reg-faq {
+  border-top: 1px solid var(--border-strong);
+}
+.reg-faq details {
+  border-bottom: 1px solid var(--border);
+}
+.reg-faq summary {
+  min-height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+.reg-faq summary::-webkit-details-marker {
+  display: none;
+}
+.reg-faq summary::after {
+  content: "+";
+  flex-shrink: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.reg-faq details[open] summary::after {
+  content: "−";
+}
+.reg-faq details > p {
+  padding: 0 2rem 1rem 0;
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+/* Écran produit : panneau net, jamais réduit ni assombri. */
+.reg-screen {
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+.reg-screen__bar {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--foreground);
+}
+.reg-screen img {
+  width: 100%;
+  height: auto;
+}
+
+
+/* ── Structure de la vitrine ─────────────────────────────────────────────── */
+
+/* Bandeau supérieur : marque à gauche, état à droite. Un filet, rien d'autre. */
+.site-head {
+  border-bottom: 1px solid var(--border);
+}
+.site-head__in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  padding-block: 0.9rem;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+.brand__mark {
+  width: 1.75rem;
+  height: 1.75rem;
+  object-fit: contain;
+}
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.8125rem;
+}
+
+/* Colonne de texte 5/7 + capture 7/7 : la hiérarchie vient de la grille. */
+.hero-grid {
+  display: grid;
+  gap: clamp(2rem, 4vw, 3.5rem);
+}
+@media (min-width: 1024px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: start;
+  }
+}
+.hero-title {
+  margin-top: 1.15rem;
+  max-width: 20ch;
+  font-size: clamp(1.9rem, 4.2vw, 3rem);
+  font-weight: 700;
+}
+.lead {
+  margin-top: 1.15rem;
+  max-width: 34rem;
+  color: var(--muted-foreground);
+}
+.actions {
+  margin-top: 1.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem 1.25rem;
+}
+.facts {
+  margin-top: 1.6rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+.facts__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+}
+.facts__sep {
+  color: var(--subtle-foreground);
+}
+
+/* En-tête de section : eyebrow, titre, phrase de cadrage. */
+.section-head {
+  max-width: 46rem;
+}
+.section-title {
+  margin-top: 0.85rem;
+  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+  font-weight: 700;
+}
+.section-intro {
+  margin-top: 0.85rem;
+  color: var(--muted-foreground);
+}
+.section-body {
+  margin-top: 1.75rem;
+}
+
+/* Clôture : une phrase, une action. Aucun encadré. */
+.closing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem 2rem;
+}
+.closing__hint {
+  margin-top: 0.6rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.site-foot {
+  border-top: 1px solid var(--border);
+  padding-block: 1.6rem 2.4rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+.site-foot__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
+.site-foot__legal {
+  margin-top: 0.75rem;
+}
+
+/* ── Tableau de statut : deux états comparés d'un seul regard ─────────────
+   « Production : en préparation » (éteint) face à « Bêta : ouverte » (accent).
+   C'est la règle la plus rentable de la page : le lecteur voit ce qui est
+   disponible AVANT de lire la moindre phrase — et rien n'est inventé
+   (pas de compte à rebours, pas de barre de progression factice). */
+.status {
+  margin: 1.5rem 0 0;
+  border-top: 1px solid var(--border);
+  max-width: 34rem;
+}
+.status__item {
+  display: grid;
+  grid-template-columns: 0.6rem 6.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+  padding-block: 0.6rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9375rem;
+}
+.status__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--subtle-foreground);
+}
+.status__item--beta .status__dot {
+  background: var(--accent);
+}
+.status__label {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.status__item--beta .status__label {
+  color: var(--accent);
+}
+.status__value {
+  color: var(--muted-foreground);
+}
+.status__item--beta .status__value {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+/* ── Mockups produit (HTML/CSS, aucun script) ─────────────────────────────
+   Reproductions sobres des écrans réels — même rôle que les mockups de la
+   landing (`dashboard-mockup.tsx`, `calendar-mockup.tsx`) mais en HTML pur :
+   net partout, quelques octets, et légendés « Aperçu » pour rester honnêtes. */
+.mk {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+  font-size: 0.8125rem;
+}
+.mk__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+.mk__body {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  background: var(--background);
+}
+.mk__card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+/* Vignette d'un aperçu : le fichier d'asset du jeu, jamais redessiné. */
+.mk__thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+.mk__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+/* Cadre du produit autour des vignettes de carte (même filet que l'app, rayon 3 px). */
+.mk__thumb--lg,
+.mk__thumb--xl {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+}
+.mk__thumb--lg {
+  width: 2rem;
+  height: 2rem;
+  padding: 0.125rem;
+}
+.mk__thumb--xl {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.25rem;
+}
+/* Vignette + libellé dans une même cellule d'aperçu (tronquable). */
+.mk__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+/* Deux lignes empilées (carte « événement majeur »). */
+.mk__stack {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+/* Carte d'événement : vignette à gauche, contenu à droite (comme l'app). */
+.mk__card--event {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+.mk__split {
+  display: grid;
+  gap: 0.5rem;
+}
+@media (min-width: 560px) {
+  .mk__split {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.mk__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+}
+.mk__label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.mk__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+}
+.mk__row--quiet {
+  border-color: transparent;
+  background: transparent;
+  opacity: 0.72;
+}
+.mk__title {
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mk__title--quiet {
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.mk__sub {
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+.mk__num {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+.mk__num--ok {
+  color: var(--accent);
+}
+.mk__flag {
+  padding: 0 0.35rem;
+  border: 1px solid color-mix(in oklab, var(--warning) 45%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--warning);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+.mk__dot {
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+.mk__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  padding: 0.4rem 0.7rem;
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--muted-foreground);
+}
+.mk__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--muted-foreground);
+}
+.mk__days > span {
+  padding: 0.35rem 0.1rem;
+  border-right: 1px solid var(--border);
+}
+.mk__days > span:last-child {
+  border-right: 0;
+}
+.mk__days b {
+  display: block;
+  color: var(--foreground);
+}
+
+/* Colonne interne d'une ligne (titre + précision), tronquable. */
+.mk__col {
+  display: grid;
+  min-width: 0;
+}
+
+/* Conteneur d'un aperçu + sa légende. */
+.mk-figure {
+  margin: 1.5rem 0 0;
+}
+
+/* Légende d'un aperçu : dit ce qu'on regarde, sans vendre. */
+.mk-caption {
+  margin-top: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}

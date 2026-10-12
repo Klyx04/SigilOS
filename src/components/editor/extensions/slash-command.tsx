@@ -333,6 +333,7 @@ export const CommandList = forwardRef((props: any, ref) => {
 
     useImperativeHandle(ref, () => ({
         onKeyDown: ({ event }: { event: KeyboardEvent }) => {
+            if (!props.items.length) return false;
             if (event.key === "ArrowUp") {
                 setSelectedIndex((selectedIndex + props.items.length - 1) % props.items.length);
                 return true;
@@ -354,9 +355,12 @@ export const CommandList = forwardRef((props: any, ref) => {
             {props.items.length ? (
                 props.items.map((item: any, index: number) => (
                     <button
-                        className={`flex w-full items-center space-x-2 rounded-md px-2 py-1 text-left text-sm text-foreground hover:bg-elevated ${index === selectedIndex ? "bg-elevated" : ""
+                        className={`flex w-full items-center space-x-2 rounded-md px-2 py-1 text-left text-sm text-foreground cursor-pointer hover:bg-elevated ${index === selectedIndex ? "bg-elevated" : ""
                             }`}
                         key={index}
+                        // Le mousedown par défaut vole le focus de l'éditeur (curseur perdu
+                        // dans la modale) : on l'empêche, le clic choisit l'item.
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => selectItem(index)}
                     >
                         <div className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-surface">
@@ -395,7 +399,10 @@ const renderItems = () => {
             // @ts-ignore
             popup = tippy("body", {
                 getReferenceClientRect: props.clientRect,
-                appendTo: () => document.body,
+                // Ancré dans le conteneur de l'éditeur (pas document.body) : en modale
+                // Radix, un menu hors-dialogue capte les clics « extérieurs » (dismiss
+                // de la modale / perte de focus → commandes inutilisables).
+                appendTo: () => props.editor.view.dom.parentElement ?? document.body,
                 content: component.element,
                 showOnCreate: true,
                 interactive: true,

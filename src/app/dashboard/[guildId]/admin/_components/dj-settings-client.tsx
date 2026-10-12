@@ -3,15 +3,15 @@
 import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, AlertTriangle, Hash, Bell } from "lucide-react";
 import { toast } from "sonner";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { getDungeonFinderConfig, updateDjSettings } from "@/server/actions/dungeon-finder-actions";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 
 interface DjSettingsClientProps {
     guildId: string;
@@ -26,6 +26,13 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
     const [djPingRoleIds, setDjPingRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
 
+    // — Détection « modifications non sauvegardées » (snapshot chargé vs état courant)
+    const [initialConfig, setInitialConfig] = useState<{ channelId: string; djPingRoleIds: string[] } | null>(null);
+    const hasUnsavedChanges = isDirty(
+        { channelId, djPingRoleIds: [...djPingRoleIds].sort() },
+        initialConfig ? { channelId: initialConfig.channelId, djPingRoleIds: [...initialConfig.djPingRoleIds].sort() } : null
+    );
+
     useEffect(() => {
         async function loadConfig() {
             const [result, rolesRes] = await Promise.all([
@@ -36,6 +43,10 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
                 setChannelId(result.data.djNotifyChannelId || "");
                 setIsConfigured(!!result.data.djNotifyChannelId);
                 setDjPingRoleIds(result.data.djPingRoleIds || []);
+                setInitialConfig({
+                    channelId: result.data.djNotifyChannelId || "",
+                    djPingRoleIds: result.data.djPingRoleIds || [],
+                });
             }
             if (rolesRes.success && rolesRes.roles) {
                 setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
@@ -55,6 +66,7 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
             if (result.success && pingRolesResult.success) {
                 toast.success("Configuration Donjons & Quêtes sauvegardée !");
                 setIsConfigured(!!channelId.trim());
+                setInitialConfig({ channelId: channelId.trim(), djPingRoleIds: [...djPingRoleIds] });
             } else {
                 toast.error(result.error || pingRolesResult.error || "Erreur lors de la sauvegarde");
             }
@@ -67,6 +79,7 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
             if (result.success) {
                 setChannelId("");
                 setIsConfigured(false);
+                setInitialConfig({ channelId: "", djPingRoleIds: [...djPingRoleIds] });
                 toast.success("Notifications Donjons désactivées");
             } else {
                 toast.error(result.error || "Erreur lors de la désactivation");
@@ -84,6 +97,7 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
 
     return (
         <div className="space-y-8">
+            <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}
                 <Card className="lg:col-span-2 bg-surface/60 border-border overflow-hidden">
@@ -116,31 +130,32 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
                             <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
                                 <div className="w-1.5 h-1.5 rounded-full bg-muted" />
                             </div>
-                            <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
+                            <h3 className="text-sm font-medium text-foreground mb-2">1. Choisissez le salon</h3>
                             <p className="text-xs text-muted-foreground mb-3">
-                                Activez le mode développeur Discord, puis faites <span className="text-foreground">Clic Droit</span> sur le salon voulu {'>'} <span className="text-foreground">Copier l'identifiant</span>.
+                                Sélectionnez le salon dans la liste — plus besoin de copier son identifiant.
                             </p>
                         </div>
 
                         {/* Step 2 */}
                         <div className="relative pl-6 border-l-2 border-info/50">
                             <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-info border-2 border-border " />
-                            <h3 className="text-sm font-medium text-foreground mb-4">2. Coller l'identifiant</h3>
+                            <h3 className="text-sm font-medium text-foreground mb-4">2. Enregistrer</h3>
 
                             <div className="space-y-4">
                                 <div className="flex gap-2">
-                                    <Input
-                                        value={channelId}
-                                        onChange={(e) => setChannelId(e.target.value)}
-                                        placeholder="Ex: 123456789012345678"
-                                        className="font-mono bg-black/20 border-border"
-                                    />
+                                    <div className="flex-1 min-w-0">
+                                        <DiscordChannelPicker
+                                            guildId={guildId}
+                                            value={channelId}
+                                            onChange={setChannelId}
+                                        />
+                                    </div>
                                     <Button onClick={handleSave} disabled={isPending} className="min-w-[120px] bg-info hover:bg-info">
                                         {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                         Sauvegarder
+                                        {hasUnsavedChanges && !isPending && <span className="ml-2 w-2 h-2 rounded-full bg-white animate-pulse" title="Modifications non sauvegardées" />}
                                     </Button>
                                 </div>
-                                <ChannelPreview guildId={guildId} channelId={channelId} color="indigo" />
                                 {isConfigured && (
                                     <div className="flex justify-end">
                                         <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
@@ -231,14 +246,14 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
                             </div>
                             <div className="space-y-1">
                                 <h4 className="text-sm font-medium text-info">Permissions requises</h4>
-                                <p className="text-xs text-info/70 leading-relaxed">
-                                    Le bot <strong>SigilOS</strong> doit avoir les droits "Voir le salon" et "Envoyer des messages".
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                                    <p className="text-xs text-info/70 leading-relaxed">
+                                        Le bot <strong>SigilOS</strong> doit avoir les droits "Voir le salon" et "Envoyer des messages".
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
             </div>
-        </div>
     );
 }

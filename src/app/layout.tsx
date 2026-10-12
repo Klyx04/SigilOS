@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Space_Grotesk, Inter, Cinzel } from "next/font/google";
+import { Geist_Mono, Space_Grotesk, Inter, Cinzel, Source_Sans_3, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PublicViewBeacon } from "@/components/telemetry/public-view-beacon";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "sonner";
+import { AppToaster } from "@/components/shared/AppToaster";
 import { getAppBaseUrl } from "@/lib/utils";
 
 const spaceGrotesk = Space_Grotesk({
@@ -28,10 +29,38 @@ const cinzel = Cinzel({
   weight: ["400", "700", "900"],
 });
 
+/* ── §REFONTE LANDING — typographie « registre » (public uniquement) ────────
+   Source Sans 3 (texte, documentaire) + IBM Plex Mono (dates, heures,
+   versions, chiffres, statuts, coordonnées). Ces deux familles ne sont
+   appliquées qu'à l'intérieur du scope `.registre` (landing + pages
+   publiques) : le dashboard et le God gardent Space Grotesk / Inter. */
+const sourceSans = Source_Sans_3({
+  variable: "--font-source-sans",
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  display: "swap",
+});
+
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   metadataBase: new URL(getAppBaseUrl()),
   alternates: {
     canonical: getAppBaseUrl(),
+    // ⚠️ AUCUN `languages` (hreflang) ici — décision du 25/09/2026, mesurée avant d'être prise :
+    // `/?lang=en` est bien servi en anglais (le proxy lit `?lang=`, cf. `src/proxy.ts`), MAIS son
+    // canonical reste `/` → Google canonicalisait `?lang=en` vers `/`, donc un hreflang pointant
+    // vers une URL canonicalisée ailleurs est **ignoré** (signal contradictoire, zéro bénéfice).
+    // Déclarer `fr`/`en`/`x-default` faisait donc croire à un site bilingue qui n'en est pas un :
+    // seul le contenu des guides existe en anglais, le reste du site (boss, almanax, guildes) est
+    // FR. Le sélecteur de langue côté visiteur **continue de fonctionner** ; on cesse simplement de
+    // promettre à Google deux versions qu'on ne peut pas tenir. Un vrai i18n (`/en/…` + contenu
+    // complet + sitemap par langue) serait un chantier à part, à rouvrir si une audience EN apparaît.
   },
   manifest: "/manifest.webmanifest", // Next.js generates this from manifest.ts
   title: {
@@ -88,7 +117,10 @@ import { auth } from "@/auth";
 import { SupportOrb } from "@/components/shared/support-orb";
 import { db } from "@/lib/prisma";
 import { headers } from "next/headers";
-import { GodBypassCookie } from "@/components/god-bypass-cookie";
+import { PwaRegistration, PwaInstallBanner } from "@/components/pwa/PwaRegistration";
+
+import { BossOverlayHost } from "@/components/boss-overlay/BossOverlayHost";
+import { RaidOverlayHost } from "@/components/raid-overlay/RaidOverlayHost";
 
 export default async function RootLayout({
   children,
@@ -104,38 +136,34 @@ export default async function RootLayout({
 
   // [AUDIT 2026] Retrieve nonce from middleware for CSP-compliant script injection
   const headersList = await headers();
-  const nonce = headersList.get('x-nonce') ?? '';
+  const nonce = headersList.get("x-nonce") ?? "";
+  // Récupération de la locale active (choix explicite : `?lang=` via le proxy, ou cookie
+  // `sigilos_locale` posé par le sélecteur de langue). La détection `accept-language` a été
+  // retirée le 25/09/2026 : elle servait la version anglaise à Googlebot (en-US) sur des URL dont
+  // le canonical est FR. Détail et mesures : `src/lib/i18n/server.ts`.
+  const { getServerLocale } = await import("@/lib/i18n/server");
+  const locale = await getServerLocale();
+  const { I18nProvider } = await import("@/lib/i18n/client");
 
   return (
-    <html lang="fr" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} ${cinzel.variable} antialiased`}>
+    <html lang={locale} suppressHydrationWarning>
+      <body suppressHydrationWarning className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} ${cinzel.variable} ${sourceSans.variable} ${plexMono.variable} antialiased`}>
         <ThemeProvider forcedTheme={forcedTheme} nonce={nonce}>
-          <AuthProvider session={session}>
-            <TooltipProvider>
-              <GodBypassCookie />
-              {children}
-              {donationsEnabled && <SupportOrb />}
-              <Toaster
-                position="bottom-right"
-                richColors
-                expand={false}
-                closeButton
-                toastOptions={{
-                  className: "group font-sans border border-border/50 bg-card/90 backdrop-blur-xl text-card-foreground rounded-2xl p-4 shadow-lg",
-                  descriptionClassName: "text-muted-foreground font-medium text-body-sm",
-                  style: {
-                    borderLeft: '3px solid var(--border-strong, rgba(255,255,255,0.1))',
-                  },
-                  actionButtonStyle: {
-                    background: "var(--foreground)",
-                    color: "var(--background)",
-                    fontWeight: "bold",
-                    borderRadius: "0.5rem",
-                  },
-                }}
-              />
-            </TooltipProvider>
-          </AuthProvider>
+          <I18nProvider initialLocale={locale}>
+            <AuthProvider session={session}>
+              <TooltipProvider>
+                <PwaRegistration />
+                {/* Compteur anonyme des écrans publics (allowlist) — inerte partout ailleurs. */}
+                <PublicViewBeacon />
+                {children}
+                {donationsEnabled && <SupportOrb />}
+                <PwaInstallBanner />
+                <AppToaster />
+                <BossOverlayHost />
+                <RaidOverlayHost />
+              </TooltipProvider>
+            </AuthProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

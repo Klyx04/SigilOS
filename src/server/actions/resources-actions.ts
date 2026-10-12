@@ -6,24 +6,21 @@ import { isSuperAdmin } from "./super-admin-actions";
 import { logger } from "@/lib/logger";
 import { sanitizeHtml } from "@/lib/security";
 import { auth } from "@/auth";
-import { getUserContext } from "./user-actions";
 
 // ─── Guards ────────────────────────────────────────────────────────────────────
 
 /**
- * #127 — Délégation God → officiers : autorise la gestion des liens/catégories/
- * créateurs de la page Ressources pour les admins de guilde disposant de la
- * permission `resources:manage` (RBAC). Le God reste toujours autorisé.
- * L'isolation guilde est garantie par getUserContext(guildId).
+ * Gestion des liens/catégories/créateurs : **God uniquement** (10/10/2026, décision
+ * propriétaire — fin de la délégation #127 aux officiers : la permission
+ * `resources:manage` (« Gérer les Ressources ») n'existe plus). Les guildes voient
+ * la page Ressources en **lecture seule** ; toute écriture passe par la page God.
  */
 async function requireResourcesManage(guildId: string): Promise<void> {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Non authentifié");
     const superAdmin = await isSuperAdmin();
-    if (superAdmin) return;
-    const userCtx = await getUserContext(guildId);
-    if (!userCtx.canManageResources) {
-        throw new Error("Accès refusé : permission « Gérer les Ressources » requise");
+    if (!superAdmin) {
+        throw new Error("Accès refusé : la gestion des ressources se fait côté God");
     }
 }
 
@@ -47,8 +44,9 @@ export interface AlmanaxItem {
 
 // ─── Almanax (7 prochains jours) ─────────────────────────────────────────────
 
-export async function getUpcomingAlmanax(): Promise<AlmanaxItem[]> {
-    const url = "https://api.dofusdu.de/dofus3/v1/fr/almanax?timezone=Europe/Paris&range%5Bsize%5D=30";
+export async function getUpcomingAlmanax(locale: string = "fr"): Promise<AlmanaxItem[]> {
+    const lang = locale === "en" ? "en" : "fr";
+    const url = `https://api.dofusdu.de/dofus3/v1/${lang}/almanax?timezone=Europe/Paris&range%5Bsize%5D=30`;
 
     // 1. Direct fetch
     try {

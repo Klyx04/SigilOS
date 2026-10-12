@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
+import {
+    resolveDofusImageUrl,
+    resolveDofusAssetImageUrl,
+    resolveSpellIconUrl,
+    internalDofusDbImageUrl,
+    normalizeDofusAssetStoredUrl,
+    isSafeDofusImageSrc,
+} from "@/lib/dofus-image-url";
 
 describe("resolveDofusImageUrl (#206 Dofoobz)", () => {
     it("sert l'asset local pour le slug dofoozbz, quel que soit l'imageUrl en base", () => {
@@ -17,17 +24,254 @@ describe("resolveDofusImageUrl (#206 Dofoobz)", () => {
         );
     });
 
-    it("laisse intactes les URLs des autres Dofus", () => {
-        expect(resolveDofusImageUrl("emeraude", "https://api.dofusdb.fr/img/items/23002.png")).toBe(
-            "https://api.dofusdb.fr/img/items/23002.png"
-        );
-        expect(resolveDofusImageUrl("emeraude", "/module-dofus/Dofus_Emeraude.png")).toBe(
+    it("sert l'asset LOCAL pour un Dofus canonique, quelle que soit l'imageUrl en base (plus de dofusdb.fr)", () => {
+        // Dofus canonique → icône locale, même si la base pointe vers dofusdb.
+        expect(resolveDofusImageUrl("emeraude", "https://api.dofusdb.fr/img/items/23002.png", "Émeraude")).toBe(
             "/module-dofus/Dofus_Emeraude.png"
+        );
+        expect(resolveDofusImageUrl("emeraude", "https://api.dofusdb.fr/img/items/23002.png")).toBe(
+            "/module-dofus/Dofus_Emeraude.png"
+        );
+        // Cas d'un Dofus dont le nom court nécessite un alias (Glaces / Scintillant / Veilleurs).
+        expect(resolveDofusImageUrl("des-glaces", "https://api.dofusdb.fr/img/items/2303.png", "Glaces")).toBe(
+            "/module-dofus/Dofus_Des_Glaces.png"
+        );
+        expect(resolveDofusImageUrl("argente-scintillant", "https://api.dofusdb.fr/img/items/2304.png", "Scintillant")).toBe(
+            "/module-dofus/Dofus_Argente_Scintillant.png"
+        );
+        expect(resolveDofusImageUrl("veilleur", "https://api.dofusdb.fr/img/items/2305.png", "Veilleurs")).toBe(
+            "/module-dofus/Dofus_Veilleur.png"
+        );
+        // Dofus sans préfixe « Dofus_ » (Dokille / Dom de Pin).
+        expect(resolveDofusImageUrl("dokille", "https://api.dofusdb.fr/img/items/2306.png", "Dokille")).toBe(
+            "/module-dofus/Dokille.png"
+        );
+        expect(resolveDofusImageUrl("dom-de-pin", "https://api.dofusdb.fr/img/items/2307.png", "Dom de Pin")).toBe(
+            "/module-dofus/Dom_De_Pin.png"
         );
     });
 
-    it("renvoie null quand imageUrl est null/undefined (hors dofoozbz)", () => {
-        expect(resolveDofusImageUrl("emeraude", null)).toBeNull();
-        expect(resolveDofusImageUrl("emeraude", undefined)).toBeNull();
+    it("retombe sur l'imageUrl d'origine pour un Dofus inconnu / custom (pas d'asset local)", () => {
+        const external = "https://dofusdb.fr/img/items/9999.png";
+        expect(resolveDofusImageUrl("dofus-custom", external, "Dofus Mystère")).toBe(external);
+        expect(resolveDofusImageUrl("dofus-custom", external)).toBe(external);
+    });
+
+    it("renvoie null quand imageUrl est null/undefined pour un Dofus inconnu", () => {
+        expect(resolveDofusImageUrl("dofus-custom", null, "Dofus Mystère")).toBeNull();
+        expect(resolveDofusImageUrl("dofus-custom", undefined, "Dofus Mystère")).toBeNull();
     });
 });
+
+describe("resolveDofusAssetImageUrl / internalDofusDbImageUrl — zéro hotlink DofusDB (#icônes de sorts)", () => {
+    // Cas réel (18/09/2026) : `spell.imageUrl` stocké en base est une URL ABSOLUE DofusDB
+    // (`https://api.dofusdb.fr/img/spells/sort_12160.png`) → 57 requêtes navigateur vers
+    // DofusDB depuis l'onglet « Sorts » de la modale de build.
+    const SPELL_DB_URL = "https://api.dofusdb.fr/img/spells/sort_12160.png";
+
+    it("réécrit une icône de sort DofusDB vers le proxy interne (siphon disque)", () => {
+        expect(resolveDofusAssetImageUrl("spells", 12160, SPELL_DB_URL)).toBe(
+            `/api/assets-dofus/spells/12160?url=${encodeURIComponent(SPELL_DB_URL)}`
+        );
+    });
+
+    it("privilégie l'id fourni (clé du cache disque) sur l'id d'icône de l'URL", () => {
+        // L'id du sort (ex. 4) ≠ l'id d'icône (12160) : le siphon enregistre
+        // `spells/{idDuSort}.webp` → c'est cet id qui doit servir de clé de chemin.
+        const url = resolveDofusAssetImageUrl("spells", 4, SPELL_DB_URL);
+        expect(url).toContain("/api/assets-dofus/spells/4?url=");
+        expect(url).toContain(encodeURIComponent(SPELL_DB_URL));
+    });
+
+    it("retombe sur l'id extrait de l'URL quand l'appelant n'en fournit aucun", () => {
+        // 🔑 SORTS : l'URL amont est une **icône** (`sort_<n>`) — `n` y est un iconId, jamais un id
+        // de sort. Mesure beta du 11/10/2026 (« Jardinage » = sort 6267, iconId 15561) : présenter
+        // cet id comme un id de sort servait l'icône d'un AUTRE sort (`/spells/15561` → 200 étranger).
+        expect(internalDofusDbImageUrl(SPELL_DB_URL)).toBe("/api/assets-dofus/spells/sort_12160");
+        expect(internalDofusDbImageUrl("https://api.dofusdb.fr/img/monsters/1234.png")).toContain("/api/assets-dofus/monsters/1234?url=");
+        // 🐛 Mesure du 12/10/2026 (panneau « Archimonstres », carte du monde) : le nombre de
+        // `img/monsters/{n}.png` est un **gfxId**, pas un id de monstre — « Kiroyal le Sirupeux »
+        // = monstre **2508**, `img/monsters/90.png`, tandis que `/api/assets-dofus/monsters/90`
+        // sert le monstre 90 (une « Gelée royale »). La réécriture doit donc réclamer l'espace
+        // **apparence** (`sprite=1`) : c'est lui qui garantit la bonne image.
+        expect(internalDofusDbImageUrl("https://api.dofusdb.fr/img/monsters/90.png")).toBe(
+            `/api/assets-dofus/monsters/90?url=${encodeURIComponent("https://api.dofusdb.fr/img/monsters/90.png")}&sprite=1`
+        );
+        expect(internalDofusDbImageUrl("https://api.dofusdb.fr/img/items/9143.png")).toContain("/api/assets-dofus/items/9143?url=");
+        // Hôte `static.dofusdb.fr` : réécrit aussi, mais SANS `?url=` (non allowlisté par le proxy).
+        expect(internalDofusDbImageUrl("https://static.dofusdb.fr/img/spells/sort_7.png")).toBe("/api/assets-dofus/spells/sort_7");
+    });
+
+    it("n'envoie JAMAIS d'URL d'un hôte non allowlisté au proxy (SSRF fail-closed)", () => {
+        expect(resolveDofusAssetImageUrl("spells", 12, "https://evil.example.com/img/spells/12.png")).toBe(
+            "/api/assets-dofus/spells/12"
+        );
+        expect(resolveDofusAssetImageUrl("monsters", 12, "https://evildofusdb.fr/img/monsters/12.png")).toBe(
+            "/api/assets-dofus/monsters/12"
+        );
+        expect(internalDofusDbImageUrl("https://evil.example.com/img/spells/12.png")).toBeNull();
+        expect(internalDofusDbImageUrl("http://api.dofusdb.fr/img/spells/sort_12.png")).toBeNull(); // HTTPS only
+    });
+
+    it("renvoie null (⇒ repli de l'appelant) sans id ni URL DofusDB exploitable", () => {
+        expect(resolveDofusAssetImageUrl("spells")).toBeNull();
+        expect(resolveDofusAssetImageUrl("spells", null, "/uploads/assets-dofus/spells/4.webp")).toBeNull();
+        expect(resolveDofusAssetImageUrl("items", "  ")).toBeNull();
+        expect(internalDofusDbImageUrl("/uploads/assets-dofus/spells/4.webp")).toBeNull();
+        expect(internalDofusDbImageUrl("https://api.dofusdb.fr/spells/4?lang=fr")).toBeNull(); // API, pas une icône
+        expect(internalDofusDbImageUrl(null)).toBeNull();
+        expect(internalDofusDbImageUrl(undefined)).toBeNull();
+    });
+
+    it("laisse une URL (interne) sans paramètre inutile", () => {
+        expect(resolveDofusAssetImageUrl("items", "9143")).toBe("/api/assets-dofus/items/9143");
+        expect(resolveDofusAssetImageUrl("monsters", 1234, null)).toBe("/api/assets-dofus/monsters/1234");
+    });
+});
+
+describe("normalizeDofusAssetStoredUrl — un chemin STOCKÉ n'est jamais rendu brut", () => {
+    // 🐛 Mesure beta du 27/09/2026 (page God « Avis de recherche », portraits KO) : la valeur
+    // en base `/uploads/assets-dofus/monsters/4834.webp` renvoyait **404** ; le MÊME fichier via
+    // le proxy (`/api/uploads/assets-dofus/monsters/4834.webp`) renvoyait **200**, et le chemin
+    // brut passait à 200 seulement APRÈS un passage par le proxy (c'est lui qui siphonne).
+    const STORED = "/uploads/assets-dofus/monsters/4834.webp";
+
+    it("réécrit le chemin legacy du cache disque vers le proxy (id extrait du chemin)", () => {
+        expect(normalizeDofusAssetStoredUrl("monsters", STORED)).toBe("/api/assets-dofus/monsters/4834");
+        expect(normalizeDofusAssetStoredUrl("monsters", "/uploads/assets-dofus/monsters/4834.png")).toBe(
+            "/api/assets-dofus/monsters/4834"
+        );
+    });
+
+    it("l'id du chemin fait foi (c'est lui qui nomme le fichier siphonné)", () => {
+        // Une ligne dont `dofusdbId` divergerait affiche l'image réellement déclarée.
+        expect(normalizeDofusAssetStoredUrl("monsters", STORED, 9999)).toBe("/api/assets-dofus/monsters/4834");
+    });
+
+    it("idempotent : une URL déjà canonique n'est pas retouchée", () => {
+        expect(normalizeDofusAssetStoredUrl("monsters", "/api/assets-dofus/monsters/4834")).toBe(
+            "/api/assets-dofus/monsters/4834"
+        );
+        // URL de proxy d'un AUTRE type : conservée telle quelle (on ne ment pas sur l'asset servi).
+        expect(normalizeDofusAssetStoredUrl("monsters", "/api/assets-dofus/spells/4")).toBe(
+            "/api/assets-dofus/spells/4"
+        );
+    });
+
+    it("ne sert pas l'asset d'un autre type sous cette route", () => {
+        expect(normalizeDofusAssetStoredUrl("monsters", "/uploads/assets-dofus/spells/4.webp")).toBe(
+            "/uploads/assets-dofus/spells/4.webp"
+        );
+    });
+
+    it("vide ⇒ proxy depuis l'id ; sans id ni URL exploitables ⇒ null (repli de l'appelant)", () => {
+        expect(normalizeDofusAssetStoredUrl("monsters", null, 4834)).toBe("/api/assets-dofus/monsters/4834");
+        expect(normalizeDofusAssetStoredUrl("monsters", "   ", "5684")).toBe("/api/assets-dofus/monsters/5684");
+        expect(normalizeDofusAssetStoredUrl("monsters", null)).toBeNull();
+        expect(normalizeDofusAssetStoredUrl("monsters", "/uploads/assets-dofus/monsters/abc.webp")).toBe(
+            "/uploads/assets-dofus/monsters/abc.webp"
+        );
+    });
+
+    it("URL absolue : DofusDB ⇒ proxy interne ; tout autre hôte ⇒ jamais publié (repli canonique)", () => {
+        const DB = "https://api.dofusdb.fr/img/monsters/4834.png";
+        expect(normalizeDofusAssetStoredUrl("monsters", DB)).toBe(
+            `/api/assets-dofus/monsters/4834?url=${encodeURIComponent(DB)}`
+        );
+        // CDN officiel Ankama (static.ankama.com) : extrait l'id et réécrit vers le proxy interne
+        const ANKAMA_URL = "https://static.ankama.com/dofus/www/game/monsters/4744.png";
+        expect(normalizeDofusAssetStoredUrl("monsters", ANKAMA_URL)).toBe("/api/assets-dofus/monsters/4744");
+        // ⚠️ Un hôte arbitraire ne sort JAMAIS de cette fonction : la donnée stockée ne doit pas
+        // pouvoir désigner une origine tierce (alerte CodeQL `js/xss-through-dom`).
+        expect(normalizeDofusAssetStoredUrl("monsters", "https://cdn.exemple.fr/monstre.png", 4834)).toBe(
+            "/api/assets-dofus/monsters/4834"
+        );
+        expect(normalizeDofusAssetStoredUrl("monsters", "https://cdn.exemple.fr/monstre.png")).toBeNull();
+    });
+
+    it("nom nu ⇒ proxy ; chemin local accepté seulement dans NOS dossiers (allowlist)", () => {
+        expect(normalizeDofusAssetStoredUrl("monsters", "4834.webp")).toBe("/api/assets-dofus/monsters/4834");
+        expect(normalizeDofusAssetStoredUrl("monsters", "/game-data/bounties/avis-4834.webp")).toBe(
+            "/game-data/bounties/avis-4834.webp"
+        );
+        expect(normalizeDofusAssetStoredUrl("monsters", "/uploads/assets-dofus/monsters/4834.webp")).toBe(
+            "/api/assets-dofus/monsters/4834"
+        );
+        // Un asset local qui n'est PAS le cache d'assets (guides, icônes du jeu) passe tel quel :
+        expect(normalizeDofusAssetStoredUrl("monsters", "/uploads/guides/mon-guide.webp")).toBe(
+            "/uploads/guides/mon-guide.webp"
+        );
+        expect(normalizeDofusAssetStoredUrl("monsters", "/assets/dofus/icons/boss.png")).toBe(
+            "/assets/dofus/icons/boss.png"
+        );
+        // Hors de nos dossiers : repli canonique (ou null sans identifiant), jamais la valeur brute.
+        expect(normalizeDofusAssetStoredUrl("monsters", "/autre/chemin.png", 4834)).toBe(
+            "/api/assets-dofus/monsters/4834"
+        );
+        expect(normalizeDofusAssetStoredUrl("monsters", "/autre/chemin.png")).toBeNull();
+    });
+});
+describe("resolveSpellIconUrl — espace d'icône d'un sort (`sort_<iconId>`)", () => {
+    // 🐛 Mesure beta du 11/10/2026 (fiche publique `/boss/sam-sagaz`) : les composants rendaient le
+    // chemin DISQUE `/uploads/assets-dofus/spells/sort_15561.webp` → **404** (le fichier n'existe que
+    // si le siphon Unity hors ligne est passé) et le repli `onError` ne rattrapait rien : le 404
+    // arrive **avant** l'hydratation, React n'a pas encore attaché le handler (aucune requête
+    // `/api/assets-dofus/spells/*` au journal) ⇒ 3 icônes KO. Le proxy, lui, sert la même icône en
+    // **200** (mesuré : `/api/assets-dofus/spells/6267` = 2 154 o de WebP).
+    // ⚠️ L'iconId n'est pas l'id du sort : « Jardinage » = sort 6267, iconId 15561 ; et
+    // `/api/assets-dofus/spells/15561` (iconId lu comme id de sort) répond 200 avec une image
+    // **étrangère**.
+
+    it("construit l'URL du proxy dans l'espace d'ICÔNE", () => {
+        expect(resolveSpellIconUrl(15561)).toBe("/api/assets-dofus/spells/sort_15561");
+        expect(resolveSpellIconUrl("214")).toBe("/api/assets-dofus/spells/sort_214");
+        expect(resolveSpellIconUrl(15522)).toBe("/api/assets-dofus/spells/sort_15522");
+    });
+
+    it("refuse tout ce qui n'est pas un iconId positif (⇒ repli de l'appelant)", () => {
+        expect(resolveSpellIconUrl(0)).toBeNull();
+        expect(resolveSpellIconUrl(-1)).toBeNull();
+        expect(resolveSpellIconUrl(null)).toBeNull();
+        expect(resolveSpellIconUrl(undefined)).toBeNull();
+        expect(resolveSpellIconUrl("")).toBeNull();
+        expect(resolveSpellIconUrl("6267.webp")).toBeNull();
+    });
+
+    it("le chemin stocké `sort_<n>.webp` passe par l'espace d'icône, jamais par l'id du sort", () => {
+        expect(normalizeDofusAssetStoredUrl("spells", "/uploads/assets-dofus/spells/sort_15561.webp")).toBe(
+            "/api/assets-dofus/spells/sort_15561"
+        );
+        // Même avec un id d'entité en poche : c'est le NOM du fichier qui désigne l'icône.
+        expect(normalizeDofusAssetStoredUrl("spells", "/uploads/assets-dofus/spells/sort_15561.webp", 6267)).toBe(
+            "/api/assets-dofus/spells/sort_15561"
+        );
+        // Sans préfixe `sort_`, la clé du chemin est bien un id de SORT (espace d'entité).
+        expect(normalizeDofusAssetStoredUrl("spells", "/uploads/assets-dofus/spells/6267.webp")).toBe(
+            "/api/assets-dofus/spells/6267"
+        );
+    });
+});
+
+
+
+describe("isSafeDofusImageSrc — rien d'arbitraire ne part dans une URL du DOM", () => {
+    it("accepte nos chemins internes et DofusDB", () => {
+        expect(isSafeDofusImageSrc("/api/assets-dofus/monsters/4834")).toBe(true);
+        expect(isSafeDofusImageSrc("/game-data/bounties/avis.webp")).toBe(true);
+        expect(isSafeDofusImageSrc("/uploads/assets-dofus/items/9143.webp")).toBe(true);
+        expect(isSafeDofusImageSrc("/api/assets-dofus/spells/4?url=https%3A%2F%2Fapi.dofusdb.fr%2Fx.png")).toBe(true);
+        expect(isSafeDofusImageSrc("https://api.dofusdb.fr/img/monsters/1583.png")).toBe(true);
+    });
+
+    it("refuse le reste (protocole, hôte non allowlisté, données, chaîne vide)", () => {
+        expect(isSafeDofusImageSrc("//evil.example.com/x.png")).toBe(false);
+        expect(isSafeDofusImageSrc("https://evil.example.com/x.png")).toBe(false);
+        expect(isSafeDofusImageSrc("http://api.dofusdb.fr/img/monsters/1.png")).toBe(false); // HTTPS only
+        expect(isSafeDofusImageSrc("javascript:alert(1)")).toBe(false);
+        expect(isSafeDofusImageSrc("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")).toBe(false);
+        expect(isSafeDofusImageSrc("25757.webp")).toBe(false); // nom nu : jamais posé brut
+        expect(isSafeDofusImageSrc("")).toBe(false);
+        expect(isSafeDofusImageSrc(null)).toBe(false);
+    });
+});
+

@@ -5,6 +5,8 @@ import { getUserContext } from "./user-actions";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { canonicalClassId, getClassName, isUsableDofusbookRawPayload, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { rateLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
 import { getGameDisplayName } from "@/lib/display-name";
 
@@ -141,6 +143,7 @@ export async function getStuffGalleryPage(
                     pseudoDofus: true,
                     discordNickname: true,
                     dofusBookLinks: true,
+                    classe: true,
                     user: { select: { name: true, image: true } }
                 },
             }),
@@ -187,12 +190,19 @@ export async function getStuffGalleryPage(
                     const numericId = numericMatch ? numericMatch[1] : parsedId;
                     const thumbnail = link.previewData?.thumbnail || (numericId ? `https://static.dofusbook.net/equipement/render/${numericId}.png` : null);
 
+                    const resolvedClassId = canonicalClassId(
+                        link.classId ??
+                        link.previewData?.classId ??
+                        link.class ??
+                        profile.classe
+                    ) || undefined;
+
                     allBuilds.push({
                         id: buildId,
                         name: link.name,
                         url: link.url,
                         tags: link.tags || [],
-                        classId: link.classId,
+                        classId: resolvedClassId ?? link.classId,
                         source: buildSource,
                         previewData: {
                             ...link.previewData,
@@ -245,9 +255,12 @@ export async function getStuffGalleryPage(
             allBuilds = allBuilds.filter(b => tags.every(t => b.tags?.includes(t)));
         }
 
-        // Apply class filter server-side
+        // Apply class filter server-side — comparaison canonisée : les builds
+        // stockent la numérotation Dofusbook (Forgelance = 19) tandis que le
+        // filtre envoie l'id extrait de l'icône (breed DofusDB, Forgelance = 20).
         if (classId) {
-            allBuilds = allBuilds.filter(b => String(b.classId) === classId);
+            const wanted = canonicalClassId(classId);
+            allBuilds = allBuilds.filter(b => wanted !== 0 && canonicalClassId(b.classId) === wanted);
         }
 
         // Apply source filter server-side
@@ -291,6 +304,12 @@ export async function refreshBuildMetadata(
     if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
 
     try {
+        const galleryGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!galleryGuild) return { success: false, error: "Guilde introuvable" };
+
         const { revalidatePath } = await import("next/cache");
         const isDofusRoom = /dofusroom\.com/.test(buildUrl);
         if (isDofusRoom) {
@@ -306,8 +325,8 @@ export async function refreshBuildMetadata(
         previewData = res.data;
 
         // 2. Update user profile dofusBookLinks
-        const profile = await db.userProfile.findUnique({
-            where: { id: profileId },
+        const profile = await db.userProfile.findFirst({
+            where: { id: profileId, guildId: galleryGuild.id },
             select: { id: true, dofusBookLinks: true }
         });
 
@@ -335,6 +354,82 @@ export async function refreshBuildMetadata(
     } catch (error) {
         logger.error("Refresh Build Metadata Error:", { error });
         return { success: false, error: "Erreur serveur lors du rafraîchissement" };
+    }
+}
+
+/**
+ * Enregistre un `previewData` **récupéré par le navigateur du membre** (bake côté client).
+ *
+ * Contexte : Dofusbook (Cloudflare) refuse désormais les appels serveur (challenge
+ * anti-bot) → `getDofusbookPreview()` ne peut plus baker. Le navigateur, lui, passe :
+ * il appelle le worker signé (`getDofusbookClientFetchUrl()`) et nous transmet le JSON.
+ * Cette action le valide (forme + taille : entrée non fiable) puis le stocke.
+ *
+ * Si le build n'appartient à aucun profil de la guilde, on renvoie quand même les
+ * données traitées pour l'affichage, sans persister (`persisted: false`).
+ */
+export async function storeClientDofusbookPreview(
+    guildId: string,
+    buildUrl: string,
+    raw: unknown
+): Promise<ActionResponse<{ data: DofusbookPreviewData; persisted: boolean }>> {
+    if (!guildId || !buildUrl) return { success: false, error: "Paramètres manquants" };
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    const limited = await rateLimit(`dofusbook-client-bake:${user.id ?? "anon"}`, 30, 60_000);
+    if (!limited.success) return { success: false, error: "Trop de rafraîchissements — réessaie dans une minute." };
+
+    if (!isUsableDofusbookRawPayload(raw)) {
+        return { success: false, error: "Données Dofusbook invalides ou trop volumineuses" };
+    }
+
+    try {
+        const { getDofusbookId } = await import("./dofusbook-actions");
+        const id = await getDofusbookId(buildUrl);
+        if (!id) return { success: false, error: "Identifiant Dofusbook introuvable" };
+
+        const data = processDofusbookRawData(id, raw);
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // Recherche du profil propriétaire du build dans cette guilde (tous statuts : un
+        // profil archivé/inactif conserve ses builds et doit pouvoir être rafraîchi).
+        const profiles = await db.userProfile.findMany({
+            where: { guildId: guildConfig.id },
+            select: { id: true, dofusBookLinks: true },
+        });
+        const owner = profiles.find((p) =>
+            ((p.dofusBookLinks as any[]) || []).some((l) => l?.url === buildUrl)
+        );
+
+        if (!owner) return { success: true, data: { data, persisted: false } };
+
+        const now = new Date().toISOString();
+        const updatedLinks = ((owner.dofusBookLinks as any[]) || []).map((link) =>
+            link?.url === buildUrl
+                ? { ...link, previewData: data, source: "dofusbook" as const, updatedAt: now }
+                : link
+        );
+
+        await db.userProfile.update({
+            where: { id: owner.id },
+            data: { dofusBookLinks: updatedLinks as any },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/galerie-stuff`);
+        // 🔗 #126 : la page membre est servie sous /members/<slug> → on revalide le pattern
+        revalidatePath(`/dashboard/${guildId}/members/[slug]`);
+
+        return { success: true, data: { data, persisted: true } };
+    } catch (error) {
+        logger.error("[Dofusbook] Client bake storage error:", { error });
+        return { success: false, error: "Erreur serveur lors de l'enregistrement" };
     }
 }
 
@@ -590,25 +685,28 @@ export async function shareGalleryItemOnDiscord(
             // Find build globally in the guild if authorProfileId is known
             let build: any = null;
             let targetProfileId = authorProfileId;
+            let authorClasse: string | null = null;
 
             if (authorProfileId) {
                 const profile = await db.userProfile.findUnique({
                     where: { id: authorProfileId },
-                    select: { dofusBookLinks: true, pseudoDofus: true, discordNickname: true }
+                    select: { dofusBookLinks: true, pseudoDofus: true, discordNickname: true, classe: true }
                 });
                 build = (profile?.dofusBookLinks as any[])?.find(b => b.id === itemId);
                 authorName = profile?.pseudoDofus || profile?.discordNickname || authorName;
+                authorClasse = profile?.classe || null;
             } else {
                 // Fallback search in all guild profiles (Active)
                 const profiles = await db.userProfile.findMany({
                     where: { guildId: guildConfig?.id, status: 'ACTIVE' },
-                    select: { id: true, dofusBookLinks: true, pseudoDofus: true, discordNickname: true }
+                    select: { id: true, dofusBookLinks: true, pseudoDofus: true, discordNickname: true, classe: true }
                 });
                 for (const p of profiles) {
                     const b = (p.dofusBookLinks as any[])?.find(x => x.id === itemId);
                     if (b) {
                         build = b;
                         authorName = p.pseudoDofus || p.discordNickname || authorName;
+                        authorClasse = p.classe || null;
                         targetProfileId = p.id;
                         break;
                     }
@@ -646,31 +744,24 @@ export async function shareGalleryItemOnDiscord(
 
             itemName = build.name;
             const pd = build.previewData;
-            const className = pd?.className || (build.classId ? String(build.classId) : "");
+            const resolvedClassNum = canonicalClassId(
+                pd?.classId ??
+                build.classId ??
+                build.class ??
+                authorClasse
+            ) || undefined;
+            const className = pd?.className || (resolvedClassNum ? getClassName(resolvedClassNum) : "");
             const levelStr = pd?.level ? ` · Niv. ${pd.level}` : "";
             
             embedTitle = `🛡️ Build : ${build.name}${className ? ` (${className}${levelStr})` : ""}`;
             embedUrl = build.url;
-            const classNum = pd?.classId || build.classId;
+            const classNum = resolvedClassNum;
             embedThumbnail = classNum 
                 ? `${appUrl}/assets/dofus/classes/${classNum === 19 ? 20 : classNum}.png`
                 : `${appUrl}/assets/ui/logo-v2.png`;
 
-            // Extract numeric ID to generate the official Dofusbook render screenshot card
-            const buildIdMatch = build.url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
-            const parsedId = buildIdMatch ? (buildIdMatch[1] || buildIdMatch[2]) : null;
-            const numericMatch = parsedId?.match(/^(\d+)/);
-            const numericId = numericMatch ? numericMatch[1] : parsedId;
-
-            const flashRenderUrl = numericId 
-                ? `https://static.dofusbook.net/equipement/render/${numericId}.png`
-                : pd?.thumbnail;
-
-            if (flashRenderUrl) {
-                embedImage = resolveDiscordImage(flashRenderUrl, build.url);
-            } else {
-                embedImage = undefined;
-            }
+            // Dynamic visual render of the inventory ring generated by SigilOS
+            embedImage = `${appUrl}/api/og/build/${build.id}`;
 
             // 1. ⚔️ Caractéristiques principales
             if (pd?.stats) {
@@ -912,9 +1003,16 @@ export async function shareGalleryItemOnDiscord(
  */
 export async function handleDiscordGalleryDelete(discordGuildId: string, discordMessageId: string): Promise<void> {
     try {
+        // 🔒 Scopé guilde : résout d'abord la guilde interne, puis ne touche que ses rows.
+        const deleteGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true },
+        });
+        if (!deleteGuild) return;
+
         // 1. Try to find and delete in UserSkin
         const skin = await db.userSkin.findFirst({
-            where: { discordMessageId },
+            where: { discordMessageId, profile: { guildId: deleteGuild.id } },
             select: { id: true }
         });
 
@@ -926,12 +1024,8 @@ export async function handleDiscordGalleryDelete(discordGuildId: string, discord
         }
 
         // 2. Try to find in UserProfile (JSON dofusBookLinks)
-        // Find the guild internal ID first
-        const guild = await db.guildConfig.findUnique({
-            where: { discordGuildId },
-            select: { id: true }
-        });
-        if (!guild) return;
+        // Guild déjà résolue en `deleteGuild` (scopé, fail-closed).
+        const guild = deleteGuild;
 
         // Fetch all active profiles in the guild
         const profiles = await db.userProfile.findMany({

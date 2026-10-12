@@ -18,6 +18,7 @@ import {
     deleteChallenge,
 } from "@/server/actions/game-data-admin-actions";
 import { Trophy, Trash2, Edit2, Plus, Search, MoreHorizontal, ImageIcon } from "lucide-react";
+import { getAchievementIconUrl } from "@/lib/achievement-icon";
 import { Badge } from "@/components/ui/badge";
 import { ImageDownloader } from "./ImageDownloader";
 import { LocalImagePicker } from "./LocalImagePicker";
@@ -142,7 +143,12 @@ export default function ChallengeManager() {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {filteredChallenges.map((challenge) => (
+                    {filteredChallenges.map((challenge) => {
+                        // Résolution UNIQUE avec les fiches (`@/lib/achievement-icon`) : jamais de
+                        // hotlink DofusDB (bloqué par le CSP) ni de chemin reconstruit depuis le
+                        // slug — bug « Spécial » du 12/10/2026 (`slug: sp-cial` vs `spécial.png`).
+                        const iconSrc = getAchievementIconUrl(challenge.slug, challenge.iconUrl);
+                        return (
                         <div
                             key={challenge.id}
                             className="group relative bg-surface/40 border border-border rounded-xl p-4 hover:border-info/30 hover:shadow-lg hover:shadow-indigo-900/10 transition-all duration-300"
@@ -167,8 +173,8 @@ export default function ChallengeManager() {
 
                             <div className="flex flex-col items-center text-center gap-3">
                                 <div className="w-12 h-12 rounded-lg bg-elevated border border-border flex items-center justify-center p-1 group-hover:border-info/50 transition-colors">
-                                    {challenge.iconUrl ? (
-                                        <img src={challenge.iconUrl} alt={challenge.name} className="w-full h-full object-contain" />
+                                    {iconSrc ? (
+                                        <img src={iconSrc} alt={challenge.name} className="w-full h-full object-contain" />
                                     ) : (
                                         <Trophy className="w-6 h-6 text-muted-foreground" />
                                     )}
@@ -182,7 +188,8 @@ export default function ChallengeManager() {
                                 </div>
                             </div>
                         </div>
-                    ))}
+                    );
+                    })}
                 </div>
             )}
 

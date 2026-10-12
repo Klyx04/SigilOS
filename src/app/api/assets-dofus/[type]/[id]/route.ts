@@ -1,0 +1,664 @@
+import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import sharp from 'sharp';
+import { ASSET_DIRS, ensureAssetDirsExist } from '@/lib/dofus-asset-siphon';
+import { assertSafeUrl } from '@/lib/image-downloader';
+
+// 🛡️ Garde-fou mémoire : limite Sharp pour éviter tout crash V8 OOM lors de rafales
+if (typeof (sharp as any)?.cache === 'function') {
+    (sharp as any).cache({ memory: 40, files: 20, items: 50 });
+}
+if (typeof (sharp as any)?.concurrency === 'function') {
+    (sharp as any).concurrency(1);
+}
+
+export const dynamic = 'force-dynamic';
+
+const REMOTE_BASE_URLS = {
+    monsters: 'https://api.dofusdb.fr/img/monsters',
+    items: 'https://api.dofusdb.fr/img/items',
+    spells: 'https://api.dofusdb.fr/img/spells',
+};
+
+// 🔒 SSRF fail-closed : seuls ces hôtes sont autorisés pour `?url=` et les
+// redirections d'images DofusDB (monsterData.img). Tout le reste → placeholder.
+const ALLOWED_IMAGE_HOSTS = new Set(['api.dofusdb.fr']);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Fallback PNG neutre (1×1 transparent) — **jamais** de 404 rouge, ni de SVG (Discord ne sait
+ * pas le rendre dans un embed ; symptôme mesuré le 10/10/2026 : l'image d'embed « tente de se
+ * générer puis rien »). `no-store` OBLIGATOIRE : un échec TRANSITOIRE de siphonnage ne doit pas
+ * être figé dans le cache du navigateur, sinon l'icône reste cassée alors que la source est
+ * revenue.
+ */
+function placeholderResponse(): NextResponse {
+    const placeholderPng = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        "base64"
+    );
+    return new NextResponse(placeholderPng, {
+        status: 200,
+        headers: {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'no-store',
+            'X-SigilOS-Placeholder': '1',
+        },
+    });
+}
+
+function getAllowedRemoteUrl(raw: string | null): string | null {
+    if (!raw) return null;
+    let u: URL;
+    try {
+        u = new URL(raw);
+    } catch {
+        return null;
+    }
+    if (u.protocol !== 'https:') return null;
+    if (!ALLOWED_IMAGE_HOSTS.has(u.hostname.toLowerCase())) return null;
+    return u.toString();
+}
+
+/**
+ * 🛡️ Proxy & Siphon Automatique à la Volée (Zero 404 in DevTools)
+ *
+ * 1. Si le fichier WebP existe en local sur le serveur -> Stream direct (HTTP 200, cache 1 an)
+ * 2. Si absent -> Télécharge depuis DofusDB, compresse en WebP, enregistre sur disque et renvoie HTTP 200
+ * 3. Si introuvable -> Renvoie une image de fallback sans planter
+ */
+export async function GET(
+    req: NextRequest,
+    context: { params: Promise<{ type: string; id: string }> }
+) {
+    try {
+        const { type, id: rawId } = await context.params;
+        const validTypes = ['monsters', 'items', 'spells', 'challenges', 'achievements'] as const;
+        type AssetType = (typeof validTypes)[number];
+
+        if (!validTypes.includes(type as AssetType)) {
+            return new NextResponse('Type invalide', { status: 400 });
+        }
+
+        const assetType = type as AssetType;
+        const safeId = rawId.replace(/[^a-zA-Z0-9_-]/g, '').replace(/\.webp$/, '');
+        if (!safeId) return new NextResponse('ID invalide', { status: 400 });
+
+        // Un id purement numérique est adressable sur DofusDB (fiche + asset) ; un CUID Prisma
+        // ne l'est pas → aucun lookup devinable (fail-closed, plus bas).
+        const isNumericId = /^\d+$/.test(safeId);
+
+        // ESPACE D ICONE (parametre explicite des appelants qui envoient un iconId,
+        // cf. Dofusbook `item.picture`) : la valeur est un iconId DofusDB, PAS un id d objet.
+        const iconNamespace = assetType === 'items' && req.nextUrl.searchParams.get('icon') === '1';
+
+        // ESPACE D APPARENCE (`sprite=1`) — mesure du 12/10/2026, constat user « certains archi leur
+        // image ne correspond pas » : pour un MONSTRE, le nombre de `img/monsters/{n}.png` est un
+        // **gfxId** (l'apparence), jamais l'id de l'entité (gfx 90 = dragon violet, alors que le
+        // monstre 90 est une « Gelée royale » ⇒ `/monsters/90` servait une AUTRE créature, figée
+        // 1 an de cache). Ici on sert le fichier amont (`?url=`) TEL QUEL, sous une clé de cache
+        // DISTINCTE (`{n}.sprite.webp`) : les deux espaces ne se marchent jamais dessus.
+        // Fail-closed : sans `?url=` exploitable, placeholder — on ne devine JAMAIS un monstre
+        // à partir de ce nombre.
+        const spriteNamespace = req.nextUrl.searchParams.get('sprite') === '1';
+
+        // ESPACE D ICONE D UN SORT (`sort_<iconId>`) : ce NOM est l'identite de l'icone — c est lui
+        // qui nomme le fichier sur disque (`spells/sort_<iconId>.webp`, ecrit hors ligne par
+        // `scripts/siphon-unity-bestiary.py`) comme l asset DofusDB (`img/spells/sort_<iconId>.png`).
+        // Mesure beta du 11/10/2026 (fiche publique `/boss/sam-sagaz`) : les composants rendaient ce
+        // chemin DISQUE en `src` ⇒ 404 systematique (le fichier n existe que si le siphon hors ligne
+        // est passe) et l icone KO quand le repli `onError` ratait l hydratation (le 404 arrive avant
+        // que React attache le handler). Ici, ce meme nom passe par le proxy : il sert le fichier
+        // s il est la, le siphonne sinon, et l ecrit SOUS CE NOM ⇒ un seul chemin, auto-repare.
+        // (`iconId` n est JAMAIS l id du sort : « Jardinage » = sort 6267, iconId 15561.)
+        const spellIconMatch = assetType === 'spells' ? /^sort_(\d{1,12})$/i.exec(safeId) : null;
+        const spellIconId = spellIconMatch ? Number(spellIconMatch[1]) : 0;
+
+        ensureAssetDirsExist();
+        const localFileName = iconNamespace ? `${safeId}.icon.webp` : spriteNamespace ? `${safeId}.sprite.webp` : `${safeId}.webp`;
+        const localFilePath = path.join(ASSET_DIRS[assetType], localFileName);
+
+        // 1. Si le fichier WebP existe déjà en local sur disque, on le sert directement
+        if (fs.existsSync(localFilePath)) {
+            try {
+                const buffer = fs.readFileSync(localFilePath);
+                if (buffer.length > 50) {
+                    return new NextResponse(buffer, {
+                        headers: {
+                            'Content-Type': 'image/webp',
+                            'Cache-Control': 'public, max-age=31536000, immutable',
+                        },
+                    });
+                }
+            } catch {
+                // Re-téléchargement si corrompu
+            }
+        }
+
+        // 1bis. Espace d'APPARENCE (`sprite=1`) : on sert le fichier amont **tel quel**, jamais un
+        //       monstre résolu par ce nombre (les deux espaces sont disjoints, cf. plus haut).
+        if (spriteNamespace) {
+            const spriteUrl = getAllowedRemoteUrl(req.nextUrl.searchParams.get('url'));
+            if (!spriteUrl) return placeholderResponse();
+            try {
+                await assertSafeUrl(spriteUrl);
+                const spriteRes = await fetch(spriteUrl, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (spriteRes.ok) {
+                    const raw = Buffer.from(await spriteRes.arrayBuffer());
+                    if (raw.length > 0 && raw.length <= MAX_IMAGE_BYTES) {
+                        const webpBuffer = await sharp(raw)
+                            .webp({ quality: 80, effort: 2 })
+                            .toBuffer();
+                        fs.writeFile(localFilePath, webpBuffer, () => {});
+                        return new NextResponse(webpBuffer, {
+                            headers: {
+                                'Content-Type': 'image/webp',
+                                'Cache-Control': 'public, max-age=31536000, immutable',
+                            },
+                        });
+                    }
+                }
+            } catch {
+                // Source injoignable → placeholder : jamais l'image d'un AUTRE monstre.
+            }
+            return placeholderResponse();
+        }
+
+        // 1.5 Sources locales « game data » (assets officiels, ZÉRO réseau)
+        // 👑 « God » = dump du client de jeu (`items_2x`, `spells_2x`, `monsters_2x`).
+        //    • dev  : <Bureau>/dofus_assets, résolu via le dossier utilisateur
+        //      (jamais de chemin absolu en dur — cf. docs/RULES.md §Sécurité)
+        //    • prod : `DOFUS_ASSETS_DIR` (ex. /data/dofus_assets monté en lecture seule)
+        //      → les icônes sont alors servies LOCALEMENT, sans dépendre de DofusDB.
+        //    Plusieurs racines possibles, séparées par « ; » ou « , ».
+        const godRoots = [
+            ...String(process.env.DOFUS_ASSETS_DIR || '')
+                .split(/[;,]/)
+                .map((dir) => dir.trim())
+                .filter(Boolean),
+            path.join(os.homedir(), 'Desktop', 'dofus_assets'), // héritage dev (ignoré si absent)
+        ];
+        const godSubDir = assetType === 'items' ? 'items_2x' : assetType === 'monsters' ? 'monsters_2x' : assetType === 'spells' ? 'spells_2x' : '';
+
+        /** Fichier 2x local correspondant à un id, dans les racines configurées. */
+        const findGodFile = (id: string): string | null => {
+            // Un type sans dump Game data (succès/challenges) n'a rien à y chercher : « aucun dump »
+            // et « dump absent » se ressemblent, mais le premier est un fait, pas un échec.
+            if (!godSubDir) return null;
+            for (const root of godRoots) {
+                for (const candidate of [
+                    path.join(root, godSubDir, `${id}.png`),
+                    path.join(root, godSubDir, `${id}.webp`),
+                ]) {
+                    if (fs.existsSync(candidate)) return candidate;
+                }
+            }
+            return null;
+        };
+
+        // Mesure du 09/10/2026 : le dump Game data est indexe par l APPARENCE (gfxId pour un monstre,
+        // iconId pour un objet), JAMAIS par l id de l entite. Un lookup par safeId servait donc
+        // l image d une AUTRE entite (281/300 ids de monstres portent aussi un fichier de dump :
+        // celui d un autre monstre), figee 1 an dans le cache. Les dumps sont desormais lus APRES
+        // resolution de l apparence par l API, avec garde d identite (blocs OBJETS / MONSTRES).
+        const godFile: string | null = null;
+        if (godFile) {
+            try {
+                const rawBuffer = fs.readFileSync(godFile);
+                const webpBuffer = await sharp(rawBuffer)
+                    .webp({ quality: 80, effort: 2 })
+                    .toBuffer();
+                fs.writeFile(localFilePath, webpBuffer, () => {});
+                return new NextResponse(webpBuffer, {
+                    headers: {
+                        'Content-Type': 'image/webp',
+                        'Cache-Control': 'public, max-age=31536000, immutable',
+                    },
+                });
+            } catch {
+                // Fichier local illisible → on continue vers le siphonnage réseau
+            }
+        }
+
+        // 2. Sinon, on siphonne à la volée depuis la source (Auto Self-Healing)
+        // 🔒 `?url=` durci : hôte allowlisté + assertSafeUrl (DNS + IP privées) + HTTPS only.
+        const rawUrlParam = req.nextUrl.searchParams.get('url');
+        const safeUrlParam = getAllowedRemoteUrl(rawUrlParam);
+
+        // Si une URL est fournie et qu'on peut en extraire un id numérique, on tente le fichier « god » local
+        // ⚠️ Jamais pour un MONSTRE à id numérique : son apparence est résolue par l'API juste en
+        // dessous (autorité DofusDB). Ici le dump est indexé par le gfx contenu dans l'URL, donc une
+        // URL périmée (l'apparence d'un autre monstre) serait servie ET mise en cache 1 an.
+        if (safeUrlParam && !(assetType === 'monsters' && isNumericId)) {
+            const urlMatch = safeUrlParam.match(/\/(\d+)\.(png|webp|jpg)/i);
+            const altGodFile = urlMatch ? findGodFile(urlMatch[1]) : null;
+            if (altGodFile) {
+                try {
+                    const rawBuffer = fs.readFileSync(altGodFile);
+                    const webpBuffer = await sharp(rawBuffer)
+                        .webp({ quality: 80, effort: 2 })
+                        .toBuffer();
+                    fs.writeFile(localFilePath, webpBuffer, () => {});
+                    return new NextResponse(webpBuffer, {
+                        headers: {
+                            'Content-Type': 'image/webp',
+                            'Cache-Control': 'public, max-age=31536000, immutable',
+                        },
+                    });
+                } catch {}
+            }
+        }
+
+        // Guard : si l'ID n'est pas purement numérique (ex: CUID Prisma comme "cmrwd97k..."),
+        // on ne peut pas faire un lookup DofusDB fiable → on tente uniquement le ?url= fourni
+        // sinon on renvoie directement le placeholder pour éviter de retourner le mauvais monstre.
+        //
+        // 🐛 `img/{type}/{id}.png` n'est fiable NI pour un monstre NI pour un objet : le nombre y est
+        // une APPARENCE (gfxId / iconId), jamais l'id de l'entité — mesure du 09/10/2026, cf. blocs
+        // OBJETS / MONSTRES ci-dessous.
+        // Mesure du 27/09/2026 sur 300 monstres DofusDB : **100 % ont `gfxId ≠ id`**
+        // (Predagob 4834 → `img/monsters/1583.png` ; `img/monsters/4834.png` → **404**). Deviner
+        // l'apparence d'un monstre par son id servait donc l'image d'un AUTRE monstre (ou un 404),
+        // puis la figeait en cache. Les monstres sont désormais résolus par l'API (bloc MONSTRES).
+        const remoteUrl = safeUrlParam; // plus de devinette img/items/{id}.png : la cle DofusDB est l iconId, pas l id de l objet (cf. bloc OBJETS).
+
+        let downloaded = false;
+        let inputBuffer: Buffer | null = null;
+
+        // ── MONSTRES : DofusDB est la SEULE autorité de l'apparence ─────────────────────────
+        // L'apparence est indexée par le **gfxId**, jamais par l'id du monstre. Mesure du
+        // 27/09/2026 : 100 % des 300 monstres DofusDB testés ont `gfxId ≠ id` (Predagob 4834 →
+        // gfx 1583) et le dump local `monsters_2x/` est indexé par gfx lui aussi (281/300 des
+        // ids de monstres portent AUSSI un fichier de dump — celui d'un autre monstre).
+        // Ordre : API + garde d'identité → dump par **gfx** → `img` de l'API. Le résultat est
+        // mis en cache sous `{id}.webp` (notre clé d'affichage) = l'apparence DU BON monstre.
+        let monsterImageHandled = false;
+        if (isNumericId && assetType === 'monsters') {
+            monsterImageHandled = true;
+            try {
+                const monsterRes = await fetch(`https://api.dofusdb.fr/monsters/${safeId}`, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (monsterRes.ok) {
+                    const monsterData = await monsterRes.json();
+                    // 🛡️ Garde d'identité (même règle que les items) : DofusDB répond 200 avec un
+                    // monstre de repli quand l'id n'existe pas ⇒ jamais l'apparence d'un autre.
+                    if (Number(monsterData?.id) === Number(safeId)) {
+                        const gfxId = Math.floor(Number(monsterData?.gfxId) || 0);
+                        const dumpFile = gfxId > 0 ? findGodFile(String(gfxId)) : null;
+                        if (dumpFile) {
+                            inputBuffer = fs.readFileSync(dumpFile);
+                            downloaded = true;
+                        } else {
+                            const imgUrl = getAllowedRemoteUrl(monsterData?.img);
+                            if (imgUrl) {
+                                await assertSafeUrl(imgUrl);
+                                const imgRes = await fetch(imgUrl, {
+                                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                    signal: AbortSignal.timeout(6_000),
+                                });
+                                if (imgRes.ok) {
+                                    const contentType = imgRes.headers.get('content-type') || '';
+                                    if (contentType.startsWith('image/') || contentType.startsWith('application/octet-stream')) {
+                                        const arrayBuffer = await imgRes.arrayBuffer();
+                                        if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                                            inputBuffer = Buffer.from(arrayBuffer);
+                                            downloaded = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch {
+                // API/réseau indisponible → repli déclaré ci-dessous, puis placeholder neutre.
+            }
+
+            // Repli **déclaré** (`?url=` allowlisté) joué APRÈS l'autorité : une URL périmée
+            // (apparence d'un autre monstre) ne peut donc plus passer devant la fiche DofusDB.
+            if (!downloaded && safeUrlParam) {
+                try {
+                    await assertSafeUrl(safeUrlParam);
+                    const declared = await fetch(safeUrlParam, {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        signal: AbortSignal.timeout(6_000),
+                    });
+                    if (declared.ok) {
+                        const arrayBuffer = await declared.arrayBuffer();
+                        if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                        }
+                    }
+                } catch {
+                    // Repli déclaré indisponible → placeholder neutre plus bas.
+                }
+            }
+        }
+
+        // ── OBJETS : DofusDB est la SEULE autorité de l'icône
+        // img/items/{n}.png est indexe par l ICONID, jamais par l id de l objet (mesure du 09/10/2026 :
+        // item 11107 Bois de Tremble, iconId 38677, et img/items/11107.png repond 200 avec l icone d un
+        // AUTRE objet ; item 15990, iconId 3086, ou l id 3086 est un autre item). On resout donc
+        // iconId via l API avec GARDE D IDENTITE, puis le dump local par iconId, avant l URL officielle.
+        let itemIconHandled = false;
+        // ESpace d ICONE : on lit l icone demandee, sans jamais l interpreter comme un id d objet.
+        // Mesure du 09/10/2026 : « Bracelet du Piloztere » = objet 15190, iconId 9289 -> img/items/9289.png
+        // EST le bracelet ; mais l id 9289 existe AUSSI comme objet (un parchemin) : passer par l API
+        // servait donc l icone du parchemin.
+        if (isNumericId && iconNamespace) {
+            itemIconHandled = true;
+            try {
+                const iconRes = await fetch('https://api.dofusdb.fr/img/items/' + safeId + '.png', {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (iconRes.ok) {
+                    const contentType = iconRes.headers.get('content-type') || '';
+                    if (contentType.startsWith('image/') || contentType.startsWith('application/octet-stream')) {
+                        const arrayBuffer = await iconRes.arrayBuffer();
+                        if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                        }
+                    }
+                }
+            } catch {
+                // Icone indisponible : repli declare plus bas, sinon placeholder neutre.
+            }
+        }
+        if (isNumericId && assetType === 'items' && !iconNamespace) {
+            itemIconHandled = true;
+            try {
+                const itemRes = await fetch('https://api.dofusdb.fr/items/' + safeId, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (itemRes.ok) {
+                    const itemData = await itemRes.json();
+                    if (Number(itemData?.id) === Number(safeId)) {
+                        const iconId = Math.floor(Number(itemData?.iconId) || 0);
+                        const dumpFile = iconId > 0 ? findGodFile(String(iconId)) : null;
+                        if (dumpFile) {
+                            inputBuffer = fs.readFileSync(dumpFile);
+                            downloaded = true;
+                        } else if (iconId > 0) {
+                            const iconRes = await fetch('https://api.dofusdb.fr/img/items/' + iconId + '.png', {
+                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                signal: AbortSignal.timeout(6_000),
+                            });
+                            if (iconRes.ok) {
+                                const contentType = iconRes.headers.get('content-type') || '';
+                                if (contentType.startsWith('image/') || contentType.startsWith('application/octet-stream')) {
+                                    const arrayBuffer = await iconRes.arrayBuffer();
+                                    if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                                        inputBuffer = Buffer.from(arrayBuffer);
+                                        downloaded = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch {
+                // API indisponible : repli declare ci-dessous.
+            }
+
+            // Repli DECLARE (url= allowliste) joue APRES l autorite — meme regle que les monstres :
+            // une URL perimee (apparence d un autre objet) ne peut plus passer devant la fiche DofusDB.
+            if (!downloaded && safeUrlParam) {
+                try {
+                    await assertSafeUrl(safeUrlParam);
+                    const declared = await fetch(safeUrlParam, {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        signal: AbortSignal.timeout(6_000),
+                    });
+                    if (declared.ok) {
+                        const arrayBuffer = await declared.arrayBuffer();
+                        if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                        }
+                    }
+                } catch {
+                    // Repli declare indisponible : placeholder neutre plus bas.
+                }
+            }
+        }
+
+        // ── SORTS : DofusDB est la SEULE autorité de l'icône ────────────────────────────────
+        // L'icône réelle d'un sort est `img/spells/sort_{iconId}.png` (`iconId` ≠ id du sort ; il
+        // vaut **-1** quand le sort n'a PAS d'icône — mesuré le 22/09/2026 : `Ancrépulsion` 15144 →
+        // `iconId: -1`, `img: sort_0.png`). Or le CDN Dofensive renvoie une image **par défaut**
+        // pour tout id inconnu (1 066 octets pour `/spells/15144` COMME pour `/spells/45397`) : le
+        // `?url=` de nos payloads affichait donc une icône étrangère (« icône fausse »).
+        // Ici : pour les sorts, on IGNORE le `?url=`, on résout `iconId`, et sans icône réelle on
+        // sert NOTRE placeholder neutre — jamais l'image d'un autre sort.
+        let spellIconHandled = false;
+
+        // ① ESPACE D ICONE (`sort_<iconId>`) : la demande EST l icone (le nom est l identite), il n y
+        // a donc aucun id d entite a resoudre — DofusDB ne sert qu a fournir les octets. Le dump
+        // Game data est indexe par `iconId` LUI AUSSI : sa lecture est ici legitime (contrairement a
+        // l espace d entite, ou il servirait l image d une autre entite — cf. mesure du 09/10/2026).
+        if (spellIconId > 0) {
+            spellIconHandled = true;
+            const dumpFile = findGodFile(String(spellIconId));
+            if (dumpFile) {
+                try {
+                    inputBuffer = fs.readFileSync(dumpFile);
+                    downloaded = true;
+                } catch {
+                    // Dump illisible → resolution DofusDB ci-dessous.
+                }
+            }
+            if (!downloaded) {
+                for (const candidate of [
+                    `https://api.dofusdb.fr/img/spells/sort_${spellIconId}.png`,
+                    `https://api.dofusdb.fr/img/spells/${spellIconId}.png`,
+                ]) {
+                    try {
+                        const iconRes = await fetch(candidate, {
+                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                            signal: AbortSignal.timeout(6_000),
+                        });
+                        if (!iconRes.ok) continue;
+                        const contentType = iconRes.headers.get('content-type') || '';
+                        if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet-stream')) continue;
+                        const arrayBuffer = await iconRes.arrayBuffer();
+                        if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > MAX_IMAGE_BYTES) continue;
+                        inputBuffer = Buffer.from(arrayBuffer);
+                        downloaded = true;
+                        break;
+                    } catch {
+                        // Candidat suivant
+                    }
+                }
+            }
+        }
+
+        // ② ESPACE D'ICÔNE DES SUCCÈS (`challenges` / `achievements`) : DofusDB sert
+        // `img/challenges/{iconId}.png` et `img/achievements/{iconId}.png` — l'id demandé EST
+        // l'iconId (mesure du 11/10/2026 : `challenges?name.fr=Passer l'éponge` → id 979,
+        // iconId 977, `img/challenges/977.png` → 200). Même doctrine que `sort_<iconId>` : ce
+        // chemin remplace le local `/game-data/achievements/{slug}.png` qui rendait une **case
+        // noire** (404, `<img>` masqué) pour tout succès hors des 28 assets du dépôt.
+        let dbIconHandled = false;
+        if (isNumericId && (assetType === 'challenges' || assetType === 'achievements')) {
+            dbIconHandled = true;
+            try {
+                const iconRes = await fetch(`https://api.dofusdb.fr/img/${assetType}/${safeId}.png`, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (iconRes.ok) {
+                    const contentType = iconRes.headers.get('content-type') || '';
+                    if (contentType.startsWith('image/') || contentType.startsWith('application/octet-stream')) {
+                        const arrayBuffer = await iconRes.arrayBuffer();
+                        if (arrayBuffer.byteLength > 0 && arrayBuffer.byteLength <= MAX_IMAGE_BYTES) {
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                        }
+                    }
+                }
+            } catch {
+                // Icône indisponible → placeholder neutre plus bas (jamais de 404 rouge).
+            }
+        }
+
+        // ③ ESPACE D ENTITE (`<id de sort>`) : DofusDB fait autorite sur l iconId.
+        if (isNumericId && assetType === 'spells') {
+            spellIconHandled = true;
+            try {
+                const spellRes = await fetch(`https://api.dofusdb.fr/spells/${safeId}?lang=fr`, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (spellRes.ok) {
+                    const spellData = await spellRes.json();
+                    const directIcon = Number(spellData?.iconId);
+                    const fromImg = Number(String(spellData?.img ?? '').match(/sort_(\d+)\.png/)?.[1]);
+                    const iconId = Number.isFinite(directIcon) && directIcon > 0
+                        ? directIcon
+                        : (Number.isFinite(fromImg) && fromImg > 0 ? fromImg : null);
+                    const candidates = iconId
+                        ? [
+                            `https://api.dofusdb.fr/img/spells/sort_${iconId}.png`,
+                            `https://api.dofusdb.fr/img/spells/${iconId}.png`,
+                        ]
+                        : [];
+                    for (const candidate of candidates) {
+                        try {
+                            const iconRes = await fetch(candidate, {
+                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                signal: AbortSignal.timeout(6_000),
+                            });
+                            if (!iconRes.ok) continue;
+                            const contentType = iconRes.headers.get('content-type') || '';
+                            if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet-stream')) continue;
+                            const arrayBuffer = await iconRes.arrayBuffer();
+                            if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > MAX_IMAGE_BYTES) continue;
+                            inputBuffer = Buffer.from(arrayBuffer);
+                            downloaded = true;
+                            break;
+                        } catch {
+                            // Candidat suivant
+                        }
+                    }
+                }
+            } catch {
+                // Résolution d'icône impossible → placeholder neutre ci-dessous
+            }
+        }
+
+        // Tentative 1 : Téléchargement direct depuis remoteUrl (si disponible)
+        // (jamais pour les sorts : leur icône est résolue ci-dessus, cf. § SORTS ;
+        //  jamais pour les monstres : apparence résolue par l'API, cf. § MONSTRES.)
+        if (remoteUrl && !spellIconHandled && !monsterImageHandled && !itemIconHandled && !dbIconHandled) {
+            try {
+                // 🔒 SSRF : re-valide DNS/IP juste avant fetch (anti-rebinding), fail-closed.
+                await assertSafeUrl(remoteUrl);
+                const remoteRes = await fetch(remoteUrl, {
+                    headers: {
+                        Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                    },
+                    signal: AbortSignal.timeout(8_000),
+                });
+
+                if (remoteRes.ok) {
+                    const contentType = remoteRes.headers.get('content-type') || '';
+                    // 🔒 Rejette HTML/JS déguisés (fail-closed, évite XSS via image).
+                    if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet-stream')) {
+                        throw new Error('Contenu non-image rejeté');
+                    }
+                    const contentLength = Number(remoteRes.headers.get('content-length') || '0');
+                    if (contentLength > MAX_IMAGE_BYTES) {
+                        throw new Error('Image trop volumineuse');
+                    }
+                    const arrayBuffer = await remoteRes.arrayBuffer();
+                    if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
+                        throw new Error('Image trop volumineuse');
+                    }
+                    inputBuffer = Buffer.from(arrayBuffer);
+                    downloaded = true;
+                }
+            } catch {
+                // Échec première tentative
+            }
+        }
+
+        // Tentative 2 : Si c'est un item et que l'URL par défaut a échoué, résolution via l'API DofusDB (iconId)
+        if (!downloaded && isNumericId && assetType === 'items') {
+            try {
+                const itemRes = await fetch(`https://api.dofusdb.fr/items/${safeId}`, {
+                    headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    signal: AbortSignal.timeout(6_000),
+                });
+                if (itemRes.ok) {
+                    const itemData = await itemRes.json();
+                    // 🛡️ Garde d'identité : quand l'id n'existe pas, DofusDB répond quand même
+                    // HTTP 200 avec un item de repli (« Purée pique-fêle » id 666). Sans ce
+                    // contrôle, on servait l'icône d'un AUTRE item — cause du bug « mauvais
+                    // items » de la galerie (id interne Dofusbook ≠ id de jeu).
+                    if (Number(itemData?.id) === Number(safeId)) {
+                        const iconId = Number(itemData.iconId) || Number(itemData.id);
+                        if (iconId > 0) {
+                            const iconRes = await fetch(`https://api.dofusdb.fr/img/items/${iconId}.png`, {
+                                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                signal: AbortSignal.timeout(6_000),
+                            });
+                            if (iconRes.ok) {
+                                const arrayBuffer = await iconRes.arrayBuffer();
+                                inputBuffer = Buffer.from(arrayBuffer);
+                                downloaded = true;
+                            }
+                        }
+                    }
+                }
+            } catch {
+                // Échec résolution iconId
+            }
+        }
+
+        if (downloaded && inputBuffer) {
+            try {
+                // Compression WebP via Sharp (quality 80, effort 2 pour vitesse et basse conso RAM)
+                const webpBuffer = await sharp(inputBuffer)
+                    .webp({ quality: 80, effort: 2 })
+                    .toBuffer();
+
+                // Sauvegarde asynchrone sur disque pour les prochaines requêtes
+                fs.writeFile(localFilePath, webpBuffer, () => {});
+
+                return new NextResponse(webpBuffer, {
+                    headers: {
+                        'Content-Type': 'image/webp',
+                        'Cache-Control': 'public, max-age=31536000, immutable',
+                    },
+                });
+            } catch {
+                // Erreur Sharp
+            }
+        }
+
+        // 3. Fallback PNG neutre (1×1 transparent) pour éviter tout 404 rouge.
+        // Correctif 10/10/2026 — **jamais de SVG ici** : le précédent placeholder
+        // `image/svg+xml` s'affiche dans un navigateur mais **Discord ne sait pas
+        // le rendre dans un embed** (symptôme mesuré : l'image de l'embed « tente
+        // de se générer puis rien », ex. Muldo sans jet). Un PNG est affichable
+        // partout (navigateur + Discord + carte OG).
+        // ⚠️ `no-store` OBLIGATOIRE : sinon un échec TRANSITOIRE de siphonnage est figé
+        // 24 h dans le cache du navigateur → l'utilisateur voit des icônes manquantes
+        // (placeholder « lien cassé ») alors que la source est de nouveau disponible.
+        return placeholderResponse();
+    } catch {
+        return new NextResponse('Erreur serveur', { status: 500 });
+    }
+}

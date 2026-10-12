@@ -169,8 +169,11 @@ export async function editBlacklistEntry(guildId: string, entryId: string, conte
 
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        const entry = await db.blacklistEntry.findUnique({
-            where: { id: entryId }
+        // Isolation de guilde (F3, 20/09/2026) : la cible est cherchée **avec** la
+        // guilde résolue côté serveur — un admin de la guilde A ne peut donc pas viser
+        // une entrée de la guilde B en connaissant son cuid (`AGENTS.md` §5.2).
+        const entry = await db.blacklistEntry.findFirst({
+            where: { id: entryId, guildId: guild.id }
         });
 
         if (!entry) return { success: false, error: "Entrée introuvable" };
@@ -190,10 +193,15 @@ export async function editBlacklistEntry(guildId: string, entryId: string, conte
             }
         }
 
-        await db.blacklistEntry.update({
-            where: { id: entryId },
+        // Garde d'état dans le `WHERE` (`AGENTS.md` §5.9) : la condition porte **aussi**
+        // la guilde, donc une entrée déplacée/disparue entre la lecture et l'écriture
+        // n'est jamais touchée — `count === 0` vaut « introuvable », pas une écriture à côté.
+        const { count } = await db.blacklistEntry.updateMany({
+            where: { id: entryId, guildId: guild.id },
             data: { content: content.trim() }
         });
+
+        if (count === 0) return { success: false, error: "Entrée introuvable" };
 
         return { success: true };
     } catch (error) {

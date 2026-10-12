@@ -33,6 +33,8 @@ interface AdminCardProps {
     warningBadge?: string;
     /** Identifiant stable pour le tour admin (data-tour). */
     tourId?: string;
+    /** Official Dofus 2x UI asset path (e.g. /assets/dofus/modules/guild.png) */
+    dofusAsset?: string;
 }
 
 const ICONS: Record<string, LucideIcon> = {
@@ -71,6 +73,7 @@ export function AdminCard({
     initialPinned,
     warningBadge,
     tourId,
+    dofusAsset,
 }: AdminCardProps) {
     const [isPinned, setIsPinned] = useState(initialPinned);
     const [isPending, startTransition] = useTransition();
@@ -140,7 +143,16 @@ export function AdminCard({
                             a.bg,
                             a.border
                         )}>
-                            <Icon className={cn("w-7 h-7", a.text)} strokeWidth={1.5} />
+                            {dofusAsset ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={dofusAsset}
+                                    alt={title}
+                                    className="w-8 h-8 object-contain"
+                                />
+                            ) : (
+                                <Icon className={cn("w-7 h-7", a.text)} strokeWidth={1.5} />
+                            )}
                         </div>
                     </div>
 

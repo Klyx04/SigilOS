@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
 import { checkExternalLinks, createSystemAuditLog } from "@/lib/dofensive-sync";
+import { recordCronExecution } from "@/lib/cron-telemetry";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 
 /**
@@ -18,6 +19,7 @@ export async function GET(req: Request) {
     }
 
     try {
+        const startedAt = Date.now();
         const dungeonsRes = await getDungeonsWithAchievements();
         if (!dungeonsRes.success || !Array.isArray(dungeonsRes.data)) {
             return NextResponse.json({ error: "Impossible de récupérer les donjons" }, { status: 500 });
@@ -59,9 +61,21 @@ export async function GET(req: Request) {
             brokenByDomain,
         });
 
+        await recordCronExecution("check_links", {
+            success: true,
+            durationMs: Date.now() - startedAt,
+            summary: `${results.length} liens vérifiés, ${broken.length} cassés`,
+            details: { total: results.length, broken: broken.length, brokenByDomain },
+        });
+
         return NextResponse.json({ success: true, total: results.length, broken, brokenByDomain });
     } catch (error: any) {
         logger.error("[Cron:CheckLinks] Erreur:", { error: String(error) });
+        await recordCronExecution("check_links", {
+            success: false,
+            summary: "Échec de la vérification des liens",
+            details: { error: String(error) },
+        });
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }

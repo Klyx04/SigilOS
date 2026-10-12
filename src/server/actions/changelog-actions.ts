@@ -16,18 +16,43 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { ChangelogCategory } from '@prisma/client';
 import { getAppBaseUrl } from '@/lib/utils';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/types';
+import { getServerLocale } from '@/lib/i18n/server';
 
 // ---------------------------------------------------------------------------
 // Validation schemas
 // ---------------------------------------------------------------------------
 
+/**
+ * Texte EN facultatif : une chaîne vide (ou uniquement des espaces) devient
+ * `null` ⇒ l'affichage retombe sur le FR (jamais de release vide en anglais).
+ */
+const optionalEnText = (max: number) =>
+    z.preprocess(
+        (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+        z.string().max(max).trim().nullish()
+    );
+
 const ChangelogSchema = z.object({
     version: z.string().min(1).max(32).trim(),
     title: z.string().min(1).max(120).trim(),
-    summary: z.string().min(1).max(500).trim(),
-    content: z.string().min(1).max(20000).trim(),
+    // Le résumé est saisi via l'éditeur riche (HTML) : le plafond porte sur le
+    // TEXTE (500), pas sur le markup. Sans ça, quelques mots en gras suffisent
+    // à déclencher « at most 500 character(s) ».
+    summary: z.string().min(1).max(5000).trim().refine(
+        (s) => {
+            const text = s.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+            return text.length >= 1 && text.length <= 500;
+        },
+        { message: "Résumé : 500 caractères max (texte seul, sans la mise en forme)" }
+    ),
+    content: z.string().min(1).max(100000).trim(),
     category: z.nativeEnum(ChangelogCategory),
     isInternal: z.boolean().optional().default(false),
+    // Traductions EN (facultatives) — repli FR à l'affichage si absentes.
+    titleEn: optionalEnText(120),
+    summaryEn: optionalEnText(5000),
+    contentEn: optionalEnText(100000),
 });
 
 const ChangelogUpdateSchema = ChangelogSchema.partial();
@@ -139,10 +164,39 @@ export async function deleteChangelogEntry(id: string) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Repli FR : une traduction EN absente (NULL en base) ne doit jamais faire
+ * disparaître la release — on retombe sur le texte source.
+ */
+function localizeChangelogEntry<
+    T extends {
+        title: string;
+        summary: string | null;
+        content: string;
+        titleEn: string | null;
+        summaryEn: string | null;
+        contentEn: string | null;
+    },
+>(entry: T, locale: Locale): T {
+    if (locale === DEFAULT_LOCALE) return entry;
+
+    return {
+        ...entry,
+        title: entry.titleEn?.trim() || entry.title,
+        summary: entry.summaryEn?.trim() || entry.summary,
+        content: entry.contentEn?.trim() || entry.content,
+    };
+}
+
+/**
  * Get all changelog entries (public access)
  * Optional category filter
+ * `locale` : sélectionne les traductions EN quand elles existent (repli FR).
  */
-export async function getChangelogEntries(category?: ChangelogCategory, onlyPublic: boolean = false) {
+export async function getChangelogEntries(
+    category?: ChangelogCategory,
+    onlyPublic: boolean = false,
+    locale: Locale = DEFAULT_LOCALE
+) {
     try {
         const where: Record<string, unknown> = {};
         if (category) where.category = category;
@@ -153,10 +207,10 @@ export async function getChangelogEntries(category?: ChangelogCategory, onlyPubl
             orderBy: { publishedAt: 'desc' }
         });
 
-        return entries.map(e => ({
+        return entries.map(e => localizeChangelogEntry({
             ...e,
             publishedAt: e.publishedAt.toISOString()
-        }));
+        }, locale));
     } catch (error) {
         logger.error('[Changelog] Fetch error:', error);
         return [];
@@ -186,8 +240,9 @@ export async function getChangelogEntry(id: string) {
 
 /**
  * Get the latest published changelog entry
+ * `locale` : sélectionne les traductions EN quand elles existent (repli FR).
  */
-export async function getLatestChangelogEntry() {
+export async function getLatestChangelogEntry(locale: Locale = DEFAULT_LOCALE) {
     try {
         const entry = await db.changelogEntry.findFirst({
             // 🔒 Les entrées INTERNES (brouillons/notes God) ne doivent JAMAIS
@@ -198,10 +253,10 @@ export async function getLatestChangelogEntry() {
 
         if (!entry) return null;
 
-        return {
+        return localizeChangelogEntry({
             ...entry,
             publishedAt: entry.publishedAt.toISOString()
-        };
+        }, locale);
     } catch (error) {
         logger.error('[Changelog] Fetch latest error:', error);
         return null;
@@ -225,7 +280,7 @@ export async function checkChangelogVisibility(): Promise<{
                 where: { id: session.user.id },
                 select: { lastSeenChangelogId: true }
             }),
-            getLatestChangelogEntry()
+            getLatestChangelogEntry(await getServerLocale())
         ]);
 
         if (!latest) return { show: false };
@@ -294,6 +349,7 @@ export async function updatePlatformConfig(data: {
     statusMode?: string,
     statusMention?: string,
     statusFrequency?: number,
+    kofiChannelId?: string,
     nsfwFilterEnabled?: boolean,
     donationsEnabled?: boolean,
     questFeedbackChannelId?: string,
@@ -303,7 +359,9 @@ export async function updatePlatformConfig(data: {
     // Chantier #72 — toggle God « Membres Spécifiques » (permissions RBAC individuelles)
     rbacUsersMappingEnabled?: boolean,
     // Chantier #16 — toggle God « Forcer le mode sombre » (kill-switch fail-closed)
-    forceDarkMode?: boolean
+    forceDarkMode?: boolean,
+    // Refonte onboarding — kill-switch God « Auto-onboarding » (nouvelles guildes)
+    autoOnboardingEnabled?: boolean
 }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
@@ -330,6 +388,11 @@ export async function updatePlatformConfig(data: {
         return { success: false, error: "Valeur invalide pour forceDarkMode (booléen requis)" };
     }
 
+    // Refonte onboarding — le kill-switch « Auto-onboarding » est un booléen strict (fail-closed).
+    if (data.autoOnboardingEnabled !== undefined && typeof data.autoOnboardingEnabled !== "boolean") {
+        return { success: false, error: "Valeur invalide pour autoOnboardingEnabled (booléen requis)" };
+    }
+
     try {
         const config = await (db.platformConfig as any).upsert({
             where: { id: "singleton" },
@@ -345,6 +408,7 @@ export async function updatePlatformConfig(data: {
                 ...(data.statusMode !== undefined && { statusMode: data.statusMode }),
                 ...(data.statusMention !== undefined && { statusMention: data.statusMention }),
                 ...(data.statusFrequency !== undefined && { statusFrequency: data.statusFrequency }),
+                ...(data.kofiChannelId !== undefined && { kofiChannelId: data.kofiChannelId || null }),
                 ...(data.nsfwFilterEnabled !== undefined && { nsfwFilterEnabled: data.nsfwFilterEnabled }),
                 ...(data.donationsEnabled !== undefined && { donationsEnabled: data.donationsEnabled }),
                 ...(data.questFeedbackChannelId !== undefined && { questFeedbackChannelId: data.questFeedbackChannelId || null }),
@@ -371,6 +435,10 @@ export async function updatePlatformConfig(data: {
                     forceDarkMode: data.forceDarkMode,
                     forceDarkModeUpdatedAt: new Date(),
                     forceDarkModeUpdatedBy: actorId,
+                }),
+                // Refonte onboarding — kill-switch « Auto-onboarding » (nouvelles guildes)
+                ...(data.autoOnboardingEnabled !== undefined && {
+                    autoOnboardingEnabled: data.autoOnboardingEnabled,
                 })
             },
             create: { 
@@ -386,13 +454,15 @@ export async function updatePlatformConfig(data: {
                 statusMode: data.statusMode || "living",
                 statusMention: data.statusMention || "none",
                 statusFrequency: data.statusFrequency || 15,
+                kofiChannelId: data.kofiChannelId || null,
                 nsfwFilterEnabled: data.nsfwFilterEnabled !== undefined ? data.nsfwFilterEnabled : true,
                 donationsEnabled: data.donationsEnabled !== undefined ? data.donationsEnabled : true,
                 questFeedbackChannelId: data.questFeedbackChannelId || null,
                 ladderManualFallback: data.ladderManualFallback ?? false,
                 dofusQuestHeaderIcon: data.dofusQuestHeaderIcon ?? "serie-de-quete",
                 rbacUsersMappingEnabled: data.rbacUsersMappingEnabled ?? true,
-                forceDarkMode: data.forceDarkMode ?? false
+                forceDarkMode: data.forceDarkMode ?? false,
+                autoOnboardingEnabled: data.autoOnboardingEnabled ?? true
             }
         });
 
@@ -418,7 +488,6 @@ export async function updatePlatformConfig(data: {
 
         revalidatePath('/');
         revalidatePath('/god');
-        revalidatePath('/god/roadmap');
         revalidatePath('/maintenance');
         return { success: true, config };
     } catch (e) {
@@ -472,10 +541,22 @@ export async function testStatusPing(channelId?: string) {
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
     try {
+        // Un TEST est un geste EXPLICITE de l'opérateur : il doit être TENTÉ pour de vrai,
+        // même si le disjoncteur a mis le salon en pause d'écriture — sinon le bouton ment
+        // (mesure du 26/09/2026 : « envoyé avec succès » alors qu'aucun message n'existait).
+        // On lève donc la pause, puis on rapporte le résultat RÉEL.
+        const { clearDiscordChannelBlock } = await import("@/lib/discord-channel-health");
+        if (channelId) await clearDiscordChannelBlock(channelId);
+
         const { sendGlobalStatusPing } = await import("./status-actions");
         // Force the mode to 'notification' so it bypasses the "Living Status" edit check
         // This ensures the test ALWAYS pushes a notification that the admin can see at the bottom
-        return await sendGlobalStatusPing(true, 'notification', undefined, channelId);
+        const res = await sendGlobalStatusPing(true, 'notification', undefined, channelId);
+
+        if (res.success && res.delivered === false) {
+            return { success: false, error: res.warning ?? "Aucun message Discord envoyé." };
+        }
+        return res;
     } catch (e: any) {
         logger.error('[testStatusPing]', e);
         return { success: false, error: e.message || "Erreur interne" };
@@ -487,8 +568,14 @@ export async function testBackupNotification(channelId?: string) {
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
     try {
+        // Idem « Test Ping » : un geste explicite de l'opérateur doit être TENTÉ pour de
+        // vrai (on lève la pause d'écriture) et on rapporte ce qui s'est réellement passé,
+        // au lieu d'annoncer un succès pour un message qui n'existe pas.
+        const { clearDiscordChannelBlock } = await import("@/lib/discord-channel-health");
+        if (channelId) await clearDiscordChannelBlock(channelId);
+
         const { notifyGod } = await import("./god-notif-actions");
-        return await notifyGod({
+        const res = await notifyGod({
             title: "Sauvegarde Système (TEST)",
             message: "Ceci est une notification de test pour vérifier le bon fonctionnement du flux R2 / Cloudflare.",
             type: "SYSTEM",
@@ -501,12 +588,43 @@ export async function testBackupNotification(channelId?: string) {
                 mode: "MANUAL_TEST"
             }
         });
+
+        if (res.success && res.discordMessageId === null) {
+            return {
+                success: false,
+                error: "Aucun message Discord envoyé (salon en pause d'écriture ou bot sans accès). L'alerte reste visible dans la console God.",
+            };
+        }
+        return res;
     } catch (e: any) {
         logger.error('[testBackupNotification]', e);
         return { success: false, error: e.message || "Erreur interne" };
     }
 }
 
+/**
+ * Envoie un event test vers Sentry (diagnostic observabilité).
+ * Prouve que le DSN est actif : l'event doit apparaître dans
+ * sentry.io → Issues en quelques secondes. Super-admin only.
+ */
+export async function sendSentryTestEvent() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    if (!process.env.SENTRY_DSN) {
+        return { success: false, error: 'SENTRY_DSN absent — pose-le dans .env.beta/.env.prod puis redéploie' };
+    }
+
+    try {
+        const Sentry = await import("@sentry/nextjs");
+        Sentry.captureMessage("SigilOS — event test God (diagnostic Sentry)", "info");
+        await Sentry.flush(3000);
+        return { success: true, error: undefined };
+    } catch (e: any) {
+        logger.error('[sendSentryTestEvent]', e);
+        return { success: false, error: e.message || "Erreur interne" };
+    }
+}
 const CATEGORY_EMOJI: Record<string, string> = {
     FEATURE: '✨', BUGFIX: '🐛', SECURITY: '🔒', PERFORMANCE: '⚡', DOCUMENTATION: '📄'
 };

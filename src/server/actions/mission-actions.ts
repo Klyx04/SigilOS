@@ -325,7 +325,7 @@ export async function createWeekMissions(
         return { success: true };
     } catch (error) {
         logger.error("Create Missions Error", { error, guildId: data.guildId, weekNumber: data.weekNumber, year: data.year });
-        return { success: false, error: "Database transaction failed: " + (error instanceof Error ? error.message : "Unknown") };
+        return { success: false, error: "Une erreur est survenue lors de la création des missions. Réessaie." };
     }
 }
 
@@ -647,7 +647,7 @@ export async function getWeekMissions(
         return { success: true, data: safeData };
     } catch (error) {
         logger.error("Fetch Missions Error", { error, guildId, weekNumber, year });
-        return { success: false, error: "Failed to fetch missions: " + (error instanceof Error ? error.message : String(error)) };
+        return { success: false, error: "Impossible de récupérer les missions. Réessaie." };
     }
 }
 
@@ -1063,13 +1063,16 @@ export async function validateSubmission(
                 // @ts-ignore
                 const points = rankPointsMap[submission.mission.rank] || 5;
 
-                // Bulk update helpers
+                // 🔒 Scopé guilde (fail-closed) : n'incrémente que les helpers de la guilde source.
                 await db.userProfile.updateMany({
-                    where: { id: { in: updatedSubmission.helpers.map(h => h.id) } },
+                    where: { id: { in: updatedSubmission.helpers.map(h => h.id) }, guildId: submission.mission.guildId },
                     data: { contributionPoints: { increment: points } }
                 });
             }
         }
+
+        // 🔒 Source de vérité = guilde de la submission, pas le param client (anti cross-guilde).
+        const truthGuildDiscordId = submission.mission.guild.discordGuildId;
 
         // 4. Notify User
         if (updatedSubmission.profile.userId) {
@@ -1082,20 +1085,20 @@ export async function validateSubmission(
                 `[Mission] ${submission.mission.title}`,
                 `Votre preuve a été ${resultMsg}`,
                 undefined,
-                discordGuildId
+                truthGuildDiscordId
             );
         }
 
 
-        revalidatePath(`/dashboard/${discordGuildId}/missions`);
-        revalidatePath(`/dashboard/${discordGuildId}/ladder`);
+        revalidatePath(`/dashboard/${truthGuildDiscordId}/missions`);
+        revalidatePath(`/dashboard/${truthGuildDiscordId}/ladder`);
 
         // Invalidate Cache
-        await invalidateCache(`missions:${discordGuildId}:${submission.mission.year}:${submission.mission.weekNumber}`);
+        await invalidateCache(`missions:${truthGuildDiscordId}:${submission.mission.year}:${submission.mission.weekNumber}`);
 
         // Audit log (Verbose)
         await logAction({
-            guildId: discordGuildId,
+            guildId: truthGuildDiscordId,
             action: status === "VALIDATED" ? "MISSION_VALIDATED" : "MISSION_REJECTED",
             targetType: "MISSION",
             targetId: submissionId,
@@ -1113,7 +1116,7 @@ export async function validateSubmission(
         });
 
         // 🔥 Real-time Discord Update
-        await refreshMissionDiscordEmbed(discordGuildId);
+        await refreshMissionDiscordEmbed(truthGuildDiscordId);
 
         return { success: true };
     } catch (error) {
@@ -1642,11 +1645,13 @@ export async function publishMissionsToDiscord(
             return { success: false, error: "L'API Discord n'a pas pu envoyer le message." };
         }
 
-        // Store the message ID for real-time updates
-        await db.guildConfig.update({
-            where: { id: guild.id },
-            data: { missionDiscordMessageId: `${guild.missionNotifyChannelId}:${messageId}` }
-        });
+        // Store the message ID for real-time updates (only if real snowflake)
+        if (!messageId.startsWith("outbox:")) {
+            await db.guildConfig.update({
+                where: { id: guild.id },
+                data: { missionDiscordMessageId: `${guild.missionNotifyChannelId}:${messageId}` }
+            });
+        }
 
         // Audit log
         await logAction({

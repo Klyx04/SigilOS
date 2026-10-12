@@ -85,7 +85,7 @@ export function MemberSelector({
                             <>
                                 <Avatar className="h-5 w-5">
                                     <AvatarImage src={selectedMember.avatar || undefined} />
-                                    <AvatarFallback className="text-caption bg-info/20 text-info">
+                                    <AvatarFallback className="text-caption bg-surface text-foreground">
                                         {(selectedMember.name || "??").substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
@@ -122,13 +122,13 @@ export function MemberSelector({
                                 !/[<>"'&]/.test(inputValue) ? (
                                     <button
                                         type="button"
-                                        className="w-full text-left p-3 rounded-xl hover:bg-surface text-info flex items-center gap-3 transition-colors border border-dashed border-info/20"
+                                        className="w-full text-left p-3 rounded-xl hover:bg-surface text-foreground flex items-center gap-3 transition-colors border border-dashed border-border-strong"
                                         onClick={(e) => {
                                             e.preventDefault();
                                             handleCustomInput();
                                         }}
                                     >
-                                        <div className="w-8 h-8 rounded-full bg-info/10 flex items-center justify-center">
+                                        <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center">
                                             <User className="h-4 w-4" />
                                         </div>
                                         <div className="flex flex-col">
@@ -161,7 +161,7 @@ export function MemberSelector({
                                     >
                                         <Avatar className="h-6 w-6">
                                             <AvatarImage src={member.avatar || undefined} />
-                                            <AvatarFallback className="text-caption bg-info/20 text-info">
+                                            <AvatarFallback className="text-caption bg-surface text-foreground">
                                                 {(member.name || "??").substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>

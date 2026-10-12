@@ -8,7 +8,6 @@ import {
     ChevronRight,
     Menu,
     Home,
-    Rocket,
     Shield,
     MessageSquare
 } from "lucide-react";
@@ -80,7 +79,6 @@ interface TopNavProps {
     userId: string;
     events?: UpcomingEvent[];
     eventsPromise?: Promise<UpcomingEvent[]>;
-    roadmapEnabled?: boolean;
 }
 
 function DeferredEventChip({ eventsPromise, guildId, canViewCalendar }: {
@@ -92,7 +90,7 @@ function DeferredEventChip({ eventsPromise, guildId, canViewCalendar }: {
     return <HeaderEventChip events={events} guildId={guildId} canViewCalendar={canViewCalendar} />;
 }
 
-export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadmapEnabled = false }: TopNavProps) {
+export function TopNav({ sidebarProps, userId, events = [], eventsPromise }: TopNavProps) {
     const pathname = usePathname();
     const segments = pathname.split("/").filter(Boolean);
     // segments: ["dashboard", "guildId", "module", "subpage", ...]
@@ -102,7 +100,12 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
     const [roomCount, setRoomCount] = useState(0);
 
     return (
-        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-colors duration-150">
+        // Fond OPAQUE volontaire (pas de backdrop-blur) : le header contient des
+        // animations infinies (animate-ping des pastilles live/événements) et surplombe
+        // des surfaces GPU lourdes (worldmap Leaflet). Chaque frame du ping forcerait
+        // sinon un recalcul du flou → clignotement du header sur Chromium/Opera GX
+        // (aggravé par le limiteur RAM/VRAM de GX). bg-background uni = coût nul.
+        <header className="sticky top-0 z-40 bg-background border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-colors duration-150">
 
             {/* LEFT: Mobile Trigger & Clear Readable Breadcrumbs */}
             <div className="flex items-center gap-4 shrink-0">
@@ -185,7 +188,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                     />
                 )}
 
-                <div className="flex items-center h-9 border border-border rounded-xl bg-muted/50 dark:bg-foreground/[0.03] backdrop-blur-xl shrink-0 overflow-hidden">
+                <div className="flex items-center h-9 border border-border rounded-xl bg-muted/50 dark:bg-foreground/[0.03] backdrop-blur-xl shrink-0">
                     {/* 1. Smart Bar (Hidden on Mobile) */}
                     <div className="hidden sm:block border-r border-border">
                         <SmartBar
@@ -196,27 +199,21 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                     </div>
 
                     {/* Interactive Tools */}
-                    <div className="flex items-center px-1">
-                        {roadmapEnabled && (
-                            <Link href="/roadmap" className="p-2.5 text-muted-foreground hover:text-success transition-colors" title="Roadmap">
-                                <Rocket className="w-4 h-4" />
-                            </Link>
-                        )}
-
+                    <div className="flex items-center px-1 gap-0.5">
                         {sidebarProps.user.isAdmin && (
-                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="p-2.5 text-muted-foreground hover:text-success transition-colors" title="RBAC / Permissions">
+                            <Link href={`/dashboard/${sidebarProps.guildId}/admin/permissions`} className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-success hover:bg-foreground/5 transition-colors" title="RBAC / Permissions">
                                 <Shield className="w-4 h-4" />
                             </Link>
                         )}
-                        <div className="w-px h-4 bg-border/40 mx-1" />
+                        <div className="w-px h-4 bg-border/40 mx-0.5" />
                         <FeedBell
                             guildId={sidebarProps.guildId}
-                            className="h-9 w-9 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-xl transition-all"
+                            className="h-8 w-8 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-lg transition-all"
                         />
                         <NotificationBell
                             userId={userId}
                             guildId={sidebarProps.guildId}
-                            className="h-9 w-9 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-xl transition-all"
+                            className="h-8 w-8 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-lg transition-all"
                         />
                     </div>
 

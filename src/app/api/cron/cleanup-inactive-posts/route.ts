@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { processInactivePostsRemindersAndAutoClose } from '@/server/actions/inactive-posts-actions';
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from '@/lib/logger';
+import { recordCronExecution } from "@/lib/cron-telemetry";
 
 /**
  * 🔒 CRON: Relance et nettoyage des posts DJ / Quêtes / Songes inactifs (#107)
@@ -16,6 +17,7 @@ export async function GET(req: Request) {
     }
 
     try {
+        const startedAt = Date.now();
         const result = await processInactivePostsRemindersAndAutoClose();
 
         if (!result.success) {
@@ -24,6 +26,13 @@ export async function GET(req: Request) {
 
         logger.info("[CRON Inactive Posts] Traitement terminé avec succès", result);
 
+        await recordCronExecution("cleanup_inactive_posts", {
+            success: true,
+            durationMs: Date.now() - startedAt,
+            summary: `${result.djRemindersSent} rappels DJ, ${result.djPostsClosed} posts DJ clos, ${result.songesRemindersSent} rappels Songes, ${result.songesRunsClosed} runs Songes clos.`,
+            details: result,
+        });
+
         return NextResponse.json({
             success: true,
             data: result,
@@ -31,6 +40,11 @@ export async function GET(req: Request) {
         });
     } catch (e: any) {
         logger.error('[CRON Inactive Posts] Exception:', { error: e.message });
+        await recordCronExecution("cleanup_inactive_posts", {
+            success: false,
+            summary: "Échec de la relance des posts inactifs",
+            details: { error: e.message || "Erreur inconnue" },
+        });
         return NextResponse.json({ error: e.message || 'Internal Server Error' }, { status: 500 });
     }
 }

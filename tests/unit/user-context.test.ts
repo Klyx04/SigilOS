@@ -39,7 +39,7 @@ vi.mock("@/lib/prisma", () => ({
         guildConfig: { findFirst: vi.fn() },
         account: { findFirst: vi.fn() },
         platformBan: { findUnique: vi.fn() },
-        guildMemberBan: { findUnique: vi.fn().mockResolvedValue(null) },
+        guildMemberBan: { findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue(null) },
         platformConfig: { findUnique: vi.fn() },
     },
 }));
@@ -54,11 +54,16 @@ vi.mock("@/server/discord", () => ({
     fetchGuildRoles: vi.fn().mockResolvedValue([]),
     fetchGuild: vi.fn().mockResolvedValue(null),
     fetchGuildMember: vi.fn().mockResolvedValue(null),
+    fetchGuildExists: vi.fn().mockResolvedValue(true),
     invalidateDiscordCache: vi.fn(),
 }));
 vi.mock("@/server/actions/super-admin-actions", () => ({
     isSuperAdmin: vi.fn().mockResolvedValue(false),
     isGuildAllowed: vi.fn().mockResolvedValue(true),
+    // `internalCheckPermission` (chemins bot /dj /songes /missions) appelle ce
+    // garde AVANT de lire le cache config : sans mock, l'appel levait et la
+    // lecture n'avait jamais lieu (voir BLOC « cache config partagé »).
+    isDiscordSuperAdmin: vi.fn().mockResolvedValue(false),
 }));
 vi.mock("@/lib/logger", () => ({
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -86,11 +91,12 @@ import {
     fetchGuildMember,
     fetchGuild,
     fetchGuildRoles,
+    fetchGuildExists,
     invalidateDiscordCache,
 } from "@/server/discord";
 import { redis } from "@/lib/redis";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
-import { validateGuildOwnership, getUserContext, revalidateUserContext } from "@/server/actions/user-actions";
+import { validateGuildOwnership, getUserContext, revalidateUserContext, invalidateUserContextCache, internalCheckPermission } from "@/server/actions/user-actions";
 import { invalidateRbacUsersMappingCache } from "@/lib/platform-rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -101,6 +107,7 @@ const mockDb = db as any;
 const mockFetchMember = fetchGuildMember as ReturnType<typeof vi.fn>;
 const mockFetchGuild = fetchGuild as ReturnType<typeof vi.fn>;
 const mockFetchRoles = fetchGuildRoles as ReturnType<typeof vi.fn>;
+const mockFetchGuildExists = fetchGuildExists as ReturnType<typeof vi.fn>;
 const mockIsSuperAdmin = isSuperAdmin as ReturnType<typeof vi.fn>;
 const mockIsGuildAllowed = isGuildAllowed as ReturnType<typeof vi.fn>;
 
@@ -111,6 +118,9 @@ function makeGuildConfig(overrides: Record<string, any> = {}) {
         discordGuildId: "111111111111111111",
         name: "Guilde Test",
         dofusServerId: "1",
+        isActive: true,
+        deletedAt: null,
+        missionVitrineMode: false,
         rolesMapping: {},
         usersMapping: {},
         welcomeEnabled: false,
@@ -346,8 +356,7 @@ describe("getUserContext — user absent de la guilde Discord", () => {
         expect(ctx.isAuthenticated).toBe(true);
     });
 
-    it("retourne canViewDashboard: false si l'user n'a pas le rôle DASHBOARD_LOGIN", async () => {
-        // Membre Discord avec un rôle qui n'a PAS DASHBOARD_LOGIN
+    it("retourne canViewDashboard: false si l'user n'a pas le rôle DASHBOARD_LOGIN", async () => {        // Membre Discord avec un rôle qui n'a PAS DASHBOARD_LOGIN
         mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-sans-perms"] }));
         mockFetchRoles.mockResolvedValue([
             { id: "role-sans-perms", permissions: "0", name: "Visiteur" },
@@ -364,6 +373,61 @@ describe("getUserContext — user absent de la guilde Discord", () => {
         const ctx = await getUserContext("111111111111111111");
 
         expect(ctx.canViewDashboard).toBe(false);
+    });
+});
+
+// ─────────────────────────────────────────────────────────────
+// BLOC 4bis — getUserContext : serveur Discord supprimé (vérification fraîche)
+// ─────────────────────────────────────────────────────────────
+
+describe("getUserContext — serveur Discord supprimé", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.advanceTimersByTime(120_000);
+        mockIsGuildAllowed.mockResolvedValue(true);
+        mockIsSuperAdmin.mockResolvedValue(false);
+        mockDb.guildConfig.findFirst.mockResolvedValue(makeGuildConfig());
+        mockDb.platformBan.findUnique.mockResolvedValue(null);
+        mockDb.userProfile.findUnique.mockResolvedValue(makeProfile());
+        mockFetchRoles.mockResolvedValue([]);
+        mockAuth.mockResolvedValue({
+            user: { id: "user-1", discordId: "discord-user-1", name: "Test" },
+        });
+    });
+
+    it("retourne isServerDeleted quand membre et guilde sont introuvables (404 frais)", async () => {
+        mockFetchMember.mockResolvedValue(null);
+        mockFetchGuild.mockResolvedValue(null);
+        mockFetchGuildExists.mockResolvedValue(false);
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect((ctx as any).isServerDeleted).toBe(true);
+        expect(ctx.isMember).toBe(false);
+        expect(mockFetchGuildExists).toHaveBeenCalledWith("111111111111111111");
+    });
+
+    it("retombe sur archivé (bloquant aussi) si Discord est injoignable — jamais de faux 'supprimé'", async () => {
+        mockFetchMember.mockResolvedValue(null);
+        mockFetchGuild.mockResolvedValue(null);
+        mockFetchGuildExists.mockRejectedValue(new Error("Discord 500"));
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect((ctx as any).isServerDeleted).toBeFalsy();
+        expect((ctx as any).isArchived).toBe(true);
+        expect(ctx.isMember).toBe(false);
+    });
+
+    it("ne conclut pas 'supprimé' quand la guilde existe encore (membre kické)", async () => {
+        mockFetchMember.mockResolvedValue(null);
+        mockFetchGuild.mockResolvedValue({ id: "111111111111111111", owner_id: "other-owner", roles: [] });
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect((ctx as any).isServerDeleted).toBeFalsy();
+        expect((ctx as any).isArchived).toBe(true);
+        expect(mockFetchGuildExists).not.toHaveBeenCalled();
     });
 });
 
@@ -425,6 +489,68 @@ describe("getUserContext — calcul des permissions RBAC", () => {
         const ctx = await getUserContext("111111111111111111");
 
         expect(ctx.canViewMissions).toBe(false);
+    });
+
+    it("🔒 Verrou God : un module coupé par le staff est OFF effectif (membre avec la permission)", async () => {
+        // Audit 24/09 — `getUserContext` ne lisait pas `disabledByGod` : `canView*`
+        // restait true alors que la sidebar (getGuildModules) masquait le module.
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"] }));
+        mockFetchRoles.mockResolvedValue([
+            { id: "role-membre", permissions: "0", name: "Membre" },
+        ]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                rolesMapping: {
+                    "role-membre": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.MISSIONS_PLAY],
+                },
+                modules: {
+                    ...makeGuildConfig().modules,
+                    missions: true, // toggle guilde CONSERVÉ…
+                    disabledByGod: ["missions"], // …mais verrouillé par le staff
+                },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.canViewMissions).toBe(false);
+    });
+
+    it("🔒 Verrou God : l'admin Discord ne contourne pas le verrou (trouée n°2 de l'audit)", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["discord-admin-role"] }));
+        mockFetchRoles.mockResolvedValue([
+            { id: "discord-admin-role", permissions: "8", name: "Discord Admin" },
+        ]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                modules: {
+                    ...makeGuildConfig().modules,
+                    missions: true,
+                    disabledByGod: ["missions"],
+                },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isAdmin).toBe(true); // il reste admin…
+        expect(ctx.canViewMissions).toBe(false); // …mais le verrou le vaut aussi pour lui
+    });
+
+    it("🔒 Verrou God : garde-fou — `admin` n'est jamais verrouillable", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["discord-admin-role"] }));
+        mockFetchRoles.mockResolvedValue([
+            { id: "discord-admin-role", permissions: "8", name: "Discord Admin" },
+        ]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                modules: { ...makeGuildConfig().modules, disabledByGod: ["admin"] },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isAdmin).toBe(true);
     });
 
     it("accorde canManageMissions à un officier", async () => {
@@ -659,7 +785,7 @@ describe("getUserContext — module Succès (#138)", () => {
         expect(ctx.canViewGuildSucces).toBe(false);
     });
 
-    it("laisse les succès à un admin même module OFF (bypass admin)", async () => {
+    it("verrouille les succès à un admin si module OFF (désactivé = invisible, God seul contourne)", async () => {
         mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-admin"] }));
         mockFetchRoles.mockResolvedValue([{ id: "role-admin", permissions: "8", name: "Discord Admin" }]);
         mockDb.guildConfig.findFirst.mockResolvedValue(
@@ -673,9 +799,25 @@ describe("getUserContext — module Succès (#138)", () => {
         const ctx = await getUserContext("111111111111111111");
 
         expect(ctx.isOnboardingComplete).toBe(true);
+        expect(ctx.canViewSucces).toBe(false);
+        expect(ctx.canEditOwnSucces).toBe(false);
+        expect(ctx.canViewGuildSucces).toBe(false);
+    });
+
+    it("God plateforme contourne les modules OFF (seule exception)", async () => {
+        mockIsSuperAdmin.mockResolvedValue(true);
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-admin"] }));
+        mockFetchRoles.mockResolvedValue([{ id: "role-admin", permissions: "8", name: "Discord Admin" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                rolesMapping: { "role-admin": [PERMISSIONS.DASHBOARD_LOGIN] },
+                modules: { ...makeGuildConfig().modules, succes: false },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
         expect(ctx.canViewSucces).toBe(true);
-        expect(ctx.canEditOwnSucces).toBe(true);
-        expect(ctx.canViewGuildSucces).toBe(true);
     });
 });
 
@@ -786,3 +928,227 @@ describe("revalidateUserContext — purge des caches (bouton Synchroniser)", () 
         expect(invalidateDiscordCache).not.toHaveBeenCalled();
     });
 });
+
+// ─────────────────────────────────────────────────────────────
+// BLOC 7 — invalidateUserContextCache (auto-résolution UUID interne)
+// FIX : lorsqu'un snowflake Discord est passé (et non l'UUID interne),
+// la clé mémoire `profile:{userId}:{internalGuildId}` que lit getUserContext
+// n'était jamais purgée → statut (archivé/réactivé) périmé 60s.
+// ─────────────────────────────────────────────────────────────
+describe("invalidateUserContextCache — auto-résolution de l'UUID interne", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockDb.guildConfig.findFirst.mockReset();
+    });
+
+    it("résout l'UUID interne et purge la clé mémoire/Redis quand on passe un snowflake Discord", async () => {
+        mockDb.guildConfig.findFirst.mockResolvedValue({ id: "guild-uuid-1" });
+
+        await invalidateUserContextCache("user-1", "111111111111111111");
+
+        // 1. Résout l'UUID interne depuis la BDD via la double forme id/discordGuildId
+        expect(mockDb.guildConfig.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { OR: [{ id: "111111111111111111" }, { discordGuildId: "111111111111111111" }] },
+                select: { id: true },
+            })
+        );
+
+        // 2. Purge la clé Redis interne (forme que getUserContext lit après résolution)
+        expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:guild-uuid-1");
+        // 3. Purge la clé Redis snowflake (forme principale utilisée par getUserContext)
+        expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:111111111111111111");
+    });
+
+    it("ne déclenche PAS de résolution si l'UUID interne (non-numérique) est déjà fourni", async () => {
+        mockDb.guildConfig.findFirst.mockResolvedValue({ id: "guild-uuid-1" });
+
+        await invalidateUserContextCache("user-1", "guild-uuid-1", "111111111111111111");
+
+        // L'UUID interne est déjà fourni → pas de requête BDD de résolution
+        expect(mockDb.guildConfig.findFirst).not.toHaveBeenCalled();
+        expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:guild-uuid-1");
+        expect(redis.del).toHaveBeenCalledWith("user:ctx:user-1:111111111111111111");
+    });
+});
+
+// ─────────────────────────────────────────────────────────────
+// BLOC 8 — TIMEOUT DISCORD (« Exclure temporairement ») + exclusions levées
+// ─────────────────────────────────────────────────────────────
+describe("getUserContext — timeout Discord (communication_disabled_until)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.advanceTimersByTime(120_000);
+        mockIsGuildAllowed.mockResolvedValue(true);
+        mockIsSuperAdmin.mockResolvedValue(false);
+        mockDb.platformBan.findUnique.mockResolvedValue(null);
+        mockDb.userProfile.findUnique.mockResolvedValue(makeProfile());
+        mockFetchGuild.mockResolvedValue({ id: "111111111111111111", owner_id: "other-owner", roles: [] });
+        mockFetchRoles.mockResolvedValue([{ id: "role-membre", permissions: "0", name: "Membre" }]);
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({ rolesMapping: { "role-membre": [PERMISSIONS.DASHBOARD_LOGIN] } })
+        );
+        mockAuth.mockResolvedValue({ user: { id: "user-1", discordId: "discord-user-1", name: "Test" } });
+    });
+
+    it("expose isTimedOut + timedOutUntil pour un membre timeout actif (accès dashboard suspendu)", async () => {
+        const future = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"], communication_disabled_until: future }));
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isTimedOut).toBe(true);
+        expect(ctx.timedOutUntil).toBe(future);
+        // Toujours membre (le timeout ne retire pas le rôle), mais suspendu côté layout.
+        expect(ctx.isMember).toBe(true);
+        expect(ctx.canViewDashboard).toBe(true);
+    });
+
+    it("laisse isTimedOut à false si le membre n'est pas timeout", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"], communication_disabled_until: null }));
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isTimedOut).toBe(false);
+        expect(ctx.timedOutUntil).toBeNull();
+    });
+
+    it("laisse isTimedOut à false si le timeout est déjà expiré", async () => {
+        const past = new Date(Date.now() - 60 * 1000).toISOString();
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"], communication_disabled_until: past }));
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect(ctx.isTimedOut).toBe(false);
+        expect(ctx.isMember).toBe(true);
+    });
+
+    it("ne bloque PAS (isBanned false) une exclusion levée — requiere liftedAt: null dans la requête", async () => {
+        // Aucune exclusion ACTIVE : findFirst renvoie null.
+        mockDb.guildMemberBan.findFirst.mockResolvedValue(null);
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"] }));
+
+        const ctx = await getUserContext("111111111111111111");
+
+        expect((ctx as any).isBanned).toBeFalsy();
+        expect(ctx.canViewDashboard).toBe(true);
+        // La requête filtre bien sur les exclusions actives uniquement (liftedAt: null).
+        expect(mockDb.guildMemberBan.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({ where: expect.objectContaining({ liftedAt: null }) })
+        );
+    });
+});
+
+// ─────────────────────────────────────────────────────────────
+// BLOC 8 — cache config partagé : un seul écrivain, select complet
+/**
+ * Régression (#184) — « Configuration en cours — Le tableau de bord de
+ * **Serveur Inconnu**… ».
+ *
+ * `getUserContext` (layout du dashboard) et `internalCheckPermission`
+ * (interactions du bot `/dj`, `/songes`, `/missions`) partagent le MÊME cache
+ * mémoire de process, clé `config:{guildId}`. Le second y écrivait une config
+ * TRONQUÉE (`{ id, discordGuildId, rolesMapping, usersMapping }`) ⇒ un membre qui
+ * chargeait le dashboard dans les 60 s suivantes (TTL) recevait :
+ *   - `name` absent          → `guildName` « Serveur Inconnu » ;
+ *   - `dofusServerId` absent → `isOnboardingComplete: false` → page
+ *     « Configuration en cours » au lieu du dashboard ;
+ *   - `modules` absent       → navbar grisée.
+ * Auto-guérison au bout du TTL ou au redémarrage du process : incident
+ * intermittent (« ça arrive d'un coup sans raison »), jamais reproductible.
+ *
+ * Le mock Prisma ci-dessous applique le `select` comme le vrai Prisma : sans
+ * cela, un mock qui renvoie tout masquerait la régression (le select tronqué
+ * passait inaperçu côté test).
+ */
+
+/** Reproduit la sémantique de Prisma : ne renvoie QUE les champs demandés par `select`. */
+function applySelect(source: Record<string, any>, select: Record<string, any>): Record<string, any> {
+    const out: Record<string, any> = {};
+    for (const [key, value] of Object.entries(select)) {
+        if (value === true) {
+            out[key] = source[key];
+        } else if (value && typeof value === "object" && "select" in (value as any)) {
+            const nested = source[key];
+            out[key] = nested ? applySelect(nested, (value as any).select) : null;
+        }
+    }
+    return out;
+}
+
+describe("cache config partagé — les appels du bot ne cassent plus le dashboard", () => {
+    const GUILD = "111111111111111111";
+
+    /** Guilde entièrement configurée : serveur de jeu + RBAC explicite + modules. */
+    function configuredGuild() {
+        return makeGuildConfig({
+            rolesMapping: { "role-membre": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.MISSIONS_PLAY] },
+        });
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.advanceTimersByTime(120_000); // purge les caches mémoire (TTL 60 s)
+        mockIsGuildAllowed.mockResolvedValue(true);
+        mockIsSuperAdmin.mockResolvedValue(false);
+        mockDb.platformBan.findUnique.mockResolvedValue(null);
+        mockDb.userProfile.findUnique.mockResolvedValue(makeProfile());
+        mockAuth.mockResolvedValue({ user: { id: "user-1", discordId: "discord-user-1", name: "Test" } });
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-membre"] }));
+        mockFetchGuild.mockResolvedValue({ id: GUILD, owner_id: "other-owner", roles: [] });
+        mockFetchRoles.mockResolvedValue([{ id: "role-membre", permissions: "0", name: "Membre" }]);
+        // Prisma « réaliste » : le payload ne contient QUE les champs du select.
+        mockDb.guildConfig.findFirst.mockImplementation(async (args: any) =>
+            args?.select ? applySelect(configuredGuild(), args.select) : configuredGuild()
+        );
+    });
+
+    it("lit la config avec le select COMPLET, y compris depuis le chemin bot", async () => {
+        await internalCheckPermission(GUILD, "discord-user-1", PERMISSIONS.MISSIONS_PLAY);
+
+        const select = mockDb.guildConfig.findFirst.mock.calls[0]?.[0]?.select;
+        expect(select).toBeDefined();
+        // Les 3 champs dont dépend getUserContext ne doivent JAMAIS manquer.
+        expect(select.name).toBe(true);
+        expect(select.dofusServerId).toBe(true);
+        expect(select.modules?.select).toBeDefined();
+        expect(select.rolesMapping).toBe(true);
+    });
+
+    it("une interaction bot (/dj, /songes…) n'affiche plus « Configuration en cours »", async () => {
+        // 1. Le bot lit la config (et la met en cache).
+        await internalCheckPermission(GUILD, "discord-user-1", PERMISSIONS.MISSIONS_PLAY);
+
+        // 2. Un membre charge le dashboard dans la foulée (même process, < 60 s).
+        const ctx = await getUserContext(GUILD);
+
+        expect(ctx.isAuthenticated).toBe(true);
+        expect(ctx.canViewDashboard).toBe(true);
+        expect(ctx.isAdmin).toBe(false); // membre simple : c'est lui qui voyait la page d'erreur
+        expect(ctx.isOnboardingComplete).toBe(true);
+        // « Serveur Inconnu » venait d'un `name` absent de l'entrée de cache.
+        expect(ctx.guildName).toBe("Guilde Test");
+        // Config non tronquée ⇒ le verrou onboarding ne s'applique pas.
+        expect(ctx.canViewMissions).toBe(true);
+    });
+
+    it("jette une entrée de cache de forme incomplète et relit la BDD", async () => {
+        // 1er appel : la BDD renvoie une config tronquée (ancienne entrée de cache
+        // pendant un déploiement progressif) → mise en cache sous `config:{GUILD}`.
+        mockDb.guildConfig.findFirst.mockResolvedValueOnce({
+            id: "guild-uuid-1",
+            discordGuildId: GUILD,
+            rolesMapping: { "role-membre": [PERMISSIONS.DASHBOARD_LOGIN] },
+            usersMapping: {},
+        });
+        await internalCheckPermission(GUILD, "discord-user-1", PERMISSIONS.MISSIONS_PLAY);
+
+        // 2e appel : la forme incomplète doit être rejetée (et non servie).
+        const ctx = await getUserContext(GUILD);
+
+        expect(ctx.guildName).toBe("Guilde Test");
+        expect(ctx.isOnboardingComplete).toBe(true);
+    });
+});
+
+

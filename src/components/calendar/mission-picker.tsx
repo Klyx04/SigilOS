@@ -19,7 +19,7 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
         color: "text-danger",
         bgColor: "bg-danger/10",
         borderColor: "border-danger/20",
-        fallbackImage: "/assets/missions/donjon.png",
+        fallbackImage: "/banners/donjon.png",
         label: "Donjon"
     },
     REGULATION: {
@@ -27,7 +27,7 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
         color: "text-success",
         bgColor: "bg-success/10",
         borderColor: "border-success/20",
-        fallbackImage: "/assets/missions/regulation.png",
+        fallbackImage: "/banners/regulation.png",
         label: "Régulation"
     },
     ANOMALIE: {
@@ -51,7 +51,7 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
         color: "text-warning",
         bgColor: "bg-warning/10",
         borderColor: "border-warning/20",
-        fallbackImage: "/assets/missions/expedition.png",
+        fallbackImage: "/banners/expedition.png",
         label: "Expédition"
     },
     EVENT: {

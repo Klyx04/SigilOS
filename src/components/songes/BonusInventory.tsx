@@ -17,7 +17,7 @@ import { addDreamBonus } from "@/server/actions/songes/dream-run-actions";
 import type { DreamRunBonus } from "@prisma/client";
 
 // @ts-ignore - JSON import
-import bonusData from "@/../src/bonus_songes.json";
+import bonusData from "@/data/bonus_songes.json";
 import type { SongesBonus } from "@/lib/songes/types";
 
 // ... imports

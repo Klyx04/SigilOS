@@ -1,6 +1,7 @@
 "use client";
 
 import { getDisplayName } from "@/lib/display-name";
+import { resolveEventImagePath } from "@/lib/calendar-event-images";
 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -13,13 +14,7 @@ import {
     HelpCircle,
     XCircle,
     Trash2,
-    Edit,
-    Target,
-    Swords,
-    PartyPopper,
-    Wheat,
-    Eye,
-    Diamond
+    Edit
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +27,10 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
+import { ClassIcon } from "@/components/shared/class-icon";
+import { isAgendaMirror } from "@/lib/agenda-mirror";
+import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { cn } from "@/lib/utils";
 
 // Local type definitions
@@ -46,28 +45,11 @@ interface EventCardProps {
     canManage: boolean;
 }
 
-const TYPE_THEMES: Record<string, { label: string; color: string; bg: string; border: string; icon: any; gradient: string }> = {
-    RAID_OFFICIAL: { label: "Raid 3.6", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20", icon: Swords, gradient: "from-danger to-danger" },
-    EVENT_GUILD: { label: "Event Guilde", color: "text-info", bg: "bg-info/10", border: "border-info/20", icon: PartyPopper, gradient: "from-info to-fuchsia-600" },
-    SESSION_MISSIONS: { label: "Missions Guilde", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20", icon: Target, gradient: "from-warning to-warning" },
-    SORTIE_FARM: { label: "Sortie Farm", color: "text-success", bg: "bg-success/10", border: "border-success/20", icon: Wheat, gradient: "from-success to-green-600" },
-    KRALAMOURE: { label: "Kralamoure", color: "text-pink-400", bg: "bg-pink-500/10", border: "border-pink-500/20", icon: Eye, gradient: "from-pink-600 to-danger" },
-    OTHERS: { label: "Autres", color: "text-muted-foreground", bg: "bg-muted/10", border: "border-border/20", icon: Diamond, gradient: "from-muted to-muted" },
-};
+// Identité des types d'événement (libellé, couleur, picto Dofus) :
+// `@/lib/calendar-event-theme` — source unique, plus de table locale.
 
-const EVENT_IMAGES: Record<string, string> = {
-    "RAID_OFFICIAL": "/assets/calendar/calendar_raid_official.png",
-    EVENT_GUILD: "/assets/calendar/calendar_event_guild.png",
-    SESSION_MISSIONS: "/assets/calendar/calendar_session_missions.png",
-    SORTIE_FARM: "/assets/calendar/calendar_boss_farm.png",
-    KRALAMOURE: "/assets/calendar/calendar_kralamour.png",
-    "GUILD_MISSION": "/assets/calendar/calendar_session_missions.png", // Fallback
-    "SONGES_RUN": "/assets/calendar/calendar_songes_run.png",
-    "DUNGEON_FARM": "/assets/calendar/calendar_dungeon_farm.png",
-    "SOCIAL": "/assets/calendar/calendar_social.png",
-    "ALMANAX_BONUS": "/assets/calendar/calendar_almanax_bonus.png",
-    "OTHERS": "/assets/calendar/calendar_autres.png",
-};
+// Les visuels d'événement (dont les deux raids) viennent de
+// `src/lib/calendar-event-images.ts` — même source que les embeds Discord.
 
 export function EventCard({
     event,
@@ -84,8 +66,7 @@ export function EventCard({
     if (!startDate || isNaN(startDate.getTime())) return null;
     const validEndDate = (endDate && !isNaN(new Date(endDate).getTime())) ? new Date(endDate) : startDate;
 
-    const theme = TYPE_THEMES[event.type] || TYPE_THEMES.SESSION_MISSIONS;
-    const Icon = theme.icon;
+    const theme = calendarEventTheme(event.type);
 
     const myAttendance = event.participants?.find((a: any) => a.userId === currentUserId);
     const attendeeCount = event.participants?.length || 0;
@@ -107,10 +88,20 @@ export function EventCard({
         ? metamobParticipants
         : (event.participants?.filter((a: any) => a.status === "REGISTERED") || []);
 
+    // Miroir agenda R1 (DJ/Songes) : composition lue dans `metadata.mirror`
+    // (aucune inscription depuis le calendrier — lecture seule).
+    const mirror = (isAgendaMirror(eventMetadata) ? (eventMetadata as any).mirror : null) as {
+        classes?: { classe: string; count: number }[];
+        memberCount?: number;
+        maxMembers?: number | null;
+    } | null;
+
     // Override attendee count for Kralamoure events using metadata count if available
-    const displayAttendeeCount = isKralamoure 
-        ? (eventMetadata?.metamobParticipantsCount || attendeesGoing.length) 
-        : (event.participants?.length || 0);
+    // (miroirs : effectif du groupe d'origine).
+    const displayAttendeeCount = mirror?.memberCount
+        ?? (isKralamoure
+            ? (eventMetadata?.metamobParticipantsCount || attendeesGoing.length)
+            : (event.participants?.length || 0));
 
     // View: List (Horizontal Row)
     if (variant === "list") {
@@ -129,7 +120,12 @@ export function EventCard({
                 <div className="mr-auto min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                         <Badge variant="outline" className={cn("h-5 px-1.5 text-caption font-medium border-0", theme.bg, theme.color)}>
-                            <Icon className="mr-1 h-3 w-3" />
+                            {isKralamoure ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="mr-1 h-3.5 w-3.5 object-contain inline-block" />
+                            ) : (
+                                <DofusUiIcon name={theme.picto} size={14} className="mr-1" />
+                            )}
                             {theme.label}
                         </Badge>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -145,6 +141,15 @@ export function EventCard({
                             <Users className="h-3.5 w-3.5 text-muted-foreground" />
                             <span>{attendeeCount}{event.maxParticipants ? ` / ${event.maxParticipants}` : ""} participants</span>
                         </div>
+                        {mirror && (mirror.classes ?? []).length > 0 && (
+                            <div className="flex items-center gap-1">
+                                {mirror.classes!.slice(0, 4).map((c) => (
+                                    <span key={c.classe} title={`${c.classe} × ${c.count}`}>
+                                        <ClassIcon classId={c.classe} size={18} />
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                         {event.location && (
                             <div className="flex items-center gap-1.5 truncate max-w-[200px]">
                                 <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
@@ -190,7 +195,7 @@ export function EventCard({
 
     // View: Card (Vertical) - Modernized
 
-    const isCompleted = event.status === "COMPLETED";
+    const isCompleted = event.status === "COMPLETED" || (Boolean(event.endDate) && new Date(event.endDate).getTime() < Date.now());
 
     return (
         <Card className={cn(
@@ -201,7 +206,7 @@ export function EventCard({
             <div className="absolute top-0 left-0 right-0 h-32 overflow-hidden opacity-40 mask-image-gradient">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-surface/90 z-10" />
                 <img
-                    src={EVENT_IMAGES[event.type] || EVENT_IMAGES["EVENT_GUILD"]}
+                    src={resolveEventImagePath(event.type, event.metadata)}
                     alt="Event type"
                     className={cn(
                         "w-full h-full object-cover transition-all duration-300 transform group-",
@@ -210,8 +215,8 @@ export function EventCard({
                 />
             </div>
 
-            {/* Top Accent Line */}
-            <div className={cn("h-1.5 w-full bg-gradient-to-r opacity-90 relative z-20", theme.gradient)} />
+            {/* Top Accent Line — aplat de la couleur du type (jamais un dégradé) */}
+            <div className={cn("h-1.5 w-full opacity-90 relative z-20", theme.dot)} />
 
             {/* Completed watermark stamp overlay */}
             {isCompleted && (
@@ -231,8 +236,11 @@ export function EventCard({
                         <Badge variant="outline" className={cn("rounded-md px-2.5 py-1 text-sm font-semibold border-opacity-50 transition-colors", theme.bg, theme.color, theme.border)}>
                             {isCompleted ? (
                                 <CheckCircle2 className="w-4 h-4 mr-2 text-success" />
+                            ) : isKralamoure ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="w-4 h-4 mr-2 object-contain inline-block" />
                             ) : (
-                                <Icon className="w-4 h-4 mr-2" />
+                                <DofusUiIcon name={theme.picto} size={16} className="mr-2" />
                             )}
                             {theme.label}
                         </Badge>
@@ -241,6 +249,13 @@ export function EventCard({
                         {isCompleted && (
                             <Badge className="bg-success/15 text-success border-success/30 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">
                                 ✓ Terminé
+                            </Badge>
+                        )}
+
+                        {/* Miroir DJ/Songes : lecture seule, géré depuis le post d'origine */}
+                        {mirror && (
+                            <Badge variant="outline" className="bg-info/10 text-info border-info/30 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">
+                                Miroir
                             </Badge>
                         )}
                     </div>
@@ -328,8 +343,7 @@ export function EventCard({
 
                     <div className="flex flex-col gap-2">
                         {attendeesGoing.length > 0 ? (
-                            attendeesGoing.slice(0, 3).map((a: any, idx: number) => {
-                                // For Kralamoure events, participants are objects { username, character_count } or strings
+                            attendeesGoing.slice(0, 3).map((a: any, idx: number) => {                                // For Kralamoure events, participants are objects { username, character_count } or strings
                                 // For other events, participants have user objects
                                 const participantName = isKralamoure
                                     ? (typeof a === 'string' ? a : a.username || a.name || 'Inconnu')
@@ -350,8 +364,26 @@ export function EventCard({
                                     </div>
                                 );
                             })
+                        ) : mirror && (mirror.classes ?? []).length > 0 ? (
+                            <>
+                                {mirror.classes!.slice(0, 3).map((c) => (
+                                    <div key={c.classe} className="flex items-center gap-2.5">
+                                        <ClassIcon classId={c.classe} size={24} />
+                                        <span className="text-sm text-foreground font-medium truncate">
+                                            {c.classe} × {c.count}
+                                        </span>
+                                    </div>
+                                ))}
+                                {(mirror.classes ?? []).length > 3 && (
+                                    <div className="pl-9 text-xs text-muted-foreground font-medium">
+                                        +{(mirror.classes ?? []).length - 3} autres...
+                                    </div>
+                                )}
+                            </>
                         ) : (
-                            <span className="text-sm text-muted-foreground italic">Aucun participant</span>
+                            <span className="text-sm text-muted-foreground italic">
+                                {mirror ? "Groupe sur le post d'origine" : "Aucun participant"}
+                            </span>
                         )}
 
                         {attendeesGoing.length > 3 && (

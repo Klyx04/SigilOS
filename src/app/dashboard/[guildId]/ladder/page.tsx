@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { Trophy } from "lucide-react";
 import { LadderClient } from "./_components/ladder-client";
 import { getUserContext } from "@/server/actions/user-actions";
 import AccessDenied from "@/components/access-denied";
@@ -18,13 +17,14 @@ type Props = {
 export default async function LadderPage({ params }: Props) {
     const { guildId } = await params;
 
-    // Module guard
-    if (!await isModuleEnabled(guildId, "ladder")) {
+    // RBAC: Check permission to view Ladder
+    const user = await getUserContext(guildId);
+
+    // Module guard (verrou inclus) — le God garde l'accès (`bypassModules = isGod`)
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "ladder")) {
         redirect(`/dashboard/${guildId}`);
     }
 
-    // RBAC: Check permission to view Ladder
-    const user = await getUserContext(guildId);
     if (!user.canViewLadder) {
         return <AccessDenied />;
     }
@@ -47,8 +47,7 @@ export default async function LadderPage({ params }: Props) {
                     <UnifiedModuleHeader
                         title="Classement de Guilde"
                         description="Découvrez les membres les plus actifs et leur progression en jeu."
-                        icon={Trophy}
-                        iconColor="#f59e0b"
+                        imageSrc="/assets/dofus/game-icons/ranking-gold.png"
                         backHref={`/dashboard/${guildId}`}
                         actions={<ModuleTourReplayButton phase="ladder" />}
                     />

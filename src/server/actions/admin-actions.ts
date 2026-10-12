@@ -8,6 +8,7 @@ import { fetchGuild } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { resolveOnboardingOrigin } from "@/lib/onboarding-gating";
 import { logAction } from "./audit-actions";
 
 export type ActionResponse = {
@@ -19,13 +20,27 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    // Rate limit: 5 guild onboards per minute per user
-    const rateLimitResult = await rateLimit(`onboard:${session.user.id}`, 5, 60000);
-    if (!rateLimitResult.success) {
-        return { success: false, error: "Too many requests. Please wait before onboarding another guild." };
-    }
+    // Rate limit anti-abus : max 3 CRÉATIONS de guilde par tranche de 10 minutes.
+    // Il tourne APRÈS le test d'idempotence ci-dessous : re-cliquer (ou
+    // l'auto-déploiement à chaque vue du portail) sur une guilde déjà active
+    // ne doit jamais consommer le budget — sinon popup « 10 minutes » abusive.
+    const checkRateLimit = async (): Promise<ActionResponse | null> => {
+        const rateLimitResult = await rateLimit(`onboard:${session.user!.id}`, 3, 600000);
+        if (!rateLimitResult.success) {
+            return { success: false, error: "Trop de déploiements rapprochés — reviens dans 10 minutes, ta guilde est conservée." };
+        }
+        return null;
+    };
 
     try {
+        // 0. Vérification PlatformBan (fail-closed)
+        const bannedGuild = await db.platformBan.findFirst({
+            where: { discordId: guildId, entityType: "GUILD" }
+        });
+        if (bannedGuild) {
+            return { success: false, error: "Ce serveur Discord a été banni de la plateforme SigilOS." };
+        }
+
         // 1. Check if already exists (Idempotency)
         const existing = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -68,18 +83,73 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
             return { success: true };
         }
 
-        // 2. SECURITY CHECK: Verify User is Admin of this Guild
+        // Budget consommé uniquement pour une VRAIE création (voir ci-dessus).
+        const limited = await checkRateLimit();
+        if (limited) return limited;
+
+        // 2. SECURITY CHECK: Verify User is Admin of this Guild (allowing initial onboarding)
         const { requireGuildAdmin } = await import("./guards");
-        const guard = await requireGuildAdmin(guildId, "Initialisation de Guilde");
+        const guard = await requireGuildAdmin(guildId, "Initialisation de Guilde", { allowOnboarding: true });
 
         if (!guard.isAuthorized) {
-            return { success: false, error: guard.error || "Insufficient permissions" };
+            return { success: false, error: guard.error || "Permissions insuffisantes" };
         }
 
         const discordUserId = guard.discordUserId!;
         const guildInfo = await fetchGuild(guildId);
 
-        // 3. Create Config (Safe to proceed)
+        // 3. ORIGINE de la guilde — SOURCE UNIQUE (`src/lib/onboarding-gating.ts`).
+        // ⚠️ Le gateway bot crée DÉJÀ la ligne quand il est invité
+        // (`tier: "BETA"`, `addedBy: "SYSTEM_GATEWAY"`) : « la ligne existe » ne
+        // signifie donc PAS « validée par un humain ». L'ancien test
+        // (`isAutonomous = !existingAllowed`) annonçait « VIP / WHITELIST » au
+        // self-onboarding normal, et l'ancien `else if (!isActive)` réactivait
+        // silencieusement une guilde gelée par le staff.
+        const existingAllowed = await db.allowedGuild.findUnique({
+            where: { discordGuildId: guildId }
+        });
+        const origin = resolveOnboardingOrigin(existingAllowed);
+        const isAutonomous = origin.kind === "AUTONOME";
+
+        // 3bis. Fail-closed : une ligne DÉSACTIVÉE par le staff (gel, retrait de
+        // whitelist, ou auto-onboarding fermé au moment de l'invitation) ne se
+        // réactive jamais depuis le portail. Le portail la masque déjà
+        // (`isAllowedForDeployment`) ; l'appel direct doit refuser aussi, sinon
+        // le gel God est contournable par un simple clic « Déployer ».
+        if (existingAllowed && !existingAllowed.isActive) {
+            return {
+                success: false,
+                error: "Ce serveur n'est pas encore approuvé (ou a été gelé) par l'équipe SigilOS. Ouvre un ticket pour être accompagné.",
+            };
+        }
+
+        // Kill-switch God : les déploiements AUTONOMES sont suspendus → seules
+        // les guildes pré-approuvées (whitelist God / ticket) passent.
+        // (Le portail masque déjà ces guildes ; ceci verrouille l'appel direct.)
+        if (isAutonomous) {
+            const platformCfg = await db.platformConfig.findUnique({
+                where: { id: "singleton" },
+                select: { autoOnboardingEnabled: true },
+            }).catch(() => null);
+            if (platformCfg?.autoOnboardingEnabled === false) {
+                return { success: false, error: "Les déploiements autonomes sont temporairement suspendus. Ouvrez un ticket pour être accompagné." };
+            }
+        }
+
+        if (!existingAllowed) {
+            await db.allowedGuild.create({
+                data: {
+                    discordGuildId: guildId,
+                    name: guildInfo.name,
+                    tier: "COMMUNITY",
+                    notes: "Onboarding en autonomie",
+                    isActive: true,
+                    addedBy: discordUserId,
+                }
+            });
+        }
+
+        // 4. Create Config (Safe to proceed)
         await db.guildConfig.create({
             data: {
                 discordGuildId: guildId,
@@ -93,27 +163,263 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         const { invalidateGuildCache } = await import("./user-actions");
         await invalidateGuildCache(guildId);
 
-        // 🔄 Invalide le cache Redis `guild_allowed:{id}` (TTL 60s) pour éviter un
-        // flash "AccessDenied" si un `false` périmé était en cache avant le déploiement.
+        // 🔄 Invalide le cache Redis `guild_allowed:{id}` (TTL 60s)
         const { invalidateAllowedGuildCache } = await import("./super-admin-actions");
         await invalidateAllowedGuildCache(guildId);
 
         revalidatePath(`/dashboard/${guildId}`);
 
-        // 📝 LOG ACTION
+        // 🔔 ALERTE TEMPS RÉEL TOUR DE CONTRÔLE GOD
+        try {
+            const { notifyGod } = await import("./god-notif-actions");
+            await notifyGod({
+                title: isAutonomous ? "🚀 Déploiement autonome réussi" : "✨ Déploiement guilde réussi",
+                message: `La guilde **${guildInfo.name}** (\`${guildId}\`) a été déployée avec succès.\n👤 Déployée par : <@${discordUserId}> (${session.user.name || "Inconnu"})\n🏷️ Origine : **${origin.label}**`,
+                type: "SYSTEM",
+                success: true,
+                metadata: {
+                    guildId,
+                    guildName: guildInfo.name,
+                    discordUserId,
+                    type: origin.tag,
+                    originLabel: origin.label,
+                    operation: "ONBOARD_GUILD"
+                }
+            });
+        } catch (notifErr) {
+            logger.warn("[Onboard] Failed to dispatch notifyGod:", notifErr);
+        }
+
+        // 📝 LOG ACTION AUDIT
         await logAction({
             guildId,
             action: "WEBHOOK_GUILD_CREATE",
             targetType: "GUILD",
             targetId: guildId,
-            metadata: { operation: "ONBOARD_GUILD", guildName: guildInfo.name }
+            metadata: { operation: "ONBOARD_GUILD", guildName: guildInfo.name, isAutonomous, origin: origin.tag }
         });
+
+        // Rôle d'accès au dashboard : sans lui, un serveur qui n'a AUCUN rôle
+        // utilisable bloque l'admin à l'étape 2 (il doit créer un rôle sur Discord
+        // puis revenir). On le crée ici, une fois, et on l'attribue au propriétaire.
+        // Fail-open : un rôle ne doit jamais faire échouer un déploiement.
+        try {
+            await ensureDashboardAccessRoleCore(guildId, discordUserId);
+        } catch (roleErr) {
+            logger.warn("[Onboard] ensureDashboardAccessRole a échoué:", roleErr);
+        }
 
         return { success: true };
     } catch (error) {
         logger.error("Failed to onboard guild:", error);
-        return { success: false, error: error instanceof Error ? error.message : "Database error" };
+        return { success: false, error: "Une erreur est survenue lors de l'onboarding. Réessaie." };
     }
+}
+
+/**
+ * État de déploiement d'une guilde pour la page /onboarding/success (polling).
+ * Anti-énumération : seuls les admins Discord de la guilde obtiennent l'état
+ * réel (requireGuildAdmin live) ; les autres reçoivent tout-faux (fail-closed).
+ */export async function getGuildDeployState(
+    discordGuildId: string
+): Promise<{ botPresent: boolean; hasConfig: boolean; configActive: boolean }> {
+    const none = { botPresent: false, hasConfig: false, configActive: false };
+    if (!discordGuildId || typeof discordGuildId !== "string") return none;
+    const session = await auth();
+    if (!session?.user?.id) return none;
+    try {
+        const { requireGuildAdmin } = await import("./guards");
+        const guard = await requireGuildAdmin(discordGuildId, "État du déploiement");
+        if (!guard.isAuthorized) return none;
+        const { verifyGuildAccessibility } = await import("@/server/discord");
+        const [botPresent, cfg] = await Promise.all([
+            verifyGuildAccessibility(discordGuildId).catch(() => false),
+            db.guildConfig.findUnique({
+                where: { discordGuildId },
+                select: { isActive: true },
+            }).catch(() => null),
+        ]);
+        return { botPresent, hasConfig: !!cfg, configActive: !!cfg?.isActive };
+    } catch {
+        return none;
+    }
+}
+
+/**
+ * Cœur du « rôle d'accès » : crée le rôle `Accès Dashboard` quand la guilde n'a
+ * AUCUN rôle utilisable, puis l'attribue à l'acteur.
+ *
+ * ⚠️ Placé ici (et **pas** dans `services/discord-bot`) à dessein : le service bot est
+ * autonome (son image Docker ne copie que `services/discord-bot/`, et l'alias `@/`
+ * n'est pas résolu au runtime) — y dupliquer la règle en ferait un doublon
+ * invérifiable. La décision et le nom du rôle vivent dans `src/lib/onboarding-gating`.
+ * Appelé (a) à l'activation de la guilde, (b) par le bouton de la modale (guilde
+ * déployée avant cette fonctionnalité, ou rôle supprimé depuis).
+ *
+ * Fail-open : Discord injoignable ⇒ l'appelant garde le chemin manuel.
+ */
+async function ensureDashboardAccessRoleCore(
+    guildId: string,
+    actorDiscordId?: string,
+): Promise<{ ok: boolean; roleId?: string; created?: boolean; error?: string }> {
+    const {
+        pickDashboardAccessRolePreselect,
+        shouldCreateDashboardAccessRole,
+        DASHBOARD_ACCESS_ROLE_NAME,
+    } = await import("@/lib/onboarding-gating");
+    const { fetchGuildRoles, createGuildRole, addGuildMemberRole } = await import("@/server/discord");
+
+    let roles: Awaited<ReturnType<typeof fetchGuildRoles>>;
+    try {
+        roles = await fetchGuildRoles(guildId, { excludeManaged: false });
+    } catch {
+        return { ok: false, error: "Rôles Discord injoignables, réessayez." };
+    }
+
+    const existing = pickDashboardAccessRolePreselect(roles, guildId);
+    if (existing) return { ok: true, roleId: existing.id, created: false };
+
+    if (!shouldCreateDashboardAccessRole(roles, guildId)) {
+        return {
+            ok: false,
+            error: "Votre serveur a déjà des rôles utilisables — choisissez-en un dans la liste.",
+        };
+    }
+
+    const created = await createGuildRole(guildId, {
+        name: DASHBOARD_ACCESS_ROLE_NAME,
+        reason: "SigilOS — rôle d'accès au dashboard (aucun rôle utilisable sur ce serveur)",
+    });
+    if (!created) {
+        return {
+            ok: false,
+            error: "Discord a refusé la création du rôle (permission « Gérer les rôles »). Créez-le à la main.",
+        };
+    }
+
+    if (actorDiscordId) {
+        // Confort (jamais un prérequis) : le propriétaire voit la porte ouverte.
+        // `addGuildMemberRole` (existant) est idempotent et renvoie son état — on ne
+        // bloque jamais l'onboarding dessus.
+        const granted = await addGuildMemberRole(
+            guildId,
+            actorDiscordId,
+            created.id,
+            "SigilOS — rôle d'accès au dashboard attribué au propriétaire",
+        );
+        if (!granted.success) {
+            logger.warn(`[Onboarding] Rôle d'accès non attribué à l'admin : ${granted.error}`);
+        }
+    }
+
+    logger.info(`[Onboarding] Rôle « ${DASHBOARD_ACCESS_ROLE_NAME} » créé sur ${guildId}`);
+    return { ok: true, roleId: created.id, created: true };
+}
+
+/**
+ * Action (admin Discord) : crée le rôle d'accès au dashboard si le serveur n'en a
+ * aucun d'utilisable. Idempotente (renvoie le rôle existant s'il est déjà là).
+ */
+export async function ensureDashboardAccessRole(
+    guildId: string,
+): Promise<ActionResponse & { roleId?: string; created?: boolean }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié." };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "Création du rôle d'accès au dashboard", {
+        allowOnboarding: true,
+    });
+    if (!guard.isAuthorized) {
+        return { success: false, error: "Réservé aux administrateurs Discord du serveur." };
+    }
+
+    // 5 créations / 10 min : un clic en boucle ne doit pas spammer l'API Discord.
+    const limited = await rateLimit(`ensureAccessRole:${session.user.id}`, 5, 600000);
+    if (!limited.success) {
+        return { success: false, error: "Trop de tentatives — réessayez dans quelques minutes." };
+    }
+
+    const res = await ensureDashboardAccessRoleCore(guildId, guard.discordUserId);
+    if (!res.ok) return { success: false, error: res.error };
+
+    await logAction({
+        guildId,
+        action: "WEBHOOK_GUILD_CREATE",
+        targetType: "GUILD",
+        targetId: guildId,
+        metadata: { operation: "ENSURE_DASHBOARD_ACCESS_ROLE", roleId: res.roleId, created: res.created },
+    });
+    return { success: true, roleId: res.roleId, created: res.created };
+}
+
+/**
+ * Valide les 2 étapes OBLIGATOIRES d'onboarding en UN appel atomique :
+ * 1. serveur de jeu Dofus, 2. au moins un rôle Discord (jamais @everyone)
+ * autorisé à se logger (`dashboard:login`).
+ * - Natif Discord admin uniquement (modale bloquante) ; God passe partout.
+ * - Réutilise `updateDofusServer` + `updateRBACMapping` (pas de 2e chemin
+ *   d'écriture) : audit, rate-limit et garde-fous existants s'appliquent.
+ * - Le mapping existant est FUSIONNÉ (jamais écrasé).
+ */
+export async function completeMandatoryOnboarding(
+    guildId: string,
+    dofusServerId: string,
+    roleId: string
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié." };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "Onboarding obligatoire", { allowOnboarding: true });
+    if (!guard.isAuthorized || !guard.discordUserId) {
+        return { success: false, error: "Réservé aux administrateurs Discord du serveur." };
+    }
+
+    // 1. Serveur Dofus : whitelist stricte (liste officielle).
+    const { DOFUS_UNITY_SERVERS } = await import("@/lib/presentation-constants");
+    const knownIds = new Set<string>();
+    for (const group of Object.values(DOFUS_UNITY_SERVERS)) {
+        for (const s of group as ReadonlyArray<{ name: string; id: number }>) {
+            knownIds.add(String(s.id));
+        }
+    }
+    if (!dofusServerId || !knownIds.has(String(dofusServerId))) {
+        return { success: false, error: "Serveur Dofus invalide." };
+    }
+
+    // 2. Rôle : doit exister, ne pas être managé (rôles bot) ni @everyone (= guildId).
+    const { fetchGuildRoles } = await import("@/server/discord");
+    let roles: Array<{ id: string; name: string; managed: boolean }>;
+    try {
+        roles = await fetchGuildRoles(guildId, { excludeManaged: false });
+    } catch {
+        return { success: false, error: "Rôles Discord injoignables, réessayez." };
+    }
+    const role = roles.find((r) => r.id === roleId);
+    if (!role || role.managed || role.id === guildId) {
+        return { success: false, error: "Rôle Discord invalide (ni @everyone, ni rôle de bot)." };
+    }
+
+    // 3. Écritures via les actions existantes (audit + rate-limit + invalidations).
+    const serverRes = await updateDofusServer(guildId, String(dofusServerId));
+    if (!serverRes.success) return serverRes;
+
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { rolesMapping: true, usersMapping: true },
+    });
+    if (!guildConfig) return { success: false, error: "Guilde introuvable. Déployez-la d'abord depuis le portail." };
+    const rolesMapping = { ...((guildConfig.rolesMapping as Record<string, string[]>) || {}) };
+    const current = new Set(rolesMapping[roleId] || []);
+    current.add(PERMISSIONS.DASHBOARD_LOGIN);
+    rolesMapping[roleId] = Array.from(current);
+
+    return updateRBACMapping(
+        guildId,
+        rolesMapping as Record<string, PermissionId[]>,
+        (guildConfig.usersMapping as Record<string, PermissionId[]>) || {}
+    );
 }
 
 export async function updateRBACMapping(
@@ -1287,7 +1593,7 @@ export async function updateMissionNotifySettings(
         return { success: true };
     } catch (error: any) {
         logger.error("[AdminAction] updateMissionNotifySettings failed:", error);
-        return { success: false, error: error.message || "Erreur lors de la mise à jour" };
+        return { success: false, error: "Erreur lors de la mise à jour des paramètres. Réessaie." };
     }
 }
 
@@ -1793,8 +2099,9 @@ export async function getGuildChannels(guildId: string): Promise<{
 export async function getAllBounties(): Promise<any[]> {
     const { isSuperAdmin, canAccessBrick } = await import("./super-admin-actions");
     const isAdmin = await isSuperAdmin();
-    // #108 — un sous-god avec la brique game-data / game-data-bounties accède au module.
-    const isBrick = isAdmin ? true : (await canAccessBrick("game-data")) || (await canAccessBrick("game-data-bounties"));
+    // #108 — un sous-god avec la brique game-data accède au module (les avis de recherche en
+    // sont un éditeur depuis la fusion D-4 : plus de brique ciblée).
+    const isBrick = isAdmin || (await canAccessBrick("game-data"));
     if (!isAdmin && !isBrick) return [];
 
     try {

@@ -3,7 +3,6 @@
 import { useState, useEffect, useTransition, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, AlertTriangle, Hash, Megaphone, ShieldAlert, Sparkles, Users, Bell, Trash2, ExternalLink } from "lucide-react";
@@ -11,7 +10,7 @@ import { toast } from "sonner";
 import { getSystemAnnouncementSettings } from "@/server/actions/system-settings-actions";
 import { saveSystemAnnouncementSettings } from "@/server/actions/announcement-actions";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 import { cn } from "@/lib/utils";
@@ -151,17 +150,12 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                         <CardContent className="space-y-6">
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label className="text-caption uppercase font-black text-muted-foreground ml-1">ID du Salon Principal</Label>
-                                    <div className="relative group/input">
-                                        <Input
-                                            value={channelId}
-                                            onChange={(e) => setChannelId(e.target.value)}
-                                            placeholder="Ex: 123456789012345678"
-                                            className="font-mono bg-black/20 border-border h-11 pl-10 focus:border-info/50 transition-colors"
-                                        />
-                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover/input:text-info transition-colors" />
-                                    </div>
-                                    <ChannelPreview guildId={guildId} channelId={channelId} color="indigo" />
+                                    <Label className="text-caption uppercase font-black text-muted-foreground ml-1">Salon Principal</Label>
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={channelId}
+                                        onChange={setChannelId}
+                                    />
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -246,16 +240,11 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                 <Label className="text-caption uppercase font-black text-muted-foreground ml-1">
                                     Salon des notifications <span className="text-danger">(lifecycle)</span>
                                 </Label>
-                                <div className="relative group/input">
-                                    <Input
-                                        value={lifecycleChannelId}
-                                        onChange={(e) => setLifecycleChannelId(e.target.value)}
-                                        placeholder="Ex: 123456789012345678"
-                                        className="font-mono bg-black/20 border-border h-11 pl-10 focus:border-danger/50 transition-colors"
-                                    />
-                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover/input:text-danger transition-colors" />
-                                    </div>
-                                    <ChannelPreview guildId={guildId} channelId={lifecycleChannelId} color="rose" />
+                                <DiscordChannelPicker
+                                    guildId={guildId}
+                                    value={lifecycleChannelId}
+                                    onChange={setLifecycleChannelId}
+                                />
                                     <div className="p-3 rounded-xl bg-danger/5 border border-danger/10 flex items-start gap-3">
                                     <ShieldAlert className="w-3.5 h-3.5 text-danger mt-0.5 shrink-0" />
                                     <p className="text-caption text-muted-foreground leading-relaxed">
@@ -271,7 +260,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                     <div className="flex justify-end pt-4">
                         <Button onClick={handleSave} disabled={isPending} className="bg-info hover:bg-info text-info-foreground min-w-[200px] font-bold h-12 shadow-xl shadow-indigo-600/20">
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                            SAUVEGARDER TOUT
+                            Enregistrer
                         </Button>
                     </div>
                 </div>

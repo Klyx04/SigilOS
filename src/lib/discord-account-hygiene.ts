@@ -38,6 +38,25 @@ export async function revokeDiscordAccountSession(discordUserId: string): Promis
 
         const userId = account.userId;
 
+        // #8 validé : sans ça la fiche reste ACTIVE fantôme (plus de Account lié,
+        // donc les syncs la sautent en `skipped` et ne l'archivent jamais).
+        // On archive tous les profils ACTIVE → ARCHIVED 12 mois, best-effort.
+        try {
+            const twelveMonthsFromNow = new Date();
+            twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
+            await db.userProfile.updateMany({
+                where: { userId, status: "ACTIVE" },
+                data: {
+                    status: "ARCHIVED",
+                    archivedAt: new Date(),
+                    archiveReason: "DEAUTHORIZED",
+                    scheduledDeletion: twelveMonthsFromNow,
+                },
+            });
+        } catch (archiveErr) {
+            logger.error("[DiscordAccountHygiene] Archivage profils après DEAUTHORIZED échoué:", { error: String(archiveErr) });
+        }
+
         // 1. Dé-liaison OAuth (supprime aussi les tokens chiffrés via le cascade Prisma).
         await db.account.deleteMany({ where: { userId, provider: "discord" } });
 

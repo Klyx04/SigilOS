@@ -2,35 +2,40 @@
 // DOFUS GAME DATA - Centralized Assets for Profile Module
 // =============================================================================
 
+import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
+
 // -----------------------------------------------------------------------------
 // CLASSES
+// -----------------------------------------------------------------------------
 export interface DofusClass {
     id: string;
     name: string;
     icon: string;
     color: string;
+    /** breedId client (Dofus Unity) — l'icône `/assets/dofus/classes/<breed>.png` le porte déjà. */
+    breed: number;
 }
 
 export const DOFUS_CLASSES = [
-    { id: "cra", name: "Cra", icon: "/assets/dofus/classes/9.png", color: "#4ade80" },
-    { id: "ecaflip", name: "Ecaflip", icon: "/assets/dofus/classes/6.png", color: "#ec4899" },
-    { id: "eliotrope", name: "Eliotrope", icon: "/assets/dofus/classes/16.png", color: "#3b82f6" },
-    { id: "eniripsa", name: "Eniripsa", icon: "/assets/dofus/classes/7.png", color: "#f472b6" },
-    { id: "enutrof", name: "Enutrof", icon: "/assets/dofus/classes/3.png", color: "#f59e0b" },
-    { id: "feca", name: "Féca", icon: "/assets/dofus/classes/1.png", color: "#60a5fa" },
-    { id: "forgelance", name: "Forgelance", icon: "/assets/dofus/classes/20.png", color: "#fcd34d" }, // ID 20 confirmed
-    { id: "huppermage", name: "Huppermage", icon: "/assets/dofus/classes/17.png", color: "#8b5cf6" },
-    { id: "iop", name: "Iop", icon: "/assets/dofus/classes/8.png", color: "#ef4444" },
-    { id: "osamodas", name: "Osamodas", icon: "/assets/dofus/classes/2.png", color: "#ef4444" },
-    { id: "ouginak", name: "Ouginak", icon: "/assets/dofus/classes/18.png", color: "#f59e0b" },
-    { id: "pandawa", name: "Pandawa", icon: "/assets/dofus/classes/12.png", color: "#16a34a" },
-    { id: "roublard", name: "Roublard", icon: "/assets/dofus/classes/13.png", color: "#f97316" },
-    { id: "sacrieur", name: "Sacrieur", icon: "/assets/dofus/classes/11.png", color: "#dc2626" },
-    { id: "sadida", name: "Sadida", icon: "/assets/dofus/classes/10.png", color: "#22c55e" },
-    { id: "sram", name: "Sram", icon: "/assets/dofus/classes/4.png", color: "#a855f7" },
-    { id: "steamer", name: "Steamer", icon: "/assets/dofus/classes/15.png", color: "#06b6d4" },
-    { id: "xelor", name: "Xélor", icon: "/assets/dofus/classes/5.png", color: "#6366f1" },
-    { id: "zobal", name: "Zobal", icon: "/assets/dofus/classes/14.png", color: "#ef4444" },
+    { id: "cra", name: "Cra", icon: "/assets/dofus/classes/9.png", color: "#4ade80", breed: 9 },
+    { id: "ecaflip", name: "Ecaflip", icon: "/assets/dofus/classes/6.png", color: "#ec4899", breed: 6 },
+    { id: "eliotrope", name: "Eliotrope", icon: "/assets/dofus/classes/16.png", color: "#3b82f6", breed: 16 },
+    { id: "eniripsa", name: "Eniripsa", icon: "/assets/dofus/classes/7.png", color: "#f472b6", breed: 7 },
+    { id: "enutrof", name: "Enutrof", icon: "/assets/dofus/classes/3.png", color: "#f59e0b", breed: 3 },
+    { id: "feca", name: "Féca", icon: "/assets/dofus/classes/1.png", color: "#60a5fa", breed: 1 },
+    { id: "forgelance", name: "Forgelance", icon: "/assets/dofus/classes/20.png", color: "#fcd34d", breed: 20 },
+    { id: "huppermage", name: "Huppermage", icon: "/assets/dofus/classes/17.png", color: "#8b5cf6", breed: 17 },
+    { id: "iop", name: "Iop", icon: "/assets/dofus/classes/8.png", color: "#ef4444", breed: 8 },
+    { id: "osamodas", name: "Osamodas", icon: "/assets/dofus/classes/2.png", color: "#ef4444", breed: 2 },
+    { id: "ouginak", name: "Ouginak", icon: "/assets/dofus/classes/18.png", color: "#f59e0b", breed: 18 },
+    { id: "pandawa", name: "Pandawa", icon: "/assets/dofus/classes/12.png", color: "#16a34a", breed: 12 },
+    { id: "roublard", name: "Roublard", icon: "/assets/dofus/classes/13.png", color: "#f97316", breed: 13 },
+    { id: "sacrieur", name: "Sacrieur", icon: "/assets/dofus/classes/11.png", color: "#dc2626", breed: 11 },
+    { id: "sadida", name: "Sadida", icon: "/assets/dofus/classes/10.png", color: "#22c55e", breed: 10 },
+    { id: "sram", name: "Sram", icon: "/assets/dofus/classes/4.png", color: "#a855f7", breed: 4 },
+    { id: "steamer", name: "Steamer", icon: "/assets/dofus/classes/15.png", color: "#06b6d4", breed: 15 },
+    { id: "xelor", name: "Xélor", icon: "/assets/dofus/classes/5.png", color: "#6366f1", breed: 5 },
+    { id: "zobal", name: "Zobal", icon: "/assets/dofus/classes/14.png", color: "#ef4444", breed: 14 },
 ] as const;
 
 export type DofusClassId = typeof DOFUS_CLASSES[number]["id"];
@@ -39,9 +44,105 @@ export function getClass(id: string) {
     return DOFUS_CLASSES.find(c => c.id === id || c.name.toLowerCase() === id.toLowerCase());
 }
 
+/** Genre d'un visuel de classe du jeu : 0 = masculin, 1 = féminin. */
+export type DofusClassGender = 0 | 1;
+
+/**
+ * Portrait HD réel d'une classe, siphonné du client
+ * (`Picto/UI/class_assets_*.bundle` : `Head_<breedId * 10 + gender>.png`).
+ * Source unique pour les pions tactiques — jamais d'URL écrite à la main.
+ */
+export function dofusClassHead(breedId: number, gender: DofusClassGender = 0): string {
+    const breed = Number.isFinite(breedId) ? Math.floor(Math.abs(breedId)) : 0;
+    const headId = breed * 10 + (gender === 1 ? 1 : 0);
+    return `/assets/dofus/classes/heads/Head_${headId}.png`;
+}
+
 // -----------------------------------------------------------------------------
-// JOBS (MÉTIERS) - Corrected categories per user specs
+// RÈGLES DE CLASSE (pures — partagées serveur ET client)
 // -----------------------------------------------------------------------------
+// La règle vit ici parce que les composants **clients** (calendrier, inscriptions)
+// ne peuvent pas importer un module `src/server/*` : une seule source, donc, pour
+// les embeds Discord et l'interface du site.
+
+/** Normalise une classe pour comparaison (« Féca » = « feca » = « FECA »). */
+export function normalizeDofusClass(value: string | null | undefined): string {
+    return (value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Valeur non vide et nettoyée, sinon `null` (jamais une chaîne d'espaces). */
+function nonEmptyClass(value: string | null | undefined): string | null {
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** Libellé canonique d'une classe (id `cra` ou nom `Cra`), `null` si inconnue. */
+export function matchDofusClass(value: string | null | undefined): string | null {
+    const n = normalizeDofusClass(value);
+    if (!n) return null;
+    return DOFUS_CLASSES.find((c) => c.id === n || normalizeDofusClass(c.name) === n)?.name ?? null;
+}
+
+/**
+ * Classe **effective** d'un inscrit : celle choisie pour l'inscription, sinon celle du
+ * profil Dofus du membre, sinon `null` (« Sans classe » au regroupement).
+ *
+ * Constat beta : les embeds Songes/DJ faisaient déjà ce repli, pas le calendrier — un
+ * inscrit sans classe choisie apparaissait « Sans classe » alors que son profil la
+ * connaissait. Une valeur inconnue du référentiel est rendue telle quelle (jamais perdue).
+ */
+export function resolveEffectiveClass(
+    stored: string | null | undefined,
+    profile: string | null | undefined
+): string | null {
+    const chosen = matchDofusClass(stored) ?? nonEmptyClass(stored);
+    if (chosen) return chosen;
+    return matchDofusClass(profile) ?? nonEmptyClass(profile);
+}
+
+// -----------------------------------------------------------------------------
+// SERVEURS Dofus Unity
+// -----------------------------------------------------------------------------
+// Vignettes des 13 serveurs officiels (`public/assets/dofus/servers/*.webp`).
+// Miroir du pattern classes : jamais d'URL écrite à la main, toujours passer
+// par `getDofusServerImage()` (retourne `null` si inconnu → fallback icône).
+export const DOFUS_SERVER_IMAGE_BASE = "/assets/dofus/servers";
+
+/** "Hell Mina" → "hell-mina", "Tal Kasha" → "tal-kasha" (noms de fichiers). */
+export function dofusServerSlug(name: string): string {
+    return name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[\s_]+/g, "-");
+}
+
+/**
+ * Résout la vignette d'un serveur Dofus Unity depuis son nom ("Draconiros")
+ * ou son id ("295" / 295). Retourne `null` pour un nom inconnu (serveur
+ * Metamob non-Unity, Temporis, futur serveur…) : l'appelant affiche alors
+ * son fallback (icône `Server`, texte seul).
+ */
+export function getDofusServerImage(nameOrId: string | number | null | undefined): string | null {
+    if (nameOrId === null || nameOrId === undefined) return null;
+    const key = String(nameOrId).trim().toLowerCase();
+    if (!key) return null;
+    let resolvedName: string | null = null;
+    for (const group of Object.values(DOFUS_UNITY_SERVERS)) {
+        const found = (group as ReadonlyArray<{ name: string; id: number }>).find(
+            (s) => String(s.id) === key || s.name.toLowerCase() === key
+        );
+        if (found) {
+            resolvedName = found.name;
+            break;
+        }
+    }
+    if (!resolvedName) return null;
+    return `${DOFUS_SERVER_IMAGE_BASE}/${dofusServerSlug(resolvedName)}.webp`;
+}
 
 export const JOB_CATEGORIES = {
     RECOLTE: "Récolte",
@@ -57,13 +158,13 @@ export const DOFUS_JOBS = {
         { id: "chasseur", name: "Chasseur", icon: "/assets/dofus/jobs/chasseur.png" },
         { id: "mineur", name: "Mineur", icon: "/assets/dofus/jobs/mineur.png" },
         { id: "paysan", name: "Paysan", icon: "/assets/dofus/jobs/paysan.png" },
-        { id: "pecheur", name: "Pêcheur", icon: "/assets/dofus/jobs/pêcheur.png" },
+        { id: "pecheur", name: "Pêcheur", icon: "/assets/dofus/jobs/pecheur.png" },
     ],
     [JOB_CATEGORIES.ARTISANAT]: [
         { id: "bijoutier", name: "Bijoutier", icon: "/assets/dofus/jobs/bijoutier.png" },
         { id: "bricoleur", name: "Bricoleur", icon: "/assets/dofus/jobs/bricoleur.png" },
         { id: "cordonnier", name: "Cordonnier", icon: "/assets/dofus/jobs/cordonnier.png" },
-        { id: "faconneur", name: "Façonneur", icon: "/assets/dofus/jobs/façonneur.png" },
+        { id: "faconneur", name: "Façonneur", icon: "/assets/dofus/jobs/faconneur.png" },
         { id: "forgeron", name: "Forgeron", icon: "/assets/dofus/jobs/forgeron.png" },
         { id: "sculpteur", name: "Sculpteur", icon: "/assets/dofus/jobs/sculpteur.png" },
         { id: "tailleur", name: "Tailleur", icon: "/assets/dofus/jobs/tailleur.png" },
@@ -74,7 +175,7 @@ export const DOFUS_JOBS = {
         { id: "forgemage", name: "Forgemage", icon: "/assets/dofus/jobs/forgemage.png" },
         { id: "joaillomage", name: "Joaillomage", icon: "/assets/dofus/jobs/joillomage.png" },
         { id: "sculptemage", name: "Sculptemage", icon: "/assets/dofus/jobs/sculptemage.png" },
-        { id: "facomage", name: "Façomage", icon: "/assets/dofus/jobs/façomage.png" },
+        { id: "facomage", name: "Façomage", icon: "/assets/dofus/jobs/facomage.png" },
     ],
     [JOB_CATEGORIES.ELEVAGE]: [
         { id: "eleveur", name: "Éleveur", icon: "/assets/dofus/jobs/eleveur.png" },
@@ -106,6 +207,14 @@ export const TIME_SLOTS = ["matin", "midi", "soir", "nuit"] as const;
 
 export type DayOfWeek = typeof DAYS_OF_WEEK[number];
 export type TimeSlot = typeof TIME_SLOTS[number];
+
+export const TIME_SLOT_CONFIG: Record<TimeSlot, { label: string; shortLabel: string; hours: string; shortHours: string }> = {
+    matin: { label: "Matin", shortLabel: "Matin", hours: "06h - 12h", shortHours: "06h-12h" },
+    midi: { label: "Après-midi", shortLabel: "Aprem", hours: "12h - 18h", shortHours: "12h-18h" },
+    soir: { label: "Soirée", shortLabel: "Soir", hours: "18h - 00h", shortHours: "18h-00h" },
+    nuit: { label: "Nuit", shortLabel: "Nuit", hours: "00h - 06h", shortHours: "00h-06h" },
+};
+
 export type AvailabilityMap = Partial<Record<DayOfWeek, TimeSlot[]>>;
 
 export type GlobalAvailability = {
@@ -266,29 +375,51 @@ export function getAlignmentLevelSteps(order: any): Array<{ level: number; title
 }
 
 // -----------------------------------------------------------------------------
-// DOFUS WORLDS & DIMENSIONS
+// DOFUS WORLDS & DIMENSIONS (Official Dofus / DofusDB worldMap IDs)
 // -----------------------------------------------------------------------------
 export const DOFUS_WORLDS = [
-    { id: 1, name: "Monde des Douze (Amakna, Frigost...)" },
+    { id: 1, name: "Monde des Douze" },
     { id: 2, name: "Incarnam" },
-    { id: 3, name: "Souterrains & Égouts" },
+    { id: 3, name: "Souterrain d'Astrub" },
     { id: 4, name: "Labyrinthe du Minotoror" },
-    { id: 5, name: "Antre du Dragon Cochon" },
-    { id: 6, name: "Labyrinthe du Maître Corbac" },
-    { id: 7, name: "Givrefoux & Cavernes" },
+    { id: 5, name: "Labyrinthe du Dragon Cochon" },
+    { id: 6, name: "Bibliothèque du Maître Corbac" },
+    { id: 7, name: "Cavernes des Givrefoux" },
     { id: 8, name: "Canaux Méphitiques" },
     { id: 9, name: "Entrailles de Brâkmar" },
-    { id: 10, name: "Sanctuaire des Dragoeufs / Canopée" },
-    { id: 11, name: "Dimension Divine - Enutrosor" },
-    { id: 12, name: "Dimension Divine - Srambad" },
-    { id: 13, name: "Dimension Divine - Xélorium" },
-    { id: 14, name: "Dimension Divine - Écaflipus" },
-    { id: 15, name: "Voyage dans le Temps / Passé" },
-    { id: 19, name: "Mappemondes / Pandala" },
-    { id: 22, name: "Nimotopia" },
-    { id: 29, name: "Ecaflip City" },
-    { id: 31, name: "Dimension Divine - Srambad (Alt)" },
-    { id: 32, name: "Dimension Divine - Enutrosor (Alt)" },
-    { id: 33, name: "Dimension Divine - Xélorium (Alt)" },
-    { id: 34, name: "Dimension Divine - Écaflipus (Alt)" },
+    { id: 10, name: "Village de la Canopée" },
+    { id: 11, name: "Duty free" },
+    { id: 12, name: "Château de Harebourg" },
+    { id: 13, name: "Enutrosor" },
+    { id: 14, name: "Srambad" },
+    { id: 15, name: "Xélorium" },
+    { id: 16, name: "Ecaflipus" },
+    { id: 17, name: "Profondeurs de Sufokia" },
+    { id: 18, name: "Pyramide Maudite" },
+    { id: 20, name: "Épaves Silencieuses" },
+    { id: 21, name: "Île de Pwâk" },
+    { id: 22, name: "Crocuzko" },
+    { id: 24, name: "Blessures de Guerre" },
+    { id: 25, name: "Royaume Corrompu" },
+    { id: 26, name: "Désert de Misère" },
+    { id: 27, name: "Galère de Servitude" },
+    { id: 28, name: "Wukin et Wukang" },
+    { id: 30, name: "Cauchemar" },
+    { id: 31, name: "Galeries d'Ereboria" },
+    { id: 32, name: "Caverne des Fungus" },
+    { id: 33, name: "Base Abyssale" },
+    { id: 34, name: "Osavora" },
+    { id: 35, name: "Dimension Obscure" },
+    { id: 36, name: "Sanctuaire des Dragoeufs" },
+    { id: 37, name: "Gouffre du Gigalodon" },
+    { id: 38, name: "Village des Brigandins" },
+    { id: 40, name: "Sanctuaire des Jardins éternels" },
 ] as const;
+
+export function getWorldName(worldMapId?: number | null, locale: string = "fr"): string {
+    if (!worldMapId || worldMapId === -1 || worldMapId === 1) {
+        return locale === "en" ? "World of Twelve" : "Monde des Douze";
+    }
+    const found = DOFUS_WORLDS.find((w) => w.id === worldMapId);
+    return found ? found.name : (locale === "en" ? `World ${worldMapId}` : `Monde ${worldMapId}`);
+}

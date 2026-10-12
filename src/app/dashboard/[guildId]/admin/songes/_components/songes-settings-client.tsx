@@ -12,6 +12,7 @@ import { getSongesConfig, updateSongesChannel } from "@/server/actions/admin-act
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DIFFICULTIES } from "@/lib/songes/types";
 
 interface SongesSettingsClientProps {
     guildId: string;
@@ -140,6 +141,20 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
                                     </Button>
                                 </div>
                                 <ChannelPreview guildId={guildId} channelId={channelId} color="purple" />
+                                {/* Salon FORUM : SigilOS pose le tag du palier sur chaque sujet
+                                    (il ne crée jamais de tag) — les noms attendus sont ceux du
+                                    référentiel des paliers, pour que le filtre marche. */}
+                                <div className="rounded-lg border border-border bg-black/20 p-3 space-y-1">
+                                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                        Filtre par palier (salon forum)
+                                    </p>
+                                    <p className="text-caption text-muted-foreground leading-relaxed">
+                                        Créez ces tags dans le forum pour classer les runs automatiquement :
+                                        <span className="text-foreground font-medium">
+                                            {" "}{Object.values(DIFFICULTIES).map(d => d.label).join(" · ")}
+                                        </span>
+                                    </p>
+                                </div>
                                 {isConfigured && (
                                     <div className="flex justify-end">
                                         <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">

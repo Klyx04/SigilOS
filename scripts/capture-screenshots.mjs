@@ -14,7 +14,7 @@
  * ── Usage ─────────────────────────────────────────────────────────────
  *   node scripts/capture-screenshots.mjs            # BASE_URL=http://localhost:3000
  *   node scripts/capture-screenshots.mjs --login    # 1ʳᵉ fois : se connecter avec Discord
- *   GUILD_ID=1290442961380835451 node scripts/capture-screenshots.mjs
+ *   GUILD_ID=<id-de-guilde> node scripts/capture-screenshots.mjs
  *   BASE_URL=https://beta.sigilos.fr node scripts/capture-screenshots.mjs --login
  *   FULL_PAGE=1 node scripts/capture-screenshots.mjs   # capture pleine page (au lieu du cadrage produit)
  *   HEADLESS=1 node scripts/capture-screenshots.mjs    # sans fenêtre (session déjà dans le profil)
@@ -39,7 +39,12 @@ import { createInterface } from "node:readline";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
-const GUILD_ID = process.env.GUILD_ID || "1290442961380835451";
+const GUILD_ID = process.env.GUILD_ID;
+if (!GUILD_ID) {
+  // Jamais d'identifiant Discord en dur dans le dépôt PUBLIC — cf. docs/RULES.md §Sécurité.
+  console.error("GUILD_ID manquant : GUILD_ID=<id-de-guilde> node scripts/capture-screenshots.mjs");
+  process.exit(1);
+}
 const PROFILE_DIR = path.join(ROOT, ".playwright-profile");
 const OUT_DIR = path.join(ROOT, "public", "assets", "screenshots");
 const HEADLESS = process.env.HEADLESS === "1";

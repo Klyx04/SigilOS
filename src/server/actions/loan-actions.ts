@@ -391,8 +391,14 @@ export async function markLoanReturned(
             return { success: false, error: "Trop d'actions. Veuillez patienter avant de réessayer." };
         }
 
-        const loan = await db.guildLoan.findUnique({
-            where: { id: loanId },
+        const returnGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!returnGuild) return { success: false, error: "Guilde introuvable" };
+
+        const loan = await db.guildLoan.findFirst({
+            where: { id: loanId, guildId: returnGuild.id },
             select: { lenderId: true, borrowerId: true, status: true, guildId: true },
         });
         if (!loan) return { success: false, error: "Prêt introuvable" };
@@ -512,8 +518,14 @@ export async function cancelLoan(
             return { success: false, error: "Trop d'actions. Veuillez patienter avant de réessayer." };
         }
 
-        const loan = await db.guildLoan.findUnique({
-            where: { id: loanId },
+        const cancelGuild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!cancelGuild) return { success: false, error: "Guilde introuvable" };
+
+        const loan = await db.guildLoan.findFirst({
+            where: { id: loanId, guildId: cancelGuild.id },
             select: { lenderId: true, status: true, guildId: true },
         });
         if (!loan) return { success: false, error: "Prêt introuvable" };

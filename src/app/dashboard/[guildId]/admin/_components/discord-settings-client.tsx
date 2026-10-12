@@ -3,15 +3,15 @@
 import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, Hash, Users, Bell, Sparkles, Megaphone, ShieldAlert, ExternalLink, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 
 interface DiscordSettingsClientProps {
     guildId: string;
@@ -20,6 +20,10 @@ interface DiscordSettingsClientProps {
 export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
     const [newsEnabled, setNewsEnabled] = useState<boolean>(false);
     const [lifecycleChannelId, setLifecycleChannelId] = useState<string>("");
+
+    // — Détection « modifications non sauvegardées » (snapshot chargé vs état courant)
+    const [initialConfig, setInitialConfig] = useState<{ newsEnabled: boolean; lifecycleChannelId: string } | null>(null);
+    const hasUnsavedChanges = isDirty({ newsEnabled, lifecycleChannelId }, initialConfig);
     
     const [fullConfig, setFullConfig] = useState<any>(null);
     const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
@@ -38,6 +42,10 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                 setFullConfig(configRes.data);
                 setNewsEnabled(configRes.data.newsBroadcastEnabled || false);
                 setLifecycleChannelId(configRes.data.lifecycleNotifyChannelId || "");
+                setInitialConfig({
+                    newsEnabled: configRes.data.newsBroadcastEnabled || false,
+                    lifecycleChannelId: configRes.data.lifecycleNotifyChannelId || "",
+                });
             }
 
             if (rolesRes.success && rolesRes.roles) {
@@ -68,11 +76,13 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
 
             if (result.success) {
                 toast.success("Paramètres Discord mis à jour !");
+                setLifecycleChannelId(lifecycleChannelId.trim());
                 setFullConfig({
                     ...fullConfig,
                     newsBroadcastEnabled: newsEnabled,
                     lifecycleNotifyChannelId: lifecycleChannelId.trim() || null,
                 });
+                setInitialConfig({ newsEnabled, lifecycleChannelId: lifecycleChannelId.trim() });
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -89,6 +99,7 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 text-left">
+            <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}
                 <div className="lg:col-span-2 space-y-6">
@@ -140,17 +151,12 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                         <CardContent className="space-y-6">
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label className="text-caption uppercase font-black text-muted-foreground ml-1">ID du Salon de Notification</Label>
-                                    <div className="relative group/input">
-                                        <Input
-                                            placeholder="ID du salon (ex: 123...)"
-                                            value={lifecycleChannelId}
-                                            onChange={(e) => setLifecycleChannelId(e.target.value)}
-                                            className="bg-background/50 border-border h-11 pl-10 focus:border-info/50 transition-colors font-mono text-xs"
-                                        />
-                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover/input:text-info transition-colors" />
-                                    </div>
-                                    <ChannelPreview guildId={guildId} channelId={lifecycleChannelId} color="indigo" />
+                                    <Label className="text-caption uppercase font-black text-muted-foreground ml-1">Salon de Notification</Label>
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={lifecycleChannelId}
+                                        onChange={setLifecycleChannelId}
+                                    />
                                 </div>
                                 <div className="p-3 rounded-xl bg-info/5 border border-info/10 flex items-start gap-3">
                                     <ShieldAlert className="w-3.5 h-3.5 text-info mt-0.5 shrink-0" />
@@ -165,7 +171,8 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                     <div className="flex justify-end pt-4">
                         <Button onClick={handleSave} disabled={isPending} className="bg-info hover:bg-info text-info-foreground min-w-[200px] font-bold h-12 shadow-xl shadow-indigo-600/20">
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                            SAUVEGARDER TOUT
+                            Enregistrer
+                            {hasUnsavedChanges && !isPending && <span className="ml-2 w-2 h-2 rounded-full bg-white animate-pulse" title="Modifications non sauvegardées" />}
                         </Button>
                     </div>
                 </div>

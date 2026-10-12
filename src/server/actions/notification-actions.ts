@@ -6,6 +6,7 @@ import { NotificationType, NotificationCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
+import { isMarketNotificationEnabled, type MarketNotificationType } from "@/lib/market/notifications";
 import { getUserContext } from "./user-actions";
 
 // --- Types ---
@@ -35,6 +36,7 @@ function inferCategory(type: NotificationType, title: string): NotificationCateg
     if (type === "POLL_CREATED" || type === "POLL_CLOSED" || title.toLowerCase().includes("sondage")) return "POLL";
     if (type.startsWith("OCRE_") || title.toLowerCase().includes("ocre")) return "OCRE";
     if (type.startsWith("FINDER_") || title.toLowerCase().includes("donjon")) return "DONJONS";
+    if (type.startsWith("MARKET_")) return "MARKET";
     return "SYSTEM";
 }
 
@@ -89,7 +91,7 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
             return { success: true, data: JSON.parse(cached) as Notification[] };
         }
 
-        // 2. SECURITY (I-XX): guild isolation — membre requis (fail-closed, SECURITY.md)
+        // 2. SECURITY (I-XX): guild isolation — membre requis (fail-closed, docs/SECURITY.md)
         //    Les notifs système sans guilde restent visibles via le scope OR [guildId, null].
         let internalGuildId: string | undefined;
         if (guildId) {
@@ -112,11 +114,20 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
             take: 50, // PERF: limit results to prevent unbounded accumulation
         });
 
-        // 4. Cache 10s (aligné sur le polling sidebar 10s => quasi-100% de hits)
-        await redis.set(cacheKey, JSON.stringify(notifications), "EX", 10).catch(() => {});
+        // 4. SECURITY RBAC: Filtrer les notifications administratives si l'utilisateur n'a pas la RBAC
+        const ctx = guildId ? await getUserContext(guildId) : null;
+        const filtered = notifications.filter(n => {
+            if (n.category === "ADMIN_ALERT") {
+                return !!(ctx?.isAdmin || ctx?.canValidateMissions || ctx?.canManageMembers);
+            }
+            return true;
+        });
+
+        // 5. Cache 10s (aligné sur le polling sidebar 10s => quasi-100% de hits)
+        await redis.set(cacheKey, JSON.stringify(filtered), "EX", 10).catch(() => {});
 
         logger.debug(`[PERF] getUnreadNotifications: DB Fetch ${Date.now() - start}ms (Auth: ${authDone - start}ms, DB: ${Date.now() - authDone}ms)`);
-        return { success: true, data: notifications as Notification[] };
+        return { success: true, data: filtered as Notification[] };
     } catch (error) {
         logger.error("Get Notifications Error:", error);
         return { success: false, error: "Database error" };
@@ -128,8 +139,9 @@ export async function getAllNotifications(guildId?: string, limit = 100): Promis
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     let internalGuildId: string | undefined;
+    let ctx: any = null;
     if (guildId) {
-        const ctx = await getUserContext(guildId);
+        ctx = await getUserContext(guildId);
         if (!ctx.isMember) {
             return { success: false, error: "Forbidden: Member access required" };
         }
@@ -146,7 +158,15 @@ export async function getAllNotifications(guildId?: string, limit = 100): Promis
             take: limit,
         });
 
-        return { success: true, data: notifications as Notification[] };
+        // SECURITY RBAC: Filtrer les notifications administratives si l'utilisateur n'a pas la RBAC
+        const filtered = notifications.filter(n => {
+            if (n.category === "ADMIN_ALERT") {
+                return !!(ctx?.isAdmin || ctx?.canValidateMissions || ctx?.canManageMembers);
+            }
+            return true;
+        });
+
+        return { success: true, data: filtered as Notification[] };
     } catch (error) {
         logger.error("Get All Notifications Error:", error);
         return { success: false, error: "Database error" };
@@ -183,6 +203,44 @@ export async function markAsRead(notificationId: string, guildId?: string) {
         revalidatePath("/");
     } catch (error) {
         logger.error("Mark Read Error:", error);
+    }
+}
+
+/**
+ * Supprime définitivement une notification (bouton ✕ du centre).
+ * Scopée comme les lectures : propriétaire + guilde (fail-closed).
+ */
+export async function deleteNotification(
+    notificationId: string,
+    guildId?: string
+): Promise<{ success: boolean; error?: string }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    if (guildId) {
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isMember) {
+            logger.warn(`[Notification] Blocked delete for user ${session.user.id} on unauthorized guild ${guildId}`);
+            return { success: false, error: "Forbidden: Member access required" };
+        }
+    }
+
+    try {
+        const internalGuildId = await resolveInternalGuildId(guildId);
+        const res = await db.notification.deleteMany({
+            where: {
+                id: notificationId,
+                userId: session.user.id,
+                ...buildGuildScopeFilter(internalGuildId),
+            },
+        });
+        if (res.count === 0) return { success: false, error: "Notification introuvable" };
+        invalidateUnreadCache(session.user.id, guildId);
+        revalidatePath("/");
+        return { success: true };
+    } catch (error) {
+        logger.error("Delete Notification Error:", error);
+        return { success: false, error: "Suppression impossible" };
     }
 }
 
@@ -259,6 +317,12 @@ export async function createNotification(
                     if (finalCategory === "OCRE" && prefs.ocre === false) return;
                     if (finalCategory === "DONJONS" && prefs.donjons === false) return;
                     if (finalCategory === "ADMIN_ALERT" && prefs.admin_validations === false) return;
+                    // §11.9 — Marché : un booléen **par type** (`market.<clé>`),
+                    // défaut activé ; seul un `false` explicite coupe la notif.
+                    if (
+                        finalCategory === "MARKET"
+                        && !isMarketNotificationEnabled(prefs, type as MarketNotificationType)
+                    ) return;
                 }
             }
         }

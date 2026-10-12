@@ -1,15 +1,27 @@
 "use client";
-import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
 
+/**
+ * En-tête public — registre (refonte anti-slop).
+ *
+ * Ce qui a été retiré volontairement :
+ *  - la barre transparente qui devenait opaque au scroll (le titre passait en
+ *    blanc sur l'image du hero, ce qui obligeait à des `drop-shadow`) ;
+ *  - l'animation d'entrée `framer-motion` (information nulle) ;
+ *  - les libellés vagues (« Produit ») et la pilule marketing.
+ *
+ * Ce qui le remplace : une barre mate stable, des liens textuels lisibles,
+ * un menu « Outils » natif (`<details>`, clavier + Échap) et une seule action
+ * mise en avant (Connexion Discord). Le mono est réservé aux métadonnées.
+ */
+
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LogOut, ChevronRight, LayoutDashboard } from "lucide-react";
-import { User } from "next-auth";
+import { ChevronRight, LayoutDashboard, LogOut, Newspaper, CalendarDays, Sparkles, Users } from "lucide-react";
+import type { User } from "next-auth";
 import { loginWithDiscord, logoutAction } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
-import { motion, AnimatePresence } from "framer-motion";
-import { DashboardDrawer } from "./dashboard-drawer";
+import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -20,27 +32,105 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ThemeToggle } from "./ThemeToggle";
+import { DashboardDrawer } from "./dashboard-drawer";
+import { LanguageToggle } from "./LanguageToggle";
+import { useI18n } from "@/lib/i18n/client";
 
-type NavItem = {
-    label: string;
-    href: string;
-    id: string;
-};
+/** Serveur Discord d'entraide — seule invitation publique connue. */
+const DISCORD_INVITE = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
 
-const NAV_ITEMS: NavItem[] = [
-    { label: "Produit", href: "/#produit", id: "produit" },
-    { label: "Almanax", href: "/almanax", id: "almanax" },
-    { label: "Annuaire", href: "/guilds", id: "annuaire" },
-    { label: "Guides", href: "/guides", id: "guides" },
-    { label: "Changelog", href: "/changelog", id: "changelog" },
-    { label: "Statut", href: "/status", id: "status" },
-];
+/**
+ * Contenu de l'encart Discord — quatre choses **réelles** qu'on y trouve (aucune liste
+ * copiée) : les patch notes du jeu, l'Almanax, les cosmétiques ajoutés, l'entraide entre
+ * guildes. L'ordre suit celui des phrases (`nav.discordCard.benefits`).
+ */
+const DISCORD_BENEFITS = [Newspaper, CalendarDays, Sparkles, Users] as const;
+
+/**
+ * Outils ouverts sans compte : regroupés sous « Outils » (« Produit » est trop vague).
+ *
+ * Chaque entrée porte l'asset Dofus réel qui l'identifie en jeu — œuf Sylvestre,
+ * marqueur de donjon/boss, œuf Dolmanax (récompense d'Almanax), boussole de carte.
+ * Assets colorés et non glyphes blancs : lisibles en thème clair comme en thème
+ * sombre, et déjà employés ailleurs dans le produit (pas de nouvelle famille
+ * graphique). Ils illustrent un libellé déjà écrit : `alt` vide, décoratifs.
+ */
+const TOOLS = [
+    {
+        id: "rush",
+        label: "Rush Sylvestre",
+        hint: "Étape courante, /travel, reprise",
+        href: "/guides/rush-sylvestre",
+        icon: "/module-dofus/Dofus_Sylvestre.png",
+    },
+    {
+        id: "boss",
+        label: "Fiches boss & donjons",
+        hint: "Sorts, portées, résistances",
+        href: "/boss",
+        icon: "/assets/worldmap/dungeon-boss.png",
+    },
+    {
+        id: "bestiaire",
+        label: "Bestiaire",
+        hint: "Toutes les créatures du jeu, par famille",
+        href: "/bestiaire",
+        icon: "/assets/dofus/icons/archimonster.png",
+    },
+    {
+        id: "almanax",
+        label: "Almanax",
+        hint: "Offrande et bonus du jour",
+        href: "/almanax",
+        icon: "/module-dofus/Dofus_Dolmanax.png",
+    },
+    {
+        id: "carte-du-monde",
+        label: "Carte du monde",
+        hint: "Positions et trajets",
+        href: "/carte-du-monde",
+        icon: "/assets/nav/map.png",
+    },
+    {
+        id: "raids",
+        label: "Raid Studio 3.6",
+        hint: "Compos, Luminarium & Énigmes",
+        href: "/raids",
+        icon: "/assets/raids/sanctuaire.webp",
+    },
+    {
+        id: "elevage",
+        label: "Élevage Studio 3.7",
+        hint: "Calculateur, Croisements & Sérénité",
+        href: "/elevage",
+        icon: "/images/guides/elevage/dragodindes.png",
+    },
+] as const;
+
+const NAV_ITEMS = [
+    { id: "dashboard", label: "Tableau de bord", href: "/dashboard" },
+    { id: "modules", label: "Modules", href: "/modules" },
+    { id: "guides", label: "Guides", href: "/guides" },
+    { id: "guildes", label: "Guildes", href: "/guilds" },
+] as const;
+
+/** Un `activePage` désigne soit un lien de nav, soit un outil, soit l'annuaire. */
+function resolveActive(activePage?: string): string | null {
+    if (!activePage) return null;
+    if (TOOLS.some((tool) => tool.id === activePage)) return "outils";
+    if (activePage === "annuaire" || activePage === "guilds") return "guildes";
+    if (NAV_ITEMS.some((item) => item.id === activePage)) return activePage;
+    return null;
+}
 
 interface PublicHeaderProps {
     activePage?: string;
     backHref?: string;
     backLabel?: string;
     user?: User;
+    /** Conservé pour compatibilité d'appel ; la barre est désormais identique partout. */
     variant?: "hero" | "standard";
     dashboardHref?: string;
     isMember?: boolean;
@@ -48,198 +138,419 @@ interface PublicHeaderProps {
     clientId?: string;
 }
 
-export function PublicHeader({ activePage, user, variant: _variant = "standard", dashboardHref = "/dashboard", isFixed = true, clientId, isMember }: PublicHeaderProps) {
-    const [scrolled, setScrolled] = useState(false);
+export function PublicHeader({
+    activePage,
+    backHref,
+    backLabel = "Retour",
+    user,
+    variant: _variant = "standard",
+    dashboardHref = "/dashboard",
+    isMember,
+    isFixed = true,
+    clientId: _clientId,
+}: PublicHeaderProps) {
+    const { t } = useI18n();
+    const active = resolveActive(activePage);
+    const [toolsOpen, setToolsOpen] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const toolsRef = useRef<HTMLDetailsElement>(null);
 
+    const localizedTools = [
+        {
+            id: "rush",
+            label: t.tools.rushTitle,
+            hint: t.tools.rushHint,
+            href: "/guides/rush-sylvestre",
+            icon: "/module-dofus/Dofus_Sylvestre.png",
+        },
+        {
+            id: "boss",
+            label: t.tools.bossTitle,
+            hint: t.tools.bossHint,
+            href: "/boss",
+            icon: "/assets/worldmap/dungeon-boss.png",
+        },
+        {
+            id: "almanax",
+            label: t.tools.almanaxTitle,
+            hint: t.tools.almanaxHint,
+            href: "/almanax",
+            icon: "/module-dofus/Dofus_Dolmanax.png",
+        },
+        {
+            id: "carte-du-monde",
+            label: t.tools.worldmapTitle,
+            hint: t.tools.worldmapHint,
+            href: "/carte-du-monde",
+            icon: "/assets/nav/map.png",
+        },
+        {
+            id: "raids",
+            label: t.tools.raidTitle,
+            hint: t.tools.raidHint,
+            href: "/raids",
+            icon: "/assets/raids/sanctuaire.webp",
+        },
+        {
+            id: "elevage",
+            label: t.tools.elevageTitle,
+            hint: t.tools.elevageHint,
+            href: "/elevage",
+            icon: "/images/guides/elevage/dragodindes.png",
+        },
+    ];
+
+    const localizedNav = [
+        { id: "dashboard", label: t.nav.dashboard, href: "/dashboard" },
+        { id: "modules", label: t.nav.modules, href: "/modules" },
+        { id: "guides", label: t.nav.guides, href: "/guides" },
+        { id: "guildes", label: t.nav.guilds, href: "/guilds" },
+    ];
+
+    // Échap ferme le menu Outils et repose le focus sur son déclencheur ;
+    // un clic hors du menu le referme (comportement attendu d'un menu).
     useEffect(() => {
-        const handleScroll = () => setScrolled(window.scrollY > 20);
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
+        if (!toolsOpen) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
+            setToolsOpen(false);
+            toolsRef.current?.querySelector("summary")?.focus();
+        };
+        const onPointerDown = (event: PointerEvent) => {
+            if (!toolsRef.current?.contains(event.target as Node)) setToolsOpen(false);
+        };
+        document.addEventListener("keydown", onKeyDown);
+        document.addEventListener("pointerdown", onPointerDown);
+        return () => {
+            document.removeEventListener("keydown", onKeyDown);
+            document.removeEventListener("pointerdown", onPointerDown);
+        };
+    }, [toolsOpen]);
+
+    const linkClass = (isActive: boolean) =>
+        cn(
+            "inline-flex items-center px-2.5 py-1.5 rounded-md text-sm transition-colors",
+            isActive
+                ? "text-foreground bg-surface font-semibold"
+                : "text-muted-foreground font-medium hover:text-foreground hover:bg-surface",
+        );
 
     return (
-        <motion.header 
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+        <header
             className={cn(
-                isFixed ? "fixed top-0 left-0 right-0 z-50" : "relative z-50",
-                "transition-all duration-300",
-                scrolled
-                    ? "bg-background/95 backdrop-blur-md border-b border-border py-2.5"
-                    : "bg-transparent border-b border-transparent py-4"
+                "w-full z-50 border-b border-border bg-background/95 backdrop-blur-sm",
+                isFixed ? "sticky top-0" : "relative",
             )}
         >
-            <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-14">
-
-                    {/* Left: Brand */}
-                    <div className="flex items-center gap-12">
-                        <Link href="/" className="flex items-center gap-2.5 shrink-0">
-                            <Image
-                                src="/assets/ui/logo-v2.png"
-                                alt="SigilOS"
-                                width={34}
-                                height={34}
-                                className="object-contain"
-                                priority
-                            />
-                            <span className="text-lg font-bold tracking-tight text-foreground leading-none">
-                                Sigil<span className="text-success">OS</span>
-                            </span>
+            <div className="reg-shell">
+                <div className="flex items-center justify-between gap-6 min-h-[3.75rem]">
+                    {/* Marque + retour de page */}
+                    <div className="flex items-center gap-3 min-w-0">
+                        <Link href="/" className="flex items-center gap-2 shrink-0" aria-label="SigilOS, accueil">
+                            <Image src="/assets/ui/logo-v2.png" alt="" width={28} height={28} className="object-contain" priority />
+                            <span className="text-base font-bold tracking-tight text-foreground leading-none">SigilOS</span>
                         </Link>
 
-                        <nav className="hidden lg:flex items-center gap-1" aria-label="Navigation principale">
-                            {NAV_ITEMS.map((item) => {
-                                const isActive = activePage === item.id;
-                                return (
-                                    <Link
-                                        key={item.id}
-                                        href={item.href}
-                                        aria-current={isActive ? "page" : undefined}
-                                        className={cn(
-                                            "px-3 py-1.5 rounded-md text-body-sm font-medium transition-colors",
-                                            isActive
-                                                ? "text-foreground bg-surface"
-                                                : "text-muted-foreground hover:text-foreground hover:bg-surface"
-                                        )}
-                                    >
-                                        {item.label}
-                                    </Link>
-                                );
-                            })}
-                        </nav>
+                        {backHref && (
+                            <Link
+                                href={backHref}
+                                className="hidden md:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors truncate"
+                            >
+                                <ChevronRight className="w-3.5 h-3.5 rotate-180" aria-hidden="true" />
+                                <span className="truncate">{backLabel}</span>
+                            </Link>
+                        )}
                     </div>
 
-                    {/* Right: Auth */}
-                    <div className="flex items-center gap-3 sm:gap-5">
-                        <AnimatePresence mode="wait">
-                            {user ? (
-                                <motion.div 
-                                    key="logged-in"
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="flex items-center gap-3"
+                    {/* Navigation principale — liens textuels */}
+                    <nav className="hidden lg:flex items-center gap-0.5" aria-label="Navigation principale">
+                        {/* « Tableau de bord » sert de point d'entrée : sans session il lance
+                            la connexion Discord, sinon il ouvre /dashboard qui redirige
+                            vers la guilde unique ou vers la liste des guildes accessibles. */}
+                        {user ? (
+                            <Link
+                                href={dashboardHref}
+                                aria-current={active === "dashboard" ? "page" : undefined}
+                                className={linkClass(active === "dashboard")}
+                            >
+                                {t.nav.dashboard}
+                            </Link>
+                        ) : (
+                            <form action={loginWithDiscord}>
+                                <button type="submit" className={linkClass(false)}>
+                                    {t.nav.dashboard}
+                                </button>
+                            </form>
+                        )}
+
+                        <details
+                            ref={toolsRef}
+                            className="relative"
+                            open={toolsOpen}
+                            onToggle={(event) => setToolsOpen((event.currentTarget as HTMLDetailsElement).open)}
+                        >
+                            <summary
+                                className={cn(
+                                    linkClass(active === "outils"),
+                                    "cursor-pointer list-none [&::-webkit-details-marker]:hidden",
+                                )}
+                            >
+                                {t.nav.tools}
+                                <span className="ml-1.5 text-[0.7em] text-muted-foreground" aria-hidden="true">
+                                    ▾
+                                </span>
+                            </summary>
+                            <div className="absolute left-0 top-[calc(100%+0.5rem)] w-[19rem] reg-panel p-1.5 z-50">
+                                <p className="reg-eyebrow px-2.5 pt-1.5 pb-2">{t.nav.toolsHint}</p>
+                                {localizedTools.map((tool) => (
+                                    <Link
+                                        key={tool.id}
+                                        href={tool.href}
+                                        onClick={() => setToolsOpen(false)}
+                                        className="flex items-start gap-2.5 px-2.5 py-2 rounded-md hover:bg-muted transition-colors"
+                                    >
+                                        <Image
+                                            src={tool.icon}
+                                            alt=""
+                                            width={20}
+                                            height={20}
+                                            aria-hidden="true"
+                                            className="mt-0.5 w-5 h-5 shrink-0 object-contain"
+                                        />
+                                        <span className="min-w-0">
+                                            <span className="block text-sm font-semibold text-foreground">
+                                                {tool.label}
+                                            </span>
+                                            <span className="block text-xs text-muted-foreground">{tool.hint}</span>
+                                        </span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </details>
+
+                        {localizedNav.slice(1).map((item) => (
+                            <Link
+                                key={item.id}
+                                href={item.href}
+                                aria-current={active === item.id ? "page" : undefined}
+                                className={linkClass(active === item.id)}
+                            >
+                                {item.label}
+                            </Link>
+                        ))}
+
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <button
+                                    type="button"
+                                    className={cn(linkClass(false), "gap-1.5")}
+                                    aria-label={t.nav.discordCard.title}
                                 >
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <button className="flex items-center gap-3 pl-3 pr-4 py-2 rounded-xl bg-background/[0.05] border border-border hover:bg-background/[0.08] hover:border-success/30 transition-colors outline-none">
-                                                <Avatar className="w-10 h-10 border border-border rounded-xl">
-                                                    <AvatarImage src={user.image || ""} />
-                                                    <AvatarFallback className="bg-elevated text-foreground font-black">{user.name?.[0]}</AvatarFallback>
-                                                </Avatar>
-                                                <div className="flex flex-col items-start -space-y-0.5 hidden sm:flex">
-                                                    <span className="text-caption font-black text-foreground/40 uppercase tracking-widest">Session</span>
-                                                    <span className="text-caption font-bold text-foreground">{user.name}</span>
-                                                </div>
-                                            </button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent className="w-64 bg-background border border-border rounded-2xl p-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)]" align="end">
-                                            <DropdownMenuLabel className="px-4 py-3">
-                                                <div className="flex flex-col space-y-1">
-                                                    <p className="text-xs font-black text-foreground uppercase tracking-widest">Compte SigilOS</p>
-                                                    <p className="text-caption text-muted-foreground font-medium truncate">{user.name || "Connecté via Discord"}</p>
-                                                </div>
-                                            </DropdownMenuLabel>
-                                            <DropdownMenuSeparator className="bg-surface mx-2" />
-                                            
-                                            {isMember !== false && (
-                                                <>
-                                                    <DashboardDrawer clientId={clientId}>
-                                                        <DropdownMenuItem 
-                                                            onSelect={(e) => e.preventDefault()}
-                                                            className="focus:bg-success/10 focus:text-success rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
-                                                        >
-                                                            <LayoutDashboard className="w-4 h-4" />
-                                                            <span className="text-caption font-black uppercase tracking-widest">Gestion Multi-Guilde</span>
-                                                        </DropdownMenuItem>
-                                                    </DashboardDrawer>
+                                    <DiscordIcon className="w-4 h-4" aria-hidden="true" />
+                                    Discord
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-80 space-y-4 p-5">
+                                <div className="flex items-start gap-3">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#5865F2]/30 bg-[#5865F2]/15">
+                                        <DiscordIcon className="w-5 h-5 text-[#5865F2]" aria-hidden="true" />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="reg-eyebrow">{t.nav.discordCard.title}</p>
+                                        <p className="pt-1 text-xs leading-snug text-muted-foreground">
+                                            {t.nav.discordCard.intro}
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul className="space-y-2">
+                                    {DISCORD_BENEFITS.map((Icon, index) => (
+                                        <li key={index} className="flex items-start gap-2.5 text-xs text-foreground">
+                                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-surface">
+                                                <Icon className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
+                                            </span>
+                                            <span className="pt-0.5 leading-snug">{t.nav.discordCard.benefits[index]}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <a
+                                    href={DISCORD_INVITE}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="reg-external flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#5865F2]/40 bg-[#5865F2]/15 text-sm font-semibold text-foreground transition-colors hover:bg-[#5865F2]/25"
+                                >
+                                    <DiscordIcon className="w-4 h-4" aria-hidden="true" />
+                                    {t.nav.discordCard.cta}
+                                </a>
+                            </PopoverContent>
+                        </Popover>
+                    </nav>
 
-                                                    <DropdownMenuItem asChild className="focus:bg-elevated focus:text-foreground rounded-xl p-3 cursor-pointer outline-none">
-                                                        <Link href={dashboardHref} className="flex items-center gap-3 w-full">
-                                                            <LayoutDashboard className="w-4 h-4 opacity-40" />
-                                                            <span className="text-caption font-black uppercase tracking-widest">Dashboard Central</span>
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                </>
-                                            )}
+                    {/* Actions : langue, thème, connexion / compte */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <LanguageToggle />
+                        <ThemeToggle />
 
-                                            <DropdownMenuSeparator className="bg-surface mx-2" />
-                                            
-                                            <DropdownMenuItem 
-                                                onSelect={() => logoutAction()}
-                                                className="focus:bg-danger/10 focus:text-danger rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
+                        {user ? (
+                            <DropdownMenu modal={false}>
+                                <DropdownMenuTrigger asChild>
+                                    <button className="flex items-center gap-2.5 pl-1 pr-2.5 py-1 rounded-md border border-border hover:bg-surface transition-colors outline-none">
+                                        <Avatar className="w-7 h-7 rounded-md">
+                                            <AvatarImage src={user.image || ""} alt="" />
+                                            <AvatarFallback className="bg-elevated text-foreground text-xs font-semibold">
+                                                {user.name?.[0]}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="hidden sm:block text-sm font-medium text-foreground max-w-[9rem] truncate">
+                                            {user.name}
+                                        </span>
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">
+                                        {user.name}
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {isMember !== false && (
+                                        <DashboardDrawer>
+                                            <DropdownMenuItem
+                                                onSelect={(event) => event.preventDefault()}
+                                                className="cursor-pointer"
                                             >
-                                                <LogOut className="w-4 h-4" />
-                                                <span className="text-caption font-black uppercase tracking-widest text-left flex-1">Déconnexion</span>
+                                                <LayoutDashboard className="w-4 h-4 mr-2" aria-hidden="true" />
+                                                {t.nav.myGuilds}
                                             </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </motion.div>
-                            ) : (
-                                <motion.div
-                                    key="logged-out"
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="hidden sm:block"
-                                >
-                                    <form action={loginWithDiscord}>
-                                        <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface border border-border hover:border-success/40 hover:bg-background/[0.08] text-body-sm font-semibold text-foreground transition-colors">
-                                            <DiscordIcon className="w-4 h-4 text-success" />
-                                            Connexion
-                                        </button>
-                                    </form>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                        </DashboardDrawer>
+                                    )}
+                                    <DropdownMenuItem asChild className="cursor-pointer">
+                                        <Link href={dashboardHref}>
+                                            <LayoutDashboard className="w-4 h-4 mr-2" aria-hidden="true" />
+                                            {t.nav.dashboard}
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        onSelect={() => logoutAction()}
+                                        className="cursor-pointer text-danger focus:text-danger"
+                                    >
+                                        <LogOut className="w-4 h-4 mr-2" aria-hidden="true" />
+                                        {t.nav.logout}
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        ) : (
+                            <form action={loginWithDiscord} className="hidden sm:block">
+                                <button type="submit" className="reg-btn reg-btn-primary min-h-9 px-3.5 py-1.5 text-sm">
+                                    <DiscordIcon className="w-4 h-4" aria-hidden="true" />
+                                    {t.nav.connectDiscord}
+                                </button>
+                            </form>
+                        )}
 
                         <div className="lg:hidden">
-                            <Sheet>
+                            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                                 <SheetTrigger asChild>
-                                    <button aria-label="Ouvrir le menu" className="w-10 h-10 flex items-center justify-center rounded-lg bg-surface border border-border text-foreground hover:bg-elevated transition-colors outline-none">
-                                        <div className="space-y-1.5">
-                                            <div className="w-5 h-0.5 bg-background rounded-full" />
-                                            <div className="w-3 h-0.5 bg-background rounded-full ml-auto" />
-                                            <div className="w-5 h-0.5 bg-background rounded-full" />
-                                        </div>
+                                    <button
+                                        type="button"
+                                        aria-label="Ouvrir le menu"
+                                        className="w-10 h-10 flex items-center justify-center rounded-md border border-border text-foreground hover:bg-surface transition-colors"
+                                    >
+                                        <span className="space-y-1.5" aria-hidden="true">
+                                            <span className="block w-5 h-px bg-foreground" />
+                                            <span className="block w-5 h-px bg-foreground" />
+                                            <span className="block w-5 h-px bg-foreground" />
+                                        </span>
                                     </button>
                                 </SheetTrigger>
-                                <SheetContent side="right" className="w-[300px] bg-background border-l border-border p-0 overflow-hidden flex flex-col">
-                                    <div className="p-6 pb-2 flex flex-col gap-1 mt-8">
-                                        <div className="flex items-center gap-2.5">
-                                            <Image src="/assets/ui/logo-v2.png" alt="SigilOS" width={28} height={28} className="object-contain" />
-                                            <span className="text-lg font-bold tracking-tight text-foreground">Sigil<span className="text-success">OS</span></span>
+                                <SheetContent
+                                    side="right"
+                                    className="w-[320px] bg-background border-l border-border p-0 overflow-y-auto"
+                                >
+                                    <nav className="p-5 space-y-6" aria-label="Navigation mobile">
+                                        <div className="flex items-center gap-2">
+                                            <Image src="/assets/ui/logo-v2.png" alt="" width={24} height={24} className="object-contain" />
+                                            <span className="text-base font-bold tracking-tight text-foreground">SigilOS</span>
                                         </div>
-                                    </div>
 
-                                    <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto" aria-label="Navigation mobile">
-                                        {NAV_ITEMS.map((item) => (
-                                            <Link
-                                                key={item.id}
-                                                href={item.href}
-                                                className="flex items-center justify-between p-3 rounded-lg text-sm font-medium text-foreground hover:text-foreground hover:bg-surface transition-colors"
+                                        <div className="space-y-0.5">
+                                            {localizedNav.map((item) =>
+                                                item.id === "dashboard" && !user ? (
+                                                    <form key={item.id} action={loginWithDiscord}>
+                                                        <button
+                                                            type="submit"
+                                                            className="flex w-full items-center justify-between min-h-11 px-2 rounded-md text-sm font-medium text-foreground hover:bg-surface transition-colors"
+                                                        >
+                                                            {item.label}
+                                                            <ChevronRight className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                                                        </button>
+                                                    </form>
+                                                ) : (
+                                                    <Link
+                                                        key={item.id}
+                                                        href={item.href}
+                                                        onClick={() => setMobileOpen(false)}
+                                                        className="flex items-center justify-between min-h-11 px-2 rounded-md text-sm font-medium text-foreground hover:bg-surface transition-colors"
+                                                    >
+                                                        {item.label}
+                                                        <ChevronRight className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                                                    </Link>
+                                                ),
+                                            )}
+                                            <a
+                                                href={DISCORD_INVITE}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-2 min-h-11 px-2 rounded-md text-sm font-medium text-foreground hover:bg-surface transition-colors"
                                             >
-                                                {item.label}
-                                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                                            </Link>
-                                        ))}
-                                    </nav>
+                                                <DiscordIcon className="w-4 h-4" aria-hidden="true" />
+                                                Discord
+                                                <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" aria-hidden="true" />
+                                            </a>
+                                        </div>
 
-                                    {!user && (
-                                        <div className="p-4 border-t border-border">
-                                            <form action={loginWithDiscord}>
-                                                <button className="w-full h-11 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-foreground text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
-                                                    <DiscordIcon className="w-4 h-4" />
-                                                    Se connecter
+                                        <div className="pt-4 border-t border-border space-y-1">
+                                            <p className="reg-eyebrow pb-1">{t.nav.toolsHint}</p>
+                                            {localizedTools.map((tool) => (
+                                                <Link
+                                                    key={tool.id}
+                                                    href={tool.href}
+                                                    onClick={() => setMobileOpen(false)}
+                                                    className="flex items-start gap-3 py-1.5"
+                                                >
+                                                    <Image
+                                                        src={tool.icon}
+                                                        alt=""
+                                                        width={20}
+                                                        height={20}
+                                                        aria-hidden="true"
+                                                        className="mt-0.5 w-5 h-5 shrink-0 object-contain"
+                                                    />
+                                                    <span className="min-w-0">
+                                                        <span className="block text-sm font-medium text-foreground">
+                                                            {tool.label}
+                                                        </span>
+                                                        <span className="block text-xs text-muted-foreground">
+                                                            {tool.hint}
+                                                        </span>
+                                                    </span>
+                                                </Link>
+                                            ))}
+                                        </div>
+
+                                        {!user && (
+                                            <form action={loginWithDiscord} className="pt-4 border-t border-border">
+                                                <button type="submit" className="reg-btn reg-btn-primary w-full">
+                                                    <DiscordIcon className="w-4 h-4" aria-hidden="true" />
+                                                    {t.nav.connectDiscord}
                                                 </button>
                                             </form>
-                                        </div>
-                                    )}
+                                        )}
+                                    </nav>
                                 </SheetContent>
                             </Sheet>
                         </div>
                     </div>
                 </div>
             </div>
-        </motion.header>
+        </header>
     );
 }

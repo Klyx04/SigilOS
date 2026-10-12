@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import 'dotenv/config';
 import { legendaryItems } from './seed-data/legendary-items';
+import { getIgnoredChallenges, getIgnoredDungeons, isIgnoredChallenge, isIgnoredDungeon } from '@/lib/game-data-ignores';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -235,7 +236,10 @@ async function seed() {
 
     // 3. Seed Challenges
     console.error('🏆 Seeding Challenges...');
+    /* 🛡️ Anti-résurrection (27/09/2026) : un succès supprimé à la main n'est jamais recréé. */
+    const ignoredChallenges = getIgnoredChallenges();
     for (const challenge of seedData.data.challenges) {
+        if (isIgnoredChallenge(challenge.slug, ignoredChallenges)) continue;
         const upserted = await prisma.challenge.upsert({
             where: { slug: challenge.slug },
             update: {
@@ -258,7 +262,10 @@ async function seed() {
 
     // 4. Seed Dungeons
     console.error('🏰 Seeding Dungeons...');
+    /* 🛡️ Anti-résurrection (27/09/2026) : un donjon supprimé à la main n'est jamais recréé. */
+    const ignoredDungeons = getIgnoredDungeons();
     for (const dungeon of seedData.data.dungeons) {
+        if (isIgnoredDungeon({ name: dungeon.name, bossName: dungeon.bossName }, ignoredDungeons)) continue;
         const upsertedDungeon = await prisma.dungeon.upsert({
             where: {
                 name_bossName: {

@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Pause, Play, Swords, MessageSquare, Gamepad2, Crown, GraduationCap } from "lucide-react";
+import { Trash2, Pause, Play, Swords, MessageSquare, Gamepad2, Crown, GraduationCap, Star } from "lucide-react";
 import { type ServiceListingWithProfile } from "@/server/actions/service-actions";
 import { CATEGORY_LABELS, CATEGORY_EMOJIS } from "@/server/actions/services-constants";
 import { deleteServiceListing, toggleServiceStatus } from "@/server/actions/service-actions";
@@ -174,9 +174,10 @@ interface ServiceCardProps {
     currentProfileId?: string;
     isAdmin?: boolean;
     servicesDiscordConfigured?: boolean;
+    onFeedbackClick?: () => void;
 }
 
-export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servicesDiscordConfigured = false }: ServiceCardProps) {
+export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servicesDiscordConfigured = false, onFeedbackClick }: ServiceCardProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const isOwner = listing.profileId === currentProfileId;
@@ -203,29 +204,24 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
 
     return (
         <div className={cn(
-            "group relative flex flex-col rounded-3xl border transition-all duration-300 overflow-hidden",
+            "group relative flex flex-col rounded-2xl border transition-all duration-200 overflow-hidden",
             isPaused 
-                ? "border-border opacity-60 bg-background/20" 
-                : "border-border bg-surface/40 hover:bg-surface/60 hover:border-border-strong shadow-xl hover:shadow-2xl"
+                ? "border-border opacity-60 bg-background/40" 
+                : "border-border bg-surface hover:border-border-strong"
         )}>
-            {/* Background Ambient Glow */}
-            {!isPaused && (
-                <div className={cn("absolute -top-24 -right-24 w-48 h-48 blur-[80px] opacity-0 group-hover:opacity-20 transition-opacity duration-300 bg-gradient-to-br", col.bg)} />
-            )}
-
-            <div className="relative p-6 flex flex-col gap-5 h-full z-10">
+            <div className="relative p-5 flex flex-col gap-4 h-full">
 
             {/* ── Header : badge catégorie + pause badge ── */}
             <div className="flex items-start justify-between gap-2">
                 <Badge variant="outline" className={cn(
-                    "text-caption font-black uppercase tracking-[0.15em] px-3 py-1 border rounded-full shadow-sm transition-all",
+                    "text-caption font-bold px-2.5 py-0.5 border rounded-full transition-all",
                     col.badge
                 )}>
                     {CATEGORY_EMOJIS[listing.category]} {CATEGORY_LABELS[listing.category]}
                 </Badge>
                 {isPaused && (
-                    <Badge variant="outline" className="border-warning/30 bg-warning/10 text-warning text-caption font-black uppercase tracking-widest px-2 py-0.5">
-                        PAUSE
+                    <Badge variant="outline" className="border-warning/30 bg-warning/10 text-warning text-caption font-bold px-2 py-0.5">
+                        En pause
                     </Badge>
                 )}
             </div>
@@ -489,6 +485,17 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
                     </div>
                 ) : (
                     <div className="flex items-center gap-2">
+                        {onFeedbackClick && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={onFeedbackClick}
+                                className="h-9 border-warning/40 bg-warning/10 text-warning hover:bg-warning/20 font-bold px-3 text-xs"
+                                title="Laisser un avis sur ce prestataire"
+                            >
+                                <Star className="h-3.5 w-3.5 mr-1 fill-warning" /> Avis
+                            </Button>
+                        )}
                         <ServiceContactDialog listing={listing} guildId={guildId} isDiscordConfigured={servicesDiscordConfigured} />
                         {isAdmin && (
                             <Button size="icon" variant="ghost" onClick={handleDelete} disabled={loading} className="h-9 w-9 rounded-xl bg-danger/10 hover:bg-danger/20 text-danger hover:text-danger transition-all">

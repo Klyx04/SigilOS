@@ -18,7 +18,7 @@ export default async function PollDetailPage({
         return <AccessDenied />;
     }
 
-    if (!user.isAdmin && !await isModuleEnabled(guildId, "polls")) {
+    if (!user.isSuperAdmin && !await isModuleEnabled(guildId, "polls")) {
         redirect(`/dashboard/${guildId}`);
     }
 

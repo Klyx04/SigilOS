@@ -49,7 +49,13 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
             const result = await triggerRunNotification(guildId, runId, message, scheduledDate);
 
             if (result.success) {
-                toast.success("Rappel envoyé avec succès !");
+                const pinged = (result as { pinged?: number }).pinged;
+                const skipped = (result as { skipped?: number }).skipped;
+                toast.success(
+                    typeof pinged === "number" || typeof skipped === "number"
+                        ? `Rappel envoyé (${pinged ?? 0} pingé(s), ${skipped ?? 0} déjà en vocal) !`
+                        : "Rappel envoyé avec succès !"
+                );
                 setIsModalOpen(false);
             } else {
                 toast.error(result.error || "Une erreur est survenue");

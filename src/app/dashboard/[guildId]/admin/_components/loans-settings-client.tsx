@@ -3,16 +3,16 @@
 import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Hash, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { getLoansConfig, updateLoansChannel, getVaultConfig, updateVaultChannel, getServicesStatusConfig, updateServicesStatusConfig } from "@/server/actions/admin-actions";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 
 interface LoansSettingsClientProps {
     guildId: string;
@@ -33,6 +33,25 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
     const [loansMessage, setLoansMessage] = useState("");
     const [vaultEnabled, setVaultEnabled] = useState(true);
     const [vaultMessage, setVaultMessage] = useState("");
+
+    // — Détection « modifications non sauvegardées » (snapshot chargé vs état courant)
+    const [initialConfig, setInitialConfig] = useState<{
+        channelId: string; vaultChannelId: string;
+        marketplaceEnabled: boolean; marketplaceMessage: string;
+        loansEnabled: boolean; loansMessage: string;
+        vaultEnabled: boolean; vaultMessage: string;
+    } | null>(null);
+    const hasUnsavedChanges = isDirty({
+        channelId, vaultChannelId,
+        marketplaceEnabled, marketplaceMessage: marketplaceMessage.trim(),
+        loansEnabled, loansMessage: loansMessage.trim(),
+        vaultEnabled, vaultMessage: vaultMessage.trim(),
+    }, initialConfig ? {
+        ...initialConfig,
+        marketplaceMessage: initialConfig.marketplaceMessage.trim(),
+        loansMessage: initialConfig.loansMessage.trim(),
+        vaultMessage: initialConfig.vaultMessage.trim(),
+    } : null);
 
     useEffect(() => {
         async function loadConfig() {
@@ -61,6 +80,17 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                 setVaultMessage(servicesRes.data.serviceVaultMessage || "");
             }
 
+            setInitialConfig({
+                channelId: loansRes.success && loansRes.data ? (loansRes.data.loansNotifyChannelId || "") : "",
+                vaultChannelId: vaultRes.success && vaultRes.data ? (vaultRes.data.vaultNotifyChannelId || "") : "",
+                marketplaceEnabled: servicesRes.success && servicesRes.data ? servicesRes.data.serviceMarketplaceEnabled : true,
+                marketplaceMessage: servicesRes.success && servicesRes.data ? (servicesRes.data.serviceMarketplaceMessage || "") : "",
+                loansEnabled: servicesRes.success && servicesRes.data ? servicesRes.data.serviceLoansEnabled : true,
+                loansMessage: servicesRes.success && servicesRes.data ? (servicesRes.data.serviceLoansMessage || "") : "",
+                vaultEnabled: servicesRes.success && servicesRes.data ? servicesRes.data.serviceVaultEnabled : true,
+                vaultMessage: servicesRes.success && servicesRes.data ? (servicesRes.data.serviceVaultMessage || "") : "",
+            });
+
             setIsLoading(false);
         }
         loadConfig();
@@ -68,10 +98,13 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
 
     const handleSaveChannel = () => {
         startTransition(async () => {
-            const result = await updateLoansChannel(guildId, channelId.trim() || null);
+            const trimmed = channelId.trim();
+            const result = await updateLoansChannel(guildId, trimmed || null);
             if (result.success) {
                 toast.success("Salon des prêts configuré !");
-                setIsConfigured(!!channelId.trim());
+                setChannelId(trimmed);
+                setIsConfigured(!!trimmed);
+                setInitialConfig((prev) => prev ? { ...prev, channelId: trimmed } : prev);
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -80,10 +113,13 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
 
     const handleSaveVaultChannel = () => {
         startTransition(async () => {
-            const result = await updateVaultChannel(guildId, vaultChannelId.trim() || null);
+            const trimmed = vaultChannelId.trim();
+            const result = await updateVaultChannel(guildId, trimmed || null);
             if (result.success) {
                 toast.success("Salon du coffre configuré !");
-                setVaultIsConfigured(!!vaultChannelId.trim());
+                setVaultChannelId(trimmed);
+                setVaultIsConfigured(!!trimmed);
+                setInitialConfig((prev) => prev ? { ...prev, vaultChannelId: trimmed } : prev);
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -92,17 +128,27 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
 
     const handleSaveMaintenance = () => {
         startTransition(async () => {
-            const result = await updateServicesStatusConfig(guildId, {
+            const maintenance = {
                 serviceMarketplaceEnabled: marketplaceEnabled,
                 serviceMarketplaceMessage: marketplaceMessage.trim() || null,
                 serviceLoansEnabled: loansEnabled,
                 serviceLoansMessage: loansMessage.trim() || null,
                 serviceVaultEnabled: vaultEnabled,
                 serviceVaultMessage: vaultMessage.trim() || null,
-            });
+            };
+            const result = await updateServicesStatusConfig(guildId, maintenance);
 
             if (result.success) {
                 toast.success("Statuts des services mis à jour !");
+                setMarketplaceMessage(maintenance.serviceMarketplaceMessage || "");
+                setLoansMessage(maintenance.serviceLoansMessage || "");
+                setVaultMessage(maintenance.serviceVaultMessage || "");
+                setInitialConfig((prev) => prev ? {
+                    ...prev,
+                    marketplaceEnabled, marketplaceMessage: maintenance.serviceMarketplaceMessage || "",
+                    loansEnabled, loansMessage: maintenance.serviceLoansMessage || "",
+                    vaultEnabled, vaultMessage: maintenance.serviceVaultMessage || "",
+                } : prev);
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -119,6 +165,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
 
     return (
         <div className="space-y-6">
+            <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2 bg-surface/60 border-border">
                     <CardHeader>
@@ -141,27 +188,39 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <p className="text-xs text-muted-foreground">
-                                Mode développeur Discord → Clic droit sur le salon → <span className="text-foreground">Copier l'identifiant</span>
-                            </p>
                             <div className="flex gap-2">
-                                <Input
-                                    value={channelId}
-                                    onChange={(e) => setChannelId(e.target.value)}
-                                    placeholder="Ex: 123456789012345678"
-                                    className="font-mono bg-black/20 border-border"
-                                />
+                                <div className="flex-1 min-w-0">
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={channelId}
+                                        onChange={setChannelId}
+                                    />
+                                </div>
                                 <Button onClick={handleSaveChannel} disabled={isPending} className="min-w-[120px] bg-success hover:bg-success">
                                     {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                     Sauvegarder
+                                    {hasUnsavedChanges && !isPending && <span className="ml-2 w-2 h-2 rounded-full bg-white animate-pulse" title="Modifications non sauvegardées" />}
                                 </Button>
                             </div>
-                            <ChannelPreview guildId={guildId} channelId={channelId} color="emerald" />
                             {isConfigured && (
                                 <div className="flex justify-end">
                                     <Button
                                         variant="ghost" size="sm"
-                                        onClick={() => { setChannelId(""); handleSaveChannel(); }}
+                                        // Bypass direct (pas handleSaveChannel) : celui-ci lirait
+                                        // le state pas encore à jour (closure périmée).
+                                        onClick={() => {
+                                            setChannelId("");
+                                            startTransition(async () => {
+                                                const result = await updateLoansChannel(guildId, null);
+                                                if (result.success) {
+                                                    setIsConfigured(false);
+                                                    setInitialConfig((prev) => prev ? { ...prev, channelId: "" } : prev);
+                                                    toast.success("Notifications prêts désactivées");
+                                                } else {
+                                                    toast.error(result.error || "Erreur lors de la désactivation");
+                                                }
+                                            });
+                                        }}
                                         disabled={isPending}
                                         className="text-danger hover:text-danger hover:bg-danger/20 text-xs"
                                     >
@@ -209,27 +268,38 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <p className="text-xs text-muted-foreground">
-                                Mode développeur Discord → Clic droit sur le salon → <span className="text-foreground">Copier l'identifiant</span>
-                            </p>
                             <div className="flex gap-2">
-                                <Input
-                                    value={vaultChannelId}
-                                    onChange={(e) => setVaultChannelId(e.target.value)}
-                                    placeholder="Ex: 123456789012345678"
-                                    className="font-mono bg-black/20 border-border"
-                                />
+                                <div className="flex-1 min-w-0">
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={vaultChannelId}
+                                        onChange={setVaultChannelId}
+                                    />
+                                </div>
                                 <Button onClick={handleSaveVaultChannel} disabled={isPending} className="min-w-[120px] bg-teal-600 hover:bg-teal-500">
                                     {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                     Sauvegarder
+                                    {hasUnsavedChanges && !isPending && <span className="ml-2 w-2 h-2 rounded-full bg-white animate-pulse" title="Modifications non sauvegardées" />}
                                 </Button>
                             </div>
-                            <ChannelPreview guildId={guildId} channelId={vaultChannelId} color="emerald" />
                             {vaultIsConfigured && (
                                 <div className="flex justify-end">
                                     <Button
                                         variant="ghost" size="sm"
-                                        onClick={() => { setVaultChannelId(""); handleSaveVaultChannel(); }}
+                                        // Bypass direct : voir ci-dessus (closure périmée).
+                                        onClick={() => {
+                                            setVaultChannelId("");
+                                            startTransition(async () => {
+                                                const result = await updateVaultChannel(guildId, null);
+                                                if (result.success) {
+                                                    setVaultIsConfigured(false);
+                                                    setInitialConfig((prev) => prev ? { ...prev, vaultChannelId: "" } : prev);
+                                                    toast.success("Notifications coffre désactivées");
+                                                } else {
+                                                    toast.error(result.error || "Erreur lors de la désactivation");
+                                                }
+                                            });
+                                        }}
                                         disabled={isPending}
                                         className="text-danger hover:text-danger hover:bg-danger/20 text-xs"
                                     >
@@ -247,6 +317,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                     <Button onClick={handleSaveMaintenance} disabled={isPending} className="bg-success hover:bg-success">
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                         Enregistrer les statuts
+                        {hasUnsavedChanges && !isPending && <span className="ml-2 w-2 h-2 rounded-full bg-white animate-pulse" title="Modifications non sauvegardées" />}
                     </Button>
                 </div>
                 <CardHeader>

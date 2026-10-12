@@ -39,7 +39,13 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
         startTransition(async () => {
             const res = await sendDjCustomReminder(guildId, post.id, message);
             if (res.success) {
-                toast.success("📣 Relance envoyée sur Discord !");
+                const pinged = (res as { pinged?: number }).pinged;
+                const skipped = (res as { skipped?: number }).skipped;
+                toast.success(
+                    typeof pinged === "number" || typeof skipped === "number"
+                        ? `📣 Relance envoyée (${pinged ?? 0} pingé(s), ${skipped ?? 0} déjà en vocal) !`
+                        : "📣 Relance envoyée sur Discord !"
+                );
                 setMessage("");
                 onClose();
             } else {
@@ -69,7 +75,7 @@ export function DjReminderModal({ isOpen, onClose, post, guildId }: DjReminderMo
                                 Envoyer une relance
                             </DialogTitle>
                             <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                                Pinge les participants acceptés sur Discord
+                                Pinge les participants acceptés absents du vocal
                             </DialogDescription>
                         </div>
                     </div>

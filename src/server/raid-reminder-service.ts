@@ -1,0 +1,570 @@
+/**
+ * Rappel automatique des **raids** : un ping des **inscrits** (et d'eux seuls),
+ * envoyé dans le salon du raid `notifyBefore` minutes avant le départ (60 par
+ * défaut) — voir `src/lib/raid-reminder.ts` pour la décision (pure, testée).
+ *
+ * Demandé le 19/09/2026 : « un ping qui ping uniquement les membres inscrits (et
+ * pas les rôles mentionnés dans l'embed) 1 h avant un raid, un ping automatique
+ * de rappel ».
+ *
+ * Ce service ne fait que l'**I/O** : lire l'événement, résoudre les comptes
+ * Discord des inscrits, poster le message, marquer l'événement. Branché sur
+ * `/api/cron/raid-reminders` (toutes les 10 min) ; il est aussi appelable à la
+ * demande (test/diagnostic) via `sendRaidReminderForEvent`.
+ */
+
+import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+import { getAppBaseUrl } from "@/lib/utils";
+import { isDiscordSnowflake } from "@/lib/discord-ids";
+import { sendChannelMessage } from "@/server/discord";
+import {
+    buildRaidReminderMentions,
+    pickRaidReminderChannelId,
+    raidReminderLeadLabel,
+    raidOverlayDeeplink,
+    shouldSendRaidReminder,
+    RAID_CLOSURE_REMINDER_AGE_MS,
+    RAID_CLOSURE_REMINDER_MAX_AGE_MS,
+    shouldSendRaidClosureReminder,
+    type RaidChannelConfig,
+} from "@/lib/raid-reminder";
+
+export type RaidReminderOutcome = {
+    sent: boolean;
+    /** `sent`, ou la raison du refus (`too-early`, `already-sent`, `no-participants`…). */
+    reason: string;
+    /** Nombre d'inscrits réellement pingés. */
+    pinged: number;
+    leadMinutes?: number;
+    messageId?: string | null;
+};
+
+export type RaidReminderRunSummary = {
+    scanned: number;
+    sent: number;
+    failed: number;
+    pinged: number;
+    skipped: Record<string, number>;
+    reminders: { eventId: string; title: string; pinged: number; leadMinutes: number }[];
+};
+
+/** Fenêtre de scan du cron : couvre tous les `notifyBefore` possibles (24 h max). */
+const SCAN_HORIZON_MS = 24 * 60 * 60 * 1000;
+
+type RaidEventRow = {
+    id: string;
+    guildId: string;
+    title: string;
+    type: string;
+    status: string;
+    startDate: Date;
+    maxParticipants: number | null;
+    notifyBefore: number | null;
+    discordChannelId: string | null;
+    metadata: unknown;
+    lastRemindedAt: Date | null;
+    participants: { userId: string }[];
+};
+
+type GuildRow = RaidChannelConfig & { id: string; name: string | null };
+
+/** Nombre de mentions dans un `content` de ping (séparateur espace). */
+function countMentions(mentions: string): number {
+    return mentions ? mentions.split(" ").length : 0;
+}
+
+/**
+ * Rappel pour un événement **déjà chargé** : décision (pure) → ping → marqueurs.
+ *
+ * Le `content` ne contient QUE les mentions des inscrits : c'est la seule source
+ * de ping côté Discord (`allowed_mentions` est construit à partir du contenu), donc
+ * aucun rôle de l'embed ni `@everyone` ne peut être notifié par ce message.
+ */
+async function deliverRaidReminder(args: {
+    guildId: string;
+    guildConfig: GuildRow;
+    event: RaidEventRow;
+    now: Date;
+}): Promise<RaidReminderOutcome> {
+    const { guildId, guildConfig, event, now } = args;
+    const meta = (event.metadata as Record<string, unknown> | null) || {};
+    const channelId = event.discordChannelId || pickRaidReminderChannelId(guildConfig, meta.raidType);
+
+    const decision = shouldSendRaidReminder({
+        type: event.type,
+        status: event.status,
+        startDate: event.startDate,
+        now,
+        notifyBefore: event.notifyBefore,
+        channelId,
+        registeredCount: event.participants.length,
+        autoReminderSentAt: (meta.raidReminderSentAt as string | undefined) ?? null,
+        manualReminderAt: event.lastRemindedAt,
+    });
+    if (!decision.send) {
+        return { sent: false, reason: decision.reason, pinged: 0, leadMinutes: decision.leadMinutes };
+    }
+
+    // Inscrits = REGISTERED + CONFIRMED (les « inscrits » de l'embed) — la file
+    // d'attente n'est pas pingée : elle n'est pas inscrite.
+    const accounts = await db.account.findMany({
+        where: { userId: { in: event.participants.map((p) => p.userId) }, provider: "discord" },
+        select: { providerAccountId: true },
+    });
+    const mentions = buildRaidReminderMentions(accounts.map((a) => a.providerAccountId));
+    if (!mentions) {
+        return { sent: false, reason: "no-discord-account", pinged: 0, leadMinutes: decision.leadMinutes };
+    }
+
+    const leadLabel = raidReminderLeadLabel(decision.leadMinutes);
+    const startTs = Math.floor(event.startDate.getTime() / 1000);
+    const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/calendar?event=${event.id}`;
+    // Lot 4a — champ overlay du H-1 (raids à overlay uniquement). Le lien
+    // pointe vers `/raids` (bouton de lancement), jamais un deep-link PiP
+    // (client-side, non adressable depuis Discord).
+    const overlayDeeplink = raidOverlayDeeplink(meta.raidType);
+
+    // Clé Redis unique par message : si deux rappels (auto + manuel) partent pour
+    // le même raid, la seconde ne doit pas écraser la résolution de la première.
+    const reminderMsgKey = `raid-reminder:msg:${event.id}:${now.getTime()}`;
+    const messageId = await sendChannelMessage(
+        channelId as string,
+        `🔔 **Rappel raid — départ dans ${leadLabel}** (rendez-vous en jeu / vocal)\n${mentions}`,
+        {
+            embedTitle: `🔔 ${event.title} — dans ${leadLabel}`,
+            embedColor: 0xff6b35,
+            embedUrl: dashboardUrl,
+            embedFooter: `SigilOS • ${guildConfig.name ?? "Guilde"} • Seuls les inscrits sont notifiés`,
+            fields: [
+                { name: "⏰ Départ", value: `<t:${startTs}:t> (<t:${startTs}:R>)`, inline: true },
+                {
+                    name: "👥 Inscrits",
+                    value: `${event.participants.length}${event.maxParticipants ? `/${event.maxParticipants}` : ""}`,
+                    inline: true,
+                },
+                { name: "💡 Avant de partir", value: "Vérifie ta classe sur le dashboard et prépare ton stuff.", inline: false },
+                ...(overlayDeeplink
+                    ? [{
+                        name: "🖥️ Overlay",
+                        value: `Pense à lancer l'overlay avant le départ : [Ouvrir l'overlay ${overlayDeeplink.label}](${getAppBaseUrl()}/raids?raid=${overlayDeeplink.param}) — /travel en 1 clic, sans alt-tab.`,
+                        inline: false,
+                    }]
+                    : []),
+            ],
+            // Outbox : demande au worker d'ancrer le vrai ID Discord dans Redis.
+            // Sans cette clé, le messageId stocké reste "outbox:<jobId>" et la
+            // suppression à la clôture du raid appelle Discord avec un ID invalide.
+            storeMessageIdKey: reminderMsgKey,
+            storeMessageIdTTL: 30 * 24 * 3600,
+        }
+    );
+
+    if (!messageId) {
+        return { sent: false, reason: "discord-refused", pinged: 0, leadMinutes: decision.leadMinutes };
+    }
+
+    // Idempotence (`raidReminderSentAt`) + nettoyage à la clôture de l'événement
+    // (`reminderMessages` est déjà purgé par cancel / complete / auto-close).
+    // Outbox : le worker ancre le vrai snowflake dans Redis via `storeMessageIdKey`.
+    // On stocke ce que `sendChannelMessage` renvoie (snowflake direct OU `outbox:<jobId>`
+    // si l'outbox est active) + la clé Redis pour résoudre le vrai ID à la suppression.
+    const existingReminders = Array.isArray(meta.reminderMessages) ? meta.reminderMessages : [];
+    await db.guildEvent
+        .update({
+            where: { id: event.id, guildId: guildConfig.id },
+            data: {
+                metadata: {
+                    ...meta,
+                    raidReminderSentAt: now.toISOString(),
+                    reminderMessages: [...existingReminders, { channelId, messageId, messageKey: reminderMsgKey }],
+                },
+            },
+        })
+        .catch(() => null);
+
+    logger.info("[RaidReminder] Ping des inscrits envoyé", {
+        eventId: event.id,
+        channelId,
+        pinged: countMentions(mentions),
+        leadMinutes: decision.leadMinutes,
+    });
+
+    return {
+        sent: true,
+        reason: "sent",
+        pinged: countMentions(mentions),
+        leadMinutes: decision.leadMinutes,
+        messageId,
+    };
+}
+
+/**
+ * Rappel d'un raid précis (idempotent). Utilisé par le cron **et** par les
+ * diagnostics (`scratch/`), afin de ne jamais dupliquer la logique de décision.
+ */
+export async function sendRaidReminderForEvent(
+    guildId: string,
+    eventId: string,
+    opts: { now?: Date } = {}
+): Promise<RaidReminderOutcome> {
+    const now = opts.now ?? new Date();
+
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: {
+            id: true,
+            name: true,
+            raidNotifyChannelId: true,
+            raidGigalodonNotifyChannelId: true,
+            raidSanctuaireNotifyChannelId: true,
+            calendarNotifyChannelId: true,
+        },
+    });
+    if (!guildConfig) return { sent: false, reason: "guild-not-found", pinged: 0 };
+
+    const event = await db.guildEvent.findUnique({
+        where: { id: eventId, guildId: guildConfig.id },
+        select: {
+            id: true,
+            guildId: true,
+            title: true,
+            type: true,
+            status: true,
+            startDate: true,
+            maxParticipants: true,
+            notifyBefore: true,
+            discordChannelId: true,
+            metadata: true,
+            lastRemindedAt: true,
+            participants: {
+                where: { status: { in: ["REGISTERED", "CONFIRMED"] } },
+                select: { userId: true },
+            },
+        },
+    });
+    if (!event) return { sent: false, reason: "not-found", pinged: 0 };
+
+    return deliverRaidReminder({ guildId, guildConfig, event, now });
+}
+
+/**
+ * Passe de rappel pour **tous** les raids à venir (entrée du cron).
+ * Un raid déjà rappelé, encore hors fenêtre ou sans inscrit est compté comme
+ * « sauté » : il sera repris à la passe suivante (jamais de double ping).
+ */
+export async function sendRaidReminders(
+    opts: { now?: Date; limit?: number } = {}
+): Promise<RaidReminderRunSummary> {
+    const now = opts.now ?? new Date();
+    const summary: RaidReminderRunSummary = {
+        scanned: 0,
+        sent: 0,
+        failed: 0,
+        pinged: 0,
+        skipped: {},
+        reminders: [],
+    };
+    const bump = (reason: string) => {
+        summary.skipped[reason] = (summary.skipped[reason] ?? 0) + 1;
+    };
+
+    const candidates = await db.guildEvent.findMany({
+        where: {
+            type: "RAID_OFFICIAL",
+            status: "PUBLISHED",
+            startDate: { gt: now, lte: new Date(now.getTime() + SCAN_HORIZON_MS) },
+        },
+        select: {
+            id: true,
+            guildId: true,
+            title: true,
+            type: true,
+            status: true,
+            startDate: true,
+            maxParticipants: true,
+            notifyBefore: true,
+            discordChannelId: true,
+            metadata: true,
+            lastRemindedAt: true,
+            participants: {
+                where: { status: { in: ["REGISTERED", "CONFIRMED"] } },
+                select: { userId: true },
+            },
+            guild: { select: { discordGuildId: true } },
+        },
+        orderBy: { startDate: "asc" },
+        take: opts.limit ?? 50,
+    });
+
+    summary.scanned = candidates.length;
+
+    // Une seule lecture de configuration par guilde, quel que soit le nombre de raids.
+    const guildCache = new Map<string, GuildRow | null>();
+
+    for (const event of candidates) {
+        const guildId = event.guild?.discordGuildId;
+        if (!guildId) {
+            bump("guild-not-found");
+            continue;
+        }
+
+        let guildConfig = guildCache.get(event.guildId);
+        if (guildConfig === undefined) {
+            guildConfig = await db.guildConfig.findUnique({
+                where: { id: event.guildId },
+                select: {
+                    id: true,
+                    name: true,
+                    raidNotifyChannelId: true,
+                    raidGigalodonNotifyChannelId: true,
+                    raidSanctuaireNotifyChannelId: true,
+                    calendarNotifyChannelId: true,
+                },
+            });
+            guildCache.set(event.guildId, guildConfig);
+        }
+        if (!guildConfig) {
+            bump("guild-not-found");
+            continue;
+        }
+
+        try {
+            const outcome = await deliverRaidReminder({ guildId, guildConfig, event, now });
+            if (outcome.sent) {
+                summary.sent++;
+                summary.pinged += outcome.pinged;
+                summary.reminders.push({
+                    eventId: event.id,
+                    title: event.title,
+                    pinged: outcome.pinged,
+                    leadMinutes: outcome.leadMinutes ?? 0,
+                });
+            } else {
+                bump(outcome.reason);
+            }
+        } catch (error) {
+            summary.failed++;
+            logger.error("[RaidReminder] Échec du rappel", { eventId: event.id, error: String(error) });
+        }
+    }
+
+    return summary;
+}
+
+// ---------------------------------------------------------------------------
+// RAPPEL DE CLÔTURE (post-raid) — 24 h après la fin, une seule fois
+// ---------------------------------------------------------------------------
+// Demande user (30/09/2026) : rien n'existe en post-raid. Si le capitaine oublie de
+// clôturer (présents + score → XP/Kamas), le raid reste ouvert sans que personne ne
+// soit relancé. Ce rappel est le SEUL message post-raid : le lead actuel est pingé
+// (`creatorId`, donc le nouveau capitaine après transfert), **jamais** les inscrits.
+
+export type RaidClosureReminderRunSummary = {
+    scanned: number;
+    sent: number;
+    failed: number;
+    /** Rappels partis sans ping : le lead n'a pas de compte Discord lié. */
+    withoutLeadPing: number;
+    skipped: Record<string, number>;
+};
+
+type RaidClosureEventRow = {
+    id: string;
+    guildId: string;
+    title: string;
+    type: string;
+    status: string;
+    endDate: Date;
+    discordChannelId: string | null;
+    metadata: unknown;
+    creatorId: string;
+};
+
+/**
+ * Rappel de clôture pour un raid **déjà chargé** : décision (pure) → message → marqueurs.
+ * Le `content` ne porte QUE la mention du lead : c'est la seule source de ping côté
+ * Discord (`allowed_mentions` est construit depuis le contenu), donc ni rôle ni
+ * `@everyone`. Un lead sans compte Discord ⇒ message sans ping (compté dans le bilan).
+ */
+async function deliverRaidClosureReminder(args: {
+    guildId: string;
+    guildConfig: GuildRow;
+    event: RaidClosureEventRow;
+    now: Date;
+}): Promise<{ sent: boolean; reason: string; pinged: boolean }> {
+    const { guildId, guildConfig, event, now } = args;
+    const meta = (event.metadata as Record<string, unknown> | null) || {};
+    const channelId = event.discordChannelId || pickRaidReminderChannelId(guildConfig, meta.raidType);
+
+    const decision = shouldSendRaidClosureReminder({
+        type: event.type,
+        status: event.status,
+        endDate: event.endDate,
+        now,
+        channelId,
+        closureReminderSentAt: (meta.closureReminderSentAt as string | undefined) ?? null,
+    });
+    if (!decision.send) return { sent: false, reason: decision.reason, pinged: false };
+
+    // Lead actuel = `creatorId` (nouveau capitaine après un transfert de capitanat).
+    const leadAccount = await db.account.findFirst({
+        where: { userId: event.creatorId, provider: "discord" },
+        select: { providerAccountId: true },
+    });
+    const leadDiscordId = leadAccount?.providerAccountId ?? null;
+    const leadMention = isDiscordSnowflake(leadDiscordId) ? `<@${leadDiscordId}>` : "";
+
+    const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/calendar?event=${event.id}`;
+    const ageLabel = raidReminderLeadLabel(decision.ageMinutes);
+    const raidLabel = typeof meta.raidLabel === "string" && meta.raidLabel ? meta.raidLabel : event.title;
+    const headline = `📋 **${raidLabel} terminé il y a ${ageLabel}** — il reste à clôturer : présents + score → XP/Kamas.`;
+    const content = leadMention ? `${leadMention}\n${headline}` : headline;
+
+    // Clé Redis unique par message (outbox) : le worker y ancre le vrai snowflake, sans
+    // quoi la suppression à la clôture appellerait Discord avec un `outbox:<jobId>`.
+    const reminderMsgKey = `raid-closure:msg:${event.id}:${now.getTime()}`;
+    const messageId = await sendChannelMessage(channelId as string, content, {
+        embedTitle: `📋 ${event.title} — à clôturer`,
+        embedColor: 0xf59e0b,
+        embedUrl: dashboardUrl,
+        embedFooter: `SigilOS • ${guildConfig.name ?? "Guilde"} • Seul le capitaine est notifié`,
+        fields: [
+            { name: "🗓️ Terminé", value: `<t:${Math.floor(event.endDate.getTime() / 1000)}:R>`, inline: true },
+            {
+                name: "👑 À clôturer par",
+                value: leadDiscordId ? `<@${leadDiscordId}>` : "Capitaine (compte Discord non lié)",
+                inline: true,
+            },
+            { name: "🔗 Ouvrir le raid", value: `[Tableau de bord](${dashboardUrl})`, inline: true },
+        ],
+        storeMessageIdKey: reminderMsgKey,
+        storeMessageIdTTL: 30 * 24 * 3600,
+    });
+
+    if (!messageId) return { sent: false, reason: "discord-refused", pinged: false };
+
+    const existingReminders = Array.isArray(meta.reminderMessages) ? meta.reminderMessages : [];
+    await db.guildEvent
+        .update({
+            where: { id: event.id, guildId: guildConfig.id },
+            data: {
+                metadata: {
+                    ...meta,
+                    closureReminderSentAt: now.toISOString(),
+                    reminderMessages: [...existingReminders, { channelId, messageId, messageKey: reminderMsgKey }],
+                },
+            },
+        })
+        .catch(() => null);
+
+    logger.info("[RaidClosure] Rappel de clôture envoyé", {
+        eventId: event.id,
+        channelId,
+        leadPinged: Boolean(leadMention),
+    });
+
+    return { sent: true, reason: "sent", pinged: Boolean(leadMention) };
+}
+
+/**
+ * Passe de rappel de clôture pour **tous** les raids terminés depuis 24 h et encore
+ * publiés. Même contrat que `sendRaidReminders` : bornée, idempotente, jamais de double
+ * envoi (`metadata.closureReminderSentAt`), chaque refus compté par raison.
+ *
+ * Appelée par le **même cron** que le rappel H-1 (`/api/cron/raid-reminders`) : une seule
+ * ligne de crontab, un seul journal, une seule entrée de télémétrie God.
+ */
+export async function sendRaidClosureReminders(
+    opts: { now?: Date; limit?: number } = {}
+): Promise<RaidClosureReminderRunSummary> {
+    const now = opts.now ?? new Date();
+    const summary: RaidClosureReminderRunSummary = {
+        scanned: 0,
+        sent: 0,
+        failed: 0,
+        withoutLeadPing: 0,
+        skipped: {},
+    };
+    const bump = (reason: string) => {
+        summary.skipped[reason] = (summary.skipped[reason] ?? 0) + 1;
+    };
+
+    const candidates = await db.guildEvent.findMany({
+        where: {
+            type: "RAID_OFFICIAL",
+            status: "PUBLISHED",
+            // Fenêtre bornée : terminé depuis 24 h au moins, 48 h au plus (au-delà, la
+            // passe de fond a déjà clôturé le raid — `@/lib/calendar-auto-close`).
+            endDate: {
+                gte: new Date(now.getTime() - RAID_CLOSURE_REMINDER_MAX_AGE_MS),
+                lte: new Date(now.getTime() - RAID_CLOSURE_REMINDER_AGE_MS),
+            },
+        },
+        select: {
+            id: true,
+            guildId: true,
+            title: true,
+            type: true,
+            status: true,
+            endDate: true,
+            discordChannelId: true,
+            metadata: true,
+            creatorId: true,
+            guild: { select: { discordGuildId: true } },
+        },
+        orderBy: { endDate: "asc" },
+        take: opts.limit ?? 50,
+    });
+
+    summary.scanned = candidates.length;
+
+    // Une seule lecture de configuration par guilde, quel que soit le nombre de raids.
+    const guildCache = new Map<string, GuildRow | null>();
+
+    for (const event of candidates) {
+        const guildId = event.guild?.discordGuildId;
+        if (!guildId) {
+            bump("guild-not-found");
+            continue;
+        }
+
+        let guildConfig = guildCache.get(event.guildId);
+        if (guildConfig === undefined) {
+            guildConfig = await db.guildConfig.findUnique({
+                where: { id: event.guildId },
+                select: {
+                    id: true,
+                    name: true,
+                    raidNotifyChannelId: true,
+                    raidGigalodonNotifyChannelId: true,
+                    raidSanctuaireNotifyChannelId: true,
+                    calendarNotifyChannelId: true,
+                },
+            });
+            guildCache.set(event.guildId, guildConfig);
+        }
+        if (!guildConfig) {
+            bump("guild-not-found");
+            continue;
+        }
+
+        try {
+            const outcome = await deliverRaidClosureReminder({ guildId, guildConfig, event, now });
+            if (outcome.sent) {
+                summary.sent++;
+                if (!outcome.pinged) summary.withoutLeadPing++;
+            } else {
+                bump(outcome.reason);
+            }
+        } catch (error) {
+            summary.failed++;
+            logger.error("[RaidClosure] Échec du rappel de clôture", {
+                eventId: event.id,
+                error: String(error),
+            });
+        }
+    }
+
+    return summary;
+}

@@ -50,48 +50,59 @@ export const QuestGroupRenderer = memo(function QuestGroupRenderer({
 
   return (
     <div className="border border-emerald-500/25 bg-zinc-950/80 rounded-2xl shadow-sm shadow-emerald-500/5 overflow-hidden">
-      {/* Header */}
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-3 p-3 transition-colors hover:bg-zinc-900/60"
-      >
-        <div className="flex-shrink-0">
-          {isLoading ? (
-            <div className="w-5 h-5 rounded border-2 border-emerald-400 border-t-transparent animate-spin" />
-          ) : allDone ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-          ) : someDone ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400/80" />
-          ) : (
-            <Circle className="w-5 h-5 text-zinc-600" />
-          )}
-        </div>
+      {/* En-tête — le bouton d'accordéon et le bouton « Tout cocher » sont FRÈRES : un
+          `button` ne peut pas en contenir un autre (HTML invalide, et le clic partait dans
+          les deux à la fois). Le repli se fait par le titre OU par le chevron. */}
+      <div className="flex w-full items-center gap-3 p-3">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
+        >
+          <div className="flex-shrink-0">
+            {isLoading ? (
+              <div className="w-5 h-5 rounded border-2 border-emerald-400 border-t-transparent animate-spin" />
+            ) : allDone ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            ) : someDone ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400/80" />
+            ) : (
+              <Circle className="w-5 h-5 text-zinc-600" />
+            )}
+          </div>
 
-        <div className="flex items-center gap-2 flex-1 min-w-0 text-left">
-          <Users className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-          <span className="text-xs font-black text-emerald-300 uppercase tracking-wider truncate">{title}</span>
-          <span className="text-caption font-mono text-zinc-500 flex-shrink-0">
-            {members.filter((m) => completedIds.has(m.seqId)).length}/{members.length}
-          </span>
-        </div>
+          <div className="flex items-center gap-2 flex-1 min-w-0 text-left">
+            <Users className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <span className="text-xs font-black text-emerald-300 uppercase tracking-wider truncate">{title}</span>
+            <span className="text-caption font-mono text-zinc-500 flex-shrink-0">
+              {members.filter((m) => completedIds.has(m.seqId)).length}/{members.length}
+            </span>
+          </div>
+        </button>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Toggle all button */}
-          {someDone && !allDone && (
+          {(someDone || allDone) && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleAll(true);
-              }}
-              className="text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all shadow-sm"
-              title="Tout marquer fait"
+              type="button"
+              onClick={() => onToggleAll(!allDone)}
+              className="text-caption font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all shadow-sm cursor-pointer"
+              title={allDone ? "Tout décocher" : "Tout cocher"}
             >
-              Tout ✓
+              {allDone ? "Tout décocher" : "Tout cocher"}
             </button>
           )}
-          {expanded ? <ChevronUp className="w-3.5 h-3.5 text-zinc-600" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-600" />}
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            aria-label={expanded ? "Replier le groupe" : "Déplier le groupe"}
+            className="cursor-pointer"
+          >
+            {expanded ? <ChevronUp className="w-3.5 h-3.5 text-zinc-600" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-600" />}
+          </button>
         </div>
-      </button>
+      </div>
 
       {/* Members list */}
       <AnimatePresence>

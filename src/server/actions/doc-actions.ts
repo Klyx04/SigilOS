@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { getUserContext, ActionResponse } from "@/server/actions/user-actions";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { docSlugOrFallback } from "@/lib/doc-slug";
 
 // --- TYPES ---
 
@@ -236,13 +237,20 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
             });
         } else {
             // Create
-            // Check slug uniqueness
-            const existing = await db.docPage.findUnique({ where: { slug: data.slug } });
-            if (existing) return { success: false, error: "Slug already exists" };
+            // 🔑 Le slug n'est plus un champ à gérer (demande user du 10/12/2026) : il se déduit
+            // du titre. Une collision n'est pas une erreur pour l'auteur — c'est un doublon de
+            // titre — donc on suffixe (`-2`, `-3`…) au lieu de renvoyer « Slug already exists ».
+            const desired = docSlugOrFallback((data.slug ?? "").trim() || data.title);
+            let slug = desired;
+            let suffix = 1;
+            while (await db.docPage.findUnique({ where: { slug }, select: { id: true } })) {
+                suffix += 1;
+                slug = `${desired}-${suffix}`;
+            }
 
             doc = await (db.docPage as any).create({
                 data: {
-                    slug: data.slug,
+                    slug,
                     title: data.title,
                     content: sanitizedContent,
                     category: data.category,
@@ -311,4 +319,80 @@ export async function getAdminDocs(): Promise<DocPageData[]> {
     });
 
     return docs as DocPageData[];
+}
+
+/**
+ * 🔄 Synchronisation 1-clic du catalogue documentaire officiel SigilOS.
+ * Réservé exclusivement au Super Admin / rôle staff ayant accès à la brique "docs".
+ */
+export async function syncOfficialDocsAction(): Promise<ActionResponse<{ createdCount: number; updatedCount: number; total: number }>> {
+    try {
+        const { isSuperAdmin, canAccessBrick } = await import("@/server/actions/super-admin-actions");
+        const isAdmin = await isSuperAdmin();
+        const isBrick = await canAccessBrick("docs");
+        if (!isAdmin && !isBrick) return { success: false, error: "Non autorisé" };
+
+        const { OFFICIAL_DOCS } = await import("@/lib/docs-catalog");
+        const validSlugs = OFFICIAL_DOCS.map(d => d.slug);
+
+        // Nettoyage des anciennes documentations obsolètes
+        await (db.docPage as any).deleteMany({
+            where: {
+                slug: { notIn: validSlugs }
+            }
+        });
+
+        let createdCount = 0;
+        let updatedCount = 0;
+
+        for (const doc of OFFICIAL_DOCS) {
+            const existing = await (db.docPage as any).findUnique({ where: { slug: doc.slug } });
+            if (existing) {
+                await (db.docPage as any).update({
+                    where: { slug: doc.slug },
+                    data: {
+                        title: doc.title,
+                        category: doc.category,
+                        content: doc.content.trim(),
+                        accessLevel: doc.accessLevel,
+                        isPublished: true,
+                    }
+                });
+                updatedCount++;
+            } else {
+                await (db.docPage as any).create({
+                    data: {
+                        slug: doc.slug,
+                        title: doc.title,
+                        category: doc.category,
+                        content: doc.content.trim(),
+                        accessLevel: doc.accessLevel,
+                        isPublished: true,
+                    }
+                });
+                createdCount++;
+            }
+        }
+
+        revalidatePath("/docs");
+        revalidatePath("/god/docs");
+
+        const { createGodAuditLog } = await import("@/server/actions/audit-actions");
+        await createGodAuditLog({
+            action: "GOD_DOC_UPDATE",
+            targetType: "DATA_SYNC",
+            targetId: "official-docs-seed",
+            metadata: { createdCount, updatedCount, total: OFFICIAL_DOCS.length },
+        });
+
+        logger.info(`[DOCS_SYNC] Synced official docs: ${createdCount} created, ${updatedCount} updated`);
+
+        return {
+            success: true,
+            data: { createdCount, updatedCount, total: OFFICIAL_DOCS.length }
+        };
+    } catch (error) {
+        logger.error("Error syncing official docs:", error);
+        return { success: false, error: "Erreur lors de la synchronisation de la documentation" };
+    }
 }

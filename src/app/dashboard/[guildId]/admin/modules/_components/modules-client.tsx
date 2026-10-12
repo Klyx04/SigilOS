@@ -4,49 +4,17 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateGuildModules } from "@/server/actions/module-actions";
 import { type GuildModulesState, type ModuleKey } from "@/lib/module-types";
+import { MAINTENANCE_LABEL, GUILD_DISABLED_LABEL, type ModuleLockState } from "@/lib/module-lock";
+import { MODULE_GROUPS, MODULE_DOFUS_ASSETS } from "@/lib/module-catalog";
+import { getPermissionsForGuildModule, PERMISSION_LABELS } from "@/lib/permissions";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import {
-    Swords,
-    Star,
-    Flame,
-    CalendarDays,
-    Trophy,
-    BookOpen,
-    Loader2,
-    Users,
-    Key,
-    UserCircle,
-    BarChart3,
-    FileText,
-    LayoutDashboard,
-    BookMarked,
-    Map,
-    Library,
-    Palette,
-    Search,
-    Gamepad2,
-    Camera,
-    Gavel,
-    CalendarClock,
-} from "lucide-react";
+import { Info, Loader2, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
-// ============================================================================
-// MODULE DEFINITIONS
-// ============================================================================
-
-type ModuleDef = {
-    key: ModuleKey;
-    label: string;
-    description: string;
-    icon: React.ElementType;
-    color: string;
-    bgColor: string;
-    borderColor: string;
-    comingSoon?: boolean;
-};
+// Catalogue centralisé (libellés, descriptions, assets) : src/lib/module-catalog.ts
+// — source unique aussi consommée par le wizard d'onboarding.
 
 /**
  * Pages / paramètres concernés par chaque module (#66) — rendus en clair sur la
@@ -70,6 +38,7 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
     ladderSync: [{ label: "Classement (Ladder Ankama)", href: "/dashboard/{guildId}/ladder" }],
     manualLadderSync: [{ label: "Classement (Ladder Analyse OC)", href: "/dashboard/{guildId}/ladder" }],
     services: [{ label: "Services Guilde", href: "/dashboard/{guildId}/services" }],
+    marche: [{ label: "Marché", href: "/dashboard/{guildId}/marche" }],
     donjons: [{ label: "Donjons & Quêtes", href: "/dashboard/{guildId}/donjons-et-quetes" }],
     docs: [{ label: "Documentation (Wiki)", href: "/docs" }],
     polls: [{ label: "Sondages", href: "/dashboard/{guildId}/sondages" }],
@@ -86,264 +55,50 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
         { label: "Annuaire", href: "/dashboard/{guildId}/members" },
     ],
     logs: [{ label: "Audit Logs", href: "/dashboard/{guildId}/admin/logs" }],
+    reactionRoles: [{ label: "Rôles par Réaction", href: "/dashboard/{guildId}/reaction-roles" }],
+    commandes: [{ label: "Commandes Bot Discord", href: "/dashboard/{guildId}/commandes" }],
 };
 
-type ModuleGroup = {
-    label: string;
-    modules: ModuleDef[];
-};
-
-const MODULE_GROUPS: ModuleGroup[] = [
-    {
-        label: "Général",
-        modules: [
-            {
-                key: "presentation",
-                label: "Présentation",
-                description: "Page de présentation publique de la guilde. Recrutement, histoire et valeurs.",
-                icon: LayoutDashboard,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "roster",
-                label: "Annuaire",
-                description: "Répertoire des membres avec leurs personnages, rôles et statistiques Dofus.",
-                icon: Users,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "stats",
-                label: "Stats Guilde",
-                description: "Tableau de bord des statistiques globales de la guilde (activité, missions, songes).",
-                icon: BarChart3,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "calendar",
-                label: "Calendrier",
-                description: "Événements de guilde, inscriptions, rappels Discord et gestion des récurrences.",
-                icon: CalendarDays,
-                color: "text-green-400",
-                bgColor: "bg-green-500/10",
-                borderColor: "border-green-500/30",
-            },
-            {
-                key: "availability",
-                label: "Disponibilités",
-                description: "Planning hebdomadaire des membres (onglet Disponibilités de l'annuaire + onglet Planning du profil). Rappel doux une fois par semaine si non rempli.",
-                icon: CalendarClock,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-        ],
-    },
-    {
-        label: "Fonctionnalités",
-        modules: [
-            {
-                key: "missions",
-                label: "Missions",
-                description: "Missions hebdomadaires, soumissions de preuves et validation admin. Le cœur de l'activité guilde.",
-                icon: Swords,
-                color: "text-success",
-                bgColor: "bg-success/10",
-                borderColor: "border-success/30",
-            },
-            {
-                key: "songes",
-                label: "Songes",
-                description: "Organisation de runs Songes avec gestion des équipes, candidatures et embeds Discord.",
-                icon: Star,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "ocre",
-                label: "Quête Ocre",
-                description: "Suivi de la quête Ocre via Metamob. Matching automatique des doublons et partenaires d'échange.",
-                icon: Flame,
-                color: "text-warning",
-                bgColor: "bg-warning/10",
-                borderColor: "border-warning/30",
-            },
-            {
-                key: "ladder",
-                label: "Classement",
-                description: "Classement des membres par points de succès Dofus, synchronisé depuis dofus.com.",
-                icon: Trophy,
-                color: "text-warning",
-                bgColor: "bg-warning/10",
-                borderColor: "border-warning/30",
-            },
-            {
-                key: "succes",
-                label: "Succès",
-                description: "Checklist personnelle des succès de donjons et annuaire « qui a quoi » dans la guilde. Liée aux posts Donjons & Quêtes (validation de groupe à la clôture).",
-                icon: Trophy,
-                color: "text-warning",
-                bgColor: "bg-warning/10",
-                borderColor: "border-warning/30",
-            },
-            {
-                key: "gallery",
-                label: "Galerie Guilde",
-                description: "Partagez et consultez les builds de stuff Dofusbook des membres. Intégration API Dofusbook.",
-                icon: Palette,
-                color: "text-pink-400",
-                bgColor: "bg-pink-500/10",
-                borderColor: "border-pink-500/30",
-            },
-            {
-                key: "ladderSync",
-                label: "Ladder Ankama",
-                description: "Synchronisation automatique des points de succès via le ladder officiel (Cloudflare Worker).",
-                icon: Trophy,
-                color: "text-warning",
-                bgColor: "bg-warning/10",
-                borderColor: "border-warning/30",
-            },
-            {
-                key: "manualLadderSync",
-                label: "Ladder Analyse OC",
-                description: "Permet aux membres de synchroniser leurs points via capture d'écran (Backup OCR).",
-                icon: Camera,
-                color: "text-muted-foreground",
-                bgColor: "bg-surface",
-                borderColor: "border-border",
-            },
-        ],
-    },
-    {
-        label: "Outils",
-        modules: [
-            {
-                key: "services",
-                label: "Services Guilde",
-                description: "Passages de donjon et services entre membres. Coordination et suivi des échanges.",
-                icon: Key,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "donjons",
-                label: "Donjons & Quêtes",
-                description: "Recherche de partenaires pour donjons et quêtes. Outil de matching communautaire.",
-                icon: Swords,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-
-            {
-                key: "docs",
-                label: "Documentation",
-                description: "Wiki interne de la guilde. Éditeur TipTap avec images, accès contrôlé par rôle Discord.",
-                icon: BookOpen,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "polls",
-                label: "Sondages",
-                description: "Sondages de guilde (suggestions, améliorations, événements) avec votes et archives.",
-                icon: Gavel,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "minigames",
-                label: "Mini-Jeux",
-                description: "Jeux arcade en ligne (Invader, etc). Gagnez des points pour le ladder et défiez les membres.",
-                icon: Gamepad2,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "quests",
-                label: "Quêtes Dofus",
-                description: "Optimisation des quêtes de Dofus. Suivi de progression, quêtes en commun et matchmaking entre membres.",
-                icon: BookMarked,
-                color: "text-warning",
-                bgColor: "bg-warning/10",
-                borderColor: "border-warning/30",
-            },
-            {
-                key: "worldmap",
-                label: "Carte du Monde",
-                description: "Carte interactive de Dofus avec zones, ressources et points d'intérêt. Navigation géographique avancée.",
-                icon: Map,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "resources",
-                label: "Ressources",
-                description: "Hub d'informations Dofus: Almanax, actualités Ankama, encyclopédie et outils communautaires.",
-                icon: Library,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "profile",
-                label: "Profil Membre",
-                description: "Page de profil personnalisée par membre avec statistiques et historique d'activité.",
-                icon: UserCircle,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-        ],
-    },
-    {
-        label: "Administration",
-        modules: [
-            {
-                key: "logs",
-                label: "Logs d'Audit",
-                description: "Journal des actions administratives. Traçabilité complète des modifications de configuration.",
-                icon: FileText,
-                color: "text-danger",
-                bgColor: "bg-danger/10",
-                borderColor: "border-danger/30",
-            },
-        ],
-    },
-];
-
+// ============================================================================
+// COMPONENT
+// ============================================================================
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
 type Props = {
     guildId: string;
+    /**
+     * Toggles **bruts** de la guilde — c'est ce payload qui part à
+     * `updateGuildModules`. Un module verrouillé conserve son toggle en BDD :
+     * l'afficher ou l'écraser ferait échouer l'enregistrement des autres modules.
+     */
     initialModules: GuildModulesState;
+    /**
+     * État **effectif** de chaque module : origine du verrou (plateforme/guilde)
+     * et message de maintenance éventuel. Source unique `resolveModuleGrid`.
+     */
+    moduleStates: Record<ModuleKey, ModuleLockState>;
 };
 
-export function ModulesClient({ guildId, initialModules }: Props) {
+export function ModulesClient({ guildId, initialModules, moduleStates }: Props) {
     const [modules, setModules] = useState<GuildModulesState>(initialModules);
     const [pending, setPending] = useState<ModuleKey | null>(null);
     const [isPending, startTransition] = useTransition();
     const [searchTerm, setSearchTerm] = useState("");
 
     const allModules = MODULE_GROUPS.flatMap(g => g.modules);
-    const enabledCount = allModules.filter(m => modules[m.key]).length;
+    const enabledCount = allModules.filter(m => moduleStates[m.key]?.enabled ?? modules[m.key]).length;
     const totalCount = allModules.length;
 
     async function handleToggle(key: ModuleKey, value: boolean) {
+        const state = moduleStates[key];
+        // Verrou (plateforme ou guilde) : le toggle est INERTE et le serveur
+        // refuserait de toute façon (`updateGuildModules`).
+        if (state?.lockedBy) {
+            toast.error(state.notice || MAINTENANCE_LABEL);
+            return;
+        }
         const previous = modules[key];
         setModules((prev) => ({ ...prev, [key]: value }));
         setPending(key);
@@ -420,7 +175,11 @@ export function ModulesClient({ guildId, initialModules }: Props) {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
                             {filteredModules.map((mod) => {
-                                const isEnabled = modules[mod.key];
+                                const state = moduleStates[mod.key];
+                                const isLocked = Boolean(state?.lockedBy);
+                                // Affichage = état EFFECTIF : un module verrouillé est OFF
+                                // même si son toggle est conservé à `true` en BDD.
+                                const isEnabled = state ? state.enabled : modules[mod.key];
                                 const isLoading = pending === mod.key && isPending;
                                 const Icon = mod.icon;
                                 const routes = MODULE_ROUTES[mod.key];
@@ -445,10 +204,22 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                             ? "bg-success/[0.06] border-success/30"
                                                             : "bg-surface border-border"
                                                     )}>
-                                                        <Icon className={cn(
-                                                            "w-7 h-7 transition-colors duration-200",
-                                                            isEnabled ? "text-success" : "text-muted-foreground"
-                                                        )} strokeWidth={1.5} />
+                                                        {MODULE_DOFUS_ASSETS[mod.key] ? (
+                                                            // eslint-disable-next-line @next/next/no-img-element
+                                                            <img
+                                                                src={`/assets/dofus/modules/${MODULE_DOFUS_ASSETS[mod.key]}`}
+                                                                alt={mod.label}
+                                                                className={cn(
+                                                                    "w-8 h-8 object-contain transition-all duration-200",
+                                                                    !isEnabled && "opacity-50 grayscale"
+                                                                )}
+                                                            />
+                                                        ) : (
+                                                            <Icon className={cn(
+                                                                "w-7 h-7 transition-colors duration-200",
+                                                                isEnabled ? "text-success" : "text-muted-foreground"
+                                                            )} strokeWidth={1.5} />
+                                                        )}
                                                     </div>
 
                                                     <div className="flex flex-col">
@@ -464,15 +235,25 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                                     WIP
                                                                 </Badge>
                                                             )}
+                                                            {isLocked && (
+                                                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 bg-info/10 border-info/30 text-info font-medium" title={state?.notice || MAINTENANCE_LABEL}>
+                                                                    {MAINTENANCE_LABEL}
+                                                                </Badge>
+                                                            )}
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            {isEnabled ? (
+                                                            {isLocked ? (
+                                                                <span className="flex items-center gap-1.5 text-xs font-medium text-info">
+                                                                    <span className="h-1.5 w-1.5 rounded-full bg-info" />
+                                                                    {MAINTENANCE_LABEL}
+                                                                </span>
+                                                            ) : isEnabled ? (
                                                                 <span className="flex items-center gap-1.5 text-xs font-medium text-success">
                                                                     <span className="h-1.5 w-1.5 rounded-full bg-success" />
                                                                     Actif
                                                                 </span>
                                                             ) : (
-                                                                <span className="text-xs font-medium text-muted-foreground">Désactivé</span>
+                                                                <span className="text-xs font-medium text-muted-foreground">{GUILD_DISABLED_LABEL}</span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -485,7 +266,7 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                         <Switch
                                                             checked={isEnabled}
                                                             onCheckedChange={(val) => handleToggle(mod.key, val)}
-                                                            disabled={isPending}
+                                                            disabled={isPending || isLocked}
                                                             className="data-[state=checked]:bg-success scale-125"
                                                             aria-label={`Toggle module ${mod.label}`}
                                                         />
@@ -501,10 +282,16 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                 )}>
                                                     {mod.description}
                                                 </p>
+                                                {state?.notice && (
+                                                    <p className="flex items-start gap-2 text-xs font-medium text-info bg-info/10 border border-info/20 rounded-lg px-3 py-2">
+                                                        <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+                                                        <span>{state.notice}</span>
+                                                    </p>
+                                                )}
                                             </div>
 
                                             {/* Pages concernées (#66) */}
-                                            <div className="mt-6 pt-5 border-t border-border">
+                                            <div className="mt-6 pt-5 border-t border-border space-y-3">
                                                 {routes && routes.length > 0 ? (
                                                     <div className="flex flex-wrap items-center gap-1.5">
                                                         <span className="text-xs font-medium text-muted-foreground">Pages :</span>
@@ -521,6 +308,25 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">Page dédiée à venir</span>
                                                 )}
+                                                {(() => {
+                                                    const linked = getPermissionsForGuildModule(mod.key);
+                                                    if (linked.length === 0) return null;
+                                                    return (
+                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                            <span className="text-xs font-medium text-muted-foreground">RBAC :</span>
+                                                            {linked.map((permId) => (
+                                                                <Link
+                                                                    key={permId}
+                                                                    href={`/dashboard/${guildId}/admin/permissions`}
+                                                                    title="Voir dans la matrice RBAC"
+                                                                    className="px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/25 text-xs font-bold text-warning hover:bg-warning/20 transition-colors"
+                                                                >
+                                                                    {PERMISSION_LABELS[permId] || permId}
+                                                                </Link>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     </div>

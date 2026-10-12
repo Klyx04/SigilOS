@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Coins, Trophy, Users, TrendingUp, Clock, RefreshCw } from "lucide-react";
+import { Coins, Users, TrendingUp, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KamaDonationForm } from "@/components/kamas/kama-donation-form";
 import { KamaDonationList } from "@/components/kamas/kama-donation-list";
@@ -173,7 +173,8 @@ export function KamasPageClient({ guildId, initialDonations, initialStats, initi
                                 <div className="p-4 space-y-2">
                                     {ladder.length === 0 && (
                                         <div className="text-center py-10 text-muted-foreground">
-                                            <Trophy className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src="/assets/dofus/game-icons/chest.png" alt="Coffre vide" className="w-10 h-10 mx-auto mb-2 opacity-60 object-contain" />
                                             <p className="text-sm">Aucun don validé pour cette période.</p>
                                         </div>
                                     )}
@@ -183,7 +184,10 @@ export function KamasPageClient({ guildId, initialDonations, initialStats, initi
                                             className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${entry.isCurrentUser ? "bg-warning/5 border border-warning/20" : "hover:bg-surface border border-transparent"}`}
                                         >
                                             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${entry.rank === 1 ? "bg-warning text-warning-foreground" : entry.rank === 2 ? "bg-muted text-warning-foreground" : entry.rank === 3 ? "bg-warning text-warning-foreground" : "bg-elevated text-muted-foreground"}`}>
-                                                {entry.rank <= 3 ? ["🥇", "🥈", "🥉"][entry.rank - 1] : entry.rank}
+                                                {entry.rank <= 3 ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img src={`/assets/dofus/game-icons/trophy-${entry.rank}.png`} alt={`Top ${entry.rank}`} className="w-5 h-5 object-contain" />
+                                                ) : entry.rank}
                                             </div>
                                             <div className="w-8 h-8 rounded-full bg-elevated border border-border overflow-hidden shrink-0 flex items-center justify-center">
                                                 {entry.discordImage

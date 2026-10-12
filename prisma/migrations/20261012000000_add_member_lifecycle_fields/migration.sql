@@ -1,0 +1,27 @@
+-- AlterTable
+ALTER TABLE "GuildConfig" ADD COLUMN IF NOT EXISTS "trialEnabled" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS "trialDurationDays" INTEGER NOT NULL DEFAULT 14,
+ADD COLUMN IF NOT EXISTS "muleLimitEnabled" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS "maxGuildMules" INTEGER NOT NULL DEFAULT 35,
+ADD COLUMN IF NOT EXISTS "recruitmentAlertChannelId" TEXT,
+ADD COLUMN IF NOT EXISTS "arrivingRoleId" TEXT,
+ADD COLUMN IF NOT EXISTS "trialRoleId" TEXT,
+ADD COLUMN IF NOT EXISTS "confirmedRoleId" TEXT,
+ADD COLUMN IF NOT EXISTS "recruitmentWelcomeTemplate" TEXT;
+
+-- AlterTable
+ALTER TABLE "UserProfile" ADD COLUMN IF NOT EXISTS "lifecycleStatus" TEXT DEFAULT 'CONFIRMED',
+ADD COLUMN IF NOT EXISTS "trialEndsAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "recruitedById" TEXT,
+ADD COLUMN IF NOT EXISTS "departureReason" TEXT,
+ADD COLUMN IF NOT EXISTS "departureCategory" TEXT,
+ADD COLUMN IF NOT EXISTS "staffNotes" TEXT;
+
+-- AddForeignKey
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'UserProfile_recruitedById_fkey'
+  ) THEN
+    ALTER TABLE "UserProfile" ADD CONSTRAINT "UserProfile_recruitedById_fkey" FOREIGN KEY ("recruitedById") REFERENCES "UserProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;

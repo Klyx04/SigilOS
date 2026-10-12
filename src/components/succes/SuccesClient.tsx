@@ -1,13 +1,16 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Swords, User, Users } from "lucide-react";
+import { ArrowRight, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SuccesTracker } from "./SuccesTracker";
 import { SuccesDirectory } from "./SuccesDirectory";
 import { SuccesBossGuide } from "./SuccesBossGuide";
-import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
+import { SuccesDefiTab } from "./SuccesDefiTab";
+import { SuccesTitanTab } from "./SuccesTitanTab";
+import { SuccesAvisTab } from "./SuccesAvisTab";
+import { SuccesMonstresTab } from "./SuccesMonstresTab";
 
 interface SuccesClientProps {
     guildId: string;
@@ -16,13 +19,37 @@ interface SuccesClientProps {
     canViewGuildSucces: boolean;
 }
 
+/** Les 6 types de fiches sont regroupés derrière un seul bloc « Fiches » (sous-sélecteur). */
+type FicheTab = "boss" | "anomalies" | "bounties" | "titans" | "raids" | "monstres";
+type View = "menu" | "moi" | "guilde" | "fiches" | "defi";
+
 /**
- * #138 — Client du module Succès.
- * 2 vues (URL = source de vérité) : `view=moi` (checklist perso) / `view=guilde` (qui a quoi).
- * Aucun socket DJ, aucun import de modal posts — « Chercher un groupe » est une navigation
- * vers /donjons-et-quetes?dungeonId=. (Architecture prête pour l'Inter-Guilde : toutes les
- * lectures restent scopées guildId via les server actions.)
+ * Assets distinctifs par type (les mêmes que partout ailleurs dans l'app :
+ * `ano1` = anomalie, `avitons` = avis, `titan` = titan). Rendus **bruts**
+ * (jamais en mask monochrome : le mask aplatit les assets couleur et les
+ * rend indistinguables en 14 px).
  */
+const FICHE_TABS: { id: FicheTab; label: string; sub: string; icon: string }[] = [
+    { id: "boss", label: "Boss", sub: "Sorts, statistiques & combat", icon: "/assets/dofus/icons/boss.png" },
+    { id: "anomalies", label: "Anomalies", sub: "Gardiens des anomalies temporelles", icon: "/assets/missions/ano1.png" },
+    { id: "bounties", label: "Avis de recherche", sub: "Chasse & primes", icon: "/assets/avis/avitons.png" },
+    { id: "titans", label: "Titans", sub: "Événements Krosmiques", icon: "/assets/dofus/icons/titan.png" },
+    { id: "raids", label: "Raids", sub: "Boss & monstres de raid", icon: "/assets/dofus/icons/crown.png" },
+    { id: "monstres", label: "Monstres", sub: "Bestiaire — monstres normaux (hors boss, avis, titans)", icon: "/assets/dofus/icons/archimonster.png" },
+];
+
+/** `?view=boss|anomalies|bounties|titans|raids|monstres` reste valide (liens profonds et tutoriel). */
+function isFicheTab(value: string | null): value is FicheTab {
+    return (
+        value === "boss" ||
+        value === "anomalies" ||
+        value === "bounties" ||
+        value === "titans" ||
+        value === "raids" ||
+        value === "monstres"
+    );
+}
+
 export function SuccesClient({
     guildId,
     canEditOwnSucces,
@@ -30,78 +57,169 @@ export function SuccesClient({
 }: SuccesClientProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const view: "moi" | "guilde" | "boss" =
-        searchParams.get("view") === "guilde" ? "guilde" : searchParams.get("view") === "boss" ? "boss" : "moi";
+    const rawView = searchParams.get("view");
 
-    const setView = useCallback(
-        (next: "moi" | "guilde" | "boss") => {
+    // Ancienne vue globale `?view=quetes` (supprimée) : les quêtes vivent désormais
+    // dans l'onglet « Quêtes » de chaque fiche boss / titan.
+    useEffect(() => {
+        if (rawView === "quetes") {
+            const params = new URLSearchParams(searchParams.toString());
+            params.set("view", "boss");
+            params.set("onglet", "quetes");
+            router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+        }
+    }, [rawView, router, searchParams]);
+
+    const activeFiche: FicheTab = isFicheTab(rawView) ? rawView : "boss";
+    const view: View =
+        rawView === "guilde" ? "guilde"
+        : rawView === "defi" ? "defi"
+        : rawView === "moi" ? "moi"
+        : rawView === "fiches" || isFicheTab(rawView) || rawView === "quetes" ? "fiches"
+        : "menu";
+
+    const replaceView = useCallback(
+        (next: string, keepDungeon: boolean) => {
             const params = new URLSearchParams(searchParams.toString());
             params.set("view", next);
-            if (next === "guilde") params.delete("dungeon");
+            if (next !== "boss") params.delete("onglet");
+            if (!keepDungeon) params.delete("dungeon");
             router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
         },
         [router, searchParams]
     );
 
-    const views = useMemo(
+    const goMenu = useCallback(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("view");
+        params.delete("dungeon");
+        params.delete("onglet");
+        const qs = params.toString();
+        router.replace(`${window.location.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+    }, [router, searchParams]);
+
+    // Hub premium : cartes neutres (aucune pastille teintée), l'immersion vient
+    // des assets du jeu rendus nus, pas d'un remplissage coloré.
+    const cards = useMemo(
         () => [
-            { id: "moi" as const, label: "Mes Succès", sub: "Ma progression", icon: User, disabled: !canEditOwnSucces },
-            { id: "guilde" as const, label: "Succès Commun", sub: "Qui a quoi", icon: Users, disabled: !canViewGuildSucces },
-            { id: "boss" as const, label: "Fiches Boss", sub: "Sorts & guides", icon: Swords, disabled: false },
+            { id: "moi" as const, label: "Mes Succès", eyebrow: "Progression", desc: "Ta progression, donjon par donjon — là où tu coches.", cta: "Ouvrir mes succès", icon: "/assets/dofus/icons/success.png", tour: "succes-menu-moi", disabled: !canEditOwnSucces },
+            { id: "guilde" as const, label: "Succès Commun", eyebrow: "Guilde", desc: "Qui dans la guilde a validé quoi — pour monter ton groupe.", cta: "Voir la guilde", icon: "/assets/dofus/icons/guild.png", tour: "succes-view-commun", disabled: !canViewGuildSucces },
+            { id: "fiches" as const, label: "Fiches", eyebrow: "Encyclopédie", desc: "Boss, anomalies, avis de recherche, titans, raids et monstres — sorts, quêtes et simulation.", cta: "Ouvrir les fiches", icon: "/assets/dofus/icons/boss.png", tour: "succes-view-fiches", disabled: false },
+            { id: "defi" as const, label: "Défi", eyebrow: "Communauté", desc: "Événements & one-shot communautaires.", cta: "Voir les défis", icon: "/assets/dofus/icons/challenges.png", tour: "succes-view-defi", disabled: false },
         ],
         [canEditOwnSucces, canViewGuildSucces]
     );
 
     return (
-        <div className="space-y-6">
-            {/* Sélecteur de vue (2 vues, pas 3 — les Points ladder restent sur le profil/Ladder) */}
-            <div className="flex flex-wrap items-center gap-3" data-tour="succes-views">
-                <ModuleTourReplayButton phase="succes" />
-                {views.map((v) => {
-                    const Icon = v.icon;
-                    const active = view === v.id;
-                    return (
+        <div className="space-y-5">
+            {view !== "menu" && (
+                <div>
+                    <button
+                        type="button"
+                        onClick={goMenu}
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-border bg-surface hover:bg-elevated text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>Retour au menu Succès</span>
+                    </button>
+                </div>
+            )}
+
+            {view === "menu" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6" data-tour="succes-views">
+                    {cards.map((c) => (
                         <button
-                            key={v.id}
+                            key={c.id}
                             type="button"
-                            onClick={() => !v.disabled && setView(v.id)}
-                            disabled={v.disabled}
-                            data-tour={v.id === "guilde" ? "succes-view-commun" : undefined}
-                            title={v.disabled ? "Accès non autorisé par les permissions" : v.label}
+                            disabled={c.disabled}
+                            data-tour={c.tour}
+                            title={c.disabled ? "Accès non autorisé par les permissions" : `${c.label} — ${c.desc}`}
+                            onClick={() => !c.disabled && replaceView(c.id === "fiches" ? activeFiche : c.id, true)}
                             className={cn(
-                                "flex items-center gap-3 px-4 py-2.5 min-h-11 rounded-2xl border transition-colors",
-                                active
-                                    ? "bg-elevated/90 border-warning/50 text-foreground"
-                                    : "bg-surface/70 border-border text-muted-foreground hover:bg-elevated/70",
-                                v.disabled && "opacity-50 cursor-not-allowed"
+                                "group relative flex flex-col justify-between p-6 min-h-[240px] rounded-2xl border border-border bg-surface hover:bg-elevated hover:border-border-strong transition-colors duration-200 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                c.disabled && "opacity-40 cursor-not-allowed"
                             )}
                         >
-                            <div
-                                className={cn(
-                                    "w-9 h-9 rounded-xl flex items-center justify-center border shrink-0",
-                                    active ? "bg-warning/15 border-warning/30 text-warning" : "bg-surface border-border text-muted-foreground"
-                                )}
-                            >
-                                <Icon className="w-5 h-5" />
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="rounded-xl bg-background border border-border p-2">
+                                        <img src={c.icon} alt="" className="w-12 h-12 object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                                    </div>
+                                    <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{c.eyebrow}</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-title font-bold text-foreground mb-1">{c.label}</h3>
+                                    <p className="text-body-sm text-muted-foreground leading-relaxed">{c.desc}</p>
+                                </div>
                             </div>
-                            <div className="text-left">
-                                <p className={cn("text-xs font-bold uppercase tracking-widest", active && "text-foreground")}>
-                                    {v.label}
-                                </p>
-                                <p className="text-caption font-semibold mt-0.5 text-muted-foreground">{v.sub}</p>
+                            <div className="space-y-3 pt-6 border-t border-border">
+                                <span className="mt-1 inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-border bg-background text-caption font-bold text-foreground group-hover:bg-elevated transition-colors">
+                                    {c.cta} <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                                </span>
                             </div>
                         </button>
-                    );
-                })}
-            </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Sous-sélecteur des fiches — un seul bloc « Fiches », quatre sous-vues */}
+            {view === "fiches" && (
+                <div
+                    role="tablist"
+                    aria-label="Type de fiche"
+                    className="flex items-center gap-1 p-1 bg-background/50 border border-border rounded-2xl overflow-x-auto no-scrollbar"
+                >
+                    {FICHE_TABS.map((f) => {
+                        const active = activeFiche === f.id;
+                        return (
+                            <button
+                                key={f.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={active}
+                                data-tour={`succes-view-${f.id}`}
+                                title={f.sub}
+                                onClick={() => replaceView(f.id, false)}
+                                className={cn(
+                                    "flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 shrink-0",
+                                    active
+                                        ? "bg-info/15 text-info border border-info/30"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-elevated/60 border border-transparent"
+                                )}
+                            >
+                                <img
+                                    src={f.icon}
+                                    alt=""
+                                    aria-hidden
+                                    className="w-5 h-5 object-contain shrink-0"
+                                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                />
+                                <span>{f.label}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
 
             {view === "moi" ? (
                 <SuccesTracker guildId={guildId} canEdit={canEditOwnSucces} />
-            ) : view === "boss" ? (
+            ) : view === "fiches" && activeFiche === "boss" ? (
                 <SuccesBossGuide guildId={guildId} />
-            ) : (
+            ) : view === "fiches" && activeFiche === "anomalies" ? (
+                <SuccesBossGuide guildId={guildId} scope="anomalie" />
+            ) : view === "fiches" && activeFiche === "raids" ? (
+                <SuccesBossGuide guildId={guildId} scope="raid" />
+            ) : view === "fiches" && activeFiche === "bounties" ? (
+                <SuccesAvisTab guildId={guildId} />
+            ) : view === "fiches" && activeFiche === "titans" ? (
+                <SuccesTitanTab guildId={guildId} canEdit={canEditOwnSucces} />
+            ) : view === "fiches" && activeFiche === "monstres" ? (
+                <SuccesMonstresTab />
+            ) : view === "defi" ? (
+                <SuccesDefiTab guildId={guildId} canEdit={canEditOwnSucces} />
+            ) : view === "guilde" ? (
                 <SuccesDirectory guildId={guildId} />
-            )}
+            ) : null}
         </div>
     );
 }

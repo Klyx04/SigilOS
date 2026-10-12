@@ -126,7 +126,7 @@ export function castRangeDistance(a: DofusPos, b: DofusPos, hasDirectionConstrai
     return hasDirectionConstraint ? Math.max(du, dv) : du + dv;
 }
 
-// ── États de case (cf. src/temp/debug.md) ───────────────────────────────────
+// ── États de case (cf. debug.md) ───────────────────────────────────
 // Dans les données Dofensive `Cells[row][col]` :
 //   0 = sol (marchable) · 1 = case impossible / trou (noir, non marchable) ·
 //   2 = case obstacle (bloc 3D, non marchable).
@@ -197,14 +197,29 @@ export function losToXY(u: number, v: number): DofusPos {
 }
 
 // ── Zones d'effet (AoE) ──────────────────────────────────────────────────────
-// Formes de zone Dofensive normalisées : Cercle, Croix/Perpend, Ligne, Cône,
-// Rectangle, Point. La zone est centrée sur la CIBLE (case de portée), avec une
-// orientation déduite caster → cible pour Ligne/Cône.
+// Formes de zone normalisées : Cercle, Croix, **Perpend** (ligne perpendiculaire au lancer),
+// Ligne, Cône, Rectangle (carré), Point. La zone est centrée sur la CIBLE (case visée), avec une
+// orientation déduite du lancer caster → cible pour Ligne / Cône / Perpend.
+//
+// 🔍 `Perpend` ≠ `Croix` (mesure du 22/09/2026) : le gabarit DofusDB `T` (84,
+// « Ligne perpendiculaire ») — Vague à Lame 12794 **et** Lame Destructrice 8194 portent
+// `shape: 84 | param1: 1` — touche **3 cases** en jeu (cases visée ± 1 sur l'axe perpendiculaire
+// au lancer), là où le code les dessinait en croix (5 cases) ou, non calibrées, en case unique.
 
 export interface SpellZoneInput {
-    shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Inconnue";
+    shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Cercle de distance" | "Inconnue";
     size: number;
     range: number;
+}
+
+/** Distance entre deux cellules : Manhattan orthogonal si map libre, losange Dofus si map réelle. */
+export function gridDistance(a: DofusPos, b: DofusPos, isRealMap = true): number {
+    if (!isRealMap) {
+        return Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+    }
+    const la = toLos(a.x, a.y);
+    const lb = toLos(b.x, b.y);
+    return Math.abs(lb.x - la.x) + Math.abs(lb.y - la.y);
 }
 
 /**
@@ -217,8 +232,9 @@ export function spellZoneCells(opts: {
     caster: DofusPos;
     cols: number;
     rows: number;
+    isRealMap?: boolean;
 }): DofusPos[] {
-    const { zone, target, caster, cols, rows } = opts;
+    const { zone, target, caster, cols, rows, isRealMap = true } = opts;
     const size = zone.size || 0;
     const out: DofusPos[] = [];
     const seen = new Set<string>();
@@ -233,6 +249,70 @@ export function spellZoneCells(opts: {
     };
     add(target.x, target.y);
 
+    if (!isRealMap) {
+        // Grille libre orthogonale (17×17 damier isométrique)
+        const dU = Math.sign(target.x - caster.x);
+        const dV = Math.sign(target.y - caster.y);
+
+        switch (zone.shape) {
+            case "Cercle":
+                for (let y = 0; y < rows; y++) {
+                    for (let x = 0; x < cols; x++) {
+                        if (Math.abs(x - target.x) + Math.abs(y - target.y) <= size) add(x, y);
+                    }
+                }
+                break;
+            case "Cercle de distance": {
+                const minD = zone.range || 0;
+                for (let y = 0; y < rows; y++) {
+                    for (let x = 0; x < cols; x++) {
+                        const d = Math.abs(x - target.x) + Math.abs(y - target.y);
+                        if (d >= minD && d <= size) add(x, y);
+                    }
+                }
+                break;
+            }
+            case "Croix":
+                for (let i = -size; i <= size; i++) {
+                    add(target.x + i, target.y);
+                    add(target.x, target.y + i);
+                }
+                break;
+            case "Perpend": {
+                // « Ligne perpendiculaire » : la ligne passe par la case VISÉE et court
+                // perpendiculairement au lancer — axe sur lequel le lancer progresse le moins.
+                // `param1` = 1 ⇒ 3 cases (case visée ± 1), mesure Vague à Lame 12794.
+                const dx = target.x - caster.x;
+                const dy = target.y - caster.y;
+                if (dx === 0 && dy === 0) break; // auto-ciblage : aucune orientation mesurable
+                if (Math.abs(dx) >= Math.abs(dy)) {
+                    for (let i = -size; i <= size; i++) add(target.x, target.y + i);
+                } else {
+                    for (let i = -size; i <= size; i++) add(target.x + i, target.y);
+                }
+                break;
+            }
+            case "Ligne":
+                if (dU !== 0 || dV !== 0) {
+                    for (let i = 1; i <= size; i++) {
+                        add(target.x + i * dU, target.y + i * dV);
+                    }
+                }
+                break;
+            case "Rectangle":
+                for (let dy = -size; dy <= size; dy++) {
+                    for (let dx = -size; dx <= size; dx++) {
+                        add(target.x + dx, target.y + dy);
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+        return out;
+    }
+
+    // Map réelle brick (40×14)
     const t = toLos(target.x, target.y);
     const c = toLos(caster.x, caster.y);
 
@@ -244,8 +324,17 @@ export function spellZoneCells(opts: {
                 }
             }
             break;
+        case "Cercle de distance": {
+            const minD = zone.range || 0;
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const d = distance(target, { x, y });
+                    if (d >= minD && d <= size) add(x, y);
+                }
+            }
+            break;
+        }
         case "Croix":
-        case "Perpend":
             for (let i = -size; i <= size; i++) {
                 const p1 = losToXY(t.x + i, t.y);
                 const p2 = losToXY(t.x, t.y + i);
@@ -253,6 +342,25 @@ export function spellZoneCells(opts: {
                 add(p2.x, p2.y);
             }
             break;
+        case "Perpend": {
+            // Voir `spellZoneCells` (grille libre) : ligne perpendiculaire au lancer, `param1` = 1
+            // ⇒ 3 cases (mesure Vague à Lame 12794, gabarit DofusDB `T` = 84).
+            const dU = t.x - c.x;
+            const dV = t.y - c.y;
+            if (dU === 0 && dV === 0) break;
+            if (Math.abs(dU) >= Math.abs(dV)) {
+                for (let i = -size; i <= size; i++) {
+                    const p = losToXY(t.x, t.y + i);
+                    add(p.x, p.y);
+                }
+            } else {
+                for (let i = -size; i <= size; i++) {
+                    const p = losToXY(t.x + i, t.y);
+                    add(p.x, p.y);
+                }
+            }
+            break;
+        }
         case "Ligne": {
             const dU = t.x - c.x;
             const dV = t.y - c.y;
@@ -280,7 +388,7 @@ export function spellZoneCells(opts: {
                         const n = Math.hypot(cu, cv);
                         if (n < 1) continue;
                         const dot = (cu * du + cv * dv) / n;
-                        if (dot >= Math.cos(Math.PI / 3)) add(x, y); // cône 120°
+                        if (dot >= Math.cos(Math.PI / 3)) add(x, y);
                     }
                 }
             }
@@ -294,8 +402,179 @@ export function spellZoneCells(opts: {
                 }
             }
             break;
-        default: // Point / Inconnue
+        default:
             break;
     }
     return out;
 }
+
+/**
+ * Calcule l'attribution des positions des monstres selon le numéro de placement (1..N).
+ * Règle Dofus (découverte communautaire) :
+ * - sortedCells = cases monstres triées par cellId croissant (la plus haute / plus petit ID en premier).
+ * - Boss = sortedCells[placementIndex - 1].
+ * - Monstres suivants (mobs 2 à N) :
+ *   1. La case choisie doit avoir un mob déjà placé à exactement 3 PO (distance Manhattan Dofus) et aucun mob plus proche (< 3 PO).
+ *   2. Si aucune case ne respecte l'étape 1, augmenter de 1 PO (4 PO, 5 PO...).
+ *   3. Si plusieurs cases respectent l'étape, choisir celle avec le plus petit cellId.
+ *   4. Si cela dépasse la map sans trouver, tester 2 PO, puis 1 PO.
+ */
+export function computeMonsterPlacements(
+    monsterCellIds: number[],
+    placementIndex: number = 1
+): { bossCell: number; otherMonsterCells: number[] } {
+    if (!monsterCellIds || monsterCellIds.length === 0) {
+        return { bossCell: 0, otherMonsterCells: [] };
+    }
+    const sorted = [...monsterCellIds].sort((a, b) => a - b);
+    const pIdx = Math.max(0, Math.min(sorted.length - 1, placementIndex - 1));
+    const bossCell = sorted[pIdx];
+
+    const placedCells: number[] = [bossCell];
+    const availableCells = sorted.filter((id) => id !== bossCell);
+
+    while (availableCells.length > 0) {
+        let bestCell: number | null = null;
+
+        // Tester distances croissantes à partir de 3 PO jusqu'à 30 PO
+        for (let targetDist = 3; targetDist <= 30; targetDist++) {
+            const candidates = availableCells.filter((cellId) => {
+                const cellPos = cellIdToXY(cellId);
+                const dists = placedCells.map((pId) => distance(cellPos, cellIdToXY(pId)));
+                const minDist = Math.min(...dists);
+                return minDist === targetDist;
+            });
+            if (candidates.length > 0) {
+                bestCell = Math.min(...candidates);
+                break;
+            }
+        }
+
+        // Si non trouvé (distances < 3 PO)
+        if (bestCell === null) {
+            for (const targetDist of [2, 1]) {
+                const candidates = availableCells.filter((cellId) => {
+                    const cellPos = cellIdToXY(cellId);
+                    const dists = placedCells.map((pId) => distance(cellPos, cellIdToXY(pId)));
+                    const minDist = Math.min(...dists);
+                    return minDist === targetDist;
+                });
+                if (candidates.length > 0) {
+                    bestCell = Math.min(...candidates);
+                    break;
+                }
+            }
+        }
+
+        // Fallback ultime : premier ID dispo
+        if (bestCell === null) {
+            bestCell = availableCells[0];
+        }
+
+        placedCells.push(bestCell);
+        const idx = availableCells.indexOf(bestCell);
+        if (idx >= 0) availableCells.splice(idx, 1);
+    }
+
+    return {
+        bossCell,
+        otherMonsterCells: placedCells.slice(1),
+    };
+}
+
+/**
+ * Cases de départ des **ALLIÉS** (Fécas) : cases joueurs triées par ID croissant (même règle de
+ * départage que les monstres) puis bornées au nombre d'alliés demandé.
+ *
+ * Sert au toggle « Placements de départ » de la simulation : les joueurs vont
+ * dans `allyCells` (bleues), les monstres dans `enemyCells` (rouges).
+ * Déterministe et pur ⇒ testable, aucune dépendance UI.
+ */
+export function allyStartPositions(
+    playerCellIds: number[] | null | undefined,
+    maxAllies: number
+): DofusPos[] {
+    if (!Array.isArray(playerCellIds) || maxAllies <= 0) return [];
+    return [...new Set(playerCellIds)]
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id >= 0)
+        .sort((a, b) => a - b)
+        .slice(0, Math.floor(maxAllies))
+        .map((id) => cellIdToXY(id));
+}
+
+/**
+ * Sépare le « vide » hors-carte des vrais trous (puisards).
+ *
+ * Dans `cellsData` (`mov == 0 && los == 1`), la quasi-totalité des cases sont
+ * du vide connecté au bord de la grille 14×40 (135/136 en salle 1 Servitude) —
+ * le jeu ne les dessine pas en preview `L` (transparent, pas noir). Seules les
+ * cases enclavées (1/136 en salle 1 : la case 358) sont des trous noirs.
+ *
+ * Flood-fill 4-connexe depuis les trous de bordure, à travers les trous :
+ * `voidCells` = atteignables (à ne pas dessiner), `pits` = enclavés (noir).
+ * Pur et déterministe ⇒ testable. Mesuré sur client 3.6.11.15 (salle 1 :
+ * 135 vides + [358]).
+ */
+export function splitHoles(
+    holes: number[],
+    cols: number = DOFUS_MAP_WIDTH,
+    rows: number = DOFUS_MAP_ROWS
+): { voidCells: number[]; pits: number[] } {
+    const holeSet = new Set(
+        (Array.isArray(holes) ? holes : [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id >= 0 && id < cols * rows)
+    );
+    if (holeSet.size === 0) return { voidCells: [], pits: [] };
+    const key = (col: number, row: number) => row * cols + col;
+    const visited = new Set<number>();
+    const queue: number[] = [];
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            if (row !== 0 && row !== rows - 1 && col !== 0 && col !== cols - 1) continue;
+            const id = key(col, row);
+            if (holeSet.has(id) && !visited.has(id)) {
+                visited.add(id);
+                queue.push(id);
+            }
+        }
+    }
+    while (queue.length > 0) {
+        const id = queue.pop() as number;
+        const col = id % cols;
+        const row = Math.floor(id / cols);
+        const neighbours =
+            col === 0
+                ? [
+                      [col + 1, row],
+                      [col, row - 1],
+                      [col, row + 1],
+                  ]
+                : col === cols - 1
+                  ? [
+                        [col - 1, row],
+                        [col, row - 1],
+                        [col, row + 1],
+                    ]
+                  : [
+                        [col + 1, row],
+                        [col - 1, row],
+                        [col, row - 1],
+                        [col, row + 1],
+                    ];
+        for (const [nc, nr] of neighbours) {
+            if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
+            const nid = key(nc, nr);
+            if (holeSet.has(nid) && !visited.has(nid)) {
+                visited.add(nid);
+                queue.push(nid);
+            }
+        }
+    }
+    const voidCells = [...visited].sort((a, b) => a - b);
+    const pits = [...holeSet].filter((id) => !visited.has(id)).sort((a, b) => a - b);
+    return { voidCells, pits };
+}
+
+

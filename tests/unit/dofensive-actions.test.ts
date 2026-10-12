@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import {
     getDofensiveMap,
-    getDofensiveMonster,
     getDofensiveSpells,
+    getDofensiveDungeonForBoss,
 } from "@/server/actions/dofensive-actions";
 
 const BASE = "https://dofensive.com/api/dofus2/bestiary";
@@ -48,17 +48,60 @@ describe("dofensive-actions — garde anti-SSRF", () => {
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(String(fetchMock.mock.calls[0][0])).toBe(`${BASE}/maps/236716546?lang=fr`);
     });
-
-    it("getDofensiveMonster refuse un ID invalide sans fetch", async () => {
-        const fetchMock = vi.fn();
-        vi.stubGlobal("fetch", fetchMock);
-        expect((await getDofensiveMonster(-5)).success).toBe(false);
-        expect((await getDofensiveMonster(Number.NaN)).success).toBe(false);
-        expect(fetchMock).not.toHaveBeenCalled();
-    });
 });
 
+describe("dofensive-actions — résolution donjon multi-boss (durable)", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("résout par token-overlap un donjon dont le nom DofusDB diffère de Dofensive (Temple ↔ Tempête)", async () => {
+        const fetchMock = vi.fn((url: unknown) => {
+            const u = String(url);
+            if (u.includes("/dungeons/preview")) {
+                return Promise.resolve(
+                    jsonResponse([
+                        {
+                            Id: 121,
+                            Name: "Tempête de l'Eliocalypse",
+                            Level: 200,
+                            Maps: [{ Id: 204476422, Name: "Tempête de l'Eliocalypse - Déluge" }],
+                            Monsters: [
+                                { Id: 6026, Name: "Corruption" },
+                                { Id: 6014, Name: "Guerre" },
+                                { Id: 5990, Name: "Misère" },
+                                { Id: 5955, Name: "Servitude" },
+                            ],
+                        },
+                    ])
+                );
+            }
+            if (u.includes("/monsters/6026")) {
+                return Promise.resolve(
+                    jsonResponse([
+                        { Id: 6026, Name: "Corruption", PreferredMaps: [{ Id: 204476422, Name: "Tempête de l'Eliocalypse - Déluge" }] },
+                    ])
+                );
+            }
+            return Promise.resolve(jsonResponse(null));
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        // bossName DofusDB (« Sanctuaire du dernier espoir ») ≠ nom Dofensive, mais le
+        // nom de donjon partage le token « Eliocalypse » → le donjon Dofensive est résolu.
+        const res = await getDofensiveDungeonForBoss("Sanctuaire du dernier espoir", "Temple de l'Eliocalypse");
+
+        expect(res.success).toBe(true);
+        expect(res.data?.dungeonName).toBe("Tempête de l'Eliocalypse");
+        expect(res.data?.maps).toEqual([{ id: 204476422, name: "Tempête de l'Eliocalypse - Déluge", isBoss: true }]);
+        // Boss résolu = 1re entité du donjon (Corruption) car le bossName DofusDB ne matche aucun monstre.
+        expect(res.data?.bossMonsterId).toBe(6026);
+        expect(res.data?.monsters).toHaveLength(4);
+    });
+});
 describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
+
+
     it("getDofensiveSpells normalise AP/portée/LoS/cooldown/zone depuis /spells/{id}", async () => {
         const fetchMock = vi.fn((url: unknown) => {
             const u = String(url);
@@ -110,7 +153,14 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
             maxCastPerTurn: 2,
             minCastInterval: 1,
         });
-        expect(spell?.zone).toEqual({ shape: "Cercle", size: 2, range: 0 });
+        expect(spell?.zone).toEqual({
+            shape: "Cercle",
+            size: 2,
+            range: 0,
+            lineOfSightOnly: false,
+            includeCarriedEntities: false,
+            presetOrientation: false,
+        });
     });
 
     it("getDofensiveSpells inclut le StartingSpell du Grade (ex. Instinct maternel) et garde maxCastPerTurn 0", async () => {
@@ -174,11 +224,29 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
         expect(starting?.criticalChance).toBe(15);
         expect(starting?.effects).toEqual(["101 dommages Eau"]);
         expect(starting?.imageUrl).toBe("https://cdn.static.dofensive.com/dofensive/spells/2676");
-        expect(starting?.zone).toEqual({ shape: "Point", size: 0, range: 0 }); // Cellule ciblée → Point
+        expect(starting?.zone).toEqual({
+            shape: "Point",
+            size: 0,
+            range: 0,
+            lineOfSightOnly: false,
+            includeCarriedEntities: false,
+            presetOrientation: false,
+        }); // Cellule ciblée → Point
         // Nouveaux champs enrichis : grade + version structurée des effets.
         expect(starting?.grade).toBe(1);
         expect(starting?.effectDetails).toEqual([
-            { label: "101 dommages Eau", duration: null, triggers: [], masks: [] },
+            {
+                label: "101 dommages Eau",
+                duration: null,
+                triggers: [],
+                masks: [],
+                // Jet numérique extrait de la ligne (params bruts ici : le monstre de test n'a
+                // aucune caractéristique) — c'est la donnée affichée par la prévisu de dégâts.
+                damage: { element: "water", min: 101, max: 101 },
+                pushDistance: null,
+                triggerDuration: null,
+                stateDescription: null,
+            },
         ]);
         expect(starting?.hasCriticalEffects).toBe(false);
         expect(starting?.criticalEffects).toBeUndefined();
@@ -271,12 +339,21 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
             duration: "infini",
             triggers: ["L'effet est déclenché lorsque la cible reçoit des dommages d'une invocation"],
             masks: ["Affecte le lanceur (même en-dehors de la zone d'effet)"],
+            // Un état n'inflige aucun dommage : aucune valeur devinée (jamais de chiffre faux).
+            damage: null,
+            pushDistance: null,
+            triggerDuration: null,
+            stateDescription: null,
         });
         expect(spell?.effectDetails?.[1]).toEqual({
             label: "-10 Fuite",
             duration: "pour 1 tour",
             triggers: ["L'effet est déclenché lorsque la cible reçoit des dommages d'une invocation"],
             masks: [],
+            damage: null,
+            pushDistance: null,
+            triggerDuration: null,
+            stateDescription: null,
         });
         // Aucun effet critique → « Aucun effet critique » côté UI.
         expect(spell?.hasCriticalEffects).toBe(false);
@@ -328,6 +405,138 @@ describe("dofensive-actions — sorts Dofensive (données de combat)", () => {
         expect(spell?.effects).toEqual(["86 soins Feu"]);
         expect(spell?.hasCriticalEffects).toBe(true);
         expect(spell?.criticalEffects).toEqual(["95 soins Feu"]);
+    });
+
+    it("getDofensiveDungeonForBoss — résolution DIRECTE (double boss) via dofensiveMonsterName + dofensiveDungeonName", async () => {
+        vi.resetModules();
+        const { getDofensiveDungeonForBoss: freshGet } = await import("@/server/actions/dofensive-actions");
+        // Le monstre « Sylargh » existe à la fois dans un donjon solo ET dans « Donjon du Comte Harebourg ».
+        // Les champs de résolution permettent de choisir le bon donjon (celui où Sylargh est un sbire).
+        const fetchMock = vi.fn((input: any) => {
+            const url = String(input);
+            // 1) /dungeons/preview → liste des donjons (solo + comte)
+            if (url.includes("/dungeons/preview")) {
+                return Promise.resolve(jsonResponse([
+                    { Id: 999, Name: "Sylargh", Monsters: [{ Id: 10, Name: "Sylargh" }], Maps: [] },
+                    { Id: 71, Name: "Donjon du Comte Harebourg", Monsters: [{ Id: 1, Name: "Comte Harebourg" }, { Id: 10, Name: "Sylargh" }], Maps: [{ Id: 700, Name: "Balcon de Sylargh" }] },
+                ]));
+            }
+            // 2) /monsters/{bossId} → PreferredMaps du monstre (ici Sylargh id 10)
+            if (url.includes("/monsters/10")) {
+                return Promise.resolve(jsonResponse([{ Id: 10, Name: "Sylargh", PreferredMaps: [{ Id: 700 }] }]));
+            }
+            return Promise.resolve(jsonResponse(null));
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        const res = await freshGet("Comte et Sylargh", "Comte et Sylargh", {
+            dofensiveMonsterName: "Sylargh",
+            dofensiveDungeonName: "Donjon du Comte Harebourg",
+        });
+
+        expect(res.success).toBe(true);
+        expect(res.data?.dungeonName).toBe("Donjon du Comte Harebourg");
+        expect(res.data?.bossMonsterId).toBe(10);
+        // La map « Balcon de Sylargh » est marquée isBoss → le dropdown ne montre que celle-ci.
+        const map = res.data?.maps.find((m) => m.id === 700);
+        expect(map?.isBoss).toBe(true);
+    });
+
+    it("résolution DIRECTE avec les VRAIES données Dofensive (id 71 donjon, monstre Klime id 3384, map Balcon de Klime 112206593)", async () => {
+        vi.resetModules();
+        const { getDofensiveDungeonForBoss: freshGet } = await import("@/server/actions/dofensive-actions");
+        const fetchMock = vi.fn((input: any) => {
+            const url = String(input);
+            if (url.includes("/dungeons/preview")) {
+                return Promise.resolve(jsonResponse([
+                    {
+                        Id: 71,
+                        Name: "Donjon du Comte Harebourg",
+                        Monsters: [
+                            { Id: 3416, Name: "Comte Harebourg" },
+                            { Id: 3384, Name: "Klime" },
+                            { Id: 3391, Name: "Missiz Frizz" },
+                            { Id: 3397, Name: "Nileza" },
+                            { Id: 3409, Name: "Sylargh" },
+                        ],
+                        Maps: [
+                            { Id: 112206595, Name: "Donjon du Comte - Grande aiguille" },
+                            { Id: 112206593, Name: "Donjon du Comte - Balcon de Klime" },
+                            { Id: 112206341, Name: "Donjon du Comte - Balcon de Missiz Frizz" },
+                            { Id: 112206343, Name: "Donjon du Comte - Balcon de Nileza" },
+                            { Id: 112206337, Name: "Donjon du Comte - Balcon de Sylargh" },
+                        ],
+                    },
+                    // Donjon SOLO Klime homonyme (l'ambiguïté à lever)
+                    { Id: 999, Name: "Salons privés de Klime", Monsters: [{ Id: 3384, Name: "Klime" }], Maps: [] },
+                ]));
+            }
+            if (url.includes("/monsters/3384")) {
+                return Promise.resolve(jsonResponse([{ Id: 3384, Name: "Klime", PreferredMaps: [{ Id: 112206593 }] }]));
+            }
+            return Promise.resolve(jsonResponse(null));
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        // ⚠️ On ne fournit PAS `dofensiveMonsterName` (donnée incompatible) : le monstre doit être
+        // dérivé automatiquement de « Comte et Klime ». C'est le scénario exact de la capture.
+        const res = await freshGet("Comte et Klime", "Comte et Klime", {
+            dofensiveDungeonName: "Donjon du Comte Harebourg",
+        });
+
+        expect(res.success).toBe(true);
+        expect(res.data?.dungeonName).toBe("Donjon du Comte Harebourg");
+        expect(res.data?.bossMonsterId).toBe(3384);
+        expect(res.data?.maps.length).toBe(5);
+        // Seule la « Balcon de Klime » est isBoss → le dropdown n'affichera qu'elle.
+        const bossMaps = res.data?.maps.filter((m) => m.isBoss);
+        expect(bossMaps?.length).toBe(1);
+        expect(bossMaps?.[0].id).toBe(112206593);
+    });
+
+    it("résolution DIRECTE SANS aucun champ de résolution — dérive « Klime » depuis « Comte et Klime » (donnée vide)", async () => {
+        vi.resetModules();
+        const { getDofensiveDungeonForBoss: freshGet } = await import("@/server/actions/dofensive-actions");
+        const fetchMock = vi.fn((input: any) => {
+            const url = String(input);
+            if (url.includes("/dungeons/preview")) {
+                return Promise.resolve(jsonResponse([
+                    {
+                        Id: 71,
+                        Name: "Donjon du Comte Harebourg",
+                        Monsters: [
+                            { Id: 3416, Name: "Comte Harebourg" },
+                            { Id: 3384, Name: "Klime" },
+                            { Id: 3391, Name: "Missiz Frizz" },
+                            { Id: 3397, Name: "Nileza" },
+                            { Id: 3409, Name: "Sylargh" },
+                        ],
+                        Maps: [
+                            { Id: 112206595, Name: "Donjon du Comte - Grande aiguille" },
+                            { Id: 112206593, Name: "Donjon du Comte - Balcon de Klime" },
+                            { Id: 112206341, Name: "Donjon du Comte - Balcon de Missiz Frizz" },
+                            { Id: 112206343, Name: "Donjon du Comte - Balcon de Niléza" },
+                            { Id: 112206337, Name: "Donjon du Comte - Balcon de Sylargh" },
+                        ],
+                    },
+                    { Id: 999, Name: "Salons privés de Klime", Monsters: [{ Id: 3384, Name: "Klime" }], Maps: [] },
+                ]));
+            }
+            if (url.includes("/monsters/3384")) {
+                return Promise.resolve(jsonResponse([{ Id: 3384, Name: "Klime", PreferredMaps: [{ Id: 112206593 }] }]));
+            }
+            return Promise.resolve(jsonResponse(null));
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        // Aucun champ de résolution → le monstre est dérivé de « Comte et Klime ».
+        const res = await freshGet("Comte et Klime", "Comte et Klime", {});
+
+        expect(res.success).toBe(true);
+        expect(res.data?.bossMonsterId).toBe(3384);
+        const bossMaps = res.data?.maps.filter((m) => m.isBoss);
+        expect(bossMaps?.length).toBe(1);
+        expect(bossMaps?.[0].id).toBe(112206593);
     });
 
     it("mergeDofensiveSpells : le combat Dofensive prime, icône CDN Dofensive préférée", () => {

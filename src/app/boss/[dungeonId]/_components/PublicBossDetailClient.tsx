@@ -1,0 +1,1408 @@
+"use client";
+
+import React, { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
+import {
+  Swords,
+  Shield,
+  Zap,
+  Layers,
+  Users,
+  ArrowRight,
+  Target,
+  Flame,
+  Loader2,
+  MapPin,
+  Check,
+  Info,
+  Compass,
+  Crown,
+  X,
+  ChevronDown,
+  ChevronUp,
+  ShieldAlert,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/client";
+import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
+import { BountyRewardCard } from "@/components/succes/BountyRewardCard";
+import { BossOverlayButton } from "@/components/boss-overlay/boss-overlay-button";
+import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
+import {
+  getBossDofensiveSpells,
+  getDofensiveDungeonForBoss,
+  type DofensiveDungeonInfo,
+} from "@/server/actions/dofensive-actions";
+import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
+import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
+import { getWorldName } from "@/lib/dofus-assets";
+import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
+import { DungeonMinimapCard } from "./DungeonMinimapCard";
+import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
+import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
+import { getBountyBattleMap } from "@/server/actions/bounty-actions";
+import type { BountyPublicMeta } from "@/lib/bounty-fiche";
+import { encycloProperties } from "@/lib/dofus-encyclo";
+import { PublicBossQuestsTab } from "./PublicBossQuestsTab";
+import { PublicBossAchievementsTab } from "./PublicBossAchievementsTab";
+import type { PublicLinkedQuestsData, PublicDungeonAchievement } from "@/server/actions/public-boss-tabs-actions";
+import { BossMechanicsView } from "@/components/boss/BossMechanicsView";
+import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "@/lib/dofus-effects-formatter";
+import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
+import { DocContent } from "@/components/doc/doc-content";
+import { buildBossFicheTabs } from "@/lib/boss-fiche-tabs";
+import { listNormalMonsters, monsterFicheHref } from "@/lib/monster-fiche";
+
+interface PublicDungeon {
+  id: string;
+  name: string;
+  bossName?: string | null;
+  level?: number | null;
+  imageUrl?: string | null;
+  dofensiveUrl?: string | null;
+  dofuspourlesnoobsUrl?: string | null;
+  dofensiveMonsterName?: string | null;
+  dofensiveDungeonName?: string | null;
+  /* 🌀 Chantier « boss d'anomalie » — carte de combat + famille siphonnées localement. */
+  isAnomalyBoss?: boolean | null;
+  anomalyMapId?: number | null;
+  /* 🐉 Boss de raid */
+  isRaidBoss?: boolean | null;
+  /** Map d'entrée (worldmap.json) — résout la zone de l'encart « Localisation ». */
+  mapId?: number | null;
+  /* 🎯 Chantier « Avis de recherche » — 3ᵉ type de fiche (ni donjon, ni titan). */
+  kind?: "boss" | "titan" | "bounty" | "raid";
+}
+
+interface FamilyMember {
+  id: number;
+  name: string;
+  imageUrl: string | null;
+  isBoss: boolean;
+  /** 🌀 Monstre de l'anomalie (Briko/Bruto/Gromo) — 3 tirés au hasard par combat. */
+  isCompanion?: boolean;
+  level?: number | null;
+  raceName?: string | null;
+}
+
+export interface DungeonFamily {
+  familyId: number | null;
+  monsters: FamilyMember[];
+  /** Monstres de l'anomalie uniquement (accompagnateurs) — sous-ensemble de `monsters`. */
+  companions?: FamilyMember[];
+  /** « 3 au hasard parmi 16 » (fourni par la source siphonnée). */
+  companionHint?: string | null;
+}
+
+interface PublicBossDetailClientProps {
+  dungeon: PublicDungeon;
+  monsterStats?: any;
+  initialFamily?: DungeonFamily | null;
+  initialDungeonMaps?: DofensiveDungeonInfo | null;
+  /** 🎯 Avis de recherche : zone de traque, prime, critères de quête, repli de carte déclaré. */
+  bountyMeta?: BountyPublicMeta | null;
+  /** 📜 Quêtes liées au donjon (vrais donjons uniquement — `null` sinon). */
+  initialQuestsData?: PublicLinkedQuestsData | null;
+  /** 🏆 Succès du donjon (vrais donjons uniquement — `null` sinon). */
+  initialAchievements?: PublicDungeonAchievement[] | null;
+}
+
+function MonsterImage({
+  src,
+  alt = "",
+  className = "",
+  monsterId,
+  assetId,
+  assetType = "monsters",
+}: {
+  src?: string | null;
+  alt?: string;
+  className?: string;
+  monsterId?: number | string;
+  assetId?: number | string;
+  assetType?: "monsters" | "items" | "spells";
+}) {
+  const targetId = monsterId ?? assetId;
+  const initialSrc = targetId
+    ? `/api/assets-dofus/${assetType}/${targetId}${src ? `?url=${encodeURIComponent(src)}` : ""}`
+    : src || null;
+  const [currentSrc, setCurrentSrc] = useState<string | null>(initialSrc);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const next = targetId
+      ? `/api/assets-dofus/${assetType}/${targetId}${src ? `?url=${encodeURIComponent(src)}` : ""}`
+      : src || null;
+    setCurrentSrc(next);
+    setFailed(false);
+  }, [src, targetId, assetType]);
+
+  if (!currentSrc || failed) {
+    return (
+      <span className={cn("inline-flex items-center justify-center text-muted-foreground/40 bg-background", className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/assets/dofus/icons/crossedSwords.png" alt="" className="w-1/2 h-1/2 max-w-6 max-h-6 object-contain opacity-50" />
+      </span>
+    );
+  }
+  return (
+    <img src={currentSrc} alt={alt} className={className} loading="lazy" onError={() => setFailed(true)} />
+  );
+}
+
+/**
+ * Icône d'un sort Dofus.
+ *
+ * 🔑 **Le chemin disque n'est JAMAIS rendu.** `/uploads/assets-dofus/spells/sort_<iconId>.webp`
+ * n'existe que si le siphon Unity hors ligne est passé (rien ne l'écrivait à la demande : le proxy
+ * ne connaissait que l'espace d'entité, `<idDeSort>.webp`) — et sur la fiche publique, mesuré le
+ * 11/10/2026 (« Sam Sagaz ») : le 404 des 3 icônes arrive **avant l'hydratation**, donc l'`onError`
+ * de repli n'est **jamais** appelé (aucune requête `/api/assets-dofus/spells/*` dans le journal
+ * réseau) et l'icône reste KO, alors que le proxy sert la même icône en **200**. L'`src` initial
+ * passe donc par le proxy, dans l'**espace d'icône** (`sort_<iconId>`, où le nom EST l'identité de
+ * l'icône).
+ *
+ * Priorité : proxy espace d'icône (`sort_<iconId>`) → proxy par id de sort (DofusDB fait alors
+ * autorité sur l'`iconId`) → asset officiel spells.png.
+ */
+function SpellIcon({
+  spell,
+  className = "w-full h-full object-contain",
+}: {
+  spell: { id?: number; name?: string; imageUrl?: string | null; unityIconId?: number };
+  className?: string;
+}) {
+  const unityIconSrc = resolveSpellIconUrl(spell.unityIconId);
+  if (unityIconSrc) {
+    return (
+      <img
+        src={unityIconSrc}
+        alt={spell.name ?? ""}
+        className={className}
+        loading="lazy"
+        onError={(e) => {
+          if (spell.imageUrl) {
+            (e.target as HTMLImageElement).src = `/api/assets-dofus/spells/${spell.id}?url=${encodeURIComponent(spell.imageUrl)}`;
+          } else {
+            (e.target as HTMLImageElement).src = "/assets/dofus/modules/spells.png";
+          }
+        }}
+      />
+    );
+  }
+  if (spell.imageUrl || spell.id) {
+    return (
+      <MonsterImage
+        src={spell.imageUrl}
+        alt={spell.name ?? ""}
+        assetType="spells"
+        assetId={spell.id}
+        className={className}
+      />
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/assets/dofus/modules/spells.png" alt="" className={cn(className, "opacity-60")} />
+  );
+}
+
+type DetailTab = "sorts" | "sim" | "strategy" | "grades" | "loot" | "family" | "monsters" | "quests" | "achievements";
+
+
+export function PublicBossDetailClient({
+  dungeon,
+  monsterStats: initialStats,
+  initialFamily,
+  initialDungeonMaps,
+  bountyMeta,
+  initialQuestsData,
+  initialAchievements,
+}: PublicBossDetailClientProps) {
+  const bossName = dungeon.bossName || dungeon.name;
+  // 📜 Onglets « quêtes liées » / « succès du donjon » : le serveur ne fournit ces données que
+  // pour les **vrais donjons** (ni titan, ni avis de recherche) ⇒ l'onglet disparaît quand il n'y
+  // a rien à montrer, jamais un onglet vide.
+  const questCount = initialQuestsData?.quests.length ?? 0;
+  const achievementCount = initialAchievements?.length ?? 0;
+  const isTitan = dungeon.kind === "titan";
+  // 🎯 Avis de recherche : ni donjon ni titan — pas de salle, pas de carte Dofensive, mais une
+  // zone de traque, une prime (curée dans God) et des critères de quête SIPHONNÉS.
+  const isBounty = dungeon.kind === "bounty";
+  // 🐉 Boss de raid : catégorie dédiée
+  const isRaid = !!dungeon.isRaidBoss || dungeon.kind === "raid";
+  // 🌀 Boss d'anomalie : Dofensive n'expose pas ces donjons ⇒ carte + famille sont résolues
+  // LOCALEMENT (lecteurs dédiés) au lieu du resolver Dofensive standard.
+  const isAnomalyBoss = !!dungeon.isAnomalyBoss;
+  const { t, locale } = useI18n();
+
+  const [detailTab, setDetailTab] = useState<DetailTab>("sorts");
+  const [activeMonsterName, setActiveMonsterName] = useState<string | null>(null);
+  const [activeGradeIndex, setActiveGradeIndex] = useState<number | null>(null);
+  const [selectedSpellId, setSelectedSpellId] = useState<number | undefined>(
+    initialStats?.spells?.[0]?.id
+  );
+  const [statsByKey, setStatsByKey] = useState<Record<string, any>>(
+    initialStats ? { [dungeon.id]: initialStats } : {}
+  );
+  const [loadingByKey, setLoadingByKey] = useState<Record<string, boolean>>({});
+  const [familyByDungeon, setFamilyByDungeon] = useState<Record<string, DungeonFamily>>(
+    initialFamily ? { [dungeon.id]: initialFamily } : {}
+  );
+  const [mapsByBoss, setMapsByBoss] = useState<Record<string, DofensiveDungeonInfo | null>>(
+    initialDungeonMaps !== undefined ? { [bossName]: initialDungeonMaps } : {}
+  );
+  const [selectedDrop, setSelectedDrop] = useState<any>(null);
+  const [copiedTravel, setCopiedTravel] = useState(false);
+  const [expandedSpells, setExpandedSpells] = useState<Record<number, boolean>>({});
+
+  const toggleSpellExpanded = (id: number) => {
+    setExpandedSpells((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const entityKey = activeMonsterName ? `${dungeon.id}::${activeMonsterName}` : dungeon.id;
+  const currentStats = statsByKey[entityKey];
+  const isLoadingCurrent = !!loadingByKey[entityKey] && !currentStats;
+  const grades: any[] = currentStats?.grades ?? [];
+  const gradeIdx = activeGradeIndex ?? (grades.length > 0 ? grades.length - 1 : 0);
+  const activeGrade = grades.length > 0 ? grades[Math.min(gradeIdx, grades.length - 1)] : null;
+  const gradeKey = `${entityKey}::g${gradeIdx + 1}`;
+  const displayStats = statsByKey[gradeKey] ?? currentStats;
+  const spells: any[] = displayStats?.spells ?? [];
+  const drops: any[] = displayStats?.drops ?? currentStats?.drops ?? [];
+  const roomMonsters = familyByDungeon[dungeon.id]?.monsters ?? [];
+  const hasRoomMonsters = roomMonsters.length > 1;
+  const activeBossKey = activeMonsterName ?? bossName;
+  const dungeonMaps = mapsByBoss[activeBossKey];
+
+  // Passif enrichi : 100% intact si déjà des effets (Tal Kasha), enrichi via StartingSpell sinon (Kwakwa)
+  const enrichedPassive = useMemo(() => {
+    return enrichPassiveIfNeeded(currentStats?.passive, spells);
+  }, [currentStats?.passive, spells]);
+
+  // Reset quand on change de fiche.
+  useEffect(() => {
+    setActiveMonsterName(null);
+    setActiveGradeIndex(null);
+    setDetailTab("sorts");
+    setSelectedSpellId(initialStats?.spells?.[0]?.id);
+    setStatsByKey(initialStats ? { [dungeon.id]: initialStats } : {});
+    setFamilyByDungeon(initialFamily ? { [dungeon.id]: initialFamily } : {});
+    setMapsByBoss(initialDungeonMaps !== undefined ? { [bossName]: initialDungeonMaps } : {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dungeon.id]);
+
+  // Lazy-load stats de l'entité active (boss ou monstre de salle).
+  useEffect(() => {
+    if (statsByKey[entityKey] || loadingByKey[entityKey]) return;
+    let cancelled = false;
+    setLoadingByKey((p) => ({ ...p, [entityKey]: true }));
+    const target = activeMonsterName ?? bossName;
+    getMonsterStats(target, dungeon.name, false, undefined, locale)
+      .then(async (res) => {
+        if (cancelled) return;
+        if (res.success && res.data) {
+          let data = res.data;
+          try {
+            const dRes = await getBossDofensiveSpells(target, dungeon.name, undefined, false, undefined, locale);
+            if (!cancelled && dRes.success && dRes.data) {
+              // Lot 6 — garde d'appartenance (sorts du monstre + passif uniquement).
+              const legitIds = [
+                ...(data.spells ?? []).map((s: any) => Number(s?.id)),
+                ...(Number((data as any)?.passive?.spellId) > 0 ? [Number((data as any).passive.spellId)] : []),
+              ];
+              data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data, legitIds) };
+            }
+          } catch { /* sorts locaux conservés */ }
+          if (!cancelled) {
+            setStatsByKey((p) => ({ ...p, [entityKey]: data }));
+            setSelectedSpellId((prev) => prev ?? data.spells?.[0]?.id);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingByKey((p) => ({ ...p, [entityKey]: false }));
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entityKey]);
+
+  // Lazy-load sorts pour le grade actif (si le monstre a plusieurs grades)
+  useEffect(() => {
+    if (grades.length <= 1 || !currentStats) return;
+    const target = activeMonsterName ?? bossName;
+    const targetGrade = gradeIdx + 1;
+    const targetGradeKey = `${entityKey}::g${targetGrade}`;
+    if (statsByKey[targetGradeKey] || loadingByKey[targetGradeKey]) return;
+
+    let cancelled = false;
+    setLoadingByKey((p) => ({ ...p, [targetGradeKey]: true }));
+    getBossDofensiveSpells(target, dungeon.name, targetGrade, false, undefined, locale)
+      .then((dRes) => {
+        if (!cancelled && dRes.success && dRes.data && currentStats) {
+          const legitIds = [
+            ...(currentStats.spells ?? []).map((s: any) => Number(s?.id)),
+            ...(Number((currentStats as any)?.passive?.spellId) > 0 ? [Number((currentStats as any).passive.spellId)] : []),
+          ];
+          const merged = mergeDofensiveSpells(currentStats.spells ?? [], dRes.data, legitIds);
+          setStatsByKey((prev) => ({
+            ...prev,
+            [targetGradeKey]: { ...currentStats, spells: merged },
+          }));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingByKey((p) => ({ ...p, [targetGradeKey]: false }));
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gradeIdx, entityKey, activeMonsterName, bossName, dungeon.name, locale, grades.length, currentStats]);
+
+  // Lazy-load famille si absente (rare : la page serveur la pré-charge déjà).
+  // 🌀 Anomalie : les « monstres de la salle » viennent du siphon local (co-gardiens + 3
+  // accompagnateurs au hasard) et non du donjon Dofensive (inexistant pour une anomalie).
+  useEffect(() => {
+    if (isBounty || familyByDungeon[dungeon.id]) return;
+    let cancelled = false;
+    const request = isAnomalyBoss
+      ? getAnomalyBossFamily(bossName)
+      : getDungeonMonsters(bossName, dungeon.name);
+    request
+      .then((res) => {
+        if (!cancelled && res.success && res.data) {
+          setFamilyByDungeon((p) => ({ ...p, [dungeon.id]: res.data as DungeonFamily }));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dungeon.id]);
+
+  // Lazy-load maps Dofensive pour l'entité active.
+  // 🌀 Anomalie : carte de combat résolue LOCALEMENT (siphon) — sans ce branchement la landing
+  // publique n'exposait ni sélecteur de « Salle », ni « Placements de départ », ni
+  // Placement/Butin (constat user du 15/09/2026).
+  useEffect(() => {
+    // 🎯 Avis de recherche : la carte (grille locale ou repli déclaré) est pré-chargée par la
+    // page serveur (`initialDungeonMaps`) — on ne rappelle AUCUNE source ici.
+    if (isBounty) return;
+    if (mapsByBoss[activeBossKey] !== undefined) return;
+    let cancelled = false;
+    const isMain = !activeMonsterName;
+    const resolution = isAnomalyBoss
+      ? getAnomalyBossBattleMap(activeBossKey, dungeon.anomalyMapId)
+      : getDofensiveDungeonForBoss(
+          activeBossKey,
+          dungeon.name,
+          isMain
+            ? {
+                dofensiveMonsterName: dungeon.dofensiveMonsterName,
+                dofensiveDungeonName: dungeon.dofensiveDungeonName,
+              }
+            : undefined
+        );
+    resolution
+      .then((res) => {
+        if (!cancelled) setMapsByBoss((p) => ({ ...p, [activeBossKey]: res.success && res.data ? res.data : null }));
+      })
+      .catch(() => {
+        if (!cancelled) setMapsByBoss((p) => ({ ...p, [activeBossKey]: null }));
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dungeon.id, activeMonsterName]);
+
+  // Re-fetch sorts Dofensive quand le grade change (données de combat PAR GRADE).
+  useEffect(() => {
+    if (activeGradeIndex === null) return;
+    if (!grades.length) return;
+    const gradeNumber = activeGradeIndex + 1;
+    let cancelled = false;
+    getBossDofensiveSpells(
+      activeMonsterName ?? bossName,
+      dungeon.name,
+      gradeNumber,
+      false,
+      !activeMonsterName
+        ? {
+            dofensiveMonsterName: dungeon.dofensiveMonsterName,
+            dofensiveDungeonName: dungeon.dofensiveDungeonName,
+          }
+        : undefined,
+      locale
+    )
+      .then((res) => {
+        if (cancelled || !res.success || !res.data) return;
+        setStatsByKey((prev) => {
+          const cur = prev[entityKey];
+          if (!cur) return prev;
+          // Lot 6 — garde d'appartenance (sorts du monstre + passif uniquement).
+          const legitIds = [
+            ...(cur.spells ?? []).map((s: any) => Number(s?.id)),
+            ...(Number((cur as any)?.passive?.spellId) > 0 ? [Number((cur as any).passive.spellId)] : []),
+          ];
+          return { ...prev, [entityKey]: { ...cur, spells: mergeDofensiveSpells(cur.spells ?? [], res.data, legitIds) } };
+        });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dungeon.id, activeMonsterName, activeGradeIndex]);
+
+  const selectMonster = (m: FamilyMember) => {
+    if (m.isBoss || m.name === bossName) {
+      setActiveMonsterName(null);
+    } else {
+      setActiveMonsterName(m.name);
+    }
+    setActiveGradeIndex(null);
+    setSelectedSpellId(undefined);
+  };
+
+  // Liste d'onglets : **source unique** partagée avec les fiches internes du module Succès
+  // (`@/lib/boss-fiche-tabs`) — plus aucune définition locale, donc plus aucune divergence
+  // possible entre la fiche publique et les fiches internes.
+  // Monstres normaux de la salle (hors boss / avis / anomalie / titan / raid) : ce sont eux
+  // qui ont droit à leur propre fiche `/bestiaire/<slug>` (onglet « Monstres »).
+  const normalMonsterList = listNormalMonsters(roomMonsters as any);
+  const tabs = buildBossFicheTabs({
+    entity: isRaid ? "raid" : isTitan ? "titan" : isBounty ? "bounty" : isAnomalyBoss ? "anomaly" : "dungeon",
+    counts: {
+      grades: grades.length,
+      roomMonsters: hasRoomMonsters ? roomMonsters.length : 0,
+      monsters: normalMonsterList.length,
+      quests: questCount,
+      achievements: achievementCount,
+    },
+    hasMechanics: !!bountyMeta?.mechanics,
+    locale: locale === "en" ? "en" : "fr",
+  });
+
+  const resists = activeGrade?.resists || {};
+  const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
+  const travelCmd = coords ? `/travel ${coords.x} ${coords.y}` : null;
+  /* Encart « Localisation » : la zone de l'avis (subareaIds) ou du donjon (mapId),
+     avec repli sur la carte de l'entrée (coordonnées seules). */
+  const bountySubareaIds = bountyMeta?.subareaIds ?? [];
+  const hasZoneLocation = !!(coords || dungeon.mapId || bountySubareaIds.length > 0);
+  const zoneWorldId = Number(coords?.worldMapId ?? 0) > 0 ? (coords!.worldMapId as number) : 1;
+  const resolvedBossName =
+    dungeon.dofensiveMonsterName ?? (activeMonsterName ?? deriveDofensiveMonsterName(bossName) ?? bossName);
+
+  return (
+    <div className="space-y-6">
+      {/* ── EN-TÊTE ──────────────────────────────────────────────────────────
+          Action (overlay) posée à droite, puis deux colonnes qui démarrent sur la
+          même ligne : (1) qui est l’entité — identité, entrée du donjon, PV/PA/PM,
+          résistances ; (2) où se trouve son donjon — carte statique 5×3 cliquable. */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+          <BossOverlayButton
+            monsterName={activeMonsterName ?? bossName}
+            dungeonName={dungeon.name}
+          />
+        </div>
+
+        <div className={cn("grid gap-4", hasZoneLocation && "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-start")}>
+          {/* ── Colonne gauche : identité, entrée du donjon, caractéristiques ── */}
+          <div className="min-w-0 space-y-3.5">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-16 h-16 rounded-lg border border-border bg-background/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
+                <MonsterImage
+                  src={currentStats?.imageUrl ?? dungeon.imageUrl}
+                  alt={activeMonsterName ?? bossName}
+                  monsterId={currentStats?.id}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {isRaid ? (locale === "en" ? "Raid Boss" : "Boss de raid") : isTitan ? "Titan" : isBounty ? (bountyMeta?.raceName ?? (locale === "en" ? "Wanted Bounty" : "Avis de recherche")) : isAnomalyBoss ? (locale === "en" ? "Anomaly Boss" : "Boss d'anomalie") : (locale === "en" ? "Dungeon Boss" : "Boss de donjon")}
+                  <span className="font-mono normal-case">{t.bossPage.levelShort} {dungeon.level ?? 200}</span>
+                </p>
+                <h1 className="mt-0.5 truncate text-2xl font-semibold text-foreground sm:text-3xl">
+                  {activeMonsterName ?? bossName}
+                </h1>
+                <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Compass className="w-3.5 h-3.5 opacity-70" />
+                  {isBounty ? (locale === "en" ? "Hunt Zone:" : "Zone de traque :") : (locale === "en" ? "Dungeon:" : "Donjon :")}{" "}
+                  <span className="text-foreground/90">{dungeon.name}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Entrée du donjon : coordonnées copiables (clic) + zone. */}
+            {coords && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!travelCmd) return;
+                    navigator.clipboard.writeText(travelCmd).then(() => {
+                      setCopiedTravel(true);
+                      window.setTimeout(() => setCopiedTravel(false), 2000);
+                    }).catch(() => {});
+                  }}
+                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-border-strong text-foreground transition-colors cursor-pointer"
+                  title={t.bossPage.copyTravelTitle}
+                >
+                  <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                  <span>
+                    {t.bossPage.dungeonEntrance}{" "}
+                    <strong className="font-mono text-foreground/90">
+                      [{coords.x}, {coords.y}]
+                    </strong>
+                  </span>
+                  {copiedTravel ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-background border border-border text-muted-foreground font-mono">
+                      {travelCmd}
+                    </span>
+                  )}
+                </button>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {t.bossPage.zoneLabel}{" "}
+                  <strong className="text-foreground">{getWorldName(coords.worldMapId, locale)}</strong>
+                </span>
+              </div>
+            )}
+
+            {/* Caractéristiques : PV / PA / PM en cartes, résistances dans un encadré. */}
+            {isLoadingCurrent ? (
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 px-3.5 py-3 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? bossName}…</span>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2" title={t.bossPage.stats.hp}>
+                    <span className="flex items-baseline gap-1.5">
+                      <img src="/assets/dofus/stats/pv.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
+                      <span className="font-mono text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
+                        {activeGrade ? activeGrade.lifePoints?.toLocaleString(locale === "en" ? "en-US" : "fr-FR") : "—"}
+                      </span>
+                      <span className="font-mono text-[11px] text-muted-foreground">{t.bossPage.stats.hpShort}</span>
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2" title={t.bossPage.stats.ap}>
+                    <span className="flex items-baseline gap-1.5">
+                      <img src="/assets/dofus/stats/pa.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
+                      <span className="font-mono text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{activeGrade?.actionPoints ?? "—"}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground">{t.bossPage.stats.ap}</span>
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2" title={t.bossPage.stats.mp}>
+                    <span className="flex items-baseline gap-1.5">
+                      <img src="/assets/dofus/stats/pm.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
+                      <span className="font-mono text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{activeGrade?.movementPoints ?? "—"}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground">{t.bossPage.stats.mp}</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border bg-surface/60 px-3.5 py-2.5">
+                  <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">{t.bossPage.resistance}</span>
+                  {grades.length === 0 && !isLoadingCurrent && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {locale === "en"
+                        ? "Characteristics not synced for this wanted poster yet — run the siphon (God → Game data)."
+                        : "Caractéristiques non synchronisées pour cet avis — relance le siphon (God → Données de jeu)."}
+                    </p>
+                  )}
+                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {(
+                        [
+                          { key: "neutral", label: t.bossPage.stats.neutral, icon: "/assets/dofus/stats/resNeutre.png", value: resists.neutral ?? null },
+                          { key: "earth", label: t.bossPage.stats.earth, icon: "/assets/dofus/stats/resTerre.png", value: resists.earth ?? null },
+                          { key: "fire", label: t.bossPage.stats.fire, icon: "/assets/dofus/stats/resFeu.png", value: resists.fire ?? null },
+                          { key: "water", label: t.bossPage.stats.water, icon: "/assets/dofus/stats/resEau.png", value: resists.water ?? null },
+                          { key: "air", label: t.bossPage.stats.air, icon: "/assets/dofus/stats/resAir.png", value: resists.air ?? null },
+                        ] as const
+                      ).map(({ key, label, icon, value }) => (
+                        <span key={key} className="inline-flex items-center gap-1.5" title={label + " %"}>
+                          <img src={icon} alt="" className="w-4 h-4 object-contain" />
+                          <span
+                            className={cn(
+                              "font-mono text-[13px] tabular-nums",
+                              typeof value === "number" && value < 0 ? "text-rose-400" : "text-foreground/85"
+                            )}
+                          >
+                            {typeof value === "number" ? `${value}%` : "—"}
+                          </span>
+                          <span className="hidden text-[11px] text-muted-foreground sm:inline">{label}</span>
+                        </span>
+                      ))}
+                    </div>
+                    {grades.length > 1 && (
+                      <div className="flex items-center gap-2">
+                        <div className="inline-flex items-center gap-1 rounded-md bg-background/70 border border-border/70 p-0.5">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+                            {locale === "en" ? "Rank:" : "Rang :"}
+                          </span>
+                          {grades.map((g: any, idx: number) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setActiveGradeIndex(idx)}
+                              className={cn(
+                                "min-w-[22px] h-5 text-[10px] px-1.5 rounded-[4px] font-mono transition-colors cursor-pointer",
+                                idx === gradeIdx
+                                  ? "bg-accent text-accent-foreground font-bold"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                              title={`${locale === "en" ? "Rank" : "Rang"} ${idx + 1} · ${t.bossPage.levelShort} ${g.level}`}
+                            >
+                              {idx + 1}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDetailTab("grades")}
+                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          title={locale === "en" ? "Open grades & tiers tab" : "Ouvrir l'onglet des grades & paliers"}
+                        >
+                          <Flame className="w-3.5 h-3.5" />
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Caractéristiques avancées officielles du client (Tacle, Fuite, Esquives, Retraits, Puissance, Soin, Initiative) */}
+                {(activeGrade?.tackle !== undefined || activeGrade?.apDodge !== undefined || activeGrade?.power !== undefined) && (
+                  <div className="space-y-2 rounded-lg border border-border bg-surface/40 p-2.5 text-[11px] font-mono">
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                          <img src="/assets/dofus/stats/tacle.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                          {locale === "en" ? "Lock" : "Tacle"}
+                        </span>
+                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.tackle ?? "—"}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                          <img src="/assets/dofus/stats/fuite.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                          {locale === "en" ? "Dodge" : "Fuite"}
+                        </span>
+                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.evade ?? "—"}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                          <img src="/assets/dofus/stats/esquivePA.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                          {locale === "en" ? "AP Dodge" : "Esq PA"}
+                        </span>
+                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.apDodge ?? "—"}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                          <img src="/assets/dofus/stats/esquivePM.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                          {locale === "en" ? "MP Dodge" : "Esq PM"}
+                        </span>
+                        <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade?.mpDodge ?? "—"}</span>
+                      </div>
+                    </div>
+
+                    {/* Ligne secondaire : Retraits, Puissance, Soins (si présents) */}
+                    {(activeGrade?.apRemoval !== undefined || activeGrade?.mpRemoval !== undefined || (activeGrade?.power !== undefined && activeGrade.power > 0) || (activeGrade?.healBonus !== undefined && activeGrade.healBonus > 0)) && (
+                      <div className="grid grid-cols-4 gap-2 pt-1.5 border-t border-border">
+                        {activeGrade?.apRemoval !== undefined && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                              <img src="/assets/dofus/stats/retraitPA.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                              {locale === "en" ? "AP Red" : "Ret PA"}
+                            </span>
+                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.apRemoval}</span>
+                          </div>
+                        )}
+                        {activeGrade?.mpRemoval !== undefined && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                              <img src="/assets/dofus/stats/retraitPM.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                              {locale === "en" ? "MP Red" : "Ret PM"}
+                            </span>
+                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.mpRemoval}</span>
+                          </div>
+                        )}
+                        {activeGrade?.power !== undefined && activeGrade.power > 0 && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                              <img src="/assets/dofus/stats/puissance.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                              {locale === "en" ? "Power" : "Puissance"}
+                            </span>
+                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.power}</span>
+                          </div>
+                        )}
+                        {activeGrade?.healBonus !== undefined && activeGrade.healBonus > 0 && (
+                          <div className="flex flex-col items-center">
+                            <span className="flex items-center gap-1 text-muted-foreground text-[10px] uppercase font-sans">
+                              <img src="/assets/dofus/stats/soin.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                              {locale === "en" ? "Heal" : "Soin"}
+                            </span>
+                            <span className="text-foreground font-semibold tabular-nums mt-0.5">{activeGrade.healBonus}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {activeGrade?.initiative !== undefined && activeGrade.initiative > 0 && (
+                      <div className="flex items-center justify-between pt-1.5 border-t border-border px-1 text-[11px]">
+                        <span className="flex items-center gap-1.5 text-muted-foreground font-sans">
+                          <img src="/assets/dofus/stats/initiative.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                          Initiative
+                        </span>
+                        <span className="text-foreground font-semibold tabular-nums">
+                          {activeGrade.initiative.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Immunités et restrictions de combat (Dofensive / DofusDB) */}
+                {currentStats?.encyclo && (() => {
+                  const props = encycloProperties(currentStats.encyclo, activeGrade?.level ?? null);
+                  if (props.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {props.map((p, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                        >
+                          <ShieldAlert className="w-3 h-3 text-rose-400 shrink-0" />
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+
+          {/* ── Colonne droite : où se trouve le donjon / l'avis (zone encadrée, sinon entrée seule) ── */}
+          {hasZoneLocation && (
+            <ZoneLocationCard
+              subareaIds={bountySubareaIds}
+              mapId={dungeon.mapId ?? null}
+              worldId={zoneWorldId}
+              mapHref={
+                coords
+                  ? `/carte-du-monde?play=1&x=${coords.x}&y=${coords.y}&zoom=-2&world=${zoneWorldId}`
+                  : null
+              }
+              title={isBounty ? (locale === "en" ? "Hunt Zone" : "Zone de traque") : t.bossPage.minimapTitle}
+              placeName={dungeon.name}
+              openLabel={t.bossPage.minimapOpen}
+              markerIcon="/assets/worldmap/dungeon-boss.png"
+              className="lg:max-w-md lg:ml-auto w-full"
+              fallback={
+                coords ? (
+                  <DungeonMinimapCard
+                    x={coords.x}
+                    y={coords.y}
+                    worldMapId={coords.worldMapId}
+                    title={isBounty ? (locale === "en" ? "Hunt Zone" : "Zone de traque") : t.bossPage.minimapTitle}
+                    placeName={dungeon.name}
+                    openLabel={t.bossPage.minimapOpen}
+                  />
+                ) : null
+              }
+            />
+          )}
+        </div>
+      </div>
+
+      {/* ── BANDEAU « AVIS DE RECHERCHE » ─────────────────────────────────────
+          100 % SIPHONNÉ (DofusDB + Dofensive) + champs curés dans God : zone de traque,
+          prime, critères de quête et — quand la grille n'est pas exposée par la source —
+          la mention explicite que la simulation tourne sur une **carte générique**. */}
+      {isBounty && bountyMeta && (
+        <div className="mt-4 grid gap-2.5 rounded-xl border border-border bg-surface/50 p-3.5 text-xs sm:grid-cols-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-rose-300">
+              <Target className="w-3 h-3" /> {bountyMeta.raceName}
+            </span>
+            {bountyMeta.zone && (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Compass className="w-3.5 h-3.5 opacity-70" /> Zone de traque :{" "}
+                <strong className="font-medium text-foreground/90">{bountyMeta.zone}</strong>
+              </span>
+            )}
+            {bountyMeta.travelCommand && (
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(bountyMeta.travelCommand as string)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                title="Copier la commande de trajet"
+              >
+                <MapPin className="w-3 h-3" /> {bountyMeta.travelCommand}
+              </button>
+            )}
+            {bountyMeta.milice && (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Shield className="w-3.5 h-3.5 opacity-70" /> {bountyMeta.milice}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {bountyMeta.rewards.length > 0 && <BountyRewardCard rewards={bountyMeta.rewards} />}
+            {bountyMeta.battleMapLabel && (
+              <span
+                className="inline-flex items-center gap-1.5 text-muted-foreground"
+                title="Aucune carte de combat n'est exposée pour un avis (Dofensive ne publie que les salles de donjon) : la simulation utilise la grille vide, sans décor trompeur."
+              >
+                <Info className="w-3.5 h-3.5" /> Simulation : {bountyMeta.battleMapLabel}
+              </span>
+            )}
+          </div>
+
+          {bountyMeta.criteria.length > 0 && (
+            <p className="sm:col-span-2 text-muted-foreground">
+              <span className="text-foreground/70">Critères de chasse :</span> {bountyMeta.criteria.join(" · ")}
+            </p>
+          )}
+
+          {bountyMeta.syncedAt && (
+            <p className="text-[11px] text-muted-foreground sm:col-span-2">
+              Données synchronisées le {new Date(bountyMeta.syncedAt).toLocaleDateString("fr-FR")}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── ONGLETS ────────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-border">
+        {tabs.map((tab) => {
+          const isActive = detailTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setDetailTab(tab.id)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-xs transition-colors whitespace-nowrap border-b-2 -mb-px cursor-pointer",
+                isActive
+                  ? "border-foreground/60 text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={tab.icon} alt="" className={cn("w-4 h-4 object-contain", !isActive && "opacity-60")} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── PANNEAU D'ONGLET ───────────────────────────────────────────────── */}
+      <div className="min-h-[560px] [overflow-anchor:none]">
+      {/* ── TAB: SORTS DU BOSS (liste complète) ── */}
+      {detailTab === "sorts" && (
+        <div className="space-y-4">
+          {/* Passif officiel Unity — mécanique de début de combat (repliable).
+              Rendu UNIQUEMENT s'il existe une vraie description : un passif sans
+              texte n'est pas une mécanique, on n'affiche pas un encart vide. */}
+          {enrichedPassive?.description && (
+            <BossMechanicsView passive={enrichedPassive} collapsible defaultCollapsed={false} />
+          )}
+          <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4 h-4 opacity-70" />
+            <h4 className="text-sm font-bold text-foreground">
+              {t.bossPage.allSpellsTitle.replace("{count}", String(spells.length))}
+            </h4>
+          </div>
+          {spells.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-8 text-center">{t.bossPage.noSpellsDetailed}</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+              {spells.map((spell: any) => {
+                const isExpanded = !!expandedSpells[spell.id];
+                const details = normalizeSpellEffectDetails(spell);
+                const criticals = spell.unityCriticalEffects?.length > 0
+                  ? spell.unityCriticalEffects
+                  : (Array.isArray(spell.criticalEffects) ? spell.criticalEffects : []);
+                const hasBody = details.length > 0 || spell.description || spell.unityDescription || criticals.length > 0 || spell.hasCriticalEffects === false;
+
+                return (
+                  <div key={spell.id} className="p-3.5 rounded-xl bg-surface/50 border border-border/70 flex flex-col space-y-2 hover:border-border transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => hasBody && toggleSpellExpanded(spell.id)}
+                        className={cn("flex items-center gap-2.5 text-left flex-1 min-w-0", hasBody && "cursor-pointer group")}
+                        title={hasBody ? (isExpanded ? (locale === "en" ? "Collapse details" : "Replier les détails") : (locale === "en" ? "Expand details" : "Déplier les détails")) : undefined}
+                      >
+                        <SpellIcon spell={spell} className="w-8 h-8 object-contain rounded-lg bg-background border border-border p-0.5 shrink-0" />
+                        <div className="min-w-0">
+                          <span className="flex items-center gap-1.5">
+                            <span className="block text-sm font-bold text-foreground truncate group-hover:text-warning transition-colors">
+                              {locale === "en" ? (spell.nameEn || spell.name) : spell.name}
+                            </span>
+                            {spell.grade !== undefined && (
+                              <span className="text-[11px] font-mono text-muted-foreground bg-background border border-border px-1 py-px rounded shrink-0">
+                                {t.bossPage.levelShort} {spell.grade}
+                              </span>
+                            )}
+                            {hasBody && (
+                              <span className="text-muted-foreground group-hover:text-foreground transition-colors ml-0.5">
+                                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <span className="inline-flex items-center gap-0.5">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3 h-3 object-contain inline" />
+                              <span>{spell.apCost || 0}</span>
+                            </span>
+                            <span>·</span>
+                            <span className="inline-flex items-center gap-0.5">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3 h-3 object-contain inline" />
+                              <span>{spell.minRange === spell.range ? `${spell.range}` : `${spell.minRange ?? 0}-${spell.range ?? 0}`}</span>
+                            </span>
+                            <SpellDamageSummaryChips effectDetails={details} />
+                          </span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedSpellId(spell.id); setDetailTab("sim"); }}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer"
+                      >
+                        {t.bossPage.simulateSpell}
+                      </button>
+                    </div>
+
+                    {isExpanded && hasBody && (
+                      <div className="pt-2 border-t border-border/60 space-y-2 text-[11px] leading-relaxed">
+                        {/* Description Unity en priorité, sinon DofusDB */}
+                        {(spell.unityDescription || spell.description) && (
+                          <p className="text-muted-foreground">{cleanDofusText(spell.unityDescription || spell.description)}</p>
+                        )}
+                        {details.length > 0 && (
+                          <div className="space-y-1">
+                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {t.bossPage.mainEffect}
+                            </span>
+                            <ul className="space-y-1">
+                              {details.map((det: any, i: number) => (
+                                <li key={i} className="text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                                  <span className="w-1 h-1 rounded-full bg-border shrink-0" />
+                                  <span>{formatDofusEffectLine(det.label)}</span>
+                                  {det.duration && <span className="font-mono text-[10px] text-muted-foreground/70">({det.duration})</span>}
+                                  {det.masks?.length > 0 && <span className="block w-full text-muted-foreground/80 pl-2.5">{det.masks.map(cleanDofusText).join(" · ")}</span>}
+                                  {det.triggers?.length > 0 && (
+                                    <span className="block w-full text-muted-foreground/80 flex items-center gap-1 pl-2.5">
+                                      <Zap className="w-3 h-3 shrink-0 opacity-70" />{det.triggers.map(cleanDofusText).join(" · ")}
+                                    </span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {spell.hasCriticalEffects === false ? (
+                          <p className="text-muted-foreground/80">{t.bossPage.noCriticalEffects}</p>
+                        ) : criticals.length > 0 ? (
+                          <div className="space-y-1 pt-1 border-t border-border">
+                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-amber-500/90">
+                              {t.bossPage.criticalEffects}
+                            </span>
+                            <ul className="space-y-1">
+                              {criticals.map((ce: string, k: number) => (
+                                <li key={k} className="text-muted-foreground flex items-center gap-1.5">
+                                  <span className="w-1 h-1 rounded-full bg-amber-500/40 shrink-0" />
+                                  <span>{formatDofusEffectLine(ce)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        </div>
+      )}
+
+
+      {/* ── ONGLET SIMULATION ──────────────────────────────────────────────── */}
+      {detailTab === "sim" && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/dofus/modules/map.png" alt="" className="w-4 h-4 object-contain opacity-80" />
+              {t.bossPage.tabs.simulation}
+            </h4>
+            {hasRoomMonsters && (
+              <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border bg-background/40 p-1">
+                <span className="hidden shrink-0 px-1.5 text-[11px] text-muted-foreground sm:inline">{locale === "en" ? "Entity:" : "Entité :"}</span>
+                {roomMonsters.map((m) => {
+                  const isActive = (activeMonsterName ?? bossName) === m.name;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => selectMonster(m)}
+                      className={cn(
+                        "flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] transition-colors",
+                        isActive
+                          ? "bg-white/[0.10] text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {m.imageUrl && <MonsterImage src={m.imageUrl} alt="" monsterId={m.id} className="h-3 w-3 object-contain" />}
+                      {m.isBoss && <Crown className="h-3 w-3 text-amber-300/80" />}
+                      {m.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          {spells.length === 0 ? (
+            <p className="py-8 text-center text-xs text-muted-foreground">
+              {locale === "en" ? "No spells available for simulation." : "Aucun sort disponible pour la simulation."}
+            </p>
+          ) : (
+            <SpellRangeGrid
+              spells={spells}
+              activeSpellId={selectedSpellId}
+              onSelectSpell={(s) => setSelectedSpellId(s.id)}
+              bossName={locale === "en" ? (currentStats?.nameEn || resolvedBossName) : resolvedBossName}
+              bossImageUrl={currentStats?.imageUrl ?? dungeon.imageUrl ?? undefined}
+              bossId={currentStats?.id ?? undefined}
+              dungeonMaps={dungeonMaps?.maps}
+              dungeonName={dungeonMaps?.dungeonName ?? dungeon.name}
+              grades={grades.map((g: any) => ({ level: g.level }))}
+              activeGradeIndex={activeGradeIndex ?? (grades.length - 1)}
+              onGradeChange={(idx) => setActiveGradeIndex(idx)}
+              monsters={roomMonsters}
+              entityScale={isTitan ? 4 : 1}
+              allowFreeCasterMove
+            />
+          )}
+        </div>
+      )}
+
+      {/* ── TAB: STRATÉGIE DE CAPTURE (Avis de recherche) ── */}
+      {detailTab === "strategy" && bountyMeta?.mechanics && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus/icons/quests.png" alt="" className="w-4 h-4 object-contain opacity-80" />
+            <h4 className="text-sm font-bold text-foreground">
+              {locale === "en" ? "Capture Strategy & Mechanics" : "Stratégie de capture & Mécaniques"}
+            </h4>
+          </div>
+          <div className="rounded-2xl border border-border bg-surface/50 p-6">
+            <DocContent content={bountyMeta.mechanics} />
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: GRADES & PALIERS ── */}
+      {detailTab === "grades" && (
+        <div className="space-y-4">
+          <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus/modules/character.png" alt="" className="w-4 h-4 object-contain opacity-80" /> {t.bossPage.gradesTitle}
+          </h4>
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Info className="w-3.5 h-3.5" /> {t.bossPage.gradesDesc}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {grades.map((gr: any, idx: number) => {
+              const isActive = (activeGradeIndex ?? grades.length - 1) === idx;
+              const label = `${locale === "en" ? "Rank" : "Rang"} ${idx + 1}`;
+              const r = gr.resists || {};
+              return (
+                <div key={idx} className={cn("p-3.5 rounded-xl border transition-colors flex flex-col justify-between space-y-3", isActive ? "border-border-strong bg-surface/80 shadow-xs" : "border-border/60 bg-surface/40 hover:border-border")}>
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-2">
+                      <span className="text-sm font-bold text-foreground">{label}</span>
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-background border border-border text-muted-foreground">
+                        {t.bossPage.levelShort} {gr.level}
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>{t.bossPage.stats.hp} :</span>
+                        <strong className="text-foreground font-mono tabular-nums text-right">
+                          {gr.lifePoints?.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}
+                        </strong>
+                      </div>
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>{t.bossPage.stats.ap} / {t.bossPage.stats.mp} :</span>
+                        <strong className="text-foreground font-mono tabular-nums text-right">{gr.actionPoints} / {gr.movementPoints}</strong>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1 mt-2.5 pt-2 border-t border-border text-center text-[11px] font-mono font-bold tabular-nums">
+                      <span title={t.bossPage.stats.neutral} className="text-muted-foreground">{r.neutral ?? 0}%</span>
+                      <span title={t.bossPage.stats.earth} className="text-amber-400">{r.earth ?? 0}%</span>
+                      <span title={t.bossPage.stats.fire} className="text-red-400">{r.fire ?? 0}%</span>
+                      <span title={t.bossPage.stats.water} className="text-sky-400">{r.water ?? 0}%</span>
+                      <span title={t.bossPage.stats.air} className="text-emerald-400">{r.air ?? 0}%</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveGradeIndex(idx)}
+                    className={cn("w-full py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer", isActive ? "bg-foreground text-background" : "bg-surface border border-border text-muted-foreground hover:text-foreground")}
+                  >
+                    {isActive ? t.bossPage.activeGrade : t.bossPage.selectGrade}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: BUTIN & DROPS ── */}
+      {detailTab === "loot" && (
+        <div>
+          <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus/modules/chest.png" alt="" className="w-4 h-4 object-contain opacity-80" /> {t.bossPage.lootTitle}
+          </h4>
+          {drops.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-8 text-center">{t.bossPage.noLootFound}</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+              {drops.map((drop: any, idx: number) => {
+                const pct = drop.percent ?? drop.dropPercent ?? 0;
+                const label = pct > 0 && pct < 0.01 ? pct.toFixed(3) : Number(pct || 0).toFixed(2);
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedDrop(drop)}
+                    title={`${drop.name} — ${label}%`}
+                    className="flex items-center gap-2.5 rounded-xl bg-surface/50 border border-border/70 p-2 text-left hover:bg-surface hover:border-border transition-colors cursor-pointer"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-background border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+                      <MonsterImage src={drop.imageUrl} alt={drop.name} assetType="items" assetId={drop.objectId ?? drop.id} className="w-full h-full object-contain" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-foreground truncate">
+                        {locale === "en" ? (drop.nameEn || drop.name) : drop.name}
+                      </p>
+                      <span className="text-[11px] font-mono font-semibold text-sky-400">{label}%</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* — TAB: TOUS LES MONSTRES NORMALUX (hors boss / avis / anomalie / titan / raid).
+          Chacun ouvre SA fiche (`/bestiaire/<slug>`, source unique `monsterFicheHref`). */}
+      {detailTab === "monsters" && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-4 h-4 object-contain opacity-80" />
+            <h4 className="text-sm font-bold text-foreground">
+              {locale === "en" ? "All monsters" : "Tous les monstres"}
+            </h4>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+              {normalMonsterList.length} {locale === "en" ? "monsters" : "monstres"}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {locale === "en"
+              ? "Normal monsters only — dungeon bosses, bounty monsters, anomaly guardians, titans and raid bosses have their own page."
+              : "Monstres normaux uniquement — les boss de donjon, avis de recherche, gardiens d'anomalie, titans et boss de raid ont leur propre fiche."}
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+            {normalMonsterList.map((m: any) => {
+              const href = monsterFicheHref(m.name);
+              const card = (
+                <>
+                  <div className="w-10 h-10 rounded-lg bg-background border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                    <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-full h-full object-contain" />
+                  </div>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium text-foreground">{m.name}</span>
+                    {m.level ? <span className="block text-[11px] text-muted-foreground">{t.bossPage.levelShort} {m.level}</span> : null}
+                  </span>
+                </>
+              );
+              const className = "flex items-center gap-2.5 rounded-xl border border-border/70 bg-surface/50 p-2 text-left transition-colors hover:border-border-strong";
+              return href ? (
+                <Link key={m.id} href={href} title={`${locale === "en" ? "Open the page of" : "Ouvrir la fiche de"} ${m.name}`} className={className}>
+                  {card}
+                </Link>
+              ) : (
+                <div key={m.id} className={className}>{card}</div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+
+      {/* ── TAB: MONSTRES DE LA SALLE ── */}
+      {/* ── TAB: QUÊTES LIÉES (vrais donjons uniquement) ── */}
+      {detailTab === "quests" && initialQuestsData && (
+        <PublicBossQuestsTab data={initialQuestsData} bossName={bossName} />
+      )}
+
+      {/* ── TAB: SUCCÈS DU DONJON (vrais donjons uniquement) ── */}
+      {detailTab === "achievements" && initialAchievements && (
+        <PublicBossAchievementsTab achievements={initialAchievements} bossName={bossName} />
+      )}
+
+      {detailTab === "family" && (() => {
+        const companionCount = familyByDungeon[dungeon.id]?.companions?.length ?? 0;
+        const companionHint = familyByDungeon[dungeon.id]?.companionHint ?? null;
+        return (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/dofus/modules/party.png" alt="" className="w-4 h-4 object-contain opacity-80" /> {t.bossPage.roomMonstersTitle}
+            </h4>
+            {companionCount > 0 && (
+              <span
+                className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-info/30 text-info bg-info/10"
+                title={locale === "en" ? "In combat, the keeper is accompanied by 3 of these monsters, randomly chosen." : "En combat, le gardien est accompagné de 3 de ces monstres, tirés au hasard à l'ouverture de l'anomalie."}
+              >
+                {locale === "en" ? "Anomaly" : "Anomalie"} · {companionHint ?? (locale === "en" ? `${companionCount} possible monsters` : `${companionCount} monstres possibles`)}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {roomMonsters.map((m) => {
+              const isActive = (activeMonsterName ?? bossName) === m.name;
+              return (
+                <div key={m.id} className={cn("p-3 rounded-xl border transition-colors flex flex-col justify-between space-y-2.5", isActive ? "border-border-strong bg-surface/80 shadow-xs" : "border-border/60 bg-surface/40 hover:border-border")}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-xs">
+                      {m.imageUrl ? (
+                        <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-full h-full object-contain" />
+                      ) : (
+                        <Swords className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={cn("text-xs font-bold truncate", isActive ? "text-foreground" : "text-muted-foreground")}>{m.isBoss && "👑 "}{m.name}</p>
+                      <span className="text-[11px] text-muted-foreground block">
+                        {m.isBoss
+                          ? t.bossPage.mainBossBadge
+                          : m.isCompanion
+                          ? (locale === "en" ? `Anomaly monster${m.raceName ? ` · ${m.raceName}` : ""}` : `Monstre de l'anomalie${m.raceName ? ` · ${m.raceName}` : ""}`)
+                          : t.bossPage.roomMonsterBadge}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1 border-t border-border">
+                    <button
+                      type="button"
+                      onClick={() => { selectMonster(m); setDetailTab("sorts"); }}
+                      className="flex-1 py-1 px-2 rounded-lg bg-surface border border-border text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors text-center cursor-pointer"
+                    >
+                      {t.bossPage.sheetAndSpells}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { selectMonster(m); setDetailTab("sim"); }}
+                      className="py-1 px-2.5 rounded-lg border border-border text-muted-foreground text-[11px] hover:text-foreground transition-colors text-center flex items-center gap-1 cursor-pointer"
+                      title={locale === "en" ? "Simulate this monster's range" : "Simuler la portée de ce monstre"}
+                    >
+                      <Target className="w-3 h-3" /> {t.bossPage.simulateSpell}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        );
+      })()}
+      </div>
+
+      {/* ── PASSAGE À L'ESPACE GUILDE ── */}
+      <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Users className="w-3.5 h-3.5 shrink-0 opacity-70" />
+          {t.bossPage.guildBannerDesc}
+        </p>
+        <Link href="/" className="inline-flex shrink-0 items-center gap-1.5 text-xs text-foreground transition-colors hover:underline">
+          {t.bossPage.guildBannerCta}
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+
+      {/* ── DROP MODAL ── */}
+      {selectedDrop && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedDrop(null)} />
+          <div className="relative bg-surface border border-border rounded-xl p-5 w-full max-w-xs text-center shadow-lg">
+            <button type="button" onClick={() => setSelectedDrop(null)} className="absolute top-3 right-3 text-muted-foreground hover:text-foreground cursor-pointer" aria-label={t.bossPage.closeModal}>
+              <X className="w-4 h-4" />
+            </button>
+            <div className="w-16 h-16 rounded-xl bg-background border border-border p-2 mx-auto mb-3 shadow-xs">
+              <MonsterImage src={selectedDrop.imageUrl} alt={selectedDrop.name} assetType="items" assetId={selectedDrop.objectId ?? selectedDrop.id} className="w-full h-full object-contain" />
+            </div>
+            <h3 className="text-sm font-bold text-foreground">
+              {locale === "en" ? (selectedDrop.nameEn || selectedDrop.name) : selectedDrop.name}
+            </h3>
+            <p className="text-xs text-sky-400 font-mono font-semibold mt-1">
+              {t.bossPage.dropRate} {(() => {
+                const byGrade = selectedDrop.percentByGrade;
+                const fmt = (v: number) => (v > 0 && v < 0.01 ? v.toFixed(3) : Number(v || 0).toFixed(2));
+                if (Array.isArray(byGrade) && byGrade.length) return `${fmt(Math.min(...byGrade))}% – ${fmt(Math.max(...byGrade))}% (${locale === "en" ? "tier" : "grade"} 1-5)`;
+                return `${fmt(selectedDrop.percent ?? selectedDrop.dropPercent ?? 0)}%`;
+              })()}
+            </p>
+            <button
+              type="button"
+              onClick={() => setSelectedDrop(null)}
+              className="mt-5 w-full px-4 py-2 rounded-lg border border-border bg-surface text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              {t.bossPage.closeModal}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── LIENS GUIDES COMPLÉMENTAIRES ── */}
+      <div className="flex flex-wrap items-center gap-2 pt-2">
+        {dungeon.dofuspourlesnoobsUrl && (
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5" /> {locale === "en" ? "External guides:" : "Guides :"}
+          </span>
+        )}
+        {dungeon.dofuspourlesnoobsUrl && (
+          <a href={dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface/60 text-foreground text-xs font-semibold hover:bg-surface transition-colors">
+            <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
+            DPLN
+          </a>
+        )}
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Shield className="w-3.5 h-3.5" /> {t.bossPage.publicSheetNotice}
+        </span>
+      </div>
+    </div>
+  );
+}

@@ -1,21 +1,386 @@
 /**
- * Normalisation d'URL d'icône d'un Dofus.
+ * Résolution centralisée de l'URL d'icône d'un Dofus (et des assets DofusDB).
  *
- * Le Dofoozbz (slug éponyme) est un cas particulier sur dofusdb : son icône
- * `https://api.dofusdb.fr/img/items/31794.png` renvoie un 404 côté API.
- * Partout où l'on sert l'`imageUrl` d'un Dofus, on doit renvoyer l'asset LOCAL
- * `/module-dofus/Dofus_Dofoozbz.png` pour éviter que le client charge une image
- * cassée. Ce helper centralise cette règle afin de couvrir TOUTES les sources
- * (profil membre, hub Quêtes Dofus, stats guilde, honor, etc.) sans qu'il soit
- * nécessaire de la maintenir à chaque point de lecture.
+ * Objectif : servir les icônes Dofus depuis nos ASSETS LOCAUX (/module-dofus/*.png)
+ * plutôt que depuis `dofusdb.fr` (external). Tous les Dofus canoniques ont une icône
+ * locale dans `public/module-dofus/`. Ce module centralise :
+ *   - la normalisation nom → nom de fichier (accents, alias, préfixe "Dofus"...),
+ *   - le mapping nom → chemin local (`resolveDofusLocalImage`),
+ *   - le wrapper `resolveDofusImageUrl(slug, imageUrl, name?)` qui renvoie le local
+ *     quand le Dofus est connu, sinon retombe sur l'`imageUrl` (dofusdb) d'origine,
+ *   - la **réécriture des icônes d'assets DofusDB vers le proxy interne**
+ *     (`resolveDofusAssetImageUrl` / `internalDofusDbImageUrl`),
+ *   - la **normalisation d'une URL STOCKÉE** (chemin legacy du cache disque
+ *     `/uploads/assets-dofus/{type}/{id}.webp`, URL DofusDB absolue, nom nu) vers la
+ *     **forme canonique du proxy** (`normalizeDofusAssetStoredUrl`) — un chemin stocké
+ *     ne doit JAMAIS être rendu brut par un composant.
  *
- * @param slug    Slug du Dofus (ex. `dofoozbz`, `emeraude`).
- * @param imageUrl URL d'icône stockée en base (dofusdb) ou déjà locale.
- * @returns       L'URL d'icône à servir au client.
+ * 🐛 Correctif 18/09/2026 (« on tape encore chez DofusDB pour les icônes des sorts ») :
+ * la modale de build rendait `spell.imageUrl`, une URL **absolue**
+ * (`https://api.dofusdb.fr/img/spells/sort_12160.png`) stockée en base ⇒ 57 requêtes
+ * navigateur → DofusDB (latence, dépendance externe, fuite de referer). Toute URL
+ * DofusDB est désormais réécrite vers `/api/assets-dofus/{type}/{id}` : le serveur
+ * sert le WebP **siphonné sur disque** (cache 1 an) ou le siphonne à la volée, et le
+ * navigateur ne parle plus jamais à DofusDB.
+ *
+ * ⚠️ Module PUR (aucun fs / IO / API) : utilisable côté client ET serveur.
  */
-export function resolveDofusImageUrl(slug: string | null | undefined, imageUrl: string | null | undefined): string | null {
+
+/**
+ * Registre des Dofus disposant d'un asset local dans `public/module-dofus/`.
+ * Clé = nom de fichier normalisé (minuscules) ; valeur = chemin local servi.
+ * Ne pas retirer un Dofus présent ici sans avoir supprimé son asset.
+ */
+const LOCAL_DOFUS_IMAGE: Record<string, string> = {
+    emeraude: "/module-dofus/Dofus_Emeraude.png",
+    turquoise: "/module-dofus/Dofus_Turquoise.png",
+    ivoire: "/module-dofus/Dofus_Ivoire.png",
+    ebene: "/module-dofus/Dofus_Ebene.png",
+    ocre: "/module-dofus/Dofus_Ocre.png",
+    pourpre: "/module-dofus/Dofus_Pourpre.png",
+    vulbis: "/module-dofus/Dofus_Vulbis.png",
+    abyssal: "/module-dofus/Dofus_Abyssal.png",
+    sylvestre: "/module-dofus/Dofus_Sylvestre.png",
+    cawotte: "/module-dofus/Dofus_Cawotte.png",
+    dom_de_pin: "/module-dofus/Dom_De_Pin.png",
+    des_glaces: "/module-dofus/Dofus_Des_Glaces.png",
+    nebuleux: "/module-dofus/Dofus_Nebuleux.png",
+    dokoko: "/module-dofus/Dofus_Dokoko.png",
+    domakuro: "/module-dofus/Dofus_Domakuro.png",
+    dolmanax: "/module-dofus/Dofus_Dolmanax.png",
+    dorigami: "/module-dofus/Dofus_Dorigami.png",
+    du_cauchemar: "/module-dofus/Dofus_Du_Cauchemar.png",
+    forgelave: "/module-dofus/Dofus_Forgelave.png",
+    argente: "/module-dofus/Dofus_Argente.png",
+    argente_scintillant: "/module-dofus/Dofus_Argente_Scintillant.png",
+    cacao: "/module-dofus/Dofus_Cacao.png",
+    tachete: "/module-dofus/Dofus_Tachete.png",
+    veilleur: "/module-dofus/Dofus_Veilleur.png",
+    dofoozbz: "/module-dofus/Dofus_Dofoozbz.png",
+    dokille: "/module-dofus/Dokille.png",
+};
+
+/**
+ * Normalise un nom de Dofus vers un nom de fichier stable (sans accents, alias,
+ * préfixe "Dofus" retiré). Reprend le mapping éprouvé de `DofusIcon`.
+ */
+export function normalizeDofusName(str: string): string {
+    const n = str.trim().replace(/^Dofus\s+/i, "");
+    const lower = n.toLocaleLowerCase();
+
+    // Alias spécifiques (audit du filesystem)
+    if (lower === "glaces" || lower === "des glaces") return "Des_Glaces";
+    if (lower === "cauchemar" || lower === "du cauchemar") return "Du_Cauchemar";
+    if (lower === "scintillant" || lower === "argente scintillant" || lower === "argenté scintillant") return "Argente_Scintillant";
+    if (lower === "veilleurs" || lower === "veilleur" || lower === "des veilleurs") return "Veilleur";
+    if (lower === "tacheté" || lower === "tachete") return "Tachete";
+    if (lower === "dofoozbz") return "Dofoozbz";
+    if (lower === "dom de pin" || lower === "dom_de_pin") return "Dom_De_Pin";
+
+    // Retire tous les accents (ex. Ébène -> Ebene, Argenté -> Argente, Émeraude -> Emeraude)
+    const deaccented = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return deaccented.replace(/\s+/g, "_");
+}
+
+/**
+ * Renvoie le chemin d'asset LOCAL d'un Dofus, ou `null` si ce Dofus n'a pas
+ * d'icône locale connue (ex. Dofus custom créé via l'admin).
+ */
+export function resolveDofusLocalImage(name: string): string | null {
+    const norm = normalizeDofusName(name);
+    return LOCAL_DOFUS_IMAGE[norm.toLocaleLowerCase()] ?? null;
+}
+
+/**
+ * URL d'icône à servir au client.
+ *
+ * - `dofoozbz` : toujours l'asset local (cas historique #206, icône dofusdb KO).
+ * - Dofus canonique avec asset local connu (`name` ou `slug` fourni) → chemin local,
+ *   quelle que soit la valeur d'`imageUrl` en base (dofusdb) : on ne dépend plus du CDN externe.
+ * - Dofus inconnu / custom → retombe sur l'`imageUrl` (ou `null`).
+ *
+ * @param slug     Slug du Dofus (ex. `emeraude`, `dofoozbz`).
+ * @param imageUrl URL d'icône stockée en base (souvent `dofusdb.fr`).
+ * @param name     Nom du Dofus (`nameShort`) pour un mapping fiable (ex. « Émeraude »).
+ */
+export function resolveDofusImageUrl(
+    slug: string | null | undefined,
+    imageUrl: string | null | undefined,
+    name?: string | null | undefined,
+): string | null {
     if (slug === "dofoozbz") {
         return "/module-dofus/Dofus_Dofoozbz.png";
     }
+    const sourceName = (name ?? slug ?? "").trim();
+    if (sourceName) {
+        const local = resolveDofusLocalImage(sourceName);
+        if (local) return local;
+    }
     return imageUrl ?? null;
+}
+
+/** Types d'assets servis par le proxy interne (`/api/assets-dofus/[type]/[id]`). */
+export type DofusAssetType = "spells" | "items" | "monsters" | "challenges" | "achievements";
+
+/**
+ * Hôtes acceptés pour le paramètre `?url=` du proxy (allowlist SSRF du route handler).
+ * Une URL d'un autre hôte n'est PAS transmise : le proxy retombe alors sur son schéma
+ * `/{type}/{id}.png` — on ne sert jamais un `?url=` qui serait rejeté.
+ */
+const PROXY_UPSTREAM_HOSTS = new Set(["api.dofusdb.fr"]);
+
+/**
+ * 🔑 **Espace d'icône d'un sort** : `/api/assets-dofus/spells/sort_<iconId>` — le nom qui désigne
+ * l'icône *et* qui nomme déjà le fichier sur disque
+ * (`public/uploads/assets-dofus/spells/sort_<iconId>.webp`, écrit hors ligne par
+ * `scripts/siphon-unity-bestiary.py`) comme l'asset DofusDB (`img/spells/sort_<iconId>.png`).
+ *
+ * ⚠️ **L'`iconId` d'un sort n'est JAMAIS l'id du sort** (« Jardinage » = sort **6267**,
+ * `iconId` **15561**). Deux espaces, deux usages :
+ *   - `spells/sort_15561` ⇒ l'**icône** (identité = le nom ; le proxy sert/siphonne
+ *     `sort_15561.webp`) ;
+ *   - `spells/6267` ⇒ le **sort** (le proxy interroge l'API DofusDB, qui fait autorité sur
+ *     l'`iconId`, puis met en cache `6267.webp`).
+ * Confondre les deux sert l'icône d'un **AUTRE** sort — mesuré le 11/10/2026 sur la bêta :
+ * `/api/assets-dofus/spells/15561` répond **200** avec une image étrangère (c'est le sort 15561
+ * qui est servi, pas l'icône 15561).
+ *
+ * @returns `null` si `iconId` n'est pas un entier strictement positif exploitable — l'appelant
+ *          garde alors son repli (jamais d'URL inventée).
+ */
+export function resolveSpellIconUrl(iconId?: number | string | null): string | null {
+    const value = iconId == null ? "" : String(iconId).trim();
+    if (!/^\d{1,12}$/.test(value) || Number(value) <= 0) return null;
+    return `/api/assets-dofus/spells/sort_${value}`;
+}
+
+/**
+ * `/img/{type}/{id|sort_id}.png` → `{ type, id, sortPrefixed }`.
+ * `sortPrefixed` dit que le nombre est un **id d'icône** (forme `sort_<n>`) et non l'id de
+ * l'entité : pour les sorts, les deux espaces diffèrent (cf. `resolveSpellIconUrl`).
+ */
+function parseDofusDbImageUrl(rawUrl: string): { type: DofusAssetType; id: string; sortPrefixed: boolean } | null {
+    let url: URL;
+    try {
+        url = new URL(rawUrl);
+    } catch {
+        return null;
+    }
+    if (url.protocol !== "https:") return null;
+    const host = url.hostname.toLowerCase();
+    if (host !== "dofusdb.fr" && !host.endsWith(".dofusdb.fr")) return null;
+
+    const match = url.pathname.match(/^\/img\/(spells|items|monsters|challenges|achievements)\/(sort_)?(\d+)\.(?:png|webp|jpg)$/i);
+    if (!match) return null;
+    return { type: match[1].toLowerCase() as DofusAssetType, id: match[3], sortPrefixed: Boolean(match[2]) };
+}
+
+/** `?url=` (encodé) quand l'URL amont est acceptée par le proxy, sinon chaîne vide. */
+function upstreamQuery(rawUrl?: string | null): string {
+    if (!rawUrl) return "";
+    try {
+        const host = new URL(rawUrl).hostname.toLowerCase();
+        if (!PROXY_UPSTREAM_HOSTS.has(host)) return "";
+    } catch {
+        return "";
+    }
+    return `?url=${encodeURIComponent(rawUrl)}`;
+}
+
+/**
+ * URL **interne** d'une icône d'asset DofusDB : `/api/assets-dofus/{type}/{id}`.
+ *
+ * Le serveur sert alors le WebP siphonné (`public/uploads/assets-dofus/{type}/{id}.webp`,
+ * cache 1 an), ou le télécharge une seule fois à la volée — **aucun appel navigateur
+ * → DofusDB**. L'`id` **explicite** est prioritaire (c'est la clé du cache disque : l'id de
+ * l'entité, ex. l'id du sort) ; à défaut, l'id est extrait de l'URL amont.
+ *
+ * 🔑 **Sans id explicite**, un id extrait d'une URL `…/img/spells/sort_12160.png` est un
+ * **iconId** : pour un sort, il est alors servi dans l'**espace d'icône**
+ * (`resolveSpellIconUrl`), jamais dans l'espace d'entité (qui servirait un autre sort).
+ *
+ * @returns `null` quand aucun id exploitable : l'appelant garde alors SON repli
+ *          (jamais de hotlink DofusDB servi depuis notre code).
+ */
+export function resolveDofusAssetImageUrl(
+    type: DofusAssetType,
+    id?: number | string | null,
+    upstreamUrl?: string | null,
+): string | null {
+    // Mesure du 09/10/2026 : pour un MONSTRE ou un OBJET, le nombre d'une URL img/... est une
+    // APPARENCE (gfxId / iconId), jamais l'id de l'entite (Reine Ecarlate : id 8278, gfx 2601 ; et
+    // l'id 2601 est un AUTRE monstre). La cle de cache ne peut donc venir que de l'id explicite.
+    const fromUrl = type === "spells" && upstreamUrl ? parseDofusDbImageUrl(upstreamUrl) : null;
+    const explicitId = id != null && String(id).trim() !== "";
+    const rawId = explicitId ? String(id).trim() : fromUrl?.id ?? "";
+    if (!rawId || !/^[\w-]+$/.test(rawId)) return null;
+
+    // L'URL amont est une **icône** (`sort_<iconId>`) et l'appelant n'a fourni aucun id d'entité :
+    // le nombre est un iconId ⇒ espace d'icône (cf. `resolveSpellIconUrl`) — ce qui rend aussi le
+    // `?url=` inutile (le proxy ne l'utilise pas pour les sorts).
+    if (!explicitId && fromUrl?.sortPrefixed) return resolveSpellIconUrl(rawId);
+
+    // `challenges` / `achievements` : un seul espace d'id, et c'est l'**icône** (`img/challenges/977.png`
+    // == l'icône 977). Le `?url=` n'y est pas une source (le proxy résout lui-même) : on ne l'ajoute pas.
+    const query = type === "challenges" || type === "achievements" ? "" : upstreamQuery(upstreamUrl);
+    return `/api/assets-dofus/${type}/${encodeURIComponent(rawId)}${query}`;
+}
+
+/**
+ * Réécrit une URL **absolue** DofusDB (`https://api.dofusdb.fr/img/spells/sort_12160.png`,
+ * items, monstres) en URL interne. `null` quand l'URL n'est pas une icône DofusDB
+ * reconnaissable (l'appelant garde la sienne : asset local, URL déjà interne…).
+ */
+export function internalDofusDbImageUrl(upstreamUrl?: string | null): string | null {
+    const parsed = upstreamUrl ? parseDofusDbImageUrl(upstreamUrl) : null;
+    if (!parsed) return null;
+    // 🐛 Mesure du **12/10/2026** (carte du monde → panneau « Archimonstres », constat user
+    // « certains archi leur image ne correspond pas ») : pour un MONSTRE, le nombre d'une URL
+    // `img/monsters/{n}.png` est un **gfxId** (l'apparence), JAMAIS l'id de l'entité. Les deux
+    // espaces se contredisent : « Kiroyal le Sirupeux » = monstre **2508**, `img/monsters/90.png` ;
+    // or `/api/assets-dofus/monsters/90` sert le monstre **90** — mesuré en bêta : le sprite 90 est
+    // un dragon violet, la réponse du proxy était une « Gelée royale » (autre créature), figée 1 an
+    // en cache `immutable`. On demande donc explicitement l'espace **apparence** (`sprite=1`) : le
+    // proxy sert le fichier amont tel quel et le met en cache sous `{n}.sprite.webp`.
+    if (parsed.type === "monsters" && !parsed.sortPrefixed) {
+        const query = upstreamQuery(upstreamUrl);
+        return `/api/assets-dofus/monsters/${parsed.id}${query}${query ? "&sprite=1" : "?sprite=1"}`;
+    }
+    // Une URL d'**icône** (`sort_<n>`) porte un iconId : on ne le présente donc pas comme un id
+    // d'entité (pour un sort, cela servirait l'icône d'un autre sort — mesure du 11/10/2026).
+    return resolveDofusAssetImageUrl(parsed.type, parsed.sortPrefixed ? null : parsed.id, upstreamUrl);
+}
+
+/**
+ * Chemin **legacy** du cache disque, tel qu'il est stocké en base
+ * (`/uploads/assets-dofus/monsters/4834.webp`, `/uploads/assets-dofus/spells/sort_12160.webp`).
+ * Le préfixe `sort_` est **capturé** (et non ignoré) : pour un sort, il signale un **iconId**
+ * (cf. `resolveSpellIconUrl`) — l'ignorer ferait servir l'icône d'un autre sort.
+ * Volontairement STRICT (id numérique) : un motif plus permissif transformerait n'importe
+ * quelle chaîne en URL de proxy.
+ */
+const STORED_ASSET_PATH = /^\/uploads\/assets-dofus\/(monsters|spells|items)\/(sort_)?(\d{1,12})\.(?:webp|png|jpg|jpeg)$/i;
+
+/** Nom de fichier nu, sans dossier (`4834.webp`) — livré par certaines intégrations. */
+const STORED_ASSET_BARE_NAME = /^(\d{1,12})(?:\.(?:webp|png|jpg|jpeg))?$/i;
+
+/**
+ * Formes d'URL d'image que l'app accepte de poser dans le DOM.
+ *
+ * 🛡️ Pourquoi cette garde existe (alerte CodeQL `js/xss-through-dom`, 27/09/2026) : la page God
+ * « Avis de recherche » posait une **donnée brute** (le chemin stocké en base) dans le `src` d'un
+ * `<img>` ⇒ « DOM text reinterpreted as HTML ». En produit, la règle est la même : **rien
+ * d'arbitraire ne part dans une URL du navigateur** — seuls nos chemins internes et le domaine de
+ * confiance DofusDB sont acceptés, tout le reste retombe sur le repli visuel de l'appelant.
+ */
+export function isSafeDofusImageSrc(raw: string | null | undefined): boolean {
+    const value = String(raw ?? "").trim();
+    if (value === "") return false;
+    if (value.startsWith("/") && !value.startsWith("//") && isInternalServePath(value)) return true;
+    // URL absolue : uniquement le domaine de confiance DofusDB, en HTTPS.
+    return /^https:\/\/api\.dofusdb\.fr\/[\w\-./%?&=+:@!$'()*,;]*$/i.test(value);
+}
+
+/**
+ * Chemins internes servis par l'app (allowlist) : ce sont les **seuls** chemins stockés qui
+ * peuvent atteindre le DOM. Un chemin hors de ces préfixes n'est jamais publié tel quel —
+ * `normalizeDofusAssetStoredUrl` retombe alors sur le proxy canonique.
+ */
+const INTERNAL_IMAGE_PREFIXES = ["/api/assets-dofus/", "/game-data/", "/uploads/", "/assets/"] as const;
+
+/** Le chemin (interne) appartient-il à nos dossiers servis, avec une forme d'URL saine ? */
+function isInternalServePath(value: string): boolean {
+    if (!INTERNAL_IMAGE_PREFIXES.some((prefix) => value.startsWith(prefix))) return false;
+    return /^\/[\w\-./%?&=+:@!$'()*,;]*$/.test(value);
+}
+
+/** `/(monsters|items|spells)/{id}.png` → `{ type, id }` (icônes CDN officiel Ankama). */
+function parseAnkamaCdnImageUrl(rawUrl: string): { type: DofusAssetType; id: string } | null {
+    let url: URL;
+    try {
+        url = new URL(rawUrl);
+    } catch {
+        return null;
+    }
+    if (url.protocol !== "https:") return null;
+    const host = url.hostname.toLowerCase();
+    if (host !== "static.ankama.com" && !host.endsWith(".ankama.com")) return null;
+
+    const match = url.pathname.match(/\/(?:dofus\/www\/game\/)?(monsters|items|spells)\/(\d+)\.(?:png|webp|jpg)$/i);
+    if (!match) return null;
+    return { type: match[1].toLowerCase() as DofusAssetType, id: match[2] };
+}
+
+/**
+ * Normalise une URL d'asset **telle qu'elle est stockée** vers la forme que le navigateur doit
+ * demander : `/api/assets-dofus/{type}/{id}` (proxy auto-siphon, jamais de 404).
+ *
+ * 🐛 Mesure beta du 27/09/2026 (page God « Avis de recherche ») : les portraits sont stockés
+ * `/uploads/assets-dofus/monsters/N.webp`. Ce chemin n'est **pas** servi par le standalone tant
+ * que le WebP n'a pas été siphonné — mesuré : `/uploads/…/4834.webp` → **404**, puis le même
+ * fichier via `/api/uploads/…` → **200**, et le chemin brut repasse à 200 **après** un passage
+ * par le proxy (c'est le proxy qui l'a téléchargé). Rendu brut, il donnait donc une image KO
+ * dans God alors que l'onglet Succès (même avis, via le proxy) l'affichait : deux pages, deux
+ * formes d'URL.
+ *
+ * Cascade (la première règle qui s'applique gagne) :
+ *   1. vide ⇒ proxy depuis `id` (ou `null` : l'appelant garde SON repli) ;
+ *   2. URL interne du proxy ⇒ conservée (idempotent) ;
+ *   3. chemin legacy `/uploads/assets-dofus/{type}/{id}.{ext}` ⇒ proxy depuis l'id du chemin
+ *      (**même type** uniquement : on ne sert pas l'asset d'un autre type sous cette route).
+ *      Pour un **sort**, la forme `sort_<n>.webp` passe par l'**espace d'icône**
+ *      (`resolveSpellIconUrl`) : `n` y est un iconId, pas un id de sort ;
+ *   4. URL absolue DofusDB / Ankama CDN ⇒ proxy interne ; autre hôte ⇒ conservée ;
+ *   5. nom nu (`4834.webp`) ⇒ proxy depuis ce nom ;
+ *   6. chemin local **dans nos dossiers servis** (`/api/assets-dofus/…`, `/game-data/…`,
+ *      `/uploads/…`, `/assets/…`) ⇒ conservé ; tout autre chemin ou hôte ⇒ **repli canonique**
+ *      (la sortie de cette fonction est posée dans le DOM : elle ne doit jamais être arbitraire).
+ */
+export function normalizeDofusAssetStoredUrl(
+    type: DofusAssetType,
+    raw: string | null | undefined,
+    id?: number | string | null,
+): string | null {
+    const fallback = resolveDofusAssetImageUrl(type, id ?? null);
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (!value) return fallback;
+
+    // Déjà une URL de proxy (celle de ce type, ou celle d'un autre type : on ne la réécrit pas).
+    if (value.startsWith("/api/assets-dofus/")) return value;
+
+    const stored = STORED_ASSET_PATH.exec(value);
+    if (stored) {
+        if (stored[1].toLowerCase() !== type) return value;
+        // 🔑 `spells/sort_<n>.webp` : `n` est un **iconId** (le nom du fichier nomme l'icône) ⇒ cet
+        // espace-là. Le passer à l'espace d'entité demanderait le SORT `n` à DofusDB et servirait
+        // donc l'icône d'un autre sort (mesure beta du 11/10/2026).
+        if (type === "spells" && stored[2]) return resolveSpellIconUrl(stored[3]) ?? fallback ?? value;
+        return resolveDofusAssetImageUrl(type, stored[3]) ?? fallback ?? value;
+    }
+
+    // URL absolue : DofusDB ou CDN Ankama → proxy interne ; tout autre hôte n'est JAMAIS publié (il retombe sur
+    // le proxy canonique) — une donnée stockée ne doit pas pouvoir désigner un hôte arbitraire.
+    if (/^https?:\/\//i.test(value)) {
+        const parsedDb = parseDofusDbImageUrl(value);
+        if (parsedDb) return resolveDofusAssetImageUrl(type, id ?? parsedDb.id, value) ?? fallback;
+        const fromAnkama = parseAnkamaCdnImageUrl(value);
+        if (fromAnkama) return resolveDofusAssetImageUrl(type, id ?? fromAnkama.id) ?? fallback;
+        return fallback;
+    }
+
+    const bare = STORED_ASSET_BARE_NAME.exec(value);
+    if (bare) return resolveDofusAssetImageUrl(type, bare[1]) ?? fallback;
+
+    // Chemin local : accepté seulement s'il appartient à NOS dossiers servis (allowlist), sinon
+    // on retombe sur le proxy canonique. C'est ce qui rend la sortie de cette fonction sûre à
+    // poser dans le DOM (alerte CodeQL `js/xss-through-dom`).
+    // Mesure du 09/10/2026 (Tal Kasha affiche en couronne dans la simulation) : un chemin local
+    // DERIVE (/assets/dofus/monsters/{n}.png ecrit par monster-stats-core, illustration
+    // /game-data/dungeons/*.webp) n'est PAS le sprite du boss, et peut ne pas exister (404,
+    // onError, couronne). Des que l'id de l'entite est connu, le proxy (identite verifiee,
+    // auto-reparateur) est la bonne reponse ; le sprite titan local reste prioritaire.
+    if (type === "monsters" && id != null && String(id).trim() !== "" && !value.startsWith("/game-data/titans/")) {
+        return fallback ?? value;
+    }
+    return isInternalServePath(value) ? value : fallback;
 }

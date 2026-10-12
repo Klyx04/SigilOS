@@ -4,6 +4,7 @@ import { sendChannelMessage } from "@/server/discord";
 import { logger } from "@/lib/logger";
 import { getDisplayName } from "@/lib/display-name";
 import { deleteProofFile } from "@/lib/storage-utils";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 // ---------------------------------------------------------------------------
 // CLEANUP: supprime les screenshots de preuve
@@ -34,18 +35,13 @@ async function getDiscordId(userId: string): Promise<string | null> {
 }
 
 export async function POST(request: NextRequest) {
-    // Security: validate cron secret
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret) {
-        logger.error("[cleanup-proofs] CRON_SECRET not configured");
-        return NextResponse.json({ error: "Not configured" }, { status: 500 });
-    }
-
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+    // 🔒 Fail-closed + temps constant (anti timing-attack), aligné sur les autres crons.
+    if (!verifyCronSecret(request)) {
         logger.warn("[cleanup-proofs] Unauthorized cron attempt");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const startedAt = Date.now();
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - PROOF_EXPIRY_DAYS);
@@ -461,5 +457,16 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info("[cleanup-proofs] Done", { stats: { ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats } });
+
+    // Télémétrie panel God « Tâches CRON »
+    const { recordCronExecution } = await import("@/lib/cron-telemetry");
+    const totalErrors = stats.errors.length;
+    await recordCronExecution("cleanup_proofs", {
+        success: totalErrors === 0,
+        durationMs: Date.now() - startedAt,
+        summary: `Purge preuves : ${stats.filesDeleted} fichier(s) supprimé(s), ${totalErrors} erreur(s)`,
+        details: { ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats },
+    });
+
     return NextResponse.json({ success: true, ...stats, ...extraStats, ...kamaStats, ...missionStats, ...achievementStats });
 }

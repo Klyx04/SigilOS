@@ -24,11 +24,15 @@ export function MapViewer({
     initialY,
     initialZoom,
     initialWorldId,
+    initialZoneIds,
     hideUI,
     userName,
     userAvatar,
     isAdmin,
-    interactive
+    interactive,
+    startFullscreen,
+    isOverlay,
+    isPublic
 }: { 
     initialLadder?: any[], 
     initialTab?: 'map' | 'games', 
@@ -37,11 +41,17 @@ export function MapViewer({
     initialY?: number,
     initialZoom?: number,
     initialWorldId?: number,
+    /** Sous-zones à activer à l'arrivée (calque « Zones »). */
+    initialZoneIds?: number[],
     hideUI?: boolean,
     userName?: string,
     userAvatar?: string,
     isAdmin?: boolean,
-    interactive?: boolean
+    interactive?: boolean,
+    startFullscreen?: boolean,
+    isOverlay?: boolean,
+    /** Mode public : désactive toutes les interactions de guilde. */
+    isPublic?: boolean
 }) {
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
@@ -50,19 +60,30 @@ export function MapViewer({
     useEffect(() => {
         async function fetchMapData() {
             try {
-                const [resMap, resWorlds] = await Promise.all([
-                    fetch('/game-data/worldmap.json'),
-                    fetch('/game-data/worlds.json')
+                const [resMap, resWorlds, resHidden] = await Promise.all([
+                    // cache:'no-cache' → revalidation systématique via ETag/Last-Modified.
+                    // Sans cela (et sans Cache-Control côté Caddy sur /game-data/*), le
+                    // navigateur applique un cache heuristique et peut resservir un
+                    // worldmap.json PÉRIMÉ (ex: mondes 37/40 absents du sélecteur alors
+                    // que les données sont bien déployées sur le VPS).
+                    fetch('/game-data/worldmap.json', { cache: 'no-cache' }),
+                    fetch('/game-data/worlds.json', { cache: 'no-cache' }),
+                    // Libellés de zone retirés à la main depuis God (God → Données de jeu →
+                    // Zones). Volontairement tolérant : un fichier absent ou vide ne doit
+                    // jamais empêcher la carte de s'afficher.
+                    fetch('/game-data/hidden-map-zones.json', { cache: 'no-cache' })
                 ]);
 
                 if (!resMap.ok || !resWorlds.ok) throw new Error("Could not load map data");
 
                 const mapData = await resMap.json();
                 const worldsData = await resWorlds.json();
+                const hiddenData = resHidden.ok ? await resHidden.json() : null;
 
                 setData({
                     ...mapData,
-                    worlds: worldsData
+                    worlds: worldsData,
+                    hiddenZoneLabels: Array.isArray(hiddenData?.names) ? hiddenData.names : []
                 });
             } catch (err: any) {
                 setError(err.message || "Failed to load map data");
@@ -100,11 +121,15 @@ export function MapViewer({
             initialY={initialY}
             initialZoom={initialZoom}
             initialWorldId={initialWorldId}
+            initialZoneIds={initialZoneIds}
             hideUI={hideUI}
             userName={userName}
             userAvatar={userAvatar}
             isAdmin={isAdmin}
             interactive={interactive}
+            startFullscreen={startFullscreen}
+            isOverlay={isOverlay}
+            isPublic={isPublic}
         />
     );
 }

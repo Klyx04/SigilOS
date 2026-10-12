@@ -3,8 +3,10 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, ExternalLink, Copy, Move } from "lucide-react";
+import { buildManualZaapTravelCommand, buildZaapTravelCommand } from "@/lib/travel-command";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DOFUS_WORLDS } from "@/lib/dofus-assets";
+import { copyToClipboard } from "@/lib/clipboard";
 import { toast } from "sonner";
 
 interface MapPositionPopoverProps {
@@ -13,7 +15,28 @@ interface MapPositionPopoverProps {
   worldId?: number;
   guildId: string;
   contextLabel?: string;
+  /**
+   * Détour zaap proposé (choix God explicite, `pos_tags.allowZaap`) — `false`
+   * par défaut : la ligne zaap ne s'affiche que pour les positions cochées.
+   */
+  zaapEnabled?: boolean;
+  /**
+   * Zaap **manuel** saisi en God (`pos_tags.zaapX/zaapY`) : prioritaire sur
+   * le zaap auto le plus proche dans la ligne zaap.
+   */
+  manualZaap?: { x: number; y: number } | null;
   children: React.ReactNode;
+}
+
+/** Zaap le plus proche d'une position (calcul serveur partagé, cf. `findNearestZaap`). */
+interface NearestZaapInfo {
+  name: string;
+  x: number;
+  y: number;
+  /** Distance de Manhattan en maps. */
+  dist: number;
+  /** Faux = le monde de cette position n'a aucun zaap (repli hors monde). */
+  sameWorld: boolean;
 }
 
 export default function MapPositionPopover({
@@ -22,10 +45,13 @@ export default function MapPositionPopover({
   worldId: initialWorldId,
   guildId,
   contextLabel,
+  zaapEnabled = false,
+  manualZaap = null,
   children,
 }: MapPositionPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [worldId, setWorldId] = useState<number>(initialWorldId ?? 1);
+  const [nearestZaap, setNearestZaap] = useState<NearestZaapInfo | null>(null);
   const [resolved, setResolved] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLSpanElement>(null);
@@ -37,7 +63,13 @@ export default function MapPositionPopover({
     if (resolved) return;
     import("@/server/actions/optimized-guide-actions").then((mod) => {
       mod.resolveMapWorldAction(posX, posY, contextLabel || "").then((res) => {
-        if (res.success) setWorldId(res.worldId);
+        if (res.success) {
+          setWorldId(res.worldId);
+          // Le zaap le plus proche vient du MÊME calcul que la carte du monde
+          // (durci pour les mondes sans zaap) : guide, overlay et page publique
+          // affichent donc la même vérité.
+          setNearestZaap(res.nearestZaap ?? null);
+        }
         setResolved(true);
       });
     });
@@ -65,10 +97,12 @@ export default function MapPositionPopover({
 
   const handleMouseEnter = useCallback(() => {
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    // Délai long : la mini-carte ne s'ouvre que sur survol intentionnel,
+    // jamais au simple passage de souris.
     enterTimerRef.current = setTimeout(() => {
       setIsOpen(true);
       requestAnimationFrame(() => requestAnimationFrame(updatePosition));
-    }, 200);
+    }, 700);
   }, [updatePosition]);
 
   const handleMouseLeave = useCallback(() => {
@@ -84,6 +118,31 @@ export default function MapPositionPopover({
   const handleOpenMap = useCallback(() => {
     window.open(`/dashboard/${guildId}/worldmap?x=${posX}&y=${posY}&world=${worldId}`, "_blank");
   }, [guildId, posX, posY, worldId]);
+
+  /**
+   * Trajet vers le zaap le plus proche (client 3.7) : copie combinée
+   * `/zaap x,y ; /travel x,y` façon dofuspourlesnoobs — le bouton n'est
+   * affiché que si `sameWorld` (garde + `buildZaapTravelCommand` fail-closed).
+   */
+  const handleCopyZaap = useCallback(async (zaap: NearestZaapInfo) => {
+    const cmd = buildZaapTravelCommand(zaap, { x: posX, y: posY });
+    if (!cmd) return;
+    const ok = await copyToClipboard(cmd);
+    if (!ok) return;
+    toast.success(`Zaap ${zaap.name} — ${cmd}`, { duration: 3000 });
+  }, [posX, posY]);
+
+  /**
+   * Zaap **manuel** God : copie `/zaap zx,zy ; /travel x,y` tel quel
+   * (décision éditoriale, façon DPLN).
+   */
+  const handleCopyManualZaap = useCallback(async (zx: number, zy: number) => {
+    const cmd = buildManualZaapTravelCommand(zx, zy, posX, posY);
+    if (!cmd) return;
+    const ok = await copyToClipboard(cmd);
+    if (!ok) return;
+    toast.success(`Zaap manuel — ${cmd}`, { duration: 3000 });
+  }, [posX, posY]);
 
   // Drag handling
   const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -174,6 +233,49 @@ export default function MapPositionPopover({
                 <span className="text-caption text-muted-foreground font-black uppercase tracking-widest shrink-0">Monde</span>
                 <span className="text-caption text-foreground font-medium truncate">{worldId} — {worldName}</span>
               </div>
+
+              {/* GPS : zaap — manuel God prioritaire, sinon le plus proche auto.
+                  Clic = copie `/zaap ; /travel`. Affiché seulement si le God
+                  l'a proposé (`zaapEnabled`). */}
+              {zaapEnabled && (manualZaap && Number.isSafeInteger(manualZaap.x) && Number.isSafeInteger(manualZaap.y) ? (
+                <div className="px-3 py-1 bg-surface/40 border-b border-border/30 flex items-center gap-1.5">
+                  <span className="text-caption text-muted-foreground font-black uppercase tracking-widest shrink-0">Zaap</span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); void handleCopyManualZaap(manualZaap.x, manualZaap.y); }}
+                    title={`Copier /zaap ${manualZaap.x},${manualZaap.y} puis /travel ${posX},${posY} — zaap saisi en God`}
+                    className="text-caption text-foreground font-medium truncate hover:text-info transition-colors"
+                  >
+                    Saisi en God <span className="font-mono">[{manualZaap.x}, {manualZaap.y}]</span>
+                  </button>
+                </div>
+              ) : nearestZaap && (
+                <div className="px-3 py-1 bg-surface/40 border-b border-border/30 flex items-center gap-1.5">
+                  <span className="text-caption text-muted-foreground font-black uppercase tracking-widest shrink-0">Zaap</span>
+                  {nearestZaap.sameWorld ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); void handleCopyZaap(nearestZaap); }}
+                        title={`Copier /zaap ${nearestZaap.x},${nearestZaap.y} puis /travel ${posX},${posY} — zaap ${nearestZaap.name}`}
+                        className="text-caption text-foreground font-medium truncate hover:text-info transition-colors"
+                      >
+                        {nearestZaap.name} <span className="font-mono">[{nearestZaap.x}, {nearestZaap.y}]</span>
+                      </button>
+                      <span className="ml-auto text-caption text-muted-foreground font-mono shrink-0">
+                        {nearestZaap.dist} {nearestZaap.dist <= 1 ? "map" : "maps"}
+                      </span>
+                    </>
+                  ) : (
+                    <span
+                      className="text-caption text-muted-foreground truncate"
+                      title={`Aucun zaap dans le monde ${worldId} — le plus proche est hors monde : ${nearestZaap.name} [${nearestZaap.x}, ${nearestZaap.y}]`}
+                    >
+                      aucun zaap dans ce monde
+                    </span>
+                  )}
+                </div>
+              ))}
 
               <div className="relative w-full h-44 bg-black/60">
                 <MapViewer

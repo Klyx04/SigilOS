@@ -1,5 +1,11 @@
 import { getAppBaseUrl } from "@/lib/utils";
 import { logger } from "@/lib/logger";
+import { DiscordApiError, getDiscordApiCode, getDiscordApiStatus, isPermanentDiscordWriteFailure } from "@/lib/discord-api-errors";
+import {
+    isDiscordChannelBlocked,
+    isDiscordChannelBlockedError,
+    markDiscordChannelBlocked,
+} from "@/lib/discord-channel-health";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
@@ -200,6 +206,57 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
     return result.sort((a, b) => b.position - a.position);
 }
 
+/**
+ * Crée un rôle sur la guilde (MANAGE_ROLES) — sert au rôle d'accès au dashboard
+ * quand le serveur n'a AUCUN rôle utilisable : sans ça, l'admin doit QUITTER
+ * SigilOS, créer un rôle à la main sur Discord, revenir (cul-de-sac mesuré).
+ *
+ * `permissions: "0"` : le rôle ne donne AUCUN droit Discord (least privilege) — il
+ * ne porte que `dashboard:login` côté application.
+ * Fail-open assumé : `null` si Discord refuse (le chemin manuel reste), jamais de throw.
+ */
+export async function createGuildRole(
+    guildId: string,
+    options: { name: string; reason?: string }
+): Promise<{ id: string; name: string } | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token || !guildId || !options?.name) return null;
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/roles`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                // Raison d'audit Discord (header officiel, jamais dans le corps).
+                ...(options.reason
+                    ? { "X-Audit-Log-Reason": encodeURIComponent(options.reason).slice(0, 500) }
+                    : {}),
+            },
+            body: JSON.stringify({
+                name: options.name,
+                permissions: "0",
+                mentionable: false,
+            }),
+            cache: "no-store",
+        });
+
+        if (!res.ok) {
+            logger.warn(`[Discord] createGuildRole refusé (${res.status}) sur ${guildId}`);
+            return null;
+        }
+
+        const created = (await res.json()) as { id?: string; name?: string };
+        if (!created?.id) return null;
+        // Le cache des rôles (TTL 15 s) ne doit pas masquer le rôle tout juste créé.
+        invalidateDiscordCache(`roles:${guildId}`);
+        return { id: created.id, name: created.name ?? options.name };
+    } catch (e) {
+        logger.warn(`[Discord] createGuildRole a échoué sur ${guildId}`, e);
+        return null;
+    }
+}
+
 export async function fetchGuild(guildId: string) {
     // In-memory cache — next: { revalidate } is ignored in Server Actions context
     const cacheKey = `guild:${guildId}`;
@@ -229,6 +286,29 @@ export async function fetchGuild(guildId: string) {
     // TTL: 120 seconds (reduced from 10min)
     setCached(cacheKey, data, 120 * 1000);
     return data;
+}
+
+/**
+ * Vérifie FRAÎCHEMENT (hors cache) que le bot voit encore la guilde.
+ * Retourne false UNIQUEMENT sur 404 Discord (serveur supprimé ou bot expulsé).
+ * Throw sur toute autre erreur (rate-limit, 5xx, réseau, token manquant) :
+ * l'appelant ne doit JAMAIS conclure à une suppression sur une erreur
+ * technique (fail-safe — voir getUserContext, détection serveur supprimé).
+ * Volontairement SANS cache : n'est appelée que sur le chemin rare
+ * « membre introuvable », coût nul en trafic normal.
+ */
+export async function fetchGuildExists(guildId: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const res = await fetchWithRetry(`/api/v10/guilds/${guildId}`, {
+        headers: { Authorization: `Bot ${token}` },
+        cache: "no-store"
+    });
+
+    if (res.status === 404) return false;
+    if (!res.ok) throw new Error(`Guild existence check failed: ${res.status}`);
+    return true;
 }
 
 export async function fetchBotGuilds() {
@@ -297,7 +377,8 @@ export async function fetchGuildMember(guildId: string, userId: string) {
         nick?: string | null; 
         avatar?: string | null;
         roles: string[]; 
-        joined_at?: string 
+        joined_at?: string;
+        communication_disabled_until?: string | null;
     } | null>(cacheKey);
     if (cached !== null) return cached;
 
@@ -323,6 +404,7 @@ export async function fetchGuildMember(guildId: string, userId: string) {
         avatar?: string | null;
         roles: string[];
         joined_at?: string;
+        communication_disabled_until?: string | null;
     };
 
     // TTL: 15 seconds (court pour que l'ajout d'un rôle soit vu rapidement)
@@ -332,7 +414,7 @@ export async function fetchGuildMember(guildId: string, userId: string) {
 
 export async function listGuildMembers(guildId: string, limit = 1000) {
     const cacheKey = `members:${guildId}:${limit}`;
-    const cached = getCached<Array<{ user: { id: string; username: string; global_name?: string; avatar?: string | null }; nick?: string | null; avatar?: string | null; roles: string[]; joined_at?: string }>>(cacheKey);
+    const cached = getCached<Array<{ user: { id: string; username: string; global_name?: string; bot?: boolean; avatar?: string | null }; nick?: string | null; avatar?: string | null; roles: string[]; joined_at?: string }>>(cacheKey);
     if (cached !== null) return cached;
 
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -412,6 +494,76 @@ export async function fetchGuildBans(guildId: string) {
         user: { id: string; username: string };
         reason?: string | null;
     }>;
+}
+
+/**
+ * Exécutant réel d'une action Discord (qui a banni/exclu/renommé : staff, membre
+ * lui-même ou bot tiers). Lit le journal d'audit du serveur — best-effort :
+ * `null` si permission manquante, aucune entrée, ou entrée trop ancienne.
+ * Jamais exposé tel quel : l'UI des guildes traduit/masque (pas de tech).
+ */
+export type DiscordAuditExecutor = { userId: string; username: string; isBot: boolean };
+
+/** action_type du journal d'audit Discord : 20 exclusion, 22 ban, 23 déban, 24 pseudo, 25 rôles. */
+export const DISCORD_AUDIT_ACTIONS = { KICK: 20, BAN_ADD: 22, BAN_REMOVE: 23, MEMBER_UPDATE: 24, ROLE_UPDATE: 25 } as const;
+
+function snowflakeAgeMs(id: string): number | null {
+    try {
+        const ts = Number((BigInt(id) >> 22n) + 1420070400000n);
+        if (!Number.isFinite(ts)) return null;
+        return Date.now() - ts;
+    } catch {
+        return null;
+    }
+}
+
+export async function fetchAuditExecutor(
+    guildId: string,
+    actionType: number,
+    targetId: string,
+    maxAgeMs = 7 * 24 * 60 * 60 * 1000
+): Promise<DiscordAuditExecutor | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return null;
+    if (!/^\d{15,21}$/.test(guildId) || !/^\d{15,21}$/.test(targetId)) return null;
+    if (!Number.isInteger(actionType) || actionType < 1 || actionType > 200) return null;
+    // Erreur technique (réseau, 403 sans la permission « Voir le journal d'audit ») :
+    // on THROW pour que l'appelant distingue « vérifié, personne » (null) de
+    // « vérification impossible » (throw) — jamais de fausse attribution.
+    const res = await fetchWithRetry(
+        `/api/v10/guilds/${guildId}/audit-logs?action_type=${actionType}&limit=10`,
+        { headers: { Authorization: `Bot ${token}` } }
+    );
+    if (!res.ok) throw new Error(`Journal d'audit indisponible (${res.status})`);
+    const data = (await res.json()) as {
+        audit_log_entries?: Array<{ id: string; target_id: string | null; user_id: string | null }>;
+        users?: Array<{ id: string; username: string; bot?: boolean }>;
+    };
+    const entries = (data.audit_log_entries ?? []).filter((e) => e.target_id === targetId);
+    if (entries.length === 0) return null;
+    entries.sort((a, b) => (a.id < b.id ? 1 : -1));
+    const entry = entries[0];
+    const age = snowflakeAgeMs(entry.id);
+    if (age === null || age < 0 || age > maxAgeMs) return null;
+    if (!entry.user_id) return null;
+    const user = (data.users ?? []).find((u) => u.id === entry.user_id);
+    if (!user) return null;
+    return { userId: user.id, username: user.username, isBot: !!user.bot };
+}
+
+/** Champs `metadata` d'audit pour tracer l'exécutant (famille bot + syncs, même forme). */
+export function executorMetadata(
+    exec: DiscordAuditExecutor | { userId: string; username: string; isBot: boolean } | null,
+    targetDiscordId?: string
+): { executorId?: string; executorTag?: string; executorIsBot?: boolean; executorIsSelf?: boolean } {
+    if (!exec) return {};
+    const meta: { executorId?: string; executorTag?: string; executorIsBot?: boolean; executorIsSelf?: boolean } = {
+        executorId: exec.userId,
+        executorTag: exec.username,
+    };
+    if (exec.isBot) meta.executorIsBot = true;
+    if (targetDiscordId && exec.userId === targetDiscordId) meta.executorIsSelf = true;
+    return meta;
 }
 
 export async function verifyGuildAccessibility(guildId: string): Promise<boolean> {
@@ -544,6 +696,37 @@ export async function validateChannelBelongsToGuild(channelId: string, guildId: 
     }
 }
 
+/**
+ * Mention de rôle **fail-safe** : renvoie `<@&id>` **uniquement** si le rôle existe
+ * réellement dans le serveur du salon cible — sinon `""`.
+ *
+ * Cause racine du « **@rôle inconnu** » observé dans les alertes God (01/10/2026) :
+ * `PlatformConfig.godNotifyRoleId` est une **valeur unique de plateforme**, alors que
+ * les bêta et prod sont **deux serveurs Discord distincts** — un ID de rôle valide côté
+ * prod est inconnu côté bêta, et Discord affiche « @rôle inconnu » **sans notifier
+ * personne** (l'alerte tombe dans le vide). Ici, on vérifie l'appartenance du rôle au
+ * serveur du salon : s'il est absent (ou si l'API échoue), on **omet la mention** au
+ * lieu d'écrire un ping cassé. Ne jette **jamais**.
+ */
+export async function buildSafeRoleMention(channelId: string | null | undefined, roleId: string | null | undefined): Promise<string> {
+    if (!channelId || !roleId || !/^\d{17,20}$/.test(roleId)) return "";
+    try {
+        const channel = await fetchChannel(channelId);
+        const guildId = channel?.guild_id;
+        if (!guildId) return "";
+        const roles = await fetchGuildRoles(guildId);
+        if (Array.isArray(roles) && roles.some((r) => r.id === roleId)) {
+            return `<@&${roleId}>`;
+        }
+        logger.warn("[Discord] Rôle à pinger absent du serveur du salon — mention omise", { channelId, roleId });
+        return "";
+    } catch (error) {
+        logger.warn("[Discord] Vérification du rôle impossible — mention omise (fail-safe)", { channelId, error: String(error) });
+        return "";
+    }
+}
+
+
 // =============================================================================
 // #223 — ÉCRITURES GÉNÉRIQUES CENTRALISÉES (toutes via discordFetch)
 // =============================================================================
@@ -571,15 +754,20 @@ export async function postChannelMessage(channelId: string, body: Record<string,
         console.error(`[Discord] Status ${res.status}: ${errBody}`);
 
         // F-15: ne PAS exposer le corps brut de Discord au client (fuite de détails internes).
+        // Le STATUT et le `code` numérique sont en revanche portés par l'erreur :
+        // sans eux, une alerte d'outbox (« Discord a refusé la demande ») était
+        // indiagnostiquable (voir src/lib/discord-api-errors.ts).
         let message = "Échec de l'envoi du message Discord";
+        let discordCode: number | undefined;
         try {
             const parsed = JSON.parse(errBody);
             if (res.status === 403) message = "Le bot n'a pas accès à ce salon (Permission bloquée)";
             else if (res.status === 404) message = "Salon introuvable (ID incorrect)";
             else if (parsed?.message) message = "Discord a refusé la demande";
+            if (typeof parsed?.code === "number") discordCode = parsed.code;
         } catch { /* use default */ }
 
-        throw new Error(message);
+        throw new DiscordApiError(message, res.status, discordCode);
     }
 
     const json = (await res.json()) as { id: string };
@@ -654,6 +842,82 @@ export async function patchChannelMessage(
 }
 
 /**
+ * D20 / S3.13 — met à jour les **tags appliqués** d'un sujet de forum
+ * (`PATCH /channels/{threadId}` avec `applied_tags`).
+ *
+ * Discord remplace **l'intégralité** du tableau : on envoie donc l'ensemble
+ * souhaité (famille + statut), pas un delta. Un tableau vide retire tous les
+ * tags. Jamais d'exception : `false` = à retenter (le module reste fonctionnel
+ * sans tags, §9.4).
+ */
+export async function updateForumThreadTags(threadId: string, tagIds: string[]): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    const bounded = Array.isArray(tagIds) ? tagIds.slice(0, 5) : [];
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${threadId}`, {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ applied_tags: bounded }),
+        });
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            logger.warn(`[Discord] updateForumThreadTags failed ${res.status}`, { error: errBody.slice(0, 300) });
+            return false;
+        }
+        return true;
+    } catch (error) {
+        logger.warn("[Discord] Error updating forum thread tags", { error: String(error) });
+        return false;
+    }
+}
+
+/**
+ * Renomme un sujet de forum / thread (`PATCH /channels/{threadId}` avec `name`).
+ *
+ * Différence avec `renameChannelDiscord` : un salon textuel N'ACCEPTE que
+ * `[a-z0-9-_]` (d'où la slugification), alors qu'un sujet de forum accepte les
+ * emoji et les accents. On envoie donc le nom TEL QUEL, borné à 100 caractères
+ * (limite Discord du nom de salon/sujet).
+ *
+ * Jamais d'exception : `false` = à retenter (le module reste fonctionnel sans).
+ */
+export async function updateForumThreadName(threadId: string, name: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    const clean = String(name || "").trim().slice(0, 100);
+    if (!clean) return false;
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${threadId}`, {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ name: clean }),
+        });
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            logger.warn(`[Discord] updateForumThreadName failed ${res.status}`, { error: errBody.slice(0, 300) });
+            return false;
+        }
+        return true;
+    } catch (error) {
+        logger.warn("[Discord] Error renaming forum thread", { error: String(error) });
+        return false;
+    }
+}
+
+/**
  * Discord embed field
  */
 interface EmbedField {
@@ -669,6 +933,8 @@ interface SendChannelMessageOptions {
     embedTitle?: string;
     embedColor?: number;
     embedFooter?: string;
+    /** Surcharge l'icône logo par défaut du footer (ex: vignette du serveur Dofus). URL absolue. */
+    embedFooterIconUrl?: string;
     embedUrl?: string;           // Makes the title clickable
     embedThumbnail?: string;     // Small image on the right
     embedImage?: string;         // Large image at bottom
@@ -681,6 +947,20 @@ interface SendChannelMessageOptions {
     mentionContent?: string;     // Text with @mentions (sent as content, triggers ping)
     components?: any[];          // Discord Components (Buttons, Select Menus)
     suppressEmbeds?: boolean;    // flags: 4 — prevent URL unfurl preview
+    /**
+     * D20 / S3.13 — tags de **forum** appliqués à la création du sujet (ids de
+     * `available_tags`, max 5). Ignoré hors salon forum : Discord refuse des
+     * tags sur un message de salon textuel.
+     */
+    appliedTags?: string[];
+    /**
+     * Outbox (mode dégrade) : quand l'envoi passe par la file, le worker stocke
+     * le VRAI ID du message posté sous cette clé Redis (TTL ci-dessous) au lieu
+     * de perdre l'ID (`outbox:<jobId>`). Indispensable au living status :
+     * sans ça, chaque tick recrée un message, jamais d'édition.
+     */
+    storeMessageIdKey?: string;
+    storeMessageIdTTL?: number;  // secondes (défaut 30 j)
 }
 
 /**
@@ -695,6 +975,16 @@ export async function sendChannelMessage(
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) {
         console.error("[Discord] Missing DISCORD_BOT_TOKEN");
+        return null;
+    }
+
+    // 🛑 Disjoncteur (cf. `@/lib/discord-channel-health`) : un salon en pause
+    // d'écriture n'est même pas sollicité. On renvoie `null` — et non un ID — pour
+    // qu'aucun appelant n'ancre un message inexistant : c'est aussi ce qui empêche
+    // le status-ping d'horodater un « envoi » qui n'a pas eu lieu (il réessaiera au
+    // tick suivant, gratuitement, jusqu'à la réparation du salon).
+    if (await isDiscordChannelBlocked(channelId)) {
+        logger.info("[Discord] Salon en pause d'écriture — envoi ignoré", { channelId });
         return null;
     }
 
@@ -750,7 +1040,7 @@ export async function sendChannelMessage(
         const appUrl = getAppBaseUrl();
         const displayUrl = appUrl.replace(/^https?:\/\//, "");
         const footerText = options.embedFooter ?? `SigilOS · Pas encore sur le Dashboard ? → ${displayUrl}`;
-        embed.footer = { text: footerText, icon_url: `${appUrl}/assets/ui/logo-v2.png` };
+        embed.footer = { text: footerText, icon_url: options.embedFooterIconUrl ?? `${appUrl}/assets/ui/logo-v2.png` };
 
         // Author section
         if (options.embedAuthor) {
@@ -805,17 +1095,44 @@ export async function sendChannelMessage(
     }
 
     // #223 P3.1 — Mode dégradé (outbox BullMQ/Redis) : on dépose l'écriture dans la file
-    // (retry persistant 429/5xx par le worker) au lieu d'un HTTP synchrone. L'ID du message
-    // est inconnu tant que la file n'a pas été flushée → null (le worker stocke la réponse).
+    // (retry persistant 429/5xx par le worker) au lieu d'un HTTP synchrone. L'ID du job
+    // est retourné sous forme `outbox:${jobId}` pour indiquer le succès de mise en file.
+    // `storeMessageIdKey` : le worker ré-ancre le VRAI ID posté (living status).
     if (isDiscordOutboxEnabled()) {
         const { enqueueDiscordWrite } = await import("@/server/discord-outbox");
-        await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
-        return null;
+        try {
+            const jobId = await enqueueDiscordWrite({
+                kind: "postMessage",
+                channelId,
+                body,
+                ...(options?.storeMessageIdKey ? { storeMessageIdKey: options.storeMessageIdKey } : {}),
+                ...(options?.storeMessageIdTTL ? { storeMessageIdTTL: options.storeMessageIdTTL } : {}),
+            });
+            return `outbox:${jobId}`;
+        } catch (error) {
+            // Salon tombé en pause entre la vérification et la mise en file : le job
+            // est refusé AVANT la file (aucune alerte, aucun retry) — cf. disjoncteur.
+            if (isDiscordChannelBlockedError(error)) {
+                logger.warn("[Discord] Salon en pause d'écriture — job refusé avant la file", { channelId });
+                return null;
+            }
+            throw error;
+        }
     }
 
     try {
         return await postChannelMessage(channelId, body);
     } catch (error: any) {
+        // Refus PERMANENT en HTTP synchrone (mode par défaut en prod, outbox OFF) :
+        // on arme le MÊME disjoncteur que l'outbox. Sans ça, la prod continuerait de
+        // solliciter un salon mort à chaque tick (403/50001 en boucle de cron).
+        if (isPermanentDiscordWriteFailure(error)) {
+            void markDiscordChannelBlocked(channelId, {
+                status: getDiscordApiStatus(error),
+                code: getDiscordApiCode(error),
+                source: "sendChannelMessage",
+            });
+        }
         console.error("[Discord] Error sending message:", error);
         throw error;
     }
@@ -871,6 +1188,13 @@ export async function updateChannelMessage(
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
 
+    // 🛑 Disjoncteur : salon en pause ⇒ aucun appel HTTP. C'est le chemin MESURÉ du
+    // 25/09/2026 (le living status ré-éditait son message dans un salon inaccessible
+    // toutes les heures) : sans cette garde, la tentative restait faite pour rien.
+    if (await isDiscordChannelBlocked(channelId)) {
+        return false;
+    }
+
     const body: Record<string, unknown> = {};
 
     // Reconstruct body similar to sendChannelMessage...
@@ -894,7 +1218,7 @@ export async function updateChannelMessage(
         const appUrl = getAppBaseUrl();
         const displayUrl = appUrl.replace(/^https?:\/\//, "");
         const updateFooterText = options.embedFooter ?? `SigilOS · Pas encore sur le Dashboard ? → ${displayUrl}`;
-        embed.footer = { text: updateFooterText, icon_url: `${appUrl}/assets/ui/logo-v2.png` };
+        embed.footer = { text: updateFooterText, icon_url: options.embedFooterIconUrl ?? `${appUrl}/assets/ui/logo-v2.png` };
 
         if (options.embedAuthor) embed.author = { name: options.embedAuthor.name, icon_url: options.embedAuthor.iconUrl };
         if (options.embedThumbnail) embed.thumbnail = { url: options.embedThumbnail };
@@ -933,11 +1257,35 @@ export async function updateChannelMessage(
         if (!res.ok) {
             const errBody = await res.text();
             console.error(`[Discord] Update failed ${res.status}: ${errBody}`);
-            throw new Error(`Discord Update Error: ${res.status}`);
+
+            // Même contrat que `postChannelMessage` : le STATUT et le `code` numérique
+            // sont portés par l'erreur (jamais le corps brut — F-15). Sans eux, un refus
+            // de PATCH n'était ni classable (« définitif ? ») ni diagnosticable, donc ni
+            // les alertes ni le disjoncteur ne pouvaient le traiter.
+            let message = "Échec de la mise à jour du message Discord";
+            let discordCode: number | undefined;
+            try {
+                const parsed = JSON.parse(errBody);
+                if (res.status === 403) message = "Le bot n'a pas accès à ce salon (Permission bloquée)";
+                else if (res.status === 404) message = "Salon ou message introuvable";
+                else if (parsed?.message) message = "Discord a refusé la demande";
+                if (typeof parsed?.code === "number") discordCode = parsed.code;
+            } catch { /* use default */ }
+
+            throw new DiscordApiError(message, res.status, discordCode);
         }
 
         return true;
     } catch (error: any) {
+        // Refus PERMANENT (salon inaccessible) : on arme le disjoncteur pour couper
+        // la source du bruit (le cron qui réédite dans un salon mort).
+        if (isPermanentDiscordWriteFailure(error)) {
+            void markDiscordChannelBlocked(channelId, {
+                status: getDiscordApiStatus(error),
+                code: getDiscordApiCode(error),
+                source: "updateChannelMessage",
+            });
+        }
         console.error("[Discord] Error updating message:", error);
         throw error;
     }
@@ -998,19 +1346,72 @@ export async function editInteractionMessage(
 }
 
 /**
- * Delete a Discord message (e.g. run embed when run is closed)
+ * Delete a Discord message (e.g. run embed when run is closed).
+ *
+ * Robuste aux IDs outbox (`outbox:<jobId>`) : quand `DISCORD_OUTBOX_ENABLED=true`,
+ * `sendChannelMessage` renvoie un ID de file et non un snowflake Discord. Si cet ID
+ * est passé ici, on résout d'abord le vrai snowflake dans Redis via `messageKey`
+ * (la clé `storeMessageIdKey` posée à l'envoi, stockée à côté de l'entrée
+ * `reminderMessages`). Sans résolution possible, on ignore (le message n'existe
+ * pas encore côté Discord — rien à supprimer).
  */
-export async function deleteChannelMessage(channelId: string, messageId: string): Promise<boolean> {
+export async function resolveReminderMessageId(
+    messageId: string,
+    messageKey?: string | null
+): Promise<string | null> {
+    const { isDiscordSnowflake, isOutboxMessageId } = await import("@/lib/discord-ids");
+    if (isDiscordSnowflake(messageId)) return messageId;
+    if (!isOutboxMessageId(messageId)) return null;
+    if (!messageKey) return null;
+    try {
+        const { redis } = await import("@/lib/redis");
+        const resolved = await redis.get(messageKey);
+        if (isDiscordSnowflake(resolved)) return resolved;
+    } catch {
+        // Redis indisponible → fail-closed sur la suppression (on réessaiera).
+    }
+    return null;
+}
+
+export async function deleteChannelMessage(channelId: string, messageId: string, messageKey?: string | null): Promise<boolean> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
 
+    const { isDiscordSnowflake, isOutboxMessageId } = await import("@/lib/discord-ids");
+
+    // Si l'ID stocké est un ID de file d'attente outbox, résoudre le vrai
+    // snowflake via la clé Redis posée à l'envoi (`storeMessageIdKey`, stockée
+    // à côté de l'entrée `reminderMessages`). Sans clé ou sans résolution
+    // (worker pas encore passé), on ignore : le message n'existe pas encore
+    // côté Discord, il n'y a donc rien à supprimer.
+    let effectiveMessageId = messageId;
+    if (isOutboxMessageId(messageId)) {
+        const resolved = await resolveReminderMessageId(messageId, messageKey);
+        if (!resolved) {
+            logger.warn("[Discord] deleteChannelMessage : messageId outbox non résolu — suppression ignorée", {
+                channelId,
+                messageId,
+            });
+            return false;
+        }
+        effectiveMessageId = resolved;
+    }
+
+    if (!isDiscordSnowflake(effectiveMessageId)) {
+        logger.warn("[Discord] deleteChannelMessage : messageId invalide (ni snowflake ni outbox)", {
+            channelId,
+            messageId,
+        });
+        return false;
+    }
+
     try {
         // Automatically handle Forum Posts/Threads where channelId === messageId
-        if (channelId === messageId) {
+        if (channelId === effectiveMessageId) {
             return await deleteChannel(channelId);
         }
 
-        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${messageId}`, {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${effectiveMessageId}`, {
             method: "DELETE",
             headers: {
                 Authorization: `Bot ${token}`,
@@ -1122,7 +1523,9 @@ export async function createForumPost(
             title: options.embedTitle,
             color: options.embedColor ?? 0x9333ea,
             timestamp: new Date().toISOString(),
-            footer: { text: options.embedFooter ?? "SigilOS · sigilos.fr" }
+            footer: options.embedFooterIconUrl
+                ? { text: options.embedFooter ?? "SigilOS · sigilos.fr", icon_url: options.embedFooterIconUrl }
+                : { text: options.embedFooter ?? "SigilOS · sigilos.fr" }
         };
 
         if (options.embedDescription) embed.description = sanitizeMentions(options.embedDescription);
@@ -1138,6 +1541,12 @@ export async function createForumPost(
     // Unlike regular channels where they go in the top-level body.components
     if (options?.components) {
         body.message.components = options.components;
+    }
+
+    // D20 / S3.13 — tags du forum (ids **existants**, 5 maximum). Absents ⇒
+    // aucun `applied_tags` : le sujet est publié normalement (jamais bloquant).
+    if (Array.isArray(options?.appliedTags) && options.appliedTags.length > 0) {
+        body.applied_tags = options.appliedTags.slice(0, 5);
     }
 
     try {
@@ -1434,8 +1843,16 @@ export async function sendDiscordRawEmbed(
     // #223 P3.1 — Mode dégradé (outbox) : même file que sendChannelMessage (kind: postMessage).
     if (isDiscordOutboxEnabled()) {
         const { enqueueDiscordWrite } = await import("@/server/discord-outbox");
-        await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
-        return null;
+        try {
+            const jobId = await enqueueDiscordWrite({ kind: "postMessage", channelId, body });
+            return `outbox:${jobId}`;
+        } catch (error) {
+            if (isDiscordChannelBlockedError(error)) {
+                logger.warn("[Discord] Salon en pause d'écriture — embed brut non mis en file", { channelId });
+                return null;
+            }
+            throw error;
+        }
     }
 
     try {
@@ -1444,4 +1861,721 @@ export async function sendDiscordRawEmbed(
         console.error("[Discord] Error sending raw embed:", error);
         return null;
     }
+}
+
+/**
+ * Add a Discord role to a guild member
+ */
+export async function addGuildMemberRole(
+    guildId: string,
+    userId: string,
+    roleId: string,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        const headers: Record<string, string> = {
+            Authorization: `Bot ${token}`,
+            "User-Agent": DISCORD_USER_AGENT,
+        };
+        if (reason) {
+            headers["X-Audit-Log-Reason"] = encodeURIComponent(reason);
+        }
+
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+            method: "PUT",
+            headers,
+        });
+
+        if (res.status === 204) {
+            invalidateDiscordCache(`member:${guildId}:${userId}`);
+            return { success: true };
+        }
+
+        if (res.status === 403) {
+            return { success: false, error: "Permissions insuffisantes (le rôle du bot doit être supérieur au rôle à attribuer)" };
+        }
+        if (res.status === 404) {
+            return { success: false, error: "Membre ou rôle introuvable sur Discord" };
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+    } catch (error: any) {
+        logger.error(`[Discord] Error adding role ${roleId} to user ${userId}:`, error);
+        return { success: false, error: error?.message || "Erreur réseau Discord" };
+    }
+}
+
+/**
+ * Remove a Discord role from a guild member
+ */
+export async function removeGuildMemberRole(
+    guildId: string,
+    userId: string,
+    roleId: string,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        const headers: Record<string, string> = {
+            Authorization: `Bot ${token}`,
+            "User-Agent": DISCORD_USER_AGENT,
+        };
+        if (reason) {
+            headers["X-Audit-Log-Reason"] = encodeURIComponent(reason);
+        }
+
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+            method: "DELETE",
+            headers,
+        });
+
+        if (res.status === 204) {
+            invalidateDiscordCache(`member:${guildId}:${userId}`);
+            return { success: true };
+        }
+
+        if (res.status === 403) {
+            return { success: false, error: "Permissions insuffisantes (le rôle du bot doit être supérieur au rôle à retirer)" };
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+    } catch (error: any) {
+        logger.error(`[Discord] Error removing role ${roleId} from user ${userId}:`, error);
+        return { success: false, error: error?.message || "Erreur réseau Discord" };
+    }
+}
+
+/**
+ * Fetch current bot user (@me)
+ */
+export async function fetchCurrentBotUser(): Promise<{ id: string; username: string } | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return null;
+    const cacheKey = "bot:current_user";
+    const cached = getCached<{ id: string; username: string }>(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const res = await fetchWithRetry("/api/v10/users/@me", {
+            headers: { Authorization: `Bot ${token}` }
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        setCached(cacheKey, { id: data.id, username: data.username }, 3600 * 1000);
+        return { id: data.id, username: data.username };
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Check if the bot can manage a specific role (hierarchy check)
+ */
+export async function verifyBotRoleHierarchy(
+    guildId: string,
+    targetRoleId: string
+): Promise<{ canManage: boolean; reason?: string; botHighestPosition?: number; targetRolePosition?: number }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { canManage: false, reason: "Bot token non configuré" };
+
+    try {
+        const roles = await fetchGuildRoles(guildId, { excludeManaged: false });
+        const targetRole = roles.find(r => r.id === targetRoleId);
+        if (!targetRole) {
+            return { canManage: false, reason: "Rôle cible introuvable" };
+        }
+
+        // Get bot application id / current bot user
+        const botUser = await fetchCurrentBotUser();
+        if (!botUser) return { canManage: false, reason: "Impossible de déterminer l'identité du bot" };
+
+        const botMember = await fetchGuildMember(guildId, botUser.id);
+        if (!botMember) return { canManage: false, reason: "Le bot n'est pas présent dans ce serveur" };
+
+        const botRoles = roles.filter(r => botMember.roles.includes(r.id));
+        const botHighestPosition = botRoles.reduce((max, r) => Math.max(max, r.position || 0), 0);
+        const targetRolePosition = targetRole.position || 0;
+
+        if (botHighestPosition <= targetRolePosition) {
+            return {
+                canManage: false,
+                botHighestPosition,
+                targetRolePosition,
+                reason: `Le rôle du bot (position ${botHighestPosition}) est inférieur ou égal au rôle ${targetRole.name} (position ${targetRolePosition}). Placez le rôle du bot plus haut dans les paramètres Discord du serveur.`
+            };
+        }
+
+        return {
+            canManage: true,
+            botHighestPosition,
+            targetRolePosition
+        };
+    } catch (error: any) {
+        logger.error("[Discord] Error in verifyBotRoleHierarchy:", error);
+        return { canManage: false, reason: error?.message || "Erreur vérification hiérarchie" };
+    }
+}
+
+/**
+ * Send or update a Reaction Role message with full components
+ */
+export async function deployReactionRoleMessage(
+    guildId: string,
+    channelId: string,
+    payload: {
+        messageId?: string | null;
+        content?: string;
+        embed: any;
+        components: any[];
+    }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    const body = {
+        content: payload.content ? sanitizeMentions(payload.content) : undefined,
+        embeds: payload.embed ? [payload.embed] : [],
+        components: payload.components || [],
+    };
+
+    try {
+        if (payload.messageId) {
+            // Edit existing message
+            const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${payload.messageId}`, {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "Content-Type": "application/json",
+                    "User-Agent": DISCORD_USER_AGENT,
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                return { success: true, messageId: data.id };
+            }
+            // If message was deleted (404), create a new one below
+            if (res.status !== 404) {
+                const errorData = await res.json().catch(() => ({}));
+                return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+            }
+        }
+
+        // Create new message
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            return { success: true, messageId: data.id };
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+    } catch (error: any) {
+        logger.error("[Discord] Error deploying reaction role message:", error);
+        return { success: false, error: error?.message || "Erreur déploiement Discord" };
+    }
+}
+
+// =============================================================================
+// TICKET BOT DISCORD HELPERS
+// =============================================================================
+
+/**
+ * Deploy or update a Ticket Panel message on Discord
+ */
+export async function deployTicketPanelMessage(
+    guildId: string,
+    channelId: string,
+    payload: {
+        messageId?: string | null;
+        embed: any;
+        components: any[];
+    }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    const body = {
+        embeds: payload.embed ? [payload.embed] : [],
+        components: payload.components || [],
+    };
+
+    try {
+        if (payload.messageId) {
+            // Edit existing panel message
+            const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages/${payload.messageId}`, {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "Content-Type": "application/json",
+                    "User-Agent": DISCORD_USER_AGENT,
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                return { success: true, messageId: data.id };
+            }
+            if (res.status !== 404) {
+                const errorData = await res.json().catch(() => ({}));
+                return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+            }
+        }
+
+        // Post new panel message
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            return { success: true, messageId: data.id };
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData?.message || `Erreur Discord ${res.status}` };
+    } catch (error: any) {
+        logger.error("[Discord] Error deploying ticket panel message:", error);
+        return { success: false, error: error?.message || "Erreur déploiement Discord" };
+    }
+}
+
+/**
+ * Create a private text channel for a ticket with locked permissions
+ */
+export async function createTicketChannelDiscord(
+    guildId: string,
+    channelName: string,
+    options: {
+        parentId?: string | null;
+        creatorDiscordId: string;
+        staffRoleIds: string[];
+        topic?: string;
+        /**
+         * Overwrites calculés par `buildTicketOverwrites` (matrice du dashboard).
+         * Absent = repli historique (équipe + demandeur, tout le monde refusé).
+         */
+        overwrites?: Array<{ id: string; type: 0 | 1; allow: string; deny: string }>;
+    }
+): Promise<{ success: boolean; channelId?: string; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        let permissionOverwrites: any[];
+        if (options.overwrites && options.overwrites.length > 0) {
+            permissionOverwrites = options.overwrites;
+        } else {
+            // VIEW_CHANNEL: 1024 (0x400), SEND_MESSAGES: 2048 (0x800), READ_MESSAGE_HISTORY: 65536 (0x10000), ATTACH_FILES: 32768 (0x8000), EMBED_LINKS: 16384 (0x4000)
+            const allowBitmask = String(1024 | 2048 | 65536 | 32768 | 16384);
+            const denyBitmask = String(1024); // Deny VIEW_CHANNEL for @everyone
+
+            permissionOverwrites = [
+                // Deny everyone
+                {
+                    id: guildId, // @everyone role ID is guild ID
+                    type: 0, // role
+                    allow: "0",
+                    deny: denyBitmask,
+                },
+                // Allow ticket creator
+                {
+                    id: options.creatorDiscordId,
+                    type: 1, // member
+                    allow: allowBitmask,
+                    deny: "0",
+                },
+            ];
+
+            // Allow staff roles
+            for (const roleId of options.staffRoleIds) {
+                if (roleId) {
+                    permissionOverwrites.push({
+                        id: roleId,
+                        type: 0, // role
+                        allow: allowBitmask,
+                        deny: "0",
+                    });
+                }
+            }
+        }
+
+        const body: Record<string, any> = {
+            name: channelName.toLowerCase().replace(/[^a-z0-9-_]/g, "-").slice(0, 100),
+            type: 0, // GUILD_TEXT
+            permission_overwrites: permissionOverwrites,
+            topic: options.topic ? options.topic.slice(0, 1024) : undefined,
+        };
+
+        if (options.parentId) {
+            body.parent_id = options.parentId;
+        }
+
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/channels`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            return { success: true, channelId: data.id };
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData?.message || `Erreur création salon Discord (${res.status})` };
+    } catch (error: any) {
+        logger.error("[Discord] Error creating ticket channel:", error);
+        return { success: false, error: error?.message || "Erreur création salon" };
+    }
+}
+
+/**
+ * Bascule Ouvert/Fermé des overwrites d'un salon de ticket (matrice du dashboard).
+ * Appliqué à la clôture (état `closed`) et à la réouverture (état `open`).
+ * Échec observé par l'appelant (jamais silencieux).
+ */
+export async function applyTicketChannelOverwrites(
+    channelId: string,
+    overwrites: Array<{ id: string; type: 0 | 1; allow: string; deny: string }>
+): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        for (const overwrite of overwrites) {
+            const res = await fetchWithRetry(
+                `/api/v10/channels/${channelId}/permissions/${overwrite.id}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                        "Content-Type": "application/json",
+                        "User-Agent": DISCORD_USER_AGENT,
+                    },
+                    body: JSON.stringify({
+                        type: overwrite.type,
+                        allow: overwrite.allow,
+                        deny: overwrite.deny,
+                    }),
+                }
+            );
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                return {
+                    success: false,
+                    error: errorData?.message || `Discord a refusé les permissions (${res.status})`,
+                };
+            }
+        }
+        return { success: true };
+    } catch (error: any) {
+        logger.error("[Discord] Error applying ticket overwrites:", error);
+        return { success: false, error: error?.message || "Erreur permissions salon" };
+    }
+}
+
+/**
+ * Add or remove member permission on a ticket channel
+ */
+export async function setMemberChannelPermissionDiscord(
+    channelId: string,
+    memberId: string,
+    allow: boolean
+): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        if (!allow) {
+            // Delete overwrite
+            const res = await fetchWithRetry(`/api/v10/channels/${channelId}/permissions/${memberId}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "User-Agent": DISCORD_USER_AGENT,
+                },
+            });
+            return { success: res.ok };
+        }
+
+        const allowBitmask = String(1024 | 2048 | 65536 | 32768 | 16384);
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/permissions/${memberId}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify({
+                type: 1, // member
+                allow: allowBitmask,
+                deny: "0",
+            }),
+        });
+
+        return { success: res.ok };
+    } catch (error: any) {
+        logger.error("[Discord] Error setting member channel permission:", error);
+        return { success: false, error: error?.message || "Erreur mise à jour permissions" };
+    }
+}
+
+/**
+ * Rename a Discord channel or thread
+ */
+export async function renameChannelDiscord(
+    channelId: string,
+    name: string
+): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}`, {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+            body: JSON.stringify({
+                name: name.toLowerCase().replace(/[^a-z0-9-_]/g, "-").slice(0, 100),
+            }),
+        });
+
+        return { success: res.ok };
+    } catch (error: any) {
+        logger.error("[Discord] Error renaming channel:", error);
+        return { success: false, error: error?.message || "Erreur renommage" };
+    }
+}
+
+/**
+ * Delete a Discord channel or thread
+ */
+export async function deleteChannelDiscord(channelId: string): Promise<{ success: boolean; error?: string }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { success: false, error: "Bot token manquant" };
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}`, {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+        });
+
+        return { success: res.ok };
+    } catch (error: any) {
+        logger.error("[Discord] Error deleting channel:", error);
+        return { success: false, error: error?.message || "Erreur suppression salon" };
+    }
+}
+
+/**
+ * Fetch **toutes** les pages de messages d'un salon (pagination par `before`).
+ *
+ * Pourquoi cette fonction existe (audit du 24/09/2026) : `fetchChannelMessagesDiscord`
+ * borne à 100 messages (`Math.min(limit, 100)`) et l'ancien code de clôture appelait
+ * `fetchChannelMessagesDiscord(channelId, 100)` en annonçant une archive « complète » —
+ * toute conversation de plus de 100 messages était donc silencieusement tronquée.
+ *
+ * Contrat :
+ *   · pagination jusqu'à épuisement **ou** jusqu'à `maxMessages` (plafond dur) ;
+ *   · l'ordre chronologique est rétabli (l'API rend du plus récent au plus ancien) ;
+ *   · `Complete` = `false` dès qu'une page n'est pas rendue en entier, sans lever
+ *     d'exception : l'appelant décide de l'honnêteté du message affiché ;
+ *   · une page en échec **arrête** la pagination (jamais de boucle infinie).
+ */
+export async function fetchChannelMessagesPagedDiscord(
+    channelId: string,
+    maxMessages: number = 5000
+): Promise<{ messages: any[]; complete: boolean }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return { messages: [], complete: false };
+
+    const pageSize = 100;
+    const collected: any[] = [];
+    let before: string | undefined;
+    let complete = true;
+
+    try {
+        for (;;) {
+            const remaining = maxMessages - collected.length;
+            if (remaining <= 0) {
+                complete = false;
+                break;
+            }
+
+            const limit = Math.min(pageSize, remaining);
+            const query = `limit=${limit}${before ? `&before=${before}` : ""}`;
+            const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages?${query}`, {
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "User-Agent": DISCORD_USER_AGENT,
+                },
+            });
+
+            if (!res.ok) {
+                // Page en échec : on s'arrête avec ce qu'on a, en le disant.
+                complete = false;
+                break;
+            }
+
+            const page = await res.json();
+            if (!Array.isArray(page) || page.length === 0) break;
+
+            collected.push(...page);
+            if (page.length < limit) break;
+
+            before = page[page.length - 1]?.id;
+            if (!before) {
+                complete = false;
+                break;
+            }
+        }
+    } catch (error: any) {
+        logger.error("[Discord] Error paging channel messages:", error);
+        complete = false;
+    }
+
+    // L'API rend du plus récent au plus ancien : on remet dans l'ordre de lecture.
+    return { messages: collected.reverse(), complete };
+}
+
+/**
+ * Fetch **une page** de messages (bornée à 100 par l'API Discord).
+ * ⚠️ Pour une archive, utiliser `fetchChannelMessagesPagedDiscord` : cette fonction
+ * seule tronque silencieusement une conversation longue.
+ */
+export async function fetchChannelMessagesDiscord(
+    channelId: string,
+    limit: number = 100
+): Promise<any[]> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return [];
+
+    try {
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}/messages?limit=${Math.min(limit, 100)}`, {
+            headers: {
+                Authorization: `Bot ${token}`,
+                "User-Agent": DISCORD_USER_AGENT,
+            },
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            return Array.isArray(data) ? data.reverse() : [];
+        }
+        return [];
+    } catch (error: any) {
+        logger.error("[Discord] Error fetching channel messages:", error);
+        return [];
+    }
+}
+
+// =============================================================================
+// VOICE STATE HELPER
+// Lit les membres actuellement en vocal sur un serveur Discord (API v10).
+// Utilisé par les rappels manuels pour filtrer ceux déjà connectés.
+// =============================================================================
+
+/**
+ * Lit l'état vocal d'un serveur Discord : map userId → channelId.
+ *
+ * Implémentation : endpoint `GET /guilds/:id/voice-states` (v10, paginé 100/page).
+ * Fail-open : en cas d'erreur, map vide (le rappel pinge tout le monde).
+ * Cache in-memory : 20 secondes.
+ */
+export async function getGuildVoiceStates(discordGuildId: string): Promise<Map<string, string>> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    const empty = new Map<string, string>();
+    if (!token || !discordGuildId) return empty;
+
+    const { isDiscordSnowflake } = await import("@/lib/discord-ids");
+    if (!isDiscordSnowflake(discordGuildId)) return empty;
+
+    const cacheKey = `voice-states:${discordGuildId}`;
+    const cached = getCached<Map<string, string>>(cacheKey);
+    if (cached) return cached;
+
+    const states = new Map<string, string>();
+
+    try {
+        let after: string | undefined;
+        for (let page = 0; page < 20; page++) {
+            const qs = after ? `?limit=100&after=${after}` : "?limit=100";
+            const res = await fetchWithRetry(`/api/v10/guilds/${discordGuildId}/voice-states${qs}`, {
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "User-Agent": DISCORD_USER_AGENT,
+                },
+                cache: "no-store",
+            });
+
+            if (!res.ok) {
+                if (res.status !== 403) {
+                    logger.warn(`[Discord] getGuildVoiceStates: HTTP ${res.status} sur ${discordGuildId}`);
+                }
+                break;
+            }
+
+            const rows: { user_id?: string; channel_id?: string | null }[] = await res.json();
+            if (!Array.isArray(rows) || rows.length === 0) break;
+
+            for (const row of rows) {
+                if (row.user_id && row.channel_id) states.set(row.user_id, row.channel_id);
+            }
+
+            if (rows.length < 100) break;
+            after = rows[rows.length - 1].user_id;
+        }
+    } catch (err) {
+        logger.warn("[Discord] getGuildVoiceStates: erreur réseau (fail-open)", { error: String(err) });
+    }
+
+    setCached(cacheKey, states, 20 * 1000);
+    return states;
+}
+
+/**
+ * Retourne l'ensemble des Discord snowflakes (user_id) actuellement connectés
+ * dans un salon vocal quelconque du serveur Discord `discordGuildId`.
+ *
+ * Fine couche sur `getGuildVoiceStates` (même endpoint, même cache 20 s).
+ * Fail-open : Set vide si erreur → le rappel pinge tout le monde.
+ */
+export async function getGuildVoiceMemberIds(discordGuildId: string): Promise<Set<string>> {
+    const states = await getGuildVoiceStates(discordGuildId);
+    return new Set(states.keys());
 }

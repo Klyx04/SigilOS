@@ -80,7 +80,7 @@ export function QuestActionsBlock({
         e.stopPropagation();
         const pos = entry.coords || (Array.isArray(entry.positions) ? entry.positions[0] : null);
         if (pos) {
-            copyWithToast(`/travel ${pos.x} ${pos.y}`);
+            copyWithToast(`/travel ${pos.x},${pos.y}`);
         }
     };
     const autopilotPos = entry.coords || (Array.isArray(entry.positions) ? entry.positions[0] : null);

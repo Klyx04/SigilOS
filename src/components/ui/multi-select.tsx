@@ -75,7 +75,9 @@ export function MultiSelect({
                                         {option?.icon && (
                                             <img src={option.icon} alt="" className="w-3.5 h-3.5 mr-1.5 object-contain" />
                                         )}
-                                        {option?.label || itemValue}
+                                        {/* Jamais un identifiant brut à l'écran (constat God du
+                                            12/10/2026) : si le libellé manque, on le dit. */}
+                                        {option?.label ?? "Référence inconnue"}
                                         <div
                                             className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer p-0.5 hover:bg-muted/50"
                                             onKeyDown={(e) => {

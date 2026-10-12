@@ -34,48 +34,42 @@ export default function GlobalError({
 
     return (
         <html lang="fr" className="dark">
-            <body className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} antialiased min-h-screen bg-[#0d0f11] flex flex-col items-center justify-center p-4 font-sans text-zinc-100 overflow-hidden`}>
+            <body className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} antialiased min-h-screen bg-background flex flex-col items-center justify-center p-4 font-sans text-foreground`}>
 
-                <div className="relative z-10 max-w-lg w-full animate-in fade-in zoom-in-95 duration-200">
-                    <div className="bg-black/40 backdrop-blur-xl border border-white/10 p-8 md:p-10 rounded-2xl shadow-2xl text-center ring-1 ring-white/5 relative overflow-hidden">
+                <div className="w-full max-w-lg">
+                    <div className="rounded-[6px] border border-border bg-surface p-8 text-center md:p-10">
 
-                        <div className="mx-auto w-20 h-20 bg-rose-500/10 rounded-2xl flex items-center justify-center mb-6 border border-rose-500/20">
-                            <ServerCrash className="w-10 h-10 text-rose-400" />
-                        </div>
+                        <ServerCrash className="mx-auto mb-6 h-10 w-10 text-danger" aria-hidden="true" />
 
-                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white mb-3">
-                            Erreur Système
+                        <h1 className="mb-3 text-title font-bold tracking-tight text-foreground">
+                            Erreur système
                         </h1>
-                        <p className="text-zinc-400 text-sm md:text-[15px] leading-relaxed mb-8 max-w-[95%] mx-auto">
-                            Une anomalie critique a provoqué le crash de l'interface. Pas de panique, <b className="text-white font-semibold">l'équipe de développement a été notifiée automatiquement</b>.
+                        <p className="mx-auto mb-8 max-w-[95%] text-body-sm leading-relaxed text-muted-foreground">
+                            Une anomalie critique a provoqué le crash de l'interface. Pas de panique, <b className="font-semibold text-foreground">l'équipe de développement a été notifiée automatiquement</b>.
                         </p>
 
                         {error.digest && (
-                            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black/60 border border-white/5 mb-8">
-                                <AlertOctagon className="w-4 h-4 text-rose-500" />
-                                <span className="text-zinc-500 font-mono text-caption uppercase tracking-wider">
+                            <p className="mb-8 inline-flex items-center gap-2 rounded-[4px] border border-border bg-elevated px-4 py-2.5">
+                                <AlertOctagon className="h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
+                                <span className="font-mono text-caption uppercase tracking-wider text-muted-foreground">
                                     Réf : {error.digest.slice(0, 16)}
                                 </span>
-                            </div>
+                            </p>
                         )}
 
-                        <div className="flex flex-col items-center justify-center gap-4">
-                            <button
-                                onClick={() => reset()}
-                                className="flex items-center justify-center gap-3 bg-zinc-100 hover:bg-white text-zinc-950 px-6 py-3 rounded-lg font-semibold transition-colors w-full sm:w-auto"
-                            >
-                                <RefreshCw className="w-4 h-4" />
-                                <span>Relancer l'interface</span>
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => reset()}
+                            className="inline-flex w-full items-center justify-center gap-3 rounded-[4px] bg-primary px-6 py-3 text-body-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto"
+                        >
+                            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                            <span>Relancer l'interface</span>
+                        </button>
                     </div>
                 </div>
 
-                <div className="absolute bottom-8 left-0 right-0 text-center opacity-40 hover:opacity-100 transition-opacity">
-                    <span className="text-caption font-medium uppercase tracking-wider text-zinc-600">
-                        SigilOS • System Recovery
-                    </span>
-                </div>
+                <p className="absolute bottom-8 left-0 right-0 text-center text-caption uppercase tracking-wider text-muted-foreground">
+                    SigilOS · System Recovery
+                </p>
             </body>
         </html>
     );

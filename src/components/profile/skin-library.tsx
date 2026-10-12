@@ -259,14 +259,6 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
     };
 
 
-    const getProviderIcon = (provider: string) => {
-        switch (provider) {
-            case "BARBOFUS": return "/assets/ui/icons/barbofus.png";
-            case "DOFUSSKINMANGA": return "/assets/ui/icons/dofusskinmanga.png"; 
-            default: return null;
-        }
-    };
-
     return (
         <div className="flex flex-col gap-6">
             {/* Header / Actions */}
@@ -588,7 +580,7 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                     return (
                                         <div className="flex items-center gap-2.5 bg-background/80 backdrop-blur-2xl px-3 py-2 rounded-2xl border border-border shadow-2xl overflow-hidden group/badge">
                                             <div className="w-5 h-5 relative shrink-0">
-                                                <NextImage src={classData?.icon || "/assets/dofus/classes/1.png"} alt="Classe" fill className="object-contain" />
+                                                <NextImage src={classData?.icon || "/assets/dofus/classes/1.png"} alt="Classe" fill sizes="20px" className="object-contain" />
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-caption font-black text-foreground tracking-widest uppercase truncate max-w-[80px]">

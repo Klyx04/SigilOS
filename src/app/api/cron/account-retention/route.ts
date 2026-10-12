@@ -21,11 +21,29 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const startedAt = Date.now();
+
     try {
         const summary = await purgeOrphanAccountsCore({ retentionDays: 90, max: 50, source: "CRON" });
-        return NextResponse.json({ success: true, summary });
+        const durationMs = Date.now() - startedAt;
+
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("account_retention", {
+            success: true,
+            durationMs,
+            summary: `Purge RGPD : ${summary.deleted} compte(s) supprimé(s) sur ${summary.scanned} scanné(s)`,
+            details: summary,
+        });
+
+        return NextResponse.json({ success: true, summary, durationMs });
     } catch (error: any) {
         logger.error("[AccountRetentionCron] Global Error:", error);
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("account_retention", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur purge: ${error.message || "Erreur interne"}`,
+        });
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }

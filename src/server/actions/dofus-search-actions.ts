@@ -1,4 +1,7 @@
 "use server";
+import fs from "node:fs";
+import path from "node:path";
+
 import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
@@ -21,6 +24,7 @@ export async function searchDungeonsLocal(query: string) {
             success: true, 
             data: dungeons.map(d => ({
                 id: d.id.toString(),
+                slug: d.slug ?? null,
                 name: d.name,
                 bossName: d.bossName,
                 // #148 — icône RÉELLE du donjon game-data (webp local siphonné) si dispo
@@ -47,12 +51,47 @@ export async function searchItemsDofusDB(query: string) {
             data: (data.data || []).map((it: any) => ({
                 id: it.id.toString(),
                 name: it.name.fr,
-                imageUrl: it.img || `https://static.dofusdb.fr/items/illustr/${it.iconId}.png`,
-                level: it.level
+                imageUrl: it.img || (it.iconId ? `https://static.dofusdb.fr/items/illustr/${it.iconId}.png` : "/assets/missions/fragment.png"),
+                level: it.level || 1
             }))
         };
     } catch (error) {
         return { success: false, error: "Erreur DofusDB" };
+    }
+}
+
+export async function searchItemsLocalThenDofusDB(query: string) {
+    if (!query || query.length < 2) return { success: true, data: [] };
+    try {
+        const escaped = query.normalize("NFC").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const cleanQuery = escaped.replace(/['\u2019]/g, "['\\u2019]");
+
+        const dofusUrl = new URL("https://api.dofusdb.fr/items");
+        dofusUrl.searchParams.set("name.fr[$regex]", cleanQuery);
+        dofusUrl.searchParams.set("name.fr[$options]", "i");
+        dofusUrl.searchParams.set("$limit", "15");
+        dofusUrl.searchParams.set("lang", "fr");
+
+        const res = await fetch(dofusUrl.toString(), { cache: 'no-store' });
+        if (!res.ok) {
+            return await searchItemsDofusDB(query);
+        }
+        
+        const data = await res.json();
+        return {
+            success: true,
+            data: (data.data || []).map((it: any) => ({
+                id: it.id.toString(),
+                name: it.name?.fr || it.name || "Item",
+                imageUrl: it.img || (it.iconId ? `https://static.dofusdb.fr/items/illustr/${it.iconId}.png` : "/assets/missions/fragment.png"),
+                level: it.level || 1,
+                typeId: it.type?.id,
+                typeName: it.type?.name?.fr
+            }))
+        };
+    } catch (error) {
+        logger.error("[searchItemsLocalThenDofusDB] Error:", error);
+        return { success: false, error: "Erreur recherche items" };
     }
 }
 
@@ -273,6 +312,81 @@ export async function searchGuideQuests(query: string) {
     } catch (error) {
         logger.error("[searchGuideQuests] Error:", error);
         return { success: false, error: "Erreur recherche quêtes" };
+    }
+}
+
+interface ClientNpcEntry {
+    id: number;
+    name: string;
+    look: string;
+    gender: number;
+}
+
+/**
+ * Référentiel PNJ siphonné du client (`prisma/seed-data/npcs/npcs-client.json`,
+ * `scripts/siphon-npcs-client.py`) — chargé une fois par process, jamais
+ * depuis le réseau : la recherche God fonctionne même si DofusDB est down.
+ */
+let cachedClientNpcs: ClientNpcEntry[] | null = null;
+
+function loadClientNpcs(): ClientNpcEntry[] {
+    if (cachedClientNpcs) return cachedClientNpcs;
+    try {
+        const npcsPath = path.join(process.cwd(), "prisma", "seed-data", "npcs", "npcs-client.json");
+        if (fs.existsSync(npcsPath)) {
+            const parsed: unknown = JSON.parse(fs.readFileSync(npcsPath, "utf8"));
+            if (Array.isArray(parsed)) {
+                cachedClientNpcs = (parsed as ClientNpcEntry[]).filter(
+                    (npc) =>
+                        Number.isInteger(npc?.id) &&
+                        typeof npc?.name === "string" &&
+                        npc.name.length > 0 &&
+                        !npc.name.includes("�"),
+                );
+            }
+        }
+    } catch (e) {
+        logger.error("[searchNpcsLocal] Référentiel PNJ illisible:", e);
+    }
+    return cachedClientNpcs ?? [];
+}
+
+/** Normalisation insensible accents/casse pour la recherche (« meriana » → Mériana). */
+function normalizeNpcName(value: string): string {
+    return value
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toLowerCase();
+}
+
+/**
+ * Recherche de PNJ **100 % locale** (nom exact du client, `look`, genre) pour
+ * les éditeurs God (quêtes par Dofus, rush Sylvestre). DofusDB `/npcs` ne sert
+ * ni image ni position : le référentiel client est la seule source complète.
+ */
+export async function searchNpcsLocal(query: string) {
+    if (!query || query.length < 2) return { success: true, data: [] };
+
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non autorisé" };
+
+    try {
+        const needle = normalizeNpcName(query.trim());
+        const matches = loadClientNpcs()
+            .filter((npc) => normalizeNpcName(npc.name).includes(needle))
+            .slice(0, 15)
+            .map((npc) => ({
+                id: npc.id.toString(),
+                npcId: npc.id,
+                name: npc.name,
+                look: npc.look,
+                gender: npc.gender,
+                source: "client",
+            }));
+        return { success: true, source: "client", data: matches };
+    } catch (error) {
+        logger.error("[searchNpcsLocal] Error:", error);
+        return { success: false, error: "Erreur recherche PNJ" };
     }
 }
 

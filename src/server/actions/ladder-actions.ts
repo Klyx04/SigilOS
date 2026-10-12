@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { z } from "zod";
 import { withCache } from "@/lib/cache";
+import { applyLadderSearch } from "@/lib/ladder-utils";
 
 // ============================================================================
 // TYPES
@@ -58,7 +59,8 @@ export async function getPresenceLadder(
     metric: "messages" | "voice" | "characters" | "reactions" | "stream" | "replies",
     view: ActivityView = "weekly",
     page: number = 1,
-    pageSize: number = 25
+    pageSize: number = 25,
+    search: string = ""
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
@@ -151,8 +153,9 @@ export async function getPresenceLadder(
             });
         });
 
-        const totalCount = allRankedData.length;
-        const paginatedData = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+        const rankedData = applyLadderSearch(allRankedData, search);
+        const totalCount = rankedData.length;
+        const paginatedData = rankedData.slice(skip, skip + pageSize).map((item: any) => ({
             ...item,
             isCurrentUser: item.profileId === currentProfile?.id
         }));
@@ -180,7 +183,8 @@ export async function getActivityLadder(
     guildId: string,
     view: ActivityView = "monthly",
     page: number = 1,
-    pageSize: number = 25
+    pageSize: number = 25,
+    search: string = ""
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
@@ -313,8 +317,9 @@ export async function getActivityLadder(
                 }));
             });
 
-            const totalCount = allRankedData.length;
-            const paginatedData = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+            const rankedData = applyLadderSearch(allRankedData, search);
+        const totalCount = rankedData.length;
+            const paginatedData = rankedData.slice(skip, skip + pageSize).map((item: any) => ({
                 ...item,
                 isCurrentUser: item.profileId === currentProfile?.id
             }));
@@ -368,8 +373,9 @@ export async function getActivityLadder(
                 });
             });
 
-            const totalCount = allRankedData.length;
-            const paginatedData = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+            const rankedData = applyLadderSearch(allRankedData, search);
+        const totalCount = rankedData.length;
+            const paginatedData = rankedData.slice(skip, skip + pageSize).map((item: any) => ({
                 ...item,
                 isCurrentUser: item.profileId === currentProfile?.id
             }));
@@ -396,7 +402,8 @@ export async function getActivityLadder(
 export async function getSeniorityLadder(
     guildId: string,
     page: number = 1,
-    pageSize: number = 25
+    pageSize: number = 25,
+    search: string = ""
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
@@ -470,8 +477,9 @@ export async function getSeniorityLadder(
             });
         });
 
-        const totalCount = allRankedData.length;
-        const entries = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+        const rankedData = applyLadderSearch(allRankedData, search);
+        const totalCount = rankedData.length;
+        const entries = rankedData.slice(skip, skip + pageSize).map((item: any) => ({
             ...item,
             isCurrentUser: item.profileId === currentProfile?.id
         }));
@@ -497,7 +505,8 @@ export async function getSeniorityLadder(
 export async function getSuccessLadder(
     guildId: string,
     page: number = 1,
-    pageSize: number = 25
+    pageSize: number = 25,
+    search: string = ""
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
@@ -571,8 +580,9 @@ export async function getSuccessLadder(
             });
         });
 
-        const totalCount = allRankedData.length;
-        const entries = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+        const rankedData = applyLadderSearch(allRankedData, search);
+        const totalCount = rankedData.length;
+        const entries = rankedData.slice(skip, skip + pageSize).map((item: any) => ({
             ...item,
             isCurrentUser: item.profileId === currentProfile?.id
         }));
@@ -598,7 +608,8 @@ export async function getSuccessLadder(
 export async function getGeneralLadder(
     guildId: string,
     page: number = 1,
-    pageSize: number = 25
+    pageSize: number = 25,
+    search: string = ""
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
@@ -675,8 +686,9 @@ export async function getGeneralLadder(
             });
         });
 
-        const totalCount = allRankedData.length;
-        const entries = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+        const rankedData = applyLadderSearch(allRankedData, search);
+        const totalCount = rankedData.length;
+        const entries = rankedData.slice(skip, skip + pageSize).map((item: any) => ({
             ...item,
             isCurrentUser: item.profileId === currentProfile?.id
         }));
@@ -702,7 +714,8 @@ export async function getGeneralLadder(
 export async function getContributionLadder(
     guildId: string,
     page: number = 1,
-    pageSize: number = 25
+    pageSize: number = 25,
+    search: string = ""
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
@@ -776,8 +789,9 @@ export async function getContributionLadder(
             });
         });
 
-        const totalCount = allRankedData.length;
-        const entries = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+        const rankedData = applyLadderSearch(allRankedData, search);
+        const totalCount = rankedData.length;
+        const entries = rankedData.slice(skip, skip + pageSize).map((item: any) => ({
             ...item,
             isCurrentUser: item.profileId === currentProfile?.id
         }));
@@ -805,7 +819,8 @@ export async function getGuildatonsLadder(
     guildId: string,
     view: ActivityView = "alltime",
     page: number = 1,
-    pageSize: number = 25
+    pageSize: number = 25,
+    search: string = ""
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
@@ -930,8 +945,9 @@ export async function getGuildatonsLadder(
                 }));
             });
 
-            const totalCount = allRankedData.length;
-            const paginatedData = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+            const rankedData = applyLadderSearch(allRankedData, search);
+        const totalCount = rankedData.length;
+            const paginatedData = rankedData.slice(skip, skip + pageSize).map((item: any) => ({
                 ...item,
                 isCurrentUser: item.profileId === currentProfile?.id
             }));
@@ -985,8 +1001,9 @@ export async function getGuildatonsLadder(
                 });
             });
 
-            const totalCount = allRankedData.length;
-            const paginatedData = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+            const rankedData = applyLadderSearch(allRankedData, search);
+        const totalCount = rankedData.length;
+            const paginatedData = rankedData.slice(skip, skip + pageSize).map((item: any) => ({
                 ...item,
                 isCurrentUser: item.profileId === currentProfile?.id
             }));
@@ -1014,7 +1031,8 @@ export async function getRaidLadder(
     guildId: string,
     raidType: "all" | "jardin" | "gigalodon" = "all",
     page: number = 1,
-    pageSize: number = 25
+    pageSize: number = 25,
+    search: string = ""
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
@@ -1187,8 +1205,9 @@ export async function getRaidLadder(
                 rank: idx + 1
             }));
 
-        const totalCount = entries.length;
-        const paginatedData = entries.slice(skip, skip + pageSize).map((item) => ({
+        const rankedEntries = applyLadderSearch(entries, search);
+        const totalCount = rankedEntries.length;
+        const paginatedData = rankedEntries.slice(skip, skip + pageSize).map((item) => ({
             ...item,
             isCurrentUser: item.profileId === currentProfile?.id
         }));
@@ -1205,6 +1224,60 @@ export async function getRaidLadder(
     } catch (error) {
         logger.error("[getRaidLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement des raids" };
+    }
+}
+
+/**
+ * Dernière synchro ladder de la guilde (affichée dans le module pour que les
+ * membres sachent d'où datent les chiffres). Base : MAX(lastLadderUpdate) des
+ * profils actifs avec pseudo — aucune migration, toujours frais.
+ */
+export async function getLadderSyncInfo(
+    guildId: string
+): Promise<ActionResponse<{ lastSyncAt: string | null; syncedCount: number; totalCount: number }>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return { success: false, error: "Non authentifié" };
+        }
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+
+        if (!guildConfig) {
+            return { success: false, error: "Guilde non trouvée" };
+        }
+
+        const scope = {
+            guildId: guildConfig.id,
+            status: "ACTIVE" as const,
+            pseudoDofus: { not: null },
+        };
+
+        const [agg, syncedCount] = await Promise.all([
+            db.userProfile.aggregate({
+                where: scope,
+                _max: { lastLadderUpdate: true },
+                _count: { _all: true },
+            }),
+            db.userProfile.count({
+                where: { ...scope, lastLadderUpdate: { not: null } },
+            }),
+        ]);
+
+        return {
+            success: true,
+            data: {
+                lastSyncAt: agg._max.lastLadderUpdate?.toISOString() ?? null,
+                syncedCount,
+                totalCount: agg._count._all,
+            }
+        };
+    } catch (error) {
+        logger.error("[getLadderSyncInfo] Error:", error);
+        return { success: false, error: "Erreur lors du chargement des infos de synchro" };
     }
 }
 

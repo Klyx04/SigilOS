@@ -1,8 +1,22 @@
+/**
+ * Télémétrie — tracker d'usage du dashboard (client).
+ *
+ * Règles appliquées ici (chantier D-2) :
+ * 1. **Aucune empreinte** : plus de `userAgent` ni de `screen` dans `details` (couple UA + taille
+ *    d'écran ≈ identifiant persistant). Le serveur re-filtre de toute façon
+ *    (`sanitizeTelemetryDetails`), en défense en profondeur.
+ * 2. **Identifiants lisibles** : `data-telemetry-id` est prioritaire ; à défaut on capture un
+ *    identifiant normalisé (`auto:nav:<motif>`), au lieu de l'ancien `auto:nav:<href>` qui créait
+ *    une clé différente par guilde (CUID dans l'URL).
+ * 3. Une seule garde de chemin (`isTrackedPath`) : le panneau God ne se surveille pas lui-même.
+ */
+
 "use client";
 
 import { useEffect, useRef } from "react";
 import { usePathname, useParams } from "next/navigation";
 import { logTelemetryEvent } from "@/server/actions/telemetry-actions";
+import { isTrackedPath, normalizePathPattern } from "@/lib/telemetry/normalize";
 
 export function TelemetryTracker() {
     const pathname = usePathname();
@@ -13,7 +27,7 @@ export function TelemetryTracker() {
 
     // 1. PAGE_VIEW Tracking
     useEffect(() => {
-        if (!pathname) return;
+        if (!pathname || !isTrackedPath(pathname)) return;
         
         // Prevent double logging of the same route path on first render/hydration
         if (lastPathRef.current === pathname) return;
@@ -22,26 +36,20 @@ export function TelemetryTracker() {
         // Skip tracking the admin page itself to avoid infinite logging loops or admin telemetry clutter if needed, 
         // but tracking the general /dashboard paths is exactly what the user wants.
         // We will track everything, except maybe the god panel itself to avoid self-monitoring clutter.
-        if (pathname.startsWith("/god")) return;
+        // (l'exclusion du panneau God est portée par `isTrackedPath`, source unique)
 
         const recordPageView = async () => {
             try {
-                let userAgentDetails = {};
-                if (typeof window !== "undefined") {
-                    userAgentDetails = {
-                        userAgent: window.navigator.userAgent,
-                        language: window.navigator.language,
-                        screen: `${window.screen.width}x${window.screen.height}`,
-                    };
-                }
+                // Langue uniquement : user-agent et résolution d'écran retirés (zéro empreinte).
+                const details = typeof window !== "undefined" ? { language: window.navigator.language } : {};
 
                 await logTelemetryEvent({
                     guildId: guildId || null,
                     path: pathname,
                     eventType: "PAGE_VIEW",
-                    details: userAgentDetails,
+                    details,
                 });
-            } catch (err) {
+            } catch {
                 // Fail silently to not impact user experience
             }
         };
@@ -80,8 +88,9 @@ export function TelemetryTracker() {
                         const id = target.id;
                         if (id) {
                             telemetryId = `auto:${target.tagName.toLowerCase()}:${id}`;
-                        } else if (href && (href.startsWith("/dashboard") || href.includes("tab="))) {
-                            telemetryId = `auto:nav:${href}`;
+                        } else if (target.tagName === "A" && href && href.startsWith("/dashboard")) {
+                            // Motif de chemin : une seule clé pour toutes les guildes (pas de CUID).
+                            telemetryId = `auto:nav:${normalizePathPattern(href.split("?")[0])}`;
                         }
                         elementLabel = target.innerText || target.getAttribute("aria-label");
                         break;
@@ -101,7 +110,7 @@ export function TelemetryTracker() {
                         }
                     });
                 }
-            } catch (err) {
+            } catch {
                 // Fail silently
             }
         };

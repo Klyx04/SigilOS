@@ -23,12 +23,21 @@ export const GOD_BRICKS = [
     { id: "storage",        label: "Stockage & Captures",    scope: null, group: "supervision", subGodAccess: false },
     { id: "notifications",  label: "Alertes Système",       scope: null, group: "supervision", subGodAccess: false },
     { id: "mini-games",     label: "Mini-Jeux",             scope: null, group: "supervision", subGodAccess: false },
+    // A2 · G12 — coupure **globale** d'un module (toutes guildes) + message de
+    // maintenance. Super-admin only : une brique plateforme ne s'ouvre pas à un
+    // sous-god. La vue vit dans un onglet de `/god` (`?tab=modules`).
+    { id: "modules",        label: "Modules & maintenance", scope: null, group: "supervision", subGodAccess: false },
+    // S8.18 — supervision du Marché : agrégats cross-guild ⇒ super-admin seul.
+    { id: "market",         label: "Marché (supervision)",  scope: null, group: "supervision", subGodAccess: false },
 
     // ─── Administration (sécurité) ─────────────────────────────────────────
-    { id: "security",       label: "Sécurité & Logs",       scope: null, group: "admin",       subGodAccess: false },
-    { id: "logs",           label: "Audit Logs (Archive)",   scope: null, group: "admin",       subGodAccess: false },
+    // 🧭 G11 · A11 — les journaux sont **une seule porte** (`/god/logs`, 5 onglets :
+    // plateforme, guilde en lecture seule, accès refusés, Marché, accès délégués).
+    // L'ancienne brique `security` (même écran, même `AuditLog`) est **fusionnée ici**.
+    { id: "logs",           label: "Journaux & audit",        scope: null, group: "admin",       subGodAccess: false },
     { id: "delegates",      label: "Sous-Gods (accès)",     scope: null, group: "admin",       subGodAccess: false },
-    { id: "onboarding",     label: "Onboarding B2B",        scope: null, group: "admin",       subGodAccess: false },
+    { id: "api-keys",       label: "Clés d'API & Dev",      scope: null, group: "admin",       subGodAccess: false },
+    { id: "slash-commands", label: "Commandes Slash",       scope: null, group: "admin",       subGodAccess: false },
 
     // ─── Guildes (sous-god partiel : whitelist + roster, SANS actions destructives) ──
     { id: "guilds",         label: "Guildes & Users",       scope: "guilds", group: "admin",    subGodAccess: true },
@@ -40,14 +49,12 @@ export const GOD_BRICKS = [
     // ─── Game-Data (ouvrable aux sous-gods) ────────────────────────────────
     { id: "game-data",           label: "Données de Jeu",    scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-quests",    label: "Base Monstres",     scope: "game-data", group: "game-data", subGodAccess: true },
-    { id: "game-data-bounties",  label: "Avis de Recherche", scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-quetes",    label: "Quêtes Dofus",      scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-guides",    label: "Guides Optim.",     scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-rush",      label: "Rush Sylvestre",    scope: "game-data", group: "game-data", subGodAccess: true },
 
     // ─── Fermé aux sous-gods (jamais) ──────────────────────────────────────
     { id: "bugs",           label: "Bugs & Suggs",  scope: null, group: "game-data", subGodAccess: false },
-    { id: "roadmap",        label: "Roadmap Pro",   scope: null, group: "tools",     subGodAccess: false },
     { id: "changelog",      label: "Changelog",     scope: null, group: "tools",     subGodAccess: false },
 ] as const;
 

@@ -17,9 +17,31 @@
 import { createHash } from "node:crypto";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
 import { dofensiveFetch, norm } from "@/lib/dofensive-fetch";
-import type { DofensiveSpellCombat } from "@/lib/dofensive-spells";
-import type { DofensiveDungeonInfo, DofensiveMapData } from "@/server/actions/dofensive-actions";
+import {
+    COMBAT_SPELLS_PAYLOAD_VERSION,
+    isCombatSpellsPayloadOutdated,
+    type DofensiveSpellCombat,
+} from "@/lib/dofensive-spells";
+import type { DofensiveDungeonInfo, DofensiveMapData } from "@/lib/dofensive-api";
+import { getQilbyCustomMapData, getQilbyDungeonInfo, QILBY_MAP_ID } from "@/lib/qilby-map";
+
+/**
+ * 🔍 Blocs d'une fiche monstre/boss suivis par le **journal des changements** (dataset
+ * `ANOMALY_BOSSES`). `versionHash` détecte « la fiche a changé » ; ces clés donnent le **détail**.
+ * Les blocs volumineux (`grades`, `drops`, `spells`) sont bornés à l'écriture (`summarizeValue`).
+ */
+const MONSTER_CHANGE_KEYS = [
+    "name",
+    "level",
+    "dungeonName",
+    "grades",
+    "drops",
+    "spells",
+    "resistances",
+    "isBoss",
+] as const;
 
 export const SYNC_TTL = 24 * 60 * 60 * 1000; // 24 h — donnée de jeu statique
 /** Les tests vitest ne doivent jamais toucher PostgreSQL (les stubs fetch font foi). */
@@ -55,35 +77,102 @@ export function normName(s: string): string {
     return norm(s);
 }
 
+/**
+ * Lecture locale **hors contrôle de fraîcheur** (Lot 1 « stale-while-offline »).
+ *
+ * `stale = true` ⇒ la ligne **EXISTE** mais dépasse le TTL : elle doit être **servie**
+ * (datée côté UI — Lot 6), jamais transformée en absence. Sinon une péremption devient une
+ * **bascule live silencieuse** : c'est la cause racine de la panne du 15/09/2026 (crontab
+ * cassé ⇒ données > 24 h ⇒ `null` ⇒ appel live ⇒ panne amont = panne utilisateur).
+ *
+ * `null` ⇒ **aucune** ligne en base : seul cas où un repli live est légitime.
+ */
+export interface LocalStaleResult<T> {
+    data: T;
+    lastSyncedAt: Date | null;
+    stale: boolean;
+    /** Version de FORME du payload stocké (`stats.spellsVersion`) — `null` si inconnue/absente. */
+    payloadVersion: number | null;
+    /**
+     * `true` quand la ligne porte une forme ANTÉRIEURE du payload (siphon d'avant le lot 3a :
+     * aucun `effectDetails[].damage`). Elle est **servie** (jamais transformée en absence) mais
+     * **pas considérée comme valide** : le lecteur la rafraîchit depuis la source quand il le peut.
+     * Cause racine mesurée le 22/09/2026 (0 ligne sur 256 portait le jet ⇒ « Aucun dégât » partout).
+     */
+    payloadOutdated: boolean;
+}
+
+/**
+ * Emballage commun : `stale` = ligne présente mais plus vieille que `SYNC_TTL` ;
+ * `payloadOutdated` = forme du payload dépassée (voir `COMBAT_SPELLS_PAYLOAD_VERSION`) —
+ * les deux sont **indépendants** (une ligne fraîche peut porter une forme obsolète).
+ */
+export function toStaleResult<T>(
+    data: T,
+    lastSyncedAt: Date | string | null | undefined,
+    payloadVersion: unknown = null
+): LocalStaleResult<T> {
+    const at = lastSyncedAt
+        ? (typeof lastSyncedAt === "string" ? new Date(lastSyncedAt) : lastSyncedAt)
+        : null;
+    const version = Number(payloadVersion);
+    return {
+        data,
+        lastSyncedAt: at instanceof Date && !Number.isNaN(at.getTime()) ? at : null,
+        stale: !isFresh(lastSyncedAt),
+        payloadVersion: Number.isFinite(version) ? version : null,
+        payloadOutdated: isCombatSpellsPayloadOutdated(payloadVersion),
+    };
+}
+
+/**
+ * Garde partagée des sorts locaux : ne servir QUE des sorts de combat Dofensive
+ * (`apCost` numérique + `effects` tableau) — jamais un payload DofusDB brut.
+ */
+export function pickCombatSpells(spells: unknown): DofensiveSpellCombat[] | null {
+    if (!Array.isArray(spells) || spells.length === 0) return null;
+    const combat = spells.filter((s: any) => s && typeof s?.apCost === "number" && Array.isArray(s?.effects));
+    return combat.length > 0 ? (combat as DofensiveSpellCombat[]) : null;
+}
+
 
 // ─── Local-first getters (utilisés par les actions) ─────────────────────────
 
-/** Lit une map Dofensive dans PostgreSQL (null si absente/périmée ou DB KO). */
-export async function getLocalDofensiveMap(mapId: number): Promise<DofensiveMapData | null> {
+/** Lit une map Dofensive SANS contrôle de fraîcheur (Lot 1) — `null` si la ligne est absente. */
+export async function getLocalDofensiveMapAny(mapId: number): Promise<LocalStaleResult<DofensiveMapData> | null> {
     if (!DB_READABLE) return null;
+    if (mapId === QILBY_MAP_ID) {
+        return toStaleResult<DofensiveMapData>(getQilbyCustomMapData(), new Date());
+    }
     try {
         const row = await db.dofensiveMap.findUnique({ where: { mapId } });
-        if (!row || !isFresh(row.lastSyncedAt)) return null;
-        const cells = row.cells as number[][];
-        const allyCells = row.allyCells as number[];
-        const enemyCells = row.enemyCells as number[];
+        if (!row) return null;
         const subarea = (row.subarea as { id: number; name: string } | null) ?? null;
         const coords = (row.coords as { x: number; y: number } | null) ?? null;
-        return {
-            id: row.mapId,
-            name: row.name,
-            subarea,
-            dungeon: row.dungeonId ? { id: row.dungeonId, name: row.name } : null,
-            isBossMap: row.isBossMap,
-            coordinates: coords,
-            cells,
-            allyCells,
-            enemyCells,
-        };
+        return toStaleResult<DofensiveMapData>(
+            {
+                id: row.mapId,
+                name: row.name,
+                subarea,
+                dungeon: row.dungeonId ? { id: row.dungeonId, name: row.name } : null,
+                isBossMap: row.isBossMap,
+                coordinates: coords,
+                cells: row.cells as number[][],
+                allyCells: row.allyCells as number[],
+                enemyCells: row.enemyCells as number[],
+            },
+            row.lastSyncedAt
+        );
     } catch (error) {
-        logger.warn("[dofensive-sync] getLocalDofensiveMap échec:", { error: String(error) });
+        logger.warn("[dofensive-sync] getLocalDofensiveMapAny échec:", { error: String(error) });
         return null;
     }
+}
+
+/** Lit une map Dofensive dans PostgreSQL (null si absente/périmée ou DB KO). */
+export async function getLocalDofensiveMap(mapId: number): Promise<DofensiveMapData | null> {
+    const hit = await getLocalDofensiveMapAny(mapId);
+    return hit && !hit.stale ? hit.data : null;
 }
 
 /** Persiste une map après un fetch live (self-healing). Fire-and-forget côté appelant. */
@@ -123,14 +212,83 @@ export async function persistDofensiveMap(data: DofensiveMapData): Promise<void>
     }
 }
 
-/** Lit un donjon Dofensive (local) et cherche le boss — null si absent/périmé. */
-export async function getLocalDofensiveDungeon(
+/**
+ * Siphonne UNE map Dofensive par ID (fetch + persistance locale) — utilisé par le siphon des
+ * boss d'anomalie : leurs cartes de combat ne figurent dans AUCUN donjon (`PreferredMaps` du
+ * monstre), donc `syncDofensiveMaps` ne les couvre pas. `force` ignore le cache mémoire/DB.
+ * Fail-closed : toute erreur réseau renvoie false (la donnée précédente reste servie).
+ */
+export async function siphonDofensiveMapById(mapId: number, force = false): Promise<boolean> {
+    if (!DB_READABLE) return false;
+    const id = Number(mapId);
+    if (!Number.isFinite(id) || !Number.isInteger(id) || id <= 0) return false;
+    try {
+        if (!force) {
+            const existing = await db.dofensiveMap.findUnique({ where: { mapId: id } });
+            if (existing && isFresh(existing.lastSyncedAt)) return true;
+        }
+
+        // Cas particulier : map de combat de Qilby générée localement (absente de Dofensive)
+        let data: DofensiveMapData;
+        if (id === QILBY_MAP_ID) {
+            data = getQilbyCustomMapData();
+        } else {
+            const raw = await dofensiveFetch<any>(`/maps/${id}?lang=fr`, `sync-anomaly-map-${id}`, true);
+            const item = Array.isArray(raw) ? raw[0] : raw;
+            if (!item) return false;
+            data = normalizeMapItem(item);
+        }
+        const hash = hashPayload(data);
+        await db.dofensiveMap.upsert({
+            where: { mapId: id },
+            create: {
+                mapId: data.id,
+                name: data.name,
+                dungeonId: data.dungeon?.id ?? null,
+                subarea: data.subarea ?? undefined,
+                coords: data.coordinates ?? undefined,
+                cells: data.cells,
+                allyCells: data.allyCells,
+                enemyCells: data.enemyCells,
+                isBossMap: data.isBossMap,
+                versionHash: hash,
+                lastSyncedAt: new Date(),
+            },
+            update: {
+                name: data.name,
+                dungeonId: data.dungeon?.id ?? null,
+                subarea: data.subarea ?? undefined,
+                coords: data.coordinates ?? undefined,
+                cells: data.cells,
+                allyCells: data.allyCells,
+                enemyCells: data.enemyCells,
+                isBossMap: data.isBossMap,
+                versionHash: hash,
+                lastSyncedAt: new Date(),
+            },
+        });
+        return true;
+    } catch (error) {
+        logger.warn("[dofensive-sync] siphonDofensiveMapById échec:", { error: String(error) });
+        return false;
+    }
+}
+
+/** Lit un donjon Dofensive local SANS contrôle de fraîcheur (Lot 1) — `null` si aucun hit. */
+export async function getLocalDofensiveDungeonAny(
     bossName: string,
     dungeonName?: string
-): Promise<DofensiveDungeonInfo | null> {
+): Promise<LocalStaleResult<DofensiveDungeonInfo> | null> {
     if (!DB_READABLE || !bossName) return null;
+
+    // Cas particulier : Qilby (Gardien d'anomalie sans donjon Dofensive standard)
+    const key = norm(bossName);
+    const dKey = dungeonName ? norm(dungeonName) : "";
+    if (key === "qilby" || dKey.includes("hauteurs de l'inglorium") || dKey.includes("inglorium")) {
+        return toStaleResult<DofensiveDungeonInfo>(getQilbyDungeonInfo(), new Date());
+    }
+
     try {
-        const key = norm(bossName);
         const rows = await db.dofensiveDungeon.findMany();
         const hits = rows.filter((r) => {
             const monsters = r.monsters as { id: number; name: string }[];
@@ -143,38 +301,100 @@ export async function getLocalDofensiveDungeon(
             const dk = norm(dungeonName);
             hit = hits.find((r) => norm(r.name).includes(dk)) ?? hits[0];
         }
-        if (!isFresh(hit.lastSyncedAt)) return null;
 
         const monsters = (hit.monsters as { id: number; name: string }[]) ?? [];
-        return {
-            dungeonId: hit.dungeonId,
-            dungeonName: hit.name,
-            maps: ((hit.maps as { id: number; name: string; isBoss?: boolean }[]) ?? []).map((m) => ({
-                id: m.id,
-                name: m.name,
-                isBoss: !!m.isBoss,
-            })),
-            monsters,
-            bossMonsterId: hit.bossMonsterId,
-        };
+        return toStaleResult<DofensiveDungeonInfo>(
+            {
+                dungeonId: hit.dungeonId,
+                dungeonName: hit.name,
+                maps: ((hit.maps as { id: number; name: string; isBoss?: boolean }[]) ?? []).map((m) => ({
+                    id: m.id,
+                    name: m.name,
+                    isBoss: !!m.isBoss,
+                })),
+                monsters,
+                bossMonsterId: hit.bossMonsterId,
+            },
+            hit.lastSyncedAt
+        );
     } catch (error) {
-        logger.warn("[dofensive-sync] getLocalDofensiveDungeon échec:", { error: String(error) });
+        logger.warn("[dofensive-sync] getLocalDofensiveDungeonAny échec:", { error: String(error) });
         return null;
     }
 }
 
-/** Lit une fiche monstre locale par nom normalisé — null si absente/périmée. */
-export async function getLocalMonsterStat(monsterName: string): Promise<any | null> {
+/** Lit un donjon Dofensive (local) et cherche le boss — null si absent/périmé. */
+export async function getLocalDofensiveDungeon(
+    bossName: string,
+    dungeonName?: string
+): Promise<DofensiveDungeonInfo | null> {
+    const hit = await getLocalDofensiveDungeonAny(bossName, dungeonName);
+    return hit && !hit.stale ? hit.data : null;
+}
+
+/** Lit une fiche monstre locale par nom SANS contrôle de fraîcheur (Lot 1) — `null` si absente. */
+export async function getLocalMonsterStatAny(monsterName: string): Promise<LocalStaleResult<any> | null> {
     if (!DB_READABLE || !monsterName) return null;
     try {
         const row = await db.monsterStat.findFirst({
             where: { monsterName: { equals: monsterName, mode: "insensitive" } },
             orderBy: { lastSyncedAt: "desc" },
         });
-        if (!row || !isFresh(row.lastSyncedAt)) return null;
-        return row.stats;
+        if (!row) return null;
+        // La forme du payload voyage avec la ligne : « fraîche » ne veut pas dire « à jour ».
+        return toStaleResult<any>(row.stats, row.lastSyncedAt, (row.stats as any)?.spellsVersion);
     } catch (error) {
-        logger.warn("[dofensive-sync] getLocalMonsterStat échec:", { error: String(error) });
+        logger.warn("[dofensive-sync] getLocalMonsterStatAny échec:", { error: String(error) });
+        return null;
+    }
+}
+
+/** Lit une fiche monstre locale par nom normalisé — null si absente/périmée. */
+export async function getLocalMonsterStat(monsterName: string): Promise<any | null> {
+    const hit = await getLocalMonsterStatAny(monsterName);
+    return hit && !hit.stale ? hit.data : null;
+}
+
+/**
+ * Lit une fiche monstre locale **par ID** (chantier « Avis de recherche ») — `null` si absente.
+ *
+ * Indispensable pour les **homonymes** : 3 avis s'appellent « Ronce » (3530/3555/3531) et la
+ * recherche par nom renvoie toujours le premier ⇒ une fiche résolue par ID est la seule exacte.
+ */
+export async function getLocalMonsterStatByIdAny(monsterId: number): Promise<LocalStaleResult<any> | null> {
+    const id = Math.floor(Number(monsterId) || 0);
+    if (!DB_READABLE || id <= 0) return null;
+    try {
+        const row = await db.monsterStat.findUnique({ where: { monsterId: id } });
+        if (!row) return null;
+        return toStaleResult<any>(row.stats, row.lastSyncedAt, (row.stats as any)?.spellsVersion);
+    } catch (error) {
+        logger.warn("[dofensive-sync] getLocalMonsterStatByIdAny échec:", { error: String(error) });
+        return null;
+    }
+}
+
+/**
+ * Lit les sorts de combat Dofensive d'un monstre SANS contrôle de fraîcheur (Lot 1).
+ * `null` si la ligne est absente **ou** si elle ne contient pas de sorts de combat
+ * exploitables (un payload DofusDB brut ne suffit pas : la simulation exige `apCost`).
+ */
+export async function getLocalDofensiveSpellsAny(
+    monsterId: number
+): Promise<LocalStaleResult<DofensiveSpellCombat[]> | null> {
+    if (!DB_READABLE || !Number.isFinite(monsterId) || monsterId <= 0) return null;
+    try {
+        const row = await db.monsterStat.findUnique({ where: { monsterId } });
+        if (!row) return null;
+        const combat = pickCombatSpells((row.stats as any)?.spells);
+        if (!combat) return null;
+        return toStaleResult<DofensiveSpellCombat[]>(
+            combat,
+            row.lastSyncedAt,
+            (row.stats as any)?.spellsVersion
+        );
+    } catch (error) {
+        logger.warn("[dofensive-sync] getLocalDofensiveSpellsAny échec:", { error: String(error) });
         return null;
     }
 }
@@ -185,19 +405,34 @@ export async function getLocalMonsterStat(monsterName: string): Promise<any | nu
  * (champ `apCost` + `effects` présents — un simple payload DofusDB ne suffit pas).
  */
 export async function getLocalDofensiveSpells(monsterId: number): Promise<DofensiveSpellCombat[] | null> {
-    if (!DB_READABLE || !Number.isFinite(monsterId) || monsterId <= 0) return null;
+    const hit = await getLocalDofensiveSpellsAny(monsterId);
+    return hit && !hit.stale ? hit.data : null;
+}
+
+/**
+ * Lit les sorts de combat LOCAUX d'un monstre par son NOM (normalisé) — utilisé par les
+ * boss d'ANOMALIE : ils n'appartiennent à aucun donjon Dofensive, donc `getBossDofensiveSpells`
+ * ne peut pas résoudre leur ID via un donjon. Le siphon (cron `sync-monster-stats`) stocke
+ * leurs sorts de combat dans `MonsterStat.stats.spells` → lecture locale, zéro appel réseau.
+ * Retourne null si absent/périmé OU si les sorts stockés ne sont pas des sorts de combat.
+ */
+export async function getLocalDofensiveSpellsByName(monsterName: string): Promise<DofensiveSpellCombat[] | null> {
+    const name = String(monsterName ?? "").trim();
+    if (!DB_READABLE || !name) return null;
     try {
-        const row = await db.monsterStat.findUnique({ where: { monsterId } });
+        const row = await db.monsterStat.findFirst({
+            where: { monsterName: { equals: name, mode: "insensitive" } },
+            orderBy: { lastSyncedAt: "desc" },
+        });
         if (!row || !isFresh(row.lastSyncedAt)) return null;
         const spells = (row.stats as any)?.spells;
         if (!Array.isArray(spells) || spells.length === 0) return null;
-        // Garde : ne servir que des vrais sorts de combat Dofensive (jamais du DofusDB brut).
         const combat = spells.filter(
             (s: any) => s && typeof s?.apCost === "number" && Array.isArray(s?.effects)
         );
         return combat.length > 0 ? (combat as DofensiveSpellCombat[]) : null;
     } catch (error) {
-        logger.warn("[dofensive-sync] getLocalDofensiveSpells échec:", { error: String(error) });
+        logger.warn("[dofensive-sync] getLocalDofensiveSpellsByName échec:", { error: String(error) });
         return null;
     }
 }
@@ -210,26 +445,97 @@ export async function persistMonsterStat(data: any): Promise<void> {
         if (!Number.isFinite(monsterId) || monsterId <= 0) return;
         const name = String(data.name ?? "");
         if (!name) return;
+
+        // 🏷️ Estampille de FORME : tout ce qui est écrit ici est lisible par le code courant
+        // (voir `COMBAT_SPELLS_PAYLOAD_VERSION`) — sans quoi un futur ajout de champ rendrait la
+        // ligne « fraîche mais illisible », le bug mesuré du 22/09/2026.
+        const payload = { ...data, spellsVersion: COMBAT_SPELLS_PAYLOAD_VERSION };
+        const nextHash = hashPayload(payload);
+        // 🔍 Image **avant** de la fiche (une seule lecture) — sert au journal des changements.
+        const previous = await db.monsterStat
+            .findUnique({ where: { monsterId }, select: { versionHash: true, stats: true } })
+            .catch(() => null);
         await db.monsterStat.upsert({
             where: { monsterId },
             create: {
                 monsterId,
                 monsterName: name,
-                dungeonName: data.dungeonName ?? null,
-                stats: data,
-                versionHash: hashPayload(data),
+                dungeonName: payload.dungeonName ?? null,
+                stats: payload,
+                versionHash: nextHash,
                 lastSyncedAt: new Date(),
             },
             update: {
                 monsterName: name,
-                dungeonName: data.dungeonName ?? null,
-                stats: data,
-                versionHash: hashPayload(data),
+                dungeonName: payload.dungeonName ?? null,
+                stats: payload,
+                versionHash: nextHash,
                 lastSyncedAt: new Date(),
             },
         });
+
+        // 🔍 Journal (dataset ANOMALY_BOSSES = fiches monstres/boss) : on ne journalise que si la
+        // fiche a **réellement changé** (`versionHash`), et on détaille les blocs lisibles —
+        // jamais le payload complet (grades/drops/sorts sont bornés par `summarizeValue`).
+        if (previous && previous.versionHash !== nextHash) {
+            const changed = diffFields(
+                (previous.stats ?? null) as Record<string, unknown> | null,
+                payload as Record<string, unknown>,
+                MONSTER_CHANGE_KEYS,
+            );
+            if (changed) {
+                await recordGameDataChanges("ANOMALY_BOSSES", [
+                    {
+                        entityType: "monster",
+                        entityId: String(monsterId),
+                        entityName: name,
+                        changeType: "MODIFIED",
+                        fields: changed,
+                    },
+                ]);
+            }
+        }
     } catch (error) {
         logger.warn("[dofensive-sync] persistMonsterStat échec:", { error: String(error) });
+    }
+}
+
+/**
+ * 🔧 **Réécrit uniquement les sorts de combat stockés** (+ l'estampille de forme) — auto-réparation
+ * du payload servi par la lecture locale, appelée par `getDofensiveSpells` quand il a dû re-fetcher
+ * la source (forme obsolète : siphon antérieur au lot 3a, aucun jet numérique).
+ *
+ * Sans cela, CHAQUE lecture repaierait 1 + N appels réseau (un par sort) : la réparation est donc
+ * persistée dès la première lecture, et les suivantes restent locales.
+ *
+ * ⚠️ `lastSyncedAt` n'est **pas** touché : seule la partie « sorts » a été re-fetchée, pas la fiche
+ * DofusDB (grades, butin, image). Prétendre le contraire ferait mentir la règle de fraîcheur 24 h.
+ *
+ * Fail-soft : `false` (jamais d'exception) quand la ligne est absente, la DB illisible en test, ou
+ * l'écriture refusée — l'appelant garde alors la donnée live qu'il vient de calculer.
+ */
+export async function persistStoredCombatSpells(
+    monsterId: number,
+    spells: DofensiveSpellCombat[]
+): Promise<boolean> {
+    const id = Math.floor(Number(monsterId) || 0);
+    if (!DB_READABLE || id <= 0 || !Array.isArray(spells) || spells.length === 0) return false;
+    try {
+        const row = await db.monsterStat.findUnique({ where: { monsterId: id }, select: { stats: true } });
+        if (!row) return false;
+        const stats: any = {
+            ...((row.stats as Record<string, unknown>) ?? {}),
+            spells,
+            spellsVersion: COMBAT_SPELLS_PAYLOAD_VERSION,
+        };
+        await db.monsterStat.update({
+            where: { monsterId: id },
+            data: { stats, versionHash: hashPayload(stats) },
+        });
+        return true;
+    } catch (error) {
+        logger.warn("[dofensive-sync] persistStoredCombatSpells échec:", { error: String(error) });
+        return false;
     }
 }
 
@@ -237,7 +543,7 @@ export async function persistMonsterStat(data: any): Promise<void> {
 
 const CONCURRENCY = 4;
 
-async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+export async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
     const results: R[] = [];
     const queue = [...items];
     const workers = Array.from({ length: Math.min(limit, items.length || 1) }, async () => {
@@ -280,7 +586,7 @@ function normalizeMapItem(item: any): DofensiveMapData {
  * ne réécrit que `lastSyncedAt`). Maps fraîches (< 24 h) sautées (anti-ratelimit).
  */
 export async function syncDofensiveMaps(): Promise<SyncResult> {
-    const result: SyncResult = { synced: 0, unchanged: 0, skippedFresh: 0, errors: [] };
+    const result: SyncResult = { synced: 0, unchanged: 0, skippedFresh: 0, syncedMaps: [], dungeonsCount: 0, errors: [] };
     if (!DB_READABLE) return result;
 
     const dungeons = await dofensiveFetch<any[]>("/dungeons/preview?lang=fr", "sync-dungeons-preview", true);
@@ -288,27 +594,30 @@ export async function syncDofensiveMaps(): Promise<SyncResult> {
         result.errors.push("Dofensive dungeons/preview indisponible");
         return result;
     }
+    result.dungeonsCount = dungeons.length;
 
     // 1. Donjons + leurs maps (lite) + monstres → DofensiveDungeon.
-    const allMaps: { dungeonId: number; mapId: number; isBoss: boolean }[] = [];
+    const allMaps: { dungeonId: number; dungeonName: string; mapId: number; isBoss: boolean }[] = [];
+
     for (const d of dungeons) {
         const dungeonId = toInt(d?.Id);
         if (!dungeonId) continue;
+        const dungeonName = String(d.Name ?? "");
         const monsters: { id: number; name: string }[] = Array.isArray(d.Monsters)
             ? d.Monsters.map((m: any) => ({ id: Number(m?.Id) || 0, name: String(m?.Name ?? "") })).filter((m: { id: number; name: string }) => m.id > 0)
             : [];
         const liteMaps: { id: number; name: string; isBoss: boolean }[] = Array.isArray(d.Maps)
             ? d.Maps.map((m: any) => ({ id: Number(m?.Id) || 0, name: String(m?.Name ?? "") })).filter((m: { id: number; name: string }) => m.id > 0)
             : [];
-        const boss = monsters.find((m) => norm(m.name) === norm(String(d.Name ?? "")));
+        const boss = monsters.find((m) => norm(m.name) === norm(dungeonName));
         const payload = {
             dungeonId,
-            name: String(d.Name ?? ""),
+            name: dungeonName,
             maps: liteMaps,
             monsters,
             bossMonsterId: boss?.id ?? (monsters[0]?.id ?? null),
         };
-        for (const m of liteMaps) allMaps.push({ dungeonId, mapId: m.id, isBoss: !!m.isBoss });
+        for (const m of liteMaps) allMaps.push({ dungeonId, dungeonName, mapId: m.id, isBoss: !!m.isBoss });
 
         try {
             const existing = await db.dofensiveDungeon.findUnique({ where: { dungeonId } });
@@ -383,6 +692,12 @@ export async function syncDofensiveMaps(): Promise<SyncResult> {
                 },
             });
             result.synced++;
+            result.syncedMaps.push({
+                mapId: m.mapId,
+                name: data.name || `Salle ${m.mapId}`,
+                dungeonName: m.dungeonName || "Donjon inconnu",
+                isBoss: data.isBossMap || m.isBoss,
+            });
         } catch (error) {
             result.errors.push(`Map ${m.mapId}: ${String(error)}`);
         }
@@ -392,10 +707,19 @@ export async function syncDofensiveMaps(): Promise<SyncResult> {
     return result;
 }
 
+export interface SyncedMapDetail {
+    mapId: number;
+    name: string;
+    dungeonName: string;
+    isBoss: boolean;
+}
+
 export interface SyncResult {
     synced: number;
     unchanged: number;
     skippedFresh: number;
+    syncedMaps: SyncedMapDetail[];
+    dungeonsCount?: number;
     errors: string[];
 }
 

@@ -68,19 +68,36 @@ describe("sendChannelMessage — routing (P3.1)", () => {
         expect(mockEnqueue).not.toHaveBeenCalled();
     });
 
-    it("mode outbox : enqueue au lieu de fetch, retourne null", async () => {
+    it("mode outbox : enqueue au lieu de fetch, retourne outbox:jobId", async () => {
         process.env.DISCORD_OUTBOX_ENABLED = "true";
         const fetchMock = vi.fn();
         vi.stubGlobal("fetch", fetchMock);
 
         const id = await sendChannelMessage("123456", "Salut", { embedTitle: "Titre" });
 
-        expect(id).toBeNull();
+        expect(id).toBe("outbox:job-id");
         expect(fetchMock).not.toHaveBeenCalled();
         expect(enqueueCalls).toHaveLength(1);
         expect(enqueueCalls[0].kind).toBe("postMessage");
         expect(enqueueCalls[0].channelId).toBe("123456");
         expect(enqueueCalls[0].body).toHaveProperty("embeds");
+    });
+
+    it("mode outbox : storeMessageIdKey transite jusqu'au job (living status)", async () => {
+        process.env.DISCORD_OUTBOX_ENABLED = "true";
+        vi.stubGlobal("fetch", vi.fn());
+
+        await sendChannelMessage("123456", "", {
+            embedTitle: "Titre",
+            storeMessageIdKey: "sigilos:discord_status_message_id_beta",
+            storeMessageIdTTL: 123,
+        });
+
+        expect(enqueueCalls).toHaveLength(1);
+        expect(enqueueCalls[0].storeMessageIdKey).toBe("sigilos:discord_status_message_id_beta");
+        expect(enqueueCalls[0].storeMessageIdTTL).toBe(123);
+        // Jamais sérialisé dans le body Discord.
+        expect(enqueueCalls[0].body).not.toHaveProperty("storeMessageIdKey");
     });
 });
 
@@ -92,7 +109,7 @@ describe("sendDiscordRawEmbed — routing (P3.1)", () => {
 
         const id = await sendDiscordRawEmbed("guild-1", "123456", "<@999>", { title: "X" });
 
-        expect(id).toBeNull();
+        expect(id).toBe("outbox:job-id");
         expect(fetchMock).not.toHaveBeenCalled();
         expect(enqueueCalls[0].kind).toBe("postMessage");
         expect(enqueueCalls[0].body).toHaveProperty("embeds");

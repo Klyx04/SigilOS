@@ -79,41 +79,6 @@ export async function sendNewsToDiscord(guildId: string, item: DiscordNewsItem) 
 }
 
 /**
- * SuperAdmin Only: Broadcast a news item to ALL active guilds
- */
-export async function broadcastNewsToAllGuilds(item: DiscordNewsItem) {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: "Unauthorized" };
-
-    const guilds = await db.guildConfig.findMany({
-        where: { isActive: true, systemNotifyChannelId: { not: null } },
-        select: { discordGuildId: true, systemNotifyChannelId: true, name: true }
-    });
-
-    const results = {
-        total: guilds.length,
-        success: 0,
-        failed: 0,
-        errors: [] as string[]
-    };
-
-    const embed = createNewsEmbed(item);
-
-    // Batch sending (serial to avoid brutal rate limits, though sendChannelMessage has retry logic)
-    for (const guild of guilds) {
-        try {
-            const mid = await sendChannelMessage(guild.systemNotifyChannelId!, "", embed);
-            if (mid) results.success++;
-            else throw new Error(`API null response for ${guild.name}`);
-        } catch (e) {
-            results.failed++;
-            results.errors.push(`${guild.name}: ${(e as Error).message}`);
-        }
-    }
-
-    return { success: true, results };
-}
-/**
  * Get the name of the system notification channel for news broadcasts
  */
 export async function getNewsTargetChannelName(guildId: string): Promise<{ success: boolean; channelName?: string }> {

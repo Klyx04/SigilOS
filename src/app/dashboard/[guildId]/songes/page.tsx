@@ -20,12 +20,12 @@ export default async function SongesPage({
 }) {
     const { guildId } = await params;
 
-    // Module guard
-    if (!await isModuleEnabled(guildId, "songes")) {
+    const userContext = await getUserContext(guildId);
+
+    // Module guard (verrou inclus) — le God garde l'accès (`bypassModules = isGod`)
+    if (!userContext.isSuperAdmin && !await isModuleEnabled(guildId, "songes")) {
         redirect(`/dashboard/${guildId}`);
     }
-
-    const userContext = await getUserContext(guildId);
 
     // RBAC: Check permission to view Songes
     if (!userContext.canViewSonges) {

@@ -2,23 +2,25 @@ import { Suspense } from "react";
 import { getUserContext, getGuildMemberStats, getGuildMembers } from "@/server/actions/user-actions";
 import { redirect } from "next/navigation";
 import MemberManagement from "@/components/admin/members/member-management";
-import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { db } from "@/lib/prisma";
 import { fetchGuildChannels, fetchGuildRoles } from "@/server/discord";
 
 export const metadata = {
-    title: "Gestion des Membres | SigilOS",
-    description: "Audit, réconciliation et gestion des profils membres.",
+    title: "Membres & Recrutement | SigilOS",
+    description: "Audit, registre du staff, essais, mules et gestion des profils membres.",
 };
 
 interface AdminMembersPageProps {
     params: Promise<{
         guildId: string;
     }>;
+    searchParams: Promise<{ tab?: string }>;
 }
 
-export default async function AdminMembersPage({ params }: AdminMembersPageProps) {
+export default async function AdminMembersPage({ params, searchParams }: AdminMembersPageProps) {
     const { guildId } = await params;
+    const { tab } = await searchParams;
     
     let ctx, stats, members, guildConfig, channels, roles;
     
@@ -51,15 +53,19 @@ export default async function AdminMembersPage({ params }: AdminMembersPageProps
         <div className="container max-w-7xl mx-auto py-6 lg:py-10 px-4">
             <div className="flex items-start justify-between gap-4 mb-6" data-tour="admin-members-header">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight uppercase">Gestion des Membres</h1>
-                    <p className="text-sm text-muted-foreground mt-1">Annuaire admin, synchronisation des pseudos, archivage et relances Discord.</p>
+                    <h1 className="text-3xl font-black tracking-tight uppercase">Membres & Recrutement</h1>
+                    <p className="text-sm text-muted-foreground mt-1">Audit Discord vs Dashboard, registre du staff, essais, mules, archivage et relances.</p>
                 </div>
-                <AdminTourReplay phase="adminMembers" />
+                <ModuleHelpActions 
+                    docSlug="admin-members" 
+                    docTitle="Audit & Gestion des Membres" 
+                    tourPhase="adminMembers" 
+                />
             </div>
             <Suspense fallback={<AdminMembersSkeleton />}>
                 <div data-tour="admin-members-table">
-                    <MemberManagement 
-                        guildId={guildId} 
+                    <MemberManagement
+                        guildId={guildId}
                         initialStats={stats}
                         initialMembers={members}
                         welcomeBadgeName={guildConfig?.welcomeBadgeName || "Nouveau"}
@@ -69,6 +75,7 @@ export default async function AdminMembersPage({ params }: AdminMembersPageProps
                         canManageMembers={ctx.canManageMembers || ctx.isAdmin}
                         canManageRelance={ctx.canManageRelance}
                         currentUserId={ctx.id || ""}
+                        initialTab={tab === "registre" ? "registre" : undefined}
                     />
                 </div>
             </Suspense>

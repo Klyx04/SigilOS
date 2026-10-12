@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
-import { sendGlobalStatusPing } from "@/server/actions/status-actions";
+import { sendGlobalStatusPingCore } from "@/server/status-ping-core";
 import { verifyCronSecret } from "@/lib/cron-auth";
+
+// ---------------------------------------------------------------------------
+// DISC-2 — Discord Status Channel (Consolidated)
+// Triggers the living status update in the configured Discord channel.
+// ✅ Protégé par x-cron-secret (fail-closed si secret absent)
+// NOTE : appelle le core SANS gate session — la route est déjà authentifiée
+// via verifyCronSecret (le gate isSuperAdmin de l'action serveur exigerait
+// une session Auth.js inexistante en contexte cron).
 
 // ---------------------------------------------------------------------------
 // DISC-2 — Discord Status Channel (Consolidated)
@@ -14,20 +22,62 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const startedAt = Date.now();
+
     try {
-        const result = await sendGlobalStatusPing(false);
+        const result = await sendGlobalStatusPingCore({ source: "cron:discord-status" });
+        const durationMs = Date.now() - startedAt;
 
         if (!result.success) {
+            const { recordCronExecution } = await import("@/lib/cron-telemetry");
+            await recordCronExecution("discord_status", {
+                success: false,
+                durationMs,
+                summary: `Échec statut Discord: ${result.error}`,
+            });
             return NextResponse.json({ error: result.error }, { status: 500 });
         }
+
+        // La passe a tourné mais le MIROIR Discord n'est pas parti (salon en pause
+        // d'écriture, bot sans accès) : 200 — cette route peut servir de sonde de
+        // disponibilité — et télémétrie en échec pour que God le voie.
+        if (result.delivered === false) {
+            const { recordCronExecution } = await import("@/lib/cron-telemetry");
+            await recordCronExecution("discord_status", {
+                success: false,
+                durationMs,
+                summary: result.warning ?? "Miroir Discord non envoyé",
+            });
+            return NextResponse.json(
+                { success: true, delivered: false, warning: result.warning },
+                { status: 200 }
+            );
+        }
+
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("discord_status", {
+            success: true,
+            durationMs,
+            summary: result.action === "skipped"
+                ? `Statut Discord ignoré (fréquence ${result.frequencyMin ?? "?"} min)`
+                : `Statut Discord mis à jour (${result.action || "OK"})`,
+            details: result.stats,
+        });
 
         return NextResponse.json({ 
             success: true, 
             action: result.action,
-            stats: result.stats 
+            stats: result.stats,
+            durationMs
         });
     } catch (error: any) {
         console.error("[DiscordStatusCron] Error:", error);
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("discord_status", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur statut Discord: ${error.message}`,
+        });
         return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 }

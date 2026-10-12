@@ -3,13 +3,13 @@
 import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Hash, UserCheck, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { getDirectorySettings, saveDirectorySettings } from "@/server/actions/directory-settings-actions";
 import { Label } from "@/components/ui/label";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 
 interface DirectorySettingsClientProps {
     guildId: string;
@@ -20,11 +20,16 @@ export function DirectorySettingsClient({ guildId }: DirectorySettingsClientProp
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
+    // — Détection « modifications non sauvegardées » (snapshot chargé vs état courant)
+    const [initialConfig, setInitialConfig] = useState<{ channelId: string } | null>(null);
+    const hasUnsavedChanges = isDirty({ channelId }, initialConfig);
+
     useEffect(() => {
         async function loadConfig() {
             const res = await getDirectorySettings(guildId);
             if (res.success && res.data) {
                 setChannelId(res.data.userRequestChannelId || "");
+                setInitialConfig({ channelId: res.data.userRequestChannelId || "" });
             }
             setIsLoading(false);
         }
@@ -33,9 +38,12 @@ export function DirectorySettingsClient({ guildId }: DirectorySettingsClientProp
 
     const handleSave = () => {
         startTransition(async () => {
-            const result = await saveDirectorySettings(guildId, channelId.trim() || null);
+            const trimmed = channelId.trim();
+            const result = await saveDirectorySettings(guildId, trimmed || null);
             if (result.success) {
                 toast.success("Paramètres de l'annuaire mis à jour !");
+                setChannelId(trimmed);
+                setInitialConfig({ channelId: trimmed });
             } else {
                 toast.error("Erreur lors de la sauvegarde");
             }
@@ -52,6 +60,7 @@ export function DirectorySettingsClient({ guildId }: DirectorySettingsClientProp
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 text-left">
+            <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Panel */}
                 <div className="lg:col-span-2 space-y-6">
@@ -77,17 +86,12 @@ export function DirectorySettingsClient({ guildId }: DirectorySettingsClientProp
                         <CardContent className="space-y-6">
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label className="text-caption uppercase font-black text-muted-foreground ml-1">ID du Salon Discord</Label>
-                                    <div className="relative group/input">
-                                        <Input
-                                            value={channelId}
-                                            onChange={(e) => setChannelId(e.target.value)}
-                                            placeholder="Ex: 123456789012345678"
-                                            className="font-mono bg-black/20 border-border h-11 pl-10 focus:border-info/50 transition-colors"
-                                        />
-                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover/input:text-info transition-colors" />
-                                    </div>
-                                    <ChannelPreview guildId={guildId} channelId={channelId} color="indigo" />
+                                    <Label className="text-caption uppercase font-black text-muted-foreground ml-1">Salon Discord</Label>
+                                    <DiscordChannelPicker
+                                        guildId={guildId}
+                                        value={channelId}
+                                        onChange={setChannelId}
+                                    />
                                     <p className="text-caption text-muted-foreground ml-1">
                                         Laissez vide pour désactiver les notifications Discord (les notifications resteront actives sur le tableau de bord SigilOS).
                                     </p>
@@ -100,6 +104,7 @@ export function DirectorySettingsClient({ guildId }: DirectorySettingsClientProp
                         <Button onClick={handleSave} disabled={isPending} className="bg-info hover:bg-info text-info-foreground min-w-[200px] font-bold h-12 shadow-xl shadow-indigo-600/20">
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             SAUVEGARDER
+                            {hasUnsavedChanges && !isPending && <span className="ml-2 w-2 h-2 rounded-full bg-white animate-pulse" title="Modifications non sauvegardées" />}
                         </Button>
                     </div>
                 </div>

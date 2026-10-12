@@ -1,0 +1,668 @@
+export const guide = {
+    slug: "raid-gigalodon-dofus-guide",
+    title: "Raid Guide: Gigalodon's Chasm (Dofus 3)",
+    description:
+        "Complete tactical guide to Gigalodon's Chasm: pre-raid checklist, light management, 3 boss strategies, 20% drop shortcut loop, puzzles and Gigalodon burst.",
+    publishedAt: "2026-09-20",
+    updatedAt: "2026-09-27",
+    draft: false,
+    body: `
+        <div class="callout callout-tip">
+            <strong>Guild Raid — Level 200 (8 to 12 Players)</strong>
+            <p>Gigalodon's Chasm is a timed instance granting 60 minutes to trigger the final fight. This tactical guide gathers tested guild strategies: mandatory client settings, cost-effective light management, 3 intermediate boss kills, 20% drop shortcut loop and burst optimization against Gigalodon to cap the 60,000 points track.</p>
+        </div>
+
+        <div class="callout callout-info">
+            <strong>🛠️ Public Tools: Raid Studio 3.6 & Detachable Overlay</strong>
+            <p>To prepare and run your raid efficiently, SigilOS provides free interactive tools:</p>
+            <ul>
+                <li><strong>12-Player Squad Planner:</strong> assign your 3 squads of 4, balance critical roles (Tank, Burst T3, Melee Positioning, Multiplier), check party synergy and export to Discord in 1 click.</li>
+                <li><strong>Interactive Luminarium Solver (Floor -3):</strong> cascade Lights Out 4x4 solver to clear the puzzle in seconds without wasting instance time.</li>
+                <li><strong>Always-on-Top In-Game Overlay (PiP):</strong> copy <code>/travel</code> positions in 1 click, track Execrab's 4 forms, and read floor guides without alt-tabbing.</li>
+            </ul>
+            <p><a href="/raids?raid=gigalodon"><strong>→ Open Gigalodon Planner & Solvers in Raid Studio 3.6</strong></a></p>
+        </div>
+
+        <h2>I. Preparation & Setup (Pre-Raid Checklist)</h2>
+        <p>
+            Opening the instance is handled directly from the <strong>Guild Hall</strong> (Guild Shop &gt; Raids tab) by a member holding the required permissions.
+        </p>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/02-achat-raid-boutique.png" alt="Starting the Gigalodon's Chasm raid from the shop" class="guide-image" />
+            <span class="guide-caption">Buying and configuring the instance in the guild shop</span>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Setting</th>
+                    <th>Value / Rule</th>
+                    <th>Tactical impact</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Start cost</strong></td>
+                    <td>360 Guild Kamas</td>
+                    <td>Pays for itself as soon as intermediate guild milestones are reached.</td>
+                </tr>
+                <tr>
+                    <td><strong>Party size</strong></td>
+                    <td>8 to 12 players (Level 200)</td>
+                    <td>Boss fights can be played by up to 12 participants at once.</td>
+                </tr>
+                <tr>
+                    <td><strong>Time limit</strong></td>
+                    <td>60 minutes (1 hour)</td>
+                    <td>The timer only counts until triggering Gigalodon. Once engaged, the final fight can last longer.</td>
+                </tr>
+                <tr>
+                    <td><strong>Trading in raid</strong></td>
+                    <td>Strictly forbidden</td>
+                    <td>Every player must manage their own consumables and drop items.</td>
+                </tr>
+                <tr>
+                    <td><strong>Score cap</strong></td>
+                    <td>60,000 points for the full track</td>
+                    <td>Combines resources deposited in chest and damage dealt to Gigalodon.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Starting Checklist (5 Essential Habits)</h3>
+        <ul>
+            <li><strong>Entities in foreground:</strong> Enable the in-game display setting <em>Show entities in foreground</em>. Without it, targeting Willorka behind 10 giant lanterns on floor -6 becomes an absolute nightmare.</li>
+            <li><strong>Client automation:</strong> Enable auto-follow, auto-join fights and auto-ready to save precious minutes on the overall instance timer.</li>
+            <li><strong>Pre-purchased consumables:</strong> Stock up on bread, energy potions and recall potions before entering. Player trading is completely disabled inside the Chasm.</li>
+            <li><strong>Split into 3 squads of 4:</strong> Divide your 12 players into 3 autonomous teams of 4 fighters. This setup is mandatory to clear floor -1 packs in parallel and speed up floor -5 farming.</li>
+            <li><strong>Achievement choices:</strong> Complete normal fight challenges on monsters and bosses. However, <em>skip the « Salt » achievement (100 salts shown)</em> during score runs: 100 salts shown means that much salt not spent on light — hoarding and lighting are incompatible on a timed run.</li>
+        </ul>
+
+        <hr />
+
+        <h2>II. The Light Mechanic & « Dark Thoughts » Debuff</h2>
+        <p>
+            Every floor has an ambient light level ranging from <strong>Intensity 4</strong> (full brightness) down to <strong>Intensity 0</strong> (complete darkness). Every <strong>2 minutes</strong>, the floor drops by one brightness step (taking 8 minutes to reach total darkness).
+        </p>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/18-luminomachine.jpg" alt="Luminomachine of Gigalodon's Chasm" class="guide-image" />
+            <span class="guide-caption">Luminomachine located at the entrance and exit of each floor</span>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Light Intensity</th>
+                    <th>Monster / Boss Bonuses</th>
+                    <th>Out-of-combat behavior</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Level 4</strong></td>
+                    <td><strong>No bonus</strong> (Optimal neutral state)</td>
+                    <td>Passive monsters.</td>
+                </tr>
+                <tr>
+                    <td><strong>Level 3</strong></td>
+                    <td>+20% Vitality, +100 Power</td>
+                    <td>Passive monsters.</td>
+                </tr>
+                <tr>
+                    <td><strong>Level 2</strong></td>
+                    <td>+50% Vitality, +250 Power</td>
+                    <td>Passive monsters.</td>
+                </tr>
+                <tr>
+                    <td><strong>Level 1</strong></td>
+                    <td>+100% Vitality, +500 Power, +1 MP</td>
+                    <td>Passive monsters.</td>
+                </tr>
+                <tr>
+                    <td><strong>Level 0 (Pitch Black)</strong></td>
+                    <td><strong>+200% Vitality, +1,000 Power, +2 MP</strong></td>
+                    <td><strong>Automatic aggression</strong> within 10 cells in 5 seconds!</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-tip">
+            <strong>Golden rule of Salt management</strong>
+            <p>Maintain brightness at <strong>Level 3</strong> while clearing trash packs: the monster buff (+20% HP / +100 Power) remains trivial while saving guild salt. In contrast, push up to <strong>Level 4</strong> right before engaging Moraympress (-2) and Crabinator (-4) to strip away their 200% bonus HP. Note that Willorka (-6) and Gigalodon ignore Dark Thoughts completely.</p>
+            <p><strong>Cumulative costs:</strong> 0→1 = 1 salt, →2 = +3 (4), →3 = +6 (10), →4 = +10 (20 salts total from 0). Light starts at Level 4 on raid entry; each newly unlocked floor starts at Level 1 — and the decay timer runs even if nobody has set foot there (0 after 2 minutes).</p>
+        </div>
+
+        <hr />
+
+        <h2>III. Score Economics: Chest Deposit & Points Table</h2>
+        <p>
+            Walking down the chasm grants zero passive points. Raid score comes exclusively from mineral treasures and boss relics <strong>physically deposited into the Raid Chest</strong> at the Outpost (-1).
+        </p>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/04-coffre-du-raid.jpg" alt="Raid Chest at the outpost" class="guide-image" />
+            <span class="guide-caption">The deposit chest on floor -1: secure your resources before the final boss</span>
+        </div>
+
+        <div class="callout callout-warning">
+            <strong>Beware of wipes</strong>
+            <p>If a player dies in battle, they respawn at the entrance and <strong>lose all undeposited resources</strong> carried in their raid pouch! Always secure valuable relics through shortcuts.</p>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Resource Type</th>
+                    <th>Drop Nature</th>
+                    <th>Score Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Quartz / Opal / Amazonite</strong></td>
+                    <td>Common mob drop (floors -1 to -3)</td>
+                    <td>2 to 6 pts / unit</td>
+                </tr>
+                <tr>
+                    <td><strong>Aventurine / Lapis / Jet / Onyx</strong></td>
+                    <td>Common abyssal drop (-4 to -5)</td>
+                    <td>10 to 30 pts / unit</td>
+                </tr>
+                <tr>
+                    <td><strong>Moraympress Unit</strong></td>
+                    <td>100% unique drop from Moraympress</td>
+                    <td><strong>1,000 points</strong></td>
+                </tr>
+                <tr>
+                    <td><strong>Crabinator Grudge</strong></td>
+                    <td>100% unique drop from Crabinator</td>
+                    <td><strong>5,000 points</strong></td>
+                </tr>
+                <tr>
+                    <td><strong>Willorka Blackness</strong></td>
+                    <td>100% unique drop from Willorka</td>
+                    <td><strong>10,000 points</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-tip">
+            <strong>Gigalodon Alterations (team buffs, low unknown rate)</strong>
+            <p>Random drops during the raid, benefiting the whole team until the end: <em>Gigalodon Haste</em> (+2 AP), <em>Gigalodon Insolence</em> (+2 MP), <em>Gigalodon Rage</em> (+50% Critical). Watch your gear prerequisites (AP/MP caps).</p>
+        </div>
+
+        <hr />
+
+        <h2>III-bis. Chasm Bestiary (6 Monsters)</h2>
+        <p>
+            Mobs appear as you descend and back up the bosses. All take Dark Thoughts into account (see §II).
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Monster</th>
+                    <th>First Seen</th>
+                    <th>Key Spells</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Madreporor</strong></td>
+                    <td>Floor -1</td>
+                    <td>« KO'rail » 450 air (size-3 square, 7 Range) · « Récidif » 550 fire + 4-cell pull (size-4 cross, 7 Range)</td>
+                </tr>
+                <tr>
+                    <td><strong>Kokapebble</strong></td>
+                    <td>Floor -1</td>
+                    <td>« Épinade » 450 earth on itself (size-3 star) · « Hydrage » 400 water lifesteal (melee)</td>
+                </tr>
+                <tr>
+                    <td><strong>Leviatank</strong></td>
+                    <td>Floor -2</td>
+                    <td>« Absolutte » 5-cell dash + 325 air (size-2 cone, 5 Range line) · « Branchiche » 450 fire in line + 250 fire glyph (melee)</td>
+                </tr>
+                <tr>
+                    <td><strong>Calarmure</strong></td>
+                    <td>Floor -3</td>
+                    <td>« Armucus » 600%-of-level shield (2 turns, 6 Range) · « Encornéant » 550 air (size-3 circle, 6 Range)</td>
+                </tr>
+                <tr>
+                    <td><strong>Ecaillon</strong></td>
+                    <td>Floor -4</td>
+                    <td>« Enfourchage » 3-cell push + 450 fire (size-4 line, 6 Range line) · « Tridémence » 550 earth (size-1 cone, melee)</td>
+                </tr>
+                <tr>
+                    <td><strong>Krak'Haine</strong></td>
+                    <td>Floor -5</td>
+                    <td>« Abjection » 150 × 4 elements (infinite line, melee) · « Férosignal » unparryable -1 MP to everyone (1 turn) + 1 MP to the nearest monster per hit ally</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr />
+
+        <h2>IV. Floor-by-Floor Walkthrough (Strategy & /travel Commands)</h2>
+
+        <h3>Floor -1: Explorers' Outpost</h3>
+        <p>
+            This floor features 5 maps holding 18 packs in total. Split your 3 squads of 4 players to clear all groups in parallel within minutes. Defeated monsters do not respawn. Harvest salt veins and loot the <em>First cage key fragment</em> (1% base common drop from any monster).
+        </p>
+        <p>Luminomachine spots: [3,2] and [4,3]. Salt deposits: [3,2], [2,2], [4,2], [3,3]. Exit towards floor -2:</p>
+        <pre><code>/travel 4,3</code></pre>
+
+        <hr />
+
+        <h3>Floor -2: Moraympress Plateau (Boss 1)</h3>
+        <p>
+            Head straight to the boss in the center of the zone. Before starting, restore light to <strong>Level 4</strong> via the Luminomachine to eliminate her 200% bonus vitality and 1,000 power.
+        </p>
+        <pre><code>/travel 4,7</code></pre>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/46-boss-mureine.jpg" alt="Boss Moraympress" class="guide-image" />
+            <span class="guide-caption">Moraympress and her Muray minions</span>
+        </div>
+
+        <ul>
+            <li><strong>Boss specs:</strong> 51,000 HP, 6 MP, 264 MP Parry (accompanied by 3 monsters: Madreporor, Kokapebble, Leviatank).</li>
+            <li><strong>Key spell « Disperssssion » (4 AP, 1-10 Range, no line of sight, twice/turn):</strong> Deals ~700 water damage and summons one <em>Muray</em> next to the target (maximum 10 Murays on the field).</li>
+            <li><strong>« Cuirage » (5 AP, 1-7 Range, no line of sight):</strong> Deals ~800 air damage and grants 2,000 shield (2 turns) to Murays aligned with the target.</li>
+            <li><strong>« Triplicité » (6 AP, melee only):</strong> Deals ~1,150 earth damage in a size-4 fork zone.</li>
+            <li><strong>Passive « Empress »:</strong> Moraympress gains +100 Power (1 turn, dispellable) per Muray alive at the start of her turn.</li>
+            <li><strong>Poison « Corroside » (Murays, up to 5 Range, twice/turn):</strong> 400 fire damage + stacking state: each damage instance taken adds 250 fire lifesteal by Moraympress (10× max/turn). Killing a Muray cleanses the state within 2 cells.</li>
+        </ul>
+
+        <div class="callout callout-tip">
+            <strong>Two strategies to neutralize Moraympress</strong>
+            <p><strong>Absolute priority:</strong> Kill the 3 regular accompaniment monsters first (Madreporor, Kokapebble, Leviatank) to clear lines of sight.<br /><strong>Strategy A (Corner lock):</strong> Pandawa isolates Moraympress into a corner and locks her between 2 of her own Murays or static summons. By locking both summons with a tanky ally, Moraympress is completely paralyzed and cannot summon.<br /><strong>Strategy B (Safe distance):</strong> Keep all damage dealers at more than 10 Range from Moraympress at start. Without targets in her 10 Range spell cast area, she cannot summon any Muray.</p>
+        </div>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/58-placement-blocage-mureine.jpg" alt="Locking Moraympress" class="guide-image" />
+            <span class="guide-caption">Corner locking technique pinning Moraympress behind her minions</span>
+        </div>
+
+        <p>On death, Moraympress automatically awards the <em>Second key fragment</em> and the <em>Moraympress Unit</em> (1,000 pts). Take the exit towards floor -3:</p>
+        <pre><code>/travel 2,7</code></pre>
+
+        <hr />
+
+        <h3>Floor -3: Drowned Cliff & Luminarium Puzzle</h3>
+        <p>
+            Enter the Luminarium cave. This is a safe-zone with zero monsters: <strong>do not spend any salt here</strong> to conserve your guild reserves.
+        </p>
+        <pre><code>/travel 4,12</code></pre>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/62-mur-luminarium.jpg" alt="The Luminarium wall" class="guide-image" />
+            <span class="guide-caption">4x4 lantern fish grid on the Luminarium wall</span>
+        </div>
+
+        <div class="callout callout-warning">
+            <strong>Guild rule: Only 1 player touches the wall grid</strong>
+            <p>Assign <strong>one designated player</strong> to click the 4x4 lantern fish on the vertical wall (click them on the wall, not floor tiles!). If several teammates click at once, toggle states will desync and waste precious minutes on the instance timer.</p>
+        </div>
+
+        <p><strong>Fast solving method (Lights Out algorithm):</strong></p>
+        <ol>
+            <li>Start on row 1 (top): for each unlit lantern, click the fish directly below it (row 2).</li>
+            <li>Repeat on row 2 by clicking on row 3 to light up darkened lamps above.</li>
+            <li>Repeat on row 3 clicking into row 4.</li>
+            <li>Solve bottom corners to complete full illumination and open the door to floor -4.</li>
+        </ol>
+
+        <div class="callout callout-tip">
+            <strong>Interactive Online Solver</strong>
+            <p>Unsure about your lantern layout? Use our <a href="/raids?raid=gigalodon"><strong>Luminarium Solver in Raid Studio 3.6</strong></a> to mirror your board and get the exact lighting sequence in seconds.</p>
+        </div>
+
+        <hr />
+
+        <h3>Floor -4: Crabinator Burrow (Boss 2 & Memory Puzzle)</h3>
+        <p>
+            Reach Crabinator lair at [9,11]. Restore light to Level 4 before starting the fight. Equipping MP reduction gear helps stall the boss easily.
+        </p>
+        <pre><code>/travel 9,11</code></pre>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/71-boss-execrabe.jpg" alt="Boss Crabinator" class="guide-image" />
+            <span class="guide-caption">Crabinator changes element and morphology across HP thresholds</span>
+        </div>
+
+        <p>
+            Crabinator (100,000 HP, Unmovable, 64 MP Parry — MP removal shuts it down) shifts appearance at each HP threshold (80,000 / 60,000 / 40,000 / 20,000) in a <strong>random order every raid</strong> — hence mandatory memorization. Each form adds an effect and changes the element/zone of « Bisque » (950 damage, 7 Range). Other spells: « Canopince » (600 water or air, melee, twice/turn), « Encornage » (850 earth + 7-cell push, 2-Range line).
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Elemental Form</th>
+                    <th>Attack Element</th>
+                    <th>Floor Symbol</th>
+                    <th>Threshold Effect</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Seashell</strong></td>
+                    <td>Earth</td>
+                    <td>Circle</td>
+                    <td>+5,000 Shield (infinite)</td>
+                </tr>
+                <tr>
+                    <td><strong>Urchin</strong></td>
+                    <td>Air</td>
+                    <td>Star</td>
+                    <td>Reflects 20% damage (until form change)</td>
+                </tr>
+                <tr>
+                    <td><strong>Pearl</strong></td>
+                    <td>Fire</td>
+                    <td>Square</td>
+                    <td>Removes 63 Range from everyone for 2 turns (undebuffable)</td>
+                </tr>
+                <tr>
+                    <td><strong>Octopus</strong></td>
+                    <td>Water</td>
+                    <td>Cone</td>
+                    <td>Pulls 10 cells (line and diagonal)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <ul>
+            <li><strong>Fight priority:</strong> Eliminate all accompanying monsters first, then burst Crabinator down.</li>
+            <li><strong>Form memorization:</strong> Carefully write down the appearance order of the 4 forms during the fight (statues around the combat area glow blue at each phase transition).</li>
+            <li><strong>Underwater solving:</strong> After victory, click the small pool to enter the statue chamber. The designated player activates the 4 statues in exact chronological order. <em>Each mistake inflicts a harsh -1,000 points penalty on the raid!</em></li>
+            <li><strong>Loot obtained:</strong> The <em>Third key fragment</em> (shared) and the <em>Crabinator Claw</em> (held by one teammate).</li>
+        </ul>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/89-statues-enigme-execrabe.jpg" alt="Crabinator puzzle statues" class="guide-image" />
+            <span class="guide-caption">Statues to activate in the exact sequence of encountered HP phases</span>
+        </div>
+
+        <p>The player holding Crabinator Claw immediately activates the lantern fish at [6,10] to open the major shortcut towards floor -2:</p>
+        <pre><code>/travel 6,10</code></pre>
+
+        <hr />
+
+        <div class="callout callout-important">
+            <strong>THE STRATEGIC RAID PIVOT: Shortcut Loop (20% Drop Rate)</strong>
+            <p><strong>Do not dive directly into floor -5!</strong> Key fragment 4 drop rate from Krak'Haine monsters scales with deposited chest score: 1% below 5,000 pts, 5% between 5,000 and 7,000 pts, 10% between 7,000 and 10,000 pts, and <strong>20% beyond 10,000 points</strong>!<br /><strong>Crucial note: trading is strictly forbidden in raids.</strong> Every player carries their own loot in their personal raid pouch: <strong>all 12 participants must head back up to the chest</strong> to deposit their Moraympress relic (1,000 pts), Crabinator relic (5,000 pts) and collected minerals. Passing 10,000 points unlocks the 20% drop rate so fragment 4 drops in 1 or 2 fights instead of 25 minutes of grinding!</p>
+        </div>
+
+        <h3>Express Return & Deposit Sequence</h3>
+        <ol>
+            <li>From [6,10], click the lantern fish shortcut to reappear on floor -2 at [4,7].</li>
+            <li>Run <pre><code>/travel 2,7</code></pre> then <pre><code>/travel 3,2</code></pre></li>
+            <li>Climb the ladder up to the Outpost (-1).</li>
+            <li><strong>All 12 players deposit their full loot into the Raid Chest</strong> to pass 10,000 points.</li>
+            <li>Climb down the ladder, then run <pre><code>/travel 4,3</code></pre> followed by <pre><code>/travel 4,7</code></pre></li>
+            <li>Enter the bottom right cave to warp straight back to floor -4.</li>
+            <li>Run <pre><code>/travel 9,11</code></pre>, click the pool, and enter the bottom right cave towards floor -5.</li>
+        </ol>
+
+        <hr />
+
+        <h3>Floor -5: Abyssal Ossuary (Fragment 4 Loot)</h3>
+        <p>
+            Thanks to your intermediate deposit exceeding 10,000 points, the 4th fragment drop rate on <em>Krak'Haine</em> is now boosted to <strong>20%</strong>. This drop is shared across the whole guild: as soon as one squad drops it, the entire raid acquires it!
+        </p>
+        <pre><code>/travel 10,14</code></pre>
+
+        <div class="callout callout-danger">
+            <strong>Map trap on [12,13]</strong>
+            <p>On map [12,13], clicking the whale bone to descend <strong>instantly breaks auto-follow and autopilot</strong> for all followers! Warn teammates to resume manual movement on this map.</p>
+        </div>
+
+        <p>Once all 4 fragments are collected, step into the diving cage at [10,14] to reach the lowest level.</p>
+
+        <hr />
+
+        <h3>Floor -6: Willorka Deep (Boss 3)</h3>
+        <p>
+            Enter Willorka room at [11,16]. <strong>Warning: this floor is plunged into Level 0 pitch black. Willorka automatically aggresses targets within 10 Range in 5 seconds!</strong> Enter stacked together and be ready instantly. Willorka is completely alone on the map (no adds, no ghost orcs).
+        </p>
+        <pre><code>/travel 11,16</code></pre>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/103-boss-willorque.jpg" alt="Boss Willorka" class="guide-image" />
+            <span class="guide-caption">Willorka in the pitch darkness of the abyss</span>
+        </div>
+
+        <ul>
+            <li><strong>Boss specs:</strong> 62,000 HP, Rooted (immune to classic push/pull, but can be carried by Pandawa!), immune to Dark Thoughts.</li>
+            <li><strong>Lantern mechanics (Light Count):</strong> 10 unkillable lantern fish (4 lit at start, 200% resistances, 550,000 HP): +10% Light Count per lit fish. At 100%: Willorka loses 20% resistances (1 turn). At 0%: « Dark Chant » hits ~1,400 fire (size-10 circle) and « That's Enough » grants 10 MP + stealth (1 turn).</li>
+            <li><strong>43,400 HP threshold (Random Fish):</strong> all fish go dark, Light Count to 0%. Each spell (« That's Enough » on itself, « Echolok » 950 fire up to 5 Range) toggles the fish nearest the target: lighting ≤3 Range heals 20% max HP, going dark ≤3 Range deals neutral 20% of players' current HP.</li>
+        </ul>
+
+        <div class="callout callout-tip">
+            <strong>Pro Strategy « Panda Cheese » (Far from lanterns/statues)</strong>
+            <p>Do not waste a single second toggling lanterns! On Turn 1, Pandawa picks up Willorka and throws him into an isolated corner, <strong>more than 3 Range away from any lantern or statue</strong>. Pandawa and a second tanky teammate lock him in melee. The rest of the raid steps back to stay out of <em>Dark Chant</em> range and pours 100% firepower to crush his 62,000 HP. You claim <em>Willorka Blackness</em> (+10,000 direct score points)!</p>
+        </div>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/116-blocage-willorque-pandawa.jpg" alt="Willorka locked by Pandawa" class="guide-image" />
+            <span class="guide-caption">Willorka isolated in a corner by Pandawa and a tanky fighter</span>
+        </div>
+
+        <p>After victory, head back up to the Outpost through the shortcut and <strong>deposit Willorka relic (10,000 pts) plus remaining minerals into the chest</strong>. You are ready for the final showdown!</p>
+
+        <hr />
+
+        <h2>V. The Final Boss: The Gigalodon (3-Turn Burst)</h2>
+        <p>
+            The battle is initiated by speaking with the Raid Chest at the Outpost (-1). The fight lasts <strong>exactly 3 game turns</strong>. At the start of Turn 4, the automated spell <em>« Gigalodoom »</em> triggers an instant team victory. The goal is not to kill the boss, but to <strong>inflict maximum total damage</strong> to collect up to +15,000 bonus score points!
+        </p>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/118-boss-gigalodon.jpg" alt="Fight against Gigalodon" class="guide-image" />
+            <span class="guide-caption">Gigalodon emerging from deep waters (wide hitbox)</span>
+        </div>
+
+        <h3>3 Absolute Survival Rules</h3>
+        <ul>
+            <li><strong>Death zone « Jaws of Despair »:</strong> NEVER begin your turn on the 3 direct melee cells in front of Gigalodon mouth. Ending a turn there causes him to swallow you (turn skipped) and spawns a black glyph. If any ally steps on it, the swallowed player dies instantly!</li>
+            <li><strong>Mandatory diagonals:</strong> Position your fighters diagonally from the monster to dodge lateral water cones (<em>Ultrasplash</em>) and stay away from edges to avoid being pushed 7 cells by <em>Finspin</em>.</li>
+            <li><strong>3-cell spacing rule:</strong> Gigalodon casts <em>Gigarumble</em>: 700 earth damage to any target within 2 Range of an ally or summon, chaining across targets. Maintain at least 3 cells of empty space between players.</li>
+            <li><strong><em>Maxquale</em>:</strong> 500 air damage, infinite Range without line of sight, up to 5 times per turn (once per target) — bring air resistances.</li>
+            <li><strong>Double play:</strong> Gigalodon plays twice per turn (start + mid-turn, after half the fighters) and cannot be moved. Preparation phase: 3 minutes.</li>
+        </ul>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/131-sort-gigarale-exemple-zones.jpg" alt="Gigarumble spreading areas" class="guide-image" />
+            <span class="guide-caption">Mandatory spreading: keep at least 3 cells distance between allies to neutralize Gigarumble</span>
+        </div>
+
+        <h3>Damage Conversion &gt; Bonus Score Table</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Total Damage (3 turns)</th>
+                    <th>Bonus Score Awarded</th>
+                    <th>Target Team Profile</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>10,000 damage</td><td>+1,000 points</td><td>Safety net</td></tr>
+                <tr><td>20,000 damage</td><td>+2,000 points</td><td>Safety net</td></tr>
+                <tr><td>40,000 damage</td><td>+3,000 points</td><td>Safety net</td></tr>
+                <tr><td>70,000 damage</td><td>+4,000 points</td><td>Safety net</td></tr>
+                <tr><td>100,000 damage</td><td>+5,000 points</td><td>Discovery raid / standard gear</td></tr>
+                <tr><td>130,000 damage</td><td>+6,000 points</td><td>Progression</td></tr>
+                <tr><td>160,000 damage</td><td>+7,000 points</td><td>Progression</td></tr>
+                <tr><td>200,000 damage</td><td>+8,000 points</td><td>Progression</td></tr>
+                <tr><td>250,000 damage</td><td>+9,000 points</td><td>Solid boost coordination (AP / Power)</td></tr>
+                <tr><td>300,000 damage</td><td>+10,000 points</td><td>Milestone</td></tr>
+                <tr><td>400,000 damage</td><td>+11,000 points</td><td>Milestone</td></tr>
+                <tr><td>500,000 damage</td><td>+12,000 points</td><td>Optimized squad (Eliotrope Portals + Vulnerability)</td></tr>
+                <tr><td>600,000 damage</td><td>+13,000 points</td><td>Milestone</td></tr>
+                <tr><td>800,000 damage</td><td>+14,000 points</td><td>Milestone</td></tr>
+                <tr><td><strong>1,000,000 damage</strong></td><td><strong>+15,000 points (Score Cap)</strong></td><td>Flawless burst (Iop, Pandawa, Rogue/Cra, Cloudy T1/T3, Vulbis)</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Recommended Compositions & Class Roles (1M Damage Cap)</h3>
+        <p>
+            To reach the maximum <strong>1,000,000 damage cap in 3 turns</strong> (+15,000 bonus score points), your team composition must combine placement and vulnerability debuffs, single-target powerhouses, and team-wide damage amplification.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Class</th>
+                    <th>Role / Category</th>
+                    <th>Key Spells & Synergies</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/12.png" alt="Pandawa" class="class-icon" width="20" height="20" />
+                            Pandawa
+                        </span>
+                    </td>
+                    <td><strong>Core Staple</strong> (Melee Placement)</td>
+                    <td><em>Fermentation, Vulnerability, Karcham/Chamrak</em>. Keeps Gigalodon locked in diagonal away from the lethal 3 melee cells and maintains constant elemental debuffs.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/8.png" alt="Iop" class="class-icon" width="20" height="20" />
+                            Iop
+                        </span>
+                    </td>
+                    <td><strong>Core Staple</strong> (Turn 3 Burst)</td>
+                    <td><em>Massacre, Iop's Wrath T3, Power</em>. Unleashes Wrath on Turn 3 synchronized with the Cloudy Dofus peak and Eliotrope portals for extreme damage.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/16.png" alt="Eliotrope" class="class-icon" width="20" height="20" />
+                            Eliotrope
+                        </span>
+                    </td>
+                    <td><strong>Core Staple</strong> (Multiplier)</td>
+                    <td><em>4-Portal Network, Mutual Aid, Focus</em>. Massively amplifies all allied projectile and spell damage redirected through the terminal portal.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/17.png" alt="Huppermage" class="class-icon" width="20" height="20" />
+                            Huppermage
+                        </span>
+                    </td>
+                    <td><strong>Top Single-Target DPS</strong></td>
+                    <td><em>Earth/Fire Volcano, Elemental Cycle</em>. High damage per AP ratio and applies additional elemental resistance debuffs.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/13.png" alt="Rogue" class="class-icon" width="20" height="20" />
+                            Rogue
+                        </span>
+                    </td>
+                    <td><strong>Top Single-Target DPS</strong></td>
+                    <td><em>Bomb Wall, Powder, Countdown T3</em>. Detonates a fully charged bomb wall through portals on Turn 3 to shatter damage thresholds.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/9.png" alt="Cra" class="class-icon" width="20" height="20" />
+                            Cra
+                        </span>
+                    </td>
+                    <td><strong>Top Single-Target DPS</strong> (Ranged)</td>
+                    <td><em>Tactical Beacon, Destructive Arrow, Loaded Arrow</em>. Heavy sustained long-range damage from safe diagonal positions without blocking allied line of sight.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/4.png" alt="Sram" class="class-icon" width="20" height="20" />
+                            Sram
+                        </span>
+                    </td>
+                    <td><strong>Amplifier & Boost</strong></td>
+                    <td><em>Death Mark (+20% damage received), Cut-Throat</em>. Boosts overall raid strike potency throughout the designated burst turn.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/14.png" alt="Masqueraider" class="class-icon" width="20" height="20" />
+                            Masqueraider
+                        </span>
+                    </td>
+                    <td><strong>Amplifier & Boost</strong></td>
+                    <td><em>Transfiguration, Psychopath Mask, Furia, Plastron</em>. Team melee/ranged damage buffs and preventative shields against Gigarumble chain bounces.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="inline-flex items-center gap-2 font-bold text-foreground">
+                            <img src="/assets/dofus/classes/18.png" alt="Ouginak" class="class-icon" width="20" height="20" />
+                            Ouginak
+                        </span>
+                    </td>
+                    <td><strong>Amplifier & Boost</strong></td>
+                    <td><em>Prey, Relentlessness</em>. Increases final damage taken by Gigalodon for every attacking ally.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Essential Equipment & Synergies</h3>
+        <ul>
+            <li><strong>Cloudy Dofus:</strong> Mandatory on all core damage dealers. Since the battle strictly lasts 3 turns, odd turns (Turn 1 and Turn 3) benefit from the +20% final damage bonus, aligning perfectly with Wrath and bomb detonations.</li>
+            <li><strong>Judgement of Thanathena:</strong> Legendary weapon granting a stacking +4% damage suffered per hit. Position Thanathena users early in the turn order to maximize follow-up damage.</li>
+            <li><strong>Pure Mono-Element Trophies & Vulbis Dofus:</strong> Prioritize pure stats and high mobility to guarantee strict 3-cell spacing from allies at all times.</li>
+        </ul>
+
+        <h3>Turn-by-Turn Battle Execution (T1 to T3)</h3>
+        <ol>
+            <li><strong>Turn 1 (Setup & Boosts):</strong> Pandawa secures Gigalodon on a diagonal. Supports deploy AP and Power buffs. Eliotropes configure the portal grid at safe range. DPS capitalize on the odd-turn Cloudy Dofus boost (+20%).</li>
+            <li><strong>Turn 2 (Debuff Ramping):</strong> Apply elemental debuffs (Vulnerability, Elemental Cycle, Death Mark). Charge Iop's Wrath and prepare Rogue bombs while strictly observing 3-cell spacing.</li>
+            <li><strong>Turn 3 (All-In Burst & 1M Cap):</strong> Unleash all maximum strikes under the second Cloudy Dofus peak (+20% final damage). Fire Wrath and bomb detonations through portals to reach the 1,000,000 cap.</li>
+            <li><strong>Start of Turn 4:</strong> The automated spell <em>« Gigalodoom »</em> triggers, completing the fight with an instant victory and securing the maximum +15,000 bonus score!</li>
+        </ol>
+
+        <hr />
+
+        <h2>VI. Rewards & Weekly Progression Track</h2>
+        <p>
+            Each week, your highest recorded score unlocks reward milestones on the guild progression track (milestones range from 1,000 to 60,000 points):
+        </p>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/133-frise-recompenses.jpg" alt="Weekly reward track of Gigalodon raid" class="guide-image" />
+            <span class="guide-caption">Weekly reward progression track (Milestones from 1,000 to 60,000 pts)</span>
+        </div>
+
+        <ul>
+            <li><strong>Tiers (weekly best score):</strong> 1,000 · 2,000 · 5,000 · 8,000 · 13,000 · 19,000 · 27,000 · 36,000 · 45,000 · 60,000. Tiers 1-5: <em>Chasm Chests</em> (+ guildatons and XP); tiers 6-10: <em>Majestic Chasm Chests</em>.</li>
+            <li><strong>Chasm Chest:</strong> Abyssal glow (69%), Willorka Fin / Crabinator Carapace / Moraympress Venom (10% each), 1% <strong>Minilodon</strong> (costume pet).</li>
+            <li><strong>Majestic Chest:</strong> the 3 boss resources (32.5% each), 1% Minilodon, 0.5% per <strong>Chasm Set</strong> piece (Willorka Dorsal, Crabinator Clawspear, Moraympress Visage).</li>
+            <li><strong>Guild:</strong> 250 activity points per participating character. <strong>One track per week</strong> (Sanctuary or Chasm, pick one).</li>
+            <li><strong>Leaderboard (Tuesday 6am reset):</strong> Top 1 Gold Ornament + « Terror of the Depths » title, Top 2 Silver, Top 3 Bronze (+ scaling Guild Recognitions and guild XP down to Top 100%). Ladder rewards benefit the whole guild.</li>
+        </ul>
+
+        <div class="guide-image-container">
+            <img src="/images/guides/gigalodon/136-panoplie-du-gouffre.png" alt="Chasm Set gear" class="guide-image" />
+            <span class="guide-caption">Exclusive Chasm Set items obtained from chests</span>
+        </div>
+
+        <hr />
+
+        <h2>VII. Interactive Map & SigilOS Tools</h2>
+        <div class="callout callout-info">
+            <strong>World 37 integrated in SigilOS Worldmap</strong>
+            <p>Explore the full Gigalodon's Chasm on our <a href="/dashboard">Interactive Dofus HD Map</a> by selecting the world <em>Gigalodon's Chasm</em> (World 37). All bosses, the claw shortcut, the Luminarium puzzle and /travel commands are directly embedded!</p>
+        </div>
+
+        <p>
+            To expand your guild training, check our <a href="/guides/raid-sanctuaire-jardins-eternels-dofus-guide">Eternal Gardens Sanctuary Guide</a> and take advantage of SigilOS automated event calendars.
+        </p>
+`,
+};

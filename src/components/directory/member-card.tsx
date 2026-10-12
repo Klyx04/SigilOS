@@ -1,15 +1,17 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { UserProfile, User } from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Hammer, Palmtree, Shield, ShieldCheck, Sparkles, Copy } from "lucide-react";
+import { Palmtree, ShieldCheck, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { getClass, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { getDisplayName } from "@/lib/display-name";
+import { metierIds } from "@/lib/metiers";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -37,10 +39,50 @@ interface ExtendedProfile extends UserProfile {
 interface MemberCardProps {
     profile: ExtendedProfile;
     guildId: string;
+    /**
+     * Mode **lecture seule** (page publique `/demo`) : la carte n'est plus un lien vers
+     * `/dashboard/<guildId>/members/<pseudo>`, qui mènerait un anonyme à un mur de connexion.
+     * Défaut `false` : les usages existants (dashboard, administration) sont inchangés.
+     */
+    readOnly?: boolean;
 }
 
-export function MemberCard({ profile, guildId }: MemberCardProps) {
-    const jobs = Array.isArray(profile.metiers) ? (profile.metiers as string[]) : [];
+/**
+ * Enveloppe de la carte : lien vers la fiche du membre (usage normal) ou simple fragment
+ * (mode `readOnly`). Extraite pour ne pas déplacer les ~270 lignes de JSX de la carte.
+ */
+function MemberCardShell({
+    readOnly,
+    href,
+    children,
+}: {
+    readOnly: boolean;
+    href: string;
+    children: React.ReactNode;
+}) {
+    if (readOnly) return <>{children}</>;
+    return <Link href={href}>{children}</Link>;
+}
+
+/**
+ * Emblèmes de faction — **assets Dofus réels** (`/ordres/*`), les mêmes que la fiche publique et
+ * les modales. Aucun glyphe générique : ce qui n'a pas d'asset est dit, pas remplacé par un emoji.
+ */
+const FACTION_EMBLEM: Record<string, string> = {
+    neutre: "/ordres/neutre.png",
+    bontarien: "/ordres/bonta.png",
+    brakmarien: "/ordres/brakmar.png",
+};
+
+export function MemberCard({ profile, guildId, readOnly = false }: MemberCardProps) {
+    // Client-only hydration guard: vacation/online states depend on `new Date()`, which
+    // differs between SSR and client hydration. Any member right at a vacation or 2-min
+    // activity boundary would render mismatched text → React #418. Gating behind `mounted`
+    // makes SSR and the first client render identical, then re-renders with the client clock.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
+    const jobs = metierIds(profile.metiers);
     const topJobs = jobs.slice(0, 3);
     const remaining = jobs.length - 3;
 
@@ -59,21 +101,21 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
         ? `#${profile.roleColor.toString(16).padStart(6, "0")}`
         : undefined;
 
-    // Check if on vacation
+    // Check if on vacation (client-only — see mounted guard above)
     const now = new Date();
     const vacationStart = profile.vacationStart ? new Date(profile.vacationStart) : null;
     const vacationEnd = profile.vacationEnd ? new Date(profile.vacationEnd) : null;
-    const isOnVacation = vacationStart && vacationStart <= now && (!vacationEnd || vacationEnd >= now);
-    const isUpcoming = vacationStart && vacationStart > now;
+    const isOnVacation = mounted && vacationStart && vacationStart <= now && (!vacationEnd || vacationEnd >= now);
+    const isUpcoming = mounted && vacationStart && vacationStart > now;
 
-    // Format vacation dates for tooltip
-    const vacationTooltip = (isOnVacation || isUpcoming)
+    // Format vacation dates for tooltip (client-only; static otherwise to keep SSR identical)
+    const vacationTooltip = mounted && (isOnVacation || isUpcoming)
         ? `Absent du ${format(vacationStart!, "d MMM", { locale: fr })}${vacationEnd ? ` au ${format(vacationEnd, "d MMM", { locale: fr })}` : " (indéfini)"}`
         : "";
 
-    // Check if online (last 2 minutes)
+    // Check if online (last 2 minutes) — client-only
     const activeThreshold = 2 * 60 * 1000;
-    const isOnline = profile.lastActivityAt && (new Date().getTime() - new Date(profile.lastActivityAt).getTime() < activeThreshold);
+    const isOnline = mounted && profile.lastActivityAt && (now.getTime() - new Date(profile.lastActivityAt).getTime() < activeThreshold);
 
     const alignmentData = getAlignment(profile.alignment || "");
     const orderData = profile.alignment && profile.alignmentOrder ? getOrder(profile.alignment, profile.alignmentOrder) : null;
@@ -92,14 +134,18 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
     };
 
     return (
-        <Link href={`/dashboard/${guildId}/members/${encodeURIComponent(profile.pseudoDofus || profile.id)}`}>
+        <MemberCardShell
+            readOnly={readOnly}
+            href={`/dashboard/${guildId}/members/${encodeURIComponent(profile.pseudoDofus || profile.id)}`}
+        >
             <Card
                 className={cn(
-                    "group relative overflow-hidden cursor-pointer border transition-colors duration-200 bg-surface",
-                    roleColor ? "" : "border-border hover:border-border",
-                    isOnVacation && "bg-info/20 border-info/20 hover:border-info/40"
+                    "group relative overflow-hidden border rounded-md transition-colors duration-200 bg-surface",
+                    readOnly ? "cursor-default" : "cursor-pointer",
+                    roleColor ? "" : "border-border hover:border-border-strong",
+                    isOnVacation && "border-border-strong"
                 )}
-                style={roleColor ? { borderColor: `${roleColor}30` } : undefined}
+                style={roleColor ? { borderColor: `${roleColor}40` } : undefined}
             >
                 {/* Top accent banner */}
                 <div 
@@ -114,12 +160,12 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Badge variant="outline" className="bg-info/10 border-info/30 text-info gap-1.5 hover:bg-info/20 transition-colors cursor-help">
+                                        <Badge variant="outline" className="bg-surface border-border-strong text-info gap-1.5 cursor-help">
                                             <Palmtree className="w-3.5 h-3.5" />
                                             <span className="text-caption font-semibold uppercase tracking-wide hidden sm:inline">En vacances</span>
                                         </Badge>
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="bg-surface border-info/30 text-info">
+                                    <TooltipContent side="bottom" className="bg-surface border-border-strong text-info">
                                         <p className="font-bold">{vacationTooltip}</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -131,13 +177,13 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Badge variant="outline" className="bg-warning/10 border-warning/30 text-warning gap-1.5 hover:bg-warning/20 transition-colors cursor-help">
+                                        <Badge variant="outline" className="bg-surface border-border-strong text-warning gap-1.5 cursor-help">
                                             <Palmtree className="w-3.5 h-3.5" />
                                             <span className="text-caption font-semibold uppercase tracking-wide hidden sm:inline">Bientôt</span>
                                         </Badge>
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="bg-surface border-warning/30 text-warning dark:text-warning">
-                                        <p className="font-bold">⏳ {vacationTooltip}</p>
+                                    <TooltipContent side="bottom" className="bg-surface border-border-strong text-warning">
+                                        <p className="font-bold">{vacationTooltip}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
@@ -148,7 +194,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                     <div className="relative group/avatar mt-2">
                         <Avatar
                             className="w-24 h-24 transition-colors duration-200 ring-2 ring-offset-4 ring-offset-background"
-                            style={{ "--ringColor": roleColor || "rgba(255,255,255,0.1)" } as React.CSSProperties}
+                            style={{ "--ringColor": roleColor || "var(--border)" } as React.CSSProperties}
                         >
                             <AvatarImage src={profile.user.image || ""} className="object-cover" />
                             <AvatarFallback className="text-2xl font-black bg-surface text-muted-foreground">
@@ -178,7 +224,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <div className={cn(
-                                                "w-11 h-11 rounded-xl border-2 bg-surface flex items-center justify-center overflow-hidden",
+                                                "w-11 h-11 rounded-md border bg-surface flex items-center justify-center overflow-hidden",
                                                 profile.alignment === "bontarien" ? "border-info/40" : 
                                                 profile.alignment === "brakmarien" ? "border-danger/40" : 
                                                 "border-border-strong"
@@ -186,16 +232,17 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                                 {orderData ? (
                                                     <Image src={orderData.icon} alt={orderData.name} width={36} height={36} className="object-contain w-full h-full p-1" />
                                                 ) : (
-                                                    <Shield className={cn(
-                                                        "w-5 h-5",
-                                                        profile.alignment === "bontarien" ? "text-info" : 
-                                                        profile.alignment === "brakmarien" ? "text-danger" : 
-                                                        "text-muted-foreground"
-                                                    )} />
+                                                    <Image
+                                                        src={FACTION_EMBLEM[profile.alignment] ?? FACTION_EMBLEM.neutre}
+                                                        alt={alignmentData?.name ?? "Alignement"}
+                                                        width={32}
+                                                        height={32}
+                                                        className="object-contain w-full h-full p-1"
+                                                    />
                                                 )}
                                             </div>
                                         </TooltipTrigger>
-                                        <TooltipContent side="left" className="glass-premium border-border text-caption font-black uppercase tracking-widest">
+                                        <TooltipContent side="left" className="bg-surface border-border text-caption font-black uppercase tracking-widest">
                                             <p>{alignmentData?.name}{orderData ? ` - ${orderData.name}` : ""}</p>
                                             {profile.alignmentLevel ? <p className="text-muted-foreground">Niveau {profile.alignmentLevel}</p> : null}
                                         </TooltipContent>
@@ -214,7 +261,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             <button
                                 type="button"
                                 onClick={handleCopyPseudo}
-                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-success/30 bg-success/10 text-success hover:bg-success/20 hover:text-success transition-colors shrink-0"
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-accent hover:border-accent/60 transition-colors shrink-0"
                                 title={`Copier le pseudo pour /w ${profile.pseudoDofus || profile.discordNickname || displayName}`}
                                 aria-label="Copier le pseudo"
                             >
@@ -227,7 +274,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                         <TooltipTrigger asChild>
                                             <ShieldCheck className="w-4 h-4 text-warning shrink-0" />
                                         </TooltipTrigger>
-                                        <TooltipContent side="top" className="glass-premium border-warning/30 text-warning text-caption font-semibold">
+                                        <TooltipContent side="top" className="bg-surface border-border text-warning text-caption font-semibold">
                                             Administration SigilOS
                                         </TooltipContent>
                                     </Tooltip>
@@ -237,9 +284,16 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Sparkles className="w-4 h-4 text-info shrink-0" />
+                                            <Image
+                                                src="/assets/dofus/game-icons/recipe.png"
+                                                alt=""
+                                                aria-hidden="true"
+                                                width={16}
+                                                height={16}
+                                                className="w-4 h-4 object-contain opacity-80 shrink-0"
+                                            />
                                         </TooltipTrigger>
-                                        <TooltipContent side="top" className="glass-premium border-info/30 text-info text-caption font-semibold">
+                                        <TooltipContent side="top" className="bg-surface border-border text-caption font-semibold">
                                             Artisan Légendaire Spécialisé
                                         </TooltipContent>
                                     </Tooltip>
@@ -278,7 +332,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                                     <span className="mr-1.5 opacity-80 text-caption">{jobData.icon}</span>
                                                 )
                                             ) : (
-                                                <Hammer className="w-3 h-3 mr-1.5 opacity-50" />
+                                                <Image src="/assets/dofus/game-icons/hammer.png" alt="" aria-hidden="true" width={12} height={12} className="w-3 h-3 object-contain opacity-60 mr-1.5" />
                                             )}
                                             {jobData?.name || job}
                                         </Badge>
@@ -309,7 +363,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                             <TooltipProvider key={mule.id || idx}>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <div className="flex items-center gap-1.5 bg-black/40 border border-border rounded-md px-2 py-0.5 max-w-full">
+                                                        <div className="flex items-center gap-1.5 bg-elevated border border-border rounded-md px-2 py-0.5 max-w-full">
                                                             {mCls && (
                                                                 <div className="relative w-4.5 h-4.5 shrink-0">
                                                                     <Image 
@@ -352,8 +406,8 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
                     {/* Absence details footer */}
                     {isOnVacation && (
-                        <div className="w-full mt-2 pt-3 border-t border-info/10 flex flex-col items-center gap-1.5 animate-in slide-in-from-bottom-2 duration-300">
-                            <span className="text-caption text-info font-bold uppercase tracking-widest flex items-center gap-1 bg-info/10 px-2 py-0.5 rounded-full border border-info/20">
+                        <div className="w-full mt-2 pt-3 border-t border-border flex flex-col items-center gap-1.5">
+                            <span className="text-caption text-info font-bold uppercase tracking-widest flex items-center gap-1 bg-surface px-2 py-0.5 rounded-sm border border-border-strong">
                                 <Palmtree className="w-3 h-3" /> Période d'absence
                             </span>
                             <span className="text-caption text-foreground font-medium whitespace-nowrap">
@@ -364,6 +418,6 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                     )}
                 </CardContent>
             </Card>
-        </Link>
+        </MemberCardShell>
     );
 }

@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { DAYS_OF_WEEK, TIME_SLOTS, type AvailabilityMap, type DayOfWeek, type TimeSlot, type GlobalAvailability } from "@/lib/dofus-assets";
 import { useDebouncedCallback } from "use-debounce";
-import { Clock, Sunrise, Sun, Moon, ChevronLeft, ChevronRight, CalendarDays, Plane } from "lucide-react";
+import { Clock, Sunrise, Sun, Moon, Sunset, ChevronLeft, ChevronRight, CalendarDays, Plane } from "lucide-react";
 import { format, addWeeks, startOfWeek, endOfWeek, isWithinInterval, getISOWeek, getYear } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -19,30 +19,30 @@ interface AvailabilityHeatmapProps {
 const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
     matin: "Matin",
     midi: "Après-midi",
-    soir: "Soir",
+    soir: "Soirée",
     nuit: "Nuit"
 };
 
 const TIME_SLOT_HOURS: Record<TimeSlot, string> = {
-    matin: "6h - 12h",
+    matin: "06h - 12h",
     midi: "12h - 18h",
     soir: "18h - 00h",
-    nuit: "00h - 6h"
+    nuit: "00h - 06h"
 };
 
 const TIME_SLOT_ICONS: Record<TimeSlot, React.ReactNode> = {
-    matin: <Sunrise className="w-4 h-4" />,
-    midi: <Sun className="w-4 h-4" />,
-    soir: <Moon className="w-4 h-4" />,
+    matin: <Sunrise className="w-4 h-4 text-amber-400" />,
+    midi: <Sun className="w-4 h-4 text-warning" />,
+    soir: <Sunset className="w-4 h-4 text-violet-400" />,
     nuit: <Moon className="w-4 h-4 text-info" />
 };
 
 const TIME_SLOT_COLORS: Record<TimeSlot, { bg: string; border: string; glow: string; text: string }> = {
     matin: {
-        bg: "bg-warning/20",
-        border: "border-warning/50",
+        bg: "bg-amber-400/20",
+        border: "border-amber-400/50",
         glow: "",
-        text: "text-warning",
+        text: "text-amber-400",
     },
     midi: {
         bg: "bg-warning/20",
@@ -382,13 +382,13 @@ export function AvailabilityHeatmap({
                 </div>
             </div>
 
-            {/* Minimal Legend */}
-            <div className="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-border text-caption text-muted-foreground">
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-warning" /> Matin</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-warning" /> Midi</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-400" /> Soir</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-info" /> Nuit</div>
-                <div className="flex items-center gap-1.5 ml-4 text-info/50"><Plane className="w-3 h-3" /> Absent (Congés)</div>
+            {/* Minimal Legend with Hours */}
+            <div className="flex flex-wrap items-center justify-center gap-4 mt-6 pt-4 border-t border-border text-caption text-muted-foreground">
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> <Sunrise className="w-3.5 h-3.5 text-amber-400" /> <span>Matin (06h - 12h)</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-warning" /> <Sun className="w-3.5 h-3.5 text-warning" /> <span>Après-midi (12h - 18h)</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-400" /> <Sunset className="w-3.5 h-3.5 text-violet-400" /> <span>Soirée (18h - 00h)</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-info" /> <Moon className="w-3.5 h-3.5 text-info" /> <span>Nuit (00h - 06h)</span></div>
+                <div className="flex items-center gap-1.5 ml-2 text-info"><Plane className="w-3.5 h-3.5" /> <span>Absent (Congés)</span></div>
             </div>
         </div>
     );

@@ -11,15 +11,17 @@ export const PERMISSIONS = {
     STAFF_MEMBER_MGMT: "staff:member_mgmt",
     STAFF_CONTENT: "staff:content",
     STAFF_AUDIT: "staff:audit",
+    STAFF_REACTION_ROLES: "staff:reaction_roles",
+    STAFF_TICKETS: "staff:tickets",
 
     // Modules & Information
     PRESENTATION_VIEW: "presentation:view",
+    COMMANDS_VIEW: "commands:view",
 
     // Community
     COMMUNITY_ACCESS: "community:access",
     COMMUNITY_MOD: "community:mod",
     AVAILABILITY_VIEW: "availability:view",
-    RESOURCES_MANAGE: "resources:manage",
 
     // Missions
     MISSIONS_PLAY: "missions:play",
@@ -32,7 +34,13 @@ export const PERMISSIONS = {
     RAID_OFFICER: "game:raid_officer",
     RAID_MEMBER: "game:raid_member",
     POINTS_MANAGE: "points:manage",
+
+    // Marché (module « marche »)
+    MARKET_TRADE: "market:trade",
+    MARKET_MODERATE: "market:moderate",
 } as const;
+
+export const PERMISSION_IDS = PERMISSIONS;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
@@ -66,6 +74,12 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         module: "info",
         modules: ["Présentation", "Objectifs"]
     },
+    [PERMISSIONS.COMMANDS_VIEW]: { 
+        label: "Guide des Commandes Bot", 
+        description: "Consulter la page visuelle des commandes slash Discord de la guilde, leur syntaxe et les salons autorisés.", 
+        module: "community",
+        modules: ["Commandes Bot", "Discord"]
+    },
 
     // Admin
     [PERMISSIONS.STAFF_MEMBER_MGMT]: { 
@@ -86,6 +100,18 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         module: "admin",
         modules: ["Audit Logs"]
     },
+    [PERMISSIONS.STAFF_REACTION_ROLES]: { 
+        label: "Rôles par Réaction & Menus", 
+        description: "Créer, modifier, déployer et synchroniser les panneaux de reaction roles (boutons, listes, réactions).", 
+        module: "admin",
+        modules: ["Reaction Roles", "Déploiement Discord", "Packs d'Icônes"]
+    },
+    [PERMISSIONS.STAFF_TICKETS]: { 
+        label: "Support & Tickets Discord", 
+        description: "Gérer le bot de tickets, les catégories, formulaires d'intake, réclamations staff et clôtures.", 
+        module: "admin",
+        modules: ["Tickets Discord", "Panneaux", "SLA & Modals", "Transcripts"]
+    },
     [PERMISSIONS.SYSTEM_CONFIG]: { 
         label: "Paramétrage Technique", 
         description: "Configuration des intégrations Discord (rôles/webhooks), Metamob, Dofus et modules.", 
@@ -94,16 +120,16 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     },
     [PERMISSIONS.SYSTEM_RBAC]: { 
         label: "Gestion des Accès", 
-        description: "Gérer le mapping des permissions pour les utilisateurs et attribuer des droits RBAC.",
+        description: "Gérer le mapping des permissions et attribuer des droits RBAC — hors permissions sensibles (Administrateur Suprême, Gestion des Accès), réservées aux admins Discord natifs, sans appel.",
         module: "admin",
         modules: ["Matrice RBAC", "Permissions Individuelles"],
         sensitive: true,
     },
     [PERMISSIONS.SYSTEM_GOD]: { 
         label: "Administrateur Suprême", 
-        description: "Bypass absolu de sécurité. Autorisation inconditionnelle et totale sur toutes les fonctionnalités.", 
+        description: "Toutes les permissions du dashboard de la guilde (lecture + gestion). Exclus : interrupteurs des modules et transfert de propriété (natifs Discord), panel God (staff plateforme).",
         module: "admin",
-        modules: ["TOUS LES MODULES (Full Access)"],
+        modules: ["Toutes permissions (hors toggles modules)"],
         sensitive: true,
     },
 
@@ -125,12 +151,6 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         description: "Consulter les disponibilités et absences des membres dans l'annuaire et remplir son planning perso (module Disponibilités).",
         module: "community",
         modules: ["Annuaire (Disponibilités)", "Profil (Planning)"]
-    },
-    [PERMISSIONS.RESOURCES_MANAGE]: {
-        label: "Gérer les Ressources",
-        description: "#127 — Créer, modifier et supprimer les liens, catégories et créateurs de contenu de la page Ressources Dofus (délégation aux officiers, sans passer par le God).",
-        module: "community",
-        modules: ["Ressources Dofus (édition)"]
     },
 
 
@@ -186,6 +206,21 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         module: "game",
         modules: ["Points de Contribution"]
     },
+    // Marché — « participer au marché » (voir le catalogue, publier, réserver, offrir).
+    [PERMISSIONS.MARKET_TRADE]: {
+        label: "Marché — Participer",
+        description: "Voir le catalogue du Marché, publier ses annonces (équipements, lots de ressources) et interagir (réserver, négocier).",
+        module: "game",
+        modules: ["Marché", "Mes annonces"]
+    },
+    // Marché — modération (retirer/restaurer une annonce, traiter les signalements).
+    [PERMISSIONS.MARKET_MODERATE]: {
+        label: "Marché — Modérer",
+        description: "Retirer ou restaurer une annonce, traiter les signalements et clôturer les dossiers du Marché.",
+        module: "game",
+        modules: ["Modération Marché", "Signalements"],
+        sensitive: true,
+    },
 };
 
 export const PERMISSION_LABELS: Record<PermissionId, string> =
@@ -198,3 +233,89 @@ export function getPermissionsByModule(module: PermissionModule): PermissionId[]
         .filter(([, details]) => details.module === module)
         .map(([permId]) => permId);
 }
+
+/**
+ * Refonte onboarding §9 — permissions masquées quand leurs modules de guilde
+ * sont désactivés (toggle guilde OFF ou verrou God). Clé = PermissionId,
+ * valeur = ModuleKeys (toggles `GuildModulesState`) dont AU MOINS un doit être
+ * actif pour afficher la permission. Absent de la map = toujours affichée
+ * (dashboard:login, system:*, commandes bot, réglages…).
+ * Les mappings BDD sont CONSERVÉS (affichage seul) → réactivation sans perte.
+ */
+export const PERMISSION_GUILD_MODULES: Record<string, string[]> = {
+    [PERMISSIONS.MISSIONS_PLAY]: ["missions"],
+    [PERMISSIONS.MISSIONS_OFFICER]: ["missions"],
+    [PERMISSIONS.GAME_VIEW]: ["songes", "donjons", "quests", "ocre", "minigames", "worldmap", "ladder", "services"],
+    [PERMISSIONS.GAME_OPERATIONS]: ["songes", "donjons", "quests", "services"],
+    [PERMISSIONS.SUCCESS_VIEW]: ["succes"],
+    [PERMISSIONS.RAID_OFFICER]: ["missions", "donjons", "calendar"],
+    [PERMISSIONS.RAID_MEMBER]: ["missions", "donjons", "calendar"],
+    [PERMISSIONS.POINTS_MANAGE]: ["missions", "donjons"],
+    [PERMISSIONS.COMMUNITY_ACCESS]: ["roster", "profile", "calendar"],
+    [PERMISSIONS.COMMUNITY_MOD]: ["calendar"],
+    [PERMISSIONS.AVAILABILITY_VIEW]: ["availability", "calendar"],
+    [PERMISSIONS.MARKET_TRADE]: ["marche"],
+    [PERMISSIONS.MARKET_MODERATE]: ["marche"],
+    [PERMISSIONS.PRESENTATION_VIEW]: ["presentation"],
+    [PERMISSIONS.STAFF_MEMBER_MGMT]: ["roster", "profile"],
+    [PERMISSIONS.STAFF_CONTENT]: ["presentation", "docs"],
+    [PERMISSIONS.STAFF_AUDIT]: ["logs"],
+    [PERMISSIONS.STAFF_REACTION_ROLES]: ["reactionRoles"],
+    [PERMISSIONS.STAFF_TICKETS]: ["tickets"],
+    [PERMISSIONS.COMMANDS_VIEW]: ["commandes"],
+};
+/**
+ * Retourne les PermissionIds à masquer de la matrice étant donné l'état
+ * effectif des modules (déjà résolu avec le verrou God).
+ */
+export function getPermissionsHiddenByModules(
+    modules: Record<string, boolean | undefined>
+): PermissionId[] {
+    return (Object.keys(PERMISSION_GUILD_MODULES) as PermissionId[]).filter((perm) => {
+        const keys = PERMISSION_GUILD_MODULES[perm] || [];
+        return keys.length > 0 && !keys.some((k) => modules[k]);
+    });
+}
+
+/**
+ * Liens croisés cartes Modules ↔ cartes RBAC (§9) : pour un ModuleKey de
+ * guilde, les permissions qui le gouvernent (sens inverse de la map
+ * ci-dessus). Vide = aucune RBAC dédiée (structurel).
+ */
+export function getPermissionsForGuildModule(moduleKey: string): PermissionId[] {
+    return (Object.keys(PERMISSION_GUILD_MODULES) as PermissionId[]).filter((perm) =>
+        (PERMISSION_GUILD_MODULES[perm] || []).includes(moduleKey)
+    );
+}
+
+/** Libellés FR courts des toggles de guilde (cartes RBAC : état du module). */
+export const GUILD_MODULE_LABELS: Record<string, string> = {
+    presentation: "Présentation",
+    roster: "Annuaire",
+    stats: "Stats",
+    calendar: "Calendrier",
+    missions: "Missions",
+    songes: "Songes",
+    ocre: "Quête Ocre",
+    ladder: "Classement",
+    services: "Services",
+    donjons: "Donjons & Quêtes",
+    profile: "Profil",
+    docs: "Documentation",
+    gallery: "Galerie",
+    availability: "Disponibilités",
+    logs: "Audit Logs",
+    polls: "Sondages",
+    reactionRoles: "Reaction Roles",
+    tickets: "Tickets",
+    quests: "Quêtes Dofus",
+    worldmap: "Carte du Monde",
+    resources: "Ressources",
+    commandes: "Commandes Bot",
+    ladderSync: "Ladder Ankama",
+    manualLadderSync: "Ladder OC",
+    minigames: "Mini-Jeux",
+    succes: "Succès",
+    marche: "Marché",
+    admin: "Admin",
+};

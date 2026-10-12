@@ -85,17 +85,17 @@ const IMAGE_SIZES = {
     dungeon: 512,      // Dungeons: 512px max
     item: 256,         // Items/Bonuses: 256px max
     legendary: 256,    // Legendary items: 256px max
-    landing: 1920      // #140 — screens de la landing : 1920px max (captures plein écran)
+    defi: 512,         // Défis : 512px max (illustration)
+    titan: 512,        // Titans : 512px max (illustration)
 };
 
-export type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary" | "landing";
+export type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary" | "defi" | "titan";
 
 /**
  * 🔒 CodeQL js/path-injection (fix PR #505) : répertoires de destination FIXES
  * (constantes du code), indexés par type. Aucune partie du répertoire ne peut être
  * influencée par l'utilisateur — les sinks (mkdir/writeFile) ne reçoivent que ce
  * répertoire + un nom de fichier assaini (basename + allowlist) dans processAndSaveImage.
- * `landing` → private_uploads/landing (segment public servi via le middleware `/uploads/*`).
  */
 function destDirFor(type: ImageType): string {
     switch (type) {
@@ -104,7 +104,8 @@ function destDirFor(type: ImageType): string {
         case "dungeon": return "public/game-data/dungeons";
         case "item": return "public/game-data/items";
         case "legendary": return "public/game-data/legendary";
-        case "landing": return "private_uploads/landing";
+        case "defi": return "public/game-data/defis";
+        case "titan": return "public/game-data/titans";
     }
 }
 

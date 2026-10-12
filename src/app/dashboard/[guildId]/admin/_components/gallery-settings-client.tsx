@@ -7,9 +7,9 @@ import { Loader2, Save, Image as ImageIcon, Sword, Info, Sparkles, Layout, Hash 
 import { toast } from "sonner";
 import { getGalleryConfig, updateGallerySettings } from "@/server/actions/admin-actions";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 interface GallerySettingsClientProps {
     guildId: string;
@@ -17,6 +17,7 @@ interface GallerySettingsClientProps {
 
 export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
     const [config, setConfig] = useState<{ skinGalleryChannelId: string | null; stuffGalleryChannelId: string | null } | null>(null);
+    const [initialConfig, setInitialConfig] = useState<{ skinGalleryChannelId: string | null; stuffGalleryChannelId: string | null } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
@@ -26,6 +27,7 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
 
             if (configRes.success && configRes.data) {
                 setConfig(configRes.data);
+                setInitialConfig(configRes.data);
             }
 
             setIsLoading(false);
@@ -44,6 +46,8 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
 
             if (result.success) {
                 toast.success("Paramètres de la galerie mis à jour !");
+                // La sauvegarde devient la nouvelle référence → plus rien de « sale ».
+                setInitialConfig(config);
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -57,6 +61,9 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
             </div>
         );
     }
+
+    // #228 — Détection « modifications non sauvegardées » pour la garde anti-navigation.
+    const dirty = isDirty(config, initialConfig);
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto pb-8">
@@ -81,17 +88,13 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label className="text-caption uppercase font-black text-muted-foreground ml-1">ID du Salon Skins</Label>
-                                <div className="relative group/input">
-                                    <Input
-                                        placeholder="ID du salon (ex: 123...)"
-                                        value={config?.skinGalleryChannelId || ""}
-                                        onChange={(e) => setConfig(prev => prev ? { ...prev, skinGalleryChannelId: e.target.value || null } : null)}
-                                        className="bg-background/50 border-border h-11 pl-10 focus:border-pink-500/50 transition-colors"
-                                    />
-                                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover/input:text-pink-500/50 transition-colors" />
-                                </div>
-                                <ChannelPreview guildId={guildId} channelId={config?.skinGalleryChannelId || ""} color="pink" />
+                                <Label className="text-caption uppercase font-black text-muted-foreground ml-1">Salon Skins</Label>
+                                <DiscordChannelPicker
+                                    guildId={guildId}
+                                    value={config?.skinGalleryChannelId || ""}
+                                    onChange={(v) => setConfig(prev => prev ? { ...prev, skinGalleryChannelId: v || null } : null)}
+                                    allowedTypes={[0, 5, 15]}
+                                />
                             </div>
                             <div className="p-3 rounded-xl bg-pink-500/5 border border-pink-500/10 flex items-start gap-3">
                                 <Info className="w-3 h-3 text-pink-400 mt-0.5 shrink-0" />
@@ -116,17 +119,13 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label className="text-caption uppercase font-black text-muted-foreground ml-1">ID du Salon Stuffs</Label>
-                                <div className="relative group/input">
-                                    <Input
-                                        placeholder="ID du salon (ex: 123...)"
-                                        value={config?.stuffGalleryChannelId || ""}
-                                        onChange={(e) => setConfig(prev => prev ? { ...prev, stuffGalleryChannelId: e.target.value || null } : null)}
-                                        className="bg-background/50 border-border h-11 pl-10 focus:border-success/50 transition-colors"
-                                    />
-                                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover/input:text-success/50 transition-colors" />
-                                </div>
-                                <ChannelPreview guildId={guildId} channelId={config?.stuffGalleryChannelId || ""} color="emerald" />
+                                <Label className="text-caption uppercase font-black text-muted-foreground ml-1">Salon Stuffs</Label>
+                                <DiscordChannelPicker
+                                    guildId={guildId}
+                                    value={config?.stuffGalleryChannelId || ""}
+                                    onChange={(v) => setConfig(prev => prev ? { ...prev, stuffGalleryChannelId: v || null } : null)}
+                                    allowedTypes={[0, 5, 15]}
+                                />
                             </div>
                             <div className="p-3 rounded-xl bg-success/5 border border-success/10 flex items-start gap-3">
                                 <Info className="w-3 h-3 text-success mt-0.5 shrink-0" />
@@ -161,6 +160,9 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                     SAUVEGARDER LA CONFIGURATION
                 </Button>
             </div>
+
+            {/* #228 — Garde anti-navigation : alerte si des modifications sont non sauvegardées. */}
+            <UnsavedChangesGuard hasUnsavedChanges={dirty} />
         </div>
     );
 }

@@ -1,9 +1,13 @@
 {
   "names": [
-    "défenseur de la réserve"
+    "défenseur de la réserve",
+    "veilleur de l'ouvrage",
+    "gardien du clos"
   ],
   "dofusdbIds": [
-    8319
+    8319,
+    8318,
+    8317
   ],
-  "updatedAt": "2026-08-17T13:15:58.258Z"
+  "updatedAt": "2026-09-17T17:46:36.381Z"
 }

@@ -5,6 +5,9 @@ import { MemberManagementTable } from "@/components/admin/member-management-tabl
 import { Shield, ChevronLeft, Users } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/prisma";
+import { GodCard } from "@/app/god/ui";
+import { logger } from "@/lib/logger";
+import { GodGuildTabs } from "./god-guild-tabs";
 
 interface GodGuildDetailsPageProps {
     params: Promise<{ id: string }>;
@@ -25,7 +28,14 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
     // Fetch individual guild config for the header
     const guild = await db.guildConfig.findUnique({
         where: { id: guildId },
-        select: { name: true, discordGuildId: true, iconUrl: true, welcomeBadgeName: true }
+        select: {
+            name: true,
+            discordGuildId: true,
+            iconUrl: true,
+            welcomeBadgeName: true,
+            rolesMapping: true,
+            usersMapping: true,
+        }
     });
 
     if (!guild) {
@@ -33,6 +43,56 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
     }
 
     const members = await getGuildMembersForGod(guildId);
+
+    // Refus **propre** de l'action (aucune donnée lue, fail-closed) : on affiche un écran de
+    // refus honnête au lieu de laisser une exception faire tomber toute la fiche
+    // (constat du 12/10/2026 : `throw` ⇒ « Application error » + Issue Sentry).
+    if (!members.ok) {
+        return (
+            <div className="space-y-6 py-20">
+                <div
+                    role="alert"
+                    className="mx-auto max-w-xl rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 text-center"
+                >
+                    <p className="text-sm font-black uppercase tracking-widest text-amber-400">
+                        Roster masqué
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed text-amber-200/80">{members.error}</p>
+                </div>
+                <Link
+                    href="/god"
+                    className="mx-auto block w-fit text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
+                >
+                    Retour au Panthéon
+                </Link>
+            </div>
+        );
+    }
+
+    // Données des onglets Logs / Accès & RBAC (audit du 24/09 : aucune des deux
+    // n'existait). Best-effort : une API Discord indisponible ne doit pas casser
+    // la fiche — on affiche alors des listes vides explicites.
+    const { fetchGuildRoles } = await import("@/server/discord");
+    const { getGuildLogsStats } = await import("@/server/actions/storage-actions");
+    const { getRbacUsersMappingEnabled } = await import("@/lib/platform-rbac");
+    const { GodsGuildAccessPanel } = await import("./god-guild-access-panel");
+
+    const [discordRoles, rbacUsersMappingEnabled] = await Promise.all([
+        fetchGuildRoles(guild.discordGuildId).catch(() => [] as { id: string; name: string }[]),
+        getRbacUsersMappingEnabled().catch(() => true),
+    ]);
+
+    const roleNames: Record<string, string> = {};
+    for (const role of discordRoles) roleNames[role.id] = role.name;
+
+    // `getGuildLogsStats` est réservé super-admin (fail-closed) : un sous-god n'a
+    // pas de compteur, il garde les journaux.
+    let logsStats: { serviceLogs: number; auditLogs: number } | null = null;
+    if (isAdmin) {
+        const statsRes = await getGuildLogsStats().catch(() => null);
+        const row = statsRes?.success ? statsRes.data?.rows.find((r) => r.guildId === guildId) : undefined;
+        logsStats = row ? { serviceLogs: row.serviceLogs, auditLogs: row.auditLogs } : null;
+    }
 
     return (
         <div className="space-y-8 py-8">
@@ -88,7 +148,7 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
             </div>
 
             {/* Roster Table - Reusing the Admin component for consistency */}
-            <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-1 shadow-2xl overflow-hidden">
+            <GodCard className="p-1 shadow-2xl overflow-hidden">
                 <div className="p-8 border-b border-white/5 flex items-center justify-between">
                     <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest flex items-center gap-3">
                         <Users className="w-4 h-4 text-violet-500" />
@@ -104,7 +164,7 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                         ownerId={members.ownerId}
                     />
                 </div>
-            </div>
+            </GodCard>
 
             <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
                 <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
@@ -114,6 +174,161 @@ export default async function GodGuildDetailsPage({ params }: GodGuildDetailsPag
                         : "Vous consultez ce roster en lecture seule (accès sous-god). Toute action destructrice est masquée."}
                 </p>
             </div>
+
+            {/* Super-gestion des modules (§9) + journaux + accès : ONGLETS (audit 24/09) */}
+            <GodGuildTabs
+                logsBadge={logsStats?.auditLogs ?? 0}
+                modules={isAdmin ? (
+                    <GodGuildModulesSection discordGuildId={guild.discordGuildId} />
+                ) : (
+                    <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
+                        <p className="text-xs text-amber-500/80 font-medium leading-relaxed">
+                            <span className="font-black uppercase tracking-widest mr-2">Lecture seule :</span>
+                            les verrous de modules sont réservés au staff plateforme. Un sous-god voit ici
+                            l&apos;état des accès et des journaux, jamais les actions.
+                        </p>
+                    </div>
+                )}
+                logs={<GodGuildLogsSection
+                    discordGuildId={guild.discordGuildId}
+                    guildConfigId={guildId}
+                    guildName={guild.name}
+                    stats={logsStats}
+                    isGod={isAdmin}
+                />}
+                access={<GodsGuildAccessPanel
+                    ownerId={members.ownerId ?? null}
+                    rolesMapping={(guild.rolesMapping as Record<string, string[]>) ?? {}}
+                    usersMapping={(guild.usersMapping as Record<string, string[]>) ?? {}}
+                    discordRoles={discordRoles}
+                    rbacUsersMappingEnabled={rbacUsersMappingEnabled}
+                    roleNames={roleNames}
+                />}
+            />
         </div>
+    );
+}
+
+/**
+ * Onglet **Logs** d'une guilde côté God — réutilise le rendu **riche** de la guilde
+ * (`AuditLogsClient` : `changeDetail`, `PermissionChangesDisplay`, pseudos,
+ * filtres action/acteur/date, pagination) au lieu du `JSON.stringify` tronqué du
+ * viewer God (audit du 24/09 : « richesse guilde vs pauvreté God »).
+ */
+async function GodGuildLogsSection({
+    discordGuildId,
+    guildConfigId,
+    guildName,
+    stats,
+    isGod,
+}: {
+    discordGuildId: string;
+    /** Id **interne** de la guilde (`GuildConfig.id`) — clé du mode God (A5). */
+    guildConfigId: string;
+    guildName: string;
+    stats: { serviceLogs: number; auditLogs: number } | null;
+    /** Super-admin : il lit **toujours** (A5), jamais via le RBAC de guilde. */
+    isGod: boolean;
+}) {
+    const { AuditLogsClient } = await import("@/app/dashboard/[guildId]/admin/logs/_components/audit-logs-client");
+    const { getAuditLogs, getGlobalAuditLogs } = await import("@/server/actions/audit-actions");
+    const { fetchGuildRoles } = await import("@/server/discord");
+
+    // 🛡️ A5 (verbatim 9) — « je suis le dev du produit, je vois tout ». Le God lit par
+    // `isSuperAdmin()`, **jamais** par `getUserContext().canViewAuditLogs` : ce dernier
+    // répond `false` pour un God qui n'est pas membre du serveur Discord — c'est la cause
+    // racine du « ce compte n'a pas la permission de lire le journal de cette guilde »
+    // (capture *Kamas NOT Found*) affiché sous un en-tête « INSPECTION GOD MODE ».
+    const [result, roles] = await Promise.all([
+        isGod
+            ? getGlobalAuditLogs({ guildConfigId, scope: "guild", limit: 20, page: 1 })
+            : getAuditLogs(discordGuildId, { limit: 20, page: 1 }),
+        fetchGuildRoles(discordGuildId).catch(() => [] as Awaited<ReturnType<typeof fetchGuildRoles>>),
+    ]);
+
+    // 🔴 A5 — « erreur de chargement » et « accès refusé » ne portent **jamais** le même
+    // texte : un God ne peut pas lire un refus de droits, un sous-god sans droit lit un
+    // refus explicite, et un incident technique affiche sa cause.
+    if (!result.success || !result.data) {
+        const isRefusal = !isGod && result.error === "Accès non autorisé";
+
+        return isRefusal ? (
+            <div role="status" className="rounded-2xl border border-warning/30 bg-warning/5 p-6">
+                <p className="text-body-sm font-semibold text-warning">Accès refusé</p>
+                <p className="mt-1 text-caption text-warning/80">
+                    Ton accès de guilde ne couvre pas le journal de cette guilde (droit « consulter les journaux »
+                    absent).
+                </p>
+            </div>
+        ) : (
+            <div role="alert" className="rounded-2xl border border-danger/30 bg-danger/5 p-6">
+                <p className="text-body-sm font-semibold text-danger">Erreur de chargement du journal</p>
+                <p className="mt-1 text-caption text-danger/80">
+                    La lecture a échoué ({result.error ?? "cause inconnue"}) — ce n&apos;est pas un refus de droits.
+                    Réessaie, puis vérifie l&apos;état de la base.
+                </p>
+            </div>
+        );
+    }
+
+    const logs = result.data.logs;
+    const total = result.data.total;
+
+    const roleNames: Record<string, string> = {};
+    for (const role of roles) roleNames[role.id] = role.name;
+
+    // Dates + BigInt (champs Json Prisma) sérialisés pour le composant client —
+    // même conversion que la page guilde, l'API de pagination est la même.
+    const stringify = (val: unknown) =>
+        val ? JSON.parse(JSON.stringify(val, (_k, v) => (typeof v === "bigint" ? v.toString() : v))) : val;
+    const serializedLogs = logs.map((log) => ({
+        ...log,
+        createdAt: (log.createdAt as Date).toISOString(),
+        metadata: stringify(log.metadata),
+        oldValue: stringify(log.oldValue),
+        newValue: stringify(log.newValue),
+    }));
+
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-zinc-900/20 border border-white/5 rounded-2xl p-4">
+                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Audit (30 j)</p>
+                    <p className="text-2xl font-black text-white mt-1 tabular-nums">{stats?.auditLogs ?? 0}</p>
+                </div>
+                <div className="bg-zinc-900/20 border border-white/5 rounded-2xl p-4">
+                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Activité services (30 j)</p>
+                    <p className="text-2xl font-black text-white mt-1 tabular-nums">{stats?.serviceLogs ?? 0}</p>
+                </div>
+                <div className="bg-zinc-900/20 border border-white/5 rounded-2xl p-4">
+                    <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Guilde</p>
+                    <p className="text-sm font-bold text-zinc-300 mt-2 truncate" title={guildName}>{guildName}</p>
+                </div>
+            </div>
+
+            <AuditLogsClient
+                guildId={discordGuildId}
+                initialLogs={serializedLogs}
+                initialTotal={total}
+                roleNames={roleNames}
+                godGuildConfigId={isGod ? guildConfigId : undefined}
+            />
+        </div>
+    );
+}
+
+async function GodGuildModulesSection({ discordGuildId }: { discordGuildId: string }) {
+    const { getGuildModules, getModuleGodLocks } = await import("@/server/actions/module-actions");
+    const { GodGuildModulesClient } = await import("./god-guild-modules-client");
+    const [modules, locks] = await Promise.all([
+        getGuildModules(discordGuildId),
+        getModuleGodLocks(discordGuildId),
+    ]);
+    return (
+        <GodGuildModulesClient
+            discordGuildId={discordGuildId}
+            initialModules={modules}
+            initialLocks={locks}
+        />
     );
 }

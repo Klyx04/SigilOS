@@ -15,14 +15,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import { searchZonesDetected } from "@/server/actions/game-data-actions";
-import { searchDungeonsLocal } from "@/server/actions/dofus-search-actions";
+import { searchDungeonsLocal, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
+import { uploadImageFile } from "@/components/editor/utils/image-upload";
+import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
+import { parseGameCoord, buildManualZaapTravelCommand } from "@/lib/travel-command";
 import { toast } from "sonner";
 import { safeImageUrl, isSafeImageUrl } from "@/lib/security";
+import { ACHIEVEMENT_KIND, QUEST_KIND, buildQuestTree, isAchievement, wouldCreateCycle } from "@/lib/dofus-quest-tree";
 import { 
     Gem, Plus, Trash2, Edit2, 
     MapPin, BookOpen, Castle, Trophy, Search,
     ArrowUp, ArrowDown,
-    ExternalLink, Info, Sword, Skull, Copy, ImageIcon
+    ExternalLink, Info, Sword, Skull, Copy
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -182,18 +186,34 @@ export default function DofusQuestGodManager() {
                                                 {chain.entries.length === 0 ? (
                                                     <div className="p-6 border border-dashed border-border rounded-2xl bg-muted/20 text-center"><p className="text-caption font-black uppercase tracking-widest text-muted-foreground italic">Vierge</p></div>
                                                 ) : (
-                                                    chain.entries.map((entry: any) => (
-                                                        <div key={entry.id} className="group p-4 bg-background/50 backdrop-blur-md border border-border rounded-2xl flex items-center justify-between hover:border-border-strong transition-all shadow-md">
+                                                    (() => {
+                                                        // Succès imbriqués : on parcourt l'arbre aplati, la profondeur
+                                                        // d'indentation montrant les objectifs d'un succès conteneur.
+                                                        const tree = buildQuestTree<any>(chain.entries);
+                                                        const rows: { entry: any; depth: number; childrenCount: number; parentName: string | null }[] = [];
+                                                        const pushRow = (e: any, d: number, parentName: string | null = null) => {
+                                                            const children = tree.childrenByParent.get(e.id) ?? [];
+                                                            rows.push({ entry: e, depth: d, childrenCount: children.length, parentName });
+                                                            children.forEach((child: any) => pushRow(child, d + 1, e.name));
+                                                        };
+                                                        tree.roots.forEach((r: any) => pushRow(r, 0));
+                                                        return rows.map(({ entry, depth, childrenCount, parentName }) => (
+                                                        <div key={entry.id} style={depth > 0 ? { marginLeft: `${depth * 20}px` } : undefined} className={`group p-4 bg-background/50 backdrop-blur-md border rounded-2xl flex items-center justify-between hover:border-border-strong transition-all shadow-md ${isAchievement(entry) ? "border-warning/30" : "border-border"}`}>
                                                             <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 min-w-0">
                                                                 <div className={`w-12 h-12 rounded-xl bg-black/50 border border-border overflow-hidden flex items-center justify-center shrink-0 ${entry.questType === "DUNGEON" ? "text-danger" : "text-sky-400"}`}>
                                                                     {entry.localImageUrl ? (
                                                                         /* eslint-disable-next-line @next/next/no-img-element */
                                                                         <img src={entry.localImageUrl} alt="" className="w-full h-full object-contain p-0.5" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                                    ) : isAchievement(entry) ? (
+                                                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                                                        <img src="/assets/icons/icone-succes.png" alt="" className="w-7 h-7 object-contain" />
                                                                     ) : entry.questType === "DUNGEON" ? <Castle className="w-5 h-5" /> : <BookOpen className="w-5 h-5" />}
                                                                 </div>
                                                                 <div className="space-y-1.5 min-w-0">
                                                                     <div className="flex flex-wrap items-center gap-2">
                                                                         <h4 className="text-base font-black text-foreground italic tracking-tighter truncate">{entry.name}</h4>
+                                                                        {isAchievement(entry) && <Badge className="bg-warning/15 text-warning border border-warning/30 uppercase font-black text-caption px-1.5 py-0.5 rounded-md flex items-center gap-1"><Trophy className="w-2.5 h-2.5" /> Succès · {childrenCount > 0 ? `${childrenCount} objectif${childrenCount > 1 ? "s" : ""}` : "sans objectif"}</Badge>}
+                                                                        {parentName && <Badge className="bg-info/10 text-info border border-info/20 uppercase font-black text-caption px-1.5 py-0.5 rounded-md">↳ {parentName}</Badge>}
                                                                         {entry.isLast && <Badge className="bg-success/20 text-success border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Final</Badge>}
                                                                         {entry.isOptional && <Badge className="bg-muted/20 text-muted-foreground border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Optionnel</Badge>}
                                                                         {entry.isDungeon && <Badge className="bg-danger/20 text-danger border-none uppercase font-black text-caption px-1.5 py-0.5 rounded-md">Donjon</Badge>}
@@ -213,12 +233,16 @@ export default function DofusQuestGodManager() {
                                                                 </div>
                                                             </div>
                                                             <div className="pl-4 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                                                {isAchievement(entry) && (
+                                                                    <Button variant="ghost" size="sm" onClick={() => { setEditingEntry({ chainId: entry.chainId, entryKind: "QUEST", parentEntryId: entry.id }); setIsEntryDialogOpen(true); }} className="h-9 px-3 bg-warning/10 hover:bg-warning/20 text-warning hover:text-warning rounded-xl border border-warning/30 text-caption font-black uppercase tracking-wider" title="Ajouter un objectif dans ce succès"><Plus className="w-3 h-3 md:mr-1.5" /> <span className="hidden md:inline">Objectif</span></Button>
+                                                                )}
                                                                 <Button variant="ghost" size="icon" onClick={async () => { const { reorderQuestEntry } = await import("@/server/actions/dofus-quest-admin-actions"); const res = await reorderQuestEntry(entry.id, "up"); if (res.success) { toast.success("Déplacée"); loadData(); } else toast.error(res.error || "Erreur"); }} className="h-9 w-9 bg-surface hover:bg-surface text-muted-foreground hover:text-info rounded-xl border border-border" title="Monter"><ArrowUp className="w-3.5 h-3.5" /></Button>
                                                                 <Button variant="ghost" size="icon" onClick={async () => { const { reorderQuestEntry } = await import("@/server/actions/dofus-quest-admin-actions"); const res = await reorderQuestEntry(entry.id, "down"); if (res.success) { toast.success("Déplacée"); loadData(); } else toast.error(res.error || "Erreur"); }} className="h-9 w-9 bg-surface hover:bg-surface text-muted-foreground hover:text-info rounded-xl border border-border" title="Descendre"><ArrowDown className="w-3.5 h-3.5" /></Button>
                                                                 <Button variant="ghost" size="icon" onClick={() => { setEditingEntry(entry); setIsEntryDialogOpen(true); }} className="h-9 w-9 bg-surface hover:bg-surface text-muted-foreground hover:text-foreground rounded-xl border border-border"><Edit2 className="w-3.5 h-3.5" /></Button>
                                                             </div>
                                                         </div>
-                                                    ))
+                                                    ));
+                                                    })()
                                                 )}
                                             </div>
                                         </div>
@@ -247,11 +271,36 @@ export default function DofusQuestGodManager() {
         </div>
         <DofusEditDialog open={isDofusDialogOpen} onOpenChange={setIsDofusDialogOpen} dofus={editingDofus} onSuccess={loadData} />
         <ChainEditDialog open={isChainDialogOpen} onOpenChange={setIsChainDialogOpen} chain={editingChain} dofusId={selectedDofusId} onSuccess={loadData} />
-        <EntryEditDialog open={isEntryDialogOpen} onOpenChange={setIsEntryDialogOpen} entry={editingEntry} onSuccess={loadData} />
+        <EntryEditDialog open={isEntryDialogOpen} onOpenChange={setIsEntryDialogOpen} entry={editingEntry} onSuccess={loadData}
+            chainEntries={selectedDofus?.questChains.find((c: any) => c.id === editingEntry?.chainId)?.entries ?? []} />
     </TabsContent>
 </Tabs>
 </div>
 );
+}
+
+// ─── Helpers Dofus Edit Dialog ────────────────────────────────────────────
+// Palette de couleurs (évite de taper un hex à la main)
+const DOFUS_COLOR_PALETTE = [
+    "#10b981", "#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6",
+    "#ec4899", "#14b8a6", "#f97316", "#84cc16", "#64748b",
+    "#eab308", "#06b6d4", "#d946ef", "#f43f5e", "#0ea5e9",
+];
+
+// Transforme un nom en slug URL (sans accents) : "Dofus Émeraude" -> "dofus-emeraude"
+function slugifyDofus(input: string): string {
+    return (input || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+// Nom court auto : retire le préfixe "Dofus " -> "Dofus Émeraude" -> "Émeraude"
+function shortNameFromDofus(name: string): string {
+    const t = (name || "").trim();
+    return t.toLowerCase().startsWith("dofus ") ? t.slice(6).trim() : t;
 }
 
 // ─── Dofus Edit Dialog ─────────────────────────────────────────────────────
@@ -262,7 +311,31 @@ function DofusEditDialog({ open, onOpenChange, dofus, onSuccess }: any) {
         if (dofus) setFormData({ ...dofus });
         else setFormData({ name: "", nameShort: "", slug: "", rarity: "MAJEUR", isPrimordial: false, levelRecommended: 1, color: "#ffffff", imageUrl: "", description: "" });
     }, [dofus, open]);
-    async function handleSubmit(e: any) { e.preventDefault(); setLoading(true); const res = await upsertDofusItem(dofus?.id || null, formData); if (res.success) { toast.success("Dofus sauvegardé"); onOpenChange(false); onSuccess(); } else toast.error(res.error); setLoading(false); }
+    // Auto-remplit slug + nom court depuis le nom (tant qu'ils sont vides), pour simplifier la création
+    const handleNameChange = (v: string) => {
+        const next = { ...formData, name: v };
+        if (!(formData.slug || "").trim()) next.slug = slugifyDofus(v);
+        if (!(formData.nameShort || "").trim()) next.nameShort = shortNameFromDofus(v);
+        setFormData(next);
+    };
+    // Complète les champs requis dérivables avant l'envoi, puis valide côté client
+    const buildDofusPayload = () => {
+        const name = (formData.name || "").trim();
+        const nameShort = (formData.nameShort || "").trim() || shortNameFromDofus(name);
+        const slug = (formData.slug || "").trim() || slugifyDofus(name);
+        return { ...formData, name, nameShort, slug };
+    };
+    async function handleSubmit(e: any) {
+        e.preventDefault();
+        const payload = buildDofusPayload();
+        if (!payload.name) { toast.error("Le nom du Dofus est requis"); return; }
+        if (!payload.slug) { toast.error("Impossible de générer un slug : nom manquant"); return; }
+        setLoading(true);
+        const res = await upsertDofusItem(dofus?.id || null, payload);
+        if (res.success) { toast.success("Dofus sauvegardé"); onOpenChange(false); onSuccess(); }
+        else toast.error(res.error);
+        setLoading(false);
+    }
     async function handleDelete() { if (!confirm("Supprimer CE DOFUS et TOUTES SES QUÊTES ?")) return; setLoading(true); const res = await deleteDofusItem(dofus.id); if (res.success) { toast.success("Dofus supprimé"); onOpenChange(false); onSuccess(); } else toast.error(res.error); setLoading(false); }
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -270,10 +343,39 @@ function DofusEditDialog({ open, onOpenChange, dofus, onSuccess }: any) {
                 <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">{dofus ? "Modifier le Dofus" : "Créer un Dofus"}</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom</label><Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom court</label><Input value={formData.nameShort} onChange={e => setFormData({...formData, nameShort: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Slug</label><Input value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl" /></div>
-                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Couleur</label><Input value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="bg-muted/40 border-border h-11 rounded-xl font-mono" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom</label><Input value={formData.name} onChange={e => handleNameChange(e.target.value)} placeholder="Ex : Dofus Émeraude" className="bg-muted/40 border-border h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom court</label><Input value={formData.nameShort} onChange={e => setFormData({...formData, nameShort: e.target.value})} placeholder="Ex : Émeraude (auto-rempli)" className="bg-muted/40 border-border h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Slug</label><Input value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} placeholder="Ex : emeraude (auto-rempli)" className="bg-muted/40 border-border h-11 rounded-xl" /></div>
+                        <div className="space-y-2"><label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Couleur</label><Input value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} placeholder="#10b981" className="bg-muted/40 border-border h-11 rounded-xl font-mono" />
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                {DOFUS_COLOR_PALETTE.map(c => (
+                                    <button key={c} type="button" aria-label={`Couleur ${c}`} onClick={() => setFormData({ ...formData, color: c })}
+                                        className={`w-7 h-7 rounded-lg border transition ${formData.color === c ? "border-foreground ring-2 ring-foreground/30" : "border-border hover:border-muted-foreground/60"}`}
+                                        style={{ backgroundColor: c }} />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    {/* #225 — Icône / image du Dofus (module, page dédiée et cartes). Prévisualisation + URL. */}
+                    <div className="space-y-2">
+                        <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Icône / Image</label>
+                        <div className="flex items-center gap-4">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={safeImageUrl(formData.imageUrl || "") || "/assets/icons/serie-de-quete.png"}
+                                alt="Aperçu de l'icône"
+                                className="w-14 h-14 rounded-xl object-contain bg-muted/30 border border-border p-1"
+                            />
+                            <Input
+                                value={formData.imageUrl || ""}
+                                onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
+                                placeholder="Chemin local (ex: /module-dofus/Dokille.png) ou URL https://…"
+                                className="bg-muted/40 border-border h-11 rounded-xl font-mono"
+                            />
+                        </div>
+                        <p className="text-caption text-muted-foreground leading-relaxed italic">
+                            Asset local <span className="font-mono text-foreground">/module-dofus/…</span> recommandé, ou URL https:// externe. Cette icône remplace la couleur sur le module, la page du Dofus et les cartes.
+                        </p>
                     </div>
                     <div className="flex justify-between pt-8 border-t border-border mt-8">
                         {dofus ? <Button type="button" variant="ghost" onClick={handleDelete} className="text-danger hover:bg-danger/10 rounded-xl"><Trash2 className="w-4 h-4 mr-2" /> Supprimer</Button> : <div />}
@@ -346,11 +448,12 @@ function ChainEditDialog({ open, onOpenChange, chain, dofusId, onSuccess }: any)
 }
 
 // ─── Entry Edit Dialog (V2 enrichie) ──────────────────────────────────────
-function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
+function EntryEditDialog({ open, onOpenChange, entry, onSuccess, chainEntries = [] }: any) {
     const [formData, setFormData] = useState<any>({
         chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
         isOptional: false, isLast: false, isDungeon: false,
-        level: "", npcName: "", npcSubArea: "",
+        entryKind: QUEST_KIND, parentEntryId: "",
+        level: "", npcName: "", npcSubArea: "", npcId: null, npcImageUrl: "",
         notes: "", externalRef: "",
         positions: [] as { x: number; y: number; label?: string }[],
         dofusdbUrl: "", dofuspourlesnoobsUrl: "",
@@ -369,12 +472,43 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
     // Libellé de zone pour le combobox (valeur existante hors résultats game-data)
     const [zoneLabel, setZoneLabel] = useState("");
 
-    // Position GPS input state
-    const [positionsInput, setPositionsInput] = useState("");
+    // Position GPS : champs X / Y dissociés (anti miss-clic) + zaap manuel
+    // optionnel (2e option : `/zaap zx,zy ; /travel x,y`, façon DPLN 3.7).
+    const [travelX, setTravelX] = useState("");
+    const [travelY, setTravelY] = useState("");
+    const [zaapX, setZaapX] = useState("");
+    const [zaapY, setZaapY] = useState("");
 
     // #148 — Sélecteur multi-donjons (même pattern que Rush Sylvestre admin)
     const [dungeonQuery, setDungeonQuery] = useState("");
     const [dungeonResults, setDungeonResults] = useState<any[]>([]);
+
+    // Recherche PNJ (référentiel client 100 % local, `searchNpcsLocal`) :
+    // sélectionne le donneur avec son npcId (portrait par convention).
+    const [npcQuery, setNpcQuery] = useState("");
+    const [npcResults, setNpcResults] = useState<any[]>([]);
+    const [uploadingNpcImage, setUploadingNpcImage] = useState(false);
+
+    const handleNpcSearch = async (q: string) => {
+        setNpcQuery(q);
+        if (q.length < 2) { setNpcResults([]); return; }
+        const res = await searchNpcsLocal(q);
+        if (res.success) setNpcResults((res.data as any[]) || []);
+    };
+
+    const selectNpc = (npc: any) => {
+        setFormData((prev: any) => ({
+            ...prev,
+            npcName: npc.name,
+            npcId: npc.npcId ?? null,
+            npcSubArea: prev.npcSubArea || "",
+        }));
+        setNpcQuery(""); setNpcResults([]);
+    };
+
+    const clearNpc = () => {
+        setFormData((prev: any) => ({ ...prev, npcName: "", npcId: null, npcSubArea: "" }));
+    };
 
     // #146 : prérequis dispo aussi en CRÉATION (une entrée avec chainId suffit).
     // En édition, on charge les liens existants ; en création, on charge les candidats du même Dofus.
@@ -410,15 +544,22 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                 isOptional: entry.isOptional || false,
                 isLast: entry.isLast || false,
                 isDungeon: entry.isDungeon || false,
+                entryKind: entry.entryKind || QUEST_KIND,
+                parentEntryId: entry.parentEntryId || "",
                 level: entry.level || "",
                 npcName: entry.npcName || "",
                 npcSubArea: entry.npcSubArea || "",
+                npcId: (entry.requirements as any)?.npcId ?? null,
+                npcImageUrl: (entry.requirements as any)?.npcImageUrl || "",
                 notes: entry.notes || "",
                 externalRef: entry.externalRef || "",
                 positions: Array.isArray(positions) ? positions.map((p: any) => ({
                     x: typeof p?.x === "number" ? p.x : parseInt(p?.x, 10) || 0,
                     y: typeof p?.y === "number" ? p.y : parseInt(p?.y, 10) || 0,
                     label: p?.label || "",
+                    ...(p?.zaap && typeof p.zaap === "object" && Number.isSafeInteger(p.zaap?.x) && Number.isSafeInteger(p.zaap?.y)
+                        ? { zaap: { x: p.zaap.x, y: p.zaap.y } }
+                        : p?.zaap === true ? { zaap: true as const } : {}),
                 })) : [],
                 dofusdbUrl: entry.dofusdbUrl || "",
                 dofuspourlesnoobsUrl: entry.dofuspourlesnoobsUrl || "",
@@ -431,7 +572,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
             setFormData({
                 chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0,
                 isOptional: false, isLast: false, isDungeon: false,
-                level: "", npcName: "", npcSubArea: "",
+                entryKind: QUEST_KIND, parentEntryId: "",
+                level: "", npcName: "", npcSubArea: "", npcId: null, npcImageUrl: "",
                 notes: "", externalRef: "",
                 positions: [], dofusdbUrl: "", dofuspourlesnoobsUrl: "",
                 localImageUrl: "", dungeons: [],
@@ -452,7 +594,16 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
             stepOrder: parseInt(formData.stepOrder) || 0,
             isOptional: formData.isOptional,
             isLast: formData.isLast,
-            requirements: { level: formData.level ? parseInt(formData.level) : null, npc: formData.npcName, subarea: formData.npcSubArea },
+            // Succès imbriqués : nature de l'étape + rattachement à un succès parent.
+            entryKind: formData.entryKind,
+            parentEntryId: formData.parentEntryId || null,
+            // PNJ donneur + niveau : persistés en colonnes top-level (lues par
+            // `extractNpcRef` côté membres) ET dupliqués dans `requirements`
+            // (compat des saisies historiques + portrait par convention).
+            npcName: typeof formData.npcName === "string" && formData.npcName.trim() !== "" ? formData.npcName.trim() : null,
+            npcSubArea: null,
+            level: formData.level !== "" && formData.level !== null && formData.level !== undefined ? (Number.isSafeInteger(parseInt(formData.level, 10)) ? parseInt(formData.level, 10) : null) : null,
+            requirements: { level: formData.level ? parseInt(formData.level) : null, npc: formData.npcName, subarea: null, npcId: formData.npcId ?? null, npcImageUrl: isSafeImageUrl(formData.npcImageUrl) ? String(formData.npcImageUrl).trim() : null },
             notes: formData.notes,
             externalRef: formData.externalRef,
             positions: formData.positions,
@@ -485,7 +636,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
     }
 
     async function handleDelete() {
-        if (!confirm("Purger cette étape ?")) return;
+        // Un succès emporte ses objectifs (cascade côté Server Action).
+        if (!confirm(isAchievement(entry) ? "Purger ce succès et tous ses objectifs ?" : "Purger cette étape ?")) return;
         setLoading(true);
         const res = await deleteQuestEntry(entry.id);
         if (res.success) { toast.success("Étape effacée"); onOpenChange(false); onSuccess(); }
@@ -493,17 +645,33 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
         setLoading(false);
     }
 
-    // Add a GPS launch position from text "x, y" (façon Rush Sylvestre)
+    // Ajout d'une position GPS depuis les champs X / Y dissociés.
+    // - travel X + Y seuls ⇒ `/travel x,y` (icône position côté membres).
+    // - zaap X + Y renseignés en plus ⇒ `/zaap zx,zy ; /travel x,y`
+    //   (icône zaap côté membres, façon DPLN 3.7).
     const addPositionFromInput = () => {
-        const text = positionsInput.trim();
-        if (!text) return;
-        const match = text.match(/(-?\d+)[,\s]+(-?\d+)/);
-        if (match) {
-            const pos = { x: parseInt(match[1], 10), y: parseInt(match[2], 10) };
-            setFormData((prev: any) => ({ ...prev, positions: [...(prev.positions || []), pos] }));
-            setPositionsInput("");
-            toast.success(`📍 ${pos.x}, ${pos.y} ajouté`, { duration: 1500 });
-        } else toast.error("Format attendu : -2, 0 ou 10, -22");
+        const tx = parseGameCoord(travelX);
+        const ty = parseGameCoord(travelY);
+        if (tx === null || ty === null) {
+            toast.error("Travel X et Y requis (entiers, ex : -22 et -24)");
+            return;
+        }
+        const hasZaap = zaapX.trim() !== "" || zaapY.trim() !== "";
+        if (hasZaap) {
+            const cmd = buildManualZaapTravelCommand(zaapX, zaapY, tx, ty);
+            if (!cmd) {
+                toast.error("Zaap X et Y doivent être deux entiers (ou vides pour un simple travel)");
+                return;
+            }
+            const zx = parseGameCoord(zaapX) as number;
+            const zy = parseGameCoord(zaapY) as number;
+            setFormData((prev: any) => ({ ...prev, positions: [...(prev.positions || []), { x: tx, y: ty, zaap: { x: zx, y: zy } }] }));
+            toast.success(`📍 ${cmd} ajouté`, { duration: 1500 });
+        } else {
+            setFormData((prev: any) => ({ ...prev, positions: [...(prev.positions || []), { x: tx, y: ty }] }));
+            toast.success(`📍 ${tx}, ${ty} ajouté`, { duration: 1500 });
+        }
+        setTravelX(""); setTravelY(""); setZaapX(""); setZaapY("");
     };
 
     const removePosition = (idx: number) => {
@@ -529,12 +697,8 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
         setFormData((prev: any) => ({ ...prev, dungeons: prev.dungeons.filter((d: any) => d.id !== id) }));
     };
 
-    // #148 — Image de la quête : localImageUrl prioritaire, sinon tentative image DofusDB (id), sinon icône livre.
-    // CodeQL High — URL allowlistée (http(s)/relatif) avant usage dans <img src> (fail-closed).
-    const questImageUrl = safeImageUrl(
-        (formData.localImageUrl || "").trim()
-            || (formData.dofusdbId ? `https://static.ankama.com/dofus/www/game/quests/${formData.dofusdbId}.png` : "")
-    );
+    // #148 — Image de la quête : le sprite du « Type de quête » suffit côté
+    // membres (`localImageUrl` historique conservé en base, non éditable).
 
     const copyPosition = (x: number, y: number) => {
         navigator.clipboard?.writeText(`/travel ${x},${y}`).then(() => toast.success(`Copié : /travel ${x},${y}`)).catch(() => {});
@@ -564,6 +728,71 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                 </div>
                 <div className="max-h-[70vh] overflow-y-auto custom-scrollbar p-6">
                     <div className="space-y-6">
+                        {/* Succès imbriqués — nature de l'étape + rattachement à un succès parent.
+                            Candidats = succès de la section, hors soi-même et hors descendants (anti-cycle). */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-2xl border border-border bg-black/20">
+                            <div className="space-y-2">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nature</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { v: QUEST_KIND, label: "Quête", icon: "/assets/icons/icone-quete.png", active: "border-info/60 bg-info/15" },
+                                        { v: ACHIEVEMENT_KIND, label: "Succès", icon: "/assets/icons/icone-succes.png", active: "border-warning/60 bg-warning/15" },
+                                    ].map((opt) => (
+                                        <button key={opt.v} type="button" onClick={() => setFormData({ ...formData, entryKind: opt.v })}
+                                            className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all ${formData.entryKind === opt.v ? opt.active : "border-border bg-black/40 hover:border-border-strong"}`}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={opt.icon} alt={opt.label} className="w-6 h-6 object-contain" />
+                                            <span className={`text-caption font-black uppercase tracking-wider ${formData.entryKind === opt.v ? "text-foreground" : "text-muted-foreground"}`}>{opt.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-caption text-muted-foreground leading-relaxed">
+                                    Un succès contient une série d&apos;objectifs (quêtes ou autres succès) et ne compte pas comme étape.
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Succès parent</label>
+                                <select
+                                    value={formData.parentEntryId || ""}
+                                    onChange={(e) => setFormData({ ...formData, parentEntryId: e.target.value })}
+                                    className="w-full h-11 bg-black/40 border border-border rounded-xl text-xs px-3 text-foreground focus:outline-none focus:border-info/50"
+                                >
+                                    <option value="">— Racine de la section —</option>
+                                    {(chainEntries || [])
+                                        .filter((e: any) => isAchievement(e) && e.id !== entry?.id && !wouldCreateCycle(chainEntries || [], entry?.id, e.id))
+                                        .map((e: any) => (
+                                            <option key={e.id} value={e.id}>{e.name}</option>
+                                        ))}
+                                </select>
+                                <p className="text-caption text-muted-foreground leading-relaxed">
+                                    Rattache cette étape aux objectifs d&apos;un succès (« Le pays des Vermeils » → « Même pas malle »).
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Type de quête (sprites siphonnés du client) : pilote l'icône
+                            affichée côté membres. « Défaut » = comportement historique. */}
+                        <div className="space-y-2 p-4 rounded-2xl border border-border bg-black/20">
+                            <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Type de quête</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                <button key="__default" type="button" onClick={() => setFormData({ ...formData, questType: "QUEST" })}
+                                    className={`flex items-center justify-center gap-2 p-2 rounded-xl border transition-all ${!((QUEST_TYPE_KEYS as readonly string[]).includes(formData.questType)) ? "border-info/60 bg-info/15" : "border-border bg-black/40 hover:border-border-strong"}`}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src="/assets/icons/icone-quete.png" alt="Défaut" className="w-6 h-6 object-contain" />
+                                    <span className="text-caption font-black uppercase tracking-wider text-muted-foreground">Défaut</span>
+                                </button>
+                                {QUEST_TYPE_KEYS.map((key) => (
+                                    <button key={key} type="button" onClick={() => setFormData({ ...formData, questType: key })}
+                                        title={QUEST_TYPE_LABELS[key]}
+                                        className={`flex items-center justify-center gap-2 p-2 rounded-xl border transition-all ${formData.questType === key ? "border-info/60 bg-info/15" : "border-border bg-black/40 hover:border-border-strong"}`}>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={questTypeIconPath(key)} alt={QUEST_TYPE_LABELS[key]} className="w-6 h-6 object-contain" />
+                                        <span className={`text-caption font-black uppercase tracking-wider ${formData.questType === key ? "text-foreground" : "text-muted-foreground"}`}>{QUEST_TYPE_LABELS[key].replace("Quête ", "")}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Core info row */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1 md:col-span-2">
@@ -576,7 +805,11 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Zone (recherche game-data) : seul champ de lieu — la
+                            sous-zone libre du PNJ est supprimée (jamais
+                            persistée, jamais affichée). L'icône de la quête
+                            vient du « Type de quête » ci-dessus. */}
+                        <div className="grid grid-cols-1 gap-4">
                             <div className="space-y-1">
                                 <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Zone</label>
                                 {/* #146 : sélecteur zones game-data (siphon dofusdb) */}
@@ -591,20 +824,68 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                     className="bg-black/40 border-border h-11 rounded-xl"
                                 />
                             </div>
-                            {/* #148 — Image de la quête grossie (rendu auto à la place de l'icône livre) */}
-                            <div className="space-y-1 md:col-span-2">
-                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><ImageIcon className="w-3 h-3 text-warning" /> Image de la quête</label>
+                        </div>
+                        {/* PNJ donneur (référentiel client 100 % local) : la sélection écrit
+                            npcName + npcId (portrait par convention côté membres). */}
+                        <div className="space-y-2">
+                            <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">PNJ donneur <span className="text-muted-foreground font-normal normal-case tracking-normal">(recherche locale, 6 494 PNJ du client)</span></label>
+                            {formData.npcName ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-bold">
+                                        {formData.npcName}
+                                        {formData.npcId ? <span className="font-mono opacity-70">#{formData.npcId}</span> : null}
+                                    </span>
+                                    <button type="button" onClick={clearNpc} className="text-caption font-black uppercase tracking-wider text-muted-foreground hover:text-danger">Retirer</button>
+                                </div>
+                            ) : null}
+                            <div className="flex gap-2 flex-wrap">
+                                <Input value={npcQuery} onChange={e => handleNpcSearch(e.target.value)} placeholder="Rechercher un PNJ… (ex : Mériana)" className="bg-black/40 border-border h-9 rounded-xl text-xs flex-1 min-w-[180px]" />
+                                {npcResults.length > 0 && (
+                                    <div className="w-full space-y-0.5 max-h-48 overflow-y-auto custom-scrollbar">
+                                        {npcResults.map((n: any) => (
+                                            <button key={n.npcId} type="button" onClick={() => selectNpc(n)}
+                                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-success/10 text-left transition-all text-caption text-muted-foreground hover:text-success font-medium">
+                                                <span className="truncate">{n.name}</span>
+                                                <span className="text-muted-foreground shrink-0 ml-auto font-mono">#{n.npcId}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            {/* Nom affiché du PNJ : persisté en colonne `npcName`
+                                (lue côté membres) + `requirements.npc` (compat). */}
+                            <div className="grid grid-cols-1 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Nom affiché</label>
+                                    <Input value={formData.npcName} onChange={e => setFormData({...formData, npcName: e.target.value, npcId: null})} className="bg-black/40 border-border h-9 rounded-xl text-xs" placeholder="Nom du PNJ…" />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Image du PNJ <span className="font-normal normal-case tracking-normal">(affichée à la place du nom côté membres, nom en hover)</span></label>
                                 <div className="flex items-center gap-3">
-                                    <div className="w-16 h-16 rounded-xl bg-black/40 border border-border overflow-hidden flex items-center justify-center shrink-0">
-                                        {questImageUrl ? (
+                                    <div className="w-10 h-10 rounded-full bg-black/40 border border-border overflow-hidden flex items-center justify-center shrink-0">
+                                        {formData.npcImageUrl && isSafeImageUrl(formData.npcImageUrl) ? (
                                             /* eslint-disable-next-line @next/next/no-img-element */
-                                            <img src={questImageUrl} alt="Aperçu de la quête" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                            <img src={safeImageUrl(formData.npcImageUrl)} alt="Portrait PNJ" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                         ) : (
-                                            /* eslint-disable-next-line @next/next/no-img-element */
-                                            <img src="/assets/icons/icone-quete.png" alt="Icône quête" className="w-8 h-8 object-contain opacity-70" />
+                                            <span className="text-caption font-black text-muted-foreground">?</span>
                                         )}
                                     </div>
-                                    <Input value={formData.localImageUrl || ""} onChange={e => setFormData({...formData, localImageUrl: e.target.value})} className="bg-black/40 border-border h-11 rounded-xl text-xs font-mono flex-1" placeholder="https://… (image du livre de la quête)" />
+                                    <Input value={formData.npcImageUrl || ""} onChange={e => setFormData({...formData, npcImageUrl: e.target.value})} className="bg-black/40 border-border h-9 rounded-xl text-xs font-mono flex-1" placeholder="https://… ou /uploads/… (portrait rond)" />
+                                    <button type="button" onClick={() => document.getElementById("npc-image-upload")?.click()} disabled={uploadingNpcImage}
+                                        className="h-9 px-3 rounded-xl bg-surface border border-border text-muted-foreground hover:text-foreground text-caption font-black uppercase tracking-wider shrink-0 disabled:opacity-50">
+                                        {uploadingNpcImage ? "…" : "⬆ Importer"}
+                                    </button>
+                                    <input id="npc-image-upload" type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                                        onChange={async (e) => {
+                                            const f = e.target.files?.[0];
+                                            if (!f) return;
+                                            setUploadingNpcImage(true);
+                                            const url = await uploadImageFile(f, "guides");
+                                            if (url) setFormData((prev: any) => ({ ...prev, npcImageUrl: url }));
+                                            setUploadingNpcImage(false);
+                                            e.target.value = "";
+                                        }} />
                                 </div>
                             </div>
                         </div>
@@ -645,23 +926,52 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                 )}
                             </div>
                         </div>
-                        {/* Positions GPS (façon Rush Sylvestre) */}
+                        {/* Positions GPS : option 1 = travel seul (icône position),
+                            option 2 = zaap + travelmanuels (icône zaap, façon DPLN 3.7).
+                            Champs X / Y dissociés (anti miss-clic). */}
                         <div className="space-y-2">
-                            <label className="text-caption font-black uppercase tracking-widest text-success flex items-center gap-2"><MapPin className="w-3 h-3" /> Positions GPS <span className="text-muted-foreground font-normal normal-case tracking-normal">(ex: -2, 0 ; 10, -22)</span></label>
+                            <label className="text-caption font-black uppercase tracking-widest text-success flex items-center gap-2"><MapPin className="w-3 h-3" /> Positions GPS <span className="text-muted-foreground font-normal normal-case tracking-normal">(X et Y séparés)</span></label>
                             {formData.positions.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
-                                    {formData.positions.map((p: any, idx: number) => (
-                                        <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-bold font-mono">
-                                            {p.x}, {p.y}
-                                            <button type="button" onClick={() => copyPosition(p.x, p.y)} className="text-success/50 hover:text-success" title="Copier /travel X,Y"><Copy className="w-2.5 h-2.5" /></button>
-                                            <button type="button" onClick={() => removePosition(idx)} className="text-success/50 hover:text-danger"><Trash2 className="w-2.5 h-2.5" /></button>
+                                    {formData.positions.map((p: any, idx: number) => {
+                                        const manualZaap = p?.zaap && typeof p.zaap === "object" && Number.isSafeInteger(p.zaap?.x) && Number.isSafeInteger(p.zaap?.y)
+                                            ? p.zaap : null;
+                                        const autoZaap = p?.zaap === true;
+                                        return (
+                                        <span key={idx} className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-caption font-bold font-mono ${manualZaap || autoZaap ? "bg-info/10 border-info/20 text-info" : "bg-success/10 border-success/20 text-success"}`}>
+                                            {manualZaap || autoZaap ? (
+                                                /* eslint-disable-next-line @next/next/no-img-element */
+                                                <img src="/assets/dofus/icons/zaap.png" alt="" className="w-3 h-3 object-contain" />
+                                            ) : null}
+                                            {manualZaap ? `/zaap ${manualZaap.x},${manualZaap.y} ; /travel ${p.x},${p.y}` : `${p.x}, ${p.y}`}
+                                            <button type="button" onClick={() => copyPosition(p.x, p.y)} className="opacity-50 hover:opacity-100" title="Copier /travel X,Y"><Copy className="w-2.5 h-2.5" /></button>
+                                            <button type="button" onClick={() => removePosition(idx)} className="opacity-50 hover:text-danger hover:opacity-100"><Trash2 className="w-2.5 h-2.5" /></button>
                                         </span>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
-                            <div className="flex gap-2">
-                                <Input value={positionsInput} onChange={e => setPositionsInput(e.target.value)} placeholder="10, -22" className="bg-black/40 border-success/20 h-9 rounded-xl text-xs font-mono flex-1" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPositionFromInput())} />
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                <label className="space-y-1">
+                                    <span className="text-caption text-muted-foreground font-bold">Zaap X <span className="font-normal">(optionnel)</span></span>
+                                    <Input value={zaapX} onChange={e => setZaapX(e.target.value)} inputMode="numeric" placeholder="ex : -20" className="bg-black/40 border-info/20 h-9 rounded-xl text-xs font-mono" />
+                                </label>
+                                <label className="space-y-1">
+                                    <span className="text-caption text-muted-foreground font-bold">Zaap Y <span className="font-normal">(optionnel)</span></span>
+                                    <Input value={zaapY} onChange={e => setZaapY(e.target.value)} inputMode="numeric" placeholder="ex : -20" className="bg-black/40 border-info/20 h-9 rounded-xl text-xs font-mono" />
+                                </label>
+                                <label className="space-y-1">
+                                    <span className="text-caption text-success font-bold">Travel X *</span>
+                                    <Input value={travelX} onChange={e => setTravelX(e.target.value)} inputMode="numeric" placeholder="ex : -22" className="bg-black/40 border-success/20 h-9 rounded-xl text-xs font-mono" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPositionFromInput())} />
+                                </label>
+                                <label className="space-y-1">
+                                    <span className="text-caption text-success font-bold">Travel Y *</span>
+                                    <Input value={travelY} onChange={e => setTravelY(e.target.value)} inputMode="numeric" placeholder="ex : -24" className="bg-black/40 border-success/20 h-9 rounded-xl text-xs font-mono" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addPositionFromInput())} />
+                                </label>
+                            </div>
+                            <div className="flex gap-2 items-center">
                                 <button type="button" onClick={addPositionFromInput} className="h-9 px-3 rounded-xl bg-success/10 border border-success/20 text-success hover:bg-success/20 text-caption font-black uppercase tracking-wider shrink-0">📍 Ajouter</button>
+                                <span className="text-caption text-muted-foreground">Travel seul ⇒ icône position · Zaap renseigné ⇒ icône zaap (`/zaap zx,zy ; /travel x,y`).</span>
                             </div>
                         </div>
 

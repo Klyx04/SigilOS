@@ -1,16 +1,15 @@
 #!/bin/bash
 # =============================================================================
-# 🚀 SigilOS — Déploiement CI/CD (v4) — produit pro, sortie lisible
+# 🚀 SigilOS — Déploiement CI/CD (v5) — « pro, vulgarisé, 2026 »
 # -----------------------------------------------------------------------------
 # Usage :
 #   ./scripts/deploy-cd.sh list beta|prod        → versions dispo sur GHCR
 #   ./scripts/deploy-cd.sh beta|prod [sha]       → déploie la version (défaut : latest)
 #   ./scripts/deploy-cd.sh --help                → aide
 #
-# Principe : les images sont buildées sur GitHub Actions et poussées vers GHCR
-# (.github/workflows/deploy.yml). Ce script pull les 4 images, les retag en
-# :latest local, puis fait `docker compose up -d --no-build`. AUCUN build sur
-# le VPS — déploiement ~30 s.
+# En clair : ce script met à jour l'app depuis des images déjà construites sur
+# GitHub (aucun build sur le serveur). Chaque étape est expliquée pour un humain,
+# avec des barres de progression, et sans les messages npm inutiles.
 # =============================================================================
 
 set -u
@@ -21,41 +20,127 @@ set -u
 if [[ -t 1 ]]; then
     C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_DIM=$'\033[2m'
     C_RED=$'\033[31m';  C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'
-    C_CYAN=$'\033[36m'; C_MAGENTA=$'\033[35m'
+    C_CYAN=$'\033[36m'; C_MAGENTA=$'\033[35m'; C_BLUE=$'\033[34m'
 else
-    C_RESET=""; C_BOLD=""; C_DIM=""; C_RED=""; C_GREEN=""; C_YELLOW=""; C_CYAN=""; C_MAGENTA=""
+    C_RESET=""; C_BOLD=""; C_DIM=""; C_RED=""; C_GREEN=""; C_YELLOW=""
+    C_CYAN=""; C_MAGENTA=""; C_BLUE=""
 fi
 
 # -----------------------------------------------------------------------------
 # Helpers de log (message unique — jamais interprété comme format)
 # -----------------------------------------------------------------------------
-info()   { printf "${C_CYAN}%s${C_RESET}\n" "$*"; }
-ok()     { printf "${C_GREEN}✓ %s${C_RESET}\n" "$*"; }
-warn()   { printf "${C_YELLOW}⚠  %s${C_RESET}\n" "$*"; }
-err()    { printf "${C_RED}✗ %s${C_RESET}\n" "$*" >&2; }
-dim()    { printf "${C_DIM}%s${C_RESET}\n" "$*"; }
-hr()     { printf "${C_DIM}──────────────────────────────────────────────────────${C_RESET}\n"; }
-banner() { printf "\n${C_BOLD}%s${C_RESET}\n" "$*"; }
-section() { # $1 = numéro d'étape, $2 = titre
-    printf "\n${C_BOLD}── ÉTAPE %s/5 ── %s${C_RESET}\n" "$1" "$2"
-    printf "${C_DIM}──────────────────────────────────────────────${C_RESET}\n"
-}
+info() { printf "${C_CYAN}%s${C_RESET}\n" "$*"; }
+ok()   { printf "${C_GREEN}✓ %s${C_RESET}\n" "$*"; }
+warn() { printf "${C_YELLOW}⚠  %s${C_RESET}\n" "$*" >&2; }
+err()  { printf "${C_RED}✗ %s${C_RESET}\n" "$*" >&2; }
+dim()  { printf "${C_DIM}%s${C_RESET}\n" "$*"; }
+horiz(){ printf "${C_DIM}──────────────────────────────────────────────────────${C_RESET}\n"; }
+banner(){ printf "\n${C_BOLD}%s${C_RESET}\n" "$*"; }
 fail() { err "$1"; exit "${2:-1}"; }
+
+# Étape numérotée + titre + traduction humaine (vulgarisation).
+#   step "1" "Authentification GHCR" "Connexion au dépôt d'images..."
+step() {
+    echo ""
+    printf "${C_BOLD}${C_BLUE}── ÉTAPE %s/5 ── %s${C_RESET}\n" "$1" "$2"
+    printf "${C_DIM}   ${3}${C_RESET}\n"
+    horiz
+}
+
+# Barre de progression cosmétique (style 2026).
+#   bar <libellé> <fait> <total> <largeur=30>
+bar() {
+    # Une seule ligne, réécrite en place : inutile (et illisible) hors terminal.
+    [[ -t 1 ]] || return 0
+
+    local label="$1" done="$2" total="$3" width="${4:-30}"
+    local pct=0 filled=0
+    if (( total > 0 )); then pct=$(( done * 100 / total )); fi
+    (( pct > 100 )) && pct=100
+    filled=$(( pct * width / 100 ))
+    local left right
+    left="$(printf '█%.0s' $(seq 1 "$filled") 2>/dev/null)"
+    right="$(printf '░%.0s' $(seq 1 "$(( width - filled ))") 2>/dev/null)"
+    # `\033[K` efface la fin de la ligne : sans lui, le message suivant (plus court
+    # que la barre, ex. « ✓ téléchargée ») laissait un morceau de barre affiché
+    # derrière lui — défaut visuel relevé le 30/09/2026 (« …téléchargée███░] 91%% »).
+    printf "\r\033[K  ${C_DIM}%-20s${C_RESET} [${C_GREEN}%s${C_DIM}%s${C_RESET}] ${C_BOLD}%3d%%${C_RESET}" "$label" "$left" "$right" "$pct"
+}
+
+# -----------------------------------------------------------------------------
+# Exécution d'une commande DANS un conteneur, sortie affichée EN DIRECT
+# -----------------------------------------------------------------------------
+# Pourquoi ce helper existe (incident 19/09/2026, « jamais attendu aussi
+# longtemps ») : `npx prisma@…` retélécharge le CLI à chaque déploiement (l'image
+# runner ne contient pas les devDependencies). Avec la sortie redirigée dans un
+# fichier temporaire, l'étape 4 restait MUETTE 1 à 3 minutes : impossible de
+# savoir si ça travaillait ou si c'était figé → réflexe Ctrl+C (dangereux en
+# pleine migration). Ici :
+#   • la sortie est suivie en direct (≤ 1 s de latence) ;
+#   • l'exécution est bornée par `timeout` → soit ça réussit, soit ça échoue
+#     proprement AVEC un message (plus jamais d'attente infinie) ;
+#   • `exec -T` + `< /dev/null` : aucun risque de blocage sur une saisie.
+#
+#   compose_exec_streamed <env-file> <service> <durée max s> <fichier log> <commande sh -c>
+# Retour : code de sortie de la commande ; 124 si la durée maximale est atteinte.
+compose_exec_streamed() {
+    local ENV_FILE_C="$1" SERVICE="$2" MAX_S="$3" LOG="$4"; shift 4
+    local RC_FILE; RC_FILE="$(mktemp)"
+    : >"$LOG"
+    (
+        timeout --kill-after=30 "$MAX_S" \
+            sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE_C" \
+            exec -T "$SERVICE" sh -c "$*" </dev/null >"$LOG" 2>&1
+        printf '%s' "$?" >"$RC_FILE"
+    ) &
+    local PID=$! SHOWN=0 LINES=0
+    while kill -0 "$PID" 2>/dev/null; do
+        # `wc -l` ICI (lignes TERMINÉES par un `\n`) : une ligne encore en cours
+        # d'écriture ne doit pas être réaffichée à chaque tour de sondage. Le
+        # reliquat non terminé est repris au flush, ci-dessous.
+        LINES="$(wc -l <"$LOG" 2>/dev/null || printf '0')"
+        if (( LINES > SHOWN )); then
+            sed -n "$(( SHOWN + 1 )),${LINES}p" "$LOG" | sed '/^[[:space:]]*$/d; s/^/     /'
+            SHOWN="$LINES"
+        fi
+        sleep 1
+    done
+    # Dernières lignes écrites juste avant la fin du process (flush).
+    # ⚠️ `awk 'END{print NR}'` et NON `wc -l` : `wc -l` compte les `\n`, donc la
+    # DERNIÈRE ligne d'un flux qui ne finit pas par un saut de ligne n'est jamais
+    # affichée. Mesuré le 30/09/2026 sur DEUX déploiements d'affilée : Prisma
+    # terminait par un bloc séparé par des `\r` (réécriture en place, aucun `\n`)
+    # ⇒ `wc -l` ne voyait qu'UNE ligne (« Loaded Prisma config »), et tout le reste
+    # (« 262 migrations found… », « No pending migrations… ») restait INVISIBLE,
+    # alors que le verdict de la migration se lisait dedans. `tr '\r' '\n'` remet
+    # un message par ligne (Prisma réécrit la même ligne au lieu d'en ajouter une).
+    LINES="$(awk 'END{print NR}' "$LOG" 2>/dev/null || printf '0')"
+    if (( LINES > SHOWN )); then
+        sed -n "$(( SHOWN + 1 )),${LINES}p" "$LOG" | tr '\r' '\n' | sed '/^[[:space:]]*$/d; s/^/     /'
+    fi
+    wait "$PID" 2>/dev/null
+    local RC; RC="$(cat "$RC_FILE" 2>/dev/null || printf '1')"
+    rm -f "$RC_FILE"
+    return "${RC:-1}"
+}
+
 # -----------------------------------------------------------------------------
 # Aide
 # -----------------------------------------------------------------------------
 usage() {
     local code="${1:-0}"
     cat <<'EOF'
-🚀 SigilOS — Déploiement CI/CD (v4)
+🚀 SigilOS — Déploiement CI/CD (v5)
 
 USAGE
   ./scripts/deploy-cd.sh list beta|prod        Affiche les versions dispo sur GHCR
+  ./scripts/deploy-cd.sh list beta|prod sha7   Vérifie qu'un tag précis est publié
   ./scripts/deploy-cd.sh beta|prod [sha]       Déploie la version (défaut : latest)
   ./scripts/deploy-cd.sh --help                Affiche cette aide
 
 EXEMPLES
   ./scripts/deploy-cd.sh list beta
+  ./scripts/deploy-cd.sh list beta da4ec40     # ce commit est-il publié sur GHCR ?
   ./scripts/deploy-cd.sh beta                  # déploie latest en bêta
   ./scripts/deploy-cd.sh prod 3f2a9c1          # déploie le SHA 3f2a9c1 en prod
 
@@ -68,26 +153,26 @@ EOF
 }
 
 # -----------------------------------------------------------------------------
-# Expiration du GHCR_TOKEN (affichage)
+# Expiration du GHCR_TOKEN (affichage vulgarisé)
 # -----------------------------------------------------------------------------
 show_token_expiry() {
     if [[ -z "${GHCR_TOKEN_EXPIRY:-}" ]]; then
         dim "GHCR_TOKEN : expiration non renseignée (GHCR_TOKEN_EXPIRY=AAAA-MM-JJ)."
         return
     fi
-    local EXPIRY_SECONDS NOW_SECONDS DAYS_LEFT
-    EXPIRY_SECONDS="$(date -d "$GHCR_TOKEN_EXPIRY" +%s 2>/dev/null)" || {
+    local EXP NOW DAYS
+    EXP="$(date -d "$GHCR_TOKEN_EXPIRY" +%s 2>/dev/null)" || {
         warn "GHCR_TOKEN_EXPIRY invalide : $GHCR_TOKEN_EXPIRY (attendu AAAA-MM-JJ)."
         return
     }
-    NOW_SECONDS="$(date +%s)"
-    DAYS_LEFT=$(( (EXPIRY_SECONDS - NOW_SECONDS) / 86400 ))
-    if (( DAYS_LEFT < 0 )); then
-        err "GHCR_TOKEN EXPIRÉ depuis $((-DAYS_LEFT)) jours — renouvelez-le (voir MAINTENANCE.md)."
-    elif (( DAYS_LEFT <= 14 )); then
-        warn "GHCR_TOKEN expire dans $DAYS_LEFT jours ($GHCR_TOKEN_EXPIRY) — pensez à le renouveler."
+    NOW="$(date +%s)"
+    DAYS=$(( (EXP - NOW) / 86400 ))
+    if (( DAYS < 0 )); then
+        err "GHCR_TOKEN EXPIRÉ depuis $((-DAYS)) jour(s) — renouvelez-le (voir docs/MAINTENANCE.md)."
+    elif (( DAYS <= 14 )); then
+        warn "GHCR_TOKEN expire dans $DAYS jour(s) ($GHCR_TOKEN_EXPIRY) — pensez à le renouveler."
     else
-        ok "GHCR_TOKEN valide ($DAYS_LEFT jours restants)."
+        ok "GHCR_TOKEN valide ($DAYS jours restants)."
     fi
 }
 
@@ -98,19 +183,33 @@ GHCR_USER="${GHCR_USER:-klyx04}"
 GHCR_USER_LOWER="${GHCR_USER,,}"            # GHCR impose des noms en minuscules
 GHCR_REG="ghcr.io/${GHCR_USER_LOWER}"
 
+# Version du CLI Prisma épinglée (⚠️ MIROIR de l'ARG PRISMA_VERSION du Dockerfile :
+# les deux doivent rester alignées, et alignées sur `prisma` de package.json —
+# actuellement 7.10.0). Épingler est obligatoire : sans version, `npx prisma`
+# tire `prisma@latest` (une RC cassée où `migrate` est renommé `migration`).
+# Sert uniquement de REPLI : si l'image embarque /opt/prisma-cli, aucun
+# téléchargement n'a lieu (voir compose_exec_streamed / deploy()).
+PRISMA_PIN="${PRISMA_PIN:-7.10.0}"
+
+# Durée maximale d'une étape Prisma (secondes). Borne de sécurité : une étape
+# muette qui dure « trop longtemps » échoue désormais avec un message au lieu
+# de laisser l'opérateur deviner (et Ctrl+C en pleine migration).
+PRISMA_TIMEOUT="${PRISMA_TIMEOUT:-900}"
+
 cd "$(dirname "$0")/.."
 # -----------------------------------------------------------------------------
 # Commande : list — versions disponibles sur GHCR
 # -----------------------------------------------------------------------------
 list_handler() {
     local target="$1"
+    local sha="${2:-}"
     if [[ "$target" != "beta" && "$target" != "prod" ]]; then
-        err "Usage : ./scripts/deploy-cd.sh list {beta|prod}"
+        err "Usage : ./scripts/deploy-cd.sh list {beta|prod} [sha7]"
         exit 1
     fi
     [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
     banner "Versions disponibles — $target ($GHCR_REG)"
-    hr
+    horiz
     printf "${C_BOLD}  %-32s %s${C_RESET}\n" "Image" "latest (digest)"
     for NAME in app worker ws discord-bot; do
         local IMG="${GHCR_REG}/sigilos-${NAME}-${target}"
@@ -122,32 +221,291 @@ list_handler() {
             printf "  %-32s %s\n" "sigilos-${NAME}-${target}" "$DIGEST"
         fi
     done
-    hr
+    horiz
+
+    # `list beta <sha7>` répond à LA question qui coûte le plus de temps :
+    # « ce commit a-t-il vraiment été publié par la CI ? ». Un tag absent et un
+    # registre cassé produisent le même échec au pull — ici on tranche avant.
+    if [[ -n "$sha" ]]; then
+        printf "${C_BOLD}  Tag %s${C_RESET}\n" "$sha"
+        local MISSING=0
+        for NAME in app worker ws discord-bot; do
+            local IMG="${GHCR_REG}/sigilos-${NAME}-${target}"
+            if sudo docker buildx imagetools inspect "${IMG}:${sha}" >/dev/null 2>&1; then
+                printf "  %-32s ${C_GREEN}✓ publié${C_RESET}\n" "sigilos-${NAME}-${target}"
+            else
+                printf "  %-32s ${C_RED}✗ absent${C_RESET}\n" "sigilos-${NAME}-${target}"
+                MISSING=1
+            fi
+        done
+        horiz
+        if [[ "$MISSING" == "1" ]]; then
+            err "Tag $sha incomplet : la CI ne l'a pas publié (onglet Actions → Build & Push)."
+        else
+            ok "Tag $sha publié sur les 4 images — déployable et rollback-able."
+        fi
+    fi
+
     dim "Déployer une version précise : ./scripts/deploy-cd.sh ${target} <sha7>"
+    dim "Vérifier un tag sans déployer  : ./scripts/deploy-cd.sh list ${target} <sha7>"
     exit 0
 }
+
 
 # -----------------------------------------------------------------------------
 # Récupération du code source (NON bloquante — le déploiement CD n'en dépend pas)
 # -----------------------------------------------------------------------------
 git_fetch() {
-    dim "Récupération du code source (étape non bloquante)..."
+    dim "Récupération du code source (non bloquant — le déploiement n'en dépend pas)..."
     local BRANCH DIRTY
     BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo dev)"
-    DIRTY="$(git status --porcelain 2>/dev/null)"
-    if [[ -n "$DIRTY" ]]; then
-        warn "Des fichiers locaux sont modifiés — le pull peut être bloqué (non bloquant)."
-        printf '%s\n' "$DIRTY" | sed 's/^/     /' | head -10
-        dim "  → Pour rétablir : git checkout -- <fichier>   (ou   git stash)"
+
+    # ─── Artefacts RÉGÉNÉRÉS au runtime (bind mount compose) ────────────────
+    # Le siphon (cron `sync-monster-stats` + bouton God) réécrit ce fichier à travers
+    # le bind mount `public/game-data` → le fichier VERSIONNÉ devient « modifié » côté
+    # serveur et `git pull` refusait de l'écraser (« Your local changes ... would be
+    # overwritten by merge → Aborting »). Son contenu est éphémère (régénéré au tick
+    # suivant) ⇒ on restaure la version du dépôt avant le pull.
+    # ➕ Ajouter ici tout futur artefact généré dans un dossier versionné.
+    # `dungeon-monsters.json` est ÉPHÉMÈRE (le siphon le réécrit au tick suivant) :
+    # restaurer la version du dépôt ne perd rien.
+    local GENERATED=(
+        "public/game-data/dungeon-monsters.json"
+    )
+
+    # ─── Médias SUIVIS dont le DÉPÔT est la référence (aucun écrivain au runtime) ───
+    # Mesure du 30/09/2026 (cause du « X fichiers modifiés » affiché à CHAQUE déploiement) :
+    # la purge d'empreintes du 20/09/2026 (`7c69d579`) a réécrit 25 des 28 icônes de succès,
+    # mais le serveur garde les octets d'AVANT. Un fichier BINAIRE modifié localement ne
+    # converge JAMAIS avec `git pull --autostash` : soit le pop du stash binaire retombe sur
+    # l'ancien contenu (conflit binaire → stash conservé), soit il s'applique proprement quand
+    # le blob ne bouge pas dans le merge — dans les deux cas, les MÊMES fichiers reviennent
+    # indéfiniment. Or aucun écrivain runtime ne touche ces dossiers (mesuré : `git grep` de
+    # TOUS les `writeFile*` de `src/` ⇒ les écritures vont dans `public/uploads/**` — non
+    # suivi —, `public/game-data/{monsters,dungeons,legendary}/*.webp` — galerie God — et
+    # `prisma/seed-data/**` — exports God) ⇒ la version du dépôt fait foi, on la RESTAURE
+    # avant le pull : l'arbre redevient propre, plus rien à ré-appliquer, le tour est cassé.
+    #
+    # 2e mesure du 30/09/2026 (retour terrain : `git diff --numstat` sur le VPS) — les 448 `M`
+    # de `public/game-data/**` se répartissent en **11 divergences de MODE SEUL** (les JSON :
+    # `old mode 100644` → `new mode 100755`, **zéro** ligne de contenu — le `+x` vient de la
+    # synchro d'assets : `sync-assets.ps1` n'impose pas le `--chmod` que porte déjà
+    # `sync-assets.sh`) et **436 binaires au contenu différent** (génération du dépôt jamais
+    # appliquée : le pop de l'autostash ré-applique les octets du serveur à chaque
+    # déploiement — d'où un mtime IDENTIQUE sur les 448 fichiers).
+    # ⇒ La restauration DOIT couvrir le mode : `git show HEAD:$f > $f` écrit le contenu mais
+    # **préserve** le mode local (`775`) — c'est exactement pourquoi `dungeon-monsters.json`,
+    # pourtant dans la classe ci-dessus, restait listé « modifié » au rapport. `git checkout --`
+    # remet contenu **et** mode de l'index, et la garde `git diff --quiet` (contrairement à
+    # `cmp -s`) voit les deux.
+    # ⚠️ Ne JAMAIS y mettre `public/game-data/{monsters,dungeons,legendary}` : leurs `.webp`
+    #    SONT suivis ET réécrits par la galerie God (écriture volontaire côté serveur).
+    # ➕ Un nouveau dossier de médias suivis sans écrivain runtime s'ajoute ICI — le test
+    #    `tests/unit/deploy-source-sync.test.ts` verrouille cette liste et sa parité avec
+    #    `deploy.sh` (les deux scripts appliquent la même règle).
+    local REPO_OWNED=(
+        "public/game-data/achievements"
+        "public/images"
+        "public/assets"
+        "public/ordres"
+        "public/bonus_guilde"
+        "public/songes"
+        "public/module-dofus"
+        "public/banners"
+    )
+    # À l'inverse `ignored-monsters.json` et `ignored-bounties.json` sont CURÉS à la main (God) :
+    # l'écraser ferait perdre les exclusions configurées sur CE serveur — un monstre retiré
+    # réapparaîtrait au siphon suivant, un avis supprimé serait recréé. Ils sont donc sauvegardés
+    # hors de l'arbre le temps du pull, puis restaurés (voir plus bas).
+    #
+    # 🗺️ Mesure du 11/10/2026 : deux autres listes sont curées au runtime **et** suivies dans le
+    # dépôt, donc écrasées par le pull tant qu'elles ne figuraient pas ici —
+    # `ignored-dungeons.json` (suppressions de donjons) et `hidden-map-zones.json` (libellés de
+    # zone retirés de la carte du monde, God → Données de jeu → Zones : sans ça, chaque
+    # déploiement **ressuscitait** les libellés retirés).
+    # `ignored-zones|families|challenges.json` n'existent que sur le serveur (non suivis) :
+    # `git ls-files` les ignore, ils ne sont jamais touchés par ces classes.
+    local PRESERVED=(
+        "public/game-data/ignored-monsters.json"
+        "public/game-data/ignored-bounties.json"
+        "public/game-data/ignored-dungeons.json"
+        "public/game-data/hidden-map-zones.json"
+    )
+
+    # ─── Fichiers SUIVIS que CE SERVEUR porte légitimement : jamais toucher, jamais alerter ───
+    # Mesure du 30/09/2026 sur le VPS (448 `M`) : les 436 binaires de ces 5 dossiers et ces 7
+    # JSON sont réécrits CÔTÉ SERVEUR (galerie d'images God, panneau God, scripts de siphon :
+    # `sync-worldmap*.ts`, `compile-harvest-and-zaaps.ts`, `generate-bomb-dictionary.ts`,
+    # `download-invader-assets.ts`) et git ne les rattrape JAMAIS : le `stash pop` de
+    # `--autostash` les ré-applique à chaque déploiement. Mesure : 100 % des fichiers SUIVIS de
+    # ces dossiers sont concernés (189/189 invader, 84/84 harvest-icons, 84/84 dungeons,
+    # 63/63 monsters, 17/17 legendary).
+    # ⇒ On n'y touche PAS (aucune perte possible) et on cesse de les présenter comme une alerte :
+    #    ils sont comptés à part, à titre d'information, dans le rapport de fin. Un cache
+    #    d'images se régénère (`docs/MAINTENANCE.md` § purge du cache monstres) ; une donnée du
+    #    panneau God, elle, n'existe QUE sur ce serveur.
+    # ⚠️ Conséquence assumée (arbitrage du 30/09/2026, réversible) : une modification du dépôt
+    #    sur ces chemins ne s'applique pas toute seule ici — la donnée du serveur est
+    #    prioritaire. À rouvrir si la propagation devient nécessaire (voir `docs/ROADMAP.md`).
+    local SERVER_OWNED=(
+        "public/game-data/monsters"
+        "public/game-data/dungeons"
+        "public/game-data/legendary"
+        "public/game-data/invader"
+        "public/game-data/harvest-icons"
+        "public/game-data/worldmap.json"
+        "public/game-data/worlds.json"
+        "public/game-data/zaaps.json"
+        "public/game-data/harvest-resources.json"
+        "public/game-data/bomb-dictionary.json"
+        "public/game-data/bomb-dictionary-mixed.json"
+        "public/game-data/secret-passages.json"
+    )
+
+    # ─── Trois listes, une seule décision par fichier ────────────────────────────
+    # RESTORE      : la version du DÉPÔT fait foi (artefact éphémère + médias ci-dessus).
+    # KEEP         : la CURATION DU SERVEUR fait foi (listes God), mise de côté puis restaurée.
+    # SERVER_OWNED : le SERVEUR fait foi et on n'y TOUCHE PAS — ces fichiers ne sont ni
+    #                restaurés ni signalés, seulement comptés à part dans le rapport.
+    # Un chemin peut être un FICHIER ou un DOSSIER : `git ls-files` dit ce qui est SUIVI,
+    # donc les caches runtime NON suivis (`.webp` de la galerie God, proxy-cache, preuves)
+    # ne sont jamais ni restaurés ni rapportés ici.
+    local RESTORE=() KEEP=() p f
+    for p in "${GENERATED[@]}" "${REPO_OWNED[@]}"; do
+        while IFS= read -r f; do [[ -n "$f" ]] && RESTORE+=("$f"); done < <(git ls-files -- "$p" 2>/dev/null)
+    done
+    for p in "${PRESERVED[@]}"; do
+        while IFS= read -r f; do [[ -n "$f" ]] && KEEP+=("$f"); done < <(git ls-files -- "$p" 2>/dev/null)
+    done
+
+    # ── Git peut être AVEUGLE sur ces fichiers : ne jamais croire l'index ───────
+    # Les bits `assume-unchanged` / `skip-worktree` (posés à la main pour ne plus voir
+    # le bruit dans `git status`) font répondre « aucun changement » à `git diff` et
+    # « No local changes to save » à `git stash`… alors que le merge refuse ensuite
+    # d'écraser le fichier (« Your local changes would be overwritten by merge »).
+    # ⇒ ni `git diff` ni `--autostash` ne protègent dans ce cas.
+    # Deux règles apprises le 18/09/2026 (git 2.39, reproduit en bac à sable) :
+    #   1. les deux options d'un MÊME `update-index` s'annulent en silence (le drapeau
+    #      reste `S`) → il faut deux appels SÉPARÉS ;
+    #   2. l'état des fichiers se compare au CONTENU (`git show HEAD:<f> | cmp -s`),
+    #      jamais via l'index qui ment.
+    # Les trois classes ci-dessus sont concernées : un bit `skip-worktree` résiduel ferait
+    # échouer (ou ignorer) la restauration comme le pull.
+    for f in "${RESTORE[@]}" "${KEEP[@]}"; do
+        [[ -f "$f" ]] || continue
+        git cat-file -e "HEAD:$f" 2>/dev/null || continue
+        if git ls-files -v -- "$f" 2>/dev/null | grep -qE '^[a-z]|^S'; then
+            dim "  → $f : bit skip-worktree/assume-unchanged levé (git le voyait « propre »)"
+            git update-index --no-skip-worktree -- "$f" 2>/dev/null || true
+            git update-index --no-assume-unchanged -- "$f" 2>/dev/null || true
+        fi
+    done
+
+    # ── Sauvegarde RÉVERSIBLE, puis restauration de la version du dépôt ──────────
+    # Un patch binaire (`git apply <patch>` pour revenir en arrière) : si l'un de ces
+    # fichiers avait été modifié EXPRÈS sur le serveur, rien ne disparaît en silence.
+    local RESTORE_PATCH=""
+    if ! git diff --quiet HEAD -- "${RESTORE[@]}" 2>/dev/null; then
+        RESTORE_PATCH="/tmp/sigilos-ecrase-$(date +%Y%m%d-%H%M%S).patch"
+        git diff --binary HEAD -- "${RESTORE[@]}" > "$RESTORE_PATCH" 2>/dev/null || RESTORE_PATCH=""
+        [[ -n "$RESTORE_PATCH" ]] && dim "  → état local sauvegardé avant restauration : $RESTORE_PATCH (git apply pour revenir)"
     fi
-    if git pull origin "$BRANCH" >/tmp/sigilos-pull.log 2>&1; then
+
+    # Version du dépôt restaurée (artefact éphémère + médias suivis) : nommée, jamais muette.
+    local RESTORED=0
+    for f in "${RESTORE[@]}"; do
+        [[ -f "$f" ]] || continue
+        git cat-file -e "HEAD:$f" 2>/dev/null || continue
+        # `git diff` et pas `cmp` : la divergence peut être une divergence de MODE seul.
+        git diff --quiet HEAD -- "$f" 2>/dev/null && continue
+        RESTORED=$((RESTORED + 1))
+        dim "  → fichier suivi : $f (contenu + mode du dépôt)"
+        # `git checkout` remet contenu ET mode de l'index ; un `>` sur le fichier existant
+        # aurait laissé le `+x` du serveur ⇒ le `M` serait revenu au déploiement suivant.
+        git checkout -- "$f" 2>/dev/null || warn "  → $f : restauration impossible (git checkout en échec)"
+    done
+
+    if (( RESTORED > 0 )); then
+        dim "  → $RESTORED fichier(s) suivi(s) alignés sur le dépôt (artefact éphémère · média sans écrivain runtime)."
+    fi
+
+    # Données curées : copie hors de l'arbre, version du dépôt remise pour que le pull
+    # soit propre, puis restauration — c'est la curation du serveur qui fait foi.
+
+    local PRESERVE_DIR=""
+    for f in "${PRESERVED[@]}"; do
+        [[ -f "$f" ]] || continue
+        git cat-file -e "HEAD:$f" 2>/dev/null || continue
+        # Même garde que ci-dessus : `cmp` serait aveugle au mode, `git diff` non.
+        git diff --quiet HEAD -- "$f" 2>/dev/null && continue
+        [[ -n "$PRESERVE_DIR" ]] || PRESERVE_DIR="$(mktemp -d)"
+        cp "$f" "$PRESERVE_DIR/$(basename "$f")"
+        dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
+        # Version du dépôt remise (contenu + mode) : sans le mode, le rapport ci-dessous la
+        # compterait comme « modifiée » et le pull la stasherait pour rien.
+        git checkout -- "$f" 2>/dev/null || warn "  → $f : mise en conformité impossible (git checkout en échec)"
+    done
+
+    # ── Rapport : ce qui reste VRAIMENT modifié à la main sur le serveur ─────────
+    # `--untracked-files=no` : les caches runtime NON suivis (`.webp` de la galerie God,
+    # proxy-cache, preuves téléversées) ne bloquent pas le pull et noyaient le message
+    # (30/09/2026). Les fichiers SUIVIS sont séparés en deux :
+    #   · portés par CE serveur (classe `SERVER_OWNED`) → simple information, aucune action ;
+    #   · hors des classes connues → là seulement une alerte (édition locale inattendue).
+    local DIRTY SERVER_DIRTY="" OTHER_DIRTY="" line is_server
+    DIRTY="$(git status --porcelain --untracked-files=no 2>/dev/null)"
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        f="${line:3}"
+        is_server=0
+        for p in "${SERVER_OWNED[@]}"; do
+            [[ "$f" == "$p" || "$f" == "$p"/* ]] && { is_server=1; break; }
+        done
+        if (( is_server )); then
+            SERVER_DIRTY="${SERVER_DIRTY}${line}"$'\n'
+        else
+            OTHER_DIRTY="${OTHER_DIRTY}${line}"$'\n'
+        fi
+    done <<< "$DIRTY"
+
+    if [[ -n "$SERVER_DIRTY" ]]; then
+        dim "  ℹ️  $(printf '%s\n' "$SERVER_DIRTY" | grep -c . || true) fichier(s) suivi(s) portés par CE serveur — laissés tels quels, rien à faire :"
+        dim "     $(printf '%s\n' "$SERVER_DIRTY" | awk 'length($0)>0 { p=substr($0,4); n=split(p,a,"/"); print (n>3 ? a[3] : "JSON") }' | sort | uniq -c | sort -rn | awk '{printf "%s=%s ", $2, $1}')"
+        dim "     → images de jeu (caches de la galerie God) et données générées par le panneau God."
+    fi
+    if [[ -n "$OTHER_DIRTY" ]]; then
+        warn "Des fichiers suivis modifiés hors des classes connues — ils seront stashed puis réappliqués (--autostash)."
+        printf '%s' "$OTHER_DIRTY" | sed 's/^/     /'
+        dim "  → $(printf '%s\n' "$OTHER_DIRTY" | grep -c . || true) fichier(s) : édition locale assumée sur le serveur."
+        dim "  → Pour rétablir à la main : git checkout -- <fichier>   (ou   git stash)"
+    else
+        ok "Aucun fichier suivi modifié hors des classes connues — arbre aligné sur le dépôt."
+    fi
+    # `--autostash` reste la ceinture de sécurité pour tout autre fichier modifié à la
+    # main sur le serveur : mise de côté, pull, ré-application. Un conflit de
+    # ré-application laisse le stash intact (aucune perte) et l'affiche ci-dessous.
+    if git pull --autostash origin "$BRANCH" >/tmp/sigilos-pull.log 2>&1; then
         ok "Code source à jour (branche $BRANCH, $(git log -1 --oneline 2>/dev/null || echo '?'))."
     else
-        warn "git pull en échec — on continue avec les images GHCR (non bloquant)."
+        warn "git pull en échec (ou ré-application du stash) — on continue avec les images GHCR (non bloquant)."
         sed 's/^/     /' /tmp/sigilos-pull.log | tail -8
+        if ! git stash list | grep -q .; then :; else
+            dim "  → stash conservé : 'git stash pop' après résolution (rien n'est perdu)."
+        fi
     fi
     rm -f /tmp/sigilos-pull.log
+
+    # Restauration des données curées (elles écrasent la version du dépôt).
+    if [[ -n "$PRESERVE_DIR" ]]; then
+        for f in "${PRESERVED[@]}"; do
+            [[ -f "$PRESERVE_DIR/$(basename "$f")" ]] || continue
+            cp "$PRESERVE_DIR/$(basename "$f")" "$f"
+            dim "  → donnée locale restaurée : $f"
+        done
+        rm -rf "$PRESERVE_DIR"
+    fi
 }
+
 # -----------------------------------------------------------------------------
 # Seeding conditionnel des données de jeu (si le hash de game-data.json change)
 # -----------------------------------------------------------------------------
@@ -165,7 +523,12 @@ run_conditional_seed() {
     if [[ "${SEED_ALWAYS:-0}" == "1" || "$CURRENT_HASH" != "$PREV_HASH" ]]; then
         info "   Synchronisation des données de jeu ${TARGET^^}..."
         local SEED_LOG; SEED_LOG="$(mktemp)"
-        if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:game-data:prod >"$SEED_LOG" 2>&1; then
+        local SEED_RC=0
+        # Borne de sécurité 15 min (le seed peut être long, mais jamais muet :
+        # la sortie est désormais affichée en direct).
+        compose_exec_streamed "$ENV_FILE" "$APP_SERVICE" 900 "$SEED_LOG" \
+            "NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:game-data:prod" || SEED_RC=$?
+        if (( SEED_RC == 0 )); then
             ok "Données de jeu synchronisées."
         else
             err "Seeding en échec. Dernières lignes :"
@@ -178,104 +541,94 @@ run_conditional_seed() {
     else
         dim "   Données de jeu inchangées — seed ignoré (gain de temps)."
     fi
+
+    # 🛑 La documentation n'est PLUS synchronisée ici (décision user du 12/10/2026) :
+    # `seed:docs` **écrase** chaque fiche `DocPage` par la version du catalogue
+    # (`prisma/seed-docs.ts` : `update` de title/category/content/accessLevel) **et supprime**
+    # toute fiche dont le slug n'est pas dans `OFFICIAL_DOCS`. À chaque déploiement, les
+    # corrections écrites dans l'interface étaient donc perdues (« j'ai beau éditer la doc,
+    # tu écrases tout »). La doc se publie désormais **à la demande**, en connaissance de cause :
+    #   → publication manuelle : voir `docs/agents/deploy-vps.md` § « Après le deploy ».
+    #   (la commande y est écrite avec ses protections npm `--silent` + `NO_UPDATE_NOTIFIER`,
+    #    exigées par le verrou ④ de `tests/unit/deploy-sortie-visible.test.ts`).
 }
+
 # -----------------------------------------------------------------------------
-# Déploiement (beta|prod)
+# Téléchargement d'une image avec barre de progression (basée sur les couches).
+#   pull_image <image> <sha> <nom> <cible>
 # -----------------------------------------------------------------------------
-deploy() {
-    local TARGET="$1"
-    local SHA="$2"
-    [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
-    local ENV_FILE; ENV_FILE=".env.prod"; [[ "$TARGET" == "beta" ]] && ENV_FILE=".env.beta"
-    local GIT_SHORT; GIT_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
-    local URL; URL="https://${TARGET}.sigilos.fr"
-    local MODE_LABEL; MODE_LABEL="bêta — branche dev"; [[ "$TARGET" == "prod" ]] && MODE_LABEL="production — branche main"
-
-    # ── Pré-vol : récapitulatif clair ────────────────────────────────────────
-    banner "SigilOS — Déploiement CI/CD (v4)"
-    hr
-    printf "${C_DIM}  Cible         :${C_RESET} %s (%s)\n" "$TARGET" "$MODE_LABEL"
-    printf "${C_DIM}  Environnement :${C_RESET} %s\n" "$ENV_FILE"
-    printf "${C_DIM}  Version       :${C_RESET} %s${C_DIM}  (SHA local : %s)${C_RESET}\n" "$SHA" "$GIT_SHORT"
-    printf "${C_DIM}  Images        :${C_RESET} app · worker · ws · discord-bot\n"
-    printf "${C_DIM}  Santé         :${C_RESET} %s/api/health\n" "$URL"
-    show_token_expiry
-    hr
-
-    git_fetch
-
-    # ── ÉTAPE 1/5 — Authentification GHCR ───────────────────────────────────
-    section "1" "Authentification GHCR"
-    if sudo docker login ghcr.io -u "$GHCR_USER_LOWER" --password-stdin <<<"$GHCR_TOKEN" >/tmp/sigilos-login.log 2>&1; then
-        ok "Connecté au registre $GHCR_REG"
-    else
-        err "Échec de connexion à GHCR :"
-        sed 's/^/     /' /tmp/sigilos-login.log | tail -5
-        rm -f /tmp/sigilos-login.log
-        exit 1
+pull_image() {
+    local IMG="$1" SHA="$2" NAME="$3" TARGET="$4"
+    local TOTAL=0 DONE=0
+    # Déjà présent localement ? → on re-tague et on passe (gain de temps pour les SHA fixes).
+    # ⚠️ IMPORTANT : si SHA=="latest", GHCR a pu recevoir une nouvelle image. On ne court-circuite que pour les SHA fixes.
+    if [[ "$SHA" != "latest" ]] && sudo docker image inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
+        sudo docker tag "${IMG}:${SHA}" "sigilos-${NAME}-${TARGET}:latest"
+        printf "  ${C_DIM}%-20s${C_RESET} ${C_YELLOW}✓ déjà en cache (${SHA})${C_RESET}\n" "$NAME"
+        return
     fi
-    rm -f /tmp/sigilos-login.log
-
-    # ── ÉTAPE 2/5 — Pull des images (aucun build) ───────────────────────────
-    section "2" "Téléchargement des images (aucun build sur le VPS)"
-    echo ""
-    local PULL_OK=1
-    for NAME in app worker ws discord-bot; do
-        local IMG="${GHCR_REG}/sigilos-${NAME}-${TARGET}"
-        printf "     ⤓ %-30s :%s  " "sigilos-${NAME}-${TARGET}" "$SHA"
-        local PLOG; PLOG="$(mktemp)"
-        if sudo docker pull "${IMG}:${SHA}" >"$PLOG" 2>&1; then
-            if grep -qi "up to date" "$PLOG"; then
-                printf "${C_GREEN}✓ déjà à jour${C_RESET}\n"
-            else
-                printf "${C_GREEN}✓ téléchargée${C_RESET}\n"
-            fi
-            # Retag en :latest local (le compose utilise :latest avec --no-build)
-            sudo docker tag "${IMG}:${SHA}" "sigilos-${NAME}-${TARGET}:latest"
-        else
-            printf "${C_RED}✗ ÉCHEC${C_RESET}\n"
-            tail -8 "$PLOG" | sed 's/^/         /'
-            PULL_OK=0
-        fi
-        rm -f "$PLOG"
+    # Docker écrit sa progression avec des \r → on les transforme en \n pour
+    # compter les couches téléchargées et afficher un % lisible.
+    # La sortie BRUTE est consommée par la boucle ci-dessous et conservée dans
+    # $PULL_LOG : elle ne s'affiche donc PAS à l'écran (mélangée à la barre, elle
+    # laissait des morceaux de texte), mais elle reste disponible pour donner la
+    # cause réelle d'un échec (disque plein, tag introuvable, 403 GHCR…) au lieu
+    # d'un « ✗ ÉCHEC » muet.
+    local PULL_LOG
+    PULL_LOG="$(mktemp)"
+    sudo docker pull "${IMG}:${SHA}" 2>&1 | tr '\r' '\n' | tee "$PULL_LOG" | while IFS= read -r line; do
+        case "$line" in
+            *"Already exists"*)   TOTAL=$((TOTAL+1)); DONE=$((DONE+1)); bar "$NAME" "$DONE" "$TOTAL";;
+            *"Pulling fs layer"*) TOTAL=$((TOTAL+1)); bar "$NAME" "$DONE" "$TOTAL";;
+            *"Pull complete"*)    DONE=$((DONE+1)); bar "$NAME" "$DONE" "$TOTAL";;
+        esac
     done
-    echo ""
-    [[ "$PULL_OK" == "1" ]] || fail "Une ou plusieurs images n'ont pas pu être téléchargées."
-    # ── ÉTAPE 3/5 — Redémarrage des conteneurs ──────────────────────────────
-    section "3" "Redémarrage des conteneurs (attente santé)"
-    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-${TARGET} worker-${TARGET} ws-${TARGET} discord-bot-${TARGET}; then
-        ok "Conteneurs démarrés et sains."
+    # Le code retour est perdu via le pipe → on vérifie que l'image est bien là.
+    if sudo docker image inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
+        # Retag :latest local (le compose utilise :latest avec --no-build)
+        sudo docker tag "${IMG}:${SHA}" "sigilos-${NAME}-${TARGET}:latest" 2>/dev/null
+        # Dernière trame forcée à 100 % : le % compte les COUCHES (docker peut en
+        # annoncer une de moins que comptées), donc il pouvait s'arrêter à 91 %
+        # alors que l'image est complète — `inspect` vient justement de le prouver.
+        bar "$NAME" 1 1
+        # Puis cette ligne ÉCRASE la barre (`\r\033[K`) et donne la TAILLE réelle :
+        # sans l'effacement, le reste de la barre dépassait après le « ✓ ».
+        local SIZE_BYTES
+        SIZE_BYTES="$(sudo docker image inspect "${IMG}:${SHA}" --format '{{.Size}}' 2>/dev/null || echo 0)"
+        [[ "$SIZE_BYTES" =~ ^[0-9]+$ ]] || SIZE_BYTES=0
+        printf "\r\033[K  ${C_DIM}%-20s${C_RESET} ${C_GREEN}✓ téléchargée${C_RESET} ${C_DIM}(%s Mo)${C_RESET}\n" "$NAME" "$(( SIZE_BYTES / 1048576 ))"
     else
-        fail "Échec au démarrage des conteneurs."
+        printf "\r\033[K  ${C_DIM}%-20s${C_RESET} ${C_RED}✗ ÉCHEC${C_RESET}\n" "$NAME"
+        dim "     cause : docker pull ${IMG}:${SHA}"
+        grep -viE 'Pulling fs layer|Waiting|Downloading|Extracting|Pull complete|Already exists|Verifying Checksum|Download complete|^$' "$PULL_LOG" | tail -3 | sed 's/^/     /'
+        dim "     repères : espace disque (df -h) · tags publiés (./scripts/deploy-cd.sh list beta) · expiration GHCR_TOKEN"
+        PULL_OK=0
     fi
+    rm -f "$PULL_LOG"
+}
 
-    # ── ÉTAPE 4/5 — Base de données ─────────────────────────────────────────
-    section "4" "Base de données"
-    info "   Migration des fichiers uploads..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} npm run migrate:uploads
-    info "   Application des migrations Prisma..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} npx --yes prisma migrate deploy
-    if [[ "$TARGET" == "beta" ]]; then
-        info "   Synchronisation du schéma (beta, db push)..."
-        sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} npx --yes prisma db push
-    fi
-    ok "Base de données synchronisée."
 
-    # ── ÉTAPE 5/5 — Données de jeu ──────────────────────────────────────────
-    section "5" "Données de jeu"
-    run_conditional_seed "app-${TARGET}"
-
-    # ── Récapitulatif final + santé ─────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Bandeau d'en-tête (pré-vol) — style 2026
+# -----------------------------------------------------------------------------
+title_banner() {
+    local TARGET="$1" MODE="$2" ENV="$3" SHA="$4" GIT="$5" URL="$6"
     echo ""
-    hr
-    printf "${C_GREEN}${C_BOLD}✅ Déploiement %s terminé${C_RESET}\n" "$TARGET"
-    printf "${C_DIM}   Version   :${C_RESET} %s${C_DIM}  (SHA local %s)${C_RESET}\n" "$SHA" "$GIT_SHORT"
-    printf "${C_DIM}   Santé     :${C_RESET} %s/api/health\n" "$URL"
-    printf "${C_DIM}   Rollback  :${C_RESET} ./scripts/rollback.sh %s\n" "$TARGET"
-    hr
+    printf "${C_BOLD}${C_BLUE}  ╔══════════════════════════════════════════════════════════════╗${C_RESET}\n"
+    printf "${C_BOLD}${C_BLUE}  ║${C_RESET}   ${C_CYAN}◆ SigilOS — Déploiement CI/CD${C_RESET}${C_BOLD}${C_BLUE}                                         ║${C_RESET}\n"
+    printf "${C_BOLD}${C_BLUE}  ╚══════════════════════════════════════════════════════════════╝${C_RESET}\n"
+    printf "${C_BOLD}  Cible      :${C_RESET} %s  ${C_DIM}(%s — %s)${C_RESET}\n" "$TARGET" "$MODE" "$ENV"
+    printf "${C_BOLD}  Version    :${C_RESET} %s  ${C_DIM}(SHA local %s)${C_RESET}\n" "$SHA" "$GIT"
+    printf "${C_BOLD}  Santé      :${C_RESET} %s/api/health\n" "$URL"
+    printf "${C_BOLD}  Images     :${C_RESET} app · worker · ws · discord-bot\n"
+}
 
+# -----------------------------------------------------------------------------
+# Vérification de santé post-déploiement
+# -----------------------------------------------------------------------------
+health_check() {
+    local URL="$1" HEALTH HTTP_CODE
     info "Vérification de la santé post-déploiement..."
-    local HEALTH HTTP_CODE
     HEALTH="$(curl -fsS -m 20 -w '\n%{http_code}' "$URL/api/health" 2>/dev/null)" || {
         warn "Le service ne répond pas encore — vérifier manuellement :"
         dim "   curl $URL/api/health"
@@ -290,12 +643,322 @@ deploy() {
 }
 
 # -----------------------------------------------------------------------------
+# Garde-fou proxy Caddy — le conteneur sert-il bien le Caddyfile DU DÉPÔT ?
+# -----------------------------------------------------------------------------
+# Le compose monte UN FICHIER (`./Caddyfile:/etc/caddy/Caddyfile`). Quand git remplace ce
+# fichier, l'inode change : le conteneur reste collé à l'ANCIENNE version jusqu'à sa
+# recréation (un bind-mount de fichier ne suit pas un remplacement). Le correctif est donc
+# silencieusement inerte, parfois pendant des semaines. Deux incidents réels, mêmes
+# symptômes : 23/08/2026 (`handle /assets/*` absent → images de la vitrine cassées) puis
+# 04/09/2026 (`handle /robots.txt` absent → la prod a servi un robots.txt/HTML pendant
+# 20 jours, constaté le 24/09). On compare donc les empreintes, on valide la config AVANT
+# de toucher au proxy, et on ne recrée que si nécessaire.
+caddy_config_check() {
+    local ENV_FILE_C="$1"
+    local CONTAINER="sigilos-gateway" HOST_SUM CONT_SUM
+
+    [[ -f Caddyfile ]] || { dim "   Caddyfile absent du dépôt — contrôle ignoré."; return; }
+    if ! sudo docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+        warn "Conteneur $CONTAINER absent — contrôle de config ignoré."
+        return
+    fi
+
+    HOST_SUM="$(md5sum Caddyfile | awk '{print $1}')"
+    CONT_SUM="$(sudo docker exec "$CONTAINER" md5sum /etc/caddy/Caddyfile 2>/dev/null | awk '{print $1}')"
+    if [[ -n "$HOST_SUM" && "$HOST_SUM" == "$CONT_SUM" ]]; then
+        ok "Proxy Caddy à jour (config identique au dépôt)."
+        return
+    fi
+
+    warn "Proxy Caddy EN RETARD : le conteneur sert une ancienne config (bind-mount d'un fichier)."
+    local NEXT_CONFIG="/tmp/Caddyfile.next"
+    if ! sudo docker cp Caddyfile "$CONTAINER:$NEXT_CONFIG" >/dev/null 2>&1; then
+        err "Copie de la config impossible — recréation à faire à la main :"
+        dim "   sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE_C up -d --force-recreate --no-deps caddy"
+        return
+    fi
+    if ! sudo docker exec "$CONTAINER" caddy validate --config "$NEXT_CONFIG" >/dev/null 2>&1; then
+        err "La config Caddy du dépôt est INVALIDE — proxy non touché (l'ancienne reste en service)."
+        dim "   Détail : sudo docker exec $CONTAINER caddy validate --config $NEXT_CONFIG"
+        return
+    fi
+    ok "Config Caddy du dépôt valide."
+    info "   Recréation du proxy (quelques secondes d'interruption)..."
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE_C" up -d --force-recreate --no-deps caddy; then
+        ok "Proxy Caddy recréé avec la config du dépôt."
+    else
+        err "Échec de la recréation du proxy — à faire à la main :"
+        dim "   sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE_C up -d --force-recreate --no-deps caddy"
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# Contrôle SEO post-déploiement — ce qui est RÉELLEMENT servi (pas ce que dit Git)
+# -----------------------------------------------------------------------------
+# « Un `robots.ts` correct dans Git ne prouve pas ce que le robot reçoit » : le 24/09/2026, la
+# prod renvoyait la vitrine HTML (200 `text/html`) sur `/robots.txt` ET `/sitemap.xml`, ce qui
+# faisait échouer le rapport « Sitemaps » de Search Console. On vérifie donc les deux URL
+# publiques de chaque domaine, après le déploiement (voir aussi docs/agents/deploy-vps.md).
+seo_check() {
+    local URL="$1" CT CODE
+
+    # robots.txt : doit être du TEXTE BRUT sur les deux domaines (jamais du HTML).
+    CT="$(curl -fsS -m 20 -D - -o /dev/null "$URL/robots.txt" 2>/dev/null | tr -d '\r' \
+        | awk 'tolower($1)=="content-type:"{print tolower($2); exit}')"
+    if [[ "$CT" == text/plain* ]]; then
+        ok "$URL/robots.txt → text/plain"
+    else
+        warn "$URL/robots.txt → Content-Type « ${CT:-aucun} » (attendu : text/plain)"
+        dim "   → proxy servie par une ancienne config : voir le contrôle Caddy ci-dessus."
+    fi
+
+    # sitemap.xml : la bêta l'expose (XML), la vitrine répond 404 (hors index pendant la bêta).
+    CODE="$(curl -sS -m 20 -o /dev/null -w '%{http_code}' "$URL/sitemap.xml" 2>/dev/null)"
+    if [[ "$URL" == *beta.* ]]; then
+        if [[ "$CODE" == "200" ]]; then
+            ok "$URL/sitemap.xml → HTTP 200"
+        else
+            warn "$URL/sitemap.xml → HTTP ${CODE:-aucun} (la bêta doit exposer son sitemap)."
+        fi
+    else
+        if [[ "$CODE" == "404" ]]; then
+            ok "$URL/sitemap.xml → HTTP 404 attendu (vitrine hors index)."
+        else
+            warn "$URL/sitemap.xml → HTTP ${CODE:-aucun} (404 attendu : vitrine hors index)."
+        fi
+    fi
+
+    # Pages clés : une application « healthy » peut quand même servir des 500/404 sur ses pages
+    # (erreur de rendu, données manquantes, redirection cassée). On interroge donc les 4 pages
+    # publiques qui portent le trafic — un `curl` de statut coûte 30 ms et évite de découvrir la
+    # panne par un joueur. Aucune écriture, aucune donnée touchée : simple lecture HTTP.
+    local PAGES
+    if [[ "$URL" == *beta.* ]]; then
+        PAGES=("/" "/guides" "/guides/rush-sylvestre" "/boss")
+    else
+        PAGES=("/")
+    fi
+    local PAGE
+    for PAGE in "${PAGES[@]}"; do
+        CODE="$(curl -sS -m 20 -o /dev/null -w '%{http_code}' "${URL}${PAGE}" 2>/dev/null)"
+        if [[ "$CODE" == "200" ]]; then
+            ok "  ${PAGE} → HTTP 200"
+        else
+            warn "  ${PAGE} → HTTP ${CODE:-aucun} (attendu 200 — vérifier les logs de l'app)."
+        fi
+    done
+}
+
+# -----------------------------------------------------------------------------
+# Déploiement (beta|prod)
+# -----------------------------------------------------------------------------
+deploy() {
+    local TARGET="$1"
+    local SHA="${2:-latest}"
+    [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
+    local ENV_FILE=".env.prod"; [[ "$TARGET" == "beta" ]] && ENV_FILE=".env.beta"
+    local GIT_SHORT; GIT_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+    local URL="https://${TARGET}.sigilos.fr"
+    local MODE_LABEL="bêta — branche dev"; [[ "$TARGET" == "prod" ]] && MODE_LABEL="production — branche main"
+
+    # ── Pré-vol ──────────────────────────────────────────────────────────────
+    title_banner "$TARGET" "$MODE_LABEL" "$ENV_FILE" "$SHA" "$GIT_SHORT" "$URL"
+    show_token_expiry
+    horiz
+
+    git_fetch
+
+    step "1" "Authentification GHCR" "Connexion au «dépôt» d'images (ghcr.io) : la clé GHCR_TOKEN (lecture seule) permet de lire les images privées. Aucune donnée n'est exécutée ici."
+    if sudo docker login ghcr.io -u "$GHCR_USER_LOWER" --password-stdin <<<"$GHCR_TOKEN" >/tmp/sigilos-login.log 2>&1; then
+        ok "Connecté au registre $GHCR_REG"
+    else
+        err "Échec de connexion à GHCR :"
+        sed 's/^/     /' /tmp/sigilos-login.log | tail -5
+        rm -f /tmp/sigilos-login.log
+        exit 1
+    fi
+    rm -f /tmp/sigilos-login.log
+
+    # ── Pré-vol « le tag existe-t-il vraiment ? » ──────────────────────────────
+    # Un tag jamais publié et un registre injoignable donnent le MÊME échec au
+    # pull. On tranche la question AVANT de toucher aux conteneurs, image par
+    # image, en lisant seulement le manifeste (aucune couche téléchargée).
+    if [[ "$SHA" != "latest" ]]; then
+        step "1.5" "Vérification du tag ${SHA}" "Contrôle que la CI a bien publié ce commit sur GHCR (manifeste seulement, aucun téléchargement)."
+        local MISSING_TAG=0
+        for NAME in app worker ws discord-bot; do
+            local IMG="${GHCR_REG}/sigilos-${NAME}-${TARGET}"
+            if sudo docker buildx imagetools inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
+                ok "${NAME} : tag ${SHA} publié"
+            else
+                err "${NAME} : tag ${SHA} absent (${IMG})"
+                MISSING_TAG=1
+            fi
+        done
+        if [[ "$MISSING_TAG" == "1" ]]; then
+            echo ""
+            dim "  Un tag absent = une image jamais publiée par la CI. Ce n'est donc NI"
+            dim "  le disque NI le token du serveur : vérifie l'onglet Actions (Build &"
+            dim "  Push vert pour ce commit) puis relance."
+            dim "  Vérifier sans déployer : ./scripts/deploy-cd.sh list ${TARGET} ${SHA}"
+            fail "Tag ${SHA} incomplet sur GHCR — déploiement annulé avant tout changement."
+        fi
+        echo ""
+    fi
+
+    step "2" "Téléchargement des images" "Récupère les 4 composants de l'app (app, worker, ws, bot) déjà «cuisinés» sur GitHub — aucun re-build sur le serveur."
+    local PULL_OK=1
+    for NAME in app worker ws discord-bot; do
+        local IMG="${GHCR_REG}/sigilos-${NAME}-${TARGET}"
+        pull_image "$IMG" "$SHA" "$NAME" "$TARGET"
+    done
+    echo ""
+    [[ "$PULL_OK" == "1" ]] || fail "Une ou plusieurs images n'ont pas pu être téléchargées."
+
+
+    step "3" "Redémarrage des conteneurs" "Relance les services avec les nouvelles images et attend qu'ils soient «Healthy» (prêts à servir les requêtes)."
+    # --wait-timeout 240 : évite que l'étape 3 « fige » indéfiniment si un conteneur
+    # n'est pas healthy à temps (l'app pouvait sembler bloquée → Ctrl+C). On échoue
+    # proprement après 240s au lieu de bloquer sans message.
+    # Flag CONDITIONNEL (Compose >= 2.17) pour ne pas casser sur les versions plus anciennes.
+    local COMPOSE_VER WAIT_FLAG
+    COMPOSE_VER="$(sudo docker compose version --short 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1)"
+    WAIT_FLAG=""
+    if [[ -n "$COMPOSE_VER" ]] && awk -v v="$COMPOSE_VER" 'BEGIN{ split(v,p,"."); if (p[1]>2 || (p[1]==2 && p[2]>=17)) exit 0; else exit 1 }'; then
+        WAIT_FLAG="--wait-timeout 240"
+    fi
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait $WAIT_FLAG app-${TARGET} worker-${TARGET} ws-${TARGET} discord-bot-${TARGET}; then
+        ok "Conteneurs démarrés et sains."
+    else
+        fail "Échec au démarrage des conteneurs."
+    fi
+
+    step "4" "Base de données" "Met à jour la structure de la base (tables/colonnes) et range les fichiers « uploads » dans le stockage privé. Seules les migrations absentes de la base sont appliquées — aucune ne rejoue, aucune donnée n'est effacée."
+    info "   Migration des fichiers uploads..."
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent migrate:uploads'; then
+        ok "Uploads rangés dans le stockage privé."
+    else
+        err "Échec migration uploads."
+        exit 1
+    fi
+    info "   Application des migrations Prisma..."
+    # CLI Prisma : celui EMBARQUÉ dans l'image (rapide, zéro réseau) s'il est là,
+    # sinon repli npx (téléchargement 1 à 3 min, source de l'attente muette du
+    # 19/09/2026). Le repli garantit qu'un déploiement ne casse jamais si l'image
+    # ne contient pas /opt/prisma-cli.
+    # ⚠️ Prisma CLI absent de l'image runner (devDependency, non incluse dans .next/standalone) :
+    # sans pin, `npx prisma` tire `prisma@latest` (actuellement une RC cassée 8.0.0-rc.10 où la
+    # commande est renommée `migration` → "No command registered for `migrate`"). On épingle la
+    # version du projet (7.10.0) comme dans services/discord-bot/Dockerfile.
+    local PRISMA_CMD="npx --yes prisma@${PRISMA_PIN}"
+    if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec -T app-${TARGET} \
+        sh -c 'node /opt/prisma-cli/node_modules/prisma/build/index.js --version' >/dev/null 2>&1; then
+        PRISMA_CMD="node /opt/prisma-cli/node_modules/prisma/build/index.js"
+        dim "     CLI Prisma embarqué dans l'image — aucun téléchargement."
+    else
+        dim "     CLI Prisma absent de l'image → npx le télécharge (1 à 3 min, c'est normal)."
+    fi
+    local MIGRATE_LOG MIGRATE_T0
+    MIGRATE_LOG="$(mktemp)"; MIGRATE_T0="$SECONDS"
+    local MIGRATE_RC=0
+    compose_exec_streamed "$ENV_FILE" "app-${TARGET}" "$PRISMA_TIMEOUT" "$MIGRATE_LOG" \
+        "NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false ${PRISMA_CMD} migrate deploy" || MIGRATE_RC=$?
+    if (( MIGRATE_RC == 0 )); then
+        if grep -qi "no pending migrations" "$MIGRATE_LOG"; then
+            # « N migrations found in prisma/migrations » : N = les migrations du
+            # DÉPÔT (une par changement de schéma déjà validé). Prisma compare cette
+            # liste à la table `_prisma_migrations` de la base et n'applique QUE la
+            # différence. On redonne le compte : c'est la question n° 1 du lecteur.
+            # ⚠️ Le compte est compté DANS LE DÉPÔT (on est à sa racine — `cd` en tête de
+            # script), pas relu du log : mesuré le 30/09/2026, deux déploiements d'affilée
+            # au code IDENTIQUE ont affiché 5 lignes de Prisma puis 1 seule (la ligne
+            # « N migrations found » n'était plus écrite) ⇒ s'y fier faisait retomber sur
+            # le message muet, précisément sur le nombre que le lecteur cherche.
+            # Un dossier `prisma/migrations/<horodatage>_<nom>/` = une migration.
+            local KNOWN_MIGRATIONS
+            KNOWN_MIGRATIONS="$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d '[:space:]')"
+            if [[ -z "$KNOWN_MIGRATIONS" || "$KNOWN_MIGRATIONS" == "0" ]]; then
+                # Repli (dépôt incomplet) : la ligne du log, quand Prisma l'écrit.
+                KNOWN_MIGRATIONS="$(grep -oE '[0-9]+ migrations? found' "$MIGRATE_LOG" | head -1 | cut -d' ' -f1)"
+            fi
+            if [[ -n "$KNOWN_MIGRATIONS" ]]; then
+                ok "Base à jour — ${KNOWN_MIGRATIONS} migrations connues, aucune à appliquer ($(( SECONDS - MIGRATE_T0 ))s)."
+            else
+                ok "Base à jour — aucune migration en attente ($(( SECONDS - MIGRATE_T0 ))s)."
+            fi
+        else
+            ok "Migrations appliquées ($(( SECONDS - MIGRATE_T0 ))s)."
+        fi
+    elif (( MIGRATE_RC == 124 )); then
+        err "Migrations Prisma interrompues après ${PRISMA_TIMEOUT}s (durée maximale dépassée)."
+        dim "   → Cause probable : le serveur télécharge le CLI Prisma via npm (accès réseau lent/bloqué)."
+        dim "     Relancer le déploiement, ou allonger le délai : PRISMA_TIMEOUT=1800 ./scripts/deploy-cd.sh $TARGET"
+        tail -20 "$MIGRATE_LOG" | sed 's/^/     /'
+        rm -f "$MIGRATE_LOG"
+        exit 1
+    else
+        err "Échec des migrations Prisma (code ${MIGRATE_RC}) :"
+        tail -20 "$MIGRATE_LOG" | sed 's/^/     /'
+        rm -f "$MIGRATE_LOG"
+        exit 1
+    fi
+    rm -f "$MIGRATE_LOG"
+    if [[ "$TARGET" == "beta" ]]; then
+        info "   Synchronisation du schéma (beta, db push)..."
+        local PUSH_LOG; PUSH_LOG="$(mktemp)"
+        local PUSH_RC=0
+        compose_exec_streamed "$ENV_FILE" "app-${TARGET}" "$PRISMA_TIMEOUT" "$PUSH_LOG" \
+            "NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false ${PRISMA_CMD} db push" || PUSH_RC=$?
+        if (( PUSH_RC == 0 )); then
+            if grep -qi "already in sync" "$PUSH_LOG"; then
+                ok "Schéma déjà à jour."
+            else
+                ok "Schéma synchronisé."
+            fi
+        elif (( PUSH_RC == 124 )); then
+            err "db push interrompu après ${PRISMA_TIMEOUT}s (durée maximale dépassée)."
+            dim "     Relancer le déploiement, ou allonger : PRISMA_TIMEOUT=1800 ./scripts/deploy-cd.sh $TARGET"
+            tail -20 "$PUSH_LOG" | sed 's/^/     /'
+            rm -f "$PUSH_LOG"
+            exit 1
+        else
+            err "Échec du db push (code ${PUSH_RC}) :"
+            tail -20 "$PUSH_LOG" | sed 's/^/     /'
+            rm -f "$PUSH_LOG"
+            exit 1
+        fi
+        rm -f "$PUSH_LOG"
+    fi
+    ok "Base de données prête."
+
+    step "5" "Données de jeu" "Synchronise les données (cartes/sorts) si la version a changé — sinon ne fait rien pour aller plus vite."
+    run_conditional_seed "app-${TARGET}"
+
+    # ── Récapitulatif + santé ────────────────────────────────────────────────
+    horiz
+    printf "${C_GREEN}${C_BOLD}✅ Déploiement %s terminé${C_RESET}\n" "$TARGET"
+    printf "${C_DIM}   Version   :${C_RESET} %s${C_DIM}  (SHA local %s)${C_RESET}\n" "$SHA" "$GIT_SHORT"
+    printf "${C_DIM}   Santé     :${C_RESET} %s/api/health\n" "$URL"
+    printf "${C_DIM}   Rollback  :${C_RESET} ./scripts/rollback.sh %s\n" "$TARGET"
+    horiz
+
+    # ── Contrôles post-déploiement ───────────────────────────────────────────
+    # 1) le proxy sert-il la config DU DÉPÔT ? (sinon : il la reprend — inode figé) ;
+    # 2) ce qui est RÉELLEMENT servi aux robots (robots.txt / sitemap.xml) ;
+    # 3) l'application elle-même.
+    caddy_config_check "$ENV_FILE"
+    seo_check "$URL"
+    health_check "$URL"
+}
+
+# -----------------------------------------------------------------------------
 # Dispatch des commandes
 # -----------------------------------------------------------------------------
 COMMAND="${1:-}"
 case "$COMMAND" in
     beta|prod)   deploy "$COMMAND" "${2:-latest}" ;;
-    list)        list_handler "${2:-}" ;;
+    list)        list_handler "${2:-}" "${3:-}" ;;
     --help|-h)   usage 0 ;;
     *)           usage 1 ;;
 esac
+

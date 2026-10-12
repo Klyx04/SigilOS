@@ -7,85 +7,113 @@ import {
   BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
   BookmarkCheck, Loader2, CheckCheck,
   Sparkles, Construction, AlertTriangle, Sword, Lock, MapPin, Plus,
-  Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield, Search, X, CircleHelp,
-  Settings2, Ghost
+  Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Search, X, CircleHelp, ClipboardList,
+  Settings2, Ghost, Maximize2, Lightbulb
 } from "lucide-react";
+
 import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import MapPositionPopover from "@/components/dofus-quests/MapPositionPopover";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
+import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
 import { useGuidePresence } from "@/hooks/use-guide-presence";
+import { useGuideProgressSync } from "@/hooks/use-guide-sync";
+import { isDocumentPipSupported, openPipWindow, openFallbackPopup } from "@/hooks/use-guide-pip";
+import { useRushOverlayStore } from "@/store/rush-overlay-store";
+import GuideParticles from "@/components/dofus-quests/GuideParticles";
+import type { RushMilestone } from "@/types/rush-guide-types";
+import type { GuideProgressRow } from "@/lib/guide-progress-helpers";
 import "./guide-styles.css";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { getClass, getAlignment, getAlignmentLevelSteps, ORDERS, ALIGNMENTS } from "@/lib/dofus-assets";
-import { updateUserProfile, updateMuleAlignment } from "@/server/actions/profile-actions";
+import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
+import { updateUserProfile } from "@/server/actions/profile-actions";
 import {
   toggleMilestoneProgress,
   resetMilestoneProgress,
-  updateBookmarkedStep,
-  updateStepProgress,
+  setRushSequenceProgress,
+  setRushBookmark,
+  setRushResourceChecks,
+  applyRushAlignmentFromSequence,
+  resetRushAlignment,
 } from "@/server/actions/optimized-guide-actions";
-import { DofusProgressStrip } from "./DofusProgressStrip";
 import { GuildStatusPanel } from "./GuildStatusPanel";
 import { QuestGroupRenderer, useQuestGroups } from "./QuestGroup";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
+// Sidebar « Chapitres / ce qu'il faut prévoir » — composant PARTAGÉ (dashboard
+// membre ↔ guide public) : même rendu, mêmes données dérivées.
+import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
+import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
+// Modale « Ressources à prévoir » + agrégation : SOURCE UNIQUE partagée avec
+// l'overlay et la page publique (mêmes clés de coche des deux côtés).
+import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
+import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
+import { toOcrePanelData } from "@/lib/ocre-soul-stones";
+import { metierIds } from "@/lib/metiers";
+import type { RushUIConfig } from "@/lib/rush-ui-config";
+import { safeImageUrl } from "@/lib/security";
+import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
+import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
+import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
+import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
+import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
+import { RushRichText, RushTipLines } from "@/components/dofus-quests/rush/RushRichText";
+import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
+import { MilestoneCelebrationBurst } from "@/components/dofus-quests/rush/MilestoneCelebration";
+import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
+import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
+import { brandIconForUrl } from "@/lib/source-icons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DungeonRef = { id: string; name: string; bossName: string; imageUrl?: string|null };
 type ActivityTag = { type: string; name?: string; level?: number; count?: number; color?: string; url?: string };
+/**
+ * Durée de la surbrillance de la quête CIBLÉE (clic sur un prérequis, « Reprendre »,
+ * reprise live) — 1,2 s : assez pour que l'œil accroche la ligne, assez court pour ne pas
+ * rester allumé quand la quête suivante est déjà cochée (G4 du plan).
+ */
+const TARGET_HIGHLIGHT_MS = 1200;
+
 type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; alignReq?: string|null; alignOrderReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
-const ACTIVITY_TAGS: { type: string; imagePath: string; label: string; color: string }[] = [
-  { type:"combat_tactique", imagePath:"/assets/rush-sylvestre/combat-tactique.png", label:"Combat Tactique", color:"#ef4444" },
-  { type:"combat_vagues", imagePath:"/assets/rush-sylvestre/combat-vagues.png", label:"Combat à vagues", color:"#3b82f6" },
-  { type:"songes", imagePath:"/assets/rush-sylvestre/songes.png", label:"Songes", color:"#8b5cf6" },
-  { type:"combat_solo", imagePath:"/assets/rush-sylvestre/combat-solo.png", label:"Combat Solo", color:"#f43f5e" },
-  { type:"combat_plusieurs", imagePath:"/assets/rush-sylvestre/combat-plusieurs.png", label:"Combat à plusieurs", color:"#a855f7" },
-  { type:"contrainte_horaire", imagePath:"/assets/rush-sylvestre/contrainte-horaire.png", label:"Horaire Spec.", color:"#f59e0b" },
-  { type:"donjon", imagePath:"/assets/rush-sylvestre/donjon.png", label:"Donjon requis", color:"#3b82f6" },
-  { type:"plusieurs_personnes", imagePath:"/assets/rush-sylvestre/plusieurs-personnes.png", label:"Multi joueurs", color:"#10b981" },
-  { type:"sort", imagePath:"/assets/rush-sylvestre/sort.png", label:"Sort requis", color:"#ec4899" },
-  { type:"metier", imagePath:"/assets/rush-sylvestre/façonneur.png", label:"Métier requis", color:"#eab308" },
-  { type:"solver", imagePath:"/assets/rush-sylvestre/solver.png", label:"Solver", color:"#10b981" },
-];
-function getMetierIconPath(m?:string){if(!m)return"/assets/rush-sylvestre/façonneur.png";return`/assets/rush-sylvestre/${m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ç/g,"c")}.png`;}
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
 type GuildMemberProgress = { profileId:string; milestoneId:string; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
-type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; };
-const DOFUS_DEFS = [
-  { id:"ocre", label:"Ocre", color:"#f59e0b", imageUrl:"/assets/icons/ocre.png" }, { id:"turquoise", label:"Turquoise", color:"#06b6d4", imageUrl:"/module-dofus/Dofus_Turquoise.png" },
-  { id:"argente", label:"Argenté", color:"#a1a1aa", imageUrl:"/module-dofus/Dofus_Argente.png" }, { id:"argente_scintillant", label:"Arg. Scintillant", color:"#c0c0c0", imageUrl:"/module-dofus/Dofus_Argente_Scintillant.png" },
-  { id:"ebene", label:"Ébène", color:"#52525b", imageUrl:"/module-dofus/Dofus_Ebene.png" }, { id:"pourpre", label:"Pourpre", color:"#a855f7", imageUrl:"/module-dofus/Dofus_Pourpre.png" },
-  { id:"ivoire", label:"Ivoire", color:"#e2e8f0", imageUrl:"/module-dofus/Dofus_Ivoire.png" }, { id:"emeraude", label:"Émeraude", color:"#10b981", imageUrl:"/module-dofus/Dofus_Emeraude.png" },
-  { id:"dolmanax", label:"Dolmanax", color:"#ef4444", imageUrl:"/module-dofus/Dofus_Dolmanax.png" }, { id:"des_glaces", label:"Des Glaces", color:"#93c5fd", imageUrl:"/module-dofus/Dofus_Des_Glaces.png" },
-  { id:"du_cauchemar", label:"Du Cauchemar", color:"#7c3aed", imageUrl:"/module-dofus/Dofus_Du_Cauchemar.png" }, { id:"des_veilleurs", label:"Des Veilleurs", color:"#38bdf8", imageUrl:"/module-dofus/Dofus_Veilleur.png" },
-  { id:"domakuro", label:"Domakuro", color:"#84cc16", imageUrl:"/module-dofus/Dofus_Domakuro.png" }, { id:"dorigami", label:"Dorigami", color:"#f472b6", imageUrl:"/module-dofus/Dofus_Dorigami.png" },
-  { id:"tachete", label:"Tacheté", color:"#c084fc", imageUrl:"/module-dofus/Dofus_Tacheté.png" }, { id:"dom_de_pin", label:"Dom de Pin", color:"#a3e635", imageUrl:"/module-dofus/Dom_De_Pin.png" },
-];
+type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string;parallelQuests?:number}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; initialResourceChecks?:string[]; };
+// Dofus du jeu — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`), partagée avec le
+// studio God, le guide public et l'overlay (cinq copies divergentes avant le
+// 08/10/2026 — cf. l'en-tête du module).
+const DOFUS_DEFS = RUSH_DOFUS_META;
 function TougliCallout({text,colorStyle="emerald"}:{text:string;colorStyle?:string}){
   const isPurple = colorStyle === "purple", isAmber = colorStyle === "amber";
-  const borderCol = isPurple ? "border-purple-500/40" : isAmber ? "border-amber-500/40" : "border-emerald-500/40";
-  const bgFlat = isPurple ? "bg-purple-950/20" : isAmber ? "bg-amber-950/20" : "bg-emerald-950/20";
-  const icon = isPurple ? "👿" : isAmber ? "💡" : "✨";
-  const parts = renderContentWithCoords(text);
+  const borderCol = isPurple ? "border-info/30" : isAmber ? "border-warning/40" : "border-success/35";
+  const bgGrad = isPurple
+    ? "bg-gradient-to-r from-info/10 via-info/[0.03] to-transparent"
+    : isAmber
+      ? "bg-gradient-to-r from-warning/15 via-warning/[0.04] to-transparent"
+      : "bg-gradient-to-r from-success/12 via-success/[0.03] to-transparent";
+  const accentText = isPurple ? "text-info" : isAmber ? "text-warning" : "text-success";
 
   return (
-    <div className={`flex items-start gap-3 p-3 rounded-2xl border-l-4 ${borderCol} ${bgFlat} border border-y-white/5 border-r-white/5 my-2`}>
-      <div className="mt-0.5 shrink-0 text-sm">{icon}</div>
-      <div className="text-xs text-zinc-200 leading-relaxed font-medium">{parts}</div>
+    <div className={`flex items-start gap-2.5 px-3 py-2 rounded-[4px] border ${borderCol} ${bgGrad} my-1.5`}>
+      <Sparkles className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${accentText} opacity-80`} />
+      <div className="text-xs text-foreground/90 leading-relaxed font-sans font-medium"><RushRichText text={text} /></div>
     </div>
   );
 }
@@ -98,12 +126,12 @@ const MemberAvatars = memo(function MemberAvatars({ members, max = 5 }: { member
     <div className="flex items-center gap-1">
       <div className="flex -space-x-1">
         {s.map(m => (
-          <div key={m.profileId} className="w-5 h-5 rounded-full border-2 border-zinc-950 overflow-hidden bg-indigo-900 flex items-center justify-center flex-shrink-0 ring-1 ring-indigo-500/30" title={m.userName}>
-            {m.userAvatar ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover"/> : <span className="text-caption font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>}
+          <div key={m.profileId} className="w-5 h-5 rounded-full border-2 border-background overflow-hidden bg-info/20 flex items-center justify-center flex-shrink-0 ring-1 ring-info/30" title={m.userName}>
+            {m.userAvatar ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover"/> : <span className="text-caption font-semibold text-info">{m.userName[0]?.toUpperCase()}</span>}
           </div>
         ))}
       </div>
-      {e > 0 && <span className="text-caption font-black text-indigo-400">+{e}</span>}
+      {e > 0 && <span className="text-caption font-semibold text-info">+{e}</span>}
     </div>
   );
 });
@@ -146,33 +174,33 @@ const DungeonGroup = memo(function DungeonGroup({
     return (
       <button
         onClick={(e) => { e.stopPropagation(); onDungeonClick(dj.id, questName); }}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-all group hover:scale-[1.02] active:scale-[0.98] ${
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all group   max-w-full min-w-0 ${
           captured
-            ? "bg-emerald-500/15 border-emerald-500/40 hover:bg-emerald-500/25 shadow-sm shadow-emerald-500/10"
-            : "bg-red-500/10 border-red-500/25 hover:bg-red-500/20"
+            ? "bg-success/10 border-success/40 hover:bg-success/15 shadow-sm"
+            : "bg-danger/10 border-danger/30 hover:bg-danger/15"
         } ${compact ? "shrink-0" : ""}`}
         title={`${dj.name}${captured ? " ✓ Déjà capturé (Metamob)" : ""}`}
       >
         {dj.imageUrl ? (
-          <img src={dj.imageUrl} alt={dj.bossName || dj.name} className={`w-5 h-5 rounded-lg object-cover border flex-shrink-0 ${captured ? "border-emerald-500/50 ring-1 ring-emerald-500/30" : "border-white/10"}`} />
+          <img src={dj.imageUrl} alt={dj.bossName || dj.name} className={`w-4 h-4 rounded object-cover border flex-shrink-0 ${captured ? "border-success/50" : "border-border"}`} />
         ) : (
-          <div className="w-5 h-5 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center"><Sword className="w-3 h-3 text-amber-400" /></div>
+          <div className="w-4 h-4 rounded bg-elevated border border-border flex items-center justify-center"><Sword className="w-2.5 h-2.5 text-warning" /></div>
         )}
-        <span className={`text-caption font-black ${captured ? "text-emerald-300" : "text-red-300"} ${compact ? "hidden sm:inline" : ""}`}>{dj.name}</span>
+        <span className={`text-xs font-semibold truncate min-w-0 ${captured ? "text-success" : "text-danger"} ${compact ? "hidden sm:inline" : ""}`}>{dj.name}</span>
         {isOcreDungeon && !captured && (
-          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-caption font-black uppercase tracking-widest">
+          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-warning/20 border border-warning/40 text-warning text-[10px] font-medium">
             <img src="/assets/icons/ocre.png" alt="" className="w-2.5 h-2.5 object-contain" />Ocre
           </span>
         )}
         {captured && (
-          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-caption font-black uppercase tracking-widest">
+          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-success/20 border border-success/40 text-success text-[10px] font-medium">
             {isOcreDungeon && (
               <img src="/module-dofus/Dofus_Ocre.png" alt="Ocre" className="w-3 h-3 object-contain" />
             )}
             <CheckCircle2 className="w-2.5 h-2.5" />Capturé
           </span>
         )}
-        <Plus className="w-2.5 h-2.5 group-hover:scale-125 transition-transform shrink-0 text-amber-400" />
+        <Plus className="w-2.5 h-2.5 group-hover:scale-125 transition-transform shrink-0 text-warning" />
       </button>
     );
   };
@@ -185,7 +213,7 @@ const DungeonGroup = memo(function DungeonGroup({
       {extra > 0 && !showAll && (
         <button
           onClick={(e) => { e.stopPropagation(); setShowAll(true); }}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-xl border border-zinc-700/50 bg-zinc-900/80 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600/60 transition-all text-caption font-black uppercase tracking-widest"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground transition-all text-xs font-bold"
           title="Voir tous les donjons"
         >
           <ListCollapse className="w-3 h-3" />+{extra}
@@ -194,7 +222,7 @@ const DungeonGroup = memo(function DungeonGroup({
       {showAll && dungeons.length > maxVisible && (
         <button
           onClick={(e) => { e.stopPropagation(); setShowAll(false); }}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-xl border border-zinc-700/50 bg-zinc-900/80 text-zinc-400 hover:bg-zinc-800 transition-all text-caption font-black uppercase tracking-widest"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-elevated hover:text-foreground transition-all text-xs font-bold"
         >
           <ChevronUp className="w-3 h-3" />Réduire
         </button>
@@ -204,8 +232,8 @@ const DungeonGroup = memo(function DungeonGroup({
 });
 
 // ─── SequenceRow ──────────────────────────────────────────────────────────────
-const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focusedSeqId, accentColor, userAlignmentInfo, onToggleSeq, onDungeonClick, hideSeqCompleted }: {
-  seq: Sequence; ms: Milestone; isSeqCompleted: boolean; focusedSeqId?: string|null; accentColor: string; userAlignmentInfo: any; onToggleSeq?: ()=>void; onDungeonClick: (dungeonId: string, questName: string)=>void; hideSeqCompleted?: boolean;
+const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focusedSeqId, accentColor, userAlignmentInfo, onToggleSeq, onDungeonClick, hideSeqCompleted, isFirstVisible }: {
+  seq: Sequence; ms: Milestone; isSeqCompleted: boolean; focusedSeqId?: string|null; accentColor: string; userAlignmentInfo: any; onToggleSeq?: ()=>void; onDungeonClick: (dungeonId: string, questName: string)=>void; hideSeqCompleted?: boolean; isFirstVisible?: boolean;
 }) {
   const capturedMonsterSet=React.useContext(CapturedMonsterCtx);
   const capturedMonsterNames=React.useContext(CapturedMonsterNamesCtx);
@@ -227,9 +255,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     return Array.from(new Map(raw.map(m => [m.profileId || m.userName, m])).values());
   }, [guildProgressBySeq, seq.id]);
   const [membersModalOpen, setMembersModalOpen] = useState(false);
-  const maxFloatingAvatars = 5;
-  const floatAvatars = seqMembers.slice(0, maxFloatingAvatars);
-  const floatExtra = seqMembers.length - maxFloatingAvatars;
+  const [detailOpen, setDetailOpen] = useState(false);
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
   const allDungeons=seq.dungeons&&seq.dungeons.length>0?seq.dungeons:(seq.dungeon?[seq.dungeon]:[]);
   const dbUrl=seq.dofusdbUrl, noobsUrl=seq.dofuspourlesnoobsUrl;
@@ -237,60 +263,48 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   let isReqMet=false;let alignInfo:any=null;
   if(hasAlignment&&seq.alignReq&&seq.alignOrderReq){const ua=userAlignmentInfo.alignment?.toLowerCase(),uo=userAlignmentInfo.alignmentOrder?.toLowerCase(),ul=userAlignmentInfo.alignmentLevel??0;if(ua===seq.alignReq.toLowerCase()&&typeof uo==="string"&&ul>=seq.alignOrderReq)isReqMet=true;const ad=getAlignment(seq.alignReq);alignInfo={label:ad?.name||seq.alignReq,met:isReqMet};}
 
-  const prereqBlocked = !isSeqCompleted && (() => {
-    const prereqNames = Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text").map((x:any)=>x.name?.toLowerCase()) : [];
-    if (prereqNames.length === 0) return false;
-    return allMilestones.some((candidateMs) =>
-      candidateMs.type !== "SEPARATEUR" &&
-      candidateMs.type !== "INFO" &&
-      candidateMs.sequences.some((candidateSeq) => {
-        if (candidateSeq.id === seq.id) return false;
-        const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "").toLowerCase();
-        return prereqNames.includes(candidateName) && !allCompletedSeqIds.has(candidateSeq.id);
-      })
-    );
-  })();
+  const prereqBlocked = !isSeqCompleted && isSequenceBlockedByPrereqs(seq as any, allCompletedSeqIds, allMilestones as any);
 
   if (prereqBlocked) {
     const prereqTags = (Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text") : []);
     const totalPrereqs = prereqTags.length;
     const singleName = totalPrereqs === 1 ? prereqTags[0]?.name : null;
     return (
-      <div data-seq-id={seq.id} className={`rounded-2xl border transition-all bg-amber-500/[0.06] border-amber-500/25 hover:border-amber-400/50 scroll-mt-24 ${focusedSeqId===seq.id?"ring-2 ring-emerald-400/70 border-emerald-400/60":""}`}>
-        <div className="px-3 pt-2 pb-0">
-          <p className="text-caption font-bold text-zinc-300 truncate">{questName}</p>
+      <div data-seq-id={seq.id} className={`rounded-[4px] border bg-danger/[0.05] border-danger/30 hover:border-danger/50 scroll-mt-24 transition-colors ${focusedSeqId===seq.id?"ring-1 ring-success/60":""}`}>
+        <div className="px-3 pt-3 pb-0">
+          <p className="text-[13px] font-semibold text-muted-foreground truncate">{questName}</p>
         </div>
         {totalPrereqs === 1 && singleName ? (
           <button type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(singleName);}}
-            className="w-full flex items-center gap-3 px-3 pb-3 pt-1.5 text-left group focus-visible:outline-2 focus-visible:outline-amber-400/50 rounded-2xl"
+            className="w-full flex items-center gap-3 px-3 pb-3 pt-2 text-left group focus-visible:outline-2 focus-visible:outline-danger/50 rounded-[4px]"
             aria-label={`Voir la quête requise : ${singleName}`}
-            data-tour="quest-prerequisite"
+            data-tour={isFirstVisible ? "quest-prerequisite" : undefined}
           >
-            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0">
-              <Lock className="w-3.5 h-3.5 text-amber-400" />
-            </div>
+            {/* Le DANGER dit le verrou, jamais l'ambre : l'ambre est le REPÈRE
+                (« Je suis ici »). Les deux états avaient la même couleur de carte —
+                impossible de lire lequel bloquait. Filet + teinte rouge, comme le
+                cadenas et le libellé. */}
+            <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-caption font-black uppercase tracking-widest text-amber-400/70 mb-0.5">À terminer avant</p>
-              <p className="text-caption font-bold text-amber-200 truncate">{singleName}</p>
+              <p className="text-[11px] text-muted-foreground mb-0.5">À terminer avant</p>
+              <p className="text-[13px] font-semibold text-danger truncate">{singleName}</p>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 text-amber-400/50 group-hover:text-amber-400/80 transition-colors shrink-0" />
+            <ChevronRight className="w-3.5 h-3.5 text-danger/50 group-hover:text-danger/80 transition-colors shrink-0" />
           </button>
         ) : (
-          <div className="px-3 pb-3 pt-1">
+          <div className="px-3 pb-3 pt-2">
             <div className="flex items-center gap-2 mb-2">
-              <div className="flex items-center justify-center w-5 h-5 rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0">
-                <Lock className="w-2.5 h-2.5 text-amber-400" />
-              </div>
-              <p className="text-caption font-black uppercase tracking-widest text-amber-400/70">{totalPrereqs} prérequis à terminer</p>
+              <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
+              <p className="text-[11px] text-muted-foreground">{totalPrereqs} prérequis à terminer</p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {prereqTags.map((t:any,i:number)=>(
                 <button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-caption font-bold text-amber-300 bg-amber-500/[0.08] border border-amber-500/20 hover:bg-amber-500/[0.15] hover:border-amber-400/40 transition-all group focus-visible:outline-2 focus-visible:outline-amber-400/50"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[4px] text-[11px] font-semibold text-danger border border-danger/30 hover:bg-danger/10 transition-colors group focus-visible:outline-2 focus-visible:outline-danger/50"
                   aria-label={`Voir la quête requise : ${t.name}`}
                 >
                   <span className="truncate max-w-[140px]">{t.name}</span>
-                  <ChevronRight className="w-2.5 h-2.5 text-amber-400/50 group-hover:text-amber-400/80 transition-colors shrink-0" />
+                  <ChevronRight className="w-2.5 h-2.5 text-danger/50 group-hover:text-danger/80 transition-colors shrink-0" />
                 </button>
               ))}
             </div>
@@ -302,301 +316,388 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 
   return (
     <>
-      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 rounded-xl border transition-all scroll-mt-24 ${isSeqCompleted || (!isActive && !isNext) ? "p-2" : "p-2.5"} ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60"} ${focusedSeqId===seq.id?"ring-2 ring-emerald-400/70 border-emerald-400/60 bg-emerald-500/[0.04]":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-400/60 bg-amber-500/[0.07]" : ""}`}>
-        {isThisBookmarked && !isSeqCompleted && (
-          <span className="inline-flex items-center gap-1 self-start px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-caption font-black uppercase tracking-widest text-amber-300">
-            <MapPin className="w-2.5 h-2.5" />
-            Étape actuelle
-            {(()=>{
-              const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
-              const tn = t?.name;
-              if(tn){
-                const d = DOFUS_DEFS.find(x=>x.id===tn);
-                if(d) return <img src={d.imageUrl} alt={d.label} title={d.label} className="w-3.5 h-3.5 object-contain ml-1" />;
-              }
-              return null;
-            })()}
-          </span>
-        )}
-        {isNext && !isSeqCompleted && (
-          <span className="text-caption font-black uppercase tracking-widest text-zinc-500 mb-0">
-            À VENIR
-          </span>
-        )}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            {onToggleSeq && (
-              <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 h-5 w-5 mt-0.5 flex items-center justify-center rounded-md text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors border border-zinc-700 hover:border-emerald-500/40" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
-                {isSeqCompleted ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20"/> : <Square className="w-3 h-3 text-zinc-500 hover:text-zinc-300"/>}
-              </button>
-            )}
-            <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
-              <span className={`text-sm font-black leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>
-                {hasAlignment && seq.alignReq && seq.alignReq !== "neutre" && (
-                  <span 
-                    className="mr-1.5 font-[family-name:var(--font-cinzel)] uppercase tracking-widest"
-                    style={{ color: seq.alignReq === "bontarien" ? "#3b82f6" : "#ef4444" }}
-                  >
-                    {alignInfo?.label || seq.alignReq} lv.{seq.alignOrderReq} :{' '}
-                  </span>
-                )}
-                {hasAlignment && seq.alignReq === "neutre" && (
-                  <span className="mr-1.5 text-zinc-400 font-[family-name:var(--font-cinzel)] uppercase tracking-widest">
-                    {alignInfo?.label || seq.alignReq} lv.{seq.alignOrderReq} :{' '}
-                  </span>
-                )}
-                {seq.icon && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={`/assets/icons/${seq.icon}.png`} alt="" className="inline-block w-5 h-5 mr-1 align-[-4px] object-contain shrink-0" loading="lazy" />
-                )}
-                {/* Chantier #68 — icône de quête dans chaque quête */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/icons/icone-quete.png" alt="" className="inline-block w-3.5 h-3.5 mr-1 align-[-2px] object-contain opacity-80 shrink-0" loading="lazy" />
-                <span className="font-[family-name:var(--font-cinzel)] tracking-wide">{questName}</span>
-              </span>
-              {(()=>{
-                const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
-                if(!posTag?.name) return null;
-                const posStr = String(posTag.name);
-                const worldId = (posTag as any).worldId ?? undefined;
-                // Parse first coordinate pair from posStr (e.g. "-2, 0 ; 10, -22")
-                const coords = posStr.match(/(-?\d+)\s*[,;]\s*(-?\d+)/);
-                if (coords) {
-                  const x = parseInt(coords[1], 10);
-                  const y = parseInt(coords[2], 10);
-                  const chip = (
-                    <span 
-                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-caption font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
-                      onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success(`📍 Position ${posStr} copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}} 
-                      title="Cliquer pour copier /travel"
-                    >
-                      <MapPin className="w-3 h-3 text-indigo-400" />
-                      <span className="text-caption font-black uppercase tracking-widest text-indigo-400/70 mr-0.5">Lancement:</span>
-                      <span>[<span>{x}, {y}</span>]</span>
-                    </span>
-                  );
-                  return (
-                    <MapPositionPopover posX={x} posY={y} worldId={worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`}>
-                      {chip}
-                    </MapPositionPopover>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-          {/* ── Bookmark button — right side, fills the empty space ── */}
+      <div
+        data-seq-id={seq.id}
+        tabIndex={0}
+        className={`group relative flex flex-col gap-2 rounded-[4px] border p-3 transition-colors scroll-mt-24
+          ${isSeqCompleted
+            ? "border-border bg-surface opacity-65"
+            : isThisBookmarked
+              ? "border-warning/40 bg-warning/10"
+              : "border-border bg-elevated hover:bg-surface"}
+          ${focusedSeqId === seq.id ? "ring-1 ring-success/60" : ""}
+        `}
+      >
+        {/* ── Ligne principale ── */}
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Checkbox */}
           {onToggleSeq && (
-            <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-auto">
+            <button
+              type="button"
+              data-tour={isFirstVisible ? "quest-completion" : undefined}
+              onClick={e => { e.stopPropagation(); onToggleSeq(); }}
+              className={`flex-shrink-0 -m-1 w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-[4px] transition-colors cursor-pointer`}
+              title={isSeqCompleted ? "Décocher" : "Valider"}
+              aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}
+            >
+              {/* Filet + coche fine 2 px : le vert reste l'ÉTAT, jamais un aplat (fixe 25). */}
+              <span className={`flex items-center justify-center w-5 h-5 rounded-[3px] border transition-colors ${
+                isSeqCompleted
+                  ? "border-success/70 text-success"
+                  : isActive
+                    ? "border-warning"
+                    : "border-border-strong hover:border-success"
+              }`}>
+                {isSeqCompleted && <Check className="w-3.5 h-3.5 stroke-[2]" />}
+              </span>
+            </button>
+          )}
+          {/* Nom + position + tags */}
+          <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            {resolveRushSeqIcon(seq.icon) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={safeImageUrl(resolveRushSeqIcon(seq.icon) as string)} alt="" className="w-4 h-4 object-contain shrink-0" loading="lazy" />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src="/assets/icons/icone-quete.png" alt="" className="w-4 h-4 object-contain opacity-90 shrink-0 self-center" loading="lazy" />
+            )}
+            {hasAlignment && seq.alignReq && seq.alignReq !== "neutre" && (
+              <span
+                className="font-[family-name:var(--font-cinzel)]  text-[10px] font-bold shrink-0"
+                style={{ color: seq.alignReq === "bontarien" ? "var(--info)" : "var(--danger)" }}
+              >
+                {alignInfo?.label} lv.{seq.alignOrderReq}:
+              </span>
+            )}
+            {/* Nom de quête en TEXTE SIMPLE : les deux pastilles de marque juste à droite
+                (DofusPourLesNoobs / DofusDB) portent déjà les liens vers ces fiches — un
+                titre cliquable vers la même URL faisait doublon (retour user 08/10/2026). */}
+            <span className="text-[13px] font-semibold leading-snug break-words min-w-0 text-foreground">
+              {questName}
+            </span>
+            {(() => {
+              const npc = getSequenceNpc(seq);
+              if (!npc || (!npc.name && npc.id === null)) return null;
+              return <NpcBadge npcId={npc.id} name={npc.name} imageUrl={npc.imageUrl} size="md" className="shrink-0" />;
+            })()}
+            {isNext && !isSeqCompleted && (
+              <span className="font-mono shrink-0 text-[11px] text-muted-foreground">à faire</span>
+            )}
+            {/* Position GPS — chip mono bleu */}
+            {(() => {
+              const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t: any) => t.type === "pos_tags") : null;
+              if (!posTag?.name) return null;
+              const posStr = String(posTag.name);
+              const worldId = (posTag as any).worldId ?? undefined;
+              const coords = posStr.match(/(-?\d+)\s*[,;]\s*(-?\d+)/);
+              if (!coords) return null;
+              const x = parseInt(coords[1], 10);
+              const y = parseInt(coords[2], 10);
+              // La commande /travel Dofus est 2D (x,y). Le worldId (dimension World)
+              // sert uniquement à la carte/popover, jamais à la commande chat.
+              // Chip mono NEUTRE partagée avec le guide public (RushCoordinateChip) :
+              // clic = copie /travel, survol = carte (MapPositionPopover). Le bleu
+              // « info » d'avant faisait couleur-décoration : les coordonnées sont
+              // une donnée, pas un état.
+              const chip = <RushCoordinateChip coordText={`${x}, ${y}`} showIcon showZaap={isZaapCopyEnabled(seq)} manualZaap={getSequenceManualZaap(seq)} className="shrink-0" />;
+              return (
+                <MapPositionPopover posX={x} posY={y} worldId={worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`} zaapEnabled={isZaapCopyEnabled(seq)} manualZaap={getSequenceManualZaap(seq)}>
+                  {chip}
+                </MapPositionPopover>
+              );
+            })()}
+            {/* Quête d'alignement : donne un camp + niveau au perso quand cochée (détail complet en modale) */}
+            {(() => {
+              const align = getAlignmentSet(seq);
+              if (!align) return null;
+              const label = align.camp === "brakmarien" ? "Brakmarien" : align.camp === "bontarien" ? "Bontarien" : align.camp;
+              return (
+                <span
+                  className="inline-flex items-center gap-1 shrink-0 text-[11px] text-muted-foreground"
+                  title={`Quête d'alignement → ${label} ${align.level}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={align.camp === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"} alt="" className="h-3 w-3 shrink-0 object-contain" />
+                  Alignement {label} {align.level}
+                </span>
+              );
+            })()}
+            <RushHelperBadge guildId={guildId} seq={seq} />
+            {seq.isSuccess && (
+              <span className="shrink-0 text-[11px] font-semibold text-warning">Succès</span>
+            )}
+            {seq.isOptional && (
+              <span className="shrink-0 text-[11px] text-muted-foreground">Bonus</span>
+            )}
+          </div>
+          {/* Actions groupées : liens externes · repère · détails.
+              Même groupe segmenté que le guide public, et logos de marque servis
+              EN LOCAL (brandIconForUrl) : plus aucune requête google.com/s2/favicons
+              depuis le navigateur du membre. */}
+          <div className="flex items-center gap-0.5 shrink-0 ml-auto rounded-[4px] border border-border bg-surface p-0.5">
+            {(() => {
+              const icon = brandIconForUrl(noobsUrl);
+              if (!noobsUrl || !icon) return null;
+              return (
+                <a
+                  href={noobsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  title={`Soluce ${icon.label}`}
+                  className="rounded-[3px] p-1.5 transition-colors hover:bg-elevated"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={icon.src} alt="" className="h-3.5 w-3.5 rounded-[3px]" loading="lazy" />
+                </a>
+              );
+            })()}
+            {(() => {
+              const icon = brandIconForUrl(dbUrl);
+              if (!dbUrl || !icon) return null;
+              return (
+                <a
+                  href={dbUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  title={`Fiche ${icon.label}`}
+                  className="rounded-[3px] p-1.5 transition-colors hover:bg-elevated"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={icon.src} alt="" className="h-3.5 w-3.5 rounded-[3px]" loading="lazy" />
+                </a>
+              );
+            })()}
+            {onToggleSeq && (
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
-                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all text-caption font-black uppercase tracking-widest min-w-[90px] ${
+                className={`flex items-center justify-center p-1.5 rounded-[3px] transition-colors shrink-0 cursor-pointer ${
                   isThisBookmarked
-                    ? "bg-amber-500/25 border-amber-400/50 text-amber-200 ring-1 ring-amber-500/40 hover:bg-amber-500/35"
-                    : "bg-zinc-800/60 border-zinc-700/40 text-zinc-400 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
+                    ? "text-warning bg-warning/15"
+                    : "text-muted-foreground hover:text-warning hover:bg-elevated"
                 }`}
-                title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
+                title={isThisBookmarked ? "Retirer le repère (Je suis ici)" : "Je suis ici"}
+                aria-label={isThisBookmarked ? "Retirer le repère" : "Je suis ici"}
               >
-                {isThisBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Flag className="w-4 h-4" />}
-                JE SUIS ICI
+                {isThisBookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Flag className="w-3.5 h-3.5" />}
               </button>
-              {/* Avatars des membres bookmark — espacement aéré sous JE SUIS ICI */}
-              {isThisBookmarked && seqMembers.length > 0 && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
-                  className="flex items-center gap-2 mt-1.5 cursor-pointer"
-                  title={`Voir les ${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''}`}
-                >
-                  <div className="flex -space-x-1">
-                    {seqMembers.slice(0, 5).map((m) => (
-                      <div
-                        key={m.profileId}
-                        className="w-6 h-6 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center border-2 border-zinc-950 ring-1 ring-amber-500/30 flex-shrink-0"
-                        title={m.userName}
-                      >
-                        {m.userAvatar ? (
-                          <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-caption font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <span className="text-caption font-bold text-amber-400/70">{seqMembers.length}</span>
-                </button>
-              )}
-            </div>
-          )}
-          </div>
-
-        {/* Liens externes — icônes VISIBLES (retour user P3) */}
-        {(dbUrl || noobsUrl) && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-            {noobsUrl && (
-              <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 hover:bg-cyan-500/20 transition-colors text-caption font-black uppercase tracking-wider" title="DofusPourLesNoobs — tutoriel">
-                <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
-                <span>Noobs</span>
-              </a>
             )}
-            {dbUrl && (
-              <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/20 transition-colors text-caption font-black uppercase tracking-wider" title="DofusDB — base de données">
-                <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
-                <span>DofusDB</span>
-              </a>
-            )}
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); setDetailOpen(true); }}
+              className="flex items-center justify-center p-1.5 rounded-[3px] transition-colors shrink-0 cursor-pointer text-muted-foreground hover:text-foreground hover:bg-elevated"
+              title="Voir les détails (donjons, ressources, conseils, liens)"
+              aria-label="Détails"
+            >
+              <Info className="w-3.5 h-3.5" />
+            </button>
           </div>
-        )}
-
-        {/* Badges & Tags */}
-        <div className="flex flex-wrap items-center gap-1">
-          {/* Alignment info now displayed inline before quest name above */}
-          {seq.isOptional && <span className="text-caption text-purple-400 font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">Bonus</span>}
-          {seq.isSuccess && <span className="flex items-center gap-1 text-caption font-black uppercase px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
-
-          {(() => {
-            const visibleTags = Array.isArray(seq.activityTags) ? seq.activityTags.filter((t:any)=>!["prereq_text","dofus_link","ocre_dungeon","pos_tags","tougli_box","quest_group"].includes(t.type)) : [];
-            if (visibleTags.length === 0) return null;
-            return (
-              <>
-                {visibleTags.map((tag:any,i:number)=>{
-                  if(tag.type==="solver"){
-                    const su=tag.url||null;
-                    return su ? (
-                      <a key={i} href={su} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-caption font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 hover:bg-emerald-500/30">
-                        <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver<ExternalLink className="w-2.5 h-2.5"/>
-                      </a>
-                    ) : (
-                      <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-caption font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30">
-                        <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver
-                      </span>
-                    );
-                  }
-                  const def=ACTIVITY_TAGS.find(x=>x.type===tag.type);if(!def)return null;
-                  const isMetier=tag.type==="metier";
-                  const isHoraire=tag.type==="contrainte_horaire";
-                  const ip=isMetier?getMetierIconPath(tag.name):def.imagePath;
-                  let labelDisplay = def.label;
-                  if (isMetier && tag.name) {
-                    labelDisplay = `${tag.name}${tag.level != null ? ` (Niv. ${tag.level})` : ""}`;
-                  }
-                  if (isHoraire && tag.name) {
-                    const n = String(tag.name);
-                    if (n.startsWith("<")) labelDisplay = `Avant ${n.slice(1).trim()}h`;
-                    else if (n.startsWith(">")) labelDisplay = `Après ${n.slice(1).trim()}h`;
-                    else {
-                      const p = n.split("-").map(s=>s.trim());
-                      if (p.length===2) labelDisplay = `${p[0]}h → ${p[1]}h`;
-                    }
-                  }
-                  return (
-                    <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-caption font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
-                      <img src={ip} alt="" className="w-4 h-4 object-cover rounded-md shrink-0"/>
-                      {tag.count&&tag.count>1&&<span className="text-caption text-amber-400 font-bold">x{tag.count}</span>}
-                      <span className="truncate max-w-[160px]">{labelDisplay}</span>
-                    </span>
-                  );
-                })}
-              </>
-            );
-          })()}
-
-          {/* Tougli Callout Box */}
-          {(()=>{
-            const t = seq.activityTags?.find((x:any)=>x.type==="tougli_box");
-            if(!t?.name) return null;
-            return <TougliCallout text={t.name} colorStyle={t.color||"emerald"}/>;
-          })()}
         </div>
-
-        {/* Dungeons Row */}
-        {allDungeons.length > 0 && (
-          <div className="pt-1">
-            <DungeonGroup
-              dungeons={allDungeons as DungeonRef[]}
-              capturedMonsterSet={capturedMonsterSet}
-              capturedMonsterNames={capturedMonsterNames}
-              activityTags={seq.activityTags}
-              metamobMonsterId={seq.metamobMonsterId}
-              questName={questName}
-              onDungeonClick={onDungeonClick}
-            />
+        {/* ── Membres ici : qui a posé son repère sur CETTE quête (guilde) ──
+            Affiché dès qu'un membre y est — le repère d'un coéquipier doit se voir
+            sans que J'AIE posé le mien (même règle que l'overlay). Cliquable : la
+            rangée ouvre la liste des pseudos présents sur cette quête. */}
+        {!isSeqCompleted && seqMembers.length > 0 && (
+          <div>
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); setMembersModalOpen(true); }}
+              className="flex items-center gap-1.5 cursor-pointer rounded-[3px] px-1 py-0.5 transition-colors hover:bg-warning/10"
+              title={`Voir les membres ici : ${seqMembers.length}`}
+              aria-label={`Voir les membres ici : ${seqMembers.length}`}
+            >
+              <div className="flex -space-x-1">
+                {seqMembers.slice(0, 5).map(m => (
+                  <div key={m.profileId} className="w-4 h-4 rounded-full overflow-hidden bg-surface border border-background ring-1 ring-warning/30 flex-shrink-0" title={m.userName}>
+                    {m.userAvatar
+                      ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
+                      // eslint-disable-next-line @next/next/no-img-element
+                      : <span className="text-[7px] font-semibold text-warning flex items-center justify-center h-full">{m.userName[0]?.toUpperCase()}</span>}
+                  </div>
+                ))}
+              </div>
+              <span className="text-[10px] font-bold text-warning/60">{seqMembers.length}</span>
+            </button>
           </div>
         )}
+        {/* ── Tougli callout ── */}
+        {(() => {
+          const t = seq.activityTags?.find((x: any) => x.type === "tougli_box");
+          if (!t?.name) return null;
+          return <div><TougliCallout text={t.name} colorStyle={t.color || "emerald"} /></div>;
+        })()}
+        {/* ── Donjon(s) ── */}
 
-        {/* Embedded Tips & Notes as sleek callouts */}
+        {/* ── Tips & Note — dépliables ── */}
         {(() => {
           let tipsText = String(seq.tips || "");
-          const hasPosTag = Array.isArray(seq.activityTags) && seq.activityTags.some((t:any)=>t.type==="pos_tags");
-          if (hasPosTag) {
-            // Phase 3.2 : retirer la ligne « Position de lancement : … » déjà portée par le chip pos_tags.
-            tipsText = tipsText.replace(/[^\n]*position de lancement[^\n]*/gi, "").trim();
-          }
-          if (!tipsText) return null;
-          return (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs font-medium text-amber-300">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-              <div className="flex-1 flex flex-wrap items-center gap-1">{renderContentWithCoords(tipsText)}</div>
-            </div>
-          );
+          const hasPosTag = Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "pos_tags");
+          if (hasPosTag) tipsText = tipsText.replace(/[^\n]*position de lancement[^\n]*/gi, "").trim();
+          if (!tipsText && !seq.note) return null;
+          return <CollapsibleHints tipsText={tipsText} note={seq.note || null} />;
         })()}
-        {seq.note && (
-          <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-start gap-2 text-xs font-medium text-orange-300">
-            <AlertTriangle className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
-            <span>{seq.note}</span>
-          </div>
-        )}
       </div>
-      {/* ── Members modal (liste des pseudos) ───────────────────────────── */}
+      {/* ── Modal membres ── */}
       {membersModalOpen && (
-        <Dialog open={membersModalOpen} onOpenChange={(open) => { if (!open) setMembersModalOpen(false); }}>
-          <DialogContent className="sm:max-w-sm bg-zinc-950 border-white/10 shadow-2xl p-0 gap-0">
-            <DialogHeader className="p-4 border-b border-white/5">
-              <DialogTitle className="text-sm font-black text-white flex items-center gap-2">
-                <Users className="w-4 h-4 text-indigo-400" />
+        <Dialog open={membersModalOpen} onOpenChange={open => { if (!open) setMembersModalOpen(false); }}>
+          <DialogContent className="sm:max-w-sm bg-background border-border  p-0 gap-0">
+            <DialogHeader className="p-4 border-b border-border">
+              <DialogTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Users className="w-4 h-4 text-info" />
                 Membres sur cette quête ({seqMembers.length})
               </DialogTitle>
             </DialogHeader>
             <div className="p-4 max-h-[300px] overflow-y-auto space-y-1">
-              {seqMembers.map((m) => (
-                <div key={m.profileId} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                  <div className="w-7 h-7 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center flex-shrink-0">
-                    {m.userAvatar ? (
-                      <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-caption font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
-                    )}
+              {seqMembers.map(m => (
+                <div key={m.profileId} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-elevated transition-colors">
+                  <div className="w-7 h-7 rounded-full overflow-hidden bg-info/20 flex items-center justify-center flex-shrink-0">
+                    {m.userAvatar
+                      ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
+                      // eslint-disable-next-line @next/next/no-img-element
+                      : <span className="text-caption font-semibold text-info">{m.userName[0]?.toUpperCase()}</span>}
                   </div>
-                  <span className="text-xs font-bold text-zinc-200">{m.userName}</span>
+                  <span className="text-xs font-bold text-foreground">{m.userName}</span>
                 </div>
               ))}
             </div>
-            <DialogFooter className="p-3 border-t border-white/5">
-              <Button onClick={() => setMembersModalOpen(false)} variant="ghost" size="sm" className="text-zinc-400 text-xs">
-                Fermer
-              </Button>
+            <DialogFooter className="p-3 border-t border-border">
+              <Button onClick={() => setMembersModalOpen(false)} variant="ghost" size="sm" className="text-muted-foreground text-xs">Fermer</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+      {/* Modal détails — réutilise celle de l'overlay (portaled) */}
+      {detailOpen && createPortal(
+        <RushOverlayQuestDetailModal
+          milestone={ms as any}
+          seq={seq as any}
+          isDone={isSeqCompleted}
+          isLightMode={false}
+          guildId={guildId}
+          hideProvidedResources={!!hideSeqCompleted}
+          onClose={() => setDetailOpen(false)}
+        />,
+        document.body
       )}
     </>
   );
 });
 
+// ─── RushLiveMemberRow — une ligne de la modale Rush Live ─────────────────────
+/**
+ * Ligne de la modale « Rush Live » : présence RÉELLE (point vert) ou dernière position
+ * connue d'un membre hors ligne. Les deux cas ne disent pas la même chose, donc ils ne se
+ * peignent pas pareil — c'est tout l'objet du correctif du 08/10/2026.
+ */
+function RushLiveMemberRow({
+  member,
+  online,
+}: {
+  member: {
+    userName?: string | null;
+    userAvatar?: string | null;
+    alignment?: string | null;
+    alignmentLevel?: number | null;
+    whereLabel?: string | null;
+  };
+  online: boolean;
+}) {
+  const level = Number(member.alignmentLevel ?? 0);
+  const alignLabel =
+    member.alignment === "brakmarien"
+      ? "Brakmarien"
+      : member.alignment === "bontarien"
+        ? "Bontarien"
+        : member.alignment;
+  const showAlign = !!member.alignment && member.alignment !== "neutre" && level > 0;
+
+  return (
+    <div className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-elevated transition-colors">
+      <span className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-success/20">
+        {member.userAvatar ? (
+          <img src={member.userAvatar} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-caption font-semibold text-success">{String(member.userName || "?")[0]?.toUpperCase()}</span>
+        )}
+        {online && (
+          <span aria-hidden="true" className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-success" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-bold text-foreground">{member.userName}</span>
+        {!online && member.whereLabel && (
+          <span className="block truncate text-[10px] text-muted-foreground">Vu sur « {member.whereLabel} »</span>
+        )}
+      </span>
+      {showAlign && (
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-info/10 border border-info/40 text-info" title={`Alignement : ${alignLabel} ${level}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={member.alignment === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"} alt="" className="w-3 h-3 object-contain" />
+          {alignLabel} {level}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── CollapsibleHints — Tips & Notes dépliables ────────────────────────────────
+function CollapsibleHints({ tipsText, note }: { tipsText: string; note: string | null }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-t border-border">
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        aria-expanded={open}
+        className={`flex w-full items-center gap-1.5 pt-2 text-[11px] font-semibold transition-colors ${open ? "text-warning" : "text-warning/90 hover:text-warning"}`}
+      >
+        <Lightbulb className="h-3 w-3 shrink-0" aria-hidden="true" />
+        {open ? "Masquer" : "Conseils & notes"}
+        <ChevronDown className={`ml-auto h-3 w-3 transition-transform duration-150 ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="space-y-1.5 pt-2">
+          {tipsText && (
+            <RushTipLines text={tipsText} className="text-xs leading-relaxed text-muted-foreground" />
+          )}
+          {note && (
+            <p className="text-[11px] italic leading-relaxed text-muted-foreground">Note : {note}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ─── DofusObtainedBanner (premium card style — high fantasy Dofus UI) ─────────
 function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
   const dofusInfo = milestone.dofusId ? DOFUS_DEFS.find(d => d.id === milestone.dofusId) : null;
-  const color = milestone.accentColor || (dofusInfo?.color || "#d4a853");
+  const color = milestone.accentColor || (dofusInfo?.color || "#e6b96b");
   const message = milestone.description || milestone.title || (dofusInfo ? `Dofus ${dofusInfo.label}` : "Dofus obtenu !");
 
   return (
     <div className="relative my-6 mx-auto max-w-md select-none">
       {/* Card frame — plate (zéro glow, bordure 1px) */}
-      <div className="relative rounded-2xl overflow-hidden border"
+      <div className="relative rounded-[6px] overflow-hidden border"
         style={{
           borderColor: `${color}35`,
           background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.5) 50%, ${color}06 100%)`,
         }}
       >
+        {/* Image du bloc — importée côté GOD : posée en tête de carte, NUE (l'œuf du Dofus
+            reste le picto du TYPE, l'image est l'illustration de l'obtention). */}
+        {milestone.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={safeImageUrl(milestone.imageUrl)}
+            alt=""
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            className="max-h-40 w-full object-contain"
+          />
+        )}
         {/* Inner content */}
         <div className="relative flex flex-col items-center gap-5 py-8 px-6 text-center">
           {/* Dofus icon — large egg */}
@@ -622,14 +723,14 @@ function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
           {/* Text content strictly inside card */}
           <div className="space-y-2">
             <h2
-              className="font-[family-name:var(--font-cinzel)] text-lg sm:text-xl font-black uppercase tracking-[0.12em] leading-tight"
+              className="font-[family-name:var(--font-cinzel)] text-lg sm:text-xl font-semibold uppercase tracking-[0.12em] leading-tight"
               style={{ color }}
             >
               VOUS AVEZ OBTENU<br />
               <span className="text-2xl sm:text-3xl">LE DOFUS {dofusInfo?.label?.toUpperCase() || ""} !</span>
             </h2>
             {message && (
-              <p className="text-sm text-zinc-300/90 leading-relaxed font-medium max-w-xs mx-auto">
+              <p className="text-sm text-muted-foreground/90 leading-relaxed font-medium max-w-xs mx-auto">
                 {message}
               </p>
             )}
@@ -650,143 +751,34 @@ function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
 }
 
 // ─── InfoBanner (for INFO type milestones — tips/conseil bandeau) ────────────
-function getInfoStyle(accentColor?: string|null): { border: string; bg: string; icon: string } {
-  if (!accentColor) return { border:"border-emerald-500/30", bg:"from-emerald-950/30 via-zinc-950 to-zinc-950", icon:"💡" };
-  const c = accentColor.toLowerCase();
-  if (c.startsWith("#ef")||c.startsWith("#f4")||c.startsWith("#f5")||c.startsWith("#eab")||c.startsWith("#dc")||c.startsWith("#f9")) 
-    return { border:"border-amber-500/30", bg:"from-amber-950/30 via-zinc-950 to-zinc-950", icon:"⚠️" };
-  if (c.startsWith("#3b")||c.startsWith("#06")||c.startsWith("#4f")||c.startsWith("#63")||c.startsWith("#0e")||c.startsWith("#38"))
-    return { border:"border-blue-500/30", bg:"from-blue-950/30 via-zinc-950 to-zinc-950", icon:"📖" };
-  if (c.startsWith("#7c")||c.startsWith("#a8")||c.startsWith("#8b")||c.startsWith("#c0"))
-    return { border:"border-purple-500/30", bg:"from-purple-950/30 via-zinc-950 to-zinc-950", icon:"🔮" };
-  return { border:"border-emerald-500/30", bg:"from-emerald-950/30 via-zinc-950 to-zinc-950", icon:"💡" };
-}
-function renderContentWithCoords(text: string, guildId: string = ""): (string | React.ReactNode)[] {
-  const parts: (string | React.ReactNode)[] = [];
-  // Combine link regex and coordinate regex in one pass
-  // Order matters: [text](url), raw urls, /travel X Y, /travel X,Y, [X, Y], [X, Y, W]
-  const combinedRx = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)|(?:\/travel\s+(-?\d+)\s*[,;]\s*(-?\d+)(?!\d))|\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g;
-  let li = 0, m: RegExpExecArray | null;
-  while ((m = combinedRx.exec(text)) !== null) {
-    if (m.index > li) parts.push(text.slice(li, m.index));
-    if (m[1] && m[2]) {
-      // Markdown link [text](url)
-      parts.push(<a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">{m[1]}<ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-80 shrink-0"/></a>);
-    } else if (m[3]) {
-      // Raw URL
-      let label = m[3];
-      if (m[3].includes("dofusdb.fr")) label = "Lien DofusDB ↗";
-      else if (m[3].includes("dofuspourlesnoobs.com")) label = "Lien DofusNoobs ↗";
-      parts.push(<a key={m.index} href={m[3]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">{label}</a>);
-    } else if (m[4] && m[5]) {
-      // /travel X, Y format
-      const x = m[4], y = m[5];
-      const worldId = m[8] ? parseInt(m[8], 10) : undefined;
-      const chip = (
-        <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-caption font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
-          onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x},${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
-          title="Cliquer pour copier /travel"
-        >
-          <MapPin className="w-3 h-3 text-indigo-400" />
-          [{x}, {y}]
-        </span>
-      );
-      parts.push(
-        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={guildId} contextLabel={text}>
-          {chip}
-        </MapPositionPopover>
-      );
-    } else if (m[6] && m[7]) {
-      // [x, y] or [x, y, world] format
-      const x = m[6], y = m[7];
-      const worldId = m[8] ? parseInt(m[8], 10) : undefined;
-      const chip = (
-        <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-caption font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
-          onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x},${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
-          title="Cliquer pour copier /travel"
-        >
-          <MapPin className="w-3 h-3 text-indigo-400" />
-          [{x}, {y}]
-        </span>
-      );
-      parts.push(
-        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={guildId} contextLabel={text}>
-          {chip}
-        </MapPositionPopover>
-      );
-    }
-    li = combinedRx.lastIndex;
-  }
-  if (li < text.length) parts.push(text.slice(li));
-  return parts;
-}
-
 function InfoBanner({ milestone }: { milestone: Milestone }) {
-  const color = milestone.accentColor || "#10b981";
   const content = milestone.tips || milestone.description || milestone.title || "";
-  const parts = renderContentWithCoords(content);
   const hasTitle = !!milestone.title && !content.startsWith(milestone.title);
-  const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
-  const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
-  const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");
-  let icon = "💡";
-  if (isWarm) icon = "⚠️";
-  else if (isCool) icon = "📖";
-  else if (isPurple) icon = "🔮";
 
+  // Le bandeau lui-même vit dans `RushInfoBanner` (composant PARTAGÉ avec le guide public
+  // et l'overlay) et le texte enrichi dans `RushRichText` (liens nommés + positions
+  // copiables en `/w x,y`) : ici on ne choisit que le contenu.
   return (
-    <div className="relative my-3 rounded-2xl overflow-hidden border select-none"
-      style={{
-        borderColor: `${color}30`,
-        background: `linear-gradient(135deg, ${color}12 0%, rgba(0,0,0,0.5) 50%, ${color}08 100%)`,
-      }}
+    <RushInfoBanner
+      title={hasTitle ? milestone.title : null}
+      imageUrl={milestone.imageUrl}
+      accentColor={milestone.accentColor}
     >
-      <div className="relative flex items-start gap-3 p-3">
-        <span className="text-lg leading-none mt-0.5 shrink-0">{icon}</span>
-        <div className="text-xs text-zinc-200 leading-relaxed font-medium flex-1 min-w-0">
-          {hasTitle && <p className="font-[family-name:var(--font-cinzel)] font-black text-sm mb-1 uppercase tracking-wider" style={{color}}>{milestone.title}</p>}
-          {parts}
-        </div>
-      </div>
-    </div>
+      <RushRichText text={content} normalizeMeta />
+    </RushInfoBanner>
   );
 }
 
-// ─── InfoSequenceBanner (bandeau informatif non-cliquable dans un bloc) ─────
-function InfoSequenceBanner({ seq, accentColor }: { seq: Sequence; accentColor: string }) {
-  const color = seq.activityTags?.find((t: any) => t.type === "info_sequence")?.color || accentColor || "#10b981";
-  const content = seq.tips || seq.subGuideName || seq.subGuideRef || "";
-  const parts = renderContentWithCoords(content);
-  const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
-  const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
-  const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");
-  let icon = "💡";
-  if (isWarm) icon = "⚠️";
-  else if (isCool) icon = "📖";
-  else if (isPurple) icon = "🔮";
-
-  return (
-    <div className="relative rounded-2xl overflow-hidden border select-none"
-      style={{
-        borderColor: `${color}25`,
-        background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.4) 50%, ${color}06 100%)`,
-      }}
-    >
-      <div className="relative flex items-start gap-2.5 p-3">
-        <span className="text-base leading-none mt-0.5 shrink-0">{icon}</span>
-        <div className="text-xs sm:text-sm text-zinc-200/90 leading-relaxed font-medium flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-          {parts}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── MilestoneRow ─────────────────────────────────────────────────────────────
-const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, userAlignmentInfo, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching }: any) {
+// ─── InfoSequenceBanner — remplacé par le composant PARTAGÉ ──────────────────
+// Le rendu du bandeau d'une séquence « info_sequence » vit maintenant dans
+// `@/components/dofus-quests/rush/RushInfoSequenceBanner` (une seule grammaire pour le
+// dashboard, le guide public et l'overlay).
+const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, userAlignmentInfo, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching, blockIndex }: any) {
   const [expanded,setExpanded]=useState(false);
   const bookmarksByMs = React.useContext(BookmarkedSeqCtx);
   const onBookmarkSeq = React.useContext(OnBookmarkSeqCtx);
+  const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
+  const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
   const blockBookmarkSeqId = bookmarksByMs.get(ms.id) || null;
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
@@ -797,60 +789,94 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const cs=nonInfoSeqs.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
   const totalQuests=nonInfoSeqs.length;
   const all=isCompleted||(totalQuests>0&&cs===totalQuests);
+  const pct = totalQuests>0?Math.round((cs/totalQuests)*100):0;
   const c=accentColor||"#10b981";
+  const visibleSeqs = ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id));
+  const firstVisibleSeqId = visibleSeqs.find((s:any)=>!isInfoSequence(s))?.id;
 
   return (
-    <div className={`relative transition-all duration-200 ${isCompleted?"opacity-60":isBookmarked?"opacity-100":"opacity-95 hover:opacity-100"}`}>
-      <div className="absolute -left-[25px] top-5 w-3 h-3 rounded-full z-10 transition-all ring-1 ring-black/30" style={{background:all?c:"transparent",border:`2px solid ${all?c:`${c}60`}`}}/>
-      <div className={`ml-2 rounded-2xl border transition-all shadow-md ${all?"border-emerald-500/20 bg-zinc-950/40 shadow-emerald-500/5":isBookmarked?"border-amber-500/30 bg-zinc-950/80 shadow-amber-500/5 ring-1 ring-amber-500/20":"border-white/10 bg-zinc-900/40 hover:border-white/20 shadow-black/20"}`}>
-        {/* Header row */}
-        <div className="flex items-center gap-3 p-3.5 cursor-pointer select-none" onClick={()=>setExpanded((v:boolean)=>!v)}>
-          {/* Status indicator */}
-          <div className="flex-shrink-0 relative">
-            {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-emerald-400"/> :
-             all ? <div className="w-5 h-5 rounded-full flex items-center justify-center bg-emerald-500/20 border border-emerald-500/40"><CheckCheck className="w-3.5 h-3.5 text-emerald-400"/></div> :
-             cs > 0 ? <div className="w-5 h-5 rounded-full border-2 border-amber-400/50 flex items-center justify-center bg-amber-500/10"><span className="w-2 h-2 rounded-full bg-amber-400"/></div> :
-             <div className="w-5 h-5 rounded-full border border-zinc-700 flex items-center justify-center bg-zinc-900"><span className="w-2 h-2 rounded-full bg-zinc-700"/></div>}
+    <div>
+      <div className={`relative rounded-[6px] border overflow-hidden ${
+        all
+          ? "border-success/30 bg-surface"
+          : "border-border bg-surface"
+      }`}>
+        {/* En-tête — MÊME structure que le panneau public : bandeau bg-elevated,
+            filet bas, ancre Dofus NUE (ou numéro nu en mono), métadonnées mono,
+            titre fort, image immersive dans le flux, puis barre de progression. */}
+        <div className="flex items-stretch sm:items-center justify-between gap-3 p-4 border-b border-border bg-elevated">
+          <button
+            type="button"
+            onClick={()=>setExpanded((v:boolean)=>!v)}
+            aria-expanded={expanded}
+            className="flex items-center gap-3 min-w-0 text-left flex-1 cursor-pointer select-none"
+          >
+          {/* Ancre Dofus : asset NU (plus de tuile teintée sous le picto). Bloc sans
+              Dofus : son numéro en mono, sans boîte non plus. */}
+          <div className="w-11 h-11 flex items-center justify-center shrink-0">
+            {(()=>{const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return <span className="font-mono text-sm tabular-nums text-muted-foreground">{blockIndex??""}</span>;return(
+              <img src={d.imageUrl} alt="" title={d.label} className="w-9 h-9 object-contain"/>
+            );})()}
           </div>
-          {/* Title */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-black leading-tight tracking-wide font-[family-name:var(--font-cinzel)] ${all?"text-zinc-500":"text-white"}`} style={!all?{color:c}:undefined}>{ms.title}</span>
-              {ms.isOptional&&<span className="text-caption font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">Bonus</span>}
-              {(()=>{if(!ms.dofusId)return null;const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return null;return<img src={d.imageUrl} alt={d.label} title={d.label} className="w-5 h-5 object-contain flex-shrink-0"/>;})()}
+          {/* Titre + métadonnées mono — même hiérarchie que le panneau public */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono text-xs tabular-nums text-muted-foreground">{cs} / {totalQuests} étapes ({pct}%)</span>
+              {ms.isOptional&&<span className="text-[11px] text-muted-foreground">Bonus</span>}
+              {isLoading&&<Loader2 className="w-3.5 h-3.5 animate-spin text-success"/>}
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-caption font-mono font-bold text-zinc-400">{completedStepsSet.size>0?`${cs}/${totalQuests}`:`${totalQuests} quête${totalQuests>1?"s":""}`}</span>
-            </div>
+            <h3 className="mt-0.5 text-base font-bold leading-tight text-foreground break-words min-w-0">{ms.title}</h3>
           </div>
-          {/* Actions */}
-          <div className={`flex items-center gap-1.5 flex-shrink-0 ${isCompleted?"opacity-100":""}`}>
-            {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-caption font-black uppercase tracking-widest shadow-sm" title="Valider le bloc"><CheckCircle2 className="w-3 h-3"/>Valider</button>}
-            <button onClick={e=>{e.stopPropagation();onReset();}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-caption font-black uppercase tracking-widest shadow-sm ${isCompleted?"bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-red-400 hover:border-red-500/30"}`}><RotateCcw className="w-3 h-3"/>Reset</button>
-            {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-caption font-black uppercase tracking-widest shadow-sm ${blockBookmarkSeqId?"bg-amber-500/15 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/25":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-amber-300 hover:border-amber-500/30"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3 h-3"/>:<Flag className="w-3 h-3"/>}{blockBookmarkSeqId?"Repère":"Je suis ici"}</button>}
-            <div className="text-zinc-500 ml-1">{expanded?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}</div>
+          {/* Image du bloc — importée côté GOD sur N'IMPORTE quel type de bloc. Elle est
+              DANS LE FLUX (jamais en fond absolu : c'est ce qui créait des trous), à
+              droite, avec un fondu qui la fait entrer dans la ligne. Si l'URL ne charge
+              pas (fichier absent, 401…), l'image se retire au lieu de laisser un cadre. */}
+          {ms.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={ms.imageUrl}
+              alt=""
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              className="hidden md:block h-12 w-32 object-cover shrink-0"
+              style={{
+                maskImage:"linear-gradient(to left, rgba(0,0,0,0.95), transparent)",
+                WebkitMaskImage:"linear-gradient(to left, rgba(0,0,0,0.95), transparent)",
+              }}
+            />
+          )}
+          <div className="text-muted-foreground shrink-0">{expanded?<ChevronUp className="w-5 h-5"/>:<ChevronDown className="w-5 h-5"/>}</div>
+          </button>
+          {/* Actions du bloc — hors de la zone de bascule, comme côté public */}
+          <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">
+            {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-success hover:border-success/50" title="Valider tout le bloc"><Check className="w-3.5 h-3.5"/>Valider</button>}
+            {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border transition-colors text-[11px] font-semibold ${blockBookmarkSeqId?"border-warning/50 text-warning":"border-border text-muted-foreground hover:text-warning hover:border-warning/40"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3.5 h-3.5"/>:<Flag className="w-3.5 h-3.5"/>}<span className="hidden sm:inline">{blockBookmarkSeqId?"Repère":"Je suis ici"}</span></button>}
+            <button onClick={e=>{e.stopPropagation();onReset();}} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-danger hover:border-danger/40" title="Réinitialiser ce bloc"><RotateCcw className="w-3.5 h-3.5"/><span className="hidden lg:inline">Réinitialiser</span></button>
           </div>
+        </div>
+        {/* Barre de progression du bloc (la donnée, pas une décoration) */}
+        <div className="h-1.5 bg-elevated" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progression — ${ms.title}`}>
+          <div className="h-full bg-success transition-all duration-300" style={{width:`${pct}%`}}/>
         </div>
         {/* Expanded content */}
         <AnimatePresence>
           {expanded && (
             <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden">
-              <div className="px-3 pb-3 space-y-1.5 pt-2 border-t border-white/5">
-                {ms.tips && (
-                  <div className="mb-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-300 font-medium">
-                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 leading-relaxed flex flex-wrap items-center gap-1">{renderContentWithCoords(ms.tips)}</div>
+              <div className="p-4 space-y-2">
+{ms.tips && (
+                  <div className="mb-1 flex items-start gap-2.5 rounded-[4px] border border-warning/20 bg-warning/[0.06] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                    <Sparkles className="w-3.5 h-3.5 text-warning/70 shrink-0 mt-0.5" />
+                    <div className="flex-1 flex flex-wrap items-center gap-1"><RushRichText text={ms.tips} /></div>
                   </div>
                 )}
                 <CompletedStepsCtx.Provider value={completedStepsSet}>
                   {ms.sequences.length===0 ? (
-                    <div className="py-6 text-center text-zinc-600 text-caption font-black uppercase tracking-widest">Aucune quête</div>
+                    <div className="py-6 text-center text-muted-foreground text-caption font-medium">Aucune quête</div>
                   ) : (
-                    ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id)).map((s:any)=>(
+                    visibleSeqs.map((s:any)=>(
                       isInfoSequence(s) ? (
-                        <InfoSequenceBanner key={s.id} seq={s} accentColor={c} />
+                        <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
                       ) : (
-                        <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick}/>
+                        <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId} hideSeqCompleted={hideDone}/>
                       )
                     ))
                   )}
@@ -864,13 +890,8 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   );
 });
 
-// ─── SectionDivider ───────────────────────────────────────────────────────────
-const SectionDivider = memo(function SectionDivider({title,accentColor="#d4a853"}:{title:string;accentColor?:string}) {
-  return <div className="relative py-7 my-3 select-none"><div className="flex items-center justify-center gap-4"><div className="h-px flex-1 max-w-[120px] bg-gradient-to-r from-transparent via-current to-current opacity-40" style={{color:accentColor}}/><Sparkles className="w-4 h-4" style={{color:accentColor,opacity:0.7}}/><h2 className="font-[family-name:var(--font-cinzel)] text-base sm:text-xl font-bold uppercase tracking-[0.15em] text-center leading-tight px-1" style={{color:accentColor}}>{title}</h2><Sparkles className="w-4 h-4" style={{color:accentColor,opacity:0.7}}/><div className="h-px flex-1 max-w-[120px] bg-gradient-to-l from-transparent via-current to-current opacity-40" style={{color:accentColor}}/></div></div>;
-});
-
 // ─── ChapterBlock ─────────────────────────────────────────────────────────────
-const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=true,milestones,completedIds,completedStepsByMs,bookmarksByMs,guildProgressByMs,hideDone,loadingIds,dofusFilter,userAlignmentInfo,focusedSeqId,onFocusSequence,onToggle,onToggleSequence,onReset,onDungeonClick,searchFilter }:any) {
+const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=true,milestones,completedIds,completedStepsByMs,bookmarksByMs,guildProgressByMs,hideDone,loadingIds,dofusFilter,userAlignmentInfo,focusedSeqId,onFocusSequence,onToggle,onToggleSequence,onReset,onDungeonClick,searchFilter,onChapterClick,forceOpen }:any) {
   const filteredMilestones = useMemo(() => {
     if (!searchFilter) return milestones;
     return milestones.filter((ms:any) => {
@@ -878,20 +899,71 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
       return ms.sequences.some((s:any) => searchFilter.has(s.id));
     });
   }, [milestones, searchFilter]);
-  const ci=filteredMilestones.filter((m:any)=>m.type!=="INFO"&&completedIds.has(m.id)).length,ti=filteredMilestones.filter((m:any)=>m.type!=="INFO").length,all=ti>0&&ci===ti;
+  const totalQuests = filteredMilestones.filter((m:any)=>m.type!=="INFO").reduce((acc:number,m:any)=>acc+m.sequences.filter((s:any)=>!isInfoSequence(s)).length,0);
+  const ci = filteredMilestones.filter((m:any)=>m.type!=="INFO").reduce((acc:number,m:any)=>{const doneSet=completedStepsByMs.get(m.id);return acc+m.sequences.filter((s:any)=>!isInfoSequence(s)&&(completedIds.has(m.id)||doneSet?.has(s.id))).length;},0);
+  const ti = totalQuests;
+  const all = ti > 0 && ci === ti;
+  // Chapitre à UN seul bloc dont le titre est identique au label : inutile de dire
+  // deux fois la même chose (c'est le panneau du bloc qui porte le nom).
+  const labelRedundant = milestones.length === 1 && String(milestones[0]?.title ?? "").trim() === String(label ?? "").trim();
   const ac=milestones[0]?.accentColor||"#10b981";const hb=milestones.some((m:any)=>bookmarksByMs.has(m.id));const[open,setOpen]=useState(hb||chapterNum===1||!!searchFilter);
   useEffect(()=>{if(hb)setOpen(true);},[hb]);useEffect(()=>{if(searchFilter&&filteredMilestones.length>0)setOpen(true);},[searchFilter,filteredMilestones.length]);useEffect(()=>{if(focusedSeqId&&milestones.some((ms:any)=>ms.sequences.some((s:any)=>s.id===focusedSeqId)))setOpen(true);},[focusedSeqId,milestones]);
-  const vc=hideDone?filteredMilestones.filter((m:any)=>!completedIds.has(m.id)).length:filteredMilestones.length;
-  if(hideDone&&vc===0)return null;
-  return <div className="relative">{showHeader&&<button onClick={()=>setOpen((v:boolean)=>!v)} className="w-full flex items-center gap-3 py-3 group transition-all">
-    <div className="relative w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-all group- shadow-sm" style={{borderColor:all?ac:`${ac}40`,background:all?`${ac}20`:"transparent"}}>{all?<CheckCheck className="w-5 h-5" style={{color:ac}}/>:<span className="text-sm font-black font-[family-name:var(--font-cinzel)]" style={{color:ac}}>{chapterNum}</span>}</div>
-    <div className="flex-1 text-left"><div className="flex items-center gap-2"><span className="font-[family-name:var(--font-cinzel)] font-bold uppercase tracking-wider" style={{color:ac,fontSize:"clamp(0.8rem,2vw,1.1rem)"}}>{label}</span><span className="text-caption font-black px-2 py-0.5 rounded-full font-mono" style={{background:`${ac}15`,color:ac}}>{ci}/{ti}</span></div><div className="h-1 bg-white/5 rounded-full overflow-hidden mt-1.5"><div className="h-full rounded-full transition-all duration-300" style={{width:`${ti>0?(ci/ti)*100:0}%`,background:`linear-gradient(90deg, ${ac}, ${ac}99)`}}/></div></div>
-    <div className="text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0 ml-1">{open?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}</div>
-  </button>}<AnimatePresence>{(open||!showHeader)&&<motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden"><div className="relative ml-5 pl-5 pb-3 border-l border-zinc-800/40 space-y-2">{filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any)=>{
-  if(ms.type==="INFO")return <div key={ms.id} className="-ml-2 my-1"><InfoBanner milestone={ms}/></div>;
-  const filteredSeqs = searchFilter ? ms.sequences.filter((s:any)=>searchFilter.has(s.id)) : ms.sequences;
-  return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={{...ms,sequences:filteredSeqs}} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={bookmarksByMs.has(ms.id)} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={hideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} accentColor={ms.accentColor||ac} userAlignmentInfo={userAlignmentInfo} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick} isSearching={!!searchFilter}/></div>;
-})}</div></motion.div>}</AnimatePresence></div>;
+  // Mode paginé : le chapitre affiché EST la page — il est ouvert d'office, sinon
+  // l'écran ne montrerait qu'un titre et un chevron.
+  useEffect(()=>{if(forceOpen)setOpen(true);},[forceOpen]);
+  const effHideDone=hideDone&&!searchFilter;
+  const vc=effHideDone?filteredMilestones.filter((m:any)=>!completedIds.has(m.id)).length:filteredMilestones.length;
+  if(effHideDone&&vc===0)return null;
+  return (
+    <div className="relative">
+      {showHeader && (
+        <>
+        <button
+          type="button"
+          onClick={()=>{setOpen((v:boolean)=>!v); onChapterClick?.(chapterNum);}}
+          aria-expanded={open}
+          className="flex w-full flex-col items-stretch gap-3 border-t border-border pt-4 text-left sm:flex-row sm:items-end"
+        >
+          {/* Pas d'image ni de Dofus ici : le chapitre est un REGROUPEMENT. L'ancre
+              Dofus et l'image immersive appartiennent au BLOC (jalon) — les répéter
+              ici créait un doublon visuel et une troisième barre de progression. */}
+          <div className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-x-2 font-mono text-[11px] font-semibold uppercase tracking-[0.055em] text-muted-foreground">
+              Chapitre {chapterNum}
+              <span className="text-xs normal-case tracking-normal tabular-nums">{ci} / {ti} étapes ({ti > 0 ? Math.round((ci / ti) * 100) : 0}%)</span>
+            </span>
+            {/* Label identique au titre du bloc unique : on ne le dit qu'une fois,
+                c'est le panneau du bloc qui porte le nom. */}
+            {!labelRedundant && (
+              <h2 className="mt-1 text-base font-bold text-foreground break-words sm:text-lg">{label}</h2>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
+            {all && (
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] text-success">
+                <Check className="w-3.5 h-3.5 stroke-[2]" />terminé
+              </span>
+            )}
+            {open ? <ChevronUp className="w-5 h-5 text-muted-foreground"/> : <ChevronDown className="w-5 h-5 text-muted-foreground"/>}
+          </div>
+        </button>
+        </>
+      )}
+      <AnimatePresence>
+        {(open||!showHeader) && (
+          <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden">
+            <div className="space-y-3 pt-3">
+              {filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any,msIdx:number)=>{
+                if(ms.type==="INFO")return <div key={ms.id} className="my-1"><InfoBanner milestone={ms}/></div>;
+                const filteredSeqs = searchFilter ? ms.sequences.filter((s:any)=>searchFilter.has(s.id)) : ms.sequences;
+                return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={{...ms,sequences:filteredSeqs}} blockIndex={msIdx+1} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={bookmarksByMs.has(ms.id)} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={effHideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} accentColor={ms.accentColor||ac} userAlignmentInfo={userAlignmentInfo} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick} isSearching={!!searchFilter}/></div>;
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 });
 
 // ─── CharacterSelectorDropdown ─────────────────────────────────────────────
@@ -899,9 +971,9 @@ function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules
   const router=useRouter();
   const currentLabel=selectedCharacter==="PRINCIPAL"?mainPseudo:selectedCharacter;
   const selClass=selectedCharacter==="PRINCIPAL"?mainClass:mules.find((m:any)=>m.pseudo===selectedCharacter)?.classe||null;
-  const selIcon=selClass?(()=>{const d=getClass(selClass);return d?<img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/>:null;})():selectedCharacter==="PRINCIPAL"?<Crown className="w-3.5 h-3.5 text-amber-500"/>:<Users className="w-3.5 h-3.5 text-blue-400"/>;
+  const selIcon=selClass?(()=>{const d=getClass(selClass);return d?<img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/>:null;})():selectedCharacter==="PRINCIPAL"?<Crown className="size-3.5 text-warning"/>:<Users className="size-3.5 text-info"/>;
   const handleSelect=(char:string)=>{const params=new URLSearchParams(window.location.search);if(char==="PRINCIPAL")params.delete("character");else params.set("character",char);router.push(`${window.location.pathname}?${params.toString()}`);};
-  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" role="combobox" aria-expanded={false} className="bg-zinc-950/60 border-zinc-800/60 hover:border-emerald-500/20 text-white justify-between w-full min-w-0 max-w-full transition-all rounded-xl h-9 px-2.5 cursor-pointer text-xs font-black"><div className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></div><ChevronDown className="w-3 h-3 opacity-30 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-zinc-950/95 border-zinc-800/60 text-white min-w-[180px] rounded-xl p-1.5 shadow-2xl z-[100]"><DropdownMenuItem onClick={()=>handleSelect("PRINCIPAL")} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter==="PRINCIPAL"?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="w-3 h-3 text-amber-500"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mainPseudo}</span><span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">{mainClass||"Principal"}</span></div></DropdownMenuItem>{mules.length>0&&<div className="h-px bg-white/5 my-1"/>}{mules.map((mule:any)=><DropdownMenuItem key={mule.pseudo} onClick={()=>handleSelect(mule.pseudo)} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter===mule.pseudo?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="w-3 h-3 text-blue-400"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mule.pseudo}</span><span className="text-caption text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></div></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>;
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" role="combobox" aria-expanded={false} aria-label="Choisir le personnage actif" className="justify-between gap-2 min-w-0 max-w-full text-xs font-medium cursor-pointer"><span className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></span><ChevronDown className="size-3 opacity-40 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-background/95 border-border text-foreground min-w-[200px] rounded-[4px] p-1.5 z-[100]"><DropdownMenuRadioGroup value={selectedCharacter} onValueChange={handleSelect}><DropdownMenuRadioItem value="PRINCIPAL" className="gap-2.5 py-2 cursor-pointer">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="size-3.5 text-warning"/>}<span className="flex flex-col text-left"><span className="text-xs font-medium">{mainPseudo}</span><span className="text-caption text-muted-foreground">{mainClass||"Principal"}</span></span></DropdownMenuRadioItem>{mules.length>0&&<DropdownMenuSeparator className="my-1 h-px bg-border"/>}{mules.map((mule:any)=><DropdownMenuRadioItem key={mule.pseudo} value={mule.pseudo} className="gap-2.5 py-2 cursor-pointer">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="size-3.5 text-info"/>}<span className="flex flex-col text-left"><span className="text-xs font-medium">{mule.pseudo}</span><span className="text-caption text-muted-foreground">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></span></DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -963,7 +1035,7 @@ function ContextualHelp({ label, children, className }: { label: string; childre
         onFocus={() => setOpen(true)}
         onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setTimeout(() => setOpen(false), 150); }}
         aria-label={label}
-        className="flex items-center justify-center w-6 h-6 rounded-md text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all shrink-0"
+        className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground hover:text-success hover:bg-success/10 transition-all shrink-0"
       >
         <CircleHelp className="w-3.5 h-3.5" />
       </button>
@@ -971,10 +1043,10 @@ function ContextualHelp({ label, children, className }: { label: string; childre
         <div
           ref={popoverRef}
           role="tooltip"
-          className="absolute z-[var(--z-tooltip)] bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 p-3 rounded-xl bg-zinc-950 border border-white/10 text-xs text-zinc-200 leading-relaxed shadow-2xl pointer-events-auto"
+          className="absolute z-[var(--z-tooltip)] bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 p-3 rounded-[4px] bg-background border border-border text-xs text-foreground leading-relaxed  pointer-events-auto"
         >
           {children}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-950 border-r border-b border-white/10 rotate-45 -mt-px" />
+          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-background border-r border-b border-border rotate-45 -mt-px" />
         </div>
       )}
     </span>
@@ -985,10 +1057,71 @@ function ContextualHelp({ label, children, className }: { label: string; childre
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 
-export default function RushTimelineClient({ guide, milestones, guildProgress, guildId, selectedCharacter="PRINCIPAL", mules=[], currentUserProfile, ocreStats, capturedOcreMonsterIds, capturedMonsterNames, ocreMonsters=[] }: RushTimelineClientProps) {
+export default function RushTimelineClient({ guide, milestones, guildProgress, guildId, selectedCharacter="PRINCIPAL", mules=[], currentUserProfile, rushUIConfig, ocreStats, capturedOcreMonsterIds, capturedMonsterNames, ocreMonsters=[], initialResourceChecks }: RushTimelineClientProps) {
 const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[capturedOcreMonsterIds]);
   const capturedMonsterNamesMemo=useMemo(()=>capturedMonsterNames||[], [capturedMonsterNames]);
   const router=useRouter();const altPseudo=selectedCharacter!=="PRINCIPAL"?selectedCharacter:undefined;
+  // Overlay PiP : rendu géré par `RushOverlayHost` (monté dans le LAYOUT `[guildId]`,
+  // persistant). Ici on ne fait qu'ouvrir/fermer la fenêtre et figer les données.
+  const openOverlay = useRushOverlayStore((s) => s.open);
+  const closeOverlay = useRushOverlayStore((s) => s.close);
+  const handleOverlayClick = useCallback(async () => {
+    // Déjà ouvert → on le referme.
+    if (useRushOverlayStore.getState().win) {
+      closeOverlay();
+      return;
+    }
+    // Document Picture-in-Picture (Chrome/Edge/Brave/Firefox 151+), sinon popup
+    // vierge (ex. Opera GX, qui n'expose pas l'API malgré son Chromium récent).
+    let win: Window | null = null;
+    let pinned = false;
+    if (isDocumentPipSupported()) {
+      try {
+        win = await openPipWindow({ width: 470, height: 640 });
+        pinned = win !== null;
+      } catch {
+        win = null;
+      }
+    }
+    if (!win) win = openFallbackPopup({ width: 470, height: 640 });
+    if (!win) return;
+    // Fermeture native de la fenêtre (bouton PiP / croix) → on nettoie l'état.
+    win.addEventListener("pagehide", () => useRushOverlayStore.getState().onWindowGone());
+    openOverlay(win, {
+      guildId,
+      pinned,
+      guide: {
+        id: guide.id,
+        name: guide.name,
+        slug: guide.slug,
+        description: guide.description ?? undefined,
+        imageUrl: guide.imageUrl ?? undefined,
+      },
+      milestones: milestones as RushMilestone[],
+      allProgress: guildProgress as GuideProgressRow[],
+      altPseudo: altPseudo ?? null,
+      character: selectedCharacter === "PRINCIPAL"
+        ? { pseudo: currentUserProfile?.pseudoDofus || "Principal", classe: currentUserProfile?.dofusClass || null, isMain: true }
+        : { pseudo: selectedCharacter, classe: (mules || []).find((m: any) => m.pseudo === selectedCharacter)?.classe || null, isMain: false },
+      // Quête Ocre : figée avec le reste du payload (aucun fetch dans la fenêtre PiP).
+      ocre: toOcrePanelData(
+        ocreStats
+          ? {
+              monsters: ocreMonsters || [],
+              questInfo: {
+                currentStep: ocreStats.currentStep ?? 0,
+                // Même constante que `getMyOcreProgress` (questInfo.totalSteps) : la quête
+                // de l'Éternelle Moisson compte 34 étapes côté Metamob.
+                totalSteps: 34,
+                serverName: ocreStats.serverName,
+                parallelQuests: ocreStats.parallelQuests,
+              },
+              pseudo: currentUserProfile?.metamobPseudo ?? null,
+            }
+          : null
+      ),
+    });
+  }, [guildId, guide, milestones, guildProgress, altPseudo, selectedCharacter, mules, currentUserProfile, ocreStats, ocreMonsters, openOverlay, closeOverlay]);
   // Local copy of profile for optimistic alignment updates (sync profile<->rush)
   const [localProfile,setLocalProfile]=useState(currentUserProfile);
   useEffect(()=>{setLocalProfile(currentUserProfile);},[currentUserProfile]);
@@ -1000,19 +1133,40 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
     const m = new Map<string, string>();
     for (const ms of milestones) {
       const step = ms.playerProgress?.[0]?.currentStep;
-      if (step && step.startsWith("seq:")) m.set(ms.id, step.slice(4));
+      if (!step) continue;
+      // `setRushBookmark` stocke un seq.id BRUT (ex. "abc"); certaines vues legacy
+      // utilisent "seq:<id>". On normalise les deux et on valide contre les
+      // séquences du bloc (même logique que la projection serveur resolveSeqId).
+      const id = step.startsWith("seq:") ? step.slice(4) : step;
+      if ((ms.sequences || []).some((s: any) => s.id === id)) m.set(ms.id, id);
     }
     return m;
   });
+  // ─── Synchro dashboard ↔ overlay (BroadcastChannel, même navigateur) ─────
+  // Aligne « ce qui est coché » entre la fenêtre du module et l'overlay Rush.
+  useGuideProgressSync(
+    guildId,
+    guide.slug,
+    { completedIds, completedStepsByMs, bookmarksByMs },
+    { setCompletedIds, setCompletedStepsByMs, setBookmarksByMs }
+  );
+
   useEffect(() => {
     const next = new Map<string, string>();
     milestones.forEach(ms => {
       const step = ms.playerProgress?.[0]?.currentStep;
-      if (step && step.startsWith("seq:")) next.set(ms.id, step.slice(4));
+      if (!step) return;
+      // Normalise brut / "seq:<id>" et valide contre les séquences du bloc pour
+      // ne pas croire un step-key Ganymède legacy (sinon le repère posé depuis
+      // l'overlay en seq.id brut était ignoré → republié vide → repère perdu).
+      const id = step.startsWith("seq:") ? step.slice(4) : step;
+      if ((ms.sequences || []).some((s: any) => s.id === id)) next.set(ms.id, id);
     });
     setBookmarksByMs(next);
   }, [milestones]);
   const [hideDone,setHideDone]=useState(false);
+  const [celebrate,setCelebrate]=useState<{msId:string;title:string;tint?:string}|null>(null);
+  useEffect(()=>{ if(!celebrate)return; const t=setTimeout(()=>setCelebrate(null),1600); return ()=>clearTimeout(t); },[celebrate]);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   useEffect(() => {
@@ -1041,6 +1195,40 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [resetLoading,setResetLoading]=useState(false);
   const [ocreModalOpen,setOcreModalOpen]=useState(false);
   const [rushLiveModalOpen,setRushLiveModalOpen]=useState(false);
+  const [penseBeteOpen,setPenseBeteOpen]=useState(false);
+  // ── Ressources à prévoir (bouton du module) + coches MANUELLES « déjà préparé » ──
+  // Les coches sont par MEMBRE et par PERSONNAGE (principale/mule) : elles viennent du
+  // serveur (`initialResourceChecks`) et y repartent à chaque geste.
+  const [resourcesModalOpen,setResourcesModalOpen]=useState(false);
+  const [resourceChecks,setResourceChecks]=useState<Set<string>>(()=>new Set(initialResourceChecks??[]));
+  // Particules d'ambiance teintées au Dofus actif — désactivable (Options, défaut activé).
+  const [rushParticlesEnabled,setRushParticlesEnabled]=useState<boolean>(() => {
+    try { return localStorage.getItem(`rush-particles-${guide.slug}`) !== "false"; } catch { return true; }
+  });
+  const toggleRushParticles = useCallback(() => {
+    setRushParticlesEnabled((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(`rush-particles-${guide.slug}`, next ? "true" : "false"); } catch {}
+      return next;
+    });
+  }, [guide.slug]);
+  // Chapitre actif partagé : sélectionnable depuis le feed (clic sur un header de
+  // chapitre) ET depuis la sidebar « Chapitres ». `null` = auto (défaut sidebar).
+  const [activeChapter,setActiveChapter]=useState<number|"ALL"|null>(null);
+  // Ambiance du hero : teinte du Dofus actif (filtre > chapitre courant > émeraude).
+  // 100 % CSS statique : un seul repaint au changement, aucun coût continu,
+  // `prefers-reduced-motion` respecté par construction (aucune animation).
+  const ambientDofusColor = useMemo(() => {
+    const fromFilter = dofusFilter ? DOFUS_DEFS.find((d) => d.id === dofusFilter)?.color : null;
+    if (fromFilter) return fromFilter;
+    const chMs = activeChapter != null && activeChapter !== "ALL"
+      ? milestones.filter((m) => m.chapter === activeChapter && m.dofusId)
+      : milestones.filter((m) => m.dofusId);
+    const first = chMs.find((m) => DOFUS_DEFS.some((d) => d.id === (m as any).dofusId));
+    return (first ? DOFUS_DEFS.find((d) => d.id === (first as any).dofusId)?.color : null) || "#4fd1a5";
+  }, [dofusFilter, activeChapter, milestones]);
+  // Palette des braises (mémoïsée : nouvelle identité = respawn du canvas).
+  const particlePalette = useMemo(() => [ambientDofusColor, "#f6e9cb"], [ambientDofusColor]);
   const [incognito,setIncognito]=useState(false);
   useEffect(()=>{if(typeof window==="undefined")return;const k=`guide-incognito-${guildId}`;const stored=localStorage.getItem(k);if(stored!==null)setIncognito(stored==="true");},[guildId]);
   const toggleIncognito=useCallback(()=>{setIncognito(prev=>{const next=!prev;localStorage.setItem(`guide-incognito-${guildId}`,next?"true":"false");return next;});},[guildId]);
@@ -1052,16 +1240,16 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [metamobLinking,setMetamobLinking]=useState(false);
   const [continueModalOpen,setContinueModalOpen]=useState(false);
   const continueShownThisSession=useRef(false);
-  const [alignEditOpen,setAlignEditOpen]=useState(false);
-  const [alignEditSaving,setAlignEditSaving]=useState(false);
-  const [alignEditStep,setAlignEditStep]=useState<"alignment"|"order"|"tranche">("alignment");
-  const [alignEditAlignment,setAlignEditAlignment]=useState<string|null>(null);
-  const [alignEditOrder,setAlignEditOrder]=useState<string|null>(null);
-  const [alignEditLevel,setAlignEditLevel]=useState<number>(0);
+  // Le popup « Reprendre ? » ne s'affiche qu'au retour sur la page (repère
+  // pré-existant) — jamais juste après avoir posé le repère soi-même.
+  const bookmarkTouchedThisSession=useRef(false);
+  // Alignement & Ordre : LECTURE SEULE dans le rush (demande user du 08/10/2026 —
+  // « on ne doit plus pouvoir éditer son ordre dans le rush sylvestre »). La source
+  // unique est le profil du personnage (`currentUserProfile` / `localProfile`), édité
+  // sur la page Profil ; une quête d'alignement cochée met le profil à jour via
+  // `applyRushAlignmentFromSequence` (jamais un écran d'édition ici).
   const effectiveAltPseudo=useMemo(()=>{if(!altPseudo)return undefined;const mp=localProfile?.pseudoDofus;if(mp&&altPseudo===mp)return undefined;return altPseudo;},[altPseudo,localProfile?.pseudoDofus]);
   const resolvedCharacterInfo=useMemo(()=>{if(!effectiveAltPseudo)return{alignment:localProfile?.alignment,alignmentOrder:localProfile?.alignmentOrder,alignmentLevel:localProfile?.alignmentLevel??0};const m=localProfile?.altPseudos?.find((m:any)=>m.pseudo===effectiveAltPseudo);return{alignment:m?.alignment,alignmentOrder:m?.alignmentOrder,alignmentLevel:m?.alignmentLevel??0};},[effectiveAltPseudo,localProfile]);
-  const openAlignEdit=useCallback(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;setAlignEditAlignment(alignment||"neutre");setAlignEditOrder(alignmentOrder||null);setAlignEditLevel(alignmentLevel||0);setAlignEditStep("alignment");setAlignEditOpen(true);},[resolvedCharacterInfo]);
-  const handleAlignEditSave=useCallback(async()=>{setAlignEditSaving(true);try{/* #1 : une mule s'édite dans altPseudos (même tableau que le profil) — pas le perso principal */const res=effectiveAltPseudo?await updateMuleAlignment({guildId,pseudo:effectiveAltPseudo,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel}):await updateUserProfile({guildId,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel});if((res as any).success){toast.success("Alignement mis à jour !");setAlignEditOpen(false);/* Optimistic update — sync local state instantly */if(!effectiveAltPseudo){setLocalProfile(prev=>({...prev,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel}));}else{setLocalProfile(prev=>{const updatedAlts=(prev.altPseudos||[]).map((m:any)=>m.pseudo===effectiveAltPseudo?{...m,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel}:m);return{...prev,altPseudos:updatedAlts};});}router.refresh();}else{toast.error((res as any).error||"Erreur lors de la sauvegarde");}}catch{toast.error("Erreur réseau");}finally{setAlignEditSaving(false);}},[guildId,alignEditAlignment,alignEditOrder,alignEditLevel,effectiveAltPseudo,router]);
   const handleFocusSequence=useCallback((seqId:string)=>setFocusedSeqId(seqId),[]);
   const handleDungeonClick=useCallback((dungeonId:string,questName:string)=>setDjModal({open:true,dungeonId,questName}),[]);
   useEffect(()=>{const k=`rush-onboarding-${guide.id}`;if(!localStorage.getItem(k)){const t=setTimeout(()=>setWizardOpen(true),800);return()=>clearTimeout(t);}},[guide.id]);
@@ -1070,25 +1258,156 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // Temps réel WS (Phase 1) : plus de polling router.refresh() toutes les 2 min.
   // La présence est portée par useGuidePresence (voir plus bas).
 const contentMilestones=useMemo(()=>milestones.filter(ms=>ms.type!=="SEPARATEUR"&&ms.type!=="INFO"&&ms.type!=="DOFUS_OBTAINED"),[milestones]);
+// Dernier bloc (milestone) de chaque chapitre — pour la célébration « Chapitre terminé ».
+const lastMsOfChapterIds = useMemo(() => {
+  const byChapter = new Map<number, Milestone[]>();
+  for (const ms of contentMilestones) {
+    if (!byChapter.has(ms.chapter)) byChapter.set(ms.chapter, []);
+    byChapter.get(ms.chapter)!.push(ms);
+  }
+  const out = new Set<string>();
+  for (const arr of byChapter.values()) {
+    if (!arr.length) continue;
+    const last = arr.reduce((a, b) => (b.order >= a.order ? b : a), arr[0]);
+    out.add(last.id);
+  }
+  return out;
+}, [contentMilestones]);
 const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.order);type TI={kind:"separator";ms:Milestone}|{kind:"info";ms:Milestone}|{kind:"chapter";chapterNum:number;label:string;showHeader:boolean;milestoneList:Milestone[]};const r:TI[]=[];let b:Milestone[]=[];let bc:number|null=null;let bl="";let bsh=true;let lch:number|null=null;const f=()=>{if(b.length){r.push({kind:"chapter",chapterNum:bc!,label:bl,showHeader:bsh,milestoneList:b});b=[];bc=null;bl="";bsh=true;}};for(const ms of s){if(ms.type==="SEPARATEUR"){f();r.push({kind:"separator",ms});continue;}if(ms.type==="INFO"||ms.type==="DOFUS_OBTAINED"){f();r.push({kind:"info",ms});continue;}if(dofusFilter&&ms.dofusId!==dofusFilter)continue;const nh=ms.chapter!==lch;if(bc===null||bc!==ms.chapter){f();bc=ms.chapter;bl=ms.chapterLabel;bsh=nh;if(nh)lch=ms.chapter;}b.push(ms);}f();return r;},[milestones,dofusFilter]);
+  // ─── Pagination par chapitre ────────────────────────────────────────────────
+  // Le guide fait 57 chapitres / 379 étapes : tout rendre — même replié — donnait un
+  // mur de plusieurs milliers de pixels qui ne fera qu'empirer. Une page = UN chapitre.
+  // Les bannières (séparateur, info, « Dofus obtenu ») restent collées au chapitre qui
+  // les suit : elles gardent leur place dans la lecture.
+  const chapterPages = useMemo(() => {
+    type TI = (typeof timelineItems)[number];
+    const out: { chapterNum: number | null; label: string; items: TI[] }[] = [];
+    let pending: TI[] = [];
+    for (const it of timelineItems) {
+      if (it.kind === "chapter") {
+        out.push({ chapterNum: it.chapterNum, label: it.label, items: [...pending, it] });
+        pending = [];
+      } else {
+        pending.push(it);
+      }
+    }
+    // Bannières de fin sans chapitre après : elles terminent la dernière page.
+    if (pending.length) {
+      if (out.length) out[out.length - 1].items.push(...pending);
+      else out.push({ chapterNum: null, label: "", items: pending });
+    }
+    return out;
+  }, [timelineItems]);
+  // seq/bloc → chapitre : pour SAUTER au bon chapitre avant de scroller (repère,
+  // reprise, prérequis, « Je suis ici »).
+  const seqToChapter = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const ms of milestones) for (const s of ms.sequences) m.set(s.id, ms.chapter);
+    return m;
+  }, [milestones]);
+  const msToChapter = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const ms of milestones) m.set(ms.id, ms.chapter);
+    return m;
+  }, [milestones]);
+  // Amène la page du chapitre visé avant un scroll ciblé. En mode « Tout afficher »
+  // (choix explicite de l'utilisateur) on ne force rien : tout est déjà là.
+  const ensureChapterFor = useCallback((chapter: number | null | undefined) => {
+    if (chapter == null) return;
+    setActiveChapter((prev: number | "ALL" | null) => (prev === "ALL" ? prev : chapter));
+  }, []);
+
+
   const guildProgressByMs=useMemo(()=>{const m=new Map<string,GuildMemberProgress[]>;guildProgress.forEach(p=>{if(!p.isCompleted){if(!m.has(p.milestoneId))m.set(p.milestoneId,[]);m.get(p.milestoneId)!.push(p);}});return m;},[guildProgress]);
-  // ─── Guild progress by sequence (members with currentStep/bookmark on a specific seq) ──
-  const guildProgressBySeq=useMemo(()=>{const m=new Map<string,GuildMemberProgress[]>;guildProgress.forEach(p=>{if(p.currentStep&&p.currentStep.startsWith("seq:")){const seqId=p.currentStep.slice(4);if(!m.has(seqId))m.set(seqId,[]);m.get(seqId)!.push(p);}});return m;},[guildProgress]);
+  // ─── Guild progress by sequence (membres ayant posé leur repère sur une quête) ──
+  // `setRushBookmark` stocke l'id de séquence BRUT (`"abc"`) ; les vues legacy
+  // utilisaient `"seq:abc"`. On normalise les DEUX formes — sinon aucun repère réel
+  // n'était indexé (la map ne gardait que le préfixe) et les bulles de membres
+  // n'apparaissaient jamais sous une quête, alors que l'overlay, lui, les affichait.
+  // On ne garde que les ids qui EXISTENT dans le guide : un step-key Ganymède
+  // legacy (`GPx-N`) ne doit pas créer de bulles fantômes.
+  const guildProgressBySeq=useMemo(()=>{
+    const knownSeqIds=new Set<string>();
+    milestones.forEach(ms=>ms.sequences.forEach(s=>knownSeqIds.add(s.id)));
+    const m=new Map<string,GuildMemberProgress[]>;
+    guildProgress.forEach(p=>{if(!p.currentStep||p.isCompleted)return;const raw=String(p.currentStep);const seqId=raw.startsWith("seq:")?raw.slice(4):raw;if(!knownSeqIds.has(seqId))return;if(!m.has(seqId))m.set(seqId,[]);m.get(seqId)!.push(p);});
+    return m;
+  },[guildProgress,milestones]);
   const tMs=contentMilestones.length;const completedCount=contentMilestones.filter(ms=>completedIds.has(ms.id)).length;
   const overallPercent=tMs>0?Math.round((completedCount/tMs)*100):0;
+
+  // Métiers requis agrégés sur tout le guide (tags `metier`) — pour la modale de lancement.
+  const metiersRequires = useMemo(() => getGuideMetiersRequires(milestones as any), [milestones]);
+  // Ids de métiers déjà déclarés sur le profil (pour savoir si un métier requis est couvert).
+  const metiersDeclares = useMemo(() => metierIds((currentUserProfile as any)?.metiers), [currentUserProfile]);
+  const handleResetAlignment = useCallback(async () => {
+    try {
+      const res = await resetRushAlignment(guildId, effectiveAltPseudo);
+      if ((res as any).success) { toast.success("Alignement réinitialisé à 0"); router.refresh(); }
+      else { toast.error((res as any).error || "Erreur"); }
+    } catch { toast.error("Erreur réseau"); }
+  }, [guildId, effectiveAltPseudo, router]);
+  const handleDeclareMetier = useCallback(async (name: string, level: number) => {
+    try {
+      const current = Array.isArray((currentUserProfile as any)?.metiers) ? (currentUserProfile as any).metiers : [];
+      const res = await updateUserProfile({ guildId, metiers: [...current, { name, level }] } as any);
+      if ((res as any).success) { toast.success(`Métier ${name} déclaré`); router.refresh(); }
+      else { toast.error((res as any).error || "Erreur"); }
+    } catch { toast.error("Erreur réseau"); }
+  }, [guildId, currentUserProfile, router]);
+  const [resettingCharId, setResettingCharId] = useState<string | null>(null);
+  const handleResetCharacter = useCallback(async (id: string) => {
+    setResettingCharId(id);
+    try {
+      const { resetGuideProgress } = await import("@/server/actions/optimized-guide-actions");
+      await resetGuideProgress(guildId, guide.id, id === "PRINCIPAL" ? undefined : id);
+      toast.success(id === "PRINCIPAL" ? "Progression du personnage principal réinitialisée" : `Progression de ${id} réinitialisée`);
+      router.refresh();
+    } catch { toast.error("Erreur réseau"); }
+    finally { setResettingCharId(null); }
+  }, [guildId, guide.id, router]);
+  
   const activeMembersCount=useMemo(()=>new Set(guildProgress.map(p=>p.profileId)).size,[guildProgress]);
   const setLoading=useCallback((msId:string,val:boolean)=>setLoadingIds(prev=>{const n=new Set(prev);val?n.add(msId):n.delete(msId);return n;}),[]);
-  const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{const cur=new Set(completedStepsByMs.get(ms.id)||[]);const was=cur.has(seqId);was?cur.delete(seqId):cur.add(seqId);const arr=Array.from(cur);const regularSeqs=ms.sequences.filter((s:any)=>!isInfoSequence(s));const allChecked=regularSeqs.length>0&&regularSeqs.every((s:any)=>cur.has(s.id));const wasMilestoneCompleted=completedIds.has(ms.id);setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.add(ms.id):n.delete(ms.id);return n;});setLoading(ms.id,true);try{const res=await updateStepProgress(guildId,ms.id,arr,effectiveAltPseudo);if((res as any).success){if(res.isCompleted&&!wasMilestoneCompleted){toast.success("✅ Bloc validé !",{duration:1500});}else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}}else{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur");}}catch{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedStepsByMs,completedIds,guildId,effectiveAltPseudo,setLoading]);
-  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500});}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,guildId,effectiveAltPseudo,setLoading]);
-  const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
-  // Ensemble de toutes les séquences complétées (à travers tous les blocs)
+  // Ensemble de toutes les séquences complétées (à travers tous les blocs).
+  // Un bloc entièrement validé compte toutes ses quêtes (sinon les ressources
+  // « restantes » ne sont pas décomptées pour un chapitre validé d'un coup).
   const allCompletedSeqIds = useMemo(() => {
     const all = new Set<string>();
-    completedStepsByMs.forEach(steps => steps.forEach(id => all.add(id)));
+    for (const ms of milestones) {
+      if (completedIds.has(ms.id)) {
+        for (const s of ms.sequences) all.add(s.id);
+        continue;
+      }
+      const steps = completedStepsByMs.get(ms.id);
+      if (steps) for (const id of steps) all.add(id);
+    }
     return all;
-  }, [completedStepsByMs]);
+  }, [milestones, completedIds, completedStepsByMs]);
+  // ── Ressources à prévoir (bouton du module) ──────────────────────────────────
+  // `remaining` = recalculé à chaque coche de quête (temps réel), `all` = total statique
+  // du guide. Même agrégation que l'overlay et la page publique.
+  const rushResourcesAll = useMemo(() => aggregateRushResources(milestones as any), [milestones]);
+  const rushResourcesRemaining = useMemo(
+    () => aggregateRushResources(milestones as any, allCompletedSeqIds),
+    [milestones, allCompletedSeqIds]
+  );
+  // Coche/décoche une ressource « déjà préparée » : optimiste, puis persistée côté
+  // serveur (par membre ET par personnage). Rollback si l'écriture échoue.
+  const handleToggleResourceCheck = useCallback(async (key: string) => {
+    const previous = resourceChecks;
+    const next = new Set(previous);
+    next.has(key) ? next.delete(key) : next.add(key);
+    setResourceChecks(next);
+    try {
+      await setRushResourceChecks(guildId, guide.slug, [...next], effectiveAltPseudo);
+    } catch {
+      setResourceChecks(previous);
+      toast.error("Impossible d'enregistrer la préparation");
+    }
+  }, [resourceChecks, guildId, guide.slug, effectiveAltPseudo]);
 
-  // Séquences bloquées par un prérequis non terminé → impossible d'y poser son repère
+  // Séquences bloquées par un prérequis non terminé → impossible de cocher / poser un repère
   const blockedSeqIds = useMemo(() => {
     const out = new Set<string>();
     for (const ms of milestones) {
@@ -1113,6 +1432,93 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     return out;
   }, [milestones, allCompletedSeqIds]);
 
+  const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{
+    const cur=new Set(completedStepsByMs.get(ms.id)||[]);
+    const was=cur.has(seqId);
+    if(!was&&blockedSeqIds.has(seqId)){toast.warning("Terminez d'abord les prérequis de cette quête.");return;}
+    was?cur.delete(seqId):cur.add(seqId);
+    const arr=Array.from(cur);
+    const regularSeqs=ms.sequences.filter((s:any)=>!isInfoSequence(s));
+    const allChecked=regularSeqs.length>0&&regularSeqs.every((s:any)=>cur.has(s.id));
+    const wasMilestoneCompleted=completedIds.has(ms.id);
+    // Cascade décoche : décocher la cible décoche aussi les quêtes qui en dépendent.
+    const cascadeMsIds=new Map<string,Set<string>>();
+    const cascadeSeqIds=new Set<string>();
+    if(was){
+      const cascade=collectCascadeUncheck(seqId,milestones as any,allCompletedSeqIds);
+      for(const cid of cascade){
+        if(cid===seqId)continue;
+        const owner=milestones.find((m:any)=>m.type!=="SEPARATEUR"&&m.type!=="INFO"&&m.type!=="DOFUS_OBTAINED"&&m.sequences.some((s:any)=>s.id===cid));
+        if(!owner)continue;
+        cascadeSeqIds.add(cid);
+        if(!cascadeMsIds.has(owner.id))cascadeMsIds.set(owner.id,new Set<string>());
+        cascadeMsIds.get(owner.id)!.add(cid);
+      }
+    }
+    setCompletedStepsByMs(prev=>{
+      const n=new Map(prev);
+      n.set(ms.id,cur);
+      for(const [mid,set] of cascadeMsIds){
+        const s=new Set(n.get(mid)||[]);
+        for(const cid of set)s.delete(cid);
+        n.set(mid,s);
+      }
+      return n;
+    });
+    setCompletedIds(prev=>{
+      const n=new Set(prev);
+      allChecked?n.add(ms.id):n.delete(ms.id);
+      for(const [mid,set] of cascadeMsIds){
+        const m=milestones.find((mm:any)=>mm.id===mid);
+        if(!m)continue;
+        const reg=(m.sequences||[]).filter((s:any)=>!isInfoSequence(s));
+        const steps=new Set(completedStepsByMs.get(mid)||[]);
+        for(const cid of set)steps.delete(cid);
+        const done=reg.length>0&&reg.every((s:any)=>steps.has(s.id));
+        done?n.add(mid):n.delete(mid);
+      }
+      return n;
+    });
+    setLoading(ms.id,true);
+    try{
+      const res=await setRushSequenceProgress(guildId,ms.id,arr,effectiveAltPseudo);
+      if((res as any).success){
+        // Validation → le repère de cette quête est retiré (soit validée, soit repère).
+        if(!was && bookmarksByMs.get(ms.id)===seqId){
+          setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;});
+          await setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});
+        }
+        for(const [mid,set] of cascadeMsIds){
+          const steps=new Set(completedStepsByMs.get(mid)||[]);
+          for(const cid of set)steps.delete(cid);
+          await setRushSequenceProgress(guildId,mid,Array.from(steps),effectiveAltPseudo).catch(()=>{});
+        }
+        for(const sid of [seqId,...cascadeSeqIds]){
+          const owner=milestones.find((m:any)=>m.sequences.some((s:any)=>s.id===sid));
+          const alignTag=owner?.sequences.find((s:any)=>s.id===sid)?.activityTags?.some((t:any)=>t.type==="alignment_set");
+          if(!alignTag)continue;
+          const ares=await applyRushAlignmentFromSequence(guildId,sid,!was,effectiveAltPseudo);
+          if((ares as any)?.success){
+            toast.success(was?`↩️ Alignement restauré`:`↦ Alignement ${(ares as any).camp} ${(ares as any).level}`,{duration:2000});
+            router.refresh();
+          }
+        }
+        if(res.isCompleted&&!wasMilestoneCompleted){const _ce=lastMsOfChapterIds.has(ms.id);toast.success("✅ Bloc validé !",{duration:1500});setCelebrate({msId:ms.id,title:_ce?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:_ce?"#56d4ad":"#e6b96b"});}
+        else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}
+      }else{
+        setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});
+        setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});
+        toast.error("Erreur");
+      }
+    }catch{
+      setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});
+      setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});
+      toast.error("Erreur réseau");
+    }finally{setLoading(ms.id,false);}
+  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones]);
+  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);setCelebrate({msId:ms.id,title:isChapterEnd?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:isChapterEnd?"#56d4ad":"#e6b96b"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); }}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading]);
+  const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
+
   // ─── Bookmark par séquence ─────────────────────────────────────────────
   // 1 max par bloc : bookmarker une quête remplace le repère du même bloc
   const handleBookmarkSequence = useCallback(async (seqId: string, ms: Milestone) => {
@@ -1122,40 +1528,42 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       toast.warning("Prérequis non terminé — impossible de poser votre repère sur cette quête.");
       return;
     }
+    // 🚫 Soit validée, soit repère : refuser un repère sur une quête déjà validée.
+    if (!wasBookmarked && completedStepsByMs.get(ms.id)?.has(seqId)) {
+      toast.info("Cette quête est déjà validée — impossible d'y poser un repère.");
+      return;
+    }
     setBookmarksByMs(prev => {
       const next = new Map(prev);
       if (wasBookmarked) next.delete(ms.id);
       else next.set(ms.id, seqId);
       return next;
     });
-    try { await updateBookmarkedStep(guildId, ms.id, wasBookmarked ? null : `seq:${seqId}`); } catch {}
-  }, [bookmarksByMs, guildId, blockedSeqIds]);
-  if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={{rotate:[0,-5,5,-5,0]}} transition={{repeat:Infinity,duration:3}} className="p-5 rounded-3xl bg-amber-500/10 border border-amber-500/20"><Construction className="w-12 h-12 text-amber-400"/></motion.div><div><h2 className="text-2xl font-black text-white mb-2">En construction 🚧</h2><p className="text-zinc-400 text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
+    bookmarkTouchedThisSession.current = true;
+    try { await setRushBookmark(guildId, ms.id, wasBookmarked ? null : seqId, effectiveAltPseudo); } catch {}
+  }, [bookmarksByMs, guildId, blockedSeqIds, completedStepsByMs, effectiveAltPseudo]);
+  if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={{rotate:[0,-5,5,-5,0]}} transition={{repeat:Infinity,duration:3}} className="p-5 rounded-[6px] bg-warning/10 border border-warning/20"><Construction className="w-12 h-12 text-warning"/></motion.div><div><h2 className="text-2xl font-semibold text-foreground mb-2">En construction 🚧</h2><p className="text-muted-foreground text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
   const handleScrollToPrereq = useCallback((seqName: string) => {
-    let foundId: string | null = null;
-    for (const ms of milestones) {
-      if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
-      for (const seq of ms.sequences) {
-        const matchName = seq.subGuideName || seq.subGuideRef || "";
-        if (matchName.toLowerCase() === seqName.toLowerCase() || matchName.toLowerCase().includes(seqName.toLowerCase())) {
-          foundId = seq.id;
-          break;
-        }
-      }
-      if (foundId) break;
-    }
+    // Résolution par la SOURCE UNIQUE (`resolvePrereqTarget`) : nom EXACT d'abord, nom partiel
+    // en dernier recours. Le tag ne porte qu'un nom, et l'ancien `includes` partait au premier
+    // libellé qui *contenait* la recherche — donc une quête pouvait en pointer une autre
+    // (retour user 08/10/2026).
+    const foundId = resolvePrereqTarget(seqName, milestones as any)?.seqId ?? null;
     if (foundId) {
       setFocusedSeqId(foundId);
+      // Le prérequis peut vivre dans un AUTRE chapitre : on ouvre sa page d'abord,
+      // sinon le scroll chercherait un nœud qui n'est pas dans le DOM (mode paginé).
+      ensureChapterFor(seqToChapter.get(foundId));
       let attempts = 0;
       const maxAttempts = 10;
       const tryScroll = () => {
         const el = document.querySelector(`[data-seq-id="${foundId}"]`);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.add("ring-2", "ring-emerald-400", "ring-offset-2", "ring-offset-zinc-950");
+          el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
           setTimeout(() => {
-            el.classList.remove("ring-2", "ring-emerald-400", "ring-offset-2", "ring-offset-zinc-950");
-          }, 3500);
+            el.classList.remove("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
+          }, TARGET_HIGHLIGHT_MS);
         } else if (attempts < maxAttempts) {
           attempts++;
           setTimeout(tryScroll, 200 + attempts * 100);
@@ -1163,7 +1571,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       };
       setTimeout(tryScroll, 300);
     }
-  }, [milestones]);
+  }, [milestones, ensureChapterFor, seqToChapter]);
   const helpStorageKey = `rush-contextual-help:${guide.id}`;
   const [contextualHelpEnabled, setContextualHelpEnabled] = useState(false);
   useEffect(() => {
@@ -1269,41 +1677,103 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     enabled: !incognito,
   });
 
-  // Membres présents : WS si connecté, sinon fallback sur les props serveur.
-  const livePresenceMembers = useMemo(() => {
-    if (guideLive.connectionStatus === "connected" && guideLive.presence.length > 0) {
-      return guideLive.presence;
-    }
-    const seen = new Set<string>();
-    return (guildProgress || [])
-      .filter((p: any) => { if (seen.has(p.profileId)) return false; seen.add(p.profileId); return true; })
-      .map((p: any) => ({ profileId: p.profileId, userName: p.userName, userAvatar: p.userAvatar, milestoneId: p.milestoneId }));
-  }, [guideLive.connectionStatus, guideLive.presence, guildProgress]);
+  // ─── Présence HONNÊTE ────────────────────────────────────────────────────────
+  // « En ligne » = connecté au WebSocket à l'instant T. Un membre de la base qui a touché
+  // le guide hier n'est PAS en ligne : il est « hors ligne », avec sa dernière position
+  // connue. Avant, dès que le WS était inactif, le repli affichait ces membres comme
+  // « N en ligne » — l'écran mentait (retour user 08/10/2026).
+  // `guildProgress` est typé `GuildMemberProgress[]`, qui ne porte NI l'alignement NI la
+  // progression lue (le serveur les ajoute) : ces deux mémoïsations lisent donc leurs lignes
+  // en `any`, comme le bloc d'origine — deux cast locaux au lieu de cinq annotations.
+  const alignmentByProfile = useMemo(() => {
+    const rows: any[] = guildProgress || [];
+    const map = new Map<string, { alignment: string | null; alignmentLevel: number | null; alignmentOrder: string | null }>();
+    const best = new Map<string, number>();
+    rows.forEach((p) => {
+      const score = (p.currentStep ? 2 : 0) + Math.min((p.completedSteps || []).length, 5);
+      if ((best.get(p.profileId) ?? -1) >= score) return;
+      best.set(p.profileId, score);
+      map.set(p.profileId, {
+        alignment: p.alignment ?? null,
+        alignmentLevel: p.alignmentLevel ?? null,
+        alignmentOrder: p.alignmentOrder ?? null,
+      });
+    });
+    return map;
+  }, [guildProgress]);
 
-  // « Reprendre ? » : 1 popup par session et par jalon repéré
-  useEffect(()=>{if(!bookmarkedMsId||continueShownThisSession.current){setContinueModalOpen(false);return;}const k=`rush-continue-${guide.id}-${bookmarkedMsId}`;if(!localStorage.getItem(k)){continueShownThisSession.current=true;const t=setTimeout(()=>setContinueModalOpen(true),1200);return()=>clearTimeout(t);}},[guide.id,bookmarkedMsId]);
+  /** Connectés À L'INSTANT (WebSocket) — vide tant que la connexion n'est pas établie. */
+  const liveMembers = useMemo(() => {
+    if (guideLive.connectionStatus !== "connected") return [];
+    return guideLive.presence.map((m) => {
+      const a = alignmentByProfile.get(m.profileId);
+      return {
+        profileId: m.profileId,
+        userName: m.userName,
+        userAvatar: m.userAvatar,
+        milestoneId: m.milestoneId,
+        alignment: a?.alignment ?? null,
+        alignmentLevel: a?.alignmentLevel ?? null,
+        alignmentOrder: a?.alignmentOrder ?? null,
+      };
+    });
+  }, [guideLive.connectionStatus, guideLive.presence, alignmentByProfile]);
+
+  /** Dernière position CONNUE (progression en base) — des membres hors ligne, dits comme tels. */
+  const offlineMembers = useMemo(() => {
+    const rows: any[] = guildProgress || [];
+    const liveIds = new Set(liveMembers.map((m) => m.profileId));
+    const seen = new Set<string>();
+    return rows
+      .filter((p) => {
+        if (seen.has(p.profileId) || liveIds.has(p.profileId)) return false;
+        seen.add(p.profileId);
+        return true;
+      })
+      .map((p) => {
+        const a = alignmentByProfile.get(p.profileId);
+        const where = milestones.find((x) => x.id === p.milestoneId);
+        return {
+          profileId: p.profileId,
+          userName: p.userName,
+          userAvatar: p.userAvatar,
+          milestoneId: p.milestoneId,
+          whereLabel: where?.title ?? null,
+          alignment: a?.alignment ?? null,
+          alignmentLevel: a?.alignmentLevel ?? null,
+          alignmentOrder: a?.alignmentOrder ?? null,
+        };
+      });
+  }, [guildProgress, liveMembers, alignmentByProfile, milestones]);
+
+  // « Reprendre ? » : 1 popup par session et par jalon repéré — uniquement si le
+  // repère existait déjà à l'arrivée sur la page (retour), jamais après l'avoir posé.
+  useEffect(()=>{if(!bookmarkedMsId||continueShownThisSession.current||bookmarkTouchedThisSession.current){setContinueModalOpen(false);return;}const k=`rush-continue-${guide.id}-${bookmarkedMsId}`;if(!localStorage.getItem(k)){continueShownThisSession.current=true;const t=setTimeout(()=>setContinueModalOpen(true),1200);return()=>clearTimeout(t);}},[guide.id,bookmarkedMsId]);
   useEffect(()=>{if(!bookmarkedMsId)setContinueModalOpen(false);},[bookmarkedMsId]);
 
   // ─── Scroll / resume helpers ────────────────────────────────────────────
   const scrollToSequence = useCallback((seqId: string) => {
     handleFocusSequence(seqId);
+    // Même logique que les prérequis : on ouvre le chapitre de la cible si elle n'est
+    // pas sur la page courante (repère d'un autre chapitre, « Reprendre », reprise live).
+    ensureChapterFor(seqToChapter.get(seqId));
     let attempts = 0;
     const maxAttempts = 10;
     const tryScroll = () => {
       const el = document.querySelector(`[data-seq-id="${seqId}"]`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.classList.add("ring-2", "ring-emerald-400", "ring-offset-2", "ring-offset-zinc-950");
+        el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
         setTimeout(() => {
-          el.classList.remove("ring-2", "ring-emerald-400", "ring-offset-2", "ring-offset-zinc-950");
-        }, 3500);
+          el.classList.remove("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
+        }, TARGET_HIGHLIGHT_MS);
       } else if (attempts < maxAttempts) {
         attempts++;
         setTimeout(tryScroll, 200 + attempts * 100);
       }
     };
     setTimeout(tryScroll, 300);
-  }, [handleFocusSequence]);
+  }, [handleFocusSequence, ensureChapterFor, seqToChapter]);
 
   const scrollToActive = useCallback(() => {
     if (activeSeqId) scrollToSequence(activeSeqId);
@@ -1358,152 +1828,263 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     return matchingSeqIds;
   }, [searchQuery, milestones, normalizeSearch]);
 
+  // ─── Page courante (pagination par chapitre) ────────────────────────────────
+  // Défaut : le chapitre du repère « Je suis ici », sinon le premier chapitre non
+  // terminé — on ouvre le guide là où le joueur en est, pas au chapitre 1.
+  // Recherche et filtre Dofus montrent TOUS les chapitres (sinon on cacherait des
+  // résultats) ; le pager s'efface alors au profit d'un simple compteur.
+  const defaultChapter = bookmarkedMsId ? msToChapter.get(bookmarkedMsId) ?? null : null;
+  const currentChapter = activeChapter ?? defaultChapter ?? chapterPages[0]?.chapterNum ?? null;
+  const isAllChapters = currentChapter === "ALL";
+  const pageIndex = isAllChapters ? -1 : Math.max(0, chapterPages.findIndex(p => p.chapterNum === currentChapter));
+  const currentPage = isAllChapters ? null : chapterPages[pageIndex] ?? chapterPages[0] ?? null;
+  const showEveryChapter = isAllChapters || !!searchResults || !!dofusFilter;
+  const visibleItems = showEveryChapter ? timelineItems : (currentPage?.items ?? timelineItems);
+  const goToPage = (idx: number) => {
+    const page = chapterPages[idx];
+    if (!page || page.chapterNum == null) return;
+    setActiveChapter(page.chapterNum);
+    scrollToTop();
+  };
+
+
   return(<><GuildIdCtx.Provider value={guildId}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   <div className="flex flex-col gap-5">
-    <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-zinc-950 to-zinc-950">
-      <div className="relative flex flex-col gap-6">
+    {/* Braises d'ambiance teintées au Dofus actif (désactivable via Options) */}
+    <GuideParticles active={rushParticlesEnabled} colors={particlePalette} haloColor={ambientDofusColor} />
+    <div className="relative overflow-hidden rounded-[6px] p-5 sm:p-6 border border-border bg-surface">
+      <div className="relative flex flex-col gap-5">
         {/* Top Header Navigation & Meta Actions */}
-        <div className="flex items-center justify-between gap-3 flex-wrap border-b border-white/10 pb-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap border-b border-border pb-4">
           <Link
             href={`/dashboard/${guildId}/quetes-dofus`}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 bg-zinc-900/90 hover:bg-zinc-800 hover:border-emerald-500/40 text-caption font-black uppercase tracking-wider text-zinc-300 hover:text-white transition-all shadow-sm group"
+            className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-[4px] border border-border hover:border-foreground/20 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors group"
           >
-            <ChevronLeft className="w-4 h-4 text-emerald-400 group-hover:-translate-x-0.5 transition-transform" />
+            <ChevronLeft className="w-4 h-4 text-success group-hover:-translate-x-0.5 transition-transform" />
             <span>Quêtes Dofus</span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-medium">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span>Conseillé dès le <strong className="text-white font-black">Niv. 200</strong></span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center gap-1.5 text-xs text-warning">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span>Conseillé dès le <b className="font-mono font-medium">Niv. 200</b></span>
             </div>
 
             <ContextualHelp label="Aide Rush Sylvestre">
-              <p className="font-bold text-emerald-400 mb-1">📖 Guide Rush Sylvestre</p>
-              <p>Ce module interactif vous permet de suivre votre timeline pas à pas. Cliquez sur le bouton <strong className="text-amber-400">JE SUIS ICI</strong> pour poser votre repère de reprise visible par vos coéquipiers de guilde.</p>
+              <p className="font-bold text-success mb-1">📖 Guide Rush Sylvestre</p>
+              <p>Ce module interactif vous permet de suivre votre timeline pas à pas. Cliquez sur le bouton <strong className="text-warning">JE SUIS ICI</strong> pour poser votre repère de reprise visible par vos coéquipiers de guilde.</p>
             </ContextualHelp>
 
             <QuestFeedbackButton
               guildId={guildId}
               sourcePage={`guide:${guide.slug}`}
               targetSlug={guide.slug}
+              context={actionableSeq ? `Chapitre ${actionableSeq.milestone.chapter} · ${actionableSeq.sequence.subGuideName || actionableSeq.sequence.subGuideRef || actionableSeq.milestone.title}` : undefined}
               compact
+              iconOnly
+              className="px-2.5 py-1.5 rounded-[4px] border border-border bg-surface hover:bg-elevated hover:border-success/40 text-muted-foreground hover:text-foreground transition-all shadow-sm"
             />
+
+            <button
+              type="button"
+              onClick={() => setResourcesModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border border-border text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/20"
+              title="Ressources à prévoir — le calcul suit les quêtes validées et vos coches manuelles"
+              aria-label="Ouvrir les ressources à prévoir"
+            >
+              {/* Picto RÉEL du jeu, source unique partagée avec l'overlay et le guide
+                  public (`RUSH_RESOURCES_PICTO`) — le carré Lucide `Package` était un
+                  placeholder qui faisait diverger les trois surfaces. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={RUSH_RESOURCES_PICTO} alt="" loading="lazy" className="w-3.5 h-3.5 object-contain" />
+              Ressources à prévoir
+              <span className="font-mono tabular-nums text-[11px] text-muted-foreground">
+                {rushResourcesRemaining.filter((r) => !resourceChecks.has(r.key)).length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPenseBeteOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border border-border text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/20"
+              title="Pense-bête : choses à savoir / à préparer en amont pour ce rush"
+              aria-label="Ouvrir le pense-bête"
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-muted-foreground" />
+              Pense-bête
+            </button>
+
+            {/* Interrupteur de densité — SORTI du menu « Options » : il pilote à la fois les
+                étapes affichées ET les ressources (rail « Objets requis », modale, fiche
+                détail), donc son état devait être lisible d'un coup d'œil. */}
+            <button
+              type="button"
+              onClick={() => setHideDone(v => !v)}
+              aria-pressed={hideDone}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border text-xs font-medium transition-colors ${hideDone ? "border-accent/40 text-accent bg-accent/[0.06]" : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"}`}
+              title={hideDone ? "Réafficher les étapes terminées et leurs ressources" : "Masquer les étapes terminées et les ressources déjà fournies"}
+              aria-label={hideDone ? "Afficher les étapes terminées" : "Masquer les étapes terminées"}
+            >
+              {hideDone ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              {hideDone ? "Afficher" : "Masquer"}
+            </button>
           </div>
         </div>
 
         <div className="flex items-start justify-between gap-6">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5 text-emerald-400"/>
-              <span className="text-caption font-black uppercase tracking-widest text-emerald-400/60">Guide Rush — Timeline</span>
+              <span className="h-px w-6 bg-border"/>
+              <span className="text-[11px] font-mono text-muted-foreground">Guide Rush — Timeline</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white" style={{fontFamily:"var(--font-cinzel)"}}>{guide.name}</h2>
-            {guide.description&&<p className="text-xs sm:text-sm text-zinc-400 mt-1.5 max-w-xl leading-relaxed">{guide.description}</p>}
+            <h1 className="text-3xl sm:text-4xl font-serif font-semibold tracking-tight text-foreground leading-tight">{guide.name}</h1>
+            {guide.description&&<p className="text-sm text-muted-foreground mt-2 max-w-2xl leading-relaxed">{guide.description}</p>}
+
           </div>
+          {/* Asset du jeu posé NU : la couleur vient de l'image, jamais d'un fond ou d'un halo. */}
           <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-16 h-16 sm:w-20 sm:h-20 object-contain flex-shrink-0"/>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
-            <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center overflow-hidden shrink-0">{(()=>{const d=localProfile?.dofusClass?getClass(localProfile.dofusClass):null;return d?<img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/>:<span className="text-caption font-black text-zinc-400">?</span>;})()}</div>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-[4px] border border-border/70 bg-surface/60 px-4 py-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-10 h-10 rounded-[4px] bg-surface border border-border flex items-center justify-center overflow-hidden shrink-0">{(()=>{const d=localProfile?.dofusClass?getClass(localProfile.dofusClass):null;return d?<img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/>:<span className="text-caption font-semibold text-muted-foreground">?</span>;})()}</div>
             <div className="text-left min-w-0 flex-1">
               <div className="flex items-center justify-between gap-1">
-                <p className="text-caption font-black text-zinc-500 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Personnage Actif</p>
+                <p className="text-[10px] font-semibold text-muted-foreground  font-serif">Personnage Actif</p>
                 <ContextualHelp label="Aide Personnage">
-                  <p className="font-bold text-white mb-1">🎭 Personnages & Mules</p>
+                  <p className="font-bold text-foreground mb-1">🎭 Personnages & Mules</p>
                   <p>Basculez facilement entre votre personnage principal et vos mules. La validation des étapes et la position de reprise sont sauvegardées séparément par personnage.</p>
                 </ContextualHelp>
               </div>
-              <div className="flex flex-nowrap items-center gap-1.5 min-w-0">
+              <div className="flex flex-nowrap items-center gap-1.5 min-w-0 mt-0.5">
+                {(() => {
+                  const isMain = selectedCharacter === "PRINCIPAL";
+                  return (
+                    <Badge
+                      variant="outline"
+                      className={`gap-1 rounded-[3px] px-1.5 py-0.5 text-caption font-medium shrink-0 ${isMain ? "border-warning/40 text-warning" : "border-info/40 text-info"}`}
+                      title={isMain ? "Personnage principal" : "Mule"}
+                    >
+                      {isMain ? <Crown /> : <Users />}
+                      {isMain ? "Main" : "Mule"}
+                    </Badge>
+                  );
+                })()}
                 <div className="min-w-0 shrink">
                   {localProfile?.pseudoDofus ? (
                     <CharacterSelectorDropdown selectedCharacter={selectedCharacter} mainPseudo={localProfile.pseudoDofus} mainClass={localProfile?.dofusClass||null} mules={mules||[]} guildId={guildId} />
                   ) : (
-                    <Link href={`/dashboard/${guildId}/profile`} className="inline-flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-lg border border-amber-500/30">
-                      <Pencil className="w-3 h-3" />
-                      Lier mon pseudo
-                      <ExternalLink className="w-3 h-3" />
-                    </Link>
+                    <Button variant="outline" size="sm" asChild className="text-xs font-medium text-warning hover:border-warning/40 hover:bg-warning/10 hover:text-warning">
+                      <Link href={`/dashboard/${guildId}/profile`} title="Le pseudo Dofus se renseigne sur la page Profil">
+                        <Pencil />
+                        Lier mon pseudo
+                        <ExternalLink />
+                      </Link>
+                    </Button>
                   )}
                 </div>
-                <button
+                <Button
+                  variant="outline"
+                  size="icon-sm"
                   onClick={() => setResetModalOpen(true)}
-                  className="flex items-center justify-center p-2 rounded-lg text-caption font-black uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all shadow-sm shrink-0"
+                  className="shrink-0 text-danger hover:border-danger/40 hover:bg-danger/10 hover:text-danger"
                   title={`Réinitialiser ${selectedCharacter}`}
+                  aria-label={`Réinitialiser la progression de ${selectedCharacter}`}
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
+                  <RotateCcw />
+                </Button>
               </div>
             </div>
           </div>
-          <button type="button" onClick={openAlignEdit} title="Modifier l'alignement" className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm text-left cursor-pointer hover:border-emerald-500/30 transition-colors">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div><div className="text-left min-w-0 flex-1"><p className="text-caption font-black text-zinc-500 uppercase tracking-wider">Alignement</p><p className="text-xs font-bold text-zinc-400">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";const trancheTitle=alignmentLevel>0?((od as any).levels?.[alignmentLevel]||""):"";return<><div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${ib?"bg-blue-500/10 border-blue-500/20":"bg-red-500/10 border-red-500/20"}`}><img src={od.icon} alt="" className="w-5 h-5 object-contain"/></div><div className="text-left min-w-0 flex-1"><p className="text-caption font-black text-zinc-500 uppercase tracking-wider">Ordre</p><p className={`text-xs font-black ${ib?"text-blue-300":"text-red-300"}`}>{od.name}</p><div className="flex flex-wrap items-center gap-1 mt-0.5">{alignmentLevel>0&&<span className="inline-flex items-center gap-0.5 text-caption font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">Tranche {alignmentLevel}</span>}{trancheTitle&&<span className="text-caption font-bold text-zinc-400">{trancheTitle}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;}return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0">{ad&&<img src={ad.icon} alt="" className="w-5 h-5 object-contain"/>}</div><div className="text-left min-w-0 flex-1"><p className="text-caption font-black text-zinc-500 uppercase tracking-wider">Alignement</p><div className="flex items-center gap-1.5"><span className="text-xs font-bold text-white">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-caption font-bold text-amber-400">lv.{alignmentLevel}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-zinc-500 shrink-0"/></>;})()}</button>
-          <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
-              <img src="/assets/icons/ocre.png" alt="Ocre" className="w-6 h-6 object-contain" />
-            </div>
+          <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
+          <button type="button" onClick={()=>router.push(`/dashboard/${guildId}/profile`)} title="Alignement en lecture seule — modifiable depuis ton profil" className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><img src="/ordres/neutre.png" alt="" className="w-7 h-7 object-contain shrink-0 opacity-50"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><p className="text-xs font-bold text-muted-foreground mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";const trancheTitle=alignmentLevel>0?((od as any).levels?.[alignmentLevel]||""):"";return<><img src={od.icon} alt="" className="w-7 h-7 object-contain shrink-0"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Ordre</p><p className={`text-xs font-semibold mt-0.5 ${ib?"text-info":"text-danger"}`}>{od.name}</p><div className="flex flex-wrap items-center gap-1 mt-0.5">{alignmentLevel>0&&<span className="text-caption font-mono text-warning">Tranche {alignmentLevel}</span>}{trancheTitle&&<span className="text-caption text-muted-foreground">{trancheTitle}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;}return<>{ad&&<img src={ad.icon} alt="" className="w-7 h-7 object-contain shrink-0"/>}<div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-foreground">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-caption font-bold text-warning">lv.{alignmentLevel}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;})()}</button>
+          <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Asset Ocre posé NU (plus de tuile teintée sous le picto). */}
+            <img src="/assets/icons/ocre.png" alt="Ocre" className="w-7 h-7 object-contain shrink-0" />
             <div className="text-left min-w-0 flex-1">
-              <p className="text-caption font-black text-amber-400/70 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Metamob</p>
+              <p className="text-[11px] text-muted-foreground">Metamob</p>
               <div className="flex items-center gap-2 mt-0.5">
                 {currentUserProfile?.metamobPseudo ? (
-                  <button type="button" onClick={() => setOcreModalOpen(true)} className="flex items-center gap-1.5 text-xs font-black text-amber-300 hover:text-amber-200 transition-colors cursor-pointer" title="Voir ma collection Ocre (Gardiens & Archis)">
+                  <button type="button" onClick={() => setOcreModalOpen(true)} className="flex items-center gap-1.5 text-xs font-semibold text-warning hover:text-foreground transition-colors cursor-pointer" title="Voir ma collection Ocre (Gardiens & Archis)">
                     {ocreStats
-                      ? <><span>Gardiens <span className="font-mono text-white">{ocreStats.bosses?.gathered??0}<span className="text-zinc-500">/{ocreStats.bosses?.total??51}</span></span></span><span className="text-zinc-600">·</span><span>Archis <span className="font-mono text-white">{ocreStats.archis?.gathered??0}<span className="text-zinc-500">/{ocreStats.archis?.total??286}</span></span></span><ChevronRight className="w-3 h-3 text-amber-400/60 shrink-0"/></>
-                      : <span className="text-caption font-bold text-amber-400/80">Voir ma collection →</span>
+                      ? <><span>Gardiens <span className="font-mono text-foreground">{ocreStats.bosses?.gathered??0}<span className="text-muted-foreground">/{ocreStats.bosses?.total??51}</span></span></span><span className="text-muted-foreground">·</span><span>Archis <span className="font-mono text-foreground">{ocreStats.archis?.gathered??0}<span className="text-muted-foreground">/{ocreStats.archis?.total??286}</span></span></span><ChevronRight className="w-3 h-3 text-warning/60 shrink-0"/></>
+                      : <span className="text-caption font-bold text-warning/80">Voir ma collection →</span>
                     }
                   </button>
                 ) : (
-                  <button onClick={()=>setMetamobLinkOpen(true)} className="flex items-center gap-1.5 text-caption font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30">
-                    <img src="/assets/icons/ocre.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                  <Button variant="outline" size="sm" onClick={()=>setMetamobLinkOpen(true)} className="text-xs font-medium text-warning hover:border-warning/40 hover:bg-warning/10 hover:text-warning">
+                    <img src="/assets/icons/ocre.png" alt="" className="w-4 h-4 object-contain" />
                     Lier Metamob
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
-              <Users className="w-5 h-5 text-emerald-400" />
+          <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-10 h-10 rounded-[4px] bg-success/15 border border-success/30 flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5 text-success" />
             </div>
             <div className="text-left min-w-0 flex-1">
               <div className="flex items-center justify-between gap-1">
-                <p className="text-caption font-black text-emerald-400/70 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Rush Live</p>
+                <p className="text-[10px] font-semibold text-success/80  font-serif">Rush Live</p>
                 {guideLive.connectionStatus === "connected" && (
-                  <span className="flex items-center gap-1 text-caption font-black uppercase tracking-widest text-emerald-400/80">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> LIVE
+                  <span className="flex items-center gap-1 text-caption font-medium text-success/80">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success" /> LIVE
                   </span>
                 )}
               </div>
               <button
                 type="button"
                 onClick={() => setRushLiveModalOpen(true)}
-                className="flex items-center gap-1.5 mt-1 min-w-0 cursor-pointer"
+                className="flex items-center gap-1.5 mt-0.5 min-w-0 cursor-pointer"
                 title="Voir les membres connectés sur le guide"
               >
-                <span className="text-xs font-black text-emerald-300">{livePresenceMembers.length} en ligne</span>
-                {livePresenceMembers.length > 0 && (
+                {/* Le compte ne s'affiche QUE quand la présence est réellement connue :
+                    un « N en ligne » calculé sur la base serait un mensonge. */}
+                <span className={`text-xs font-semibold ${guideLive.connectionStatus === "connected" ? "text-success" : "text-muted-foreground"}`}>
+                  {guideLive.connectionStatus === "connected"
+                    ? `${liveMembers.length} en ligne`
+                    : "présence indisponible"}
+                </span>
+                {liveMembers.length > 0 && (
                   <span className="flex -space-x-1.5 ml-1">
-                    {livePresenceMembers.slice(0, 4).map((m: any) => (
-                      <span key={m.profileId || m.userName} className="w-5 h-5 rounded-full overflow-hidden bg-emerald-900 flex items-center justify-center border border-zinc-950 flex-shrink-0" title={m.userName}>
+                    {liveMembers.slice(0, 4).map((m) => (
+                      <span key={m.profileId || m.userName} className="w-5 h-5 rounded-full overflow-hidden bg-success/20 flex items-center justify-center border border-background flex-shrink-0" title={m.userName}>
                         {m.userAvatar ? (
                           <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-caption font-black text-emerald-300">{String(m.userName || "?")[0]?.toUpperCase()}</span>
+                          <span className="text-caption font-semibold text-success">{String(m.userName || "?")[0]?.toUpperCase()}</span>
                         )}
                       </span>
                     ))}
                   </span>
                 )}
-                <ChevronRight className="w-3 h-3 text-emerald-400/60 shrink-0" />
+                <ChevronRight className="w-3 h-3 text-success/60 shrink-0" />
               </button>
             </div>
           </div>
+          <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
+          {/* Overlay : même rangée que « Rush Live » — c'est le geste de la session
+              (« je regarde qui est là, puis j'ouvre l'overlay par-dessus le jeu »),
+              pas un réglage noyé dans la barre du haut. */}
+          <button
+            type="button"
+            onClick={() => void handleOverlayClick()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-success text-success-foreground text-xs font-medium transition-colors hover:bg-success/90 shrink-0"
+            title="Ouvrir le guide en overlay — fenêtre épinglée au-dessus du jeu, sans rien installer"
+            aria-label="Ouvrir Overlay"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+            Ouvrir Overlay
+          </button>
         </div>
-        <div className="flex flex-wrap items-center gap-3 px-1">
-          <span className="text-caption font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">Progression<ContextualHelp label="Aide progression">La progression se synchronise en temps réel avec les autres membres connectés. Chaque quête cochée met à jour le pourcentage global.</ContextualHelp></span>
-          <span className="text-lg font-black text-white">{overallPercent}%</span>
-          <span className="text-caption text-zinc-600 font-mono">({completedCount}/{tMs})</span>
-          <div className="h-2 bg-zinc-800/60 rounded-full flex-1 max-w-[300px] ml-auto shadow-inner">
-            <div className="h-full rounded-full transition-all duration-300 shadow-sm" style={{width:`${overallPercent}%`,background:"linear-gradient(90deg, #10b981, #34d399)"}}/>
+        <div className="flex flex-wrap items-center gap-3 px-1 pt-1">
+          <span className="text-[11px] text-muted-foreground flex items-center gap-1">Progression<ContextualHelp label="Aide progression">La progression se synchronise en temps réel avec les autres membres connectés. Chaque quête cochée met à jour le pourcentage global.</ContextualHelp></span>
+          <span className="text-sm font-mono tabular-nums text-foreground">{overallPercent} %</span>
+          <span className="text-xs text-muted-foreground font-mono tabular-nums">({completedCount} / {tMs} étapes)</span>
+          <div className="h-1.5 bg-elevated rounded-[2px] flex-1 max-w-[320px] ml-auto overflow-hidden">
+            <div className="h-full rounded-[2px] bg-success transition-all duration-300" style={{width:`${overallPercent}%`}}/>
           </div>
         </div>
     </div></div>
@@ -1511,33 +2092,46 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     <LiveActivityTicker events={guideLive.events} />
     {/* ── Modale Rush Live : membres connectés sur le guide ─────────────── */}
     <Dialog open={rushLiveModalOpen} onOpenChange={(open) => { if (!open) setRushLiveModalOpen(false); }}>
-      <DialogContent className="sm:max-w-sm bg-zinc-950 border-white/10 shadow-2xl p-0 gap-0">
-        <DialogHeader className="p-4 border-b border-white/5">
-          <DialogTitle className="text-sm font-black text-white flex items-center gap-2">
-            <Users className="w-4 h-4 text-emerald-400" />
-            Membres sur le guide ({livePresenceMembers.length})
+      <DialogContent className="sm:max-w-sm bg-background border-border  p-0 gap-0">
+        <DialogHeader className="p-4 border-b border-border">
+          <DialogTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Users className="w-4 h-4 text-success" />
+            Rush Live
+            <span className="ml-auto text-[11px] font-semibold tabular-nums text-muted-foreground">
+              {liveMembers.length} en ligne
+            </span>
           </DialogTitle>
         </DialogHeader>
         <div className="p-4 max-h-[300px] overflow-y-auto space-y-1">
-          {livePresenceMembers.length === 0 ? (
-            <p className="text-xs text-zinc-500 italic px-1">Aucun membre pour l'instant</p>
+          {liveMembers.length === 0 && offlineMembers.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic px-1">Aucun membre sur le guide pour l'instant</p>
           ) : (
-            livePresenceMembers.map((m: any) => (
-              <div key={m.profileId || m.userName} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                <div className="w-7 h-7 rounded-full overflow-hidden bg-emerald-900 flex items-center justify-center flex-shrink-0">
-                  {m.userAvatar ? (
-                    <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-caption font-black text-emerald-300">{String(m.userName || "?")[0]?.toUpperCase()}</span>
-                  )}
-                </div>
-                <span className="text-xs font-bold text-zinc-200">{m.userName}</span>
-              </div>
-            ))
+            <>
+              {/* Groupe 1 : connectés à cette seconde (WebSocket). */}
+              <p className="px-1 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                En ligne maintenant ({liveMembers.length})
+              </p>
+              {liveMembers.length === 0 ? (
+                <p className="px-1 text-[11px] italic text-muted-foreground">Personne n'est connecté à cette seconde.</p>
+              ) : (
+                liveMembers.map((m) => (
+                  <RushLiveMemberRow key={m.profileId || m.userName} member={m} online />
+                ))
+              )}
+              {/* Groupe 2 : dernière position connue en base — hors ligne, dit comme tel. */}
+              {offlineMembers.length > 0 && (
+                <p className="px-1 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Hors ligne — dernière position connue ({offlineMembers.length})
+                </p>
+              )}
+              {offlineMembers.map((m) => (
+                <RushLiveMemberRow key={m.profileId || m.userName} member={m} online={false} />
+              ))}
+            </>
           )}
         </div>
-        <DialogFooter className="p-3 border-t border-white/5">
-          <Button onClick={() => setRushLiveModalOpen(false)} variant="ghost" size="sm" className="text-zinc-400 text-xs">
+        <DialogFooter className="p-3 border-t border-border">
+          <Button onClick={() => setRushLiveModalOpen(false)} variant="ghost" size="sm" className="text-muted-foreground text-xs">
             Fermer
           </Button>
         </DialogFooter>
@@ -1546,7 +2140,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     {/* ── Barre d'actions ────────────────────────────────────────────────── */}
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sticky top-20 z-[var(--z-sticky-hud)] flex-wrap">
       <div className="relative flex-1 min-w-0 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           type="text"
           data-tour="quest-search"
@@ -1554,10 +2148,10 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           placeholder="Rechercher une quête, un donjon ou une zone…"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className="w-full bg-zinc-900/80 border border-white/10 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/40 transition-all"
+          className="w-full bg-surface border border-border rounded-[4px] pl-9 pr-8 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-success/50 transition-colors"
         />
         {searchQuery && (
-          <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-white">
+          <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground">
             <X className="w-3.5 h-3.5" />
           </button>
         )}
@@ -1567,31 +2161,50 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-white/10 bg-zinc-900/70 text-zinc-300 hover:bg-zinc-800/80 hover:border-white/15 hover:text-white transition-all text-caption font-black uppercase tracking-widest shrink-0" aria-label="Options du guide">
+          <button type="button" className="flex items-center gap-1.5 px-3 py-2.5 rounded-[4px] border border-border text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors text-xs font-medium shrink-0" aria-label="Options du guide">
             <Settings2 className="w-3.5 h-3.5" />
             <span className="hidden md:inline">Options</span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="bg-zinc-950/95 border-zinc-800/60 text-white min-w-[220px] rounded-xl p-1.5 z-[var(--z-dropdown)]">
-          <DropdownMenuItem onClick={() => setHideDone(v => !v)} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer">
-            {hideDone ? <Eye className="w-4 h-4 text-emerald-400" /> : <EyeOff className="w-4 h-4 text-zinc-400" />}
-            <span className="text-xs font-bold">{hideDone ? "Afficher tout" : "Masquer les terminées"}</span>
-          </DropdownMenuItem>
+        <DropdownMenuContent align="end" className="bg-background/95 border-border text-foreground min-w-[220px] rounded-[4px] p-1.5 z-[var(--z-dropdown)]">
           <DropdownMenuItem onClick={toggleIncognito} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer">
-            <Ghost className={`w-4 h-4 ${incognito ? "text-purple-400" : "text-zinc-400"}`} />
+            <Ghost className={`w-4 h-4 ${incognito ? "text-info" : "text-muted-foreground"}`} />
             <span className="text-xs font-bold">{incognito ? "Mode discret : actif" : "Mode discret"}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={toggleRushParticles} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer">
+            <Sparkles className={`w-4 h-4 ${rushParticlesEnabled ? "text-success" : "text-muted-foreground"}`} />
+            <span className="text-xs font-bold">{rushParticlesEnabled ? "Ambiance : active" : "Ambiance : coupée"}</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => {
             toggleContextualHelp();
             if (contextualHelpEnabled) toast("Aide désactivée", { duration: 1500 });
             else toast("💡 Aide activée : des bulles d'aide apparaissent sur les éléments clés", { duration: 3000, icon: "❓" });
           }} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer">
-            <CircleHelp className="w-4 h-4 text-zinc-400" />
+            <CircleHelp className="w-4 h-4 text-muted-foreground" />
             <span className="text-xs font-bold">{contextualHelpEnabled ? "Désactiver l'aide" : "Activer l'aide"}</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setResetModalOpen(true)} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer text-red-400">
+          <DropdownMenuItem onClick={() => setResetModalOpen(true)} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer text-danger">
             <RotateCcw className="w-4 h-4" />
-            <span className="text-xs font-bold">Réinitialiser le guide</span>
+            <span className="text-xs font-bold">Réinitialiser ce personnage</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={async () => {
+              try {
+                const res = await resetRushAlignment(guildId, effectiveAltPseudo);
+                if ((res as any).success) {
+                  toast.success("Alignement réinitialisé à 0");
+                  router.refresh();
+                } else {
+                  toast.error((res as any).error || "Erreur");
+                }
+              } catch {
+                toast.error("Erreur réseau");
+              }
+            }}
+            className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer text-warning"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span className="text-xs font-bold">Réinitialiser l'alignement (0)</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -1599,52 +2212,158 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     {/* ── Résultats de recherche ─────────────────────────────────────────── */}
     {searchResults !== null && (
       <div className="flex items-center justify-between px-1">
-        <p className="text-caption text-zinc-500 font-mono">
+        <p className="text-caption text-muted-foreground font-mono">
           {searchResults.size} quête(s) trouvée(s) pour « {searchQuery} »
         </p>
         <button onClick={() => setSearchQuery("")}
-          className="text-caption text-zinc-600 hover:text-white transition-colors underline underline-offset-2"
+          className="text-caption text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
         >
           Effacer la recherche
         </button>
       </div>
     )}
     {searchResults !== null && searchResults.size > 0 && (
-      <p className="text-caption text-zinc-600 italic px-1">Les résultats incluent les quêtes terminées.</p>
+      <p className="text-caption text-muted-foreground italic px-1">Les résultats incluent les quêtes terminées.</p>
     )}
     {searchResults !== null && searchResults.size === 0 && (
       <div className="py-16 text-center">
-        <Search className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
-        <p className="text-zinc-600 font-black uppercase text-xs tracking-widest mb-1">Aucune quête trouvée</p>
-        <p className="text-caption text-zinc-500 mb-4">Essaie un autre nom de quête, donjon ou zone.</p>
+        <Search className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+        <p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest mb-1">Aucune quête trouvée</p>
+        <p className="text-caption text-muted-foreground mb-4">Essaie un autre nom de quête, donjon ou zone.</p>
         <button onClick={() => setSearchQuery("")}
-          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs transition-colors"
+          className="px-4 py-2 bg-elevated hover:bg-muted rounded-[4px] text-xs transition-colors"
         >
           Effacer la recherche
         </button>
       </div>
     )}
-    <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress}/>
-    {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-zinc-700 mx-auto mb-3"/><p className="text-zinc-600 font-black uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="relative pl-[28px] space-y-1">{timelineItems.map((item:any)=>item.kind==="separator"?<SectionDivider key={item.ms.id} title={item.ms.title} accentColor={item.ms.accentColor||"#d4a853"}/>:item.kind==="info"?<div key={item.ms.id} className="-ml-1">{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults}/>)}</div>}
+    <AnimatePresence>
+      {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? "#e6b96b"} />}
+    </AnimatePresence>
+    <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
+    {/* ── CSS grid responsive (timeline + sidebar) ── */}
+    <style>{`
+      .rush-content-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 260px;
+        gap: 24px;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .rush-content-grid {
+          grid-template-columns: 1fr;
+        }
+        .rush-content-grid .rush-sidebar {
+          display: none;
+        }
+      }
+    `}</style>
+    <div className="rush-content-grid">
+      <div className="min-w-0">
+        {/* ── Pagination par chapitre ──────────────────────────────────────────
+            Un guide Rush = 57 chapitres / 379 étapes : tout rendre (même replié)
+            faisait un mur de scroll. Une page = UN chapitre. Le sommaire reste à
+            portée : rail à droite sur grand écran, repliable ici sur mobile. */}
+        {chapterPages.length > 1 && !searchResults && !dofusFilter && (
+          <div className="mb-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <button type="button" disabled={pageIndex <= 0 || isAllChapters} onClick={() => goToPage(pageIndex - 1)}
+                className="rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-default"
+                title="Chapitre précédent">‹ Préc.</button>
+              <div className="min-w-0 flex-1 text-center">
+                <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                  {isAllChapters ? "tout le guide" : `${pageIndex + 1} / ${chapterPages.length}`}
+                </span>
+                <p className="truncate text-[13px] font-semibold text-foreground">
+                  {isAllChapters ? `${contentMilestones.length} blocs` : (currentPage?.label || `Chapitre ${currentChapter}`)}
+                </p>
+              </div>
+              <button type="button" disabled={pageIndex >= chapterPages.length - 1 || isAllChapters} onClick={() => goToPage(pageIndex + 1)}
+                className="rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-default"
+                title="Chapitre suivant">Suiv. ›</button>
+              <button type="button"
+                onClick={() => setActiveChapter(isAllChapters ? (defaultChapter ?? chapterPages[0]?.chapterNum ?? null) : "ALL")}
+                className={`rounded-[4px] border px-2.5 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer ${isAllChapters ? "border-success/40 text-success" : "border-border text-muted-foreground hover:text-foreground"}`}
+                title={isAllChapters ? "Revenir au chapitre en cours" : "Afficher les chapitres d'affilée (scroll long)"}>
+                {isAllChapters ? "Paginé" : "Tout"}
+              </button>
+            </div>
+            <details className="group/som">
+              <summary className="cursor-pointer select-none font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+                Sommaire — {chapterPages.length} chapitres
+              </summary>
+              <div className="mt-2 grid max-h-72 grid-cols-1 gap-1 overflow-y-auto border border-border p-1.5 sm:grid-cols-2 xl:grid-cols-3">
+                {chapterPages.map((p, i) => p.chapterNum == null ? null : (
+                  <button key={`som-${p.chapterNum}-${i}`} type="button" onClick={() => goToPage(i)}
+                    className={`flex items-baseline gap-2 rounded-[4px] px-2 py-1.5 text-left transition-colors cursor-pointer ${!isAllChapters && i === pageIndex ? "bg-success/10 text-success" : "text-muted-foreground hover:bg-elevated hover:text-foreground"}`}>
+                    <span className="font-mono text-[11px] tabular-nums shrink-0">{p.chapterNum}</span>
+                    <span className="truncate text-[12px] font-semibold">{p.label || `Chapitre ${p.chapterNum}`}</span>
+                  </button>
+                ))}
+              </div>
+            </details>
+          </div>
+        )}
+        {(searchResults || dofusFilter) && chapterPages.length > 1 && (
+          <p className="mb-3 border-b border-border pb-2 font-mono text-[11px] text-muted-foreground">
+            {searchResults ? "résultats" : "filtre Dofus"} — les {chapterPages.length} chapitres sont affichés
+          </p>
+        )}
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.ms.id} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor}/>:item.kind==="info"?<div key={item.ms.id}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
+        {/* Pager de bas de page : on enchaîne les chapitres sans remonter. */}
+        {chapterPages.length > 1 && !searchResults && !dofusFilter && !isAllChapters && (
+          <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
+            <button type="button" disabled={pageIndex <= 0} onClick={() => goToPage(pageIndex - 1)}
+              className="rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40 cursor-pointer disabled:cursor-default">
+              ‹ {pageIndex > 0 ? `Chapitre ${chapterPages[pageIndex - 1]?.chapterNum}` : "Début"}
+            </button>
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{pageIndex + 1} / {chapterPages.length}</span>
+            <button type="button" disabled={pageIndex >= chapterPages.length - 1} onClick={() => goToPage(pageIndex + 1)}
+              className="rounded-[4px] border border-success/40 px-2.5 py-1.5 text-[11px] font-semibold text-success transition-colors hover:bg-success/10 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-default">
+              {pageIndex < chapterPages.length - 1 ? `Chapitre ${chapterPages[pageIndex + 1]?.chapterNum}` : "Fin"} ›
+            </button>
+          </div>
+        )}
+      </div>
+      {/* Rail borné au SCROLLPORT de `<main>` et défilant en interne.
+          ⚠️ Mesure Playwright du 08/10/2026 : le TopNav fait `h-14` = 3,5 rem et il est
+          HORS du conteneur de défilement (le footer, lui, est dedans) ⇒ le scrollport
+          vaut `100dvh − 3,5 rem`. L'ancien `top-20` + `max-h-[calc(100vh-6rem)]` faisait
+          déborder le rail de **40 px** sous la ligne (fin « Objets requis » inatteignable :
+          il était épinglé et son bas coupé). Ici : `top-4` (1 rem sous le topnav) et
+          `100dvh − 5,5 rem` (3,5 topnav + 1 rem de haut + 1 rem d'air) ⇒ bas du rail à
+          884 px pour un scrollport de 900 ✓. Le rail est masqué sous 900 px par
+          `.rush-content-grid`, d'où le `custom-scrollbar` desktop. */}
+      <div className="rush-sidebar sticky top-4 max-h-[calc(100dvh-5.5rem)] overflow-y-auto custom-scrollbar pr-1">
+        <RushChapterSidebar
+          milestones={contentMilestones as any}
+          completedSeqIds={allCompletedSeqIds}
+          activeMilestoneId={(() => { for (const [msId] of bookmarksByMs) { return msId; } return null; })()}
+          selectedChapter={(isAllChapters ? "ALL" : currentPage?.chapterNum ?? undefined) as any}
+          onSelectChapter={setActiveChapter}
+          hideProvidedResources={hideDone}
+        />
+      </div>
+    </div>
     {/* ── Navigation flottante ───────────────────────────────────────────── */}
     {typeof document !== 'undefined' && createPortal(
-      <div className="fixed right-4 z-[var(--z-floating-nav)] flex flex-col items-center gap-1 bg-zinc-950/90 border border-emerald-500/20 rounded-2xl py-2 px-1.5 shadow-2xl"
+      <div className="fixed right-4 z-[var(--z-floating-nav)] flex flex-col items-center gap-1 bg-background/90 border border-success/20 rounded-[6px] py-2 px-1.5 "
         style={{ top: '50%', transform: 'translateY(-50%)' }}
       >
         <button onClick={scrollToTop} disabled={!showScrollTop}
-          className={`p-2 rounded-xl transition-all ${showScrollTop ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer' : 'text-zinc-700 cursor-not-allowed'}`}
+          className={`p-2 rounded-[4px] transition-all ${showScrollTop ? 'text-muted-foreground hover:text-foreground hover:bg-elevated cursor-pointer' : 'text-muted-foreground cursor-not-allowed'}`}
           title="Remonter en haut" aria-label="Remonter en haut"
         >
           <ChevronUp className="w-4 h-4" />
         </button>
         <button onClick={resumeRush}
-          className="p-2 rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"
+          className="p-2 rounded-[4px] text-success hover:bg-success/10 transition-all cursor-pointer"
           title="Reviens à la quête où tu t'es arrêté." aria-label="Reviens à la quête où tu t'es arrêté."
         >
           <MapPin className="w-4 h-4" />
         </button>
         <button onClick={scrollToBottom} disabled={!showScrollBottom}
-          className={`p-2 rounded-xl transition-all ${showScrollBottom ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer' : 'text-zinc-700 cursor-not-allowed'}`}
+          className={`p-2 rounded-[4px] transition-all ${showScrollBottom ? 'text-muted-foreground hover:text-foreground hover:bg-elevated cursor-pointer' : 'text-muted-foreground cursor-not-allowed'}`}
           title="Aller en bas" aria-label="Aller en bas"
         >
           <ChevronDown className="w-4 h-4" />
@@ -1653,12 +2372,12 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       document.body
     )}
     {djModal.open&&<DjPostCreateModal isOpen={true} onClose={()=>setDjModal({open:false})} onCreated={()=>{}} guildId={guildId} initialDungeonId={djModal.dungeonId} initialQuestName={djModal.questName}/>}
-    {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={(c:string)=>router.push(`?character=${encodeURIComponent(c)}`)} activeMembers={guildProgress.map(p=>{const tc=contentMilestones.length;const mp=guildProgress.filter(x=>x.profileId===p.profileId);const d=mp.filter(x=>x.isCompleted).length;const pct=tc>0?Math.round((d/tc)*100):0;return{profileId:p.profileId,userName:p.userName,userAvatar:p.userAvatar,percent:pct};})}/>}
-    {continueModalOpen&&bookmarkedMsId&&(()=>{const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;return<div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60" onClick={()=>setContinueModalOpen(false)}><div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e=>e.stopPropagation()}><div className="flex items-center gap-3 mb-3"><Flag className="w-5 h-5 text-emerald-400"/><h3 className="text-sm font-black text-white" style={{fontFamily:"var(--font-cinzel)"}}>Reprendre ?</h3></div><p className="text-xs text-zinc-400 mb-4">Tu étais à <strong className="text-white">{ms.title}</strong>.</p><div className="flex gap-2"><button onClick={()=>{const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-caption font-black uppercase tracking-widest">Reprendre</button><button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-caption font-black uppercase tracking-widest">Plus tard</button></div></div></div>;})()}
+    {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={(c:string)=>router.push(`?character=${encodeURIComponent(c)}`)} activeMembers={guildProgress.map(p=>{const tc=contentMilestones.length;const mp=guildProgress.filter(x=>x.profileId===p.profileId);const d=mp.filter(x=>x.isCompleted).length;const pct=tc>0?Math.round((d/tc)*100):0;return{profileId:p.profileId,userName:p.userName,userAvatar:p.userAvatar,percent:pct};})} metamobPseudo={currentUserProfile?.metamobPseudo} onOpenMetamobLink={() => setMetamobLinkOpen(true)} currentAlignment={resolvedCharacterInfo.alignment} currentAlignmentOrder={resolvedCharacterInfo.alignmentOrder} onResetAlignment={handleResetAlignment} metiersRequires={metiersRequires} metiersDeclares={metiersDeclares} onDeclareMetier={handleDeclareMetier} launchConfig={rushUIConfig?.launch} onResetCharacter={handleResetCharacter} resettingId={resettingCharId}/>}
+    {continueModalOpen&&bookmarkedMsId&&(()=>{const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;return<div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60" onClick={()=>setContinueModalOpen(false)}><div className="bg-surface border border-border rounded-[6px] p-5 max-w-sm w-full mx-4 " onClick={e=>e.stopPropagation()}><div className="flex items-center gap-3 mb-3"><Flag className="w-5 h-5 text-success"/><h3 className="text-sm font-semibold text-foreground" style={{fontFamily:"var(--font-cinzel)"}}>Reprendre ?</h3></div><p className="text-xs text-muted-foreground mb-4">Tu étais à <strong className="text-foreground">{ms.title}</strong>.</p><div className="flex gap-2"><button onClick={()=>{ensureChapterFor(msToChapter.get(bookmarkedMsId));const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-[4px] bg-success text-success-foreground text-caption font-medium">Reprendre</button><button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-[4px] bg-elevated hover:bg-muted text-muted-foreground text-caption font-medium">Plus tard</button></div></div></div>;})()}
     {resetModalOpen&&<ResetConfirmModal
       isOpen={resetModalOpen}
       onClose={()=>setResetModalOpen(false)}
-      onConfirm={async()=>{setResetLoading(true);try{const{resetGuideProgress}=await import("@/server/actions/optimized-guide-actions");await resetGuideProgress(guildId,guide.id,effectiveAltPseudo);setCompletedIds(new Set);setResetModalOpen(false);toast.success("Réinitialisée !");router.refresh();}catch{toast.error("Erreur");}finally{setResetLoading(false);}}}
+      onConfirm={async()=>{setResetLoading(true);try{const{resetGuideProgress}=await import("@/server/actions/optimized-guide-actions");await resetGuideProgress(guildId,guide.id,effectiveAltPseudo);setCompletedIds(new Set);setResetModalOpen(false);setWizardOpen(true);toast.success("Réinitialisée !");router.refresh();}catch{toast.error("Erreur");}finally{setResetLoading(false);}}}
       characterName={selectedCharacter}
       isLoading={resetLoading}
     />}
@@ -1666,46 +2385,46 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       setMetamobLinkOpen(open);
       if (!open) { setMetamobLinkError(null); setMetamobPseudoInput(""); setMetamobApiKeyInput(""); setMetamobStep(1); }
     }}>
-      <DialogContent className="sm:max-w-2xl bg-zinc-950 border-white/10 shadow-2xl p-0 gap-0">
-        <DialogHeader className="p-8 border-b border-white/5">
-          <DialogTitle className="text-2xl font-black text-white flex items-center gap-3">
+      <DialogContent className="sm:max-w-2xl bg-background border-border  p-0 gap-0">
+        <DialogHeader className="p-8 border-b border-border">
+          <DialogTitle className="text-2xl font-semibold text-foreground flex items-center gap-3">
             <img src="/assets/icons/ocre.png" alt="" className="w-6 h-6 object-contain" />
             Lier votre compte Metamob
           </DialogTitle>
         </DialogHeader>
         <div className="p-8 space-y-6">
           <div className="flex items-center gap-4">
-            <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase ${metamobStep === 1 ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"}`}>1. Pseudo</div>
-            <div className="flex-1 h-0.5 bg-zinc-800" />
-            <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase ${metamobStep === 2 ? "bg-amber-500/20 text-amber-400" : "bg-zinc-900 text-zinc-600"}`}>2. Clé API</div>
+            <div className={`px-4 py-2 rounded-[4px] text-xs font-semibold uppercase ${metamobStep === 1 ? "bg-warning/20 text-warning" : "bg-success/20 text-success"}`}>1. Pseudo</div>
+            <div className="flex-1 h-0.5 bg-elevated" />
+            <div className={`px-4 py-2 rounded-[4px] text-xs font-semibold uppercase ${metamobStep === 2 ? "bg-warning/20 text-warning" : "bg-surface text-muted-foreground"}`}>2. Clé API</div>
           </div>
           {metamobStep === 1 ? (
             <div className="space-y-4">
-              <label className="text-sm font-bold text-zinc-200">Pseudo Metamob</label>
-              <Input placeholder="Ex: MonPseudo" value={metamobPseudoInput} onChange={(e) => setMetamobPseudoInput(e.target.value)} className="h-12 bg-zinc-900/50 border-zinc-800" />
+              <label className="text-sm font-bold text-foreground">Pseudo Metamob</label>
+              <Input placeholder="Ex: MonPseudo" value={metamobPseudoInput} onChange={(e) => setMetamobPseudoInput(e.target.value)} className="h-12 bg-surface/50 border-border" />
             </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-bold text-zinc-200">Clé API V2</label>
-                <a href="https://www.metamob.fr/settings#api" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-500 hover:text-amber-400 font-semibold flex items-center gap-1 transition-colors">
+                <label className="text-sm font-bold text-foreground">Clé API V2</label>
+                <a href="https://www.metamob.fr/settings#api" target="_blank" rel="noopener noreferrer" className="text-xs text-warning hover:text-warning font-semibold flex items-center gap-1 transition-colors">
                   Où trouver ma clé API ? <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
-              <Input type="password" placeholder="64 caractères..." value={metamobApiKeyInput} onChange={(e) => setMetamobApiKeyInput(e.target.value)} className="h-12 bg-zinc-900/50 border-zinc-800" />
-              <p className="text-xs text-zinc-500 leading-relaxed">
+              <Input type="password" placeholder="64 caractères..." value={metamobApiKeyInput} onChange={(e) => setMetamobApiKeyInput(e.target.value)} className="h-12 bg-surface/50 border-border" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Votre clé API est requise pour synchroniser automatiquement vos archimonstres et vos quêtes.
               </p>
             </div>
           )}
-          {metamobLinkError && <div className="p-4 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 text-sm font-bold">{metamobLinkError}</div>}
+          {metamobLinkError && <div className="p-4 rounded-[4px] bg-danger/10 text-danger border border-danger/20 text-sm font-bold">{metamobLinkError}</div>}
         </div>
-        <DialogFooter className="p-8 border-t border-white/5 flex gap-3">
+        <DialogFooter className="p-8 border-t border-border flex gap-3">
           {metamobStep === 1 ? (
-            <Button onClick={() => setMetamobStep(2)} disabled={!metamobPseudoInput.trim()} className="w-full bg-amber-600 font-bold">Suivant</Button>
+            <Button onClick={() => setMetamobStep(2)} disabled={!metamobPseudoInput.trim()} className="w-full bg-warning font-bold">Suivant</Button>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => setMetamobStep(1)} className="text-zinc-400">Retour</Button>
+              <Button variant="ghost" onClick={() => setMetamobStep(1)} className="text-muted-foreground">Retour</Button>
               <Button onClick={async () => {
                 if (!metamobPseudoInput.trim()) { toast.error("Veuillez entrer un pseudo"); return; }
                 setMetamobLinking(true); setMetamobLinkError(null);
@@ -1715,7 +2434,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                   else { setMetamobLinkError(res.error || "Erreur de liaison"); }
                 } catch { setMetamobLinkError("Erreur réseau"); }
                 finally { setMetamobLinking(false); }
-              }} disabled={metamobLinking} className="bg-emerald-600 font-bold">
+              }} disabled={metamobLinking} className="bg-success font-bold">
                 {metamobLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Lier le compte"}
               </Button>
             </>
@@ -1723,6 +2442,21 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {/* ── Ressources à prévoir : calcul TEMPS RÉEL (quêtes validées) + coches
+        manuelles « déjà préparé », par membre et par personnage. ── */}
+    {resourcesModalOpen && (
+      <RushOverlayResourcesModal
+        resources={rushResourcesRemaining}
+        allResources={rushResourcesAll}
+        totalCount={rushResourcesAll.length}
+        theme="site"
+        isLightMode={false}
+        checkedKeys={resourceChecks}
+        onToggleCheck={handleToggleResourceCheck}
+        hideProvidedResources={hideDone}
+        onClose={() => setResourcesModalOpen(false)}
+      />
+    )}
     <OcreProgressModal
       open={ocreModalOpen}
       onOpenChange={setOcreModalOpen}
@@ -1731,83 +2465,16 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       archiCount={ocreStats?.archis}
       metamobPseudo={currentUserProfile?.metamobPseudo}
       guildId={guildId}
+      requiredCopies={ocreStats?.parallelQuests ?? 1}
+    />
+
+    <RushPenseBeteModal
+      open={penseBeteOpen}
+      onClose={() => setPenseBeteOpen(false)}
+      sections={rushUIConfig?.penseBete}
+      storageKey={`rush-sylvestre-pense-bete-${guide.id}`}
     />
    </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></GuildIdCtx.Provider>
-  <Dialog open={alignEditOpen} onOpenChange={setAlignEditOpen}>
-    <DialogContent className="max-w-lg w-[95vw] bg-zinc-950 border-zinc-800 rounded-3xl p-0 overflow-hidden shadow-2xl">
-      <DialogHeader className="p-6 pb-4 border-b border-white/5">
-        <DialogTitle className="text-lg font-black uppercase tracking-widest text-white flex items-center gap-2">
-          <Shield className="w-5 h-5 text-emerald-400"/>Alignement & Ordre
-        </DialogTitle>
-        <div className="flex items-center gap-2 mt-3">
-          {(["alignment","order","tranche"] as const).map((s,i)=>(
-            <button key={s} type="button" onClick={()=>{if(s==="order"&&(!alignEditAlignment||alignEditAlignment==="neutre"))return;if(s==="tranche"&&!alignEditOrder)return;setAlignEditStep(s);}} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-caption font-black uppercase tracking-widest border transition-all ${alignEditStep===s?"bg-emerald-500/20 border-emerald-500/40 text-emerald-300":"border-zinc-700/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"}`}>
-              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-caption font-black ${alignEditStep===s?"bg-emerald-500 text-white":"bg-zinc-800 text-zinc-500"}`}>{i+1}</span>
-              {s==="alignment"?"Alignement":s==="order"?"Ordre":"Tranche"}
-            </button>
-          ))}
-        </div>
-      </DialogHeader>
-      <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-        {alignEditStep==="alignment"&&(
-          <div className="grid grid-cols-3 gap-3">
-            {ALIGNMENTS.map(align=>(
-              <button key={align.id} type="button" onClick={()=>{setAlignEditAlignment(align.id);if(align.id==="neutre"){setAlignEditOrder(null);setAlignEditLevel(0);}else setAlignEditStep("order");}} className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all ${alignEditAlignment===align.id?"border-emerald-500/60 bg-emerald-500/10":"border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/70"}`}>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center border overflow-hidden ${align.id==="bontarien"?"bg-blue-500/20 border-blue-500/30":align.id==="brakmarien"?"bg-red-500/20 border-red-500/30":"bg-zinc-800 border-zinc-700"}`}>
-                  <img src={align.icon} alt={align.name} className="w-8 h-8 object-contain"/>
-                </div>
-                <span className={`text-caption font-black uppercase tracking-widest ${alignEditAlignment===align.id?"text-white":"text-zinc-400"}`}>{align.name}</span>
-                {alignEditAlignment===align.id&&<div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center"><Check className="w-3 h-3 text-white"/></div>}
-              </button>
-            ))}
-          </div>
-        )}
-        {alignEditStep==="order"&&alignEditAlignment&&alignEditAlignment!=="neutre"&&(
-          <div className="grid grid-cols-1 gap-3">
-            {((ORDERS as any)[alignEditAlignment]||[]).map((order:any)=>{
-              const isSel=alignEditOrder===order.id;
-              const ib=alignEditAlignment==="bontarien";
-              return(
-                <button key={order.id} type="button" onClick={()=>{setAlignEditOrder(order.id);setAlignEditStep("tranche");}} className={`relative flex items-center gap-4 p-4 rounded-2xl border transition-all ${isSel?(ib?"border-blue-500/60 bg-blue-500/10":"border-red-500/60 bg-red-500/10"):"border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/70"}`}>
-                  <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
-                    <img src={order.icon} alt={order.name} className="w-9 h-9 object-contain p-1"/>
-                  </div>
-                  <span className={`text-sm font-black ${isSel?"text-white":"text-zinc-300"}`}>{order.name}</span>
-                  {isSel&&<div className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center ${ib?"bg-blue-500":"bg-red-500"}`}><Check className="w-3 h-3 text-white"/></div>}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {alignEditStep==="tranche"&&(
-          <div className="space-y-4">
-            <p className="text-caption font-black text-zinc-500 uppercase tracking-widest">Niveau d'alignement (Tranche)</p>
-            <div className="grid grid-cols-1 gap-2">
-              {(()=>{const orderData=alignEditAlignment&&alignEditOrder?(ORDERS as any)[alignEditAlignment]?.find((o:any)=>o.id===alignEditOrder):null;return getAlignmentLevelSteps(orderData).map(({level:lvl,title})=>{
-                const isSel=alignEditLevel===lvl;
-                return(
-                  <button key={lvl} type="button" onClick={()=>setAlignEditLevel(lvl)} className={`flex items-center gap-4 px-4 py-3 rounded-xl border transition-all text-left ${isSel?"border-amber-500 bg-amber-500/15":"border-zinc-800/60 bg-zinc-900/50 hover:border-zinc-600 hover:bg-zinc-900"}`}>
-                    <span className={`text-sm font-black w-8 shrink-0 ${isSel?"text-amber-400":"text-zinc-500"}`}>{">"}{lvl}</span>
-                    <span className={`text-xs font-bold flex-1 ${isSel?"text-white":"text-zinc-400"}`}>{title||`Niveau ${lvl}`}</span>
-                    {isSel&&<Check className="w-4 h-4 text-amber-400 shrink-0"/>}
-                  </button>
-                );
-              });})()}
-            </div>
-          </div>
-        )}
-      </div>
-      <DialogFooter className="p-5 border-t border-white/5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {alignEditStep!=="alignment"&&<Button variant="ghost" size="sm" onClick={()=>setAlignEditStep(alignEditStep==="tranche"?"order":"alignment")} className="text-zinc-400 hover:text-white text-xs">← Retour</Button>}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={()=>setAlignEditOpen(false)} className="text-zinc-500 hover:text-white text-xs">Annuler</Button>
-          <Button onClick={handleAlignEditSave} disabled={alignEditSaving||(!alignEditAlignment)} size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-5">
-            {alignEditSaving?<Loader2 className="w-3.5 h-3.5 animate-spin"/>:"Enregistrer"}
-          </Button>
-        </div>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+
+
 </>);}

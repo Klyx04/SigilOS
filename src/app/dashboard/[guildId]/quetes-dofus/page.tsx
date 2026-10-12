@@ -33,7 +33,7 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
     if (!user.canViewQuests) return <AccessDenied />;
 
     const enabled = await isModuleEnabled(guildId, "quests");
-    if (!enabled) return <AccessDenied />;
+    if (!enabled && !user.isSuperAdmin) return <AccessDenied />;
 
     // Fetch data in parallel
     const [dofusResult, guildStatsResult, guidesResult, rushSylvestre] = await Promise.all([
@@ -104,7 +104,7 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
                     <UnifiedModuleHeader
                         title="Quêtes Dofus"
                         description="Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde"
-                        icon={Gem}
+                        imageSrc="/assets/dofus/game-icons/dofus.png"
                         backHref={`/dashboard/${guildId}`}
                         actions={<ModuleTourReplayButton phase="quetesDofus" />}
                     />

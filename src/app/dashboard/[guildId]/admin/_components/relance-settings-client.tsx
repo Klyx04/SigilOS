@@ -3,12 +3,12 @@
 import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Hash, AlertTriangle, Megaphone } from "lucide-react";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
+import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { toast } from "sonner";
 import { getRelanceConfig, updateRelanceChannel } from "@/server/actions/relance-actions";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface RelanceSettingsClientProps {
     guildId: string;
@@ -21,12 +21,17 @@ export function RelanceSettingsClient({ guildId }: RelanceSettingsClientProps) {
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
 
+    // — Détection « modifications non sauvegardées » (snapshot chargé vs état courant)
+    const [initialConfig, setInitialConfig] = useState<{ channelId: string } | null>(null);
+    const hasUnsavedChanges = isDirty({ channelId }, initialConfig);
+
     useEffect(() => {
         async function loadConfig() {
             const result = await getRelanceConfig(guildId);
             if (result.success && result.data) {
                 setChannelId(result.data.relanceChannelId || "");
                 setIsConfigured(!!result.data.relanceChannelId);
+                setInitialConfig({ channelId: result.data.relanceChannelId || "" });
             }
             setIsLoading(false);
         }
@@ -41,10 +46,13 @@ export function RelanceSettingsClient({ guildId }: RelanceSettingsClientProps) {
         }
 
         startTransition(async () => {
+            const trimmed = channelId.trim();
             const result = await updateRelanceChannel(guildId, trimmed || null);
             if (result.success) {
                 toast.success("Canal de relance mis à jour !");
+                setChannelId(trimmed);
                 setIsConfigured(!!trimmed);
+                setInitialConfig({ channelId: trimmed });
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -61,6 +69,7 @@ export function RelanceSettingsClient({ guildId }: RelanceSettingsClientProps) {
 
     return (
         <div className="space-y-8 pb-10">
+            <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* ── MAIN CONFIG ── */}
                 <Card className="lg:col-span-2 bg-surface/40 border-border overflow-hidden">
@@ -89,15 +98,13 @@ export function RelanceSettingsClient({ guildId }: RelanceSettingsClientProps) {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <label className="text-caption font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                                <Hash className="w-3.5 h-3.5" /> ID du salon Discord
+                                <Hash className="w-3.5 h-3.5" /> Salon Discord
                             </label>
-                            <Input
+                            <DiscordChannelPicker
+                                guildId={guildId}
                                 value={channelId}
-                                onChange={(e) => setChannelId(e.target.value)}
-                                placeholder="Ex: 123456789012345678"
-                                className="h-11 bg-surface/60 border-border font-mono text-sm"
+                                onChange={setChannelId}
                             />
-                            <ChannelPreview guildId={guildId} channelId={channelId} color="amber" />
                         </div>
 
                         <div className="flex items-center justify-end gap-3 pt-2">
@@ -108,6 +115,7 @@ export function RelanceSettingsClient({ guildId }: RelanceSettingsClientProps) {
                             >
                                 {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                 Enregistrer
+                                {hasUnsavedChanges && !isPending && <span className="ml-2 w-2 h-2 rounded-full bg-black/40 animate-pulse" title="Modifications non sauvegardées" />}
                             </Button>
                         </div>
 
@@ -141,8 +149,7 @@ export function RelanceSettingsClient({ guildId }: RelanceSettingsClientProps) {
                                 <div className="flex gap-3">
                                     <div className="w-5 h-5 rounded-full bg-warning/20 text-warning flex items-center justify-center text-caption font-bold shrink-0 mt-0.5">2</div>
                                     <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                                        Collez son ID ici et enregistrez. Le Bot SigilOS doit avoir accès en <span className="text-foreground">lecture/écriture</span>.
-                                    </p>
+                                        Sélectionnez-le dans la liste et enregistrez. Le Bot SigilOS doit avoir accès en <span className="text-foreground">lecture/écriture</span>.                                    </p>
                                 </div>
                                 <div className="flex gap-3">
                                     <div className="w-5 h-5 rounded-full bg-warning/20 text-warning flex items-center justify-center text-caption font-bold shrink-0 mt-0.5">3</div>

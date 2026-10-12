@@ -23,7 +23,7 @@ import {
     ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
-import { updatePlatformConfig, testStatusPing, testBackupNotification, toggleMaintenanceMode } from "@/server/actions/changelog-actions";
+import { updatePlatformConfig, testStatusPing, testBackupNotification, toggleMaintenanceMode, sendSentryTestEvent } from "@/server/actions/changelog-actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ interface PlatformConfigPanelProps {
         statusMode: string;
         statusMention: string;
         statusFrequency: number;
+        kofiChannelId: string | null;
         nsfwFilterEnabled: boolean;
         donationsEnabled: boolean;
         questFeedbackChannelId: string | null;
@@ -59,6 +60,7 @@ interface PlatformConfigPanelProps {
         dofusQuestHeaderIcon: string;
         rbacUsersMappingEnabled: boolean;
         forceDarkMode: boolean;
+        autoOnboardingEnabled: boolean;
     } | null;
     availableGuilds: { id: string, name: string }[];
     availableRoles: { id: string, name: string }[];
@@ -79,6 +81,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         statusMode: config?.statusMode || "living",
         statusMention: config?.statusMention || "none",
         statusFrequency: config?.statusFrequency || 15,
+        kofiChannelId: config?.kofiChannelId || "",
         nsfwFilterEnabled: config?.nsfwFilterEnabled !== undefined ? config?.nsfwFilterEnabled : true,
         donationsEnabled: config?.donationsEnabled !== undefined ? config?.donationsEnabled : true,
         questFeedbackChannelId: config?.questFeedbackChannelId || "",
@@ -87,7 +90,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         ladderManualFallback: config?.ladderManualFallback || false,
         dofusQuestHeaderIcon: config?.dofusQuestHeaderIcon || "serie-de-quete",
         rbacUsersMappingEnabled: config?.rbacUsersMappingEnabled ?? true,
-        forceDarkMode: config?.forceDarkMode ?? false
+        forceDarkMode: config?.forceDarkMode ?? false,
+        autoOnboardingEnabled: config?.autoOnboardingEnabled ?? true
     });
 
     const [diagResults, setDiagResults] = useState<any>(null);
@@ -123,6 +127,19 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                 loading: "Envoi de l'alerte ADMIN (Test)...",
                 success: (res: any) => {
                     if (res.success) return `Alerte ADMIN envoyée avec succès !`;
+                    throw new Error(res.error);
+                },
+                error: (err: any) => `Erreur : ${err.message}`
+            });
+        });
+    };
+
+    const handleTestSentry = () => {
+        startTransition(async () => {
+            toast.promise(sendSentryTestEvent(), {
+                loading: "Envoi de l'event test vers Sentry...",
+                success: (res: any) => {
+                    if (res.success) return `Event envoyé ! Vérifie sentry.io → Issues.`;
                     throw new Error(res.error);
                 },
                 error: (err: any) => `Erreur : ${err.message}`
@@ -229,9 +246,24 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             <span className="text-caption text-zinc-500 uppercase block">Salons accessibles</span>
                             <div className="flex flex-wrap gap-1">
                                 {Object.entries(diagResults.channels).map(([k, v]: any) => (
-                                    <span key={k} className={cn("text-caption font-mono px-1.5 py-0.5 rounded", v.status === "OK" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400")}>{k}</span>
+                                    <span key={k} title={v.message} className={cn("text-caption font-mono px-1.5 py-0.5 rounded cursor-help", v.status === "OK" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400")}>{k}</span>
                                 ))}
                             </div>
+                            {/* Le POURQUOI d'une pastille rouge : sans ce détail, l'opérateur ne
+                                sait pas s'il manque une permission (403) ou si l'ID est faux
+                                (404) — la pastille seule ne permet pas d'agir (mesure du
+                                26/09/2026 : une soirée entière passée à deviner). */}
+                            {Object.entries(diagResults.channels).some(([, v]: any) => v.status !== "OK") && (
+                                <div className="pt-1 space-y-0.5">
+                                    {Object.entries(diagResults.channels)
+                                        .filter(([, v]: any) => v.status !== "OK")
+                                        .map(([k, v]: any) => (
+                                            <p key={k} className="text-caption text-rose-300 font-mono leading-tight break-words">
+                                                {k} · {v.status} — {v.message}
+                                            </p>
+                                        ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -268,7 +300,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         <div className="flex justify-between items-start">
                             <div className="space-y-1">
                                 <span className="text-xs font-black text-white uppercase block">2. Salon Santé (Ping Status)</span>
-                                <p className="text-caption text-zinc-500 leading-normal">Surveillance automatique du bot.</p>
+                                <p className="text-caption text-zinc-500 leading-normal">Surveillance automatique du bot. La fréquence est appliquée en temps réel (garde-fou anti-spam).</p>
                             </div>
                             <Button size="sm" variant="ghost" onClick={handleTestPing} className="text-caption font-black uppercase text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20">
                                 Test Ping
@@ -291,6 +323,28 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 <SelectContent><SelectItem value="none">Sans mention</SelectItem><SelectItem value="@here">@here</SelectItem></SelectContent>
                             </Select>
                         </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <Select value={formData.statusMode} onValueChange={(val) => setFormData(prev => ({ ...prev, statusMode: val }))}>
+                                <SelectTrigger className="bg-zinc-900 border-white/10 text-caption font-bold uppercase" title="Living = édite UN SEUL embed en place. Notification = nouveau message à chaque ping."><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="living">Living (1 embed édité)</SelectItem>
+                                    <SelectItem value="notification">Notification (nouveau msg)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, statusIsLite: !prev.statusIsLite }))}
+                                title="Version compacte de l'embed (système + uptime + environnement)"
+                                className={cn(
+                                    "px-3 py-2 rounded-xl border text-caption font-bold uppercase transition-colors",
+                                    formData.statusIsLite
+                                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                        : "bg-zinc-900 border-white/10 text-zinc-500 hover:border-white/20"
+                                )}
+                            >
+                                {formData.statusIsLite ? "Lite : ON" : "Lite : OFF"}
+                            </button>
+                        </div>
                     </div>
 
                     {/* Salon Alertes God */}
@@ -300,9 +354,14 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 <span className="text-xs font-black text-white uppercase block">3. Salon Alertes GOD (Privé)</span>
                                 <p className="text-caption text-zinc-500 leading-normal">Rapports d'erreurs critiques & backups.</p>
                             </div>
-                            <Button size="sm" variant="ghost" onClick={handleTestBackup} className="text-caption font-black uppercase text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20">
-                                Test Alerte
-                            </Button>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Button size="sm" variant="ghost" onClick={handleTestSentry} title="Envoie un event test vers Sentry (vérifie le DSN)" className="text-caption font-black uppercase text-violet-400 bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20">
+                                    Test Sentry
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={handleTestBackup} className="text-caption font-black uppercase text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20">
+                                    Test Alerte
+                                </Button>
+                            </div>
                         </div>
                         <Input
                             type="text"
@@ -337,6 +396,24 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             className="bg-zinc-900 border-white/10 text-xs font-mono"
                         />
                     </div>
+
+                    {/* Salon Dons Ko-fi */}
+                    <div className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-4">
+                        <div className="space-y-1">
+                            <span className="text-xs font-black text-white uppercase block">5. Salon Dons Ko-fi</span>
+                            <p className="text-caption text-zinc-500 leading-normal">
+                                Remerciements publics automatiques à chaque don (dons privés exclus via `is_public`).
+                                <span className="text-zinc-600"> Non configuré : alerte God uniquement.</span>
+                            </p>
+                        </div>
+                        <Input
+                            type="text"
+                            value={formData.kofiChannelId}
+                            onChange={(e) => setFormData(prev => ({ ...prev, kofiChannelId: e.target.value }))}
+                            placeholder="ID Salon dons-kofi..."
+                            className="bg-zinc-900 border-white/10 text-xs font-mono"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -359,7 +436,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             { key: "donationsEnabled", label: "Module Dons Orbes", desc: "Activation du widget de contribution financière sur les guildes." },
                             { key: "ladderManualFallback", label: "Fallback Pseudo Manuel", desc: "Autorise la saisie manuelle du pseudo Dofus si la liaison Ankama est KO (évite de bloquer les nouveaux membres)." },
                             { key: "rbacUsersMappingEnabled", label: "RBAC Membres Spécifiques", desc: "Autorise les permissions individuelles par membre (usersMapping). Désactiver en cas de bug = kill-switch global fail-closed (aucune permission individuelle appliquée)." },
-                            { key: "forceDarkMode", label: "Forcer le Mode Sombre", desc: "Chantier #16 — Kill-switch thème : verrouille le site en sombre pour tout le monde (bascule auto même si des users avaient laissé le clair) et masque les boutons clair/sombre. À activer en cas de bug du mode clair." }
+                            { key: "forceDarkMode", label: "Forcer le Mode Sombre", desc: "Chantier #16 — Kill-switch thème : verrouille le site en sombre pour tout le monde (bascule auto même si des users avaient laissé le clair) et masque les boutons clair/sombre. À activer en cas de bug du mode clair." },
+                            { key: "autoOnboardingEnabled", label: "Auto-onboarding", desc: "Refonte onboarding — OFF = les nouvelles guildes ne sont plus déployables en autonomie (file God, bloc autonomie masqué). Guildes existantes intouchées." }
                         ].map((opt) => {
                             const active = (formData as any)[opt.key];
                             return (
@@ -412,7 +490,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             <Power className="w-4 h-4 text-rose-400" />
                             Accès Plateforme & Maintenance
                         </h4>
-                        <p className="text-zinc-500 text-xs font-medium">Restreint l'accès au site uniquement aux Super-Admins.</p>
+                        <p className="text-zinc-500 text-xs font-medium">Verrouille tout le site (sessions loggées incluses, Gods compris) — seul ce panel God reste accessible pour désactiver.</p>
                     </div>
 
                     <div className="space-y-4">
@@ -492,6 +570,58 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         </div>
                     </div>
                 </div>
+                {/* CARTE 5: NETTOYAGE DES DEMANDES DE SERVICE INACTIVES */}
+                <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6 md:col-span-2">
+                    <div className="border-b border-white/5 pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4 text-emerald-400" />
+                                Purge des Demandes de Service sans réponse
+                            </h4>
+                            <p className="text-zinc-500 text-xs font-medium">
+                                Calendrier 7 &gt; 14 &gt; 21 : rappels automatiques par ping Discord au demandeur à J+7 (suppression dans 14 j) puis J+14 (dans 7 j), clôture CANCELLED et suppression de l'embed à J+21.
+                            </p>
+                        </div>
+                        <Button
+                            size="sm"
+                            disabled={isPending}
+                            onClick={() => {
+                                startTransition(async () => {
+                                    const { godProcessInactiveServiceRequests } = await import("@/server/actions/god-system-actions");
+                                    const res = await godProcessInactiveServiceRequests();
+                                    if (res.success) {
+                                        toast.success(`Balayage terminé : ${res.remindersSent} rappels envoyés, ${res.requestsCancelled} demandes annulées.`);
+                                    } else {
+                                        toast.error(res.error || "Erreur lors du balayage");
+                                    }
+                                });
+                            }}
+                            className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold shrink-0"
+                        >
+                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Activity className="w-4 h-4 mr-2" />}
+                            Lancer le balayage maintenant
+                        </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Calendrier des Rappels</span>
+                            <p className="text-white font-black text-sm">J+7 • J+14</p>
+                            <span className="text-zinc-600 text-caption block">2 rappels progressifs par ping Discord au demandeur</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Cible</span>
+                            <p className="text-white font-black text-sm">Statut PENDING</p>
+                            <span className="text-zinc-600 text-caption block">Demandes sans réponse du passeur ; le demandeur est pingé</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Action finale</span>
+                            <p className="text-rose-400 font-black text-sm">Clôture & Purge à J+21</p>
+                            <span className="text-zinc-600 text-caption block">Statut CANCELLED + suppression de l'embed</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
         </div>

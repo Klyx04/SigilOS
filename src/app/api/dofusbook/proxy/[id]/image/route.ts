@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 const USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -56,7 +57,10 @@ export async function GET(
         });
 
         if (!response.ok) {
-            console.error(`Dofusbook Image Proxy Fail [${id}]:`, response.status);
+            // Cas NORMAL : l'image demandée n'existe pas côté Dofusbook (ou l'amont refuse).
+            // `console.error` deviendrait une **Issue Sentry** (`captureConsoleIntegration`) :
+            // on journalise en `debug` (dev) — un 404 d'image externe n'est pas une panne.
+            logger.debug(`Dofusbook Image Proxy Fail [${id}]: ${response.status}`);
             return new NextResponse("Image not found", { status: 404 });
         }
 
@@ -70,7 +74,9 @@ export async function GET(
             }
         });
     } catch (e) {
-        console.error("Dofusbook Image Proxy Error:", e);
+        // Anomalie réelle (réseau, amont injoignable) : `warn` → visible dans les logs,
+        // mais jamais une Issue Sentry pour une dépendance externe capricieuse.
+        logger.warn("Dofusbook Image Proxy Error", { error: e });
         return new NextResponse("Server Error", { status: 500 });
     }
 }

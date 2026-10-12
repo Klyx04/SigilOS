@@ -4,11 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { MissionCard } from "./mission-card";
 import { InterestModal } from "./interest-modal";
-import { ResetCountdown } from "./reset-countdown";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission, SubmissionStatus } from "@prisma/client";
-import { Filter, Swords, Skull, Zap, Clock, Infinity as InfinityIcon, CheckCircle2, Hourglass, Sparkles, RefreshCcw, SearchX } from "lucide-react";
+import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission } from "@prisma/client";
+import { Filter, Swords, Skull, Zap, Clock, Infinity as InfinityIcon, CheckCircle2, Hourglass, RefreshCcw, SearchX } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ResidencyCountdown } from "./residency-countdown";
 
@@ -23,7 +22,7 @@ interface MissionBoardProps {
         linkedEvent?: { id: string, title: string, startDate: Date } | null;
     })[];
     currentUserId: string;
-    guildId: string; // Discord Guild ID for uploads
+    guildId: string;
     isRestricted?: boolean;
     availableAt?: string;
     vitrineMode?: boolean;
@@ -37,7 +36,6 @@ const STATUS_FILTERS: { label: string; value: 'ALL' | 'PENDING' | 'VALIDATED'; i
     { label: "Validé", value: "VALIDATED", icon: CheckCircle2 },
 ];
 
-// Classic categories only (non-EVENT)
 const CATEGORY_FILTERS: { label: string; value: MissionCategory; icon?: React.ComponentType<{ className?: string }> }[] = [
     { label: "Donjon", value: "DONJON", icon: Swords },
     { label: "Régulation", value: "REGULATION", icon: Skull },
@@ -46,11 +44,17 @@ const CATEGORY_FILTERS: { label: string; value: MissionCategory; icon?: React.Co
     { label: "Expédition", value: "EXPEDITION", icon: Clock },
 ];
 
-// Pool type for Dofus 3.5 split
 type MissionPool = 'CLASSIQUES' | 'SPECIALES';
 
-
-export function MissionBoard({ missions, currentUserId, guildId, isRestricted, availableAt, vitrineMode = false, hideUpload = false }: MissionBoardProps) {
+export function MissionBoard({
+    missions,
+    currentUserId,
+    guildId,
+    isRestricted,
+    availableAt,
+    vitrineMode = false,
+    hideUpload = false
+}: MissionBoardProps) {
     const router = useRouter();
     const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL' | 'PENDING' | 'VALIDATED'>('ALL');
     const [missionPool, setMissionPool] = useState<MissionPool>('CLASSIQUES');
@@ -91,17 +95,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
 
     const handlePoolChange = (pool: MissionPool) => {
         setMissionPool(pool);
-        setSelectedCategory('ALL'); // Reset category filter when switching pools
-    };
-
-    // Category Styling Map
-    const CATEGORY_STYLES: Record<MissionCategory, { bg: string; border: string; text: string; icon: string; shadow: string }> = {
-        DONJON: { bg: "bg-info/10", border: "border-info/20", text: "text-info", icon: "text-info", shadow: "shadow-indigo-500/10" },
-        REGULATION: { bg: "bg-danger/10", border: "border-danger/20", text: "text-danger", icon: "text-danger", shadow: "shadow-rose-500/10" },
-        ANOMALIE: { bg: "bg-fuchsia-500/10", border: "border-fuchsia-500/20", text: "text-fuchsia-400", icon: "text-fuchsia-400", shadow: "shadow-fuchsia-500/10" },
-        SONGES: { bg: "bg-info/10", border: "border-info/20", text: "text-info", icon: "text-info", shadow: "shadow-cyan-500/10" },
-        EXPEDITION: { bg: "bg-warning/10", border: "border-warning/20", text: "text-warning", icon: "text-warning", shadow: "shadow-amber-500/10" },
-        EVENT: { bg: "bg-warning/10", border: "border-warning/20", text: "text-warning", icon: "text-warning", shadow: "shadow-yellow-500/10" },
+        setSelectedCategory('ALL');
     };
 
     return (
@@ -109,16 +103,14 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
             {isRestricted && availableAt && (
                 <ResidencyCountdown availableAt={availableAt} className="mb-6" />
             )}
-            {/* 🛠️ Simplified Toolbar */}
-            <div className="flex flex-col gap-4 bg-surface/40 p-3 rounded-2xl border border-border backdrop-blur-sm" data-tour="missions-toolbar">
 
-                {/* PRIMARY ACTIONS ROW */}
+            {/* Toolbar */}
+            <div className="flex flex-col gap-3 bg-surface p-3 rounded-xl border border-border" data-tour="missions-toolbar">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-
-                    {/* Left: Pool & Status Logic Combined */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
+                    {/* Left: Pool & Status Selectors */}
+                    <div className="flex flex-wrap items-center gap-2">
                         {/* Pool Toggle */}
-                        <div className="flex items-center gap-1 p-1 bg-black/40 border border-border rounded-full shrink-0" data-tour="missions-pool">
+                        <div className="flex items-center gap-1 p-1 bg-elevated/80 border border-border rounded-lg" data-tour="missions-pool">
                             {(['CLASSIQUES', 'SPECIALES'] as MissionPool[]).map(pool => {
                                 const isActive = missionPool === pool;
                                 return (
@@ -126,113 +118,110 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                                         key={pool}
                                         onClick={() => handlePoolChange(pool)}
                                         className={cn(
-                                            "flex items-center gap-2 px-4 py-1.5 text-caption font-black rounded-full transition-all uppercase tracking-widest",
+                                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all uppercase tracking-wider",
                                             isActive
                                                 ? pool === 'CLASSIQUES'
-                                                    ? "bg-info text-info-foreground shadow-lg"
-                                                    : "bg-warning text-warning-foreground shadow-lg"
+                                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                                    : "bg-warning text-warning-foreground shadow-sm"
                                                 : "text-muted-foreground hover:text-foreground"
                                         )}
                                     >
-                                        {pool === 'CLASSIQUES' ? '⚔️' : '✨'} {pool}
+                                        <span>{pool === 'CLASSIQUES' ? '⚔️' : '✨'}</span>
+                                        <span>{pool}</span>
                                     </button>
                                 );
                             })}
                         </div>
 
                         {!vitrineMode && (
-                            <>
-                                <div className="h-4 w-px bg-surface mx-1" />
-
-                                {/* Status Toggle */}
-                                <div className="flex items-center gap-1 p-1 bg-black/40 border border-border rounded-full shrink-0">
-                                    {STATUS_FILTERS.map(f => {
-                                        const isActive = selectedCategory === f.value;
-                                        return (
-                                            <button
-                                                key={f.value}
-                                                onClick={() => setSelectedCategory(f.value)}
-                                                className={cn(
-                                                    "px-3 py-1.5 text-caption font-bold rounded-full transition-all uppercase tracking-wider",
-                                                    isActive ? "bg-surface text-foreground shadow-md" : "text-muted-foreground hover:text-foreground"
-                                                )}
-                                            >
-                                                {f.label}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            </>
+                            <div className="flex items-center gap-1 p-1 bg-elevated/80 border border-border rounded-lg">
+                                {STATUS_FILTERS.map(f => {
+                                    const isActive = selectedCategory === f.value;
+                                    return (
+                                        <button
+                                            key={f.value}
+                                            onClick={() => setSelectedCategory(f.value)}
+                                            className={cn(
+                                                "px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all uppercase tracking-wider",
+                                                isActive
+                                                    ? "bg-surface text-foreground shadow-sm border border-border"
+                                                    : "text-muted-foreground hover:text-foreground"
+                                            )}
+                                        >
+                                            {f.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         )}
                     </div>
 
                     {/* Right: Filters & Tools */}
                     <div className="flex items-center gap-2 ml-auto">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowFilters(!showFilters)}
-                            className={cn(
-                                "h-9 rounded-full px-4 text-caption font-black uppercase tracking-widest transition-all",
-                                (showFilters || activeCategoryCount > 0)
-                                    ? "bg-surface text-foreground border-border-strong"
-                                    : "bg-transparent text-muted-foreground border-border"
-                            )}
-                        >
-                            <Filter className={cn("w-3.5 h-3.5 mr-2", activeCategoryCount > 0 && "text-success animate-pulse")} />
-                            Catégories
-                            {activeCategoryCount > 0 && (
-                                <span className="ml-2 w-4 h-4 rounded-full bg-success text-success-foreground text-caption flex items-center justify-center">
-                                    {activeCategoryCount}
-                                </span>
-                            )}
-                        </Button>
+                        {missionPool === 'CLASSIQUES' && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={cn(
+                                    "h-8.5 rounded-lg px-3 text-xs font-bold uppercase tracking-wider transition-all",
+                                    (showFilters || activeCategoryCount > 0)
+                                        ? "bg-elevated text-foreground border-border-strong"
+                                        : "bg-surface text-muted-foreground border-border"
+                                )}
+                            >
+                                <Filter className={cn("w-3.5 h-3.5 mr-1.5", activeCategoryCount > 0 && "text-primary")} />
+                                Catégories
+                                {activeCategoryCount > 0 && (
+                                    <span className="ml-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-mono">
+                                        {activeCategoryCount}
+                                    </span>
+                                )}
+                            </Button>
+                        )}
 
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-surface rounded-full"
+                            className="h-8.5 w-8.5 text-muted-foreground hover:text-foreground hover:bg-elevated rounded-lg"
                             onClick={() => startTransition(() => router.refresh())}
                             disabled={isPending}
+                            title="Actualiser les missions"
                         >
                             <RefreshCcw className={cn("w-3.5 h-3.5", isPending && "animate-spin")} />
                         </Button>
                     </div>
                 </div>
 
-                {/* SECONDARY: Category Filters (Collapsible) */}
+                {/* Collapsible Category Filters */}
                 {showFilters && missionPool === 'CLASSIQUES' && (
-                    <div className="pt-2 border-t border-border animate-in slide-in-from-top-2 duration-300">
-                        <div className="flex flex-wrap gap-2">
-                            {CATEGORY_FILTERS.map(f => {
-                                const IconComponent = f.icon;
-                                const isActive = selectedCategory === f.value;
-                                const style = CATEGORY_STYLES[f.value as MissionCategory];
+                    <div className="pt-2.5 border-t border-border flex flex-wrap gap-2">
+                        {CATEGORY_FILTERS.map(f => {
+                            const IconComponent = f.icon;
+                            const isActive = selectedCategory === f.value;
 
-                                return (
-                                    <button
-                                        key={f.value}
-                                        onClick={() => setSelectedCategory(isActive ? 'ALL' : f.value)}
-                                        className={cn(
-                                            "group flex items-center gap-2 px-3 py-1.5 text-caption font-bold rounded-lg border transition-all",
-                                            isActive
-                                                ? cn(style.bg, style.border, style.text, "ring-1 ring-white/10")
-                                                : "bg-surface border-border text-muted-foreground hover:bg-surface hover:border-border-strong hover:text-foreground"
-                                        )}
-                                    >
-                                        {IconComponent && <IconComponent className="w-3 h-3" />}
-                                        {f.label}
-                                    </button>
-                                )
-                            })}
-                        </div>
+                            return (
+                                <button
+                                    key={f.value}
+                                    onClick={() => setSelectedCategory(isActive ? 'ALL' : f.value)}
+                                    className={cn(
+                                        "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all",
+                                        isActive
+                                            ? "bg-primary/10 border-primary/30 text-primary"
+                                            : "bg-surface border-border text-muted-foreground hover:bg-elevated hover:text-foreground"
+                                    )}
+                                >
+                                    {IconComponent && <IconComponent className="w-3.5 h-3.5" />}
+                                    <span>{f.label}</span>
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
-
             {/* Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-tour="missions-grid">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5" data-tour="missions-grid">
                 {filteredMissions.map((mission) => (
                     <div key={mission.id} className="h-full">
                         <MissionCard
@@ -254,7 +243,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                             icon={SearchX}
                             title="Aucune mission trouvée"
                             description="Ajustez vos filtres ou revenez plus tard pour voir les nouveaux défis."
-                            variant="glow"
+                            variant="minimal"
                         />
                     </div>
                 ) : null}

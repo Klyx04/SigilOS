@@ -3,13 +3,17 @@
 
 import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapContainer, Rectangle, Marker, Tooltip, useMap, useMapEvents, Polyline } from 'react-leaflet';
-import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Plus, Minus, Copy, Flag, CornerUpRight, Rocket, Smartphone } from 'lucide-react';
+import { Plus, Minus, Copy, Flag, CornerUpRight, Rocket, Smartphone, Layers, Compass, Pin, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { mergeCellEdges } from '@/lib/map-utils';
+import { resolveTileBank, findNearestMap, MAP_OCEAN_TONE, WORLDMAP_TILE_SIZE } from '@/lib/worldmap-tiles';
+import { findNearestZaap, type ZaapEntry } from '@/lib/nearest-zaap';
+import { resolveZoneLabelFrame, zoneNameKey } from '@/lib/zone-label';
 import { HarvestRouteOverlay } from './harvest-route-overlay';
+import { SecretPassagesOverlay } from './secret-passages-overlay';
+import { cn } from '@/lib/utils';
 
 // -------------------------------------------------------------------------------------
 // CRS sur mesure : mappe les zooms Leaflet sur les échelles Dofus (1, 0.8, 0.6...)
@@ -38,6 +42,29 @@ const sigilCRS = L.extend({}, L.CRS.Simple, {
 
 const CUSTOM_DUNGEON_OFFSETS: Record<number, { dx: number, dy: number }> = {};
 
+// Cache d'icônes donjons : évite `new L.DivIcon` à chaque render React
+// (Monde des Douze = ~100 marqueurs recréés à chaque survol/re-render).
+const dungeonIconCache = new Map<string, L.DivIcon>();
+function getDungeonIcon(isOcre: boolean, dCount: number): L.DivIcon {
+    const key = `${isOcre ? 1 : 0}:${dCount > 1 ? dCount : 1}`;
+    let icon = dungeonIconCache.get(key);
+    if (!icon) {
+        icon = new L.DivIcon({
+            html: `
+            <div class="w-7 h-7 rounded-full bg-surface/90 border-2 border-amber-500/80 flex items-center justify-center group-hover:scale-125 group-hover:border-amber-400 transition-all duration-200 relative">
+                <img src="/assets/worldmap/dungeon-boss.png" alt="Donjon" class="w-5 h-5 object-contain" draggable="false" />
+                ${isOcre ? `<img src="/module-dofus/Dofus_Ocre.png" alt="Quête Ocre" class="absolute -top-5 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full object-contain border border-border-strong bg-background" title="Donjon Quête Ocre" />` : ''}
+                ${dCount > 1 ? `<div class="absolute -top-2 -right-2 bg-amber-500 text-warning-foreground text-caption font-bold w-4 h-4 rounded-full flex items-center justify-center border border-slate-900">${dCount}</div>` : ''}
+            </div>`,
+            className: 'dungeon-icon-marker',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
+        dungeonIconCache.set(key, icon);
+    }
+    return icon;
+}
+
 // -------------------------------------------------------------------------------------
 // TileLayer optimisé
 // -------------------------------------------------------------------------------------
@@ -49,32 +76,23 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
 
         const customTileLayer = L.TileLayer.extend({
             getTileUrl: function (coords: any) {
-                const z = coords.z;
-                const scales = activeWorld.zoom || [1];
-                const idx = -z;
-                let scale = 1;
-                let bank = '1';
+                // Lib testée (worldmap-tiles.ts) : arrondit le zoom et borne sur
+                // une échelle connue — jamais de banque undefined = jamais de
+                // tuiles transparentes (carrés noirs). Le snap décimal de la
+                // grille est appliqué plus bas (gridScale).
+                const { scale, bank } = resolveTileBank(activeWorld.zoom || [1], coords.z);
 
-                const cleanScale = (val: number) => parseFloat(val.toFixed(4)).toString();
-
-                if (idx >= 0 && idx < scales.length) {
-                    scale = scales[idx];
-                    bank = scale === 1 ? '1' : cleanScale(scale);
-                } else if (idx < 0) {
-                    scale = 1;
-                    bank = '1';
-                } else {
-                    scale = scales[scales.length - 1];
-                    bank = cleanScale(scale);
-                }
-
-                const tileSize = selectedWorldId === 1 ? 256 : 250;
-                const apiCols = selectedWorldId === 1 
-                    ? Math.round((activeWorld.totalWidth * scale) / tileSize)
-                    : Math.ceil((activeWorld.totalWidth * scale) / tileSize);
-                const apiRows = selectedWorldId === 1 
-                    ? Math.round((activeWorld.totalHeight * scale) / tileSize)
-                    : Math.ceil((activeWorld.totalHeight * scale) / tileSize);
+                const tileSize = WORLDMAP_TILE_SIZE;
+                // Grille TOUJOURS au ceil, sur échelle SNAPPÉE (4 décimales) : le
+                // générateur de tuiles émet la rangée/colonne partielle (ex: w1/0.2 =
+                // 8×7=56 tuiles, pas 8×6 — avec Math.round la dernière rangée était
+                // déclarée hors-limites → trou noir permanent au dézoom). Le snap est
+                // obligatoire car worlds.json stocke des floats bruités (0.8000000119…) :
+                // sans lui, 10000*0.8000000119/250 = 32.0000004… et ceil ajoute une
+                // colonne fantôme (404 → trou noir au bord droit).
+                const gridScale = parseFloat(scale.toFixed(4));
+                const apiCols = Math.ceil((activeWorld.totalWidth * gridScale) / tileSize);
+                const apiRows = Math.ceil((activeWorld.totalHeight * gridScale) / tileSize);
                 
                 if (coords.x < 0 || coords.x >= apiCols || coords.y < 0 || coords.y >= apiRows) {
                     return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
@@ -88,7 +106,7 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
         const scales = activeWorld.zoom || [1];
         const minZ = -(scales.length - 1);
 
-        const layerSize = selectedWorldId === 1 ? 256 : 250;
+        const layerSize = WORLDMAP_TILE_SIZE;
 
         // @ts-expect-error Leaflet extended classes don't inherit constructor typings
         const layer = new customTileLayer('', {
@@ -100,11 +118,18 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
             noWrap: true,
             bounds: bounds,
             errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=',
-            // ──── PERF ────
+            // ──── PERF / ANTI-FLICKER (Chromium, Opera GX) ────
+            // updateWhenZooming:true → les tuiles suivent le zoom au lieu de laisser
+            // le fond noir pendant l'animation. keepBuffer:2 (défaut) au lieu de 6 :
+            // 6 anneaux = centaines d'images/GPU textures → le compositeur (surtout
+            // avec le limiteur RAM/VRAM d'Opera GX) droppe des textures = tuiles noires.
+            // updateWhenIdle:false (défaut desktop Leaflet) → les tuiles sont demandées
+            // PENDANT le pan (et non au moveend) : plus de bandes océan/bleues au bord
+            // d'attaque quand on déplace la carte.
             updateWhenIdle: false,
-            updateWhenZooming: false,
-            updateInterval: 100,
-            keepBuffer: 6
+            updateWhenZooming: true,
+            updateInterval: 200,
+            keepBuffer: 2
         });
 
         map.addLayer(layer);
@@ -125,14 +150,82 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
 // -------------------------------------------------------------------------------------
 const TOOLTIP_THROTTLE_MS = 100;
 
-function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight }: any) {
+/**
+ * Icônes de cible dessinées DANS le canvas (recherche « avis ») — chargées une
+ * fois puis re-dessinées via `onLoad` (le canvas pulse déjà à 4 Hz).
+ * Seuls les chemins internes sont acceptés : une image distante « teindrait »
+ * le canvas (plus aucun échantillonnage possible ensuite).
+ */
+const mapMarkerImageCache = new Map<string, HTMLImageElement | null>();
+
+function getMapMarkerImage(url: string, onLoad: () => void): HTMLImageElement | null {
+    if (typeof window === 'undefined' || !url.startsWith('/')) return null;
+    const cached = mapMarkerImageCache.get(url);
+    if (cached !== undefined) return cached;
+    mapMarkerImageCache.set(url, null); // réservation : un seul chargement par URL
+    const image = new window.Image();
+    image.onload = () => {
+        mapMarkerImageCache.set(url, image);
+        onLoad();
+    };
+    image.onerror = () => mapMarkerImageCache.set(url, null);
+    image.src = url;
+    return null;
+}
+
+function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, zoneHighlight, pinnedSubareaId, highlightMarker, showGameOverlays = false, zaaps, onOpenZoneDetails, setSelectedPosition, isOverHudRef, mouseoutTimerRef, hiddenZoneLabels }: any) {
     const map = useMap();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoveredCellRef = useRef<string | null>(null);
     const hoveredSubAreaIdRef = useRef<number | null>(null);
     const rafRef = useRef<number>(0);
-    const blinkRafRef = useRef<number>(0);
-    const highlightSubareaIdsRef = useRef<number[]>([]);
+
+    /**
+     * Libellés de zone (nom + niveau) : une boîte englobante **précalculée** par
+     * sous-zone (union des sommets du tracé officiel). Le rendu ne projette que
+     * 2 coins par zone et par frame — les tracés peuvent compter des milliers de
+     * points, on ne les reparcourt jamais pendant un pan/zoom.
+     *
+     * La portée est celle du **monde affiché** : `mapsBySubAreaId` ne contient que
+     * les sous-zones qui possèdent au moins une map dans ce monde (les `shape` d'un
+     * autre monde seraient posées dans un espace de coordonnées différent).
+     */
+    const zoneLabelBoxes = useMemo(() => {
+        const boxes: { minX: number; minY: number; maxX: number; maxY: number; anchorX: number; anchorY: number; name: string; level: number; area: number }[] = [];
+        if (!subAreasById || !mapsBySubAreaId) return boxes;
+        // Libellés retirés à la main depuis God (`/game-data/hidden-map-zones.json`) : on
+        // compare avec `zoneNameKey` (casse/accents/ponctuation ignorés), la MÊME clé que
+        // l'action God — sinon un retrait resterait silencieusement sans effet.
+        const hidden = new Set<string>((hiddenZoneLabels ?? []).map(zoneNameKey));
+        for (const subAreaId of mapsBySubAreaId.keys()) {
+            const subArea = subAreasById.get(subAreaId);
+            const name = typeof subArea?.name === 'string' ? subArea.name : subArea?.name?.fr;
+            if (!name) continue;
+            if (hidden.has(zoneNameKey(name))) continue;
+            // Emprise + ancre RÉELLES : le plus grand polygone du tracé officiel, jamais
+            // l'union des polygones (le centre d'une union d'archipel tombait en pleine
+            // mer — mesuré sur le monde 1 : 80 % des libellés dans leur tracé avec l'union,
+            // 91 % avec le centroïde du plus grand polygone ; Éphedrya 15/−43.5 → 27.8/−85.5,
+            // Rives iridescentes −5.5 → −54). `null` = rien à nommer : pas de tracé
+            // exploitable, ou tracé replié à l'origine du monde (`Destin du Monde`).
+            const frame = resolveZoneLabelFrame(subArea?.shape);
+            if (!frame) continue;
+            const { minX, minY, maxX, maxY } = frame.bounds;
+            const level = Number(subArea?.level);
+            boxes.push({
+                minX, minY, maxX, maxY,
+                anchorX: frame.anchor.x,
+                anchorY: frame.anchor.y,
+                name,
+                level: Number.isFinite(level) ? level : 0,
+                area: (maxX - minX) * (maxY - minY),
+            });
+        }
+        // Les plus grandes zones posent leur libellé en premier : en cas de
+        // chevauchement, c'est la plus lisible (et la plus structurante) qui gagne.
+        boxes.sort((a, b) => b.area - a.area);
+        return boxes;
+    }, [subAreasById, mapsBySubAreaId, hiddenZoneLabels]);
 
     // ────────────────────────────────────────────────────────────────
     // Attache le canvas DIRECTEMENT sur le container du map (position fixe)
@@ -172,9 +265,17 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         const forceCellFallback = world?.id === 38;
 
         const size = map.getSize();
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = size.x * dpr;
-        canvas.height = size.y * dpr;
+        // DPR plafonné à 2 : en 4K (dpr 2-3) le canvas plein écran réalloué à chaque
+        // frame sature l'upload GPU → saccades + clignotement global (navbar incluse
+        // sur Opera GX). On ne réalloue QUE si la taille a réellement changé :
+        // assigner canvas.width/height vide le canvas et recrée la texture GPU.
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const targetW = Math.max(1, Math.round(size.x * dpr));
+        const targetH = Math.max(1, Math.round(size.y * dpr));
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+            canvas.width = targetW;
+            canvas.height = targetH;
+        }
         canvas.style.width = size.x + 'px';
         canvas.style.height = size.y + 'px';
 
@@ -194,24 +295,30 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             map.latLngToContainerPoint(L.latLng(-(oy + gy * mh), ox + gx * mw));
 
         // ── 1. Hover SubArea (surbrillance de zone au survol) ──
-        const subAreaId = hoveredSubAreaIdRef.current;
+        // Zone encadrée : uniquement quand le calque « Zones » est actif. La zone
+        // épinglée (avis de recherche / archimonstre sélectionné) NE passe pas
+        // outre ce calque : le bouton « Zones » reste maître de l'affichage (on
+        // l'active à la sélection si besoin, côté carte), sinon la bascule devenait
+        // sans effet dès qu'une cible était posée.
+        const subAreaId = pinnedSubareaId ?? hoveredSubAreaIdRef.current;
         const cellKey = hoveredCellRef.current;
         const activeSubArea = subAreaId ? subAreasById?.get(subAreaId) : null;
 
         if (zoneHighlight && subAreaId !== null && mapsBySubAreaId && subAreasById) {
             const subArea = subAreasById.get(subAreaId);
+            const mapsInZone = mapsBySubAreaId.get(subAreaId);
             
             ctx.save();
-            ctx.fillStyle = 'rgba(99, 102, 241, 0.65)';
-            ctx.strokeStyle = 'rgba(99, 102, 241, 0.8)';
-            ctx.lineWidth = 1;
+            // Rendu clean style Dofus / Duffus : voile sombre transparent + contour noir franc
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.32)';
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.95)';
+            ctx.lineWidth = 2;
             ctx.lineJoin = 'round';
             ctx.shadowBlur = 0;
             ctx.shadowColor = 'transparent';
 
             if (!forceCellFallback && subArea && subArea.shape && subArea.shape.length > 2) {
                 // Rendu Doflex Pixel-Perfect via Shape officielle
-                // La shape de DofusDB encode parfois plusieurs polygones avec des headers (ex: 10924).
                 const shape = subArea.shape;
                 let isFirstPoint = true;
                 
@@ -220,7 +327,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                     const gx = shape[i];
                     const gy = shape[i+1];
                     
-                    // Si on tombe sur un ID massif, c'est une délimitation de nouveau polygone
+                    // Délimitation de nouveau polygone si header massif
                     if (Math.abs(gx) > 1000 || Math.abs(gy) > 1000) {
                         if (!isFirstPoint) {
                             ctx.closePath();
@@ -246,8 +353,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                     ctx.stroke();
                 }
             } else {
-                // Fallback (anciennes données ou zones partielles non offi)
-                const mapsInZone = mapsBySubAreaId.get(subAreaId);
+                // Fallback polygons
                 if (mapsInZone) {
                     const polygons = mergeCellEdges(mapsInZone);
                     polygons.forEach(poly => {
@@ -265,72 +371,108 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                     });
                 }
             }
-            ctx.restore();
-        }
 
-        // ── 1b. Archimonstre Highlight (pulsing orange for searched monsters) ──
-        const activeHighlights = highlightSubareaIdsRef.current;
-        if (activeHighlights.length > 0 && mapsBySubAreaId && subAreasById) {
-            const pulse = (Math.sin(Date.now() / 400) + 1) / 2; // 0..1, ~1.25Hz
-            const alpha = 0.25 + pulse * 0.35; // 0.25..0.60
-            ctx.save();
-            ctx.fillStyle = `rgba(251, 146, 60, ${alpha})`;
-            ctx.strokeStyle = `rgba(251, 146, 60, ${0.7 + pulse * 0.3})`;
-            ctx.lineWidth = 2;
-            ctx.lineJoin = 'round';
-            ctx.shadowBlur = 12 + pulse * 8;
-            ctx.shadowColor = 'rgba(251, 146, 60, 0.8)';
-
-            activeHighlights.forEach((highlightId: number) => {
-                const subArea = subAreasById.get(highlightId);
-                if (!forceCellFallback && subArea && subArea.shape && subArea.shape.length > 2) {
-                    const shape = subArea.shape;
-                    let isFirstPoint = true;
-                    ctx.beginPath();
-                    for (let i = 0; i < shape.length; i += 2) {
-                        const gx = shape[i];
-                        const gy = shape[i + 1];
-                        if (Math.abs(gx) > 1000 || Math.abs(gy) > 1000) {
-                            if (!isFirstPoint) { ctx.closePath(); ctx.fill(); ctx.stroke(); }
-                            ctx.beginPath();
-                            isFirstPoint = true;
-                            continue;
-                        }
-                        const pt = toCP(gx, gy);
-                        if (isFirstPoint) { ctx.moveTo(pt.x, pt.y); isFirstPoint = false; }
-                        else ctx.lineTo(pt.x, pt.y);
-                    }
-                    if (!isFirstPoint) { ctx.closePath(); ctx.fill(); ctx.stroke(); }
-                } else {
-                    const mapsInZone = mapsBySubAreaId.get(highlightId);
-                    if (mapsInZone) {
-                        const polygons = mergeCellEdges(mapsInZone);
-                        polygons.forEach((poly: any) => {
-                            if (poly.length < 3) return;
-                            ctx.beginPath();
-                            const first = toCP(poly[0].x, poly[0].y);
-                            ctx.moveTo(first.x, first.y);
-                            for (let i = 1; i < poly.length; i++) {
-                                const pt = toCP(poly[i].x, poly[i].y);
-                                ctx.lineTo(pt.x, pt.y);
-                            }
-                            ctx.closePath(); ctx.fill(); ctx.stroke();
-                        });
-                    }
+            // Quadrillage fin interne à la zone (exactement comme le concurrent Duffus)
+            if (mapsInZone && mapsInZone.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.25)';
+                ctx.lineWidth = 1;
+                for (const m of mapsInZone) {
+                    const ctl = toCP(m.x, m.y);
+                    const cbr = toCP(m.x + 1, m.y + 1);
+                    ctx.strokeRect(Math.round(ctl.x), Math.round(ctl.y), Math.round(cbr.x - ctl.x), Math.round(cbr.y - ctl.y));
                 }
-            });
+            }
+
             ctx.restore();
         }
 
-        // ── 1c. Hover cellule individuelle (toujours visible qd en survol) ──
+        // ── 1b. Sélection d'une cible (avis / archimonstre) ──
+        // L'ancien « aplat orange pulsé » a été retiré : il recouvrait la zone d'un
+        // bloc orangé (tracé en escalier) au lieu de l'encadrer. La cible est
+        // désormais rendue par la surbrillance 1 (voile + contour, identique au
+        // survol) et par l'icône clignotante 1c ci-dessous.
+
+        // ── 1b-bis. Libellés de zone (nom + niveau) ──
+        // Toujours visibles (comme la carte de référence), mais fortement écrémés :
+        // on ne pose un libellé que si la zone occupe une surface lisible à l'écran
+        // et que le texte tient dans sa boîte. À dézoom fort presque aucune zone ne
+        // passe le filtre (aucun amas de texte) ; en zoom rapproché, les zones
+        // affichées s'espacent naturellement. Jamais sur la mini-carte.
+        if (!isMiniMap && zoneLabelBoxes.length > 0) {
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineJoin = 'round';
+            const taken: { x1: number; y1: number; x2: number; y2: number }[] = [];
+            for (const zone of zoneLabelBoxes) {
+                const tl = toCP(zone.minX, zone.minY);
+                const br = toCP(zone.maxX, zone.maxY);
+                const boxW = Math.abs(br.x - tl.x);
+                const boxH = Math.abs(br.y - tl.y);
+                if (boxW < 52 || boxH < 34) continue;              // zone trop petite à l'écran
+                // Ancre = centroïde du plus grand polygone (dans le tracé), pas le centre de
+                // l'emprise : sur une zone en L ou en archipel, ce dernier tombait hors zone.
+                const anchor = toCP(zone.anchorX, zone.anchorY);
+                const cx = anchor.x;
+                const cy = anchor.y;
+                if (cx < -80 || cy < -40 || cx > size.x + 80 || cy > size.y + 40) continue;
+
+                const levelLabel = `niv. ${zone.level}`;
+                ctx.font = 'bold 11px Inter, sans-serif';
+                const labelW = Math.max(ctx.measureText(zone.name).width, ctx.measureText(levelLabel).width) + 12;
+                if (labelW > boxW) continue;                      // le libellé ne tient pas dans la zone
+
+                const rect = { x1: cx - labelW / 2, y1: cy - 15, x2: cx + labelW / 2, y2: cy + 15 };
+                if (taken.some((r) => !(rect.x2 < r.x1 || rect.x1 > r.x2 || rect.y2 < r.y1 || rect.y1 > r.y2))) continue;
+                taken.push(rect);
+
+                // Halo clair sous un texte sombre : lisible sur les tuiles vertes
+                // comme sur les zones d'océan (aucune pastille opaque pour masquer la carte).
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = 3;
+                ctx.strokeText(zone.name, cx, cy - 6);
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+                ctx.fillText(zone.name, cx, cy - 6);
+
+                ctx.font = 'bold 10px Inter, sans-serif';
+                ctx.strokeText(levelLabel, cx, cy + 8);
+                ctx.fillStyle = 'rgba(71, 85, 105, 0.98)';
+                ctx.fillText(levelLabel, cx, cy + 8);
+            }
+            ctx.restore();
+        }
+
+        // ── 1c. Cible épinglée (avis / archimonstre) — son icône, au centre de la zone ──
+        // Aucun « point » inventé : si l'icône de la cible n'est pas encore chargée, on
+        // ne dessine RIEN (l'encadrement de la zone en 1 la situe déjà). L'ancien halo
+        // orangé + la pastille orange de repli brouillaient la carte sans rien
+        // apprendre : la cible se lit par sa zone, dans son monde.
+        if (highlightMarker) {
+            const markerWorldId = highlightMarker.worldId;
+            if (markerWorldId === undefined || markerWorldId === null || markerWorldId === world?.id) {
+                const point = toCP(highlightMarker.gameX, highlightMarker.gameY);
+                const size = 44;
+                const markerIcon = highlightMarker.iconUrl
+                    ? getMapMarkerImage(highlightMarker.iconUrl, drawGrid)
+                    : null;
+                if (markerIcon) {
+                    ctx.save();
+                    ctx.drawImage(markerIcon, point.x - size / 2, point.y - size / 2, size, size);
+                    ctx.restore();
+                }
+            }
+        }
+
+        // ── 1d. Hover cellule individuelle (crochets + badge coordonnées style Duffus) ──
         if (cellKey) {
             const [hx, hy] = cellKey.split(',').map(Number);
             const tl = toCP(hx, hy);
             const br = toCP(hx + 1, hy + 1);
             
             // Dessin des crochets (brackets) aux 4 coins
-            const len = 5; // longueur du crochet
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+            const len = 6;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
             ctx.lineWidth = 3;
             ctx.beginPath();
             
@@ -346,8 +488,31 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.stroke();
             
             // Légère surbrillance intérieure
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
             ctx.fillRect(Math.round(tl.x), Math.round(tl.y), Math.round(br.x - tl.x), Math.round(br.y - tl.y));
+
+            // Badge de coordonnées noir flottant style Duffus
+            const coordLabel = `[${hx}, ${hy}]`;
+            ctx.font = 'bold 11px Inter, sans-serif';
+            const tw = ctx.measureText(coordLabel).width;
+            const badgeW = tw + 12;
+            const badgeH = 20;
+            const badgeX = Math.round(tl.x + (br.x - tl.x) / 2 - badgeW / 2);
+            const badgeY = Math.round(tl.y - badgeH - 6);
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+            ctx.beginPath();
+            ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 5);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(coordLabel, badgeX + badgeW / 2, badgeY + badgeH / 2 + 1);
+            ctx.restore();
         }
 
         // ── 2. Selection Highlight ──
@@ -376,8 +541,12 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.fillRect(Math.round(tl.x), Math.round(tl.y), Math.round(br.x - tl.x), Math.round(br.y - tl.y));
         }
 
-        // ── 3. Guess Results ──
-        if (guessResult?.target && guessResult.target.worldMap === world.id) {
+        // ── 3. Guess Results — UNIQUEMENT pendant le mini-jeu ──
+        // La cible rouge, la ligne dorée et la pastille verte du devin n'ont aucun sens
+        // quand on explore la carte ou qu'on cible un avis : hors onglet « Mini-jeux »,
+        // ces calques ne sont plus dessinés (y compris si un résultat traîne encore en
+        // mémoire après une partie).
+        if (showGameOverlays && guessResult?.target && guessResult.target.worldMap === world.id) {
             const t = guessResult.target;
             const targetTL = toCP(t.x, t.y);
             const targetBR = toCP(t.x + 1, t.y + 1);
@@ -552,86 +721,237 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         // Labels de coordonnées sur la grille debug
         ctx.font = 'bold 9px Inter, sans-serif';
         // L'affichage du texte des coordonnées en mode debug a été supprimé à la demande de l'utilisateur.
-    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight]);
+    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, zoneHighlight, pinnedSubareaId, highlightMarker, zoneLabelBoxes]);
 
-    // ── Sync highlight ref & manage blink animation loop ──
+
+
+    // Redessine sur les mouvements de carte — UN SEUL handler rAF-throttled.
+    // (Avant : deux useMapEvents move/zoom en parallèle, dont un synchrone →
+    // 2-3 drawGrid par frame pendant pan/zoom + réallocation canvas à chaque fois,
+    // ce qui affamait le compositeur et faisait clignoter toute la page sur Opera GX.)
+    const scheduleDraw = useCallback(() => {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = 0;
+            drawGrid();
+        });
+    }, [drawGrid]);
+
+    // Annule le rAF pendant à la sortie (anti-fuite + anti-dessin sur canvas détaché)
     useEffect(() => {
-        const ids: number[] = highlightSubareaIds || [];
-        highlightSubareaIdsRef.current = ids;
-
-        if (ids.length > 0) {
-            const animate = () => {
-                drawGrid();
-                blinkRafRef.current = requestAnimationFrame(animate);
-            };
-            blinkRafRef.current = requestAnimationFrame(animate);
-        } else {
-            cancelAnimationFrame(blinkRafRef.current);
-            drawGrid(); // Clear the highlight
-        }
-
-        return () => cancelAnimationFrame(blinkRafRef.current);
-    }, [highlightSubareaIds, drawGrid]);
-
-
-
-    // Redraw on every map movement, zoom and toggle (rAF-throttled)
-    // Redraw on map view changes (critical for flyToBounds animation)
-    useMapEvents({
-        move: () => drawGrid(),
-        zoom: () => drawGrid(),
-        resize: () => drawGrid(),
-        moveend: () => drawGrid(),
-    });
+        return () => {
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        };
+    }, []);
 
     useEffect(() => {
         drawGrid();
     }, [showDebugGrid, drawGrid, selectedPosition, guessResult, participants, currentUserId]);
 
     useMapEvents({
-        move: () => {
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            rafRef.current = requestAnimationFrame(drawGrid);
-        },
+        move: scheduleDraw,
+        zoom: scheduleDraw,
+        resize: scheduleDraw,
         moveend: () => drawGrid(),
-        zoom: () => {
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            rafRef.current = requestAnimationFrame(drawGrid);
-        },
         zoomend: () => drawGrid(),
+    });
+
+    // Helper Zaap le plus proche — version DURCIE partagée (`findNearestZaap`) :
+    // on cherche dans le monde AFFICHÉ. L'ancien calcul (tous mondes confondus)
+    // proposait un zaap du Monde des Douze à 800 maps dans une dimension, présenté
+    // comme « le plus proche ». Ici, hors monde → on le DIT au lieu de mentir.
+    const getClosestZaap = useCallback((gx: number, gy: number) => {
+        const worldId = Number(activeWorld?.id ?? activeWorld?.m_id);
+        const nearest = findNearestZaap(zaaps as ZaapEntry[], {
+            x: gx,
+            y: gy,
+            worldId: Number.isFinite(worldId) ? worldId : null,
+        });
+        return nearest
+            ? { ...nearest.zaap, dist: nearest.distance, sameWorld: nearest.sameWorld }
+            : null;
+    }, [zaaps, activeWorld]);
+
+    // Mise à jour directe du HUD DOM (zéro re-render React pour les perfs)
+    const updateHudDOM = useCallback((mapData: any, subArea: any, gx: number, gy: number, isPinned: boolean) => {
+        const zoneName = subArea ? (subArea.name?.fr || subArea.name || 'Zone Inconnue') : 'Zone Inconnue';
+
+        // ── Support Overlay HUD (composant discret centré en bas) ──
+        const overlayHud = document.getElementById('sigil-overlay-hover-hud');
+        if (overlayHud) {
+            const overlayZone = document.getElementById('sigil-overlay-hover-zone');
+            const overlayCoords = document.getElementById('sigil-overlay-hover-coords');
+            const overlayPin = document.getElementById('sigil-overlay-hover-pin');
+            if (overlayZone) overlayZone.innerText = zoneName;
+            if (overlayCoords) overlayCoords.innerText = `[${gx}, ${gy}]`;
+            if (overlayPin) overlayPin.style.display = isPinned ? 'inline' : 'none';
+            overlayHud.style.display = 'flex';
+        }
+
+        // ── Support Mode Normal : Grand bandeau HD centré en bas ──
+        const hud = document.getElementById('sigil-map-hover-hud');
+        if (!hud) return;
+
+        const zoneSpan = document.getElementById('sigil-map-hover-zone');
+        const coordsSpan = document.getElementById('sigil-map-hover-coords');
+        const worldSpan = document.getElementById('sigil-map-hover-world');
+        const imgEl = document.getElementById('sigil-map-hover-img') as HTMLImageElement | null;
+        const zaapContainer = document.getElementById('sigil-map-hover-zaap-container');
+        const zaapNameEl = document.getElementById('sigil-map-hover-zaap-name');
+        const zaapDistEl = document.getElementById('sigil-map-hover-zaap-dist');
+        const zaapBtn = document.getElementById('sigil-map-hover-zaap-btn') as HTMLButtonElement | null;
+        const analyzeBtn = document.getElementById('sigil-map-hover-analyze-btn') as HTMLButtonElement | null;
+        const pinnedBadge = document.getElementById('sigil-map-hover-pinned-badge');
+        const closeBtn = document.getElementById('sigil-map-hover-close-btn');
+
+        // 1. Textes de zone et coordonnées
+        if (zoneSpan) zoneSpan.innerText = zoneName;
+        if (worldSpan) worldSpan.innerText = activeWorld?.name?.fr || activeWorld?.name || 'Monde des Douze';
+        if (coordsSpan) coordsSpan.innerText = `[${gx}, ${gy}]`;
+
+        // 2. Miniature HD
+        if (imgEl && mapData?.id) {
+            imgEl.src = `/game-data/hd_maps/${mapData.id}.webp`;
+        }
+
+        // 3. Zaap le plus proche (dans le monde affiché)
+        const closestZaap = getClosestZaap(gx, gy);
+        if (closestZaap && zaapContainer && zaapNameEl && zaapDistEl && zaapBtn) {
+            zaapContainer.style.display = 'flex';
+            if (closestZaap.sameWorld) {
+                zaapNameEl.innerText = `${closestZaap.name} [${closestZaap.x}, ${closestZaap.y}]`;
+                zaapDistEl.innerText = `(${closestZaap.dist} ${closestZaap.dist <= 1 ? 'map' : 'maps'})`;
+                zaapBtn.style.display = '';
+            } else {
+                // Aucun zaap dans ce monde : on l'affiche, on ne propose pas un
+                // faux « plus proche » (le bouton de trajet est retiré).
+                zaapNameEl.innerText = 'Aucun zaap dans ce monde';
+                zaapDistEl.innerText = `(le plus proche : ${closestZaap.name} [${closestZaap.x}, ${closestZaap.y}], autre monde)`;
+                zaapBtn.style.display = 'none';
+            }
+            zaapBtn.dataset.zaapX = String(closestZaap.x);
+            zaapBtn.dataset.zaapY = String(closestZaap.y);
+        } else if (zaapContainer) {
+            zaapContainer.style.display = 'none';
+        }
+
+        // 4. Bouton Analyser (stockage des coordonnées pour le clic)
+        if (analyzeBtn) {
+            analyzeBtn.dataset.x = String(gx);
+            analyzeBtn.dataset.y = String(gy);
+            analyzeBtn.dataset.mapId = String(mapData?.id || '');
+            analyzeBtn.dataset.subAreaId = String(mapData?.subAreaId || '');
+        }
+
+        // 5. Badge "Case fixée" & Bouton Détacher (✕)
+        if (pinnedBadge) {
+            pinnedBadge.style.display = isPinned ? 'inline-flex' : 'none';
+        }
+        if (closeBtn) {
+            closeBtn.style.display = isPinned ? 'flex' : 'none';
+        }
+
+        hud.style.display = 'flex';
+    }, [activeWorld, getClosestZaap]);
+
+    // Ref pour éviter les re-renders pendant le survol
+    const selectedPositionRef = useRef(selectedPosition);
+    useEffect(() => {
+        selectedPositionRef.current = selectedPosition;
+        if (selectedPosition && !isMiniMap) {
+            const exactMap = selectedPosition.mapId
+                ? (mapsByCoords?.get(`${selectedPosition.x},${selectedPosition.y}`) || { id: selectedPosition.mapId, subAreaId: selectedPosition.subAreaId })
+                : mapsByCoords?.get(`${selectedPosition.x},${selectedPosition.y}`);
+            const subArea = exactMap?.subAreaId ? subAreasById?.get(exactMap.subAreaId) : null;
+            updateHudDOM(exactMap, subArea, selectedPosition.x, selectedPosition.y, true);
+        } else {
+            const pinnedBadge = document.getElementById('sigil-map-hover-pinned-badge');
+            const closeBtn = document.getElementById('sigil-map-hover-close-btn');
+            if (pinnedBadge) pinnedBadge.style.display = 'none';
+            if (closeBtn) closeBtn.style.display = 'none';
+            const overlayPin = document.getElementById('sigil-overlay-hover-pin');
+            if (overlayPin) overlayPin.style.display = 'none';
+            if (!hoveredCellRef.current && (!isOverHudRef || !isOverHudRef.current)) {
+                const hud = document.getElementById('sigil-map-hover-hud');
+                if (hud) hud.style.display = 'none';
+                const overlayHud = document.getElementById('sigil-overlay-hover-hud');
+                if (overlayHud) overlayHud.style.display = 'none';
+            }
+        }
+        drawGrid();
+    }, [selectedPosition, isMiniMap, mapsByCoords, subAreasById, updateHudDOM, isOverHudRef, drawGrid]);
+
+    // Raccourci Échap pour déverrouiller la case sélectionnée
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && selectedPositionRef.current) {
+                if (setSelectedPosition) setSelectedPosition(null);
+                const hud = document.getElementById('sigil-map-hover-hud');
+                if (hud && (!isOverHudRef || !isOverHudRef.current)) hud.style.display = 'none';
+                const overlayHud = document.getElementById('sigil-overlay-hover-hud');
+                if (overlayHud && (!isOverHudRef || !isOverHudRef.current)) overlayHud.style.display = 'none';
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [setSelectedPosition, isOverHudRef]);
+
+    // Survol (HUD DOM direct, zéro setState React)
+    useMapEvents({
         mousemove: (e) => {
+            // Si un timer de masquage était en cours suite à une sortie de map, on l'annule immédiatement
+            if (mouseoutTimerRef.current) {
+                clearTimeout(mouseoutTimerRef.current);
+                mouseoutTimerRef.current = null;
+            }
+
+            // Si la souris est au-dessus du bandeau HUD lui-même : NE RIEN ÉCRASER
+            if (isOverHudRef && isOverHudRef.current) return;
+
             const world = activeWorld;
             if (!world) return;
             const gx0 = Math.floor((e.latlng.lng - world.origineX) / world.mapWidth);
             const gy0 = Math.floor((-e.latlng.lat - world.origineY) / world.mapHeight);
 
-            // ── Snap vers la map valide la plus proche (±3 cases) ──
-            let mapData = mapsByCoords?.get(`${gx0},${gy0}`);
-            let gx = gx0, gy = gy0;
-            if (!mapData) {
-                outer: for (let r = 1; r <= 15; r++) {
-                    for (let dx = -r; dx <= r; dx++) {
-                        for (let dy = -r; dy <= r; dy++) {
-                            if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
-                            const m = mapsByCoords?.get(`${gx0 + dx},${gy0 + dy}`);
-                            if (m) { mapData = m; gx = gx0 + dx; gy = gy0 + dy; break outer; }
-                        }
-                    }
-                }
-            }
-            const key = `${gx},${gy}`;
-            
-            // ── HOVER SECU: No highlight in void if playing in Mini-Jeux ──
-            if (isMiniMap && !mapData) {
+            // Sur la carte normale (exploration), aucun snap dans le vide ! On teste la case exacte.
+            // En minimap (Geoguesser), tolérance courte (maxR = 2).
+            const mapData = isMiniMap
+                ? findNearestMap(mapsByCoords, gx0, gy0, 2).foundMap
+                : mapsByCoords?.get(`${gx0},${gy0}`);
+
+            const subArea = mapData?.subAreaId ? subAreasById?.get(mapData.subAreaId) : null;
+            const isValidZone = !!mapData && !!subArea;
+
+            const mapContainer = map.getContainer();
+
+            // Si hors zone identifiée (océan, vide, hors map)
+            if (!isValidZone) {
                 if (hoveredCellRef.current !== null) {
                     hoveredCellRef.current = null;
                     hoveredSubAreaIdRef.current = null;
                     drawGrid();
                 }
+                // Si aucune case n'est fixée et qu'on n'est pas sur le HUD, on masque
+                if (!selectedPositionRef.current && (!isOverHudRef || !isOverHudRef.current)) {
+                    const hud = document.getElementById('sigil-map-hover-hud');
+                    if (hud) hud.style.display = 'none';
+                    const overlayHud = document.getElementById('sigil-overlay-hover-hud');
+                    if (overlayHud) overlayHud.style.display = 'none';
+                }
+                if (mapContainer && !isMiniMap) {
+                    mapContainer.style.cursor = '';
+                }
                 return;
             }
 
-            const subAreaId = mapData ? mapData.subAreaId : null;
+            if (mapContainer && !isMiniMap) {
+                mapContainer.style.cursor = 'pointer';
+            }
+
+            const gx = gx0;
+            const gy = gy0;
+            const key = `${gx},${gy}`;
+            const subAreaId = mapData.subAreaId;
 
             if (key !== hoveredCellRef.current || subAreaId !== hoveredSubAreaIdRef.current) {
                 hoveredCellRef.current = key;
@@ -639,33 +959,39 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
                 if (rafRef.current) cancelAnimationFrame(rafRef.current);
                 rafRef.current = requestAnimationFrame(drawGrid);
                 
-                // Update DOM HUD without React renders
-                const hud = document.getElementById('sigil-map-hover-hud');
-                if (hud) {
-                    const zoneSpan = document.getElementById('sigil-map-hover-zone');
-                    const coordsSpan = document.getElementById('sigil-map-hover-coords');
-                    const worldSpan = document.getElementById('sigil-map-hover-world');
-                    const img = document.getElementById('sigil-map-hover-img') as HTMLImageElement;
-                    
-                    if (zoneSpan && coordsSpan && worldSpan) {
-                        if (subAreaId && subAreasById) {
-                            const subArea = subAreasById.get(subAreaId);
-                            zoneSpan.innerText = subArea ? (subArea.name?.fr || subArea.name || 'Zone Inconnue') : 'Zone Inconnue';
-                        } else {
-                            zoneSpan.innerText = 'Position';
-                        }
-                        
-                        worldSpan.innerText = activeWorld?.name?.fr || activeWorld?.name || 'Monde des Douze';
-                        coordsSpan.innerText = `[${gx}, ${gy}]`;
-                        
-                        hud.style.display = 'flex';
-                    }
-                }
+                // IMPORTANT : Si une case est verrouillée / sélectionnée, le HUD reste fixé dessus
+                // pour permettre à l'utilisateur de déplacer sa souris tranquillement jusqu'au bouton Analyser !
+                if (selectedPositionRef.current) return;
+
+                // Mode survol libre
+                updateHudDOM(mapData, subArea, gx, gy, false);
             }
         },
         mouseout: () => {
-            // On ne cache plus le HUD au mouseout pour qu'il reste disponible 
-            // avec la dernière position connue.
+            // Débounce de 180ms pour éviter le clignotement / disparition quand le curseur
+            // transite de la carte vers le bandeau HUD ou franchit les bordures
+            if (mouseoutTimerRef.current) clearTimeout(mouseoutTimerRef.current);
+            mouseoutTimerRef.current = setTimeout(() => {
+                mouseoutTimerRef.current = null;
+                // Ne pas masquer si la souris est en train de survoler le bandeau HUD !
+                if (isOverHudRef && isOverHudRef.current) return;
+                // Ne pas masquer si une case est fixée !
+                if (selectedPositionRef.current) return;
+
+                if (hoveredCellRef.current !== null) {
+                    hoveredCellRef.current = null;
+                    hoveredSubAreaIdRef.current = null;
+                    drawGrid();
+                }
+                const hud = document.getElementById('sigil-map-hover-hud');
+                if (hud) hud.style.display = 'none';
+                const overlayHud = document.getElementById('sigil-overlay-hover-hud');
+                if (overlayHud) overlayHud.style.display = 'none';
+                const mapContainer = map.getContainer();
+                if (mapContainer && !isMiniMap) {
+                    mapContainer.style.cursor = '';
+                }
+            }, 180);
         }
     });
 
@@ -707,57 +1033,60 @@ function MapNarrativeGPS({ activeWorld, triggerCoords, triggerWorldId, currentWo
 // -------------------------------------------------------------------------------------
 // Fix Resize Issue & Autocenter Result
 // -------------------------------------------------------------------------------------
-// Pré-charge les tuiles de la zone cible (réduit le flash au dézoom du rendu de distance)
-function prefetchTilesForBounds(map: any, world: any, bounds: any) {
-    if (!world || !bounds || typeof window === 'undefined') return;
-    const tileSize = world.id === 1 ? 256 : 250;
-    const zoom = Math.round(map.getBoundsZoom(bounds, false));
-    const scales = world.zoom || [1];
-    const idx = -zoom;
-    let scale = 1, bank = '1';
-    if (idx >= 0 && idx < scales.length) { scale = scales[idx]; bank = scale === 1 ? '1' : parseFloat(scale.toFixed(4)).toString(); }
-    else if (idx < 0) { scale = 1; bank = '1'; }
-    else { scale = scales[scales.length - 1]; bank = parseFloat(scale.toFixed(4)).toString(); }
-    const apiCols = world.id === 1 ? Math.round((world.totalWidth * scale) / tileSize) : Math.ceil((world.totalWidth * scale) / tileSize);
-    const apiRows = world.id === 1 ? Math.round((world.totalHeight * scale) / tileSize) : Math.ceil((world.totalHeight * scale) / tileSize);
+/**
+ * Zoom de cadrage d'une cible (zone d'un avis, étape de quête) : à cette
+ * échelle (~0,8) une zone de ~16 cases tient entièrement à l'écran avec sa
+ * marge. Source unique : le montage (`initialZoom`) ET le vol
+ * (`ExternalController`) l'utilisent, sinon la bascule de monde chargeait les
+ * tuiles deux fois (zoom de montage ≠ zoom de vol).
+ */
+const ZONE_FOCUS_ZOOM = -1;
 
-    const nw = bounds.getNorthWest();
-    const se = bounds.getSouthEast();
-    const nwPx = map.project(nw, zoom);
-    const sePx = map.project(se, zoom);
-    const minX = Math.floor(nwPx.x / tileSize);
-    const maxX = Math.floor(sePx.x / tileSize);
-    const minY = Math.floor(nwPx.y / tileSize);
-    const maxY = Math.floor(sePx.y / tileSize);
-
-    for (let ty = minY; ty <= maxY; ty++) {
-        for (let tx = minX; tx <= maxX; tx++) {
-            if (tx < 0 || tx >= apiCols || ty < 0 || ty >= apiRows) continue;
-            const index = ty * apiCols + tx + 1;
-            const url = `/game-data/tiles/w${world.id}/${bank}/${index}.webp`;
-            const img = new window.Image();
-            img.src = url;
-        }
-    }
-}
-
-function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel, minimapRecenterTrigger, participants }: any) {
+function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel, minimapRecenterTrigger, participants, triggerCenterPosition }: any) {
     const map = useMap();
 
     const lastFittedKeyRef = useRef<string>("");
 
     useEffect(() => {
-        const t = setTimeout(() => map.invalidateSize(), 100);
-        return () => clearTimeout(t);
+        const handleResize = () => map.invalidateSize();
+        const t1 = setTimeout(handleResize, 100);
+        const t2 = setTimeout(handleResize, 450);
+        window.addEventListener('resize', handleResize);
+
+        // ResizeObserver : recalcule la taille de la carte dès que son conteneur change de
+        // dimensions (bascule plein écran ↔ mode normal de #worldmap-page, panneau latéral
+        // Opti-Farm qui s'ouvre/ferme, etc.). Sans cela, Leaflet conserve les tuiles
+        // dimensionnées pour l'ancien conteneur → fragments « micro aperçu » / tuiles
+        // décalées après avoir quitté le plein écran.
+        const container = map.getContainer();
+        let raf = 0;
+        const ro = typeof ResizeObserver !== 'undefined'
+            ? new ResizeObserver(() => {
+                cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(() => map.invalidateSize());
+            })
+            : null;
+        if (ro && container) ro.observe(container);
+
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+            window.removeEventListener('resize', handleResize);
+            if (ro) {
+                ro.disconnect();
+                cancelAnimationFrame(raf);
+            }
+        };
     }, [map]);
 
     // Recenter map automatically when the active world changes
     // BUT only if we don't have a specific quest/trigger position to focus on
     useEffect(() => {
         if (activeWorld && map && !participants) { 
-            // If we have a triggerCenterPosition pending, we let that handler or initial mount take care of it
-            const hasTrigger = (map as any)._hasTriggeredOnce;
-            if (hasTrigger) return;
+            // Une cible explicite (avis, quête, recherche) a déjà cadré le montage
+            // (`initialCenter` + `initialZoom`) : recentrer ici sur le milieu du monde
+            // ferait charger un écran entier de tuiles pour rien, puis sauter à la cible.
+            if (triggerCenterPosition) return;
 
             const world = activeWorld;
             const targetLat = -(world.totalHeight / 2);
@@ -766,7 +1095,7 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
             // SetView is immediate which feels better when switching worlds than flyTo
             map.setView([targetLat, targetLng], isMiniMap ? -3 : 0, { animate: false });
         }
-    }, [activeWorld, map, isMiniMap, participants]);
+    }, [activeWorld, map, isMiniMap, participants, triggerCenterPosition]);
 
     // Manual Zoom Control for MiniMap
     useEffect(() => {
@@ -845,11 +1174,31 @@ function MapViewHandler({ isMiniMap, guessResult, activeWorld, minimapZoomLevel,
 
 // Tooltip + click interactions (throttled)
 // -------------------------------------------------------------------------------------
-function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator, hideUI, interactive = true, autoCopyTravel = false, onHoverMap, activeCircuit }: any) {
+function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeonsByMapId, setSelectedPosition, isMiniMap, isSpectator, hideUI, interactive = true, autoCopyTravel = false, isOverlay = false, onHoverMap, activeCircuit, onOpenZoneDetails }: any) {
     const map = useMap();
     const lastTooltipTime = useRef(0);
 
     useMapEvents(!interactive ? {} : {
+        dblclick: (e) => {
+            if (isSpectator || hideUI) return; 
+            const world = activeWorld;
+            if (!world) return;
+            const mapX = e.latlng.lng;
+            const mapY = -e.latlng.lat;
+            const gameX0 = Math.floor((mapX - world.origineX) / world.mapWidth);
+            const gameY0 = Math.floor((mapY - world.origineY) / world.mapHeight);
+
+            const exactMap = mapsByCoords?.get(`${gameX0},${gameY0}`);
+            const subArea = exactMap?.subAreaId ? subAreasById?.get(exactMap.subAreaId) : null;
+            if (exactMap && subArea && onOpenZoneDetails) {
+                onOpenZoneDetails({
+                    x: gameX0,
+                    y: gameY0,
+                    mapId: exactMap.id,
+                    subAreaId: exactMap.subAreaId
+                });
+            }
+        },
         mousemove: (e) => {
             if (!activeWorld) return; 
 
@@ -865,41 +1214,21 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
             const gameX0 = Math.floor((mapX - world.origineX) / world.mapWidth);
             const gameY0 = Math.floor((mapY - world.origineY) / world.mapHeight);
 
-            // ── Snap vers la map valide la plus proche (±3 cases) ──
-            // La formule linéaire accumule des erreurs sur les régions éloignées (Frigost, etc.)
-            // On cherche dans le voisinage pour trouver la map réelle sous le curseur.
-            let foundMap = mapsByCoords.get(`${gameX0},${gameY0}`);
-            let gameX = gameX0;
-            let gameY = gameY0;
-            if (!foundMap) {
-                outer: for (let r = 1; r <= 15; r++) {
-                    for (let dx = -r; dx <= r; dx++) {
-                        for (let dy = -r; dy <= r; dy++) {
-                            if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue; // only perimeter
-                            const m = mapsByCoords.get(`${gameX0 + dx},${gameY0 + dy}`);
-                            if (m) { foundMap = m; gameX = gameX0 + dx; gameY = gameY0 + dy; break outer; }
-                        }
-                    }
-                }
-            }
-            
+            const mapData = isMiniMap
+                ? findNearestMap(mapsByCoords, gameX0, gameY0, 2).foundMap
+                : mapsByCoords?.get(`${gameX0},${gameY0}`);
+            const subArea = mapData?.subAreaId ? subAreasById?.get(mapData.subAreaId) : null;
+            const isValid = !!mapData && !!subArea;
+
             // Dispatch specifically for HUD if callback exists
             if (onHoverMap) {
-                onHoverMap({ x: gameX, y: gameY, found: !!foundMap });
+                onHoverMap(isValid ? { x: gameX0, y: gameY0, found: true } : null);
             }
 
-            // In minimap (Geoguesser), block visually invalid areas
-            if (isMiniMap && !foundMap) {
-                return;
-            }
-            
-            // L'HUD Top-Right dynamique est géré via SigilTilesLayer ou le composant wrapper
-            // Note: le wrapper DOM `sigil-map-hover-hud` est mis à jour par le useRef côté DrawGrid
-            // ou directement ici:
+            if (!isValid) return;
         },
         mouseout: () => {
             if (onHoverMap) onHoverMap(null);
-            // On ne cache plus le HUD ici non plus.
         },
         click: (e) => {
             if (isSpectator || hideUI) return; 
@@ -911,46 +1240,67 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
             const gameX0 = Math.floor((mapX - world.origineX) / world.mapWidth);
             const gameY0 = Math.floor((mapY - world.origineY) / world.mapHeight);
 
-            // Snap vers la map valide la plus proche (±3 cases)
-            let foundMap = mapsByCoords.get(`${gameX0},${gameY0}`);
-            let gameX = gameX0;
-            let gameY = gameY0;
-            if (!foundMap) {
-                outer: for (let r = 1; r <= 15; r++) {
-                    for (let dx = -r; dx <= r; dx++) {
-                        for (let dy = -r; dy <= r; dy++) {
-                            if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
-                            const m = mapsByCoords.get(`${gameX0 + dx},${gameY0 + dy}`);
-                            if (m) { foundMap = m; gameX = gameX0 + dx; gameY = gameY0 + dy; break outer; }
-                        }
-                    }
+            // ── En mode MiniMap (Geoguesser) : snap court (rayon 3) ──
+            if (isMiniMap) {
+                const { foundMap, gx: gameX, gy: gameY } = findNearestMap(mapsByCoords, gameX0, gameY0, 3);
+                if (!foundMap) {
+                    toast.error("Position hors carte — Veuillez viser une zone valide du monde !", {
+                        id: "geoguesser-void-click",
+                        duration: 2000,
+                        icon: <Flag className="w-4 h-4 text-rose-500" />
+                    });
+                    return;
                 }
-            }
-            
-            // ── SECU: Block click if "Hors Map" in Mini-Jeux Mode ──
-            if (isMiniMap && !foundMap) {
-                toast.error("Position hors carte — Veuillez viser une zone valide du monde !", {
-                    id: "geoguesser-void-click",
-                    duration: 2000,
-                    icon: <Flag className="w-4 h-4 text-rose-500" />
-                });
+                if (setSelectedPosition) {
+                    setSelectedPosition({ x: gameX, y: gameY, displayX: gameX, displayY: gameY, mapId: foundMap.id });
+                }
                 return;
             }
 
-            // ── Ouvrir l'analyse HD de la carte / Poser son marqueur de Guess ──
-            if (setSelectedPosition) {
-                setSelectedPosition({ x: gameX, y: gameY, displayX: gameX, displayY: gameY, mapId: foundMap?.id });
+            // ── En mode Exploration normale : AUCUN clic hors zone identifiée ! ──
+            const exactMap = mapsByCoords?.get(`${gameX0},${gameY0}`);
+            const subArea = exactMap?.subAreaId ? subAreasById?.get(exactMap.subAreaId) : null;
+            const isIdentifiedZone = !!exactMap && !!subArea;
+
+            if (!isIdentifiedZone) {
+                // Clic sur l'océan ou zone vide non identifiée : on ferme la sélection si ouverte
+                if (setSelectedPosition) {
+                    setSelectedPosition(null);
+                }
+                return;
             }
 
-            // ── Copie de la commande /travel ──
-            if (activeCircuit || (!isMiniMap && autoCopyTravel)) {
-                const command = `/travel ${gameX} ${gameY}`;
+            // ── Fixer la case pour analyse HD et Zaap dans le bandeau ──
+            if (setSelectedPosition) {
+                setSelectedPosition({
+                    x: gameX0,
+                    y: gameY0,
+                    displayX: gameX0,
+                    displayY: gameY0,
+                    mapId: exactMap.id,
+                    subAreaId: exactMap.subAreaId
+                });
+            }
+
+            // ── Copie de la commande /travel si activée ──
+            if (activeCircuit || autoCopyTravel) {
+                const command = `/travel ${gameX0} ${gameY0}`;
                 navigator.clipboard.writeText(command)
                     .then(() => {
-                        toast.success(`${command} copié !`, {
-                            icon: <Rocket className="w-4 h-4 text-emerald-400" />,
-                            duration: 1500
-                        });
+                        if (isOverlay) {
+                            toast.success(`${command}`, {
+                                icon: '📍',
+                                duration: 1200,
+                                position: 'bottom-right',
+                                className: 'text-xs !py-2 !px-3 !min-h-0',
+                                description: undefined,
+                            });
+                        } else {
+                            toast.success(`${command} copié !`, {
+                                icon: <Rocket className="w-4 h-4 text-emerald-400" />,
+                                duration: 1500
+                            });
+                        }
                     })
                     .catch(() => {
                         toast.error("Échec de la copie au presse-papier.");
@@ -965,22 +1315,33 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
 function ExternalController({ triggerCenterPosition, activeWorld, minimapRecenterTrigger, interactive, initialZoom }: any) {
     const map = useMap();
     const prevTrigger = useRef(minimapRecenterTrigger);
-    const hasCentered = useRef(false);
 
-    useEffect(() => {
-        if (!triggerCenterPosition || !activeWorld) return;
-        const px = activeWorld.origineX + triggerCenterPosition.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
-        const py = activeWorld.origineY + triggerCenterPosition.y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
-        
+    /**
+     * Cadre la carte sur une cible : **même zoom que le montage** (`initialZoom`,
+     * sinon le zoom de cadrage de zone) et **aucune animation** quand la carte y
+     * est déjà. Sans cela, une bascule de monde chargeait les tuiles deux fois
+     * (montage à un zoom, vol à un autre) avec un saut visible au milieu.
+     */
+    const frameOn = useCallback((x: number, y: number) => {
+        if (!activeWorld) return;
+        const px = activeWorld.origineX + x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
+        const py = activeWorld.origineY + y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
+        const zoom = initialZoom !== undefined ? initialZoom : ZONE_FOCUS_ZOOM;
+
         if (interactive === false) {
             // Mode photo/rendu : setView immédiat sans animation
-            const zoom = initialZoom !== undefined ? initialZoom : -1;
             map.setView([-py, px], zoom, { animate: false });
-        } else {
-            // Mode interactif : flyTo animé
-            map.flyTo([-py, px], -1, { duration: 0.5 });
+            return;
         }
-    }, [triggerCenterPosition, activeWorld, map, interactive, initialZoom]);
+        // Déjà cadré (montage sur la cible) : rien à animer, rien à recharger.
+        if (map.getZoom() === zoom && map.getCenter().equals(L.latLng(-py, px), 0.5)) return;
+        map.flyTo([-py, px], zoom, { duration: 0.5 });
+    }, [activeWorld, initialZoom, interactive, map]);
+
+    useEffect(() => {
+        if (!triggerCenterPosition) return;
+        frameOn(triggerCenterPosition.x, triggerCenterPosition.y);
+    }, [triggerCenterPosition, frameOn]);
 
     useEffect(() => {
         if (minimapRecenterTrigger !== undefined && minimapRecenterTrigger !== prevTrigger.current) {
@@ -997,18 +1358,11 @@ function ExternalController({ triggerCenterPosition, activeWorld, minimapRecente
                     }
                 } else if (triggerCenterPosition) {
                     // Recenter command
-                    const px = activeWorld.origineX + triggerCenterPosition.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
-                    const py = activeWorld.origineY + triggerCenterPosition.y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
-                    if (interactive === false) {
-                        const zoom = initialZoom !== undefined ? initialZoom : -1;
-                        map.setView([-py, px], zoom, { animate: false });
-                    } else {
-                        map.flyTo([-py, px], -1, { duration: 0.5 });
-                    }
+                    frameOn(triggerCenterPosition.x, triggerCenterPosition.y);
                 }
             }
         }
-    }, [minimapRecenterTrigger, map, interactive, initialZoom]);
+    }, [minimapRecenterTrigger, map, frameOn]);
 
     return null;
 }
@@ -1072,8 +1426,13 @@ interface LeafletMapCoreProps {
     initialZoom?: number;
     autoCopyTravel?: boolean;
     onHoverMap?: (pos: { x: number, y: number, found: boolean } | null) => void;
-    highlightSubareaIds?: number[];
     zoneHighlight?: boolean;
+    /** Cible + tracés du devin (mini-jeu) : dessinés uniquement dans l'onglet des jeux. */
+    showGameOverlays?: boolean;
+    /** Zone encadrée même sans survol (avis sélectionné dans le panneau latéral). */
+    pinnedSubareaId?: number | null;
+    /** Cible (avis) dessinée au centre de sa zone, clignotante. */
+    highlightMarker?: { gameX: number; gameY: number; iconUrl?: string | null; worldId?: number | null } | null;
     minZoom?: number;
     zaaps?: any[];
     showZaaps?: boolean;
@@ -1081,121 +1440,256 @@ interface LeafletMapCoreProps {
     activeCircuit?: any;
     completedHarvestSteps?: Set<number>;
     onToggleHarvestStep?: (stepIdx: number) => void;
+    showPassages?: boolean;
+    onOpenZoneDetails?: (pos?: { x: number; y: number; mapId?: number; subAreaId?: number }) => void;
+    isOverlay?: boolean;
+    /**
+     * Noms de zones dont le libellé (nom + niveau) ne doit PAS être dessiné —
+     * liste tenue à la main depuis God (`/game-data/hidden-map-zones.json`).
+     */
+    hiddenZoneLabels?: string[];
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
-    const [hoveredCoords, setHoveredCoords] = React.useState<{ x: number, y: number, found?: boolean } | null>(null);
+    // Note : le survol met à jour le HUD via DOM direct (pas de setState ici —
+    // un état à 10 Hz re-rendait tous les marqueurs donjons à chaque mousemove).
 
     const {
         activeWorld, selectedWorldId, activeMaps, mapsByCoords, subAreasById,
         dungeonsByMapId, groupedDungeons, showDebugGrid, selectedPosition,
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
         triggerWorldId, isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
-        participants, currentUserId, isSpectator, hideUI, interactive = true, 
-        autoCopyTravel = false, onHoverMap, highlightSubareaIds, initialZoom: initialZoomProp, zoneHighlight,
-        zaaps, showZaaps, selectedHarvestResources, activeCircuit, completedHarvestSteps, onToggleHarvestStep
+         participants, currentUserId, isSpectator, hideUI, interactive = true, 
+        autoCopyTravel = false, initialZoom: initialZoomProp, zoneHighlight, showGameOverlays = false,
+        pinnedSubareaId = null, highlightMarker = null,
+        zaaps, showZaaps, selectedHarvestResources, activeCircuit, completedHarvestSteps, onToggleHarvestStep,
+        showPassages = false, onOpenZoneDetails, isOverlay = false, hiddenZoneLabels = []
     } = props;
 
-    const correctedActiveWorld = useMemo(() => {
-        if (!activeWorld) return null;
-        // Calibration précise du Monde des Douze (id=1) :
-        // Le dataset DofusDB calcule mapWidth/mapHeight sur base d'un canevas 10000x8000
-        // Mais comme nous affichons des tuiles à 256px (40x32 tiles),
-        // Le canevas final est étiré par un facteur de (256/250) = 1.024
-        // Il FAUT appliquer ce facteur multiplicatif brut sur TOUTES les constantes de base :
-        if (activeWorld.id === 1) {
-            return {
-                ...activeWorld,
-                origineX: activeWorld.origineX * 1.024,
-                origineY: activeWorld.origineY * 1.024,
-                mapWidth: activeWorld.mapWidth * 1.024,
-                mapHeight: activeWorld.mapHeight * 1.024,
-                totalWidth: activeWorld.totalWidth * 1.024,
-                totalHeight: Math.ceil(activeWorld.totalHeight * 1.024)
-            };
-        }
-        return activeWorld;
-    }, [activeWorld]);
+    if (!activeWorld) return null;
 
-    if (!correctedActiveWorld) return null;
-
+    // Coordonnées du monde **telles quelles** : le fond de carte est pavé de tuiles
+    // de `WORLDMAP_TILE_SIZE` (250 px) et une banque couvre exactement
+    // `totalWidth x totalHeight` (mesuré sur les fichiers servis : monde 1 = 40x32,
+    // 32x26, 24x20, 16x13, 8x7 en 1 / 0,8 / 0,6 / 0,4 / 0,2). Le facteur x1.024
+    // appliqué autrefois au Monde des Douze (« tuiles affichées en 256 px ») étirait
+    // la carte de 2,4 % par rapport à l'espace des coordonnées, donc TOUT ce qui est
+    // placé par coordonnées dérivait (marqueurs, tracés de zone, encarts) — et depuis
+    // que les tuiles sont lues à leur taille réelle, la grille de demandes devenait
+    // 41x33 : une colonne fantôme décalait chaque rangée d'une tuile. Le monde 1 suit
+    // désormais la même règle que les 35 autres (cf. `WORLDMAP_TILE_SIZE`).
     if (typeof window !== 'undefined') {
-        (window as any)._activeWorld_for_crs = correctedActiveWorld;
+        (window as any)._activeWorld_for_crs = activeWorld;
     }
 
     // Dimension des tuiles du monde en cours pour combler parfaitement les trous
-    const tileSize = selectedWorldId === 1 ? 256 : 250;
+    const tileSize = WORLDMAP_TILE_SIZE;
 
     // Calculate initial center: quest target if exists, else world center
     const initialCenter = useMemo(() => {
-        if (triggerCenterPosition && correctedActiveWorld) {
-            const lat = -(correctedActiveWorld.origineY + triggerCenterPosition.y * correctedActiveWorld.mapHeight + correctedActiveWorld.mapHeight / 2);
-            const lng = correctedActiveWorld.origineX + triggerCenterPosition.x * correctedActiveWorld.mapWidth + correctedActiveWorld.mapWidth / 2;
+        if (triggerCenterPosition && activeWorld) {
+            const lat = -(activeWorld.origineY + triggerCenterPosition.y * activeWorld.mapHeight + activeWorld.mapHeight / 2);
+            const lng = activeWorld.origineX + triggerCenterPosition.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
             return [lat, lng] as [number, number];
         }
-        return [-correctedActiveWorld.totalHeight / 2, correctedActiveWorld.totalWidth / 2] as [number, number];
-    }, [triggerCenterPosition, correctedActiveWorld]);
+        return [-activeWorld.totalHeight / 2, activeWorld.totalWidth / 2] as [number, number];
+    }, [triggerCenterPosition, activeWorld]);
 
     const initialZoom = useMemo(() => {
         if (initialZoomProp !== undefined) return initialZoomProp;
-        if (triggerCenterPosition) return 0; // Standard for quest focus
+        // Une cible est cadrée (avis, quête) : on monte DIRECTEMENT au zoom de vol
+        // (`ExternalController` utilise le même) — deux zooms différents pour la
+        // même bascule = deux chargements de tuiles, donc la transition qui rame.
+        if (triggerCenterPosition) return ZONE_FOCUS_ZOOM;
         return isMiniMap ? -3 : 0;
     }, [triggerCenterPosition, isMiniMap, initialZoomProp]);
 
+    const isOverHudRef = useRef(false);
+    const mouseoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     return (
-        <div className="w-full h-full cursor-crosshair relative map-core-wrapper">
-            {/* L'UI de la zone survolée est mise à jour manuellement pour des raisons de perfs absolues sans re-render */}
-            {!isMiniMap && !hideUI && (
+        <div className={cn("w-full h-full relative map-core-wrapper", isMiniMap && "cursor-crosshair")}>
+            {/* L'UI de la zone survolée / fixée est mise à jour manuellement pour des raisons de perfs absolues sans re-render */}
+            {/* Grand bandeau HD centré en bas : aperçu tuile HD + Zaap proche + infos + Analyser */}
+            {!isMiniMap && !hideUI && !isOverlay && (
                 <div 
                     id="sigil-map-hover-hud"
                     style={{ display: 'none' }}
-                    className="absolute bottom-8 left-1/2 -translate-x-[50%] z-[1000] bg-[#2d3139] shadow-[0_8px_32px_rgba(0,0,0,0.6)] rounded-lg pointer-events-auto transition-all duration-200 flex items-center border border-border overflow-visible px-6 py-4 group"
+                    onMouseEnter={(e) => {
+                        e.stopPropagation();
+                        isOverHudRef.current = true;
+                        if (mouseoutTimerRef.current) {
+                            clearTimeout(mouseoutTimerRef.current);
+                            mouseoutTimerRef.current = null;
+                        }
+                    }}
+                    onMouseMove={(e) => {
+                        e.stopPropagation();
+                        isOverHudRef.current = true;
+                        if (mouseoutTimerRef.current) {
+                            clearTimeout(mouseoutTimerRef.current);
+                            mouseoutTimerRef.current = null;
+                        }
+                    }}
+                    onMouseLeave={() => {
+                        isOverHudRef.current = false;
+                        if (!selectedPosition) {
+                            const hud = document.getElementById('sigil-map-hover-hud');
+                            if (hud) hud.style.display = 'none';
+                        }
+                    }}
+                    className={cn(
+                        "absolute bottom-5 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto flex max-w-[96vw] items-center gap-2.5 rounded-xl border border-white/10 bg-[#05070f]/95 p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                    )}
                 >
-                    {/* Tooltip visible on group hover */}
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-[#1a1b1e] text-foreground text-caption font-bold px-4 py-2 rounded shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-border pointer-events-none">
-                        Copier la commande d'auto-pilotage
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-[#1a1b1e]"></div>
+                    {/* 1. Aperçu HD de la tuile survolée (clic = Analyser) */}
+                    <div
+                        className="relative h-24 w-36 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-white/10 bg-black/60 hover:border-white/25 sm:h-28 sm:w-44"
+                        title="Cliquer pour analyser cette tuile"
+                        onClick={() => {
+                            const btn = document.getElementById('sigil-map-hover-analyze-btn') as HTMLButtonElement | null;
+                            if (btn) btn.click();
+                        }}
+                    >
+                        <img
+                            id="sigil-map-hover-img"
+                            alt="Aperçu HD"
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/assets/dofus/map-layers/icon-dungeon-bright.png';
+                            }}
+                        />
+                        <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white/70">
+                            Aperçu HD
+                        </span>
                     </div>
 
-                    <div className="flex flex-col justify-center min-w-[200px]">
-                        <span id="sigil-map-hover-zone" className="text-foreground font-black text-xl uppercase tracking-tight leading-none group-hover:text-emerald-400 transition-colors"></span>
-                        <div className="flex items-center gap-3 mt-2">
-                            <span id="sigil-map-hover-world" className="text-foreground/30 font-bold text-caption uppercase tracking-[0.2em]"></span>
-                            <span className="w-1 h-1 rounded-full bg-surface" />
-                            <div className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded border border-border">
-                                <Rocket size={10} className="text-emerald-500" />
-                                <span id="sigil-map-hover-coords" className="text-emerald-400 font-black text-body-sm tracking-tight"></span>
-                            </div>
+                    <div className="h-8 w-px shrink-0 bg-white/10" />
+
+                    {/* 2. Une seule rangée : zone, monde, coordonnées, case fixée, Zaap */}
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <span id="sigil-map-hover-zone" className="max-w-[220px] truncate text-sm font-semibold text-white" />
+                        <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 text-[11px] font-medium text-white/60">
+                            <Compass size={11} className="shrink-0 opacity-70" />
+                            <span id="sigil-map-hover-world" />
+                        </span>
+                        <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 text-[11px] font-medium text-white/60">
+                            <Rocket size={11} className="shrink-0 opacity-70" />
+                            <span id="sigil-map-hover-coords" className="font-mono text-white/90" />
+                        </span>
+                        <span
+                            id="sigil-map-hover-pinned-badge"
+                            style={{ display: 'none' }}
+                            className="h-7 shrink-0 items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2 text-[11px] font-medium text-white/80"
+                        >
+                            <Pin size={11} className="shrink-0" />
+                            Case fixée
+                        </span>
+                        <div id="sigil-map-hover-zaap-container" className="flex shrink-0 items-center gap-1.5">
+                            <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 text-[11px] font-medium text-white/60">
+                                <img src="/assets/dofus/map-layers/icon-zaap-bright.png" alt="Zaap" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                                <span className="text-white/45">Zaap</span>
+                                <span id="sigil-map-hover-zaap-name" className="max-w-[160px] truncate text-white/90" />
+                                <span id="sigil-map-hover-zaap-dist" className="text-white/45" />
+                            </span>
+                            <button
+                                id="sigil-map-hover-zaap-btn"
+                                type="button"
+                                className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+                                title="Copier la commande /travel vers ce Zaap"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const btn = e.currentTarget as HTMLButtonElement;
+                                    const zx = btn.dataset.zaapX;
+                                    const zy = btn.dataset.zaapY;
+                                    if (zx && zy) {
+                                        const cmd = `/travel ${zx} ${zy}`;
+                                        navigator.clipboard.writeText(cmd);
+                                        toast.success(`${cmd} copié !`, { icon: '📍' });
+                                    }
+                                }}
+                            >
+                                <Copy size={11} />
+                                /travel
+                            </button>
                         </div>
                     </div>
 
-                    {/* Rocket Copy Button */}
-                    <div className="ml-8 w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center shadow-[0_10px_20px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:shadow-[0_15px_30px_rgba(16,185,129,0.4)] transition-all cursor-pointer group/btn active:scale-90" onClick={() => {
-                        const coords = document.getElementById('sigil-map-hover-coords')?.innerText;
-                        if (coords) {
-                            const match = coords.match(/\[(.*),(.*)\]/);
-                            if (match) {
-                                const cmd = `/travel ${match[1].trim()} ${match[2].trim()}`;
-                                navigator.clipboard.writeText(cmd);
-                                toast.success("Commande copiée !", {
-                                    description: cmd,
-                                    icon: <Rocket className="w-4 h-4 text-emerald-400" />
-                                });
+                    <div className="h-8 w-px shrink-0 bg-white/10" />
+
+                    {/* 3. Action primaire : la seule couleur de l'encart */}
+                    <button
+                        id="sigil-map-hover-analyze-btn"
+                        type="button"
+                        className="inline-flex h-8 shrink-0 items-center gap-2 rounded-lg bg-amber-500 px-4 text-xs font-semibold text-black transition-colors hover:bg-amber-400 active:scale-[0.98] cursor-pointer"
+                        title="Analyser les détails de la zone"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const btn = e.currentTarget as HTMLButtonElement;
+                            const x = Number(btn.dataset.x);
+                            const y = Number(btn.dataset.y);
+                            const mapId = Number(btn.dataset.mapId);
+                            const subAreaId = Number(btn.dataset.subAreaId);
+                            if (onOpenZoneDetails) {
+                                onOpenZoneDetails({ x, y, mapId, subAreaId });
                             }
-                        }
-                    }}>
-                        <Rocket size={22} className="text-emerald-950 group- transition-transform" />
-                    </div>
+                        }}
+                    >
+                        <Layers size={14} />
+                        Analyser
+                    </button>
+
+                    {/* 4. Fermer / détacher la case fixée */}
+                    <button
+                        id="sigil-map-hover-close-btn"
+                        type="button"
+                        style={{ display: 'none' }}
+                        title="Déverrouiller la case (ou appuyer sur Échap)"
+                        className="ml-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 text-white/50 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (setSelectedPosition) setSelectedPosition(null);
+                            const hud = document.getElementById('sigil-map-hover-hud');
+                            if (hud) hud.style.display = 'none';
+                        }}
+                    >
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
+
+            {/* 🌟 Composant discret en mode Overlay : position en temps réel + nom de zone */}
+            {!isMiniMap && !hideUI && isOverlay && (
+                <div
+                    id="sigil-overlay-hover-hud"
+                    style={{ display: 'none' }}
+                    className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none flex items-center gap-2 px-3 py-1 rounded-full bg-[#030712]/85 backdrop-blur-md border border-white/15 shadow-[0_4px_20px_rgba(0,0,0,0.8)] select-none transition-all duration-150 animate-in fade-in zoom-in-95"
+                >
+                    <span id="sigil-overlay-hover-pin" style={{ display: 'none' }} className="text-amber-400 text-xs">
+                        📌
+                    </span>
+                    <span id="sigil-overlay-hover-coords" className="font-mono font-black text-xs text-emerald-400 tracking-tight">
+                        [0, 0]
+                    </span>
+                    <span className="text-white/30 text-[10px]">•</span>
+                    <span id="sigil-overlay-hover-zone" className="text-xs font-semibold text-white/90 truncate max-w-[240px]">
+                        Zone
+                    </span>
                 </div>
             )}
             <style>{`
-                /* ── Fix jointures de tuiles ABSOLU ──
-                   Force la taille exacte des tuiles du monde ciblé + 1 pixel
-                   pour un recouvrement garanti qui annule les lignes blanches */
+                /* ── Tuiles : taille exacte du monde, sans surcouche GPU ──
+                   Pas de will-change / backface-visibility ici : sur Chromium
+                   (et Opera GX en particulier) ces propriétés forcent chaque tuile et
+                   tout le conteneur sur des layers GPU dédiés. La carte complète
+                   (~10k x 8k px) dépasse les budgets textures → tuiles qui disparaissent
+                   (flash noir) et navbar qui clignote pendant le compositing.
+                   Fond uni teinte océan (merge dézoom + Opera GX) : simple
+                   background-color, zéro coût GPU, les tuiles en chargement/erreur
+                   héritent de la teinte au lieu du noir. */
                 .leaflet-tile {
                     width: ${tileSize}px !important;
                     height: ${tileSize}px !important;
-                    -webkit-backface-visibility: hidden;
-                    backface-visibility: hidden;
+                    background: ${MAP_OCEAN_TONE};
                     image-rendering: auto;
                     /* Supprime les bordures noires/vides entre les images */
                     outline: none !important;
@@ -1203,11 +1697,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     box-shadow: none !important;
                 }
                 .leaflet-container {
-                    background: #080b12 !important;
-                    will-change: transform;
-                }
-                .leaflet-tile-pane {
-                    will-change: transform;
+                    background: ${MAP_OCEAN_TONE} !important;
                 }
                 .custom-leaflet-tooltip {
                     background: #111822 !important;
@@ -1245,9 +1735,6 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     border: none !important;
                 }
                 
-                /* Animation zoom fluide */
-                .leaflet-zoom-animated {
-                    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                 }
             `}</style>
 
@@ -1259,15 +1746,21 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 style={{ height: '100%', width: '100%', outline: 'none' }}
                 zoomControl={false}
                 attributionControl={false}
-                minZoom={isMiniMap ? -6 : Math.max(selectedWorldId !== 1 ? -3 : -4, -(correctedActiveWorld.zoom?.length || 1) - 1)}
+                minZoom={isMiniMap ? -6 : Math.max(selectedWorldId !== 1 ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
                 maxZoom={3}
-                maxBoundsViscosity={0.8}
-                zoomSnap={0.1}
+                maxBoundsViscosity={1.0}
+                // Zoom discret (1) : les tuiles n'existent qu'aux échelles natives
+                // (1, 0.8, 0.6…). Un zoomSnap fractionnaire (0.1) force un scaling CSS
+                // continu des tuiles via le GPU → flou + clignotement sur Chromium/Opera GX.
+                zoomSnap={1}
                 zoomDelta={1}
+                zoomAnimation={true}
+                fadeAnimation={true}
+                markerZoomAnimation={true}
                 preferCanvas={true}
                 dragging={interactive}
                 touchZoom={interactive}
-                doubleClickZoom={interactive}
+                doubleClickZoom={false}
                 scrollWheelZoom={interactive}
                 boxZoom={interactive}
                 keyboard={interactive}
@@ -1275,33 +1768,42 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 <MapViewHandler
                     isMiniMap={isMiniMap}
                     guessResult={guessResult}
-                    activeWorld={correctedActiveWorld}
+                    activeWorld={activeWorld}
                     minimapZoomLevel={minimapZoomLevel}
                     minimapRecenterTrigger={minimapRecenterTrigger}
                     participants={participants}
+                    triggerCenterPosition={triggerCenterPosition}
                 />
                 {/* 1. Tuiles officielles continues & multi-résolution */}
-                <SigilTilesLayer activeWorld={correctedActiveWorld} selectedWorldId={selectedWorldId} />
+                <SigilTilesLayer activeWorld={activeWorld} selectedWorldId={selectedWorldId} />
 
                 {/* 2. Grille DofusDB canvas (contour par position), contrôlée par showDebugGrid */}
                 <MapGridOverlay
-                    activeWorld={correctedActiveWorld}
+                    activeWorld={activeWorld}
                     mapsByCoords={mapsByCoords}
                     mapsBySubAreaId={mapsBySubAreaId}
                     subAreasById={subAreasById}
                     showDebugGrid={showDebugGrid}
                     zoneHighlight={zoneHighlight}
+                    showGameOverlays={showGameOverlays}
+                    pinnedSubareaId={pinnedSubareaId}
+                    highlightMarker={highlightMarker}
                     isMiniMap={isMiniMap}
                     guessResult={guessResult}
                     selectedPosition={selectedPosition}
+                    setSelectedPosition={setSelectedPosition}
                     participants={participants}
                     currentUserId={currentUserId}
-                    highlightSubareaIds={highlightSubareaIds}
+                    hiddenZoneLabels={hiddenZoneLabels}
+                    zaaps={zaaps}
+                    onOpenZoneDetails={onOpenZoneDetails}
+                    isOverHudRef={isOverHudRef}
+                    mouseoutTimerRef={mouseoutTimerRef}
                 />
 
                 {/* 4. Interactions */}
                 <MapInteractionHandler
-                    activeWorld={correctedActiveWorld}
+                    activeWorld={activeWorld}
                     selectedWorldId={selectedWorldId}
                     mapsByCoords={mapsByCoords}
                     subAreasById={subAreasById}
@@ -1312,13 +1814,14 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     hideUI={hideUI}
                     interactive={interactive}
                     autoCopyTravel={autoCopyTravel}
-                    onHoverMap={setHoveredCoords}
+                    isOverlay={isOverlay}
                     activeCircuit={activeCircuit}
+                    onOpenZoneDetails={onOpenZoneDetails}
                 />
 
                 {/* 5. GPS Narrative Pulse (Highlight for quests) */}
                 <MapNarrativeGPS 
-                    activeWorld={correctedActiveWorld} 
+                    activeWorld={activeWorld} 
                     triggerCoords={triggerCenterPosition} 
                     triggerWorldId={triggerWorldId}
                     currentWorldId={selectedWorldId}
@@ -1327,13 +1830,26 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                 {/* 5bis. Zaaps & GPS Récolte Opti-Farm */}
                 {!isMiniMap && (
                     <HarvestRouteOverlay
-                        activeWorld={correctedActiveWorld}
+                        activeWorld={activeWorld}
                         zaaps={zaaps}
                         showZaaps={showZaaps}
                         selectedResources={selectedHarvestResources}
                         activeCircuit={activeCircuit}
                         completedStepIndices={completedHarvestSteps}
                         onToggleStepCompleted={onToggleHarvestStep}
+                        mapsByCoords={mapsByCoords}
+                        isOverlay={isOverlay}
+                    />
+                )}
+
+                {/* 5ter. Passages Secrets, Souterrains & Raccourcis */}
+                {!isMiniMap && (
+                    <SecretPassagesOverlay
+                        activeWorld={activeWorld}
+                        showPassages={showPassages}
+                        zaaps={zaaps}
+                        showZaaps={showZaaps}
+                        isOverlay={isOverlay}
                     />
                 )}
 
@@ -1341,28 +1857,17 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
 
                 {/* 6. Dungeon markers (Uniquement si pas mini-map) */}
                 {!isMiniMap && groupedDungeons && groupedDungeons.map((group: any) => {
-                    const px = correctedActiveWorld.origineX + group.mapNode.x * correctedActiveWorld.mapWidth + correctedActiveWorld.mapWidth / 2;
-                    const py = correctedActiveWorld.origineY + group.mapNode.y * correctedActiveWorld.mapHeight + correctedActiveWorld.mapHeight / 2;
+                    const px = activeWorld.origineX + group.mapNode.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
+                    const py = activeWorld.origineY + group.mapNode.y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
                     const dCount = group.dungeons.length;
 
                     const isOcre = !!(group as any).isOcreQuest;
-                    const iconHtml = `
-                    <div class="w-7 h-7 rounded-full bg-surface/90 border-2 border-amber-500/80  flex items-center justify-center text-amber-400 group-hover:scale-125 group-hover:border-amber-400 transition-all duration-200 relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 20v-9H2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2Z"/><path d="M18 11V4H6v7"/><path d="M15 22v-4a3 3 0 0 0-3-3v0a3 3 0 0 0-3 3v4"/><path d="M22 11V9"/><path d="M2 11V9"/><path d="M6 4V2"/><path d="M18 4V2"/><path d="M10 4V2"/><path d="M14 4V2"/></svg>
-                        ${isOcre ? `<img src="/module-dofus/Dofus_Ocre.png" alt="Quête Ocre" class="absolute -top-5 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full object-contain border border-border-strong bg-background " title="Donjon Quête Ocre" />` : ''}
-                        ${dCount > 1 ? `<div class="absolute -top-2 -right-2 bg-amber-500 text-warning-foreground text-caption font-bold w-4 h-4 rounded-full flex items-center justify-center border border-slate-900">${dCount}</div>` : ''}
-                    </div>`;
 
                     return (
                         <Marker
                             key={`d-${group.mapId}`}
                             position={[-py, px]}
-                            icon={new L.DivIcon({
-                                html: iconHtml,
-                                className: 'dungeon-icon-marker',
-                                iconSize: [28, 28],
-                                iconAnchor: [14, 14]
-                            })}
+                            icon={getDungeonIcon(isOcre, dCount)}
                             interactive={interactive}
                             {...(interactive ? { eventHandlers: { click: (e: any) => { e.originalEvent.stopPropagation(); setSelectedDungeon((group.dungeons as any[]).map((d: any) => ({ ...d, __isOcreQuest: isOcre }))); } } } : {})}
                         >
@@ -1383,31 +1888,15 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
 
                 <ExternalController 
                     triggerCenterPosition={triggerCenterPosition} 
-                    activeWorld={correctedActiveWorld} 
+                    activeWorld={activeWorld} 
                     minimapRecenterTrigger={minimapRecenterTrigger} 
                     interactive={interactive}
                     initialZoom={initialZoom}
                 />
                 
-                {/* 7. Contrôles de zoom premium */}
-                {interactive && !isMiniMap && <ZoomControls />}
+                {/* 7. Contrôles de zoom premium — masqués en overlay */}
+                {interactive && !isMiniMap && !isOverlay && <ZoomControls />}
             </MapContainer>
-
-            {/* Real-time Coordinate HUD */}
-            <AnimatePresence>
-                {hoveredCoords && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                        className="absolute bottom-6 left-6 z-[1000] px-4 py-2 bg-surface/80 backdrop-blur-md border border-border rounded-xl shadow-2xl flex items-center gap-3 pointer-events-none"
-                    >
-                        <div className={`w-2 h-2 rounded-full ${hoveredCoords.found ? 'bg-emerald-500 ' : 'bg-surface'}`} />
-                        <span className="text-caption font-black text-foreground/40 uppercase tracking-widest italic">Position</span>
-                        <span className="text-foreground font-black text-sm italic tracking-tighter">[{hoveredCoords.x}, {hoveredCoords.y}]</span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </div>
     );
 }

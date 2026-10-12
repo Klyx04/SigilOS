@@ -17,6 +17,8 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const startedAt = Date.now();
+
     try {
         const activeGuilds = await db.guildConfig.findMany({
             where: { isActive: true, systemNotifyChannelId: { not: null } },
@@ -41,13 +43,29 @@ export async function GET(req: Request) {
             }
         }
 
+        const durationMs = Date.now() - startedAt;
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("daily_summary", {
+            success: results.failed === 0,
+            durationMs,
+            summary: `Rapport quotidien : ${results.success}/${results.total} guildes notifiées`,
+            details: results,
+        });
+
         return NextResponse.json({ 
             success: true, 
-            summary: results 
+            summary: results,
+            durationMs
         });
 
     } catch (error: any) {
         logger.error("[DailySummaryCron] Global Error:", error);
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("daily_summary", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur rapport: ${error.message || "Erreur interne"}`,
+        });
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }

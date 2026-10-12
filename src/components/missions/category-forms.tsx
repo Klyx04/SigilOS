@@ -247,15 +247,16 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
         const family = families.find(f => f.id === familyId);
         if (family) {
             const currentPayload = payload as RegulationPayload;
+            const fallbackZone = (!currentPayload.zoneId && (family as any).zones?.[0]) ? (family as any).zones[0] : null;
             const newPayload: RegulationPayload = {
                 ...currentPayload,
                 familyId: family.id,
                 familyName: family.name,
                 imageUrl: family.imageUrl || (family.monsters?.[0]?.imageUrl ?? undefined),
                 targetCount: 50,
-                // Ensure zone fields are present
-                zoneId: currentPayload.zoneId,
-                zoneName: currentPayload.zoneName,
+                // Ensure zone fields are present (or auto-completed from family)
+                zoneId: currentPayload.zoneId || fallbackZone?.id,
+                zoneName: currentPayload.zoneName || fallbackZone?.name,
             };
             onPayloadChange(newPayload);
             onTitleChange(`Régulation des ${family.name}`);
@@ -346,7 +347,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
         const newPayload: AnomaliePayload = {
             type,
             levelRange,
-            elixir: type === 'STABILISATION' ? elixir : undefined
+            elixir: (type === 'STABILISATION' || type === 'BOSS') ? elixir : undefined
         };
         onPayloadChange(newPayload);
         updateTitle(type, levelRange);
@@ -356,7 +357,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
         const newPayload: AnomaliePayload = {
             type: anomalieType,
             levelRange: range as AnomaliePayload['levelRange'],
-            elixir: anomalieType === 'STABILISATION' ? elixir : undefined
+            elixir: (anomalieType === 'STABILISATION' || anomalieType === 'BOSS') ? elixir : undefined
         };
         onPayloadChange(newPayload);
         updateTitle(anomalieType, range);
@@ -396,7 +397,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
             case 'BOSS': return "/assets/missions/ano1.png";
             case 'FRAGMENTS': return "/assets/missions/fragment.png";
             case 'STABILISATION': return "/assets/missions/3-gardiens.png";
-            default: return "/assets/missions/anomalie.png";
+            default: return "/assets/missions/ano1.png";
         }
     };
 
@@ -436,7 +437,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                 </div>
             )}
 
-            {anomalieType === 'STABILISATION' && (
+            {(anomalieType === 'STABILISATION' || anomalieType === 'BOSS') && (
                 <div className="space-y-2 animate-in fade-in duration-300">
                     <Label className="text-xs text-muted-foreground">Choix de l'élixir</Label>
                     <Select value={elixir} onValueChange={handleElixirChange}>
@@ -466,7 +467,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                         <>Vaincre 50 monstres dans un territoire de niveau <span className="text-foreground font-black">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
                     )}
                     {anomalieType === 'BOSS' && (
-                        <>Vaincre un <span className="text-foreground font-black text-xs">Gardien d'anomalie</span> de niveau <span className="text-foreground font-black">{levelRange}</span> avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
+                        <>Vaincre un <span className="text-foreground font-black text-xs">Gardien d'anomalie</span> de niveau <span className="text-foreground font-black">{levelRange}</span>{elixir !== 'aucun' && (<> avec un <span className="text-fuchsia-300 font-bold">{elixir === 'uchronique' ? "[Elixir uchronique]" : elixir === 'mineur' ? "[Élixir uchronique mineur]" : elixir === 'ameliore' ? "[Élixir uchronique amélioré]" : "[Élixir uchronique majeur]"}</span></>)}</>
                     )}
                     {anomalieType === 'FRAGMENTS' && (
                         <>Obtenir <span className="text-foreground font-black">20 Fragments d'anomalie</span> dans une anomalie</>

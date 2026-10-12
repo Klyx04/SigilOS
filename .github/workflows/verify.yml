@@ -5,32 +5,22 @@ name: SigilOS CI
 # - Push: only main/dev (protected branches)
 # - PR: main/dev (feature branches get CI via PR only)
 # - Schedule: weekly security scan (Monday 3am UTC)
+# NOTE: paths-ignore removed — using a filter job instead so
+#       the required check is always reported (never stuck in
+#       "Expected" state when only doc/config files change).
+#       Le filtre est évalué en `some-with-excludes` : avec le défaut
+#       (`some`), un positif `**` rendait toute négation inerte.
+#       Garde : tests/unit/verify-paths-filter.test.ts
+# NOTE (F2, 20/09/2026): toute action — y compris first-party
+#       (`actions/*`) — est épinglée sur un SHA de commit complet,
+#       tag rappelé en commentaire (`@<sha40> # vX`, forme suivie par
+#       Dependabot). Garde automatique : tests/unit/workflows-actions-pinned.test.ts
 # ─────────────────────────────────────────────────────────────
 on:
   push:
     branches: [ main, dev ]
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - 'LICENSE'
-      - 'docs/**'
-      - '.gemini/**'
-      - '.agent/**'
-      - '.antigravity'
-      - 'scripts/*.sh'
-      - 'scripts/*.md'
   pull_request:
     branches: [ main, dev ]
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - 'LICENSE'
-      - 'docs/**'
-      - '.gemini/**'
-      - '.agent/**'
-      - '.antigravity'
-      - 'scripts/*.sh'
-      - 'scripts/*.md'
   schedule:
     # Weekly security scan — Monday 3:00 AM UTC
     - cron: '0 3 * * 1'
@@ -50,33 +40,104 @@ permissions:
 jobs:
 
   # ┌──────────────────────────────────────────────────────────┐
+  # │ 🔍 FILTER — Detect if any non-doc file changed          │
+  # │ Prevents the required check from being stuck in         │
+  # │ "Expected" state when only docs/config files changed.   │
+  # └──────────────────────────────────────────────────────────┘
+  filter:
+    name: 🔍 Filter changed files
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    outputs:
+      should_run: ${{ steps.changes.outputs.src }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 2
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: changes
+        with:
+          # Quantificateur EXPLICITE — non négociable : le défaut (`some`) évalue
+          # chaque motif indépendamment (`patterns.some(rule => rule.isMatch(file))`,
+          # `src/filter.ts` de l'action), donc le positif `**` matche tout et les `!`
+          # sont inertes ⇒ `should_run` valait `true` même sur une PR 100 % doc
+          # (mesuré le 30/09/2026 : 18 fichiers sur 18 → `true`, ~8 min de CI perdues).
+          # `some-with-excludes` sépare inclusions et exclusions, une exclusion étant
+          # définitive. Garde de non-régression : tests/unit/verify-paths-filter.test.ts
+          predicate-quantifier: 'some-with-excludes'
+          filters: |
+            src:
+              # Inclusions — au moins une requise (un filtre de seules négations
+              # ne matche jamais rien).
+              - '**'
+              # Exclusions — un changement purement doc/config ne construit rien.
+              - '!**.md'
+              - '!.gitignore'
+              - '!LICENSE'
+              - '!docs/**'
+              - '!.gemini/**'
+              - '!scripts/*.sh'
+              - '!scripts/*.md'
+
+  # ┌──────────────────────────────────────────────────────────┐
   # │ ✅ VERIFY & BUILD — Single job to save CI minutes        │
   # │ Lint, Types, Tests + conditional Production Build        │
   # └──────────────────────────────────────────────────────────┘
   verify:
     name: ✅ Verify & Build
-    if: github.event_name != 'schedule'
+    needs: filter
+    if: github.event_name != 'schedule' && needs.filter.outputs.should_run == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+    # Plafond mémoire : `npx tsc --noEmit` et `next build` (phase « Running TypeScript »,
+    # type-check complet + client Prisma) atteignent ~2 Go → OOM avec le heap Node par
+    # défaut (~2 Go). 4 Go sur un runner 16 Go = marge confortable.
+    env:
+      NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 1
 
+      - name: 🚫 Sources silencieusement ignorées
+        run: |
+          # Un fichier SOURCE ignoré par `.gitignore` n'existe PAS dans le repo :
+          # le CI casse alors en « Cannot find module » pendant que le poste local
+          # compile très bien (incident du 18/09/2026 : `src/app/god/logs/market-log-view.tsx`
+          # avalé par la règle `logs/`, devenue `/logs/`). Dossiers d'audit/temp
+          # volontairement ignorés = allowlist ci-dessous.
+          ALLOWED_RE='^(src/audit-cyber|src/audit-infra|src/temp)(/|$)'
+          OFFENDERS=$(git status --porcelain --ignored | sed -n 's/^!! //p' | grep '^src/' | grep -Ev "$ALLOWED_RE" || true)
+          if [ -n "$OFFENDERS" ]; then
+            echo "::error::Fichier(s) source ignoré(s) par .gitignore : $OFFENDERS"
+            exit 1
+          fi
+          echo "✅ Aucun fichier source ignoré"
+
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
           cache: 'npm'
 
+      - name: 🖼️ Médias suivis sans métadonnées (EXIF/XMP)
+        # Un export d'éditeur embarque « Adobe Photoshop 26.5 (Windows) » + horodatage,
+        # une capture d'écran embarque le nom du poste ou un dossier local : dans un
+        # dépôt PUBLIC c'est une empreinte de la machine. Contrôle zéro-dépendance
+        # (aucun `npm ci` requis) — cf. docs/RULES.md §Sécurité de la chaîne d'outils.
+        run: node scripts/check-media-metadata.mjs
+
+      - name: Update npm (bulk advisory endpoint)
+        run: npm install -g npm@11 --force
+
       - name: Next.js Cache
-        uses: actions/cache@v6.1.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.npm
             ${{ github.workspace }}/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.[jt]s', '**/*.[jt]sx') }}
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('src/**/*.[jt]s', 'src/**/*.[jt]sx') }}
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 
@@ -104,7 +165,19 @@ jobs:
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
 
-      - name: 🛡️ Security Audit
+      - name: 🛡️ Security Audit (le livré)
+        # Porte unique, partagée avec le hook `pre-push` (`npm run security:audit`) :
+        # échoue sur `high`/`critical` dans ce qui est LIVRÉ (`--omit=dev`) et sur tout
+        # `critical` de l'arbre. Mesure du 05/10/2026 : la production était à **0** alors
+        # que 5 `high` **de développement** (`eslint-config-next` → `fast-glob` → `micromatch`
+        # → `braces`, ce dernier sans version corrigée publiée) bloquaient TOUTES les PR,
+        # dont celles de Dependabot. Le détail et les échappatoires : `scripts/security-gate.mjs`.
+        run: npm run security:audit
+
+      - name: 🔔 Security Audit (tout l'arbre, informatif)
+        # Rien n'est caché : les avis hors production restent visibles à chaque run,
+        # et le job hebdo « Full Security Audit » les rend bloquants.
+        continue-on-error: true
         run: npm audit --audit-level=high
 
       - name: 🔬 SAST Scan (Semgrep)
@@ -129,6 +202,18 @@ jobs:
 
       - name: 🧪 TypeScript Check
         run: npx tsc --noEmit
+
+      - name: 🤖 Discord Bot TypeScript Check
+        # Le bot a son propre tsconfig + node_modules (non couvert par le tsc
+        # racine) : sans ce contrôle, une erreur de syntaxe passe la CI verte
+        # puis casse le build Docker (vécu : handler GuildCreate fusionné avec
+        # un commentaire → image bot KO, 3 retries inutiles).
+        # Miroir du Dockerfile (generate avec URL factice, pas de connexion).
+        run: |
+          cd services/discord-bot
+          npm ci
+          POSTGRES_USER=build POSTGRES_PASSWORD=build POSTGRES_DB=build npx prisma@7.9.1 generate --schema ../../prisma/schema.prisma
+          npx tsc --noEmit
 
       - name: 🚀 Run Tests
         run: npm run test:run
@@ -162,7 +247,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout (full history for Gitleaks)
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -172,10 +257,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
           cache: 'npm'
+
+      - name: Update npm (bulk advisory endpoint)
+        run: npm install -g npm@11 --force
 
       - name: Install Dependencies
         run: npm ci
@@ -194,9 +282,20 @@ jobs:
         run: bash scripts/check-ioc-shai-hulud.sh
 
       - name: 🛡️ Full Security Audit
-        run: npm audit --audit-level=high
+        run: |
+          # Porte STRICTE : ce job tourne en hebdo (+ push sur main/dev), pas sur les PR.
+          # C'est ICI que les avis « high » hors production doivent finir par disparaître
+          # (un correctif `braces` publié, ou un retrait de la chaîne `eslint-config-next`).
+          # Endpoint bulk deprecated parfois en 503 transitoire → retry avec backoff.
+          _attempt=0
+          until npm audit --audit-level=high; do
+            _attempt=$((_attempt+1))
+            echo "::warning::npm audit failed (attempt $_attempt/5) — retrying in 15s"
+            [ "$_attempt" -ge 5 ] && exit 1
+            sleep 15
+          done
 
-      - name: � Deep SAST Scan (Semgrep)
+      - name: 🔎 Deep SAST Scan (Semgrep)
         uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
         with:
           config: >-
@@ -206,7 +305,7 @@ jobs:
         env:
           SEMGREP_RULES: "p/security-audit p/secrets p/owasp-top-ten"
 
-      - name: �🛡️ Full Filesystem CVE Scan (Trivy)
+      - name: 🛡️ Full Filesystem CVE Scan (Trivy)
         # F-22: pinned to a real tagged release (v0.36.0 exists) — @master could execute compromised code
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

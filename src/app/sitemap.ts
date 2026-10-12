@@ -2,6 +2,23 @@ import { MetadataRoute } from "next";
 import { db } from "@/lib/prisma";
 import { publishedGuides } from "@/content/guides";
 import { getAppBaseUrl } from "@/lib/utils";
+import { getIndexableGuildSegment } from "@/lib/presentation-constants";
+import { clampLastModified } from "@/lib/seo";
+import { logger } from "@/lib/logger";
+import { listSiphonedNormalMonsterSlugs } from "@/server/game/normal-monster-scope";
+
+/**
+ * ⚠️ `force-dynamic` — ce sitemap interroge la BASE (guildes publiques, fiches boss/donjons).
+ *
+ * Sans cet export, Next le **pré-génère au build** ; or la CI construit l'image sur GitHub,
+ * **sans accès à la base** : les blocs `guilds` et `boss` disparaissaient alors **en silence**
+ * (les `catch` avalaient l'erreur) et le sitemap publié tombait de ~200 URL à 29 — constaté le
+ * 21/09/2026 après le passage au déploiement CD (`deploy-cd.sh` + image GHCR).
+ *
+ * En dynamique, il est généré **sur le VPS** (qui a la base) à la première requête d'un robot :
+ * quelques appels par jour (Google, Bing), coût négligeable.
+ */
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Base URL résolue selon l'environnement (beta.sigilos.fr sur dev, sigilos.fr en prod)
@@ -9,19 +26,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const baseUrl = getAppBaseUrl();
     const now = new Date();
 
-    // 1. Static public routes (indexable, 200, pas de zone privée ni 404)
+    // 1. Routes publiques statiques (indexables, 200, aucune zone privée ni 404).
+    // ⚠️ AUCUN `lastModified` sur ces routes : leur date de modification réelle n'est pas connue, et
+    // publier `new Date()` à chaque requête (l'ancien `now`) annonçait une modification **à chaque
+    // passage du robot**, sans qu'une seule ligne de contenu ait bougé. Google finit par ignorer un
+    // `lastmod` non fiable (constat 21/09/2026, reconfirmé le 24/09 : « utiliser leur véritable date
+    // de modification, pas `new Date()` »). Une date n'est publiée que là où elle est **vraie** :
+    // guides (registre), guildes et boss (base), almanax/status (données quotidiennes).
     const staticRoutes: MetadataRoute.Sitemap = [
-        { url: `${baseUrl}/`, lastModified: now, changeFrequency: "weekly", priority: 1 },
-        { url: `${baseUrl}/almanax`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
-        { url: `${baseUrl}/guilds`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-        { url: `${baseUrl}/guides`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-        { url: `${baseUrl}/changelog`, lastModified: now, changeFrequency: "weekly", priority: 0.5 },
-        { url: `${baseUrl}/status`, lastModified: now, changeFrequency: "daily", priority: 0.3 },
-        { url: `${baseUrl}/roadmap`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
-        { url: `${baseUrl}/legal/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
-        { url: `${baseUrl}/legal/cgu`, lastModified: now, changeFrequency: "monthly", priority: 0.2 },
-        { url: `${baseUrl}/legal/mentions`, lastModified: now, changeFrequency: "monthly", priority: 0.2 },
-        { url: `${baseUrl}/legal/privacy`, lastModified: now, changeFrequency: "monthly", priority: 0.2 },
+        { url: `${baseUrl}/`, changeFrequency: "weekly", priority: 1 },
+        { url: `${baseUrl}/modules`, changeFrequency: "weekly", priority: 0.9 },
+        { url: `${baseUrl}/carte-du-monde`, changeFrequency: "weekly", priority: 0.9 },
+        // ⚠️ `/guides/rush-sylvestre` n'est **pas** ici : la page porte `noindex` tant que le
+        // toggle God « Mode Construction » est actif (`OptimizedGuide.isUnderConstruction`). Elle
+        // est publiée **conditionnellement** plus bas, à partir de la même source de vérité —
+        // publier une URL en `noindex` faisait remonter « Exclue par la balise noindex » dans
+        // Search Console (constat du 29/09/2026).
+        { url: `${baseUrl}/boss`, changeFrequency: "weekly", priority: 0.8 },
+        { url: `${baseUrl}/almanax`, changeFrequency: "daily", priority: 0.9 },
+        { url: `${baseUrl}/raids`, changeFrequency: "weekly", priority: 0.9 },
+        { url: `${baseUrl}/elevage`, changeFrequency: "weekly", priority: 0.9 },
+        { url: `${baseUrl}/guilds`, changeFrequency: "weekly", priority: 0.8 },
+        { url: `${baseUrl}/guides`, changeFrequency: "weekly", priority: 0.8 },
+        { url: `${baseUrl}/status`, changeFrequency: "daily", priority: 0.3 },
+        { url: `${baseUrl}/legal/faq`, changeFrequency: "monthly", priority: 0.6 },
+        { url: `${baseUrl}/legal/cgu`, changeFrequency: "monthly", priority: 0.2 },
+        { url: `${baseUrl}/legal/mentions`, changeFrequency: "monthly", priority: 0.2 },
+        { url: `${baseUrl}/legal/privacy`, changeFrequency: "monthly", priority: 0.2 },
     ];
 
     // 2. Guildes publiques : uniquement celles qui ont explicitement activé
@@ -31,19 +62,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     try {
         const publicGuilds = await db.guildConfig.findMany({
             where: { isActive: true, presentationEnabled: true },
-            select: { discordGuildId: true, updatedAt: true },
+            select: { discordGuildId: true, name: true, updatedAt: true },
         });
 
         const guildRoutes = publicGuilds.map((guild) => ({
-            url: `${baseUrl}/guilds/${guild.discordGuildId}`,
-            lastModified: guild.updatedAt ?? new Date(),
+            // Le segment publié est celui qui **résout réellement** la page : le snowflake
+            // Discord déclenchait une redirection 307 vers le slug (motif « Page avec
+            // redirection » dans Search Console, constat 21/09/2026).
+            url: `${baseUrl}/guilds/${getIndexableGuildSegment(guild)}`,
+            lastModified: clampLastModified(guild.updatedAt ?? now, now),
             changeFrequency: "weekly" as const,
             priority: 0.6,
         }));
 
         routes.push(...guildRoutes);
     } catch (error) {
-        console.error("[Sitemap] Error fetching public guilds:", error);
+        logger.error("[Sitemap] Error fetching public guilds", { error });
     }
 
     // Guides publiés : dérivés automatiquement du registre unique. Les drafts
@@ -52,19 +86,43 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const guide of publishedGuides) {
         routes.push({
             url: `${baseUrl}/guides/${guide.slug}`,
-            lastModified: new Date(guide.updatedAt),
+            // `clampLastModified` : deux guides du registre portaient `updatedAt: "2026-10-02"`
+            // (date de sortie du raid, pas date d'écriture) ⇒ un `lastmod` **futur** publié.
+            lastModified: clampLastModified(new Date(guide.updatedAt), now),
             changeFrequency: "monthly",
             priority: 0.5,
         });
     }
 
-    // #101 — Almanax : pages indexables par date (/almanax/YYYY-MM-DD) sur les
-    // 30 prochains jours. Les offrandes changent chaque jour → priority 0.5,
-    // changeFrequency "daily". Best-effort : si l'API est indisponible, on saute.
+    // Guide « Rush Sylvestre » : page **conditionnelle**, seule de sa catégorie (contenu éditable
+    // en base + toggle God). Elle n'est publiée que si la page ne se déclare pas en `noindex`.
+    // Fail-closed : si l'état n'est pas lisible, on ne publie pas (jamais d'URL en `noindex`).
+    try {
+        const rushGuide = await db.optimizedGuide.findUnique({
+            where: { slug: "rush-sylvestre" },
+            select: { isUnderConstruction: true },
+        });
+        if (rushGuide && !rushGuide.isUnderConstruction) {
+            routes.push({
+                url: `${baseUrl}/guides/rush-sylvestre`,
+                changeFrequency: "weekly",
+                priority: 0.9,
+            });
+        }
+    } catch (error) {
+        logger.error("[Sitemap] Error fetching rush guide state", { error });
+    }
+
+    // #101 — Almanax : pages indexables par date (/almanax/YYYY-MM-DD). Best-effort :
+    // si l'API est indisponible, on saute.
+    // On n'en publie que **7 jours** (constat GSC du 21/09/2026) : les 30 jours du calendrier
+    // produisaient 30 pages « Explorée, actuellement non indexée » (contenu quasi identique —
+    // Google ne les indexe pas) et brouillaient le rapport. 7 jours = découverte utile sans bruit.
+    const ALMANAX_SITEMAP_DAYS = 7;
     try {
         const { getUpcomingAlmanax } = await import("@/server/actions/resources-actions");
         const almanaxItems = await getUpcomingAlmanax();
-        for (const item of almanaxItems) {
+        for (const item of almanaxItems.slice(0, ALMANAX_SITEMAP_DAYS)) {
             const day = item?.date ? item.date.slice(0, 10) : null;
             if (!day) continue;
             routes.push({
@@ -75,7 +133,56 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
     } catch (error) {
-        console.error("[Sitemap] Error fetching almanax dates:", error);
+        logger.error("[Sitemap] Error fetching almanax dates", { error });
+    }
+
+    // Boss & Donjons publics : fiches tactiques Dofensive indexables.
+    // URL en **slug** (nom du boss) et non en identifiant interne : l'ancienne URL
+    // `/boss/<cuid>` reste servie en 308 par la page (liens Discord déjà publiés).
+    try {
+        const dungeons = await db.dungeon.findMany({
+            select: { id: true, slug: true, updatedAt: true },
+        });
+        for (const d of dungeons) {
+            routes.push({
+                url: `${baseUrl}/boss/${d.slug}`,
+                lastModified: clampLastModified(d.updatedAt ?? now, now),
+                changeFrequency: "monthly",
+                priority: 0.6,
+            });
+        }
+    } catch (error) {
+        logger.error("[Sitemap] Error fetching boss pages", { error });
+    }
+
+    // Monstres : **uniquement les fiches siphonnées** (butin, encyclopédie, zone — contenu réel).
+    // Les fiches servies par le seul bestiaire local du client sont en `noindex` (contenu
+    // auto-généré répétitif) : on n'injecte pas 5 129 pages minces dans l'index.
+    // Les boss / avis / titans sont écartés par la **source unique** du périmètre
+    // (`@/server/game/normal-monster-scope`) : ils ont déjà leur URL `/boss/<slug>`.
+    try {
+        const monsters = await listSiphonedNormalMonsterSlugs();
+        // Le **sommaire** `/bestiaire` (1 URL) : c'est lui qui porte les liens vers les fiches
+        // (elles n'en avaient aucun côté HTML). Il n'est déclaré qu'une fois qu'il a du contenu —
+        // un sommaire vide est une page mince, on ne la pousse pas aux moteurs.
+        if (monsters.length > 0) {
+            routes.push({
+                url: `${baseUrl}/bestiaire`,
+                lastModified: now,
+                changeFrequency: "weekly",
+                priority: 0.7,
+            });
+        }
+        for (const monster of monsters) {
+            routes.push({
+                url: `${baseUrl}/bestiaire/${monster.slug}`,
+                lastModified: clampLastModified(monster.lastSyncedAt ?? now, now),
+                changeFrequency: "monthly",
+                priority: 0.5,
+            });
+        }
+    } catch (error) {
+        logger.error("[Sitemap] Error fetching monster pages", { error });
     }
 
     return routes;

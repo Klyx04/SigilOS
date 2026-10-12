@@ -390,7 +390,7 @@ export function RunCloseModal({
                                                 return (
                                                     <div
                                                         key={m.id}
-                                                        className="w-full flex items-center gap-3 p-3 rounded-xl border bg-amber-500/10 border-amber-500/30"
+                                                        className="w-full flex items-center gap-3 p-3 rounded-xl border bg-warning/10 border-warning/30"
                                                     >
                                                         <Avatar className="w-8 h-8 shrink-0">
                                                             <AvatarImage src={m.image ?? undefined} />
@@ -402,7 +402,7 @@ export function RunCloseModal({
                                                             <p className="text-sm font-bold text-foreground truncate">
                                                                 {m.name}
                                                             </p>
-                                                            <p className="text-caption text-amber-400/70">
+                                                            <p className="text-caption text-warning/70">
                                                                 Ajouté manuellement
                                                             </p>
                                                         </div>
@@ -415,7 +415,7 @@ export function RunCloseModal({
                                                         </button>
                                                         <button
                                                             onClick={() => removeExtra(m.id)}
-                                                            className="text-muted-foreground hover:text-rose-400 transition-colors shrink-0"
+                                                            className="text-muted-foreground hover:text-danger transition-colors shrink-0"
                                                         >
                                                             <X className="w-4 h-4" />
                                                         </button>

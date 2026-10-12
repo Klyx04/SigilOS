@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { getUserContext } from "./user-actions";
 import { rateLimit } from "@/lib/ratelimit";
+import { SECURITY_AUDIT_ACTIONS } from "@/lib/audit-taxonomy";
 
 // ============================================================================
 // TYPES
@@ -56,10 +57,11 @@ export type AuditAction =
     | "GOD_CONFIG_OVERRIDE"       // Manual override of a guild's configuration
     | "GOD_DATABASE_SYNC"         // Massive data synchronization (DofusDB, etc)
     | "GOD_NEWS_PUBLISH"          // Platform-wide news published
-    | "GOD_DASHBOARD_ACCESS"      // Dashboard God accédé (R5)
+    | "GOD_DASHBOARD_ACCESS"      // Accès dashboard God — HISTORIQUE (A9 : plus écrit, cf. GodSessionLog)
     | "GOD_MAINTENANCE_MODE"
     | "GOD_GUIDE_UPDATE"          // Écriture sur un guide optimisé (sous-god) — P2 traçage
     | "GOD_RUSH_UPDATE"           // Écriture sur le rush Sylvestre (sous-god) — P2 traçage
+    | "GOD_RUSH_UI_UPDATE"        // Écriture de la config UI/UX du rush (pense-bête + modale lancement)
     | "GOD_QUEST_DATA_UPDATE"     // Écriture sur les quêtes Dofus (sous-god) — P2 traçage
     | "GOD_GAME_DATA_UPDATE"      // Écriture sur les données de jeu (sous-god) — P2 traçage
     | "GOD_TICKET_ACTION"         // Action support ticket (sous-god) — P2 traçage
@@ -67,7 +69,14 @@ export type AuditAction =
     | "MISSION_XP_OVERRIDE"
     | "GUILDATON_UPDATE"
     | "GUILDATON_CSV_IMPORT"
-    | "GUILDATON_SETTINGS_UPDATE";
+    | "GUILDATON_SETTINGS_UPDATE"
+    // S8.18 — supervision du Marché (God « Marché », `isGodLog: true`)
+    | "GOD_MARKET_RESYNC"        // Resynchronisation Discord d'une annonce (ou lot)
+    | "GOD_MARKET_IMAGE_REGEN"   // Régénération de la carte PNG + embed
+    | "GOD_MARKET_MEDIA_PURGE"   // Purge cross-guild des médias expirés
+    | "GOD_MARKET_SETTINGS"     // Réglages globaux (verrou plateforme + rétention)
+    // Verrou God d'un module par guilde (fiche guilde `/god/guilds/[id]`)
+    | "GOD_MODULE_LOCK";
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -233,6 +242,35 @@ export async function createAuditLog({
 
         if (!guildConfig) {
             return { success: false, error: "Guild not found" };
+        }
+
+        // 🛡️ A4 (verbatim 10 : « les guildes ne doivent pas savoir que le God a accès à
+        // leurs logs — pas de trace God dans le module logs des guildes »).
+        //
+        // Une action menée par un super-admin **sans autorité dans cette guilde** est une
+        // action **God** : elle part au journal plateforme (`isGodLog: true`, **sans**
+        // `guildId`) et **jamais** au journal de la guilde. La règle est posée **ici, une
+        // seule fois** : tous les appelants (purge/ban/déblocage de membre, pseudo, ID
+        // Ankama, transfert de propriété, `logAction`…) en héritent, sans un seul `if`
+        // dupliqué dans les écrans — et aucun drapeau ne vient du client.
+        if (await isGodActorWithoutGuildAuthority(guildId)) {
+            const godLog = await createGodAuditLog({
+                action,
+                targetType,
+                targetId,
+                oldValue,
+                newValue,
+                // `metadata` est `unknown` ici (les appelants envoient des objets Json) :
+                // on ne le transmet au journal God que s'il a bien cette forme.
+                metadata: metadata && typeof metadata === "object"
+                    ? (metadata as Record<string, unknown>)
+                    : undefined,
+                guildId,
+            });
+            return {
+                success: godLog.success,
+                data: godLog.logId ? { logId: godLog.logId } : undefined,
+            };
         }
 
         // Import Prisma for JsonNull handling
@@ -504,25 +542,12 @@ export async function createGodAuditLog({
         const session = await auth();
         if (!session?.user?.id) return { success: false };
 
-        // 🔵 TÂCHE 2 — Throttle GOD_DASHBOARD_ACCESS : 1 log/heure utilisateur.
-        // Le layout God se re-rend souvent (navigation, refresh) → sans throttle, le volume
-        // explose. On garde la traçabilité du premier accès + un snapshot horaire.
-        if (action === "GOD_DASHBOARD_ACCESS") {
-            const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
-            const lastAccess = await db.auditLog.findFirst({
-                where: {
-                    action: "GOD_DASHBOARD_ACCESS",
-                    actorUserId: session.user.id,
-                    isGodLog: true,
-                    createdAt: { gte: hourAgo }
-                },
-                select: { id: true },
-                orderBy: { createdAt: "desc" }
-            });
-            if (lastAccess) {
-                return { success: true, logId: lastAccess.id };
-            }
-        }
+        // 🧹 A9 — plus AUCUN log par visite : le throttle « 1 log/heure/utilisateur »
+        // vivait ici pour un écrivain qui n'existe plus (le layout God). La trace des
+        // accès est la **session** (`GodSessionLog`) et son compteur agrégé par jour
+        // (`src/server/god-access-stats.ts`). L'action `GOD_DASHBOARD_ACCESS` reste
+        // déclarée (et affichable) : elle porte les lignes **historiques**, purgées
+        // par la rétention God de 90 j (`@/lib/audit-retention-policy`).
 
         const { Prisma } = await import("@prisma/client");
         const toJson = (val: unknown) => (val === undefined || val === null ? Prisma.JsonNull : val);
@@ -566,6 +591,37 @@ export async function createGodAuditLog({
     } catch (error) {
         logger.error("[createGodAuditLog] Error:", { error });
         return { success: false };
+    }
+}
+
+/**
+ * A4 — Cet acteur agit-il en **God** (et non en admin de cette guilde) ?
+ *
+ * Un super-admin **qui n'a aucune autorité dans la guilde ciblée** (ni `isAdmin`, ni
+ * `canManageMembers` — un God n'est pas forcément membre) est en train d'agir depuis la
+ * console God. Toutes ses écritures doivent aller au **journal plateforme**, jamais au
+ * journal de la guilde.
+ *
+ * Fail-safe : sans session (bot, cron) on ne route **jamais** vers le journal God — le
+ * comportement historique est conservé. Un super-admin qui EST admin de la guilde écrit
+ * dans **son** journal de guilde (il agit alors comme admin de sa guilde, pas en God).
+ */
+async function isGodActorWithoutGuildAuthority(guildDiscordId: string): Promise<boolean> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return false;
+
+        const { isSuperAdmin } = await import("./super-admin-actions");
+        if (!(await isSuperAdmin())) return false;
+
+        const ctx = await getUserContext(guildDiscordId).catch(() => null);
+        return !ctx?.isAdmin && !ctx?.canManageMembers;
+    } catch (error) {
+        // Fail-safe **vers le journal de guilde** : le routage God est une exception, pas
+        // un défaut. Un bot ou un cron ne doit jamais écrire dans le journal plateforme
+        // par accident (l'événement disparaîtrait du journal de la guilde).
+        logger.error("[isGodActorWithoutGuildAuthority] Error:", { error });
+        return false;
     }
 }
 
@@ -625,9 +681,29 @@ const GetLogsSchema = z.object({
     dateFrom: z.date().optional(),
     dateTo: z.date().optional(),
     search: z.string().optional(),
+    /** 🔎 Séparation audit/sécurité (audit du 24/09) — filtrée **en base**. */
+    category: z.enum(["security", "functional"]).optional(),
+    /** Périmètre : actions plateforme (`isGodLog: true`) ou journaux de guilde. */
+    scope: z.enum(["platform", "guild"]).optional(),
+    /**
+     * A11 — **journal d'une guilde** lu par le God (`/god/logs`, onglet dédié) :
+     * filtré par **id interne** de guilde (`GuildConfig.id`), jamais un snowflake
+     * du client. Réservé au super-admin (`getGlobalAuditLogs` refuse sinon).
+     */
+    guildConfigId: z.string().min(1).max(64).optional(),
 });
 
 type GetLogsInput = z.infer<typeof GetLogsSchema>;
+
+/**
+ * Contrainte `action` d'une catégorie, à **croiser** (jamais à écraser) avec un
+ * filtre d'action explicite. `null` = pas de contrainte.
+ */
+function categoryActionConstraint(category: GetLogsInput["category"]): Record<string, unknown> | null {
+    if (category === "security") return { in: [...SECURITY_AUDIT_ACTIONS] };
+    if (category === "functional") return { notIn: [...SECURITY_AUDIT_ACTIONS] };
+    return null;
+}
 
 /**
  * Get audit logs for a guild
@@ -722,32 +798,112 @@ export async function getAuditLogs(
             }
         });
 
-        // Enrichir actorName avec le vrai surnom / pseudo Dofus du membre dans la guilde
+        // Enrichir actorName et targetName avec le vrai surnom / pseudo Dofus du membre dans la guilde
         const actorUserIds = [...new Set(logs.map(l => l.actorUserId).filter(id => id && id !== "SYSTEM"))];
-        const profiles = actorUserIds.length > 0 ? await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                userId: { in: actorUserIds }
-            },
-            select: {
-                userId: true,
-                pseudoDofus: true,
-                discordNickname: true,
-                user: { select: { name: true } }
+        
+        // Collect target IDs (userIds or discordUserIds)
+        const targetUserIds: string[] = [];
+        const targetDiscordIds: string[] = [];
+        for (const log of logs) {
+            const meta = (log.metadata || {}) as any;
+            if (meta.discordUserId) targetDiscordIds.push(meta.discordUserId);
+            if (log.targetType === "PROFILE" || log.targetType === "USER") {
+                if (log.targetId) {
+                    if (/^\d{17,20}$/.test(log.targetId)) {
+                        targetDiscordIds.push(log.targetId);
+                    } else {
+                        targetUserIds.push(log.targetId);
+                    }
+                }
             }
-        }) : [];
+        }
+
+        const [profilesByUserId, profilesByDiscordId] = await Promise.all([
+            actorUserIds.length > 0 || targetUserIds.length > 0
+                ? db.userProfile.findMany({
+                    where: {
+                        guildId: guildConfig.id,
+                        userId: { in: [...new Set([...actorUserIds, ...targetUserIds])] }
+                    },
+                    select: {
+                        userId: true,
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: { select: { name: true } }
+                    }
+                })
+                : [],
+            targetDiscordIds.length > 0
+                ? db.userProfile.findMany({
+                    where: {
+                        guildId: guildConfig.id,
+                        user: {
+                            accounts: {
+                                some: {
+                                    provider: "discord",
+                                    providerAccountId: { in: [...new Set(targetDiscordIds)] }
+                                }
+                            }
+                        }
+                    },
+                    select: {
+                        userId: true,
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: {
+                            select: {
+                                name: true,
+                                accounts: {
+                                    where: { provider: "discord" },
+                                    select: { providerAccountId: true }
+                                }
+                            }
+                        }
+                    }
+                })
+                : []
+        ]);
 
         const nameMap = new Map<string, string>();
-        for (const p of profiles) {
-            const bestName = p.pseudoDofus || p.discordNickname || p.user?.name;
+        for (const p of profilesByUserId) {
+            const bestName = p.discordNickname || p.pseudoDofus || p.user?.name;
             if (bestName) nameMap.set(p.userId, bestName);
+        }
+
+        const discordIdNameMap = new Map<string, string>();
+        for (const p of profilesByDiscordId) {
+            const bestName = p.discordNickname || p.pseudoDofus || p.user?.name;
+            if (bestName) {
+                for (const acc of p.user.accounts) {
+                    discordIdNameMap.set(acc.providerAccountId, bestName);
+                }
+            }
         }
 
         const enrichedLogs = logs.map(log => {
             const enrichedActor = (log.actorUserId && nameMap.get(log.actorUserId)) || log.actorName;
+            let metadata = log.metadata as any;
+            
+            // Enrich metadata with resolved serverNickname if not already present
+            let targetResolvedName: string | undefined = undefined;
+            if (log.targetId) {
+                targetResolvedName = nameMap.get(log.targetId) || discordIdNameMap.get(log.targetId);
+            }
+            if (!targetResolvedName && metadata?.discordUserId) {
+                targetResolvedName = discordIdNameMap.get(metadata.discordUserId);
+            }
+
+            if (targetResolvedName && metadata && typeof metadata === "object") {
+                metadata = {
+                    ...metadata,
+                    serverNickname: metadata.serverNickname || targetResolvedName,
+                };
+            }
+
             return {
                 ...log,
-                actorName: enrichedActor
+                actorName: enrichedActor,
+                metadata,
             };
         });
 
@@ -813,15 +969,18 @@ export async function getAuditActionTypes(
 // AUDIT LOG CLEANUP (Retention Policy)
 // ============================================================================
 
-// Rétention à 30 jours pour les logs d'audit
-// — Évite le gonflement de la BDD sur le VPS multi-guildes
-// — Les admins peuvent exporter manuellement avant purge si besoin
-const RETENTION_DAYS = 30;
-
 /**
- * Cleanup old audit logs for a guild
- * Removes logs older than RETENTION_DAYS (30 days)
- * Triggered lazily on each visit to the logs page
+ * Cleanup des logs d'audit d'**une** guilde (30 j — `@/lib/audit-retention-policy`).
+ * Déclenché paresseusement à la visite de `/dashboard/[guildId]/admin/logs` : le
+ * client voit son journal, borné, et peut exporter avant purge. La passe est
+ * **par lot** (500) via le core partagé.
+ *
+ * ⚠️ La purge **plateforme** (`cleanupGlobalAuditLogs`) a été **retirée d'ici**
+ * (audit croisé du 24/09/2026) : ce fichier est `"use server"`, donc cet export
+ * était une server action **sans aucune garde** — le `isSuperAdmin()` en avait été
+ * retiré pour le cron (#147bis) — capable de vider la table `AuditLog` entière.
+ * Le core vit désormais dans `src/server/audit-retention.ts` (hors `"use server"`),
+ * appelé par la route cron (`verifyCronSecret`) et jamais exposé au client.
  */
 export async function cleanupOldAuditLogs(
     discordGuildId: string
@@ -848,34 +1007,25 @@ export async function cleanupOldAuditLogs(
             return { success: false, error: "Guild not found" };
         }
 
-        // Calculate cutoff date
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
-
-        // Delete old logs
-        const result = await db.auditLog.deleteMany({
-            where: {
-                guildId: guildConfig.id,
-                createdAt: { lt: cutoffDate }
-            }
-        });
-
+        const { purgeAuditLogsCore } = await import("@/server/audit-retention");
+        const outcome = await purgeAuditLogsCore({ guildConfigId: guildConfig.id });
 
         return {
             success: true,
-            data: { deletedCount: result.count }
+            data: { deletedCount: outcome.guildDeleted }
         };
     } catch (error) {
         logger.error("[cleanupOldAuditLogs] Error:", error);
         return { success: false, error: "Erreur lors du nettoyage des logs" };
     }
 }
+
 /**
  * Get platform-wide audit logs (Super-admin only)
  */
 export async function getGlobalAuditLogs(
     options?: Partial<GetLogsInput>
-): Promise<ActionResponse<{ logs: AuditLogEntry[]; total: number; hasMore: boolean }>> {
+): Promise<ActionResponse<{ logs: AuditLogEntry[]; total: number; hasMore: boolean; securityCount: number }>> {
     try {
         // R1 - LECTURE compatible scope "logs" (sub-god logs autorise a lire les logs God).
         const { isSuperAdmin, canGodAccess } = await import("./super-admin-actions");
@@ -885,9 +1035,15 @@ export async function getGlobalAuditLogs(
         }
 
         const parsed = GetLogsSchema.safeParse(options || {});
-        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo, search } = parsed.success
+        const { page, limit, actionFilter, actorFilter, dateFrom, dateTo, search, category, scope, guildConfigId } = parsed.success
             ? parsed.data
-            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined, search: undefined };
+            : { page: 1, limit: 50, actionFilter: undefined, actorFilter: undefined, dateFrom: undefined, dateTo: undefined, search: undefined, category: undefined, scope: undefined, guildConfigId: undefined };
+
+        // 🛡️ A11 — le journal d'une guilde est une lecture **plateforme** (« le God voit
+        // tout », A5) : elle exige le super-admin, jamais un scope de sous-god. Fail-closed.
+        if (guildConfigId && !isAdmin) {
+            return { success: false, error: "Accès refusé" };
+        }
 
         const where: any = {};
         if (actionFilter) {
@@ -897,6 +1053,17 @@ export async function getGlobalAuditLogs(
                 where.action = actionFilter;
             }
         }
+        // 🔎 Séparation audit/sécurité, **en base** (jamais un filtrage en mémoire sur
+        // la première page : c'est ce qui faisait afficher le même total aux deux écrans).
+        const categoryConstraint = categoryActionConstraint(category);
+        if (categoryConstraint) {
+            where.AND = [...(where.AND ?? []), { action: categoryConstraint }];
+        }
+        if (scope === "platform") where.isGodLog = true;
+        else if (scope === "guild") where.isGodLog = false;
+        // 🏰 A11 — journal d'**une** guilde (id interne `GuildConfig.id`, jamais un
+        // snowflake venant du client) : lecture seule, aucune action God n'y vit.
+        if (guildConfigId) where.guildId = guildConfigId;
         if (actorFilter && actorFilter.trim()) {
             where.actorName = { contains: actorFilter.trim(), mode: 'insensitive' };
         }
@@ -914,8 +1081,13 @@ export async function getGlobalAuditLogs(
             ];
         }
 
-        const [total, logs] = await Promise.all([
+        // G6 — « compteur par famille » **mesuré** (jamais un compteur déduit de la
+        // page affichée) : `security` est la seule famille qu'il faut compter en plus,
+        // `functional` est le complément **exact** (les deux contraintes sont
+        // `in`/`notIn` de la même liste fermée, donc la partition est stricte).
+        const [total, securityCount, logs] = await Promise.all([
             db.auditLog.count({ where }),
+            db.auditLog.count({ where: { AND: [where, { action: { in: [...SECURITY_AUDIT_ACTIONS] } }] } }),
             db.auditLog.findMany({
                 where,
                 orderBy: { createdAt: "desc" },
@@ -932,7 +1104,8 @@ export async function getGlobalAuditLogs(
             data: {
                 logs: logs as any[],
                 total,
-                hasMore: page * limit < total
+                hasMore: page * limit < total,
+                securityCount
             }
         };
     } catch (error) {
@@ -940,31 +1113,98 @@ export async function getGlobalAuditLogs(
         return { success: false, error: "Erreur" };
     }
 }
-
 /**
- * Cleanup old audit logs platform-wide (Retention policy)
+ * A10 — **Accès délégués** : le journal `GodAccessLog` (GRANT / REVOKE / SYNC des
+ * délégations et des briques) était **écrit partout et lu nulle part** (mesure du
+ * 25/09/2026 : 55 lignes — 20 GRANT, 28 REVOKE, 7 SYNC — aucune surface ne les
+ * affichait). Il est exposé dans `/god/logs`.
+ *
+ * 🔒 Super-admin fail-closed (aucun scope de sous-god n'ouvre ce journal) · entrée
+ * bornée par Zod (`page` / `limit`) · noms résolus par une **seconde lecture bornée**
+ * (`GodAccessLog` n'a **pas** de relation Prisma vers `User` : en ajouter une serait
+ * une migration, hors périmètre des lots 3→6) · métadonnées aplaties en **une ligne**
+ * bornée (jamais un objet brut rendu côté client).
  */
-export async function cleanupGlobalAuditLogs(): Promise<ActionResponse<{ deletedCount: number }>> {
-    try {
-        // 🔒 #147bis — Suppression du gate `isSuperAdmin()` : en contexte CRON il n'y a
-        // AUCUNE session → la purge des logs échouait toujours avec « Unauthorized » (500).
-        // Les deux appelants sont déjà authentifiés en amont : la route cron `/api/cron/cleanup-logs`
-        // via `verifyCronSecret` (fail-closed), et la page God `/god/logs` via son layout.
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
 
-        const result = await db.auditLog.deleteMany({
-            where: {
-                createdAt: { lt: cutoffDate }
-            }
-        });
+const GodAccessLogsSchema = z.object({
+    page: z.number().int().min(1).default(1),
+    limit: z.number().int().min(1).max(100).default(50),
+});
+
+export interface GodAccessLogEntry {
+    id: string;
+    userId: string;
+    userName: string | null;
+    action: string;
+    targetId: string | null;
+    detail: string | null;
+    createdAt: Date;
+}
+
+export async function getGodAccessLogs(
+    options?: { page?: number; limit?: number }
+): Promise<ActionResponse<{ logs: GodAccessLogEntry[]; total: number }>> {
+    try {
+        const { isSuperAdmin } = await import("./super-admin-actions");
+        if (!(await isSuperAdmin())) {
+            return { success: false, error: "Accès refusé" };
+        }
+
+        const parsed = GodAccessLogsSchema.safeParse(options ?? {});
+        const { page, limit } = parsed.success ? parsed.data : { page: 1, limit: 50 };
+
+        const [total, rows] = await Promise.all([
+            db.godAccessLog.count(),
+            db.godAccessLog.findMany({
+                orderBy: { createdAt: "desc" },
+                skip: (page - 1) * limit,
+                take: limit,
+                select: { id: true, userId: true, action: true, targetId: true, metadata: true, createdAt: true },
+            }),
+        ]);
+
+        // Noms : une seule lecture bornée (au plus `limit` ids distincts).
+        const userIds = [...new Set(rows.map((row) => row.userId))];
+        const users = userIds.length > 0
+            ? await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } })
+            : [];
+        const nameById = new Map(users.map((user) => [user.id, user.name]));
 
         return {
             success: true,
-            data: { deletedCount: result.count }
+            data: {
+                logs: rows.map((row) => ({
+                    id: row.id,
+                    userId: row.userId,
+                    userName: nameById.get(row.userId) ?? null,
+                    action: row.action,
+                    targetId: row.targetId,
+                    detail: formatGodAccessDetail(row.metadata),
+                    createdAt: row.createdAt,
+                })),
+                total,
+            },
         };
     } catch (error) {
-        logger.error("[cleanupGlobalAuditLogs] Error:", error);
+        logger.error("[getGodAccessLogs] Error:", { error });
         return { success: false, error: "Erreur" };
     }
 }
+
+/** Métadonnées `Json` → une ligne bornée (`clé: valeur · …`), jamais un objet brut. */
+function formatGodAccessDetail(metadata: unknown, maxLength = 160): string | null {
+    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+
+    const parts: string[] = [];
+    for (const [key, value] of Object.entries(metadata as Record<string, unknown>)) {
+        if (value === null || value === undefined) continue;
+        parts.push(`${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
+        if (parts.join(" · ").length > maxLength) break;
+    }
+
+    const text = parts.join(" · ");
+    if (!text) return null;
+    return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+}
+
+

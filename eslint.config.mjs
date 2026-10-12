@@ -84,6 +84,7 @@ const eslintConfig = defineConfig([
     "scripts/**",
     "prisma/**",
     "tmp/**",
+    "temp/**",
     "artifacts/**",
     // Legacy / scratch / debug — jamais lintés
     "cloudflare-workers/**",
@@ -124,16 +125,16 @@ const eslintConfig = defineConfig([
         allowFiles: [
           // dark-locked (Phase 2C) — modules volontairement sombres
           "songes", "worldmap", "ocre-filter-bar",
-          // guides / Rush / Ganymède / géoguesseur
-          "guide", "rush", "ganymede", "geoguesser", "guide-styles", "optimized-guide",
-          // God (console admin dark legacy — hors périmètre dashboard)
+          // guides / Rush / géoguesseur — surfaces legacy en cours de reprise (chantiers dédiés)
+          "guide", "rush", "geoguesser",
+          // God — console admin dark legacy : chantier dédié (93 fichiers, ~3 500 couleurs)
           "god-sidebar", "god-top-nav", "mobile-god-sidebar", "god-nav-config",
           "\\god\\",
-          // landings legacy (chrome + sections volontairement sombres)
-          "public-header", "galactic-header", "galactic-footer",
-          "ui-test", "nebula-client-wrapper", "access-denied",
-          // pages de secours / legacy hors balayage (maintenance, auth, erreurs)
-          "\\maintenance\\", "\\auth\\", "global-error", "coming-soon-banner",
+          // HUD au-dessus du jeu (fenêtre PiP) — palette sombre volontaire, même famille que `rush`
+          "boss-overlay",
+          // maquettes de la vitrine « reproduites au pixel près » (modules de l'app) + prévisualisation
+          // d'un embed Discord : le rendu DOIT ressembler à sa source (les hex Discord sont en allowHex)
+          "landing/registre", "landing\\registre", "discordembedpreview",
           // données de couleur volontaires (config par catégorie / rendu inline)
           "dofus-tags", "mission-config", "profile-activities", "render-inline-content",
         ],

@@ -32,16 +32,17 @@ export function MapHDOverlay({ activeWorld, mapsByCoords, selectedWorldId }: any
         const updateOverlays = () => {
             const z = map.getZoom();
             const showHD = z >= 1;
-            const tilePane = (map as any).getPane('tilePane');
 
+            // NOTE anti-flicker (Opera GX / Chromium) : on ne touche JAMAIS à
+            // l'opacité du tilePane. Le masquer au zoom >= 1 provoquait un flash noir
+            // pendant l'animation (update déclenché seulement sur zoomend/moveend) et
+            // des trous noirs définitifs quand une HD manquait (404). Les overlays HD
+            // recouvrent naturellement les tuiles floues en dessous.
             if (!showHD) {
-                if (tilePane) tilePane.style.opacity = '1';
                 group.clearLayers();
                 activeOverlaysRef.current.clear();
                 return;
             }
-
-            if (tilePane) tilePane.style.opacity = '0';
 
             const bounds = map.getBounds();
             const minGx = Math.floor((bounds.getWest() - ox) / mw) - 1;
@@ -101,8 +102,6 @@ export function MapHDOverlay({ activeWorld, mapsByCoords, selectedWorldId }: any
             map.off('zoomend', updateOverlays);
             map.off('moveend', updateOverlays);
             map.removeLayer(group);
-            const tilePane = (map as any).getPane('tilePane');
-            if (tilePane) tilePane.style.opacity = '1';
             activeOverlaysRef.current.clear();
             groupRef.current = null;
         };

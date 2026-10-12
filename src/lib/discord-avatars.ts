@@ -98,6 +98,15 @@ export function extractUserIdFromAvatarUrl(url: string | null | undefined): stri
 }
 
 /**
+ * Index (0-5) → URL de l'avatar **par défaut** officiel de Discord, sans aucun identifiant.
+ * Utile quand on n'a pas de snowflake (démo publique) ou pour rejouer un index connu.
+ */
+export function getDefaultDiscordAvatarByIndex(index: number): string {
+    const n = ((Math.trunc(index) % 6) + 6) % 6;
+    return `${AVATAR_CDN}/embed/avatars/${n}.png`;
+}
+
+/**
  * #134 — Avatar par défaut officiel de Discord (`embed/avatars/{n}.png`, jamais 404).
  * Index déterministe : `(userId >> 22) % 6` (voir diagnostic-err-blocked-by-orb-avatars.md).
  * Fail-closed : retourne null si userId absent/invalide (jamais de levée d'exception).
@@ -106,7 +115,7 @@ export function getDefaultDiscordAvatar(userId: string | null | undefined): stri
     if (!userId) return null;
     try {
         const idx = (BigInt(userId) >> 22n) % 6n;
-        return `https://cdn.discordapp.com/embed/avatars/${idx.toString()}.png`;
+        return getDefaultDiscordAvatarByIndex(Number(idx));
     } catch {
         return null;
     }

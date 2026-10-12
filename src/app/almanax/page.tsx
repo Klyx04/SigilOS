@@ -7,27 +7,37 @@ import Link from "next/link";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
+import { getAlmanaxFaq } from "@/lib/almanax-faq";
 import { auth } from "@/auth";
-import { Calendar, Sparkles, Coins, Gift, ArrowRight, ShieldCheck, HelpCircle } from "lucide-react";
+import { getServerI18n } from "@/lib/i18n/server";
 
 export const revalidate = 3600; // Cache ISR 1h
 
-export const metadata: Metadata = {
-    title: "Almanax Dofus du Jour : Offrande, Bonus et Calendrier | SigilOS",
-    description:
-        "Consultez l'Almanax Dofus du jour : offrande requise, bonus du Méryde, récompenses en kamas et calendrier des prochains jours pour préparer vos offrandes.",
-    alternates: {
-        canonical: `${getAppBaseUrl()}/almanax`,
-    },
-    openGraph: {
-        title: "Almanax Dofus du Jour — Offrande & Bonus | SigilOS",
-        description: "Offrande du jour, bonus du Méryde et calendrier prévisionnel de l'Almanax Dofus.",
-        url: `${getAppBaseUrl()}/almanax`,
-    },
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const { getServerI18n } = await import("@/lib/i18n/server");
+    const { t, locale } = await getServerI18n();
+    const dateLocale = locale === "en" ? "en-US" : "fr-FR";
+
+    return {
+        // `absolute` : ce titre porte déjà la marque — sans lui, le template du layout
+        // racine (`%s | SigilOS`) produirait « … | SigilOS | SigilOS » dans Google.
+        title: { absolute: t.almanaxPage.metaTitle },
+        description: t.almanaxPage.metaDesc,
+        alternates: {
+            canonical: `${getAppBaseUrl()}/almanax`,
+        },
+        openGraph: {
+            title: t.almanaxPage.metaTitle,
+            description: t.almanaxPage.metaDesc,
+            url: `${getAppBaseUrl()}/almanax`,
+            locale: dateLocale,
+        },
+    };
+}
 
 export default async function AlmanaxPublicPage() {
-    const almanaxList = await getUpcomingAlmanax();
+    const { t, locale } = await getServerI18n();
+    const almanaxList = await getUpcomingAlmanax(locale);
     const session = await auth();
 
     const { getUserContext } = await import("@/server/actions/user-actions");
@@ -39,17 +49,21 @@ export default async function AlmanaxPublicPage() {
     const todayAlmanax = almanaxList[0] as AlmanaxItem | undefined;
     const upcomingAlmanax = almanaxList.slice(1);
 
+    const dateLocale = locale === "en" ? "en-US" : "fr-FR";
+
     const todayDateFormatted = todayAlmanax
-        ? new Date(todayAlmanax.date).toLocaleDateString("fr-FR", {
+        ? new Date(todayAlmanax.date).toLocaleDateString(dateLocale, {
               weekday: "long",
               year: "numeric",
               month: "long",
               day: "numeric",
           })
-        : "Aujourd'hui";
+        : t.almanaxPage.today;
+
+    const faqItems = getAlmanaxFaq(locale);
 
     return (
-        <div className="relative min-h-screen landing-theme bg-background text-foreground selection:bg-accent-teal/30 font-sans flex flex-col">
+        <div className="registre relative min-h-screen landing-theme bg-background text-foreground selection:bg-success/30 font-sans flex flex-col">
             <PublicHeader user={session?.user} activePage="almanax" isMember={userContext.isMember} />
 
             <JsonLd
@@ -60,211 +74,236 @@ export default async function AlmanaxPublicPage() {
                         "@context": "https://schema.org",
                         "@type": "BreadcrumbList",
                         itemListElement: [
-                            { "@type": "ListItem", position: 1, name: "Accueil", item: getAppBaseUrl() },
-                            { "@type": "ListItem", position: 2, name: "Almanax Dofus", item: `${getAppBaseUrl()}/almanax` },
+                            { "@type": "ListItem", position: 1, name: t.almanaxPage.breadcrumbHome, item: getAppBaseUrl() },
+                            { "@type": "ListItem", position: 2, name: t.almanaxPage.breadcrumbAlmanax, item: `${getAppBaseUrl()}/almanax` },
                         ],
                     },
                     {
                         "@context": "https://schema.org",
                         "@type": "FAQPage",
-                        mainEntity: [
-                            {
-                                "@type": "Question",
-                                name: "Qu'est-ce que l'Almanax dans Dofus ?",
-                                acceptedAnswer: {
-                                    "@type": "Answer",
-                                    text: "L'Almanax est une quête journalière répétable située au Sanctuaire de l'Almanax [-4,-24]. Chaque jour, un Méryde offre un bonus unique en jeu et demande une offrande d'objets en échange d'expérience, de kamas et d'une page de calendrier pour le Dofus Dolmanax.",
-                                },
-                            },
-                            {
-                                "@type": "Question",
-                                name: "Combien de jours faut-il pour obtenir le Dolmanax ?",
-                                acceptedAnswer: {
-                                    "@type": "Answer",
-                                    text: "Il faut accomplir 365 quêtes journalières de l'Almanax (non consécutives) pour réunir les 365 pages de calendrier et valider la quête finale du Dolmanax.",
-                                },
-                            },
-                        ],
+                        mainEntity: faqItems.map((item) => ({
+                            "@type": "Question",
+                            name: item.q,
+                            acceptedAnswer: { "@type": "Answer", text: item.a },
+                        })),
                     },
                 ]}
             />
 
-            <main className="flex-1 w-auto relative z-10 pt-32 pb-24 px-6 md:px-8">
-                <div className="max-w-6xl mx-auto space-y-12">
-                    {/* Header */}
-                    <div className="text-center space-y-4 max-w-3xl mx-auto">
-                        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-success/10 border border-success/20 text-xs font-black uppercase tracking-widest text-success">
-                            <Sparkles className="w-3.5 h-3.5" /> Almanax Dofus
-                        </div>
-                        <h1 className="text-3xl md:text-5xl font-black tracking-tight text-foreground">
-                            Almanax du Jour & Calendrier
+            <main className="flex-1">
+                <div className="reg-shell py-10 lg:py-14 space-y-10">
+                    {/* En-tête de page */}
+                    <header>
+                        <p className="reg-eyebrow">{t.almanaxPage.breadcrumbAlmanax}</p>
+                        <h1 className="mt-3 text-[clamp(1.6rem,2.8vw,2rem)] font-bold tracking-tight text-foreground">
+                            {t.almanaxPage.title}
                         </h1>
-                        <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                            Consultez l'offrande quotidienne du Sanctuaire de l'Almanax, découvrez les bonus en jeu et anticipez les prochains jours pour maximiser vos gains.
+                        <p className="mt-3 max-w-[62ch] text-sm text-muted-foreground leading-relaxed">
+                            {t.almanaxPage.subtitle}
                         </p>
-                    </div>
+                    </header>
 
-                    {/* Today's Focus Card */}
+                    {/* Offrande du jour */}
                     {todayAlmanax && (
-                        <div className="relative overflow-hidden rounded-3xl border border-success/30 bg-surface/60 p-6 md:p-10 shadow-2xl backdrop-blur-xl">
-                            <div className="absolute top-0 right-0 w-96 h-96 bg-success/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+                        <section aria-labelledby="offrande-du-jour" className="reg-panel">
+                            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 border-b border-border px-4 py-3 sm:px-6">
+                                <h2 id="offrande-du-jour" className="reg-eyebrow">{t.almanaxPage.dayOff}</h2>
+                                <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <time
+                                        dateTime={todayAlmanax.date.slice(0, 10)}
+                                        className="reg-mono text-xs text-muted-foreground capitalize"
+                                    >
+                                        {todayDateFormatted}
+                                    </time>
+                                    <span className="reg-tag reg-tag-accent">{t.almanaxPage.today}</span>
+                                </p>
+                            </div>
 
-                            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
-                                {/* Date & Offering details */}
-                                <div className="lg:col-span-2 space-y-6">
-                                    <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-muted-foreground">
-                                        <Calendar className="w-4 h-4 text-success" />
-                                        <span className="capitalize">{todayDateFormatted}</span>
-                                        <span className="px-2 py-0.5 rounded-md bg-success/20 text-success text-[10px]">Aujourd'hui</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-5">
+                            <div className="grid gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+                                {/* Offrande + bonus du Méryde */}
+                                <div className="space-y-5">
+                                    <div className="flex items-center gap-4">
                                         {todayAlmanax.tribute?.item?.image_urls?.sd && (
-                                            <div className="w-20 h-20 rounded-2xl bg-elevated border border-border flex items-center justify-center p-2 relative shrink-0 shadow-inner">
-                                                <Image
-                                                    src={todayAlmanax.tribute.item.image_urls.sd}
-                                                    alt={todayAlmanax.tribute.item.name}
-                                                    width={64}
-                                                    height={64}
-                                                    className="object-contain"
-                                                    unoptimized
-                                                />
-                                            </div>
+                                            <Image
+                                                src={todayAlmanax.tribute.item.image_urls.sd}
+                                                alt={todayAlmanax.tribute.item.name}
+                                                width={56}
+                                                height={56}
+                                                className="h-14 w-14 shrink-0 object-contain"
+                                                unoptimized
+                                            />
                                         )}
-                                        <div>
-                                            <div className="text-xs text-muted-foreground font-semibold">Offrande requise :</div>
-                                            <div className="text-2xl md:text-3xl font-black text-foreground">
-                                                {todayAlmanax.tribute.quantity}x {todayAlmanax.tribute.item.name}
-                                            </div>
+                                        <div className="min-w-0">
+                                            <p className="text-xs text-muted-foreground">{t.almanaxPage.offering} :</p>
+                                            <p className="mt-0.5 text-lg font-semibold text-foreground">
+                                                <span className="reg-mono text-accent">{todayAlmanax.tribute.quantity}x</span>{" "}
+                                                {todayAlmanax.tribute.item.name}
+                                            </p>
                                         </div>
                                     </div>
 
-                                    {/* Bonus */}
-                                    <div className="rounded-2xl bg-elevated/70 border border-border p-4 md:p-5 space-y-2">
-                                        <div className="text-xs font-black uppercase tracking-widest text-warning flex items-center gap-2">
-                                            <Gift className="w-4 h-4" /> Bonus du Méryde : {todayAlmanax.bonus?.type?.name || "Effet spécial"}
+                                    <div className="reg-callout border-warning/40">
+                                        <div>
+                                            <p className="font-semibold text-foreground">
+                                                {t.almanaxPage.bonusMeryde} : {todayAlmanax.bonus?.type?.name || "Effet spécial"}
+                                            </p>
+                                            <p>{todayAlmanax.bonus?.description}</p>
                                         </div>
-                                        <p className="text-sm text-foreground/90 leading-relaxed font-medium">
-                                            {todayAlmanax.bonus?.description}
-                                        </p>
                                     </div>
                                 </div>
 
-                                {/* Location & Action Box */}
-                                <div className="rounded-2xl border border-border bg-elevated p-6 space-y-4 text-center lg:text-left flex flex-col justify-between h-full">
-                                    <div className="space-y-2">
-                                        <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Lieu de la quête</div>
-                                        <div className="text-lg font-black text-foreground">Sanctuaire de l'Almanax</div>
-                                        <div className="text-xs text-success font-mono font-bold bg-success/10 px-2.5 py-1 rounded-lg inline-block">
-                                            Position [-4,-24] (Zaap Plaine des Scarafeuilles)
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-border">
-                                        <Link
-                                            href="/guilds"
-                                            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-success text-success-foreground font-black text-xs uppercase tracking-wider hover:opacity-95 transition-all shadow-lg shadow-success/20"
-                                        >
-                                            Suivre avec ma guilde <ArrowRight className="w-4 h-4" />
-                                        </Link>
-                                    </div>
+                                {/* Lieu de la quête */}
+                                <div className="lg:border-l lg:border-border lg:pl-6">
+                                    <p className="text-xs text-muted-foreground">
+                                        {locale === "en" ? "Quest Location" : "Lieu de la quête"}
+                                    </p>
+                                    <p className="mt-1 text-sm font-semibold text-foreground">
+                                        {locale === "en" ? "Almanax Sanctuary" : "Sanctuaire de l'Almanax"}
+                                    </p>
+                                    <p className="reg-mono mt-1.5 text-xs text-muted-foreground">
+                                        {/* Zaap le plus proche du Sanctuaire [-4,-24] : « Plaine des Porkass » (sous-zone
+                                            DofusDB 178, nom officiel EN « Lousy Pig Plain »). L'ancien libellé
+                                            « Plaine des Scarafeuilles » désignait un autre zaap (sous-zone 170, [-1,24]). */}
+                                        Position [-4,-24] ({locale === "en" ? "Lousy Pig Plain Zaap" : "Zaap Plaine des Porkass"})
+                                    </p>
                                 </div>
                             </div>
-                        </div>
+                        </section>
                     )}
 
-                    {/* Upcoming Days Calendar */}
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-xl md:text-2xl font-black text-foreground flex items-center gap-2">
-                                <Calendar className="w-5 h-5 text-success" /> Prochains Jours de l'Almanax
+                    {/* Calendrier prévisionnel */}
+                    <section aria-labelledby="prochains-jours" className="space-y-3">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                            <h2 id="prochains-jours" className="reg-eyebrow">
+                                {t.almanaxPage.upcomingTitle}
                             </h2>
-                            <span className="text-xs text-muted-foreground font-semibold">
-                                {upcomingAlmanax.length} jours prévus
+                            <span className="reg-count">
+                                {upcomingAlmanax.length} {locale === "en" ? "days scheduled" : "jours prévus"}
                             </span>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {upcomingAlmanax.slice(0, 12).map((item, idx) => {
-                                const dateFormatted = new Date(item.date).toLocaleDateString("fr-FR", {
-                                    weekday: "short",
-                                    month: "short",
-                                    day: "numeric",
-                                });
+                        <div className="overflow-x-auto">
+                            <table className="reg-table min-w-[34rem]">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" className="w-[9rem]">
+                                            {t.almanaxPage.dateCol}
+                                        </th>
+                                        <th scope="col" className="w-[15rem]">
+                                            {t.almanaxPage.tributeCol}
+                                        </th>
+                                        <th scope="col">{t.almanaxPage.bonusCol}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {upcomingAlmanax.slice(0, 12).map((item, idx) => {
+                                        const dateFormatted = new Date(item.date).toLocaleDateString(dateLocale, {
+                                            weekday: "short",
+                                            month: "short",
+                                            day: "numeric",
+                                        });
 
-                                return (
-                                    <Link
-                                        key={item.date || idx}
-                                        href={`/almanax/${item.date.slice(0, 10)}`}
-                                        className="rounded-2xl border border-border bg-surface/40 hover:bg-surface/70 hover:border-success/30 p-5 space-y-3 transition-all flex flex-col justify-between"
-                                    >
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-black uppercase tracking-wider text-muted-foreground capitalize">
-                                                    {dateFormatted}
-                                                </span>
-                                                <span className="text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">
-                                                    +{idx + 1}j
-                                                </span>
-                                            </div>
-
-                                            <div className="flex items-center gap-3">
-                                                {item.tribute?.item?.image_urls?.sd && (
-                                                    <div className="w-12 h-12 rounded-xl bg-elevated border border-border flex items-center justify-center p-1 shrink-0">
-                                                        <Image
-                                                            src={item.tribute.item.image_urls.sd}
-                                                            alt={item.tribute.item.name}
-                                                            width={36}
-                                                            height={36}
-                                                            className="object-contain"
-                                                            unoptimized
-                                                        />
-                                                    </div>
-                                                )}
-                                                <div>
-                                                    <div className="text-xs text-muted-foreground">Offrande :</div>
-                                                    <div className="text-sm font-black text-foreground line-clamp-1">
-                                                        {item.tribute.quantity}x {item.tribute.item.name}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                                                {item.bonus?.description}
-                                            </p>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
+                                        return (
+                                            <tr key={item.date || idx}>
+                                                <th
+                                                    scope="row"
+                                                    className="py-[0.85rem] pr-4 text-left align-top text-sm font-semibold normal-case tracking-normal text-foreground border-b border-border whitespace-nowrap"
+                                                >
+                                                    <Link
+                                                        href={`/almanax/${item.date.slice(0, 10)}`}
+                                                        className="reg-link"
+                                                    >
+                                                        <time dateTime={item.date.slice(0, 10)} className="reg-mono capitalize">
+                                                            {dateFormatted}
+                                                        </time>
+                                                    </Link>
+                                                    <span className="reg-mono ml-2 text-xs font-normal text-muted-foreground">
+                                                        +{idx + 1}d
+                                                    </span>
+                                                </th>
+                                                <td>
+                                                    <span className="flex items-center gap-2.5">
+                                                        {item.tribute?.item?.image_urls?.sd && (
+                                                            <Image
+                                                                src={item.tribute.item.image_urls.sd}
+                                                                alt={item.tribute.item.name}
+                                                                width={32}
+                                                                height={32}
+                                                                className="h-8 w-8 shrink-0 object-contain"
+                                                                unoptimized
+                                                            />
+                                                        )}
+                                                        <span className="text-sm font-semibold text-foreground">
+                                                            {item.tribute.quantity}x {item.tribute.item.name}
+                                                        </span>
+                                                    </span>
+                                                </td>
+                                                <td className="text-sm text-muted-foreground">
+                                                    {item.bonus?.description}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
+                    </section>
 
-                    {/* Educational / SEO Section */}
-                    <div className="rounded-3xl border border-border bg-surface/30 p-8 md:p-10 space-y-6">
-                        <h3 className="text-lg md:text-xl font-black text-foreground flex items-center gap-2">
-                            <HelpCircle className="w-5 h-5 text-success" /> Tout savoir sur la quête de l'Almanax & le Dolmanax
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs md:text-sm text-muted-foreground leading-relaxed">
-                            <div className="space-y-2">
-                                <strong className="text-foreground block text-sm">Le Dolmanax (Niveau 128)</strong>
-                                <p>
-                                    Accomplir 365 offrandes débloque le Dofus Dolmanax qui confère un bonus permanent de +50 dans les 4 éléments (Force, Intelligence, Chance, Agilité).
+                    {/* Fiche Dolmanax */}
+                    <section aria-labelledby="dolmanax" className="reg-doc border-t border-border pt-6">
+                        <h2 id="dolmanax" className="mt-0 flex items-center gap-2.5 text-base sm:text-lg">
+                            <Image
+                                src="/module-dofus/Dofus_Dolmanax.png"
+                                alt="Dofus Dolmanax"
+                                width={24}
+                                height={24}
+                                className="h-6 w-6 object-contain shrink-0"
+                                unoptimized
+                            />
+                            {t.almanaxPage.dolmanaxTitle}
+                        </h2>
+                        <div className="mt-5 grid gap-6 md:grid-cols-3">
+                            <div>
+                                <h3 className="mt-0">{locale === "en" ? "The Dolmanax" : "Le Dolmanax"}</h3>
+                                <p className="mt-1">
+                                    {locale === "en"
+                                        ? "Completing 365 daily offerings unlocks the Dolmanax Dofus, granting a permanent bonus of +50 in all 4 main elements (Strength, Intelligence, Chance, Agility)."
+                                        : "Accomplir 365 offrandes débloque le Dofus Dolmanax qui confère un bonus permanent de +50 dans les 4 éléments (Force, Intelligence, Chance, Agilité)."}
                                 </p>
                             </div>
-                            <div className="space-y-2">
-                                <strong className="text-foreground block text-sm">Anticiper les Offrandes</strong>
-                                <p>
-                                    Acheter ou récolter les ressources plusieurs jours à l'avance permet d'éviter l'inflation des prix en hôtel de vente le jour même de l'offrande.
+                            <div>
+                                <h3 className="mt-0">{locale === "en" ? "Anticipating Offerings" : "Anticiper les Offrandes"}</h3>
+                                <p className="mt-1">
+                                    {locale === "en"
+                                        ? "Purchasing or gathering resources days in advance prevents price inflation in marketplace hubs on the day of the tribute."
+                                        : "Acheter ou récolter les ressources plusieurs jours à l'avance permet d'éviter l'inflation des prix en hôtel de vente le jour même de l'offrande."}
                                 </p>
                             </div>
-                            <div className="space-y-2">
-                                <strong className="text-foreground block text-sm">Synchronisation de Guilde</strong>
-                                <p>
-                                    Sur SigilOS, le widget Almanax est directement intégré au tableau de bord pour rappeler l'offrande du jour à tous les membres de votre guilde.
+                            <div>
+                                <h3 className="mt-0">{locale === "en" ? "Guild Synchronization" : "Synchronisation de Guilde"}</h3>
+                                <p className="mt-1">
+                                    {locale === "en"
+                                        ? "On SigilOS, the Almanax widget is embedded directly into the guild dashboard to remind all members of the daily tribute."
+                                        : "Sur SigilOS, le widget Almanax est directement intégré au tableau de bord pour rappeler l'offrande du jour à tous les membres de votre guilde."}
                                 </p>
                             </div>
                         </div>
-                    </div>
+                    </section>
+
+                    {/* FAQ */}
+                    <section aria-labelledby="faq-almanax" className="border-t border-border pt-6">
+                        <h2 id="faq-almanax" className="mt-0 text-base sm:text-lg">
+                            {t.almanaxPage.faqTitle}
+                        </h2>
+                        <div className="reg-faq mt-4">
+                            {faqItems.map((item) => (
+                                <details key={item.q}>
+                                    <summary>{item.q}</summary>
+                                    <p>{item.a}</p>
+                                </details>
+                            ))}
+                        </div>
+                    </section>
                 </div>
             </main>
 

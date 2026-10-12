@@ -403,7 +403,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                     <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/10 blur-[40px] rounded-full translate-x-12 -translate-y-12" />
                     <div className="flex items-center gap-3 mb-4">
                         <div className="p-2.5 bg-violet-600/10 rounded-xl">
-                            <img src="/guildatons.png" alt="Guildaton" className="w-5 h-5 object-contain" />
+                            <img src="/assets/icons/guildatons.png" alt="Guildaton" className="w-5 h-5 object-contain" />
                         </div>
                         <span className="text-caption font-black uppercase text-muted-foreground tracking-[0.2em]">Total Guilde</span>
                     </div>
@@ -760,7 +760,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                         <TableCell>
                                             <div className="relative w-[140px] group/input">
                                                 <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-md bg-elevated/50">
-                                                    <img src="/guildatons.png" alt="Icon" className="w-3 h-3 object-contain opacity-70 group-focus-within/input:opacity-100 transition-opacity" />
+                                                    <img src="/assets/icons/guildatons.png" alt="Icon" className="w-3 h-3 object-contain opacity-70 group-focus-within/input:opacity-100 transition-opacity" />
                                                 </div>
                                                 <Input 
                                                     type="number" 

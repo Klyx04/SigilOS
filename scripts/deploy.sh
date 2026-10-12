@@ -63,7 +63,79 @@ if [ -d "public/uploads/guides" ]; then
     dim "🧹 Nettoyage temporaire des guides pour éviter les conflits de pull..."
     rm -rf public/uploads/guides
 fi
+# 🔁 Artefact RÉGÉNÉRÉ au runtime : le siphon (cron `sync-monster-stats` + bouton God) écrit
+# `public/game-data/dungeon-monsters.json` À TRAVERS le bind mount compose
+# (`~/SigilOS/public/game-data` → `/app/public/game-data`) → ce fichier VERSIONNÉ devient
+# « modifié » côté serveur et `git pull` refuse de l'écraser (merge aborted).
+# Il est régénéré au prochain tick du cron ⇒ on restaure la version du dépôt avant le pull.
+if ! git diff --quiet -- public/game-data/dungeon-monsters.json 2>/dev/null; then
+    dim "🧹 Artefact de siphon régénéré (dungeon-monsters.json) → restauration de la version du dépôt..."
+    git checkout -- public/game-data/dungeon-monsters.json
+fi
+# 🔒 Données CURÉES à la main (God). Elles vivent dans un dossier VERSIONNÉ mais sont écrites en
+# production À TRAVERS le bind mount (`~/SigilOS/public/game-data` → `/app/public/game-data`) :
+#   · `ignored-monsters.json` — monstres retirés (le siphon les saute) ;
+#   · `ignored-bounties.json` — avis de recherche supprimés (le siphon les saute).
+# C'est la curation du SERVEUR qui fait foi : on la met de côté avant le pull, on la restaure
+# après. Sans ça, un pull qui touche ces fichiers annule les exclusions — un avis supprimé
+# réapparaît à la passe suivante.
+CURATED=(
+    "public/game-data/ignored-monsters.json"
+    "public/game-data/ignored-bounties.json"
+    # Suivies dans le dépôt ET écrites au runtime (suppressions de donjons ; libellés de zone
+    # retirés de la carte du monde) : sans ces deux lignes, un déploiement annulait la curation
+    # du serveur — même liste que `deploy-cd.sh` (`PRESERVED`), verrouillée par le test de parité.
+    "public/game-data/ignored-dungeons.json"
+    "public/game-data/hidden-map-zones.json"
+)
+# 🔁 Médias SUIVIS dont le DÉPÔT est la référence (aucun écrivain au runtime) — même règle
+# que `deploy-cd.sh` (classe `REPO_OWNED`, qui porte la mesure complète) : un fichier
+# BINAIRE suivi modifié une fois sur le serveur ne converge jamais (le `git pull` refuse de
+# l'écraser, et `--autostash` le ré-applique) ⇒ les 25 icônes de succès réécrites par la
+# purge du 20/09/2026 restaient « modifiées » à CHAQUE déploiement. On remet la version du
+# dépôt avant le pull : l'arbre redevient propre et le pull peut passer.
+# ⚠️ Ne pas y mettre `public/game-data/{monsters,dungeons,legendary}` : leurs `.webp` SONT
+#    suivis ET réécrits par la galerie God (écriture volontaire côté serveur).
+# Parité des deux listes verrouillée par `tests/unit/deploy-source-sync.test.ts`.
+REPO_OWNED=(
+    "public/game-data/achievements"
+    "public/images"
+    "public/assets"
+    "public/ordres"
+    "public/bonus_guilde"
+    "public/songes"
+    "public/module-dofus"
+    "public/banners"
+)
+for _dir in "${REPO_OWNED[@]}"; do
+    while IFS= read -r _tracked; do
+        [[ -n "$_tracked" ]] || continue
+        git cat-file -e "HEAD:$_tracked" 2>/dev/null || continue
+        # `git diff` et pas `cmp` : la divergence peut être une divergence de MODE seul
+        # (`100644` → `100755`, mesurée le 30/09/2026 sur 11 JSON de `public/game-data`).
+        git diff --quiet HEAD -- "$_tracked" 2>/dev/null && continue
+        # `git checkout` remet contenu ET mode ; un `>` aurait laissé le `+x` du serveur.
+        git checkout -- "$_tracked" 2>/dev/null || warn "🧹 Restauration impossible : $_tracked"
+        dim "🧹 Média suivi restauré (contenu + mode du dépôt) : $_tracked"
+    done < <(git ls-files -- "$_dir" 2>/dev/null)
+done
+CURATED_DIR="$(mktemp -d)"
+for f in "${CURATED[@]}"; do
+    [[ -f "$f" ]] || continue
+    git cat-file -e "HEAD:$f" 2>/dev/null || continue
+    git diff --quiet HEAD -- "$f" 2>/dev/null && continue
+    cp "$f" "$CURATED_DIR/$(basename "$f")"
+    git checkout -- "$f" 2>/dev/null || warn "🔒 Mise en conformité impossible : $f"
+    dim "🔒 Donnée curée mise de côté : $f"
+done
 git pull origin "$(git rev-parse --abbrev-ref HEAD)"
+for f in "${CURATED[@]}"; do
+    CURATED_SRC="$CURATED_DIR/$(basename "$f")"
+    [[ -f "$CURATED_SRC" ]] || continue
+    cp "$CURATED_SRC" "$f"
+    dim "🔒 Donnée curée restaurée : $f"
+done
+rm -rf "$CURATED_DIR"
 
 # 3. Mise à jour de l'infrastructure de monitoring (silencieux)
 info "📊 Mise à jour de l'infrastructure de monitoring..."
@@ -91,12 +163,19 @@ run_conditional_seed() {
 
     if [ "$SEED_ALWAYS" == "1" ] || [ "$CURRENT_HASH" != "$PREV_HASH" ]; then
         info "🌱 Seeding des données de jeu ${TARGET^^} (données modifiées)..."
-        sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:game-data:prod
+        # `--silent` + notifier coupé : sans eux, npm déverse son bandeau de script
+        # et sa pub de mise à jour (« npm notice New major version… ») dans la sortie.
+        sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" \
+            sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:game-data:prod'
         echo "$CURRENT_HASH" > "$HASH_FILE"
         ok "Seed terminé."
     else
         dim "⏭️  Seeding ignoré (game-data.json inchangé depuis le dernier déploiement)."
     fi
+
+    # 🛑 Plus de synchronisation de la doc au déploiement (décision user du 12/10/2026) :
+    # `seed:docs` écrase les fiches `DocPage` par le catalogue et supprime les slugs absents
+    # du catalogue (cf. la note détaillée dans `deploy-cd.sh`). À publier à la demande.
 }
 
 # -----------------------------------------------------------------------------
@@ -165,12 +244,13 @@ if [ "$TARGET" == "beta" ]; then
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-beta worker-beta ws-beta discord-bot-beta
 
     info "📂 Migration des fichiers vers Private Storage BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npm run migrate:uploads
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta \
+        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent migrate:uploads'
 
     info "🧹 Synchronisation des migrations BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma migrate deploy
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma@7.9.1 migrate deploy
     # Le `db push` reste en beta pour itérer vite sur le schéma (dev-like)
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma db push
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma@7.9.1 db push
 
     run_conditional_seed app-beta
 
@@ -205,10 +285,11 @@ else
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-prod worker-prod ws-prod discord-bot-prod
 
     info "📂 Migration des fichiers vers Private Storage PROD..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npm run migrate:uploads
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod \
+        sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent migrate:uploads'
 
     info "🧹 Synchronisation des migrations PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npx --yes prisma migrate deploy
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npx --yes prisma@7.9.1 migrate deploy
     # 🛑 `prisma db push` est volontairement ABSENT en prod.
     # Seule `migrate deploy` est autorisée sur une base de production :
     # db push peut désynchroniser le schéma et les migrations de façon

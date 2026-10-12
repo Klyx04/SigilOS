@@ -13,9 +13,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         Discord({
             clientId: process.env.AUTH_DISCORD_ID || process.env.DISCORD_CLIENT_ID,
             clientSecret: process.env.AUTH_DISCORD_SECRET || process.env.DISCORD_CLIENT_SECRET,
+            // RFC 9207 : Discord renvoie un paramètre `iss` dans la réponse OAuth. Auth.js
+            // le compare à `provider.issuer`, dont la valeur de repli est le placeholder
+            // « https://authjs.dev » (cf. @auth/core lib/actions/callback/oauth/callback.ts).
+            // Sans cet issuer explicite, TOUTE connexion échoue en `error=Configuration`
+            // (incident prod + bêta du 06/10/2026). Valeur = issuer de
+            // https://discord.com/.well-known/openid-configuration
+            issuer: "https://discord.com",
             authorization: { params: { scope: "identify guilds" } }
         })
     ],
+    // Logs Auth.js → logger applicatif. Sans ce branchement, les erreurs d'auth
+    // sortent en console brute et la page publique les **masque** en
+    // `error=Configuration` (cf. docs/MAINTENANCE.md § incident 06/10/2026) : on ne
+    // voit alors jamais la vraie erreur. En passant par `logger`, elles sont
+    // structurées, redactées, et remontent à Sentry (sentry.server.config →
+    // `captureConsoleIntegration` sur `error`, actif depuis l'ajout de
+    // `src/instrumentation.ts`).
+    logger: {
+        error(error: Error) {
+            logger.error(`[auth] ${error.name}: ${error.message}`, { authError: error.name });
+        },
+        warn(code: string) {
+            logger.warn(`[auth] ${code}`);
+        },
+        debug(message: string, metadata?: unknown) {
+            logger.debug(`[auth] ${message}`, metadata);
+        },
+    },
     adapter: PrismaAdapter(prisma),
     // SECURITY (F-07 / audit 2026): the base authConfig defines maxAge 24h, but
     // this override previously raised it to 7 days (most permissive wins).
@@ -38,6 +63,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     .map(id => id.trim())
                     .filter(Boolean);
                 if (discordId && superAdminIds.includes(discordId)) return true;
+
+                // 1b. Check PlatformBan for user
+                try {
+                    const userBan = await prisma.platformBan.findFirst({
+                        where: { discordId, entityType: "USER" }
+                    });
+                    if (userBan) {
+                        logger.warn(`[Auth Security] Blocked sign-in for banned user ${discordId}: ${userBan.reason}`);
+                        return "/auth/error?error=Banned";
+                    }
+                } catch (e) {
+                    logger.error("[Auth Security] Error checking platformBan for user:", { error: (e as Error).message });
+                }
 
                 // Helper fail-closed : journalise le refus (observabilité God) puis
                 // renvoie le résultat du sign-in (false = refus sans redirect ciblée).
@@ -73,7 +111,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         if (await isKnownManagedMember()) return true;
                         return deny("DISCORD_API_ERROR", false);
                     }
-                    const userGuilds = await res.json() as { id: string }[];
+                    const userGuilds = await res.json() as { id: string; owner?: boolean; permissions?: string }[];
                     const userGuildIds = userGuilds.map(g => g.id);
 
                     // 3. Check if any guild is registered in SigilOS
@@ -91,7 +129,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                     if (allowedCount > 0) return true;
 
-                    // 5. Discord OK mais la guilde n'est pas encore remontée (latence) :
+                    // 5. Onboarding Autonome : Si l'utilisateur est propriétaire ou administrateur
+                    // d'au moins un serveur Discord non banni, on l'autorise à entrer sur le portail
+                    // pour qu'il puisse déployer SigilOS en un clic.
+                    const adminGuilds = userGuilds.filter(g => {
+                        if (g.owner) return true;
+                        if (!g.permissions) return false;
+                        try {
+                            return (BigInt(g.permissions) & 0x8n) === 0x8n;
+                        } catch {
+                            return false;
+                        }
+                    });
+
+                    if (adminGuilds.length > 0) {
+                        const adminGuildIds = adminGuilds.map(g => g.id);
+                        const bannedGuilds = await prisma.platformBan.findMany({
+                            where: { discordId: { in: adminGuildIds }, entityType: "GUILD" },
+                            select: { discordId: true }
+                        });
+                        const bannedSet = new Set(bannedGuilds.map(b => b.discordId));
+                        const eligibleAdminGuilds = adminGuilds.filter(g => !bannedSet.has(g.id));
+
+                        if (eligibleAdminGuilds.length > 0) {
+                            return true;
+                        }
+                    }
+
+                    // 6. Discord OK mais la guilde n'est pas encore remontée (latence) :
                     //    on tolère un membre ACTIVE connu d'une guilde gérée.
                     if (await isKnownManagedMember()) return true;
 

@@ -73,6 +73,28 @@ export async function POST(req: Request) {
 
         const { title, message, type, success, metadata } = parsed.data;
 
+        // Enregistrement de la télémétrie CRON pour le panel GOD
+        if (type === "VPS_MAINTENANCE") {
+            const { recordCronExecution } = await import("@/lib/cron-telemetry");
+            await recordCronExecution("maintenance", {
+                success: success ?? true,
+                summary: message,
+                details: metadata
+            });
+            await recordCronExecution("janitor", {
+                success: success ?? true,
+                summary: "Nettoyage BDD terminé",
+                details: metadata
+            });
+        } else if (type === "BACKUP") {
+            const { recordCronExecution } = await import("@/lib/cron-telemetry");
+            await recordCronExecution("backup_db", {
+                success: success ?? true,
+                summary: message,
+                details: metadata
+            });
+        }
+
         const result = await notifyGod({
             title,
             message,

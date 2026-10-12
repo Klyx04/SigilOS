@@ -21,7 +21,6 @@ import { ValidatorInbox } from "./_components/validator-inbox";
 import { PseudoWarningBanner } from "@/components/layout/pseudo-warning-banner";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { GuildActivityStream } from "@/components/layout/guild-activity-stream";
-import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
 import { ServiceReplyModal } from "@/components/services/service-reply-modal";
@@ -32,6 +31,11 @@ import { OnboardingWizard } from "@/components/dashboard/onboarding-wizard";
 import { TourProvider } from "@/components/tour/tour-provider";
 import { TourOverlay } from "@/components/tour/tour-overlay";
 import { TourCompletion } from "@/components/tour/tour-completion";
+import { DocDrawerProvider } from "@/components/doc/doc-drawer-context";
+import { DocDrawer } from "@/components/doc/doc-drawer";
+import { OnboardingBlockerModal } from "@/components/admin/onboarding-blocker-modal";
+import { OnboardingNextStepsModal } from "@/components/admin/onboarding-next-steps-modal";
+import { RushOverlayHost } from "./_components/rush-overlay-host";
 
 export default async function DashboardLayout({
     children,
@@ -59,11 +63,19 @@ export default async function DashboardLayout({
         getGuildHeaderData(guildId),
         getUserGuilds(),
         getGuildModules(guildId),
-        import("@/server/actions/god-roadmap-actions").then(mod => mod.getPlatformConfig())
+        import("@/server/actions/platform-config-actions").then(mod => mod.getPlatformConfig())
     ]);
 
-    const roadmapEnabled = configRes.success && configRes.data ? (configRes.data as any).roadmapEnabled : false;
     const donationsEnabled = configRes.success && configRes.data ? (configRes.data as any).donationsEnabled : true;
+
+    // --- MAINTENANCE : verrouille les dashboards loggés (le proxy réécrit les
+    // requêtes neuves, mais une session déjà posée sur un dashboard ne repasse
+    // pas forcément par lui dans sa fenêtre de cache). Lecture BDD directe,
+    // sans cache : le dashboard bascule dès l'activation. Fail-open : BDD
+    // injoignable → on laisse passer (le proxy garde son propre filet).
+    // Aucune exception God ici : seule la route God reste accessible.
+    const maintenanceOn = configRes.success && configRes.data ? (configRes.data as any).maintenanceMode === true : false;
+    if (maintenanceOn) redirect("/maintenance");
 
     // #5 — Couleur de guilde (teinte OKLCH) : le dashboard se teinte via --accent/--ring.
     const accentHue = await db.guildConfig
@@ -126,6 +138,21 @@ export default async function DashboardLayout({
         );
     }
 
+    // ── TIMEOUT DISCORD (« Exclure temporairement ») — suspension temporaire ──
+    if ((user as any).isTimedOut && !(user as any).isSuperAdmin) {
+        return (
+            <AccessDenied
+                title="Accès Temporairement Suspendu"
+                message={`Vous êtes temporairement exclu du serveur Discord ${user.guildName} (timeout). Votre accès au tableau de bord sera rétabli automatiquement à la fin de la sanction.`}
+                variant="timeout"
+                action={<SignOutButton variant="ghost" />}
+                countdownLabel="Accès rétabli dans"
+                expiredLabel="Accès disponible"
+                countdownDate={(user as any).timedOutUntil}
+            />
+        );
+    }
+
     // ── NOT A MEMBER ──
     if (!user.isMember) {
         return (
@@ -151,6 +178,17 @@ export default async function DashboardLayout({
         );
     }
 
+    // ── ONBOARDING ADMIN : parcours sans échappatoire. Tant que la mise en
+    // route n'est pas terminée, l'admin ne navigue que dans /admin/* (les 2
+    // étapes obligatoires + modules) — fini la fuite vers le dashboard
+    // membre. God exempté (inspection).
+    if (!user.isOnboardingComplete && user.isAdmin && !(user as any).isSuperAdmin) {
+        const { isOnboardingAllowedPath } = await import("@/lib/onboarding-gating");
+        if (!isOnboardingAllowedPath(pathname, guildId)) {
+            redirect(`/dashboard/${guildId}/admin/getting-started`);
+        }
+    }
+
     // ── NO DASHBOARD ACCESS (role-based) ──
     if (!user.canViewDashboard) {
         return (
@@ -174,15 +212,82 @@ export default async function DashboardLayout({
         );
     }
 
+    // ── PROFIL NON CONFIGURÉ : pas de balade sur le dashboard sans pseudo
+    // Dofus (fini les fiches « PROFIL NON CONFIGURÉ » qui errent partout). Le
+    // membre est renvoyé sur son profil, dont l'éditeur d'identité s'ouvre seul
+    // (`?edit=identity`). God exempté (inspection) ; page profil exclue
+    // (anti-boucle : `x-pathname` vide = pas de redirect, le wizard couvre) ;
+    // sans accès au module profil, rien à configurer ici.
+    if (
+        user.hasPseudoIssue &&
+        !user.isSuperAdmin &&
+        user.canViewProfile &&
+        pathname &&
+        !pathname.startsWith(`/dashboard/${guildId}/profile`)
+    ) {
+        redirect(`/dashboard/${guildId}/profile?edit=identity`);
+    }
+
+    // 2e modale (optionnel) : onboarding complet mais modules non configurés.
+    // Requête légère (1 ligne) uniquement pour les admins concernés.
+    // 🔁 22/09/2026 — la règle vit désormais dans `onboarding-gating` (`shouldPromptOptionalNextSteps`,
+    // testée) : la liste de clés était **recopiée et périmée** ici (14 modules du registre manquants)
+    // et `admin` (panneau de config, actif par construction) faisait échouer la condition, si bien
+    // que la modale ne pouvait jamais s'afficher pour une guilde qui venait d'être activée.
+    let showOptionalPrompt = false;
+    if (user.isOnboardingComplete && user.isAdmin && !user.isSuperAdmin) {
+        try {
+            const { shouldPromptOptionalNextSteps } = await import("@/lib/onboarding-gating");
+            const modulesRow = await db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { modules: true },
+            });
+            showOptionalPrompt = shouldPromptOptionalNextSteps(
+                ((modulesRow as any)?.modules ?? null) as Record<string, unknown> | null,
+            );
+        } catch { /* pas de prompt en cas de doute */ }
+    }
+    const needMandatoryOnboarding = !user.isOnboardingComplete && user.isDiscordAdmin && !user.isSuperAdmin;
+    let blockerServers: Array<{ id: string; name: string; group: string }> = [];
+    let blockerRoles: Array<{ id: string; name: string }> = [];
+    // Modale bloquante des 2 étapes obligatoires (serveur + rôle dashboard:login).
+    // Rendue par le layout = couvre TOUTES les pages du dashboard (console,
+    // trackers, docs internes) : impossible de la contourner en naviguant.
+    // Natifs Discord uniquement (l'action serveur l'exige) ; God exempté.
+    if (needMandatoryOnboarding) {
+        try {
+            const { DOFUS_UNITY_SERVERS } = await import("@/lib/presentation-constants");
+            const groupLabels: Record<string, string> = {
+                epique: "Épique", monocompte: "Monocompte", classique: "Classique",
+                pionnierMono: "Pionnier solo", pionnier: "Pionnier",
+            };
+            for (const [groupKey, list] of Object.entries(DOFUS_UNITY_SERVERS)) {
+                for (const s of list as ReadonlyArray<{ name: string; id: number }>) {
+                    blockerServers.push({ id: String(s.id), name: s.name, group: groupLabels[groupKey] || groupKey });
+                }
+            }
+        } catch { /* liste vide = étape 1 avec message */ }
+        try {
+            const { fetchGuildRoles } = await import("@/server/discord");
+            const allRoles = await fetchGuildRoles(guildId, { excludeManaged: false });
+            blockerRoles = allRoles
+                .filter((r: any) => r && r.id !== guildId && !r.managed && r.name)
+                .map((r: any) => ({ id: r.id, name: r.name }));
+        } catch { /* liste vide = consigne de créer un rôle */ }
+    }
+
     return (
         <NebulaClientWrapper>
             <GameProvider>
             <TelemetryTracker />
+            <DocDrawerProvider>
             <TourProvider guildId={guildId} modules={modules} user={user}>
                 <div className="dashboard-tour">
                     <TourOverlay />
                     <TourCompletion guildId={guildId} />
                 </div>
+                {/* Global Slide-Over Doc Drawer */}
+                <DocDrawer guildId={guildId} />
                 {/* V2 Phase 0 — teinte de guilde posée sur le root EXISTANT du dashboard
                     (pas de div empilé, ne casse pas le flex h-screen) :
                     --guild-hue / --guild-chroma-* / --success-hue → --accent / --ring /
@@ -194,14 +299,13 @@ export default async function DashboardLayout({
 
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
-                <div data-tour="sidebar-root" className="dashboard-sidebar hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
+                <div data-tour="sidebar-root" className="dashboard-sidebar hidden lg:flex w-[var(--app-sidebar-width,280px)] flex-col fixed inset-y-0 z-50">
                     <AppSidebar
                         guildId={guildId}
                         user={user}
                         guildData={guildData}
                         userGuilds={userGuilds}
                         modules={modules}
-                        roadmapEnabled={roadmapEnabled}
                         className="h-full border-r border-border bg-surface"
                     />
                 </div>
@@ -210,19 +314,18 @@ export default async function DashboardLayout({
                 <PresenceHeartbeat guildId={guildId} />
 
                 {/* 2. MAIN CONTENT AREA */}
-                <div className="flex-1 flex flex-col lg:pl-[280px] h-full overflow-hidden">
+                <div className="flex-1 flex flex-col lg:pl-[var(--app-sidebar-width,280px)] h-full overflow-hidden">
                     {/* Top Navigation - Fixed at top of content area */}
                     <div className="dashboard-topnav flex-shrink-0 z-50 border-b border-border bg-background">
                         <TopNav
                             userId={user.id || ""}
                             sidebarProps={{ guildId, user, guildData, userGuilds, modules }}
                             eventsPromise={eventsPromise}
-                            roadmapEnabled={roadmapEnabled}
                         />
                     </div>
 
                     {/* Scrollable Main Content area */}
-                    <main data-scroll-container="true" className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <main data-scroll-container="true" className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent [scrollbar-gutter:stable]">
                         <div className="relative z-10">
                             {/* System Announcement Banner */}
                             <Suspense fallback={null}>
@@ -230,8 +333,10 @@ export default async function DashboardLayout({
                             </Suspense>
 
                             <div className="container max-w-[1536px] mx-auto p-4 sm:p-6 lg:p-8 pb-28 min-h-full flex flex-col">
-                                {/* Pseudo issues (sync) banner */}
-                                {user.hasPseudoIssue && (
+                                {/* Pseudo issues (sync) banner — seulement si la page
+                                    profil est réellement accessible (module actif),
+                                    sinon le CTA mène à un mur Accès Restreint */}
+                                {user.hasPseudoIssue && user.canViewProfile && (
                                     <PseudoWarningBanner guildId={guildId} pseudoDofus={user.pseudoDofus} />
                                 )}
 
@@ -240,6 +345,16 @@ export default async function DashboardLayout({
                                     <Suspense fallback={<div className="h-full w-full bg-surface animate-pulse rounded-2xl min-h-[400px]" />}>
                                         {children}
                                     </Suspense>
+                                </div>
+
+                                {/* Pied de page compact — DANS la zone scrollable.
+                                    Placé en frère de la colonne principale, il devenait
+                                    un élément du `flex` racine (row) : il volait la largeur
+                                    du contenu et empilait le footer public dans l'espace de
+                                    guilde. Ici, il défile avec le contenu et reste masqué en
+                                    vue plein écran (règle `body.*-fullscreen .dashboard-footer`). */}
+                                <div className="dashboard-footer mt-10">
+                                    <GalacticFooterGate />
                                 </div>
                             </div>
                         </div>
@@ -262,16 +377,30 @@ export default async function DashboardLayout({
                 {/* Global Service Dialogue Modal — visible sur toute page / refresh */}
                 <ServiceReplyModal guildId={guildId} />
 
+                {/* Overlay Rush persistant — survit à la navigation entre modules */}
+                <RushOverlayHost />
+
                 {/* Command Palette (Cmd+K) */}
                 <CommandMenu guildId={guildId} user={user} />
 
-                {/* 4. FLOATING FOOTER (Compact version) - hidden in game view */}
-                <div className="dashboard-footer">
-                    <GalacticFooterGate />
-                </div>
+                {/* Modale bloquante d'onboarding (2 étapes obligatoires) */}
+                {needMandatoryOnboarding && (
+                    <OnboardingBlockerModal guildId={guildId} servers={blockerServers} roles={blockerRoles} />
+                )}
+
+                {/* 2e modale (optionnel) : proposée une fois par navigateur */}
+                {showOptionalPrompt && !needMandatoryOnboarding && (
+                    <OnboardingNextStepsModal guildId={guildId} />
+                )}
+
+                {/* 4. Pied de page compact — rendu dans la zone scrollable (voir plus haut) */}
 
                 {/* Forced Onboarding Wizard (Missing character pseudo, class or preferred activities) */}
-                {!user.isAdmin && (user.hasPseudoIssue || !user.classe || !user.hasPreferredActivities) && (
+                {/* Rapport beta onboarding : les ADMINS le voient aussi (avant, le
+                    `!user.isAdmin` dispensait l'owner de valider son pseudo/classe
+                    comme chaque nouveau). Gate sur `isOnboardingComplete` pour ne
+                    jamais empiler ce wizard avec la modale bloquante obligatoire. */}
+                {user.isOnboardingComplete && (user.hasPseudoIssue || !user.classe || !user.hasPreferredActivities) && (
                     <OnboardingWizard
                         guildId={guildId}
                         userName={user.name || "Aventurier"}
@@ -283,6 +412,7 @@ export default async function DashboardLayout({
                 )}
             </GuildAccentStyle>
             </TourProvider>
+            </DocDrawerProvider>
             </GameProvider>
         </NebulaClientWrapper>
     );

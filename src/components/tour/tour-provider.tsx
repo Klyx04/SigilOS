@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useCallback, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 export type TourPhase =
@@ -18,6 +18,12 @@ export type TourPhase =
     | "adminMembers"
     | "adminLogs"
     | "adminOverview"
+    | "adminPoints"
+    | "adminApiKeys"
+    | "adminRecruitment"
+    | "adminPilotage"
+    | "reactionRoles"
+    | "tickets"
     // Phases des tours MODULES (rejouables, filtrées par module actif + RBAC)
     | "missions"
     | "ladder"
@@ -37,6 +43,7 @@ export type TourPhase =
     | "presentation"
     | "guide"
     | "succes"
+    | "marche"
     | null;
 
 /**
@@ -49,6 +56,7 @@ export const MODULE_TOUR_PHASES = [
     "services", "donjons", "calendar", "sondages", "annuaire",
     "quetesDofus", "galerie", "ressources", "docs", "minijeu", "stats", "presentation",
     "guide", "succes",
+    "marche",
 ] as const;
 
 export function isReplayableTourPhase(phase: TourPhase): boolean {
@@ -68,6 +76,15 @@ interface TourStep {
     requiresPerm?: string;
     /** Module optionnel (ex: "missions") — la carte n'apparaît que si ce module est actif. */
     module?: string;
+    /**
+     * BUG-6 (constat beta) — **page où vit l'ancre**, quand ce n'est pas la page
+     * courante (ex. l'éditeur de jet vit sur `/marche/nouveau`). Le provider y
+     * **navigue** au lieu de sauter l'étape, ce qui coupait la suite du tutoriel.
+     *
+     * 🔒 Chemin **relatif** de la guilde, validé par préfixe
+     * (`requestStepNavigation`) : jamais une URL fournie par l'utilisateur.
+     */
+    href?: string;
 }
 
 interface TourContextType {
@@ -79,9 +96,22 @@ interface TourContextType {
     advance: () => void;
     back: () => void;
     completeTour: () => void;
+    /**
+     * BUG-7 — quitte le tutoriel **proprement** et **sans écran de fin** : la
+     * bulle doit toujours pouvoir être passée (bouton « Passer » ou touche
+     * `Échap`), sinon un utilisateur dont la bulle s'affiche mal reste bloqué.
+     */
+    skipTour: () => void;
     startTour: (phase: TourPhase) => void;
     isCelebrationActive: boolean;
     setCelebrationActive: (active: boolean) => void;
+    /**
+     * BUG-6 — demande de navigation vers la page qui porte l'ancre de l'étape
+     * courante : le provider **valide le préfixe** (même guilde, module Marché)
+     * avant de pousser la route. Sans ancre trouvée et sans `href`, l'overlay
+     * conserve son comportement anti-centrage (skip).
+     */
+    requestStepNavigation: (href: string) => void;
 }
 
 const PROFILE_STEPS: TourStep[] = [
@@ -110,10 +140,11 @@ const PROFILE_STEPS: TourStep[] = [
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-planning"]',
+        target: '[data-tour="profile-planning"]',
         title: "Tes disponibilités",
         description: "Renseigne tes créneaux horaires pour faciliter l'organisation de runs de donjons ou de songes.",
-        placement: "right"
+        placement: "top",
+        module: "availability"
     },
     {
         target: '[data-tour="profile-tab-combat"]',
@@ -131,7 +162,8 @@ const PROFILE_STEPS: TourStep[] = [
         target: '[data-tour="profile-tab-activity"]',
         title: "Présence & Feed",
         description: "Gère ta présence et consulte l'activité récente de tes compagnons.",
-        placement: "right"
+        placement: "right",
+        module: "missions"
     },
     {
         target: '[data-tour="profile-tab-settings"]',
@@ -458,7 +490,7 @@ const ADMIN_LOGS_STEPS: TourStep[] = [
 const ADMIN_OVERVIEW_STEPS: TourStep[] = [
     {
         target: '[data-tour="admin-overview-header"]',
-        title: "Centre Admin — Supervision",
+            title: "Console — Supervision",
         description: "Centralise toute l'administration de ta guilde : structure, opérations, sécurité. Chaque carte ouvre un module dédié. Les cartes auxquelles tu n'as pas accès sont masquées automatiquement.",
         placement: "bottom",
         requiresPerm: "isAdmin"
@@ -725,43 +757,36 @@ const OCRE_STEPS: TourStep[] = [
 const SERVICES_STEPS: TourStep[] = [
     {
         target: '[data-tour="services-header"]',
-        title: "Services & Artisans",
-        description: "Commandez des services, empruntez du kamas et gérez la banque de guilde.",
-        placement: "bottom",
-        module: "services",
-    },
-    {
-        target: '[data-tour="services-summary"]',
-        title: "Résumé",
-        description: "Les compteurs et accès rapides de la page : services, prêts et banque de guilde.",
+        title: "Services & Artisans de Guilde",
+        description: "Commandez des passages, crafts ou tutorats, gérez vos demandes, consultez le Livre d'or et suivez la banque de guilde.",
         placement: "bottom",
         module: "services",
     },
     {
         target: '[data-tour="services-tabs"]',
-        title: "Les onglets",
-        description: "Basculez entre les sections : Services, Prêts, Banque de guilde et plus selon la configuration.",
+        title: "Navigation & Nouveaux Espaces",
+        description: "Basculez entre la Marketplace des offres, le suivi de vos Demandes en cours, le Livre d'or des avis, les Prêts et le Coffre.",
         placement: "bottom",
         module: "services",
     },
     {
         target: '[data-tour="services-create"]',
-        title: "Publier une offre",
-        description: "Proposez un service (craft, passage, FM) aux autres membres de la guilde.",
+        title: "Publier une prestation",
+        description: "Proposez vos services (forgemagie, élevage, passages donjons, aide ocre...) à tous les membres de la guilde avec notification Discord automatique.",
         placement: "left",
         module: "services",
     },
     {
         target: '[data-tour="services-board"]',
-        title: "Le contenu de la section",
-        description: "Consultez les offres publiées et les demandes selon l'onglet actif.",
+        title: "Marketplace & Interaction",
+        description: "Parcourez les offres disponibles, filtrez par catégorie, contactez un passeur en 1 clic ou consultez sa réputation dans le Livre d'or.",
         placement: "top",
         module: "services",
     },
     {
         target: '[data-tour="sidebar-services"]',
-        title: "Où le retrouver",
-        description: "Retrouvez ce module dans la barre latérale, section Outils.",
+        title: "Accès rapide",
+        description: "Retrouvez vos prestations, vos demandes et le Livre d'or à tout moment dans la barre latérale.",
         placement: "right",
         module: "services",
     },
@@ -1244,8 +1269,22 @@ const PRESENTATION_STEPS: TourStep[] = [
 const SUCCES_STEPS: TourStep[] = [
     {
         target: '[data-tour="succes-views"]',
-        title: "Mes Succès / Succès Commun / Fiches Boss",
-        description: "Trois vues : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, et « Fiches Boss » pour les drops, sorts et carte des boss.",
+        title: "Menu du Module Succès",
+        description: "Quatre blocs : « Mes Succès » pour cocher ta progression donjon par donjon, « Succès Commun » pour voir qui dans la guilde a validé quoi, « Fiches » pour les sorts et simulations de combat, et « Défi » pour les événements et challenges communautaires. Les quêtes de donjons vivent dans l'onglet « Quêtes » de chaque fiche boss ou titan.",
+        placement: "bottom",
+        module: "succes",
+    },
+    {
+        target: '[data-tour="succes-view-fiches"]',
+        title: "Fiches & Quêtes liées",
+        description: "Bloc « Fiches » : boss, anomalies, avis de recherche et titans. Ouvre une fiche (ex. Kardorim) : l'onglet « Quêtes » à côté de « Monstres de la salle » liste les quêtes du donjon, avec guide Dofus et progression de guilde.",
+        placement: "bottom",
+        module: "succes",
+    },
+    {
+        target: '[data-tour="succes-filters"]',
+        title: "Recherche et filtres",
+        description: "Recherche un donjon ou un boss par nom, filtre par statut (À faire / Finis) et par tranche de niveau pour cibler rapidement tes objectifs.",
         placement: "bottom",
         module: "succes",
     },
@@ -1264,9 +1303,9 @@ const SUCCES_STEPS: TourStep[] = [
         module: "succes",
     },
     {
-        target: '[data-tour="succes-search"]',
-        title: "Recherche et filtres",
-        description: "Recherche un donjon ou un boss par nom, filtre par statut (À faire / Finis) et par tranche de niveau.",
+        target: '[data-tour="succes-view-defi"]',
+        title: "Onglet Défis & Événements",
+        description: "Découvre les défis spéciaux et événements communautaires. Valide ta participation et crée des groupes dédiés.",
         placement: "bottom",
         module: "succes",
     },
@@ -1283,6 +1322,121 @@ const SUCCES_STEPS: TourStep[] = [
         description: "Retrouve le module Succès dans la barre latérale (menu Progression).",
         placement: "right",
         module: "succes",
+    },
+];
+
+/**
+ * Tour complet du module « Marché » (D36) — étapes ancrées sur des
+ * `data-tour="marche-*"` stables (jamais de sélecteur fragile), filtrées par
+ * le module actif + la permission `market:trade`.
+ *
+ * S8.22 — ordre = parcours réel du membre : consulter, filtrer, déclarer
+ * (objet + jet + **forge réelle**), publier, rouvrir sa fiche, négocier,
+ * modérer (staff), retrouver ses annonces.
+ */
+const MARCHE_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="marche-header"]',
+        title: "Le Marché de guilde",
+        description: "Publie et consulte les annonces d'équipements forgemagie et de lots de ressources entre membres. L'échange se conclut en jeu : SigilOS ne garantit pas la transaction.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-catalog"]',
+        title: "Les annonces",
+        description: "Chaque carte affiche l'objet, son prix, son statut (Disponible, Réservé, Vendu, Retiré) et son vendeur. Clique sur « Voir la fiche » pour le détail.",
+        placement: "top",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-filters"]',
+        title: "Filtrer le catalogue",
+        description: "Recherche par objet ou vendeur, filtre par type et par statut, trie par prix ou par niveau, et passe en vue tableau pour une lecture dense.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-create"]',
+        title: "Publier une annonce",
+        description: "Choisis ton objet du catalogue (ou compose ton lot de ressources), déclare ton jet, fixe ton prix et publie en 4 étapes.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-jet"]',
+        title: "L'éditeur de jet",
+        description: "Les plages natives se pré-remplissent depuis le catalogue : saisis tes valeurs, clique « ✦ Jet parfait » ou ajoute un exo PA/PM/PO/invocation. Un over ou un exo est étiqueté, jamais refusé.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+        // BUG-6 — l'éditeur vit sur la page de création : on y **navigue**.
+        href: "/marche/nouveau",
+    },
+    {
+        target: '[data-tour="marche-forge"]',
+        title: "La forge réelle",
+        description: "Déclare l'état réel de l'objet : rune de Transcendance (qui exclut tout over/exo), élément de frappe et potion (armes), arme de chasse. « Troc accepté » ou « Kamas uniquement » se retrouve ensuite dans l'annonce.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+        href: "/marche/nouveau",
+    },
+    {
+        target: '[data-tour="marche-publish"]',
+        title: "La publication Discord",
+        description: "Vérifie la destination (salon texte ou forum), choisis les rôles à mentionner (parmi ceux autorisés) et publie : l'aperçu montre exactement ce que verront les membres.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+        href: "/marche/nouveau",
+    },
+    {
+        target: '[data-tour="marche-listing"]',
+        title: "La fiche d'une annonce",
+        description: "Le jet déclaré s'affiche avec les icônes officielles, le vendeur apparaît dans sa bulle profil, et les actions (réserver, faire une offre, renouveler, retirer) dépendent de ton rôle. Aucun montant d'offre n'est public.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+    },
+    {
+        target: '[data-tour="marche-negotiation"]',
+        title: "Négocier une offre",
+        description: "Dans « Mon espace », accepte, refuse ou contre-propose une offre. Accepter réserve l'annonce et expire automatiquement les autres offres en attente ; le montant reste privé.",
+        placement: "top",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+        // BUG-6 — la négociation vit dans « Mon espace » : on y **navigue**.
+        href: "/marche/mes-espaces",
+    },
+    {
+        target: '[data-tour="marche-moderation"]',
+        title: "La modération (staff)",
+        description: "Avec la permission de modération : traite les signalements, retire ou restaure une annonce et consulte l'historique complet de ses transitions. Chaque décision est journalisée.",
+        placement: "top",
+        module: "marche",
+        requiresPerm: "canManageMarket",
+    },
+    {
+        target: '[data-tour="marche-my-listings"]',
+        title: "Mon espace",
+        description: "Retrouve tes annonces en cours et tes archives, avec les actions de publication, de retrait et de renouvellement.",
+        placement: "bottom",
+        module: "marche",
+        requiresPerm: "canViewMarket",
+        href: "/marche/mes-espaces",
+    },
+    {
+        target: '[data-tour="sidebar-marche"]',
+        title: "Où le retrouver",
+        description: "Le Marché reste accessible à tout moment depuis la barre latérale (menu Outils).",
+        placement: "right",
+        module: "marche",
+        requiresPerm: "canViewMarket",
     },
 ];
 
@@ -1310,18 +1464,34 @@ export function TourProvider({
 
     const isAdmin = !!user?.isAdmin;
     const isOnboardingComplete = !!user?.isOnboardingComplete;
+    // Séquence première arrivée : le tour auto des modules attend que la
+    // modale de bienvenue ait été vue/fermée (sinon tour + modale s'empilent,
+    // même niveau z-120). `hasSeenWelcome` vient du contexte (profil).
+    const hasSeenWelcome = !!user?.hasSeenWelcome;
     // Flag serveur : true uniquement pour le TOUT PREMIER admin (non-God) de la guilde,
     // posé de façon atomique côté serveur (user-actions.ts). Un God ne reçoit jamais ce flag.
     const isFirstAdminForGuild = !!user?.isFirstAdminForGuild;
     const isSuperAdmin = !!user?.isSuperAdmin;
 
-    // Filtre les steps selon modules actifs + permissions RBAC admin
+    // Filtre les steps selon modules actifs + permissions RBAC admin + mode vitrine
     const applyFilters = (steps: TourStep[]) => steps.filter(step => {
-        if (step.module && modules && !modules[step.module]) return false;
+        if (step.module && modules && !modules[step.module]) {
+            // Cas particulier : availability peut être couvert par calendar
+            if (step.module === "availability" && modules.calendar) {
+                // keep
+            } else {
+                return false;
+            }
+        }
         if (step.requiresPerm && user && user[step.requiresPerm] === false) return false;
+        // Si le mode vitrine des missions est activé (missionVitrineMode), masquer Présence & Feed
+        if (step.target === '[data-tour="profile-tab-activity"]' && (user?.missionVitrineMode || (modules && !modules.missions))) {
+            return false;
+        }
         return true;
     });
 
+    const profileSteps = applyFilters(PROFILE_STEPS);
     const adminOnboardingSteps = applyFilters(ADMIN_ONBOARDING_STEPS);
     const adminModulesSteps = applyFilters(ADMIN_MODULES_STEPS);
     const dashboardSteps = applyFilters(DASHBOARD_STEPS);
@@ -1352,10 +1522,11 @@ export function TourProvider({
     const statsSteps = applyFilters(STATS_STEPS);
     const presentationSteps = applyFilters(PRESENTATION_STEPS);
     const succesSteps = applyFilters(SUCCES_STEPS);
+    const marcheSteps = applyFilters(MARCHE_STEPS);
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
-            case "profile": return PROFILE_STEPS;
+            case "profile": return profileSteps;
             case "dashboard": return dashboardSteps;
             case "dashboardBricks": return dashboardBricksSteps;
             case "admin": return adminOnboardingSteps;
@@ -1386,6 +1557,7 @@ export function TourProvider({
             case "stats": return statsSteps;
             case "presentation": return presentationSteps;
             case "succes": return succesSteps;
+            case "marche": return marcheSteps;
             default: return [];
         }
     };
@@ -1427,6 +1599,10 @@ export function TourProvider({
         if (isSuperAdmin) return;
         // Guilde pas encore configurée → redirection gérée par la page dashboard
         if (!isOnboardingComplete) return;
+        // Bienvenue pas encore vue → elle pop en finale sur l'accueil ; le tour
+        // attend le prochain passage (la clé `seen` n'est posée qu'au démarrage
+        // effectif ci-dessous, donc pas de perte).
+        if (!hasSeenWelcome) return;
         // On ne pop que sur le Dashboard admin (pas sur les sous-pages)
         if (pathname !== `/dashboard/${guildId}`) return;
 
@@ -1442,7 +1618,7 @@ export function TourProvider({
         setIsActive(true);
         localStorage.setItem(`sigilos-tour-phase-${guildId}`, phase);
         localStorage.setItem(`sigilos-tour-step-${guildId}`, "1");
-    }, [isAdmin, isOnboardingComplete, pathname, guildId]);
+    }, [isAdmin, isOnboardingComplete, hasSeenWelcome, pathname, guildId]);
 
     // Load member tour state (profile/dashboard)
     useEffect(() => {
@@ -1588,6 +1764,9 @@ export function TourProvider({
             case "succes":
                 router.push(`/dashboard/${guildId}/succes`);
                 break;
+            case "marche":
+                router.push(`/dashboard/${guildId}/marche`);
+                break;
             default:
                 break;
         }
@@ -1649,6 +1828,22 @@ export function TourProvider({
         setCelebrationActive(true);
     };
 
+    /**
+     * BUG-7 — sortie de secours du tutoriel : on masque la bulle et on nettoie la
+     * progression, **sans** écran de célébration (passer n'est pas terminer).
+     *
+     * Pour les tours non rejouables (profil / dashboard), on pose le flag `done`
+     * exactement comme `completeTour` : sans ça, l'auto-start relancerait le tour
+     * à la visite suivante et l'utilisateur « passerait » en boucle.
+     */
+    const skipTour = useCallback(() => {
+        setIsActive(false);
+        if (!tourPhase || !isReplayableTourPhase(tourPhase)) {
+            localStorage.setItem(`sigilos-tour-done-${guildId}`, "true");
+        }
+        localStorage.removeItem(`sigilos-tour-step-${guildId}`);
+    }, [guildId, tourPhase]);
+
     // Le tour du guide (plein écran) ne doit JAMAIS « fuir » sur une autre page :
     // dès qu'on quitte la route du guide alors qu'il est actif, on l'arrête
     // silencieusement (sans écran de célébration — ce n'est pas une fin de tour).
@@ -1658,6 +1853,27 @@ export function TourProvider({
             localStorage.removeItem(`sigilos-tour-step-${guildId}`);
         }
     }, [pathname, tourPhase, isActive, guildId]);
+
+    /**
+     * BUG-6 — navigation d'étape : le chemin est **relatif au tableau de bord**
+     * (`/marche/nouveau`, …) et doit rester dans **cette** guilde.
+     *
+     * 🔒 Allowlist stricte : caractères autorisés, refus de `//`, `..`, `:` et de
+     * tout préfixe absolu ⇒ jamais une redirection ouverte, même si un `href`
+     * venait un jour d'une donnée non fiable.
+     *
+     * `useCallback` : l'identité reste **stable**, sinon l'effet de l'overlay se
+     * relancerait à chaque rendu du provider (et relancerait une navigation).
+     */
+    const requestStepNavigation = useCallback(
+        (relativeHref: string) => {
+            if (!relativeHref.startsWith("/") || relativeHref.startsWith("//")) return;
+            if (relativeHref.includes("..") || relativeHref.includes(":")) return;
+            if (!/^\/[A-Za-z0-9/_-]*$/.test(relativeHref)) return;
+            router.push(`/dashboard/${guildId}${relativeHref}`);
+        },
+        [guildId, router]
+    );
 
     return (
         <TourContext.Provider
@@ -1670,9 +1886,11 @@ export function TourProvider({
                 advance,
                 back,
                 completeTour,
+                skipTour,
                 startTour,
                 isCelebrationActive,
-                setCelebrationActive
+                setCelebrationActive,
+                requestStepNavigation
             }}
         >
             {children}

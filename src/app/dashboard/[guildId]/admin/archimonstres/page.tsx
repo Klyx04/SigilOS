@@ -6,6 +6,7 @@ import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { MetamobUnlocker } from "./_components/metamob-unlocker";
 import { Crown } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 export default async function ArchimonstresAdminPage({
     params,
@@ -31,6 +32,7 @@ export default async function ArchimonstresAdminPage({
                 description="Outils d'administration pour le module Metamob."
                 imageSrc="/assets/ui/icons/archis.png"
                 backHref={`/dashboard/${guildId}/admin/settings`}
+                actions={<ModuleHelpActions docSlug="quete-ocre" docTitle="Gestion Archimonstres & Ocre" tourPhase="ocre" />}
             />
 
             {/* Divider */}

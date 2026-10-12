@@ -2,15 +2,16 @@ import "dotenv/config";
 import { Worker, Job } from "bullmq";
 import { METAMOB_QUEUE_NAME, defaultQueueOptions } from "../lib/queue/metamob-queue";
 import { db } from "../lib/prisma";
-import { getQuestDetails, normalizeQuestMonster, MetamobApiError, type QuestMonster } from "../lib/metamob-client";
+import { getQuestDetails, normalizeQuestMonster, MetamobApiError, getSelfQuestDetails, type QuestMonster } from "../lib/metamob-client";
 import { decrypt } from "../lib/encryption";
 import { logger } from "../lib/logger";
-import { sendGlobalStatusPing } from "../server/actions/status-actions";
+import { sendGlobalStatusPingCore } from "../server/status-ping-core";
 import { sendDailySummaryReport } from "../server/actions/daily-report-actions";
 // ── Ladder Sync ──────────────────────────────────────────────────────────────
 import { ladderSyncWorker, ladderQueue } from "./ladder-sync-worker";
 // ── Discord Outbox (P3.1) : flush des écritures Discord en mode dégradé ───────
 import { discordOutboxWorker } from "./discord-outbox-worker";
+import { gameDataWorker } from "./game-data-worker";
 
 interface ExchangeJobData {
     guildId: string;
@@ -42,16 +43,37 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
         return;
     }
 
-    const effectiveApiKey = currentUserProfile.metamobApiKey || undefined;
+    // La clé est stockée chiffrée : la déchiffrer (comme pour les autres
+    // membres plus bas). Indéchiffrable (clé d'un autre env) → undefined
+    // (anonyme) plutôt que d'envoyer du ciphertext à Metamob.
+    let effectiveApiKey: string | undefined;
+    try {
+        effectiveApiKey = currentUserProfile.metamobApiKey ? (decrypt(currentUserProfile.metamobApiKey) || undefined) : undefined;
+    } catch {
+        logger.warn(`[Worker] Clé Metamob indéchiffrable pour l'utilisateur ${userId} — appel anonyme.`);
+        effectiveApiKey = undefined;
+    }
 
     await job.updateProgress(20);
 
-    // 2. Fetch current user's quest to know their precise needs
-    const currentUserQuest = await getQuestDetails(
-        currentUserProfile.metamobPseudo!,
-        currentUserProfile.metamobQuestSlug,
-        { guildApiKey: effectiveApiKey, status: "all", limit: 200 }
-    );
+    // 2. Fetch current user's quest to know their precise needs.
+    // Résolveur partagé : public d'abord, repli privé (paginé en interne) si 404.
+    let currentUserQuest;
+    try {
+        currentUserQuest = await getSelfQuestDetails(
+            currentUserProfile.metamobPseudo!,
+            currentUserProfile.metamobQuestSlug,
+            effectiveApiKey,
+            { limit: 200 }
+        );
+    } catch (err) {
+        // Quête privée/invisible sans clé valide, ou slug périmé : message
+        // actionnable (remonte tel quel dans le toast via job.failedReason).
+        if (err instanceof MetamobApiError && err.code === "NOT_FOUND") {
+            throw new Error("Votre quête Metamob est introuvable — si elle est en privé sur Metamob, passez-la en publique, sinon re-liez votre compte dans le profil.");
+        }
+        throw err;
+    }
 
     const currentUserPQ = currentUserQuest.parallel_quests || 1;
     const neededMonsterIds = new Set<number>();
@@ -64,19 +86,6 @@ async function processExchangeJob(job: Job<ExchangeJobData>) {
     };
 
     processUserMonsters(currentUserQuest.monsters);
-
-    if (currentUserQuest.pagination.total > 200) {
-        let offset = 200;
-        while (offset < currentUserQuest.pagination.total) {
-            const page = await getQuestDetails(
-                currentUserProfile.metamobPseudo!,
-                currentUserProfile.metamobQuestSlug,
-                { guildApiKey: effectiveApiKey, status: "all", limit: 200, offset }
-            );
-            processUserMonsters(page.monsters);
-            offset += 200;
-        }
-    }
 
     await job.updateProgress(40);
 
@@ -375,17 +384,42 @@ cleanupWorker.on("failed", (job, err) => {
 const CRON_QUEUE_NAME = "sigilos-cron-tasks";
 const cronQueue = new Queue(CRON_QUEUE_NAME, defaultQueueOptions);
 
-// 1. Status Ping (Every 15 minutes)
-cronQueue.add(
-    "status-ping",
-    {},
-    {
-        repeat: { pattern: "*/15 * * * *" }, // Every 15 mins
-        jobId: "status-ping-repeat",
-        removeOnComplete: 10,
-        removeOnFail: 5,
+// 1. Status Ping — tick toutes les 5 min, le GARDE-FOU DE FRÉQUENCE dans
+// `sendGlobalStatusPingCore` (réglage God 5m/15m/1h) décide d'envoyer ou de
+// sauter. Le scheduler ne fait que réveiller, il ne spamme plus jamais.
+const STATUS_PING_PATTERN = "*/5 * * * *";
+void (async () => {
+    try {
+        // Nettoyage des anciens schedulers (ex. `*/15`) : sans ça, changer le
+        // pattern crée une DEUXIÈME entrée repeatable BullMQ et les deux tirent.
+        const existing = await cronQueue.getRepeatableJobs();
+        for (const job of existing) {
+            const jobPattern = (job as { cron?: string; pattern?: string }).cron
+                ?? (job as { pattern?: string }).pattern;
+            if (job.name === "status-ping" && jobPattern && jobPattern !== STATUS_PING_PATTERN) {
+                const removeByKey = (cronQueue as unknown as { removeRepeatableByKey?: (key: string) => Promise<void> }).removeRepeatableByKey;
+                if (typeof removeByKey === "function") {
+                    await removeByKey.call(cronQueue, job.key);
+                    logger.info(`[Cron] Ancien scheduler status-ping supprimé (${jobPattern}).`);
+                }
+            }
+        }
+    } catch (e) {
+        // API BullMQ indisponible → pas bloquant : le garde-fou de fréquence
+        // du core déduplique de toute façon les déclenchements redondants.
+        logger.warn("[Cron] Nettoyage schedulers status-ping impossible, on continue.", e);
     }
-);
+    await cronQueue.add(
+        "status-ping",
+        {},
+        {
+            repeat: { pattern: STATUS_PING_PATTERN },
+            jobId: "status-ping-repeat",
+            removeOnComplete: 10,
+            removeOnFail: 5,
+        }
+    );
+})().catch((e) => logger.error("[Cron] Planification status-ping impossible:", e));
 
 // 2. Daily Summary (Every morning at 08:30)
 cronQueue.add(
@@ -418,8 +452,33 @@ const cronWorker = new Worker(
     async (job) => {
         if (job.name === "status-ping") {
             logger.info("[Cron] Execution du Status Ping GLOBAL...");
-            const res = await sendGlobalStatusPing(false);
-            if (!res.success) logger.error(`[Cron] Status Ping échoué: ${res.error}`);
+            const startedAt = Date.now();
+            const res = await sendGlobalStatusPingCore({ source: "worker" });
+            const durationMs = Date.now() - startedAt;
+            // Télémétrie God (onglet cron-status) : sans ça, "Ping Statut Global"
+            // reste "Jamais" alors que le worker tourne toutes les 5 min.
+            const { recordCronExecution } = await import("../lib/cron-telemetry");
+            if (!res.success) {
+                logger.error(`[Cron] Status Ping échoué: ${res.error}`);
+                await recordCronExecution("status_ping", { success: false, durationMs, summary: `Échec ping: ${res.error}` });
+            } else if ((res as { skipped?: boolean }).skipped) {
+                logger.info(`[Cron] Status Ping sauté (fréquence ${(res as { frequencyMin?: number }).frequencyMin ?? "?"} min).`);
+                await recordCronExecution("status_ping", { success: true, durationMs, summary: `Ping sauté (fréquence ${(res as { frequencyMin?: number }).frequencyMin ?? "?"} min)` });
+            } else if (res.delivered === false) {
+                // La passe a tourné, mais le MIROIR Discord n'est pas parti (salon en pause
+                // d'écriture ou sans accès) : le cron ne doit surtout pas être annoncé
+                // « mis à jour » alors qu'aucun message n'existe. C'est ce faux vert qui a
+                // laissé la panne invisible pendant des heures (mesure du 26/09/2026).
+                logger.warn(`[Cron] Status Ping non envoyé: ${res.warning}`);
+                await recordCronExecution("status_ping", {
+                    success: false,
+                    durationMs,
+                    summary: res.warning ?? "Miroir Discord non envoyé",
+                });
+            } else {
+                logger.info(`[Cron] Status Ping ${res.action ?? "OK"}.`);
+                await recordCronExecution("status_ping", { success: true, durationMs, summary: `Statut Discord mis à jour (${res.action ?? "OK"})` });
+            }
         }
 
         if (job.name === "daily-summary") {
@@ -474,6 +533,7 @@ const shutdown = async () => {
     await ladderSyncWorker.close();
     await ladderQueue.close();
     await discordOutboxWorker.close();
+    await gameDataWorker.close();
     process.exit(0);
 };
 

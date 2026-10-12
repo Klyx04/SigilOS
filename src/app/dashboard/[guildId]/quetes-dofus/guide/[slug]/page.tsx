@@ -4,8 +4,9 @@ import { Suspense } from "react";
 import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
 import { logger } from "@/lib/logger";
-import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress, listSubGuides } from "@/server/actions/optimized-guide-actions";
+import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress, listSubGuides, getRushResourceChecks } from "@/server/actions/optimized-guide-actions";
 import { getMemberProfile } from "@/server/actions/profile-actions";
+import { resolveRushUIConfig } from "@/lib/rush-ui-config";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 import OptimizedGuideClient from "./OptimizedGuideClient";
 import RushTimelineClient from "./RushTimelineClient";
@@ -69,7 +70,27 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
             });
         }
     } catch (e) {
-        logger.error("[Guide Page] Guild progress fetch failed (non-fatal)", { error: e });
+        // Non fatal : la page s'affiche sans ces données ⇒ `warn`, jamais `error`
+        // (un `logger.error` devient une **Issue Sentry**, cf. `sentry.server.config.ts`).
+        logger.warn("[Guide Page] Guild progress fetch failed (non-fatal)", { error: e });
+    }
+
+    // Coches MANUELLES de ressources du membre (par personnage : principale ou mule) —
+    // non bloquant, même politique que la progression guilde ci-dessus.
+    // Les DEUX lectures qui suivent sont INDÉPENDANTES : elles sont lancées ici, en PARALLÈLE
+    // (elles s'ajoutaient l'une après l'autre sur le chemin critique de la page — G10 du plan).
+    const resourceChecksPromise = getRushResourceChecks(slug, guildId, altPseudo);
+    const profilePromise = user.profileId
+        ? getMemberProfile(guildId, user.profileId)
+        : Promise.resolve(null);
+
+    let resourceChecks: string[] = [];
+    try {
+        const checks = await resourceChecksPromise;
+        resourceChecks = checks.keys || [];
+    } catch (e) {
+        // Non fatal (voir ci-dessus) ⇒ `warn`.
+        logger.warn("[Guide Page] Resource checks fetch failed (non-fatal)", { error: e });
     }
 
     // Fetch full profile to get alignment, alignmentOrder, alignmentLevel, altPseudos, class & metamob
@@ -80,13 +101,12 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         altPseudos?: any[]; 
         dofusClass?: string | null;
         metamobPseudo?: string | null;
+        metiers?: any[];
         pseudoDofus?: string | null;
     } = {};
     try {
-        const profileId = user.profileId;
-        if (!profileId) throw new Error("Profile ID not found");
-        const profileRes = await getMemberProfile(guildId, profileId);
-        if (profileRes.success && profileRes.data) {
+        const profileRes = await profilePromise;
+        if (profileRes?.success && profileRes.data) {
             const p = profileRes.data;
             userProfile = {
                 alignment: p.alignment,
@@ -95,11 +115,13 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 altPseudos: Array.isArray(p.altPseudos) ? p.altPseudos : [],
                 dofusClass: p.classe,
                 metamobPseudo: p.metamobPseudo,
+                metiers: p.metiers,
                 pseudoDofus: p.pseudoDofus,
             };
         }
     } catch (e) {
-        logger.error("[Guide Page] Profile fetch failed (non-fatal)", { error: e });
+        // Non fatal (voir ci-dessus) ⇒ `warn`.
+        logger.warn("[Guide Page] Profile fetch failed (non-fatal)", { error: e });
     }
 
     // Fetch Ocre progress stats if metamob is linked
@@ -118,6 +140,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                     progressPercent: ocreRes.data.stats.progressPercent,
                     currentStep: ocreRes.data.questInfo?.currentStep ?? 1,
                     serverName: ocreRes.data.questInfo?.serverName || "Dofus Unity",
+                    // Copies exigées par la quête (sert au premier « + » de l'overlay).
+                    parallelQuests: ocreRes.data.questInfo?.parallelQuests ?? 1,
                 };
                 // Build lists of captured monster IDs and names for dungeon detection
                 const monsters = ocreRes.data.monsters;
@@ -131,7 +155,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 }
             }
         } catch (e) {
-            logger.error("[Guide Page] Metamob stats fetch error (non-fatal)", { error: e });
+            // Non fatal (voir ci-dessus) ⇒ `warn`.
+            logger.warn("[Guide Page] Metamob stats fetch error (non-fatal)", { error: e });
         }
     }
 
@@ -146,8 +171,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 </div>
             }>
                 {isTimeline ? (
-                    <div className="flex-1 overflow-y-auto px-6">
-                        <div className="mx-auto max-w-5xl">
+                    <div className="flex-1 overflow-y-auto" style={{ padding: "0 clamp(20px, 3vw, 48px)" }}>
+                        <div style={{ maxWidth: 1360, marginInline: "auto" }}>
                         <RushTimelineClient
                             key={character}
                             guide={{
@@ -160,9 +185,11 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                             }}
                             milestones={guide.milestones as any}
                             guildProgress={allProgress}
+                            initialResourceChecks={resourceChecks}
                             guildId={guildId}
                             selectedCharacter={character}
                             mules={mules}
+                            rushUIConfig={resolveRushUIConfig((guide as any).rushUIConfig)}
                             currentUserProfile={{
                                 alignment: userProfile.alignment,
                                 alignmentOrder: userProfile.alignmentOrder,
@@ -170,6 +197,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                                 altPseudos: mules,
                                 dofusClass: userProfile.dofusClass,
                                 metamobPseudo: userProfile.metamobPseudo,
+                                metiers: userProfile.metiers,
                                 pseudoDofus: userProfile.pseudoDofus,
                             }}
                             ocreStats={ocreStats}

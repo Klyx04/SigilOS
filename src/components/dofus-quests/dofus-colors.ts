@@ -25,6 +25,8 @@ export const DOFUS_OFFICIAL_COLORS: Record<string, string> = {
     "dofus-nebuleux": "#6366f1",
     "dofus-tachete": "#ef4444",
     "dofoozbz": "#a855f7",
+    "dokille": "#f59e0b",
+    "dofus-dokille": "#f59e0b",
 };
 
 export function getDofusColor(slug?: string | null, fallback?: string | null): string {

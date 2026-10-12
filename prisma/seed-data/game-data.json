@@ -5698,9 +5698,9 @@
         "name": "Tempête de l’Eliocalypse",
         "bossName": "Sanctuaire du dernier espoir",
         "level": 200,
-        "dpnlUrl": null,
-        "dofuspourlesnoobsUrl": null,
-        "dofensiveUrl": null,
+        "dpnlUrl": "https://www.dofuspourlesnoobs.com/sanctuaire-du-dernier-espoir.html",
+        "dofuspourlesnoobsUrl": "https://www.dofuspourlesnoobs.com/sanctuaire-du-dernier-espoir.html",
+        "dofensiveUrl": "https://dofensive.com/fr/monster/6026%252C6014%252C5990%252C5955%252C6027%252C6023%252C5991%252C5979?q=N4IgygpgNhDGAuEAmBZA9gOwM6IE4gC4A2ABgCYiAaEdbPLQ0UixkAcVwEMkJCBGamAAO0KAwIBtALoBfOUA",
         "imageUrl": "/game-data/dungeons/temp-te-de-l-eliocalypse.webp",
         "createdAt": "2026-04-30T09:39:35.851Z",
         "expeditionMechanics": null,
@@ -5708,7 +5708,7 @@
         "isExpedition": false,
         "updatedAt": "2026-06-03T18:10:56.799Z",
         "isEventDungeon": false,
-        "dofusdbId": null,
+        "dofusdbId": 121,
         "achievements": [
           {
             "id": "cmpjnmbqw00a7y4og7mpegitf",

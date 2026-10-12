@@ -2,15 +2,17 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-    Swords, Map, Users, Clock, Calendar, CheckCircle2,
-    XCircle, LogIn, LogOut, Crown, Link2, Bell
+    Users, Clock,
+    XCircle, LogIn, LogOut, CheckCircle2
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ClassIcon } from "@/components/shared/class-icon";
+import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
+import { PseudoChip } from "@/components/shared/pseudo-chip";
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
-import { closeDjPost, joinDjPost, leaveDjPost, sendDjReminder } from "@/server/actions/dungeon-finder-actions";
+import { leaveDjPost } from "@/server/actions/dungeon-finder-actions";
 import { DjPostDetailModal } from "./DjPostDetailModal";
 import { DjCloseModal } from "./DjCloseModal";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
@@ -18,29 +20,27 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { getClass } from "@/lib/dofus-assets";
+import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel } from "@/lib/dungeon-finder-utils";
+import { dungeonFicheHref } from "@/lib/dungeon-fiche";
+import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
 // -------------------------------------------------------
 // Constants
 // -------------------------------------------------------
 
-const MODE_META: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-    DONJON: { 
-        label: "Donjon", 
-        color: "text-info bg-info/10 border-info/35", 
-        icon: Swords 
-    },
-    QUETE: { 
-        label: "Quête", 
-        color: "text-info bg-info/10 border-info/35", 
-        icon: Map 
-    },
+const MODE_META: Record<string, { label: string; asset: DofusUiIconName }> = {
+    DONJON: { label: "Donjon", asset: "dungeon" },
+    QUETE: { label: "Quête", asset: "quest" },
+    DEFI: { label: "Défi", asset: "challenge" },
 };
 
-const STATUS_META: Record<string, { label: string; dot: string }> = {
-    OPEN: { label: "Ouvert", dot: "bg-success" },
-    FULL: { label: "Complet", dot: "bg-warning" },
-    CLOSED: { label: "Fermé", dot: "bg-muted" },
-    EXPIRED: { label: "Expiré", dot: "bg-muted" },
+// Statut en picto Dofus (cadenas ouvert/fermé) sur surface neutre : plus de
+// pastilles vert/ambre qui donnaient trois couleurs à une seule carte.
+const STATUS_META: Record<string, { label: string; asset: DofusUiIconName }> = {
+    OPEN: { label: "Ouvert", asset: "open" },
+    FULL: { label: "Complet", asset: "closed" },
+    CLOSED: { label: "Fermé", asset: "closed" },
+    EXPIRED: { label: "Expiré", asset: "closed" },
 };
 
 // -------------------------------------------------------
@@ -53,10 +53,9 @@ interface DjPostCardProps {
     currentProfileId?: string;
     isAdmin?: boolean;
     onRefresh: () => void;
-    isDiscordConfigured?: boolean;
 }
 
-export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh, isDiscordConfigured }: DjPostCardProps) {
+export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh }: DjPostCardProps) {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
@@ -70,21 +69,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
     const spotsLeft = post.maxMembers - acceptedCount;
 
     const modeMeta = MODE_META[post.mode] ?? MODE_META.DONJON;
-    const ModIcon = modeMeta.icon;
     const statusMeta = STATUS_META[post.status] ?? STATUS_META.OPEN;
-
-    // Quick-join (no modal)
-    function handleQuickJoin() {
-        startTransition(async () => {
-            const res = await joinDjPost(guildId, post.id, {});
-            if (res.success) {
-                toast.success("Candidature envoyée !");
-                onRefresh();
-            } else {
-                toast.error(res.error);
-            }
-        });
-    }
 
     function handleLeave() {
         startTransition(async () => {
@@ -98,26 +83,13 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
         });
     }
 
-    function handleReminder() {
-        startTransition(async () => {
-            const res = await sendDjReminder(guildId, post.id);
-            if (res.success) {
-                toast.success("Rappel envoyé sur Discord !");
-            } else {
-                toast.error(res.error || "Erreur lors de l'envoi du rappel.");
-            }
-        });
-    }
-
-    const multiDungeons = (post.dungeonsJson ?? []) as any[];
+    const multiDungeons = getMultiDungeons(post.dungeonsJson);
     const isMulti = multiDungeons.length > 0;
-    const title = isMulti
-        ? `Multi-donjons — ${multiDungeons.length}`
-        : (post.mode === "DONJON" ? post.dungeon?.name : post.questName);
-    const subtitle = isMulti
-        ? "Session de guilde multi-donjons"
-        : (post.mode === "DONJON" ? `${post.dungeon?.bossName} · Lvl ${post.dungeon?.level}` : "Quête");
-    const coverImage = isMulti ? (multiDungeons[0]?.imageUrl ?? null) : post.dungeon?.imageUrl;
+    const title = getDjPostTitle(post);
+    const subtitle = getDjPostSubtitle(post);
+    const coverImage = !isMulti
+        ? (post.mode === "DONJON" ? post.dungeon?.imageUrl : post.mode === "DEFI" ? post.defi?.imageUrl : null)
+        : null;
 
     const isOpen = post.status === "OPEN" || post.status === "FULL";
     const isDonjon = post.mode === "DONJON";
@@ -126,38 +98,43 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
         <>
             <div
                 className={cn(
-                    "group relative rounded-2xl border overflow-hidden flex flex-col h-full",
+                    "group relative rounded-2xl border overflow-hidden flex flex-col h-full transition-all duration-200",
                     isOpen
-                        ? isDonjon
-                            ? "bg-surface/40 border-info/25 hover:border-info/50"
-                            : "bg-surface/40 border-info/25 hover:border-info/50"
-                        : "bg-background/40 border-border opacity-50"
+                        ? "bg-surface/40 border-border hover:-translate-y-0.5 hover:border-border-strong hover:shadow-lg hover:shadow-black/20"
+                        : "bg-background/40 border-border opacity-50",
+                    "motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:shadow-none"
                 )}
             >
                 {/* Banner */}
                 <div className="relative h-28 bg-surface overflow-hidden flex items-center shrink-0 border-b border-border">
+                    {isMulti && multiDungeons[0]?.imageUrl ? (
+                        <img
+                            src={multiDungeons[0].imageUrl}
+                            alt=""
+                            aria-hidden
+                            className="absolute inset-0 w-full h-full object-cover opacity-[0.08] blur-xl scale-125"
+                        />
+                    ) : null}
 
                     <div className="relative flex items-center gap-4 px-5 w-full">
                         <div className={cn(
-                            "w-14 h-14 rounded-xl overflow-hidden shrink-0 flex flex-col items-center justify-center border",
-                            isOpen
-                                ? isDonjon
-                                    ? "bg-surface border-info/30"
-                                    : "bg-info/50 border-info/30"
-                                : "bg-background border-border"
+                            "w-14 h-14 rounded-xl overflow-hidden shrink-0 flex flex-col items-center justify-center border shadow-sm",
+                            isOpen ? "bg-surface border-border-strong" : "bg-background border-border"
                         )}>
-                            {coverImage ? (
+                            {isMulti ? (
+                                <DjMultiBossAvatars dungeons={multiDungeons} />
+                            ) : coverImage ? (
                                 <img src={coverImage} alt={subtitle} className="w-full h-full object-cover" />
                             ) : (
-                                <ModIcon className={cn("w-6 h-6", isDonjon ? "text-info" : "text-info")} />
+                                <DofusUiIcon name={modeMeta.asset} size={26} className="opacity-70" />
                             )}
                         </div>
-                        <div className="min-w-0 pr-16 flex-1">
+                        <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                                <h3 className={cn(
-                                    "font-black text-foreground text-base truncate leading-tight tracking-tight",
-                                    isOpen && (isDonjon ? "group-hover:text-info" : "group-hover:text-info")
-                                )} title={title || ""}>
+                                <h3
+                                    className="font-black text-foreground text-base leading-tight tracking-tight line-clamp-2"
+                                    title={title || ""}
+                                >
                                     {title}
                                 </h3>
                                 {isDonjon && post.dungeon?.isOcreQuest && (
@@ -173,24 +150,14 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 {subtitle}
                             </p>
                         </div>
-                    </div>
-
-                    {/* Status badge */}
-                    <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
+                        {/* Statut : picto Dofus (cadenas) + surface neutre, plus de pastille */}
                         <div className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-wider",
-                            post.status === "OPEN"
-                                ? "text-success bg-success/10 border-success/30"
-                                : post.status === "FULL"
-                                ? "text-warning bg-warning/10 border-warning/30"
-                                : post.status === "CLOSED"
-                                ? "text-muted-foreground bg-surface/60 border-border"
-                                : "text-muted-foreground bg-background/60 border-border"
+                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-caption font-black uppercase tracking-wider shrink-0 self-start",
+                            isOpen
+                                ? "border-border-strong bg-elevated text-foreground"
+                                : "border-border bg-surface/40 text-muted-foreground"
                         )}>
-                            <span className={cn(
-                                "w-2 h-2 rounded-full",
-                                post.status === "OPEN" ? "bg-success" : post.status === "FULL" ? "bg-warning" : "bg-muted"
-                            )} />
+                            <DofusUiIcon name={statusMeta.asset} size={13} className={isOpen ? undefined : "opacity-60"} />
                             {statusMeta.label}
                         </div>
                     </div>
@@ -200,63 +167,89 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                 <div className="p-5 flex flex-col flex-1 gap-5">
                     {/* Mode + Slots */}
                     <div className="flex flex-wrap items-center gap-2 justify-between">
-                        <span className={cn(
-                            "inline-flex items-center gap-2 text-caption uppercase font-black tracking-widest px-3 py-1.5 rounded-xl border",
-                            modeMeta.color
-                        )}>
-                            <ModIcon className="w-3.5 h-3.5" strokeWidth={2.5} />
+                        <span className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-3 py-1.5 text-caption font-black uppercase tracking-widest text-foreground">
+                            <DofusUiIcon name={modeMeta.asset} size={14} />
                             {modeMeta.label}
                         </span>
-                        
-                        <div className={cn(
-                            "flex items-center gap-2 text-caption font-black px-3 py-1.5 rounded-xl border group/slots transition-colors",
-                            spotsLeft > 0 && isOpen
-                                ? "text-foreground bg-success/10 border-success/20"
-                                : "text-muted-foreground bg-background border-border"
-                        )}>
-                            <Users className="w-3.5 h-3.5 text-muted-foreground group-hover/slots:text-foreground transition-colors" />
-                            <span className={spotsLeft === 0 ? "text-warning font-black" : "text-foreground"}>
-                                {acceptedCount} <span className="text-muted-foreground font-normal mx-0.5">/</span> {post.maxMembers}
+
+                        <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-3 py-1.5 text-caption font-black text-foreground">
+                            <DofusUiIcon name="player" size={13} className="opacity-80" />
+                            <span>
+                                {acceptedCount} <span className="mx-0.5 font-normal text-muted-foreground">/</span> {post.maxMembers}
                             </span>
-                            {spotsLeft > 0 && (
-                                <span className="text-success ml-1">+{spotsLeft}</span>
-                            )}
+                            {spotsLeft > 0 && <span className="text-muted-foreground">+{spotsLeft}</span>}
                         </div>
                     </div>
 
-                    {/* Participants Bubbles */}
-                    <div className="flex -space-x-2 overflow-hidden py-1">
-                        {/* Leader */}
-                        <div key={post.profileId} className="relative group/avatar" title={`${post.profile.pseudoDofus || post.profile.discordNickname} (LEAD)`}>
-                            <Avatar className="h-9 w-9 ring-2 ring-ring hover:ring-ring transition-all border-2 border-border shadow-lg">
-                                <DiscordAvatarImage src={post.profile.user.image || undefined} />
-                                <AvatarFallback className="bg-info text-info text-caption font-black">
-                                    {(post.profile.pseudoDofus || post.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="absolute -bottom-1 -right-1 bg-info rounded-full p-1 border-2 border-border">
-                                <Crown className="w-2.5 h-2.5 text-foreground" />
-                            </div>
+                    {/* Rendez-vous — ligne compacte : plus de bandeau plein largeur */}
+                    {post.targetDate && (
+                        <div className="flex items-center gap-2 text-caption font-black group/date">
+                            <DofusUiIcon name="date" size={14} className={cn("transition-transform group-hover/date:scale-110", !isOpen && "opacity-60")} />
+                            <span className={cn(
+                                "uppercase tracking-tight",
+                                isOpen ? "text-foreground" : "text-muted-foreground"
+                            )}>
+                                {formatDjDateLabel(post.targetDate, { shortWeekday: true }) ?? ""}
+                            </span>
                         </div>
+                    )}
 
-                        {/* Others */}
-                        {post.participants.map((p) => (
-                            <div key={p.id} className="relative group/avatar" title={p.profile.pseudoDofus || p.profile.discordNickname || "Membre"}>
-                                <Avatar className="h-9 w-9 ring-2 ring-border hover:ring-ring/50 transition-all border-2 border-border shadow-lg">
-                                    <DiscordAvatarImage src={p.profile.user.image || undefined} />
-                                    <AvatarFallback className="bg-elevated text-muted-foreground text-caption font-bold">
-                                        {(p.profile.pseudoDofus || p.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
+                    {/* Participants Bubbles & Waitlist */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex -space-x-2 overflow-hidden py-1">
+                            {/* Leader */}
+                            <div key={post.profileId} className="relative group/avatar animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none" title={`${post.profile.pseudoDofus || post.profile.discordNickname} (LEAD)`}>
+                                <Avatar className="h-9 w-9 ring-2 ring-ring transition-all border-2 border-border shadow-lg">
+                                    <DiscordAvatarImage src={post.profile.user.image || undefined} />
+                                    <AvatarFallback className="bg-elevated text-foreground text-caption font-black">
+                                        {(post.profile.pseudoDofus || post.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
+                                <div className="absolute -bottom-1 -right-1 rounded-full border-2 border-border bg-background p-[2px]">
+                                    <DofusUiIcon name="leader" size={9} />
+                                </div>
+                                {post.profile.classe && (
+                                    <div className="absolute bottom-0 left-0 rounded-tr-md bg-background/90 p-[1px]" title={post.profile.classe}>
+                                        <ClassIcon classId={post.profile.classe} size={10} />
+                                    </div>
+                                )}
                             </div>
-                        ))}
 
-                        {/* Empty Spots */}
-                        {Array.from({ length: Math.min(spotsLeft, 10) }).map((_, i) => (
-                            <div key={`empty-${i}`} className="w-9 h-9 rounded-full border-2 border-dashed border-border bg-surface flex items-center justify-center transition-colors hover:border-border">
-                                <Users className="w-3.5 h-3.5 text-foreground/[0.03]" />
+                            {/* Others ACCEPTED only */}
+                            {post.participants.filter((p) => p.status === "ACCEPTED").map((p) => (
+                                <div key={p.id} className="relative group/avatar animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none" title={p.profile.pseudoDofus || p.profile.discordNickname || "Membre"}>
+                                    <Avatar className="h-9 w-9 ring-2 ring-border hover:ring-ring/50 transition-all border-2 border-border shadow-lg">
+                                        <DiscordAvatarImage src={p.profile.user.image || undefined} />
+                                        <AvatarFallback className="bg-elevated text-muted-foreground text-caption font-bold">
+                                            {(p.profile.pseudoDofus || p.profile.discordNickname || "??").slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    {p.classe && (
+                                        <div className="absolute bottom-0 left-0 rounded-tr-md bg-background/90 p-[1px]" title={p.classe}>
+                                            <ClassIcon classId={p.classe} size={10} />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+
+                            {/* Empty Spots */}
+                            {Array.from({ length: Math.max(0, Math.min(spotsLeft, 10)) }).map((_, i) => (
+                                <div key={`empty-${i}`} className="w-9 h-9 rounded-full border-2 border-dashed border-border bg-surface flex items-center justify-center">
+                                    <Users className="w-3.5 h-3.5 text-muted-foreground/25" />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Waitlist pill if any pending */}
+                        {post.participants.filter((p) => p.status === "PENDING").length > 0 && (
+                            <div
+                                className="flex items-center gap-1.5 rounded-lg border border-border bg-surface/40 px-2.5 py-1 text-caption font-black uppercase tracking-wider text-muted-foreground"
+                                title="Joueurs en file d'attente"
+                            >
+                                <DofusUiIcon name="hourglass" size={12} />
+                                <span>{post.participants.filter((p) => p.status === "PENDING").length} en attente</span>
                             </div>
-                        ))}
+                        )}
                     </div>
 
                     {/* Wanted achievements */}
@@ -264,21 +257,21 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         <div className="flex gap-1.5 flex-wrap">
                             {post.dungeon.achievements
                                 .filter((a) => post.wantedAchievementIds.includes(a.id))
-                                .slice(0, 5)
+                                .slice(0, 3)
                                 .map((a) => (
                                     <div
                                         key={a.id}
                                         title={a.challenge.name}
-                                        className="w-7 h-7 rounded-lg bg-warning/10 border border-warning/20 p-1 shrink-0 shadow-sm transition-transform "
+                                        className="w-7 h-7 rounded-lg bg-surface/50 border border-border p-1 shrink-0"
                                     >
                                         {a.challenge.iconUrl && (
                                             <img src={a.challenge.iconUrl} alt={a.challenge.name} className="w-full h-full object-contain" />
                                         )}
                                     </div>
                                 ))}
-                            {post.wantedAchievementIds.length > 5 && (
+                            {post.wantedAchievementIds.length > 3 && (
                                 <div className="w-7 h-7 rounded-lg bg-elevated flex items-center justify-center text-caption font-black text-muted-foreground border border-border shadow-inner">
-                                    +{post.wantedAchievementIds.length - 5}
+                                    +{post.wantedAchievementIds.length - 3}
                                 </div>
                             )}
                         </div>
@@ -308,13 +301,13 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                     {/* Multi-donjons : liste des donjons de la session (#26) */}
                     {isMulti && (
                         <div className="space-y-2">
-                            {multiDungeons.map((d: any, idx: number) => (
+                            {multiDungeons.slice(0, 3).map((d: any, idx: number) => (
                                 <div key={d.dungeonId ?? idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-background/40 border border-border">
                                     {d.imageUrl ? (
                                         <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-background border border-border shrink-0 p-0.5" />
                                     ) : (
-                                        <span className="w-9 h-9 rounded-lg bg-background border border-border shrink-0 flex items-center justify-center text-muted-foreground">
-                                            <Swords className="w-4 h-4" />
+                                        <span className="w-9 h-9 rounded-lg bg-background border border-border shrink-0 flex items-center justify-center">
+                                            <DofusUiIcon name="dungeon" size={16} className="opacity-60" />
                                         </span>
                                     )}
                                     <div className="min-w-0 flex-1">
@@ -322,12 +315,17 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                         <p className="text-caption text-muted-foreground">
                                             Lvl {d.level}
                                             {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds.length} succès`}
-                                            {d.targetDate && ` · ${new Date(d.targetDate).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}
+                                            {d.targetDate ? ` · ${formatDjDateLabel(d.targetDate, { shortMonth: true }) ?? ""}` : ""}
                                         </p>
                                     </div>
-                                    <span className="text-caption font-black text-info/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
+                                    <span className="text-caption font-black text-muted-foreground/70 uppercase tracking-widest shrink-0">#{idx + 1}</span>
                                 </div>
                             ))}
+                            {multiDungeons.length > 3 && (
+                                <p className="text-caption font-bold text-muted-foreground px-1">
+                                    + {multiDungeons.length - 3} autres donjons
+                                </p>
+                            )}
                         </div>
                     )}
 
@@ -336,37 +334,39 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         {post.dungeon?.dofuspourlesnoobsUrl && (
                             <a href={post.dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-warning hover:text-warning-foreground bg-warning/10 border border-warning/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-warning hover:border-warning hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
+                                className="inline-flex items-center gap-2 text-caption font-bold text-muted-foreground hover:text-foreground bg-background border border-border hover:bg-elevated rounded-xl px-3 py-2 w-max transition-colors duration-200">
                                 <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
-                                Guide DPNL
+                                Guide DPLN
                             </a>
                         )}
-                        {post.dungeon?.dofensiveUrl && (
-                            <a href={post.dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-success hover:text-success-foreground bg-success/10 border border-success/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-success hover:border-success hover:scale-[1.03] shadow-emerald-500/5 hover:shadow-emerald-500/20">
-                                <span className="text-xs">🛡️</span>
-                                Dofensive
-                            </a>
-                        )}
+                        {/* Lien Dofensive remplacé par la fiche SigilOS (demande user, 11/10/2026) :
+                            la destination vient de la source unique `dungeonFicheHref` (public si
+                            `"public"`, sinon la fiche boss interne) — aucun lien Dofensive inventé. */}
+                        {(() => {
+                            const ficheHref = dungeonFicheHref(guildId, post.dungeon);
+                            if (!ficheHref) return null;
+                            return (
+                                <a href={ficheHref} target="_blank" rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-2 text-caption font-bold text-muted-foreground hover:text-foreground bg-background border border-border hover:bg-elevated rounded-xl px-3 py-2 w-max transition-colors duration-200">
+                                    <span className="text-xs">🛡️</span>
+                                    Fiche SigilOS
+                                </a>
+                            );
+                        })()}
                         {(post.questId && post.questId > 0) || (post.mode === "QUETE" && post.questUrl) ? (
                             <>
                                 {post.questId && post.questId > 0 ? (
                                     <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className={cn(
-                                            "inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest rounded-xl px-3 py-2 w-max transition-all border shadow-lg hover:scale-[1.03]",
-                                            isDonjon
-                                                ? "text-info hover:text-info-foreground bg-info/10 border-info/25 hover:bg-info hover:border-info shadow-cyan-500/5 hover:shadow-cyan-500/20"
-                                                : "text-muted-foreground hover:text-foreground bg-background border-border hover:bg-elevated"
-                                        )}>
+                                        className="inline-flex items-center gap-2 text-caption font-bold text-muted-foreground hover:text-foreground bg-background border border-border hover:bg-elevated rounded-xl px-3 py-2 w-max transition-colors duration-200">
                                         <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" />
                                         {isDonjon && post.questName ? post.questName : "Ouvrir DofusDB"}
                                     </a>
                                 ) : post.questUrl && !post.dungeon?.dofuspourlesnoobsUrl && (
                                     <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-2 text-caption font-black uppercase tracking-widest text-warning hover:text-warning-foreground bg-warning/10 border border-warning/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-warning hover:border-warning hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
+                                        className="inline-flex items-center gap-2 text-caption font-bold text-muted-foreground hover:text-foreground bg-background border border-border hover:bg-elevated rounded-xl px-3 py-2 w-max transition-colors duration-200">
                                         <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
                                         DofusPourLesNoobs
                                     </a>
@@ -377,41 +377,12 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
 
                     {/* Message */}
                     {post.message && (
-                        <div className={cn(
-                            "text-caption text-foreground italic border-l-4 pl-4 py-2 line-clamp-2 leading-relaxed rounded-r-lg shadow-inner",
-                            isOpen
-                                ? isDonjon
-                                    ? "border-info/40 bg-info/[0.02]"
-                                    : "border-info/40 bg-info/[0.02]"
-                                : "border-border bg-background/50"
-                        )}>
+                        <div className="text-caption text-muted-foreground italic border-l-2 border-border pl-3 py-1.5 line-clamp-2 leading-relaxed">
                             "{post.message}"
                         </div>
                     )}
 
                     <div className="flex-1" /> {/* Spacer */}
-
-                    {/* Target date */}
-                    {post.targetDate && (
-                        <div className={cn(
-                            "flex items-center justify-center gap-2.5 text-caption font-black w-full px-4 py-2.5 rounded-xl border shadow-inner mt-2 group/date transition-colors duration-300",
-                            isOpen
-                                ? isDonjon
-                                    ? "text-info bg-info/5 border-info/20"
-                                    : "text-info bg-info/5 border-info/20"
-                                : "text-muted-foreground bg-background border-border"
-                        )}>
-                            <Calendar className={cn(
-                                "w-4 h-4 shrink-0 group-hover/date:scale-110 transition-transform",
-                                isOpen ? (isDonjon ? "text-info" : "text-info") : "text-muted-foreground"
-                            )} />
-                            <span className="uppercase tracking-tight">
-                                {new Date(post.targetDate).toLocaleDateString("fr-FR", {
-                                    weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit"
-                                }).replace(/, /g, " à ")}
-                            </span>
-                        </div>
-                    )}
 
                     {/* Creator Header (pushed to bottom) */}
                     <div className="flex items-center gap-3 pt-4 border-t border-border mt-auto">
@@ -420,11 +391,13 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 <img src={post.profile.user.image} alt="" className="w-full h-full object-cover" />
                             )}
                         </div>
-                        <span className="text-caption font-black text-muted-foreground truncate flex-1 tracking-tight">
-                            {isOwner && <Crown className="w-3 h-3 inline mr-1 text-warning -mt-1" />}
-                            {post.profile.pseudoDofus || post.profile.discordNickname || "Inconnu"}
-                        </span>
-                        <span className="text-caption text-muted-foreground flex items-center gap-1 shrink-0 font-bold uppercase tracking-tighter">
+                        <PseudoChip
+                            pseudo={post.profile.pseudoDofus || post.profile.discordNickname || "Inconnu"}
+                            classe={post.profile.classe}
+                            className="min-w-0 flex-1 text-caption font-black text-muted-foreground tracking-tight"
+                        />
+                        {isOwner && <DofusUiIcon name="leader" size={12} className="opacity-80" />}
+                        <span className="flex items-center gap-1 shrink-0 text-caption font-bold uppercase tracking-tighter text-muted-foreground">
                             <Clock className="w-2.5 h-2.5" />
                             {formatDistanceToNow(new Date(post.createdAt), { locale: fr, addSuffix: true })}
                         </span>
@@ -450,7 +423,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsDetailOpen(true)}
-                            className="flex-1 min-w-[92px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap bg-background border border-border text-muted-foreground hover:text-foreground hover:bg-surface transition-colors"
+                            className="flex-1 min-w-[92px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap bg-surface/40 border border-border text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors"
                         >
                             Détails
                         </Button>
@@ -463,7 +436,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 className={cn(
                                     "flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-colors",
                                     post.status === "FULL"
-                                        ? "bg-warning/15 text-warning border border-warning/30 hover:bg-warning hover:text-warning-foreground"
+                                        ? "bg-surface/50 text-foreground border border-border-strong hover:bg-elevated"
                                         : "bg-info/15 text-info border border-info/30 hover:bg-info hover:text-info-foreground"
                                 )}
                             >
@@ -486,9 +459,16 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         )}
 
                         {myParticipation?.status === "ACCEPTED" && (
-                            <div className="flex-1 min-w-[110px] flex items-center justify-center h-10 rounded-xl bg-success/10 text-success border border-success/30 font-bold text-xs uppercase tracking-wide whitespace-nowrap">
-                                <CheckCircle2 className="w-4 h-4 mr-2" /> Accepté
-                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleLeave}
+                                disabled={isPending}
+                                className="flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-danger/30 text-danger hover:text-danger-foreground hover:bg-danger transition-colors"
+                            >
+                                <LogOut className="w-4 h-4 mr-2" />
+                                Se retirer
+                            </Button>
                         )}
 
                         {myParticipation?.status === "REJECTED" && (
@@ -497,42 +477,22 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             </div>
                         )}
 
-                        {isOwner && post.status === "OPEN" && (
-                            <div className="flex flex-1 flex-wrap gap-2">
-                                {post.participants.length > 0 && (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={handleReminder}
-                                        disabled={isPending}
-                                        title="Envoyer un rappel aux participants sur Discord"
-                                        className="h-10 px-3 border-info/20 text-info hover:text-info-foreground hover:bg-info transition-colors"
-                                    >
-                                        <Bell className="w-4 h-4" />
-                                    </Button>
-                                )}
-                                <Button
-                                    size="sm"
-                                    onClick={() => setIsCloseModalOpen(true)}
-                                    disabled={isPending}
-                                    title="Valider et donner des points"
-                                    className="flex-1 min-w-[130px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap bg-success/15 hover:bg-success text-success hover:text-success-foreground border border-success/30 hover:border-success transition-colors"
-                                >
-                                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                                    Terminer
-                                </Button>
-                            </div>
-                        )}
-                        {isAdmin && !isOwner && post.status === "OPEN" && (
+                        {/* Clôture DIRECTE depuis la carte : c'est l'action utile du créateur
+                            (bilan des succès + points + clôture Discord). L'ancien menu « … »
+                            cachait « Terminer » derrière un dropdown, et « Supprimer le groupe »
+                            n'existe plus (la suppression détruisait le bilan sans rien apporter :
+                            les posts inactifs sont déjà purgés par le cron). */}
+                        {(isOwner || (isAdmin && !isOwner)) && (post.status === "OPEN" || post.status === "FULL") && (
                             <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setIsCloseModalOpen(true)}
                                 disabled={isPending}
-                                className="flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-border text-muted-foreground hover:text-danger-foreground hover:bg-danger hover:border-danger transition-colors"
+                                title={isOwner ? "Terminer le post (bilan + clôture Discord)" : "Fermer le post (admin)"}
+                                className="flex-1 min-w-[110px] h-10 text-xs font-bold uppercase tracking-wide whitespace-nowrap bg-info/15 text-info border border-info/30 hover:bg-info hover:text-info-foreground transition-colors"
                             >
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Fermer
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                {isOwner ? "Terminer" : "Fermer"}
                             </Button>
                         )}
                     </div>

@@ -7,6 +7,8 @@ import { getDungeonsWithAchievements, getMonsterStats } from "@/server/actions/g
 import { getBossDofensiveSpells } from "@/server/actions/dofensive-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { persistMonsterStat } from "@/lib/dofensive-sync";
+import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
+import { db } from "@/lib/prisma";
 
 /**
  * 🐉 CRON quotidien : synchronisation locale des fiches et statistiques de monstres (DofusDB + Dofensive).
@@ -16,10 +18,28 @@ import { persistMonsterStat } from "@/lib/dofensive-sync";
  */
 export async function GET(req: Request) {
     if (!verifyCronSecret(req)) {
+        // 🔎 Télémétrie du refus (throttlée Redis 1×/10 min, sans secret) : le panneau
+        // God « Tâches CRON » affichait « Inconnu — Aucune exécution récente » alors que
+        // la tâche était déclenchée mais rejetée en 401 (secret de crontab absent/erroné
+        // ou URL d'un autre environnement) — donc AUCUNE donnée siphonnée, donc des
+        // **salles de donjon manquantes** dans la simulation. Le panneau montre
+        // désormais « Refusé (401) », comme `market-expire`.
+        const { recordCronRefusal } = await import("@/lib/cron-telemetry");
+        await recordCronRefusal("sync_monster_stats");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const startedAt = Date.now();
+
     try {
+        // 1. Mise à jour automatique du catalogue Donjons & Familles (100% local-first)
+        try {
+            const { siphonDungeonMonstersDataset } = await import("@/lib/dungeon-monsters-siphon");
+            await siphonDungeonMonstersDataset();
+        } catch (e) {
+            logger.warn("[Cron:SyncMonsterStats] Échec de la mise à jour du dataset donjons:", { error: String(e) });
+        }
+
         const dungeonsRes = await getDungeonsWithAchievements();
         if (!dungeonsRes.success || !Array.isArray(dungeonsRes.data)) {
             return NextResponse.json({ error: "Impossible de récupérer les donjons" }, { status: 500 });
@@ -30,9 +50,44 @@ export async function GET(req: Request) {
             .map((d: any) => ({ bossName: d.bossName || d.name, dungeonName: d.name }));
 
         let synced = 0;
+        let imagesSiphoned = 0;
         let errors = 0;
+        let skippedFresh = 0;
+        // « Qui » a échoué : noms de boss réellement en erreur (bornés à l'affichage).
+        const errorBosses: string[] = [];
+        // Boss d'anomalie (siphon section 3) — compteurs SÉPARÉS des fiches de donjon/titans.
+        let anomalySynced = 0;
+        let anomalyErrors = 0;
+        let anomalyDefaultMap = 0;
+        // Monstres de l'anomalie (Briko/Bruto/Gromo) — accompagnateurs rattachés par la famille 35.
+        let anomalyCompanions = 0;
+        // Avis de recherche (phase 4) — compteurs SÉPARÉS des fiches donjon / titans / anomalies.
+        let bountySynced = 0;
+        let bountyErrors = 0;
+        let bountyIcons = 0;
+        let bountyUnproven = 0;
 
-        for (const b of bosses) {
+        // Phase 5.1 — le forceRefresh ne touche pas au frais < 24 h : seules
+        // les fiches manquantes/périmées sont re-fetchées (dry-run BDD pur,
+        // même matching que l'onglet État des données). Le bouton God par
+        // ligne garde son vrai force (chemin triggerBatch, inchangé).
+        const { buildBossFicheGaps } = await import("@/lib/data-health");
+        const existingStats = await db.monsterStat.findMany({
+            select: { monsterName: true, lastSyncedAt: true },
+        });
+        const gaps = buildBossFicheGaps(
+            bosses.map((b) => ({ bossName: b.bossName, name: b.dungeonName, level: null })),
+            existingStats.map((r) => ({ monsterName: r.monsterName, lastSyncedAt: r.lastSyncedAt })),
+            Date.now()
+        );
+        const gapKeys = new Set(gaps.map((g) => `${g.bossName}::${g.dungeonName}`));
+        const toSync = bosses.filter((b) => gapKeys.has(`${b.bossName}::${b.dungeonName}`));
+        skippedFresh = bosses.length - toSync.length;
+        if (skippedFresh > 0) {
+            logger.info(`[Cron:SyncMonsterStats] ${skippedFresh} fiche(s) fraîche(s) < 24 h ignorée(s).`);
+        }
+
+        for (const b of toSync) {
             try {
                 // forceRefresh = true : le cron DOIT re-synchroniser depuis la source
                 // (les getters sont local-first pour les joueurs, pas pour la sync).
@@ -44,28 +99,363 @@ export async function GET(req: Request) {
                         data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
                     }
                     await persistMonsterStat({ ...data, dungeonName: b.dungeonName });
+
+                    // Téléchargement et compression WebP locale (idempotent, anti-flag).
+                    // L'objet enrichi porte `imageUrl` (pas `img`) : le lire en
+                    // premier, sinon on retombe toujours sur le pattern deviné
+                    // (ID logique ≠ ID image, ex. Cadob 3220 → img 499).
+                    if (data.id) {
+                        const remoteImg = (data as { img?: string; imageUrl?: string }).img
+                            ?? (data as { imageUrl?: string }).imageUrl
+                            ?? `https://api.dofusdb.fr/img/monsters/${data.id}.png`;
+                        const imgRes = await siphonAndCompressImage(remoteImg, "monsters", data.id);
+                        if (imgRes.success) imagesSiphoned++;
+                    }
                     synced++;
                 }
             } catch (err) {
                 errors++;
+                errorBosses.push(b.bossName);
                 logger.warn(`[Cron:SyncMonsterStats] Erreur sur ${b.bossName}:`, { error: String(err) });
             }
         }
 
-        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${errors} erreurs`);
+        // 2. Titans (Événements Krosmiques) — même synchro DofusDB/Dofensive (sorts, stats, image).
+        // Local-first : monsterStat est keyé par monsterId (Ankama), ex. 8062 pour Gargandyas.
+        // Même règle fraîcheur que les boss (Phase 5.1).
+        try {
+            const titans = await db.titan.findMany({
+                select: { id: true, name: true, dofusdbId: true, mapName: true },
+            });
+            const titanGaps = buildBossFicheGaps(
+                titans.map((t) => ({ bossName: t.name, name: t.mapName || t.name, level: null })),
+                existingStats.map((r) => ({ monsterName: r.monsterName, lastSyncedAt: r.lastSyncedAt })),
+                Date.now()
+            );
+            const titanGapKeys = new Set(titanGaps.map((g) => g.bossName));
+            for (const t of titans) {
+                try {
+                    if (t.dofusdbId) {
+                        if (!titanGapKeys.has(t.name)) {
+                            skippedFresh++;
+                            continue;
+                        }
+                        // Pre-fetch simple par nom pour résoudre l'ID Ankama (8062) puis la fiche.
+                        const statsRes = await getMonsterStats(t.name, t.mapName || undefined, true);
+                        if (statsRes.success && statsRes.data) {
+                            let data = statsRes.data;
+                            const dRes = await getBossDofensiveSpells(t.name, undefined, undefined, true);
+                            if (dRes.success && dRes.data) {
+                                data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
+                            }
+                            await persistMonsterStat({ ...data, dungeonName: t.mapName || undefined });
+                            if (data.id) {
+                                const remoteImg = (data as { img?: string; imageUrl?: string }).img
+                                    ?? (data as { imageUrl?: string }).imageUrl
+                                    ?? `https://api.dofusdb.fr/img/monsters/${data.id}.png`;
+                                const imgRes = await siphonAndCompressImage(remoteImg, "monsters", data.id);
+                                if (imgRes.success) imagesSiphoned++;
+                            }
+                            synced++;
+                        }
+                    }
+                } catch (err) {
+                    errors++;
+                    logger.warn(`[Cron:SyncMonsterStats] Erreur titan ${t.name}:`, { error: String(err) });
+                }
+            }
+        } catch (err) {
+            logger.warn("[Cron:SyncMonsterStats] Erreur chargement des titans:", { error: String(err) });
+        }
 
-        // Visibilité dans le Dashboard GOD (Audit Logs) — sans session utilisateur.
+        // 3. Boss d'ANOMALIE (Gardiens des anomalies temporelles) — contenu entièrement
+        // siphonné : liste DofusDB (race 191) + cartes/familles Dofensive + sorts + icônes,
+        // puis écriture `Dungeon` (isAnomalyBoss) / `MonsterStat` / `DofensiveMap`.
+        // Pas de nouveau cron : la passe nocturne existante couvre le contenu neuf.
+        // Compteurs SÉPARÉS : `synced`/`errors` restent la mesure des fiches de donjon + titans
+        // (contrat de télémétrie existant) ; les anomalies ont leurs propres compteurs.
+        try {
+            const { syncAnomalyBosses } = await import("@/lib/anomaly-boss-siphon");
+            const anomalyResult = await syncAnomalyBosses();
+            anomalySynced = anomalyResult.synced + anomalyResult.unchanged;
+            anomalyErrors = anomalyResult.errors.length;
+            anomalyDefaultMap = anomalyResult.guardians.filter((g) => g.isDefaultMap).length;
+            anomalyCompanions = anomalyResult.companions?.length ?? 0;
+            imagesSiphoned += anomalyResult.imagesSiphoned;
+            if (anomalySynced > 0) {
+                logger.info(
+                    `[Cron:SyncMonsterStats] Anomalies : ${anomalyResult.guardians.length} gardiens résolus, ${anomalySynced} boss en fiche ` +
+                    `(${anomalyDefaultMap} en map par défaut) + ${anomalyCompanions} monstre(s) de l'anomalie (3 tirés au hasard en combat).`
+                );
+            } else {
+                logger.warn("[Cron:SyncMonsterStats] Anomalies : aucun gardien résolu.", {
+                    error: anomalyResult.errors.slice(0, 3),
+                });
+            }
+            if (anomalyResult.errors.length > 0) {
+                logger.warn(`[Cron:SyncMonsterStats] Anomalies : ${anomalyResult.errors.length} erreur(s) unitaire(s).`, {
+                    error: anomalyResult.errors.slice(0, 3),
+                });
+            }
+        } catch (err) {
+            anomalyErrors++;
+            logger.warn("[Cron:SyncMonsterStats] Erreur siphon des boss d'anomalie:", { error: String(err) });
+        }
+
+        // 4. AVIS DE RECHERCHE — DofusDB (`monster-races/32|90|127|147|156` : 96 avis) + Dofensive
+        //    (`/monsters/{id}` : preuve d'appartenance, zone de traque, sorts de combat). Les avis
+        //    n'ont NI salle NI carte exposée ⇒ carte de simulation générique (repli DÉCLARÉ).
+        //    Fail-soft : un échec de cette phase ne remet pas en cause les fiches donjon/titans.
+        try {
+            const { syncBounties } = await import("@/lib/bounty-siphon");
+            const bountyResult = await syncBounties();
+            bountySynced = bountyResult.synced + bountyResult.unchanged;
+            bountyErrors = bountyResult.errors.length;
+            bountyIcons = bountyResult.imagesSiphoned;
+            bountyUnproven = bountyResult.unproven;
+            imagesSiphoned += bountyResult.imagesSiphoned;
+            // 🔶 Instantané « orphelins » pour la revue God (passe complète : seule source
+            // fiable — voir `bounty-siphon.ts` § 5bis). Fail-open : jamais bloquant.
+            if (bountyResult.orphansComputed) {
+                const { setBountyOrphansSnapshot } = await import(
+                    "@/server/game-data-sync-state-store"
+                );
+                await setBountyOrphansSnapshot(bountyResult.orphaned, bountyResult.orphanedTotal);
+            }
+            if (bountyResult.entries.length > 0) {
+                logger.info(
+                    `[Cron:SyncMonsterStats] Avis de recherche : ${bountyResult.entries.length} avis résolus ` +
+                    `(${bountyResult.synced} écrits, ${bountyResult.unchanged} inchangés, ${bountyResult.unproven} non prouvés, ` +
+                    `${bountyResult.orphanedTotal} orphelin(s), ` +
+                    `${bountyResult.imagesSiphoned} image(s)).`
+                );
+            } else {
+                logger.warn("[Cron:SyncMonsterStats] Avis de recherche : aucun avis résolu.", {
+                    error: bountyResult.errors.slice(0, 3),
+                });
+            }
+            if (bountyResult.errors.length > 0) {
+                logger.warn(`[Cron:SyncMonsterStats] Avis de recherche : ${bountyResult.errors.length} erreur(s) unitaire(s).`, {
+                    error: bountyResult.errors.slice(0, 3),
+                });
+            }
+        } catch (err) {
+            bountyErrors++;
+            logger.warn("[Cron:SyncMonsterStats] Erreur siphon des avis de recherche:", { error: String(err) });
+        }
+
+        // ── PHASE 6 : VEILLE DELTA DES FICHES MONSTRES (rail du 27/09/2026) ──────────────────────
+        // Une passe BORNÉE reprend au filigrane `id` (Redis, sans TTL) : le catalogue (5 135 fiches)
+        // se remplit petit à petit, sans repasser par une passe complète (30 min / 429 / trous).
+        // Le filigrane ne recule JAMAIS : une source indisponible laisse la position intacte.
+        // Budget volontairement modeste (limiteur DofusDB ≈ 30 req/min, et chaque fiche en coûte
+        // plusieurs) → ~2 min par nuit, reprise exacte au prochain passage.
+        //
+        // ⚠️ Étage COUPÉ sous Vitest et par `MONSTER_FICHE_VEILLE_OFF=1` : même convention que
+        // `getMonsterStats` (qui teste `VITEST`) — les tests du cron ne doivent **jamais** appeler
+        // le réseau (DofusDB sollicité pour rien, CI lente et instable). La logique de la passe est
+        // testée à part (`tests/unit/dofusdb-veille.test.ts`), le câblage est verrouillé par ce
+        // même fichier (assertions de source) : rien n'est laissé sans preuve.
+        const veilleDisabled = process.env.VITEST === "true" || process.env.MONSTER_FICHE_VEILLE_OFF === "1";
+        let veilleFiches = {
+            processed: 0,
+            persisted: 0,
+            remaining: null as number | null,
+            done: true,
+            errors: 0,
+            cursor: null as string | null,
+        };
+        if (!veilleDisabled) {
+            try {
+                const { dofusdbFetchPage } = await import("@/lib/dofusdb-fetch");
+                const { runMonsterFichesPass, MONSTER_FICHES_SPEC } = await import("@/lib/monsters-veille-siphon");
+                const { getGameDataVeilleState, setGameDataVeilleState } = await import("@/server/game-data-sync-state-store");
+
+                const state = await getGameDataVeilleState(MONSTER_FICHES_SPEC.id);
+                const pass = await runMonsterFichesPass({
+                    state: state ?? { cursor: null, remaining: null, lastPassAt: null },
+                    limit: 60,
+                    fetchPage: async (endpoint, query) => {
+                        const page = await dofusdbFetchPage<any>(`${endpoint}?${query}`);
+                        if (!page) throw new Error(`${endpoint}?${query} indisponible (filtre, limiteur ou réseau)`);
+                        return {
+                            rows: page.rows.map((m: any) => ({
+                                id: Math.floor(Number(m?.id) || 0),
+                                name: String(m?.name?.fr ?? "").trim(),
+                                updatedAt: typeof m?.updatedAt === "string" ? m.updatedAt : null,
+                            })),
+                            total: page.total,
+                        };
+                    },
+                    persistFiche: async ({ id, name }) => {
+                        const res = await getMonsterStats(name, undefined, true, id);
+                        return !!res?.success;
+                    },
+                });
+
+                await setGameDataVeilleState(MONSTER_FICHES_SPEC.id, {
+                    cursor: pass.cursor,
+                    remaining: pass.remaining,
+                    lastPassAt: new Date().toISOString(),
+                });
+                veilleFiches = {
+                    processed: pass.processed,
+                    persisted: pass.persisted,
+                    remaining: pass.remaining,
+                    done: pass.done,
+                    errors: pass.errors.length,
+                    cursor: pass.cursor,
+                };
+                if (pass.errors.length > 0) {
+                    logger.warn(
+                        `[Cron:SyncMonsterStats] Veille fiches monstres : ${pass.errors.length} erreur(s) unitaire(s).`,
+                        { error: pass.errors.slice(0, 3) }
+                    );
+                }
+            } catch (err) {
+                logger.warn("[Cron:SyncMonsterStats] Veille fiches monstres en échec:", { error: String(err) });
+            }
+        }
+
+        // 5. SUCCÈS « SPÉCIAUX » — la VRAIE explication (DofusDB) + l'icône du challenge.
+        //    Passe **bornée** (25 challenges par run) et **idempotente** : un challenge déjà complet
+        //    est sauté **sans requête** ⇒ en régime établi le coût est nul. C'est ce qui rend le
+        //    contenu souverain **sans aucune intervention manuelle sur le VPS** (demande user du
+        //    11/10/2026 : « dofusdb affiche la vraie explication … c'est siphonnable ? »).
+        //    Fail-soft, et **coupé sous Vitest** (cette phase appelle le réseau).
+        let achievementsSiphoned = 0;
+        let achievementSiphonErrors = 0;
+        if (process.env.VITEST !== "true") {
+            try {
+                const { siphonChallengeDetails } = await import("@/lib/achievement-details-siphon");
+                const achv = await siphonChallengeDetails({ db: db as any, apply: true, limit: 25 });
+                achievementsSiphoned = achv.written;
+                achievementSiphonErrors = achv.errors;
+                if (achv.updated > 0 || achv.errors > 0) {
+                    logger.info(
+                        `[Cron:SyncMonsterStats] Succès : ${achv.written} challenge(s) complété(s), `
+                            + `${achv.alreadyOk} déjà complets, ${achv.missing} introuvable(s), ${achv.errors} erreur(s)`
+                    );
+                }
+            } catch (err) {
+                achievementSiphonErrors++;
+                logger.warn("[Cron:SyncMonsterStats] Erreur siphon des succès:", { error: String(err) });
+            }
+        }
+
+        // 5 bis. Succès « SPÉCIAUX » **par donjon** (Lot E, corrigé le 10/12/2026) : écrit **sur la
+        //        ligne du succès** la mécanique réelle du boss (`DungeonAchievement.description`) +
+        //        l'icône du succès, et la ramène sur le challenge **partagé** « Spécial » (titre
+        //        affiché inchangé partout). Borné et idempotent : une ligne déjà complète ne coûte
+        //        aucune requête. Un budget DofusDB partagé épuisé ⇒ `deferred` (jamais « introuvable »).
+        let specialAchievementsSiphoned = 0;
+        if (process.env.VITEST !== "true") {
+            try {
+                const { siphonSpecialAchievements } = await import("@/lib/achievement-details-siphon");
+                // Borné : 25 par passage (le même ordre de grandeur que la passe « détails »
+                // ci-dessus, donc même budget DofusDB) — 32 donjons sont réparés en **2 nuits**
+                // au lieu de 4. L'outil `scripts/succes-speciaux.ts` reste le chemin pour tout
+                // finir d'un coup (aucune borne) : `node scripts/succes-speciaux.js siphon --apply`.
+                const special = await siphonSpecialAchievements({ db: db as any, apply: true, limit: 25 });
+                specialAchievementsSiphoned = special.written;
+                if (special.updated > 0 || special.errors > 0 || special.deferred) {
+                    logger.info(
+                        `[Cron:SyncMonsterStats] Succès spéciaux : ${special.written} complété(s), `
+                            + `${special.missing} sans succès spécial chez DofusDB, ${special.errors} erreur(s)`
+                            + (special.deferred ? " · budget DofusDB partagé épuisé (reprise au prochain passage)" : "")
+                    );
+                }
+            } catch (err) {
+                logger.warn("[Cron:SyncMonsterStats] Erreur siphon des succès spéciaux:", { error: String(err) });
+            }
+        }
+
+        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés · veille fiches: ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"} , filigrane ${veilleFiches.cursor ?? "début"})`);
+
+        // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
         await createSystemAuditLog({
             cron: "sync-monster-stats",
             targetId: "sync-monster-stats",
             synced,
             errors,
+            images: imagesSiphoned,
             totalBosses: bosses.length,
         });
 
-        return NextResponse.json({ success: true, synced, errors });
+        // Envoi d'une alerte/notification God
+        // Champs d'embed FR explicites (fin du dump brut `synced`/`totalBosses`/`skippedFresh`)
+        // + « qui » a échoué : les boss réellement en erreur (bornés).
+        const failedPreview = errorBosses.slice(0, 5).join(", ");
+        const failedSuffix = errorBosses.length > 5 ? ` … (+${errorBosses.length - 5})` : "";
+        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        await notifyGod({
+            title: "Siphon Monstres & Sorts terminé",
+            message: `${synced} monstres synchronisés avec succès (${errors} erreurs sur ${bosses.length}, ${imagesSiphoned} images siphonnées, ${skippedFresh} frais < 24 h ignorés).`
+                + (failedPreview ? `\nEn erreur : ${failedPreview}${failedSuffix}` : ""),
+            type: "WORKER_SYNC",
+            success: errors === 0,
+            fields: [
+                { name: "Monstres synchronisés", value: String(synced), inline: true },
+                { name: "Images siphonnées", value: String(imagesSiphoned), inline: true },
+                { name: "Erreurs", value: String(errors), inline: true },
+                { name: "Fiches fraîches ignorées", value: String(skippedFresh), inline: true },
+                { name: "Succès complétés", value: String(achievementsSiphoned + specialAchievementsSiphoned), inline: true },
+            ],
+            metadata: {
+                synced,
+                errors,
+                totalBosses: bosses.length,
+                skippedFresh,
+                errorBosses: errorBosses.slice(0, 20),
+            },
+        });
+
+        // Télémétrie panel God « Tâches CRON »
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("sync_monster_stats", {
+            success: errors === 0 && anomalyErrors === 0 && bountyErrors === 0 && achievementSiphonErrors === 0,
+            durationMs: Date.now() - startedAt,
+            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés) · ${anomalySynced} gardien(s) d'anomalie · ${anomalyCompanions} monstre(s) de l'anomalie · ${bountySynced} avis de recherche · veille fiches ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"}) · ${achievementsSiphoned} succès complété(s) · ${specialAchievementsSiphoned} succès spécial(aux)`,
+            details: {
+                synced,
+                errors,
+                images: imagesSiphoned,
+                totalBosses: bosses.length,
+                skippedFresh,
+                anomalySynced,
+                anomalyErrors,
+                anomalyDefaultMap,
+                anomalyCompanions,
+                bountySynced,
+                achievementsSiphoned,
+                achievementSiphonErrors,
+                bountyErrors,
+                bountyIcons,
+                bountyUnproven,
+                /* Rail de veille (27/09/2026) : où en est le catalogue de fiches monstres. */
+                veilleFiches: veilleFiches,
+            },
+        });
+
+        return NextResponse.json({
+            success: true,
+            synced,
+            errors,
+            skippedFresh,
+            anomalySynced,
+            anomalyErrors,
+            bountySynced,
+            bountyErrors,
+            veilleFiches,
+        });
     } catch (error: any) {
         logger.error("[Cron:SyncMonsterStats] Erreur globale:", { error: String(error) });
+        const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        await recordCronExecution("sync_monster_stats", {
+            success: false,
+            durationMs: Date.now() - startedAt,
+            summary: `Erreur: ${String(error)}`,
+        });
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }

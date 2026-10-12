@@ -473,5 +473,24 @@
     "successName": "Question d'équilibre",
     "filterCategory": "AUTRES",
     "dofusDbItemId": 31794
+  },
+  {
+    "slug": "dokille",
+    "name": "Dokille",
+    "nameShort": "Dokille",
+    "element": "Vulkania",
+    "rarity": "MAJEUR",
+    "isPrimordial": false,
+    "isSylvestreReq": false,
+    "isMeta": false,
+    "bonusSummary": "+10 Prospection. Récompense du Safari des âmes sur l'Archipel de Vulkania.",
+    "levelRecommended": 100,
+    "imageUrl": "/module-dofus/Dokille.png",
+    "color": "#f59e0b",
+    "displayOrder": 26,
+    "description": "Ce Dofus vulkain a été pondu lors du grand réveil des Krokilles sur l'Archipel de Vulkania. Il récompense les chasseurs émérites ayant bravé le Safari des âmes auprès de Nevark le Chasseur.",
+    "successName": "Le Safari des âmes",
+    "filterCategory": "AUTRES",
+    "dofusDbItemId": null
   }
 ]

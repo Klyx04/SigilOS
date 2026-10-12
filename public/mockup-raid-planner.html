@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SigilOS Raid Studio 3.6 — Planificateur Public de Raid</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07090e;
+      --card: rgba(16, 21, 32, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover: rgba(255, 255, 255, 0.12);
+      --primary: #10b981;
+      --primary-glow: rgba(16, 185, 129, 0.25);
+      --gold: #f59e0b;
+      --gold-glow: rgba(245, 158, 11, 0.2);
+      --cyan: #06b6d4;
+      --cyan-glow: rgba(6, 182, 212, 0.2);
+      --rose: #f43f5e;
+      --blurple: #6366f1;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(16, 185, 129, 0.15), transparent),
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08), transparent 35%),
+        radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.06), transparent 35%);
+      background-attachment: fixed;
+    }
+
+    h1, h2, h3, h4, .font-display {
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Glass Panels */
+    .glass-panel {
+      background: var(--card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      transition: all 0.2s ease;
+    }
+    .glass-panel:hover {
+      border-color: var(--card-hover);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.15);
+      border-radius: 3px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      user-select: none;
+      text-decoration: none;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 18px var(--primary-glow);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+      box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
+    }
+    .btn-discord {
+      background: #5865F2;
+      color: #ffffff;
+      box-shadow: 0 4px 18px rgba(88, 101, 242, 0.3);
+    }
+    .btn-discord:hover {
+      background: #4752c4;
+      box-shadow: 0 6px 24px rgba(88, 101, 242, 0.45);
+    }
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+    }
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+
+    /* Raid Banner */
+    .raid-hero {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+      background-size: cover;
+      background-position: center;
+      padding: 36px 32px;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    .raid-hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(7, 9, 14, 0.3) 0%, rgba(7, 9, 14, 0.95) 100%);
+      z-index: 1;
+    }
+    .raid-hero-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Slot Card */
+    .slot-card {
+      background: rgba(13, 17, 27, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      cursor: pointer;
+    }
+    .slot-card:hover {
+      background: rgba(24, 31, 48, 0.85);
+      border-color: rgba(16, 185, 129, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Class Avatar */
+    .class-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: #1e2536;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .class-avatar img {
+      width: 34px;
+      height: 34px;
+      object-fit: contain;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-emerald {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .badge-cyan {
+      background: rgba(6, 182, 212, 0.15);
+      color: #22d3ee;
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+    .badge-rose {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+    .badge-gray {
+      background: rgba(255, 255, 255, 0.06);
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Checkbox Enigme */
+    .enigme-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .enigme-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    .enigme-item.resolved {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.active {
+      display: flex;
+    }
+    .modal-content {
+      background: #0d121c;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 680px;
+      padding: 28px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.8);
+      animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalPop {
+      0% { transform: scale(0.95); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #10b981;
+      color: #042f1a;
+      font-weight: 700;
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 200;
+      pointer-events: none;
+    }
+    #toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Announcement Bar -->
+  <div style="background: linear-gradient(90deg, rgba(16,185,129,0.12), rgba(99,102,241,0.15), rgba(245,158,11,0.12)); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 8px 16px; text-align: center; font-size: 13px;">
+    <span style="display: inline-flex; align-items: center; gap: 8px; font-weight: 500;">
+      <span class="badge badge-emerald" style="padding: 2px 6px;">OUTIL PUBLIC LIBRE</span>
+      <span>Préparez votre compo 16 joueurs, calculez l'ordre d'initiative et exportez l'annonce Discord gratuitement.</span>
+      <a href="#decouvrir-sigilos" style="color: #34d399; font-weight: 700; text-decoration: underline; margin-left: 6px;">Voir comment SigilOS gère les raids en guilde ↓</a>
+    </span>
+  </div>
+
+  <!-- Header Navigation -->
+  <header style="max-width: 1360px; margin: 0 auto; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <a href="/" style="text-decoration: none; display: flex; align-items: center; gap: 12px;">
+        <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #10b981, #06b6d4); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: #07090e; box-shadow: 0 4px 14px rgba(16,185,129,0.3);">
+          ✦
+        </div>
+        <div>
+          <span class="font-display" style="font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: white;">Sigil<span style="color: #10b981;">OS</span></span>
+          <span style="font-size: 11px; margin-left: 8px; color: #94a3b8; background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 6px; font-weight: 600; text-transform: uppercase;">Raid Studio 3.6</span>
+        </div>
+      </a>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button class="btn btn-discord" onclick="openDiscordModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+        <span>Copier l'Annonce Discord</span>
+      </button>
+      <a href="#decouvrir-sigilos" class="btn btn-outline">
+        <span>Module Guilde SigilOS ↓</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main style="max-width: 1360px; margin: 0 auto; padding: 10px 24px 80px 24px;">
+
+    <!-- RAID SELECTION TABS -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+      <div style="display: flex; gap: 8px; background: rgba(255,255,255,0.03); padding: 4px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);">
+        <button id="tab-giga" class="btn" style="background: #10b981; color: white;" onclick="switchRaid('giga')">
+          <span>🌊 Gouffre du Gigalodon (16j)</span>
+        </button>
+        <button id="tab-sanctuaire" class="btn btn-outline" style="border: none;" onclick="switchRaid('sanctuaire')">
+          <span>🌿 Sanctuaire des Jardins (16j)</span>
+        </button>
+      </div>
+
+      <!-- Quick Session Controls -->
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 6px 14px; border-radius: 12px; font-size: 13px;">
+          <span style="color: var(--text-muted);">Serveur :</span>
+          <select id="server-select" style="background: transparent; color: white; border: none; font-weight: 600; cursor: pointer; outline: none;">
+            <option value="Draconiros" style="background:#0d121c">Draconiros (Monocompte)</option>
+            <option value="Hell Mina" style="background:#0d121c">Hell Mina</option>
+            <option value="Imagiro" style="background:#0d121c">Imagiro</option>
+            <option value="Orukam" style="background:#0d121c">Orukam</option>
+            <option value="Tylezia" style="background:#0d121c">Tylezia</option>
+            <option value="Ombre" style="background:#0d121c">Ombre (Épique)</option>
+          </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 6px 14px; border-radius: 12px; font-size: 13px;">
+          <span style="color: var(--text-muted);">Horaire :</span>
+          <input type="text" id="raid-date" value="Samedi 21h00" style="background: transparent; color: white; border: none; font-weight: 600; width: 110px; outline: none;">
+        </div>
+      </div>
+    </div>
+
+    <!-- RAID HERO BANNER -->
+    <div id="raid-hero" class="raid-hero" style="background-image: url('/images/guides/gigalodon/118-boss-gigalodon.jpg'); margin-bottom: 28px;">
+      <div class="raid-hero-overlay"></div>
+      <div class="raid-hero-content">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <span id="raid-badge" class="badge badge-cyan">Raid de Guilde 3.6</span>
+          <span class="badge badge-gray">Niveau 200</span>
+          <span class="badge badge-gray">Format 16 Joueurs (2x 8)</span>
+          <span id="raid-lock-status" class="badge badge-amber">⚡ Prérequis Dofus Cauchemar conseillé</span>
+        </div>
+        <h1 id="raid-title" class="font-display" style="font-size: 38px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px;">
+          Gouffre du Gigalodon
+        </h1>
+        <p id="raid-desc" style="max-width: 800px; color: #cbd5e1; font-size: 15px; line-height: 1.5;">
+          Les 16 joueurs se séparent en deux ailes (Couloir Mureine & Couloir Exécrabe) pour récolter le Sel des Profondeurs et alimenter la Luminomachine, avant d'affronter Willorque puis le Gigalodon dans l'arène centrale.
+        </p>
+      </div>
+    </div>
+
+    <!-- GRID LAYOUT : ROSTER (LEFT) + TACTICAL WIDGETS (RIGHT) -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+
+      <!-- LEFT COLUMN : TWO 8-MAN CORRIDORS -->
+      <div style="display: flex; flex-direction: column; gap: 24px;">
+
+        <!-- WING A : COULOIR 1 (8 PLAYERS) -->
+        <div class="glass-panel" style="padding: 22px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #34d399; display: flex; align-items: center; justify-content: center; font-weight: 800;">
+                A
+              </div>
+              <div>
+                <h3 id="wing-a-title" class="font-display" style="font-size: 18px; font-weight: 700;">Couloir Ouest — Aile Mureine</h3>
+                <p id="wing-a-subtitle" style="font-size: 12px; color: var(--text-muted);">8 joueurs • Nécessite retrait PM lourd & Tanking obscurité</p>
+              </div>
+            </div>
+            <span id="wing-a-count" class="badge badge-emerald">8 / 8 Titulaires</span>
+          </div>
+
+          <!-- Slots Wing A -->
+          <div id="wing-a-slots" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- WING B : COULOIR 2 (8 PLAYERS) -->
+        <div class="glass-panel" style="padding: 22px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3); color: #22d3ee; display: flex; align-items: center; justify-content: center; font-weight: 800;">
+                B
+              </div>
+              <div>
+                <h3 id="wing-b-title" class="font-display" style="font-size: 18px; font-weight: 700;">Couloir Est — Aile Exécrabe & Luminomachine</h3>
+                <p id="wing-b-subtitle" style="font-size: 12px; color: var(--text-muted);">8 joueurs • Porteur de Torche & Énigme des statues</p>
+              </div>
+            </div>
+            <span id="wing-b-count" class="badge badge-cyan">8 / 8 Titulaires</span>
+          </div>
+
+          <!-- Slots Wing B -->
+          <div id="wing-b-slots" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- BENCH / REMPLAÇANTS -->
+        <div class="glass-panel" style="padding: 20px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--gold);">⏳</span>
+              <h3 class="font-display" style="font-size: 16px; font-weight: 700;">Banc des Remplaçants (File d'attente)</h3>
+            </div>
+            <span id="bench-count" class="badge badge-amber">2 Remplaçants inscrits</span>
+          </div>
+          <div id="bench-slots" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN : INITIATIVE ENGINE & TACTICAL TRACKER -->
+      <div style="display: flex; flex-direction: column; gap: 24px;">
+
+        <!-- INITIATIVE TRACKER FOR FINAL BOSS -->
+        <div class="glass-panel" style="padding: 22px; border-color: rgba(99, 102, 241, 0.3); background: linear-gradient(180deg, rgba(99, 102, 241, 0.08) 0%, rgba(13, 17, 27, 0.9) 100%);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; color: #a5b4fc; font-size: 14px;">
+                ⚡
+              </div>
+              <h3 class="font-display" style="font-size: 17px; font-weight: 700;">Ordre d'Initiative (Combat Boss)</h3>
+            </div>
+            <span class="badge badge-cyan" style="font-size: 10px;">Auto-trié</span>
+          </div>
+
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.4;">
+            Sur le boss final (8 joueurs réunis), l'ordre de tour est déterminant. Voici l'ordre résultant des initiatives saisies :
+          </p>
+
+          <div id="initiative-order-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;">
+            <!-- Rendered by JS -->
+          </div>
+
+          <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 10px; padding: 10px 12px; font-size: 12px; display: flex; gap: 8px; align-items: flex-start;">
+            <span style="color: #fbbf24; font-size: 14px; line-height: 1;">💡</span>
+            <span id="initiative-advice" style="color: #fde68a;">
+              <strong>Règle tactique :</strong> Le Pandawa Tank doit impérativement jouer T1 en Init #1 pour caler le boss contre le mur avant le tour de Willorque.
+            </span>
+          </div>
+        </div>
+
+        <!-- REAL-TIME ENIGMA CHECKLIST -->
+        <div class="glass-panel" style="padding: 22px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 18px;">🧩</span>
+              <h3 class="font-display" style="font-size: 17px; font-weight: 700;">Énigmes & Dalles Collectives</h3>
+            </div>
+            <span id="enigmes-progress" class="badge badge-emerald">0/3 Résolues</span>
+          </div>
+
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+            À cocher en direct pendant le raid pour informer les deux équipes sans encombrer le vocal.
+          </p>
+
+          <div id="enigmes-list">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- LOOT DISPATCHER WIDGET -->
+        <div class="glass-panel" style="padding: 22px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">🎁</span>
+              <h3 class="font-display" style="font-size: 17px; font-weight: 700;">Coffres & Répartition de Loot</h3>
+            </div>
+            <span class="badge badge-amber">16 Parts</span>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 14px; border: 1px solid rgba(255,255,255,0.05); font-size: 13px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="color: var(--text-muted);">Coffres Majestueux :</span>
+              <span class="font-mono" style="font-weight: 700; color: var(--gold);">4 coffres (Roster)</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="color: var(--text-muted);">Guildatons estimés :</span>
+              <span class="font-mono" style="font-weight: 700; color: var(--primary);">~320 / membre</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);">Règle de Guilde :</span>
+              <span style="font-weight: 600; color: #cbd5e1;">Besoin > Rôle > Random</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- AUTHENTIC SIGILOS COMPARISON SHOWCASE -->
+    <section id="decouvrir-sigilos" class="glass-panel" style="margin-top: 54px; padding: 40px 36px; border-color: rgba(16,185,129,0.3); background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(13,17,27,0.95) 100%);">
+      <div style="max-width: 820px; margin-bottom: 32px;">
+        <div style="display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <span class="badge badge-emerald">LE MODULE OFFICIEL SIGILOS</span>
+          <span style="font-size: 13px; color: var(--text-muted);">Pour les meneurs et officiers de guilde</span>
+        </div>
+        <h2 class="font-display" style="font-size: 32px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 12px; line-height: 1.2;">
+          Envie de vrais raids planifiés avec votre guilde ?
+        </h2>
+        <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6;">
+          Ce planificateur en ligne est un outil libre pour composer rapidement sur le pouce. 
+          Mais si vous gérez une guilde, <strong>SigilOS intègre un système d'événements complet</strong> connecté à votre serveur Discord, avec inscriptions réelles de vos membres, gestion des quotas et annonces synchronisées.
+        </p>
+      </div>
+
+      <!-- VISUAL COMPARISON : SIGILOS EVENT MODAL + DISCORD EMBED -->
+      <div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 24px; align-items: stretch; margin-bottom: 32px;">
+        
+        <!-- CARD 1 : SIGILOS IN-APP EVENT DETAIL -->
+        <div style="background: #1e1315; border: 1px solid rgba(244,63,94,0.3); border-radius: 18px; padding: 20px; box-shadow: 0 12px 35px rgba(0,0,0,0.5); display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <!-- Header bar -->
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 14px; margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 34px; height: 34px; border-radius: 8px; background: rgba(244,63,94,0.2); display: flex; align-items: center; justify-content: center; color: #fb7185;">
+                  ⚔️
+                </div>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span class="badge badge-rose" style="font-size: 10px;">RAID 3.6</span>
+                    <span class="badge badge-emerald" style="font-size: 10px;">OUVERT</span>
+                  </div>
+                  <div class="font-display" style="font-weight: 800; font-size: 18px; color: #fff; margin-top: 2px;">
+                    RAID : GIGALODON
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <span class="badge badge-gray" style="font-size: 10px;">Éditer</span>
+                <span class="badge badge-rose" style="font-size: 10px;">Clôturer le Raid</span>
+              </div>
+            </div>
+
+            <!-- Event Details Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px; margin-bottom: 16px;">
+              <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px;">
+                <div style="color: var(--text-muted);">📅 Date</div>
+                <div style="font-weight: 700; color: #fff; margin-top: 2px;">samedi 26 septembre</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px;">
+                <div style="color: var(--text-muted);">🕒 Horaires</div>
+                <div style="font-weight: 700; color: #fff; margin-top: 2px;">21:00 - 23:00</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px;">
+                <div style="color: var(--text-muted);">👥 Participants</div>
+                <div style="font-weight: 700; color: #fff; margin-top: 2px;">9 / 12 inscrits</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px;">
+                <div style="color: var(--text-muted);">👑 Organisateur</div>
+                <div style="font-weight: 700; color: var(--gold); margin-top: 2px;">Rakzia (Capitaine)</div>
+              </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div style="background: rgba(0,0,0,0.35); padding: 12px; border-radius: 12px; margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px;">
+                <span style="color: var(--text-muted);">Quotas de départ :</span>
+                <span class="badge badge-emerald" style="padding: 1px 6px;">✓ RAID GO (9/12)</span>
+              </div>
+              <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                <div style="width: 75%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399);"></div>
+              </div>
+            </div>
+
+            <!-- Inscription button -->
+            <div style="width: 100%; padding: 10px; border-radius: 10px; background: #3b82f6; color: white; text-align: center; font-weight: 700; font-size: 13px;">
+              ✓ S'INSCRIRE À L'ÉVÉNEMENT
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; text-align: right;">
+            <span style="font-size: 11px; color: var(--text-muted);">🔔 Rappels automatiques programmés</span>
+          </div>
+        </div>
+
+        <!-- CARD 2 : REAL DISCORD EMBED REPLICA -->
+        <div style="background: #2b2d31; border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; padding: 18px; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 12px 35px rgba(0,0,0,0.5); display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="border-left: 4px solid #f43f5e; padding-left: 12px;">
+              <div style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px;">
+                ⚔️ Raid : Gigalodon
+              </div>
+              <div style="font-size: 12px; color: #dbdee1; line-height: 1.5; margin-bottom: 10px;">
+                <div>📅 <strong>Date :</strong> 26/09/2026 à 21:00 (dans 8 jours)</div>
+                <div>👥 <strong>Places :</strong> 9 / 12 | 🔒 Guilde uniquement</div>
+                <div>👑 <strong>Capitaine :</strong> <span style="color:#f59e0b">@Rakzia</span></div>
+              </div>
+              
+              <div style="font-size: 11px; color: #949ba4; font-style: italic; margin-bottom: 12px; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px;">
+                "On va faire le full clean avec succès monstres / boss. Prévoir stuffs et Dofus Cauchemar..."
+              </div>
+
+              <div style="font-size: 12px; color: #fff;">
+                <div style="font-weight: 700; color: #34d399; margin-bottom: 4px;">✅ Inscrits (9) :</div>
+                <div style="color: #dbdee1; font-size: 11px; line-height: 1.4;">
+                  • Rakzia (Pandawa) • Shuffle-Deez (Féca) • Quencomte (Cra)...
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px; display: flex; gap: 8px;">
+            <div style="flex: 1; padding: 6px; background: #248046; border-radius: 4px; text-align: center; color: white; font-size: 11px; font-weight: 600;">
+              S'inscrire
+            </div>
+            <div style="flex: 1; padding: 6px; background: #da373c; border-radius: 4px; text-align: center; color: white; font-size: 11px; font-weight: 600;">
+              Se désinscrire
+            </div>
+            <div style="flex: 1; padding: 6px; background: #4e5058; border-radius: 4px; text-align: center; color: white; font-size: 11px; font-weight: 600;">
+              Voir Roster
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- FOOTER TEXT & REAL CTAS -->
+      <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <div style="font-size: 13px; color: var(--text-muted); max-width: 600px;">
+          Vous avez déjà une guilde sur Dofus ? Connectez votre serveur avec le bot SigilOS pour profiter du calendrier dynamique, de l'onboarding et du suivi de progression de vos membres.
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <a href="/login" class="btn btn-primary">
+            <span>Découvrir SigilOS pour ma Guilde →</span>
+          </a>
+          <button class="btn btn-discord" onclick="openDiscordModal()">
+            <span>Copier l'Annonce Discord</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL : EXPORT DISCORD -->
+  <div id="discord-modal" class="modal-backdrop" onclick="closeDiscordModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 32px; height: 32px; border-radius: 8px; background: #5865F2; display: flex; align-items: center; justify-content: center; color: white;">
+            ⚔️
+          </div>
+          <div>
+            <h3 class="font-display" style="font-size: 18px; font-weight: 700;">Aperçu de l'Annonce Discord</h3>
+            <p style="font-size: 12px; color: var(--text-muted);">Prêt à être copié dans votre salon #annonces-sorties</p>
+          </div>
+        </div>
+        <button onclick="closeDiscordModal()" style="background: transparent; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">✕</button>
+      </div>
+
+      <p style="font-size: 13px; color: #cbd5e1; margin-bottom: 12px;">
+        Copiez le texte ci-dessous et collez-le directement dans Discord : la mise en page et les séparations de couloirs s'afficheront impeccablement.
+      </p>
+
+      <textarea id="discord-raw-text" class="font-mono" style="width: 100%; height: 240px; background: #07090e; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px; color: #e2e8f0; font-size: 12px; resize: none; outline: none; margin-bottom: 18px; line-height: 1.5;"></textarea>
+
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 12px; color: var(--text-subtle);">Formaté avec SigilOS Raid Planner 3.6</span>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-outline" onclick="closeDiscordModal()">Fermer</button>
+          <button class="btn btn-discord" onclick="copyDiscordText()">
+            <span>📋 Copier dans le presse-papier</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast">
+    <span>✅</span>
+    <span id="toast-text">Texte Discord copié dans le presse-papier !</span>
+  </div>
+
+  <!-- JAVASCRIPT APP LOGIC -->
+  <script>
+    // DATA CONFIGURATION
+    const RAIDS = {
+      giga: {
+        id: "giga",
+        title: "Gouffre du Gigalodon",
+        badge: "Raid de Guilde 3.6",
+        badgeColor: "badge-cyan",
+        lockStatus: "⚡ Prérequis Dofus Cauchemar conseillé",
+        heroImg: "/images/guides/gigalodon/118-boss-gigalodon.jpg",
+        desc: "Les 16 joueurs se séparent en deux ailes (Couloir Mureine & Couloir Exécrabe) pour récolter le Sel des Profondeurs et alimenter la Luminomachine, avant d'affronter Willorque puis le Gigalodon dans l'arène centrale.",
+        advice: "<strong>Règle tactique :</strong> Le Pandawa Tank doit impérativement jouer T1 en Init #1 pour caler le boss contre le mur avant le tour de Willorque.",
+        wingA: {
+          title: "Couloir Ouest — Aile Mureine",
+          subtitle: "8 joueurs • Nécessite retrait PM lourd & Tanking obscurité",
+          color: "#34d399",
+          slots: [
+            { id: 1, name: "Azunai", classId: 12, className: "Pandawa", role: "Tank Principal (Tacle)", init: 3450, cauchemar: true },
+            { id: 2, name: "Kryptek", classId: 1, className: "Féca", role: "Protections / Retrait PM", init: 3100, cauchemar: true },
+            { id: 3, name: "Valérian", classId: 9, className: "Cra", role: "Burst Feu / Retrait PO", init: 2850, cauchemar: true },
+            { id: 4, name: "Shyvana", classId: 7, className: "Eniripsa", role: "Soin & Boost PA", init: 2400, cauchemar: false },
+            { id: 5, name: "Brakmar", classId: 8, className: "Iop", role: "Finisher Terre", init: 2750, cauchemar: true },
+            { id: 6, name: "Nexus", classId: 16, className: "Eliotrope", role: "Portails & Soutien", init: 2980, cauchemar: true },
+            { id: 7, name: "Gavroche", classId: 3, className: "Enutrof", role: "Retrait PM Mureine", init: 2600, cauchemar: false },
+            { id: 8, name: "Ténébra", classId: 4, className: "Sram", role: "Placement & Réseau", init: 2900, cauchemar: true }
+          ]
+        },
+        wingB: {
+          title: "Couloir Est — Aile Exécrabe & Luminomachine",
+          subtitle: "8 joueurs • Porteur de Torche & Énigme des statues",
+          color: "#22d3ee",
+          slots: [
+            { id: 9, name: "Luminar", classId: 20, className: "Forgelance", role: "Porteur Torche / Zone", init: 3300, cauchemar: true },
+            { id: 10, name: "Zul", classId: 11, className: "Sacrieur", role: "Off-Tank & Placement", init: 3050, cauchemar: true },
+            { id: 11, name: "Yndra", classId: 17, className: "Huppermage", role: "Vulné / Dégâts Multi", init: 2820, cauchemar: true },
+            { id: 12, name: "Khadgar", classId: 5, className: "Xelor", role: "Placement & Synchro", init: 2920, cauchemar: false },
+            { id: 13, name: "Stéphane", classId: 15, className: "Steamer", role: "Tourelles & Érosion", init: 2700, cauchemar: true },
+            { id: 14, name: "Végéta", classId: 14, className: "Zobal", role: "Boucliers Masque", init: 2880, cauchemar: true },
+            { id: 15, name: "Sylva", classId: 10, className: "Sadida", role: "Invocations & Entrave", init: 2350, cauchemar: false },
+            { id: 16, name: "Bombix", classId: 13, className: "Roublard", role: "Mur de Bombes", init: 2790, cauchemar: true }
+          ]
+        },
+        bench: [
+          { id: 17, name: "Draconic", classId: 9, className: "Cra", role: "Remplaçant DPS", init: 2700, cauchemar: true },
+          { id: 18, name: "Mégalodon", classId: 12, className: "Pandawa", role: "Remplaçant Tank", init: 3200, cauchemar: false }
+        ],
+        enigmes: [
+          { id: "e1", title: "1. Dépôt de Sel & Luminarium", desc: "Charger les 4 blocs de sel marin dans la Luminomachine centrale.", resolved: true },
+          { id: "e2", title: "2. Statues de l'Exécrabe", desc: "Orienter les 3 statues de crabe vers le vortex sous-marin.", resolved: false },
+          { id: "e3", title: "3. Raccourci de la faille", desc: "Dalle de pression synchronisée pour ouvrir la porte de l'arène de Willorque.", resolved: false }
+        ]
+      },
+
+      sanctuaire: {
+        id: "sanctuaire",
+        title: "Sanctuaire des Jardins Éternels",
+        badge: "Raid de Guilde 3.6",
+        badgeColor: "badge-rose",
+        lockStatus: "🛡️ Quêtes d'accès Belladone requises",
+        heroImg: "/images/guides/sanctuaire/110-95reine.jpg",
+        desc: "Progression croisée à 16 : 4 énigmes simultanées (Ouvrage Monochrome, Clos des Protecteurs, Réserve, Cour d'Éphèdre) débloquent les 4 Gardiens avant la convergence sur la Reine Belladone.",
+        advice: "<strong>Règle tactique :</strong> Sur la Reine Belladone, l'Érosion doit être posée avant son passage sous l'état Floracle. Pensez à synchroniser l'Ouvrage Monochrome.",
+        wingA: {
+          title: "Équipe Ouest — Ouvrage & Clos des Protecteurs",
+          subtitle: "8 joueurs • Gestion de l'énigme des livres & Gardien Épineux",
+          color: "#fb7185",
+          slots: [
+            { id: 1, name: "Kromgar", classId: 12, className: "Pandawa", role: "Tank Placement", init: 3350, cauchemar: true },
+            { id: 2, name: "Saphira", classId: 1, className: "Féca", role: "Glyphe Répulsion / Retrait", init: 3000, cauchemar: true },
+            { id: 3, name: "Archibald", classId: 9, className: "Cra", role: "DPS Distance Ouest", init: 2900, cauchemar: true },
+            { id: 4, name: "Nectar", classId: 7, className: "Eniripsa", role: "Soin Équipe A", init: 2500, cauchemar: true },
+            { id: 5, name: "Excalibur", classId: 8, className: "Iop", role: "Burst Destin", init: 2800, cauchemar: false },
+            { id: 6, name: "Cosmos", classId: 16, className: "Eliotrope", role: "Portails Traversants", init: 3050, cauchemar: true },
+            { id: 7, name: "Digger", classId: 3, className: "Enutrof", role: "Rall PM Dalles", init: 2650, cauchemar: false },
+            { id: 8, name: "Ombrie", classId: 4, className: "Sram", role: "Brumes Protectrices", init: 2950, cauchemar: true }
+          ]
+        },
+        wingB: {
+          title: "Équipe Est — Réserve & Cour d'Éphèdre",
+          subtitle: "8 joueurs • Libération des prisonniers & Gardien Floral",
+          color: "#f59e0b",
+          slots: [
+            { id: 9, name: "Solarius", classId: 20, className: "Forgelance", role: "Zone & Garde Est", init: 3200, cauchemar: true },
+            { id: 10, name: "Vigor", classId: 11, className: "Sacrieur", role: "Transposition / Tank", init: 3100, cauchemar: true },
+            { id: 11, name: "Astral", classId: 17, className: "Huppermage", role: "Propagation Élémentaire", init: 2880, cauchemar: true },
+            { id: 12, name: "Chrono", classId: 5, className: "Xelor", role: "Retrait PA Prisonniers", init: 2890, cauchemar: true },
+            { id: 13, name: "Nautilus", classId: 15, className: "Steamer", role: "Tourelle Chalutier", init: 2750, cauchemar: false },
+            { id: 14, name: "Mascarade", classId: 14, className: "Zobal", role: "Transe & Boucliers", init: 2840, cauchemar: true },
+            { id: 15, name: "Chloris", classId: 10, className: "Sadida", role: "Infection Floracle", init: 2450, cauchemar: false },
+            { id: 16, name: "Dynamite", classId: 13, className: "Roublard", role: "Kaboom Finisher", init: 2780, cauchemar: true }
+          ]
+        },
+        bench: [
+          { id: 17, name: "Félicia", classId: 6, className: "Ecaflip", role: "Remplaçant Érosion", init: 2750, cauchemar: true },
+          { id: 18, name: "Canis", classId: 18, className: "Ouginak", role: "Remplaçant Proie", init: 2900, cauchemar: false }
+        ],
+        enigmes: [
+          { id: "e1", title: "1. Énigme de l'Ouvrage Monochrome", desc: "Repositionner les livres selon l'ordre chromatique révélé dans la nef.", resolved: true },
+          { id: "e2", title: "2. Énigme du Clos des Protecteurs", desc: "Activer les 4 dalles sans marcher sur les dalles empoisonnées.", resolved: true },
+          { id: "e3", title: "3. Réserve de Belladone", desc: "Désactiver les verrous de sève pour ouvrir les cellules de détention.", resolved: false },
+          { id: "e4", title: "4. Énigme de la Cour d'Éphèdre", desc: "Synchroniser les leviers floraux avec l'équipe de l'Ouvrage.", resolved: false },
+          { id: "e5", title: "5. Les Gardiens (Couloir aux 60 monstres)", desc: "Vaincre les 4 gardiens en moins de 30 minutes de chrono.", resolved: false }
+        ]
+      }
+    };
+
+    let currentRaid = RAIDS.giga;
+
+    // RENDER FUNCTIONS
+    function renderRaid() {
+      // Hero
+      document.getElementById('raid-hero').style.backgroundImage = `url('${currentRaid.heroImg}')`;
+      document.getElementById('raid-title').textContent = currentRaid.title;
+      document.getElementById('raid-desc').textContent = currentRaid.desc;
+      document.getElementById('raid-badge').textContent = currentRaid.badge;
+      document.getElementById('raid-badge').className = `badge ${currentRaid.badgeColor}`;
+      document.getElementById('raid-lock-status').textContent = currentRaid.lockStatus;
+      document.getElementById('initiative-advice').innerHTML = currentRaid.advice;
+
+      // Titles
+      document.getElementById('wing-a-title').textContent = currentRaid.wingA.title;
+      document.getElementById('wing-a-subtitle').textContent = currentRaid.wingA.subtitle;
+      document.getElementById('wing-b-title').textContent = currentRaid.wingB.title;
+      document.getElementById('wing-b-subtitle').textContent = currentRaid.wingB.subtitle;
+
+      // Render Slots
+      renderSlots('wing-a-slots', currentRaid.wingA.slots);
+      renderSlots('wing-b-slots', currentRaid.wingB.slots);
+      renderSlots('bench-slots', currentRaid.bench);
+
+      // Render Tactical Widgets
+      renderInitiativeOrder();
+      renderEnigmes();
+    }
+
+    function renderSlots(containerId, slots) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = slots.map(slot => `
+        <div class="slot-card" onclick="editSlot(${slot.id})">
+          <div class="class-avatar">
+            <img src="/assets/dofus/classes/${slot.classId}.png" alt="${slot.className}" onerror="this.src='/assets/dofus/classes/1.png'">
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+              <span style="font-weight: 700; font-size: 14px; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${slot.name}</span>
+              <span class="font-mono" style="font-size: 11px; font-weight: 700; color: #fbbf24;">⚡ ${slot.init}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
+              <span style="font-size: 11px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${slot.role}</span>
+              ${slot.cauchemar ? '<span title="Dofus Cauchemar Obtenu" style="color: #a855f7; font-size: 10px; font-weight: 800; cursor: help;">[CAUCH.]</span>' : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderInitiativeOrder() {
+      // Take top 8 highest initiative players across both wings (representing the combined 8-man boss room)
+      const allPlayers = [...currentRaid.wingA.slots, ...currentRaid.wingB.slots];
+      const sorted = allPlayers.sort((a, b) => b.init - a.init).slice(0, 8);
+
+      const container = document.getElementById('initiative-order-list');
+      container.innerHTML = sorted.map((p, idx) => `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.04); font-size: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="font-mono" style="font-weight: 800; color: ${idx === 0 ? '#10b981' : '#94a3b8'}; width: 18px;">#${idx + 1}</span>
+            <img src="/assets/dofus/classes/${p.classId}.png" style="width: 18px; height: 18px; object-fit: contain;">
+            <span style="font-weight: 600; color: #e2e8f0;">${p.name}</span>
+            <span style="font-size: 10px; color: var(--text-subtle);">(${p.className})</span>
+          </div>
+          <span class="font-mono" style="font-weight: 700; color: #fbbf24;">${p.init} Init</span>
+        </div>
+      `).join('');
+    }
+
+    function renderEnigmes() {
+      const container = document.getElementById('enigmes-list');
+      const resolvedCount = currentRaid.enigmes.filter(e => e.resolved).length;
+      document.getElementById('enigmes-progress').textContent = `${resolvedCount}/${currentRaid.enigmes.length} Résolues`;
+
+      container.innerHTML = currentRaid.enigmes.map(e => `
+        <div class="enigme-item ${e.resolved ? 'resolved' : ''}" onclick="toggleEnigme('${e.id}')">
+          <div style="flex: 1; padding-right: 12px;">
+            <div style="font-weight: 700; font-size: 13px; color: ${e.resolved ? '#34d399' : '#f1f5f9'}; margin-bottom: 2px;">
+              ${e.title}
+            </div>
+            <div style="font-size: 11px; color: #94a3b8;">${e.desc}</div>
+          </div>
+          <span class="badge ${e.resolved ? 'badge-emerald' : 'badge-gray'}">
+            ${e.resolved ? '✓ VALIDÉE' : 'EN COURS'}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    function toggleEnigme(enigmeId) {
+      const e = currentRaid.enigmes.find(item => item.id === enigmeId);
+      if (e) {
+        e.resolved = !e.resolved;
+        renderEnigmes();
+        showToast(`Statut de l'énigme mis à jour : ${e.resolved ? 'Validée ✅' : 'En cours ⏳'}`);
+      }
+    }
+
+    function switchRaid(raidKey) {
+      currentRaid = RAIDS[raidKey];
+      if (raidKey === 'giga') {
+        document.getElementById('tab-giga').style.background = '#10b981';
+        document.getElementById('tab-giga').style.color = 'white';
+        document.getElementById('tab-sanctuaire').style.background = 'transparent';
+        document.getElementById('tab-sanctuaire').style.color = '#e2e8f0';
+      } else {
+        document.getElementById('tab-sanctuaire').style.background = '#f43f5e';
+        document.getElementById('tab-sanctuaire').style.color = 'white';
+        document.getElementById('tab-giga').style.background = 'transparent';
+        document.getElementById('tab-giga').style.color = '#e2e8f0';
+      }
+      renderRaid();
+    }
+
+    function editSlot(slotId) {
+      const all = [...currentRaid.wingA.slots, ...currentRaid.wingB.slots, ...currentRaid.bench];
+      const slot = all.find(s => s.id === slotId);
+      if (!slot) return;
+
+      const newName = prompt(`Modifier le pseudo pour le slot (${slot.className}) :`, slot.name);
+      if (newName !== null && newName.trim() !== '') {
+        slot.name = newName.trim();
+        const newInit = prompt(`Modifier l'initiative pour ${slot.name} :`, slot.init);
+        if (newInit !== null && !isNaN(parseInt(newInit))) {
+          slot.init = parseInt(newInit);
+        }
+        renderRaid();
+        showToast(`Joueur ${slot.name} mis à jour !`);
+      }
+    }
+
+    // DISCORD EXPORT GENERATOR
+    function generateDiscordMarkdown() {
+      const server = document.getElementById('server-select').value;
+      const date = document.getElementById('raid-date').value;
+
+      let md = `⚔️ **RAID DOFUS 3.6 — ${currentRaid.title.toUpperCase()}**\n`;
+      md += `📅 **Date :** ${date} | 🌐 **Serveur :** ${server} | 🛡️ **Format :** 16 Joueurs (2x 8)\n`;
+      md += `👑 **Organisé via :** SigilOS Raid Studio (Mode Libre)\n\n`;
+
+      md += `🟢 **COULOIR A — ${currentRaid.wingA.title.toUpperCase()}**\n`;
+      currentRaid.wingA.slots.forEach((s, i) => {
+        md += `> \`${i+1}.\` **${s.name}** (${s.className}) — *${s.role}* (⚡ ${s.init})\n`;
+      });
+
+      md += `\n🔵 **COULOIR B — ${currentRaid.wingB.title.toUpperCase()}**\n`;
+      currentRaid.wingB.slots.forEach((s, i) => {
+        md += `> \`${i+1}.\` **${s.name}** (${s.className}) — *${s.role}* (⚡ ${s.init})\n`;
+      });
+
+      if (currentRaid.bench.length > 0) {
+        md += `\n⏳ **Remplaçants :** ` + currentRaid.bench.map(b => `${b.name} (${b.className})`).join(', ') + `\n`;
+      }
+
+      md += `\n📌 **Consigne vocale :** Se connecter 15 min avant. Pensez à vos consommables & Dofus Cauchemar.`;
+      return md;
+    }
+
+    function openDiscordModal() {
+      document.getElementById('discord-raw-text').value = generateDiscordMarkdown();
+      document.getElementById('discord-modal').classList.add('active');
+    }
+
+    function closeDiscordModal(event) {
+      if (!event || event.target.id === 'discord-modal' || event.target.tagName === 'BUTTON') {
+        document.getElementById('discord-modal').classList.remove('active');
+      }
+    }
+
+    function copyDiscordText() {
+      const text = document.getElementById('discord-raw-text').value;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Texte Discord copié dans le presse-papier !');
+        closeDiscordModal();
+      });
+    }
+
+    function showToast(text) {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-text').textContent = text;
+      t.classList.add('show');
+      setTimeout(() => {
+        t.classList.remove('show');
+      }, 3000);
+    }
+
+    // INITIALIZE
+    renderRaid();
+  </script>
+</body>
+</html>

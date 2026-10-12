@@ -42,6 +42,8 @@ interface DirectoryMember {
 interface DirectoryAchievement {
     achievementId: string;
     achievementName: string;
+    /** 🐛 Mécanique réelle du succès (DofusDB) — même contenu que la fiche publique. */
+    description?: string | null;
     iconUrl: string | null;
     points: number;
     hasCompleted: DirectoryMember[];
@@ -52,29 +54,22 @@ interface SuccesDirectoryProps {
     guildId: string;
 }
 
-function MemberPill({
-    member,
-    variant,
-}: {
-    member: DirectoryMember;
-    variant: "missing" | "completed";
-}) {
+/**
+ * Ligne membre dense (annuaire, pas de pills) : avatar + pseudo + classe.
+ * Le statut se lit à la colonne (« Cherchent encore » / « Déjà validé »).
+ */
+function MemberRow({ member }: { member: DirectoryMember }) {
     const cls = member.classe ? getClass(member.classe) : null;
     return (
-        <div
-            className={cn(
-                "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 min-w-0",
-                variant === "missing" ? "bg-danger/5 border-danger/15" : "bg-success/10 border-success/20"
-            )}
-        >
-            <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 bg-background border border-border">
+        <div className="flex items-center gap-2 py-1 min-w-0">
+            <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 bg-background border border-border">
                 {member.imageUrl ? (
                     <img src={member.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
                 ) : (
-                    <Users className="w-3.5 h-3.5 m-auto text-muted-foreground/60" />
+                    <Users className="w-3 h-3 m-auto text-muted-foreground/60" />
                 )}
             </div>
-            <span className="text-xs font-bold text-foreground truncate">{member.name}</span>
+            <span className="text-xs font-bold text-foreground truncate flex-1 min-w-0">{member.name}</span>
             {cls && (
                 <img src={cls.icon} alt={member.classe || ""} className="w-4 h-4 object-contain shrink-0" title={member.classe || undefined} loading="lazy" />
             )}
@@ -82,54 +77,73 @@ function MemberPill({
     );
 }
 
+const MEMBER_PAGE_SIZE = 24;
+
 /**
- * Colonne de membres paginée : jamais plus de 24 pills au premier rendu,
- * puis bouton « Afficher 24 de plus ».
+ * Colonne de membres en liste dense + vraie pagination (jamais d'empilement
+ * infini : 24 lignes par page, compteur « 1–24 sur 99 »).
  */
 function MemberColumn({
     title,
-    variant,
     members,
-    visibleCount,
-    onShowMore,
+    page,
+    onPage,
     emptyLabel,
 }: {
     title: string;
-    variant: "missing" | "completed";
     members: DirectoryMember[];
-    visibleCount: number;
-    onShowMore: () => void;
+    page: number;
+    onPage: (next: number) => void;
     emptyLabel: string;
 }) {
     if (members.length === 0) {
         return (
             <div>
-                <p className={cn("text-caption font-bold uppercase tracking-widest mb-2", variant === "missing" ? "text-danger" : "text-success")}>
+                <p className="text-caption font-bold uppercase tracking-widest mb-2 text-muted-foreground">
                     {title}
                 </p>
                 <p className="text-xs text-muted-foreground italic py-2">{emptyLabel}</p>
             </div>
         );
     }
-    const visible = members.slice(0, visibleCount);
+    const pageCount = Math.max(1, Math.ceil(members.length / MEMBER_PAGE_SIZE));
+    const safePage = Math.min(Math.max(1, page), pageCount);
+    const start = (safePage - 1) * MEMBER_PAGE_SIZE;
+    const visible = members.slice(start, start + MEMBER_PAGE_SIZE);
     return (
         <div>
-            <p className={cn("text-caption font-bold uppercase tracking-widest mb-2", variant === "missing" ? "text-danger" : "text-success")}>
+            <p className="text-caption font-bold uppercase tracking-widest mb-1 text-muted-foreground">
                 {title}
             </p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                 {visible.map((m) => (
-                    <MemberPill key={m.id} member={m} variant={variant} />
+                    <MemberRow key={m.id} member={m} />
                 ))}
             </div>
-            {members.length > visible.length && (
-                <button
-                    type="button"
-                    onClick={onShowMore}
-                    className="mt-2 text-xs font-bold text-info hover:text-info/80 transition-colors"
-                >
-                    Afficher 24 de plus ({members.length - visible.length} restants)
-                </button>
+            {pageCount > 1 && (
+                <div className="mt-2 flex items-center gap-2">
+                    <button
+                        type="button"
+                        disabled={safePage <= 1}
+                        onClick={() => onPage(safePage - 1)}
+                        aria-label="Page précédente"
+                        className="w-7 h-7 rounded-lg border border-border bg-surface text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors disabled:opacity-40 disabled:cursor-default"
+                    >
+                        ‹
+                    </button>
+                    <span className="text-[11px] font-bold text-muted-foreground tabular-nums">
+                        {start + 1}–{start + visible.length} sur {members.length}
+                    </span>
+                    <button
+                        type="button"
+                        disabled={safePage >= pageCount}
+                        onClick={() => onPage(safePage + 1)}
+                        aria-label="Page suivante"
+                        className="w-7 h-7 rounded-lg border border-border bg-surface text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors disabled:opacity-40 disabled:cursor-default"
+                    >
+                        ›
+                    </button>
+                </div>
             )}
         </div>
     );
@@ -156,8 +170,8 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
     const [memberQuery, setMemberQuery] = useState("");
     const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
     const [memberStatus, setMemberStatus] = useState<"all" | "missing" | "completed">("all");
-    const [visibleMissingCount, setVisibleMissingCount] = useState(24);
-    const [visibleCompletedCount, setVisibleCompletedCount] = useState(24);
+    const [missingPage, setMissingPage] = useState(1);
+    const [completedPage, setCompletedPage] = useState(1);
     const [classPopoverOpen, setClassPopoverOpen] = useState(false);
 
     const selectedDungeonId = searchParams.get("dungeon");
@@ -239,8 +253,8 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
 
         setMemberQuery("");
         setMemberStatus("all");
-        setVisibleMissingCount(24);
-        setVisibleCompletedCount(24);
+        setMissingPage(1);
+        setCompletedPage(1);
 
         // Un achievementId obsolète (appartenait à un autre donjon) est nettoyé de l'URL.
         if (!inList && urlAchv) {
@@ -250,10 +264,10 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
         }
     }, [selectedDungeon, loadingDir, directory, searchParams, router]);
 
-    // À chaque changement de succès ouvert ou de filtres : on repart sur 24 pills par colonne.
+    // À chaque changement de succès ouvert ou de filtres : retour page 1.
     useEffect(() => {
-        setVisibleMissingCount(24);
-        setVisibleCompletedCount(24);
+        setMissingPage(1);
+        setCompletedPage(1);
     }, [expandedAchievementId, memberQuery, selectedClasses, memberStatus]);
 
     const toggleAchievement = useCallback(
@@ -351,7 +365,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Rechercher un donjon ou un boss…"
-                    className="w-full h-11 pl-9 pr-8 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-warning/40"
+                                                                        className="w-full h-11 pl-9 pr-8 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 {search && (
                     <button
@@ -382,7 +396,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                     className={cn(
                                         "w-full flex items-center gap-3 p-3 rounded-2xl border text-left transition-colors min-h-16",
                                         active
-                                            ? "bg-elevated/90 border-warning/50"
+                                            ? "bg-elevated/90 border-border-strong"
                                             : "bg-surface/70 border-border hover:bg-elevated/70"
                                     )}
                                 >
@@ -452,31 +466,13 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                 Guide DPNL
                                             </a>
                                         )}
-                                        {selectedDungeon.dofensiveUrl && (
-                                            <a
-                                                href={selectedDungeon.dofensiveUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 px-3 py-2 min-h-11 rounded-xl border border-border bg-surface text-xs font-bold text-foreground hover:bg-elevated transition-colors"
-                                            >
-                                                <img
-                                                    src="https://www.google.com/s2/favicons?domain=dofensive.com&sz=32"
-                                                    alt=""
-                                                    className="w-3.5 h-3.5 rounded-sm shrink-0"
-                                                    onError={(e) => {
-                                                        (e.target as HTMLImageElement).style.display = "none";
-                                                    }}
-                                                />
-                                                Dofensive
-                                            </a>
-                                        )}
                                         <Link
                                             href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${selectedDungeon.id}${
                                                 expandedAchievementId ? `&achievementId=${expandedAchievementId}` : ""
                                             }`}
-                                            className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-info/30 bg-info/10 text-info text-xs font-bold uppercase tracking-wide hover:bg-info/20 transition-colors"
+                                            className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-border bg-surface text-foreground text-xs font-bold uppercase tracking-wide hover:bg-elevated transition-colors"
                                         >
-                                            <Swords className="w-4 h-4" /> Chercher un groupe
+                                            <Swords className="w-4 h-4 text-muted-foreground" /> Chercher un groupe
                                         </Link>
                                     </div>
                                 </div>
@@ -512,8 +508,8 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                 Succès du donjon · {directory.filter((a) => a.missing.length === 0).length} / {directory.length}
                                             </p>
                                             {directory.every((a) => a.missing.length === 0) && (
-                                                <span className="text-xs font-black uppercase tracking-wide text-success bg-success/10 border border-success/25 px-2 py-1 rounded-full">
-                                                    Toute la guilde a tout validé 🎉
+                                                <span className="text-xs font-black uppercase tracking-wide text-muted-foreground bg-surface border border-border px-2 py-1 rounded-full">
+                                                    Toute la guilde a tout validé
                                                 </span>
                                             )}
                                         </div>
@@ -549,11 +545,18 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                             <div className="flex items-center gap-2">
                                                                 <p className="text-sm font-bold text-foreground truncate">{achv.achievementName}</p>
                                                                 {everyone && (
-                                                                    <span className="text-[10px] font-black uppercase tracking-wide text-success bg-success/10 border border-success/25 px-1.5 py-0.5 rounded-full shrink-0">
-                                                                        Tous validé 🎉
+                                                                    <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground bg-surface border border-border px-1.5 py-0.5 rounded-full shrink-0">
+                                                                        Tous validé
                                                                     </span>
                                                                 )}
                                                             </div>
+                                                            {/* 🐛 Demande user du 12/10/2026 : « le vrai dialogue
+                                                                de la mécanique pour chaque succès […] interne/public ». */}
+                                                            {achv.description && (
+                                                                <p className="text-caption text-muted-foreground mt-1 leading-relaxed line-clamp-2">
+                                                                    {achv.description}
+                                                                </p>
+                                                            )}
                                                             <div className="flex items-center gap-2 mt-1">
                                                                 <div className="w-16 h-1.5 rounded-full bg-background border border-border overflow-hidden shrink-0">
                                                                     <div className="h-full rounded-full bg-warning transition-all" style={{ width: `${pct}%` }} />
@@ -576,7 +579,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                                         value={memberQuery}
                                                                         onChange={(e) => setMemberQuery(e.target.value)}
                                                                         placeholder="Rechercher un pseudo ou une classe…"
-                                                                        className="w-full h-11 pl-9 pr-8 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-warning/40"
+                    className="w-full h-11 pl-9 pr-8 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                                                     />
                                                                     {memberQuery && (
                                                                         <button
@@ -598,7 +601,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                                         className={cn(
                                                                             "inline-flex items-center gap-2 h-11 px-3 rounded-xl border text-xs font-bold transition-colors",
                                                                             selectedClasses.length > 0
-                                                                                ? "border-warning/40 bg-warning/10 text-foreground"
+                                                                                ? "border-border-strong bg-elevated text-foreground"
                                                                                 : "border-border bg-surface text-muted-foreground hover:bg-elevated"
                                                                         )}
                                                                     >
@@ -620,7 +623,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                                                     }}
                                                                                     className={cn(
                                                                                         "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-colors",
-                                                                                        selectedClasses.length === 0 ? "text-warning" : "text-muted-foreground hover:bg-elevated"
+                                                                                         selectedClasses.length === 0 ? "text-foreground" : "text-muted-foreground hover:bg-elevated"
                                                                                     )}
                                                                                 >
                                                                                     <span>Toutes classes</span>
@@ -636,7 +639,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                                                             onClick={() => toggleClass(cls.id)}
                                                                                             className={cn(
                                                                                                 "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-colors",
-                                                                                                active ? "bg-warning/10 text-foreground" : "text-muted-foreground hover:bg-elevated"
+                                                                                                active ? "bg-elevated text-foreground" : "text-muted-foreground hover:bg-elevated"
                                                                                             )}
                                                                                         >
                                                                                             <img src={cls.icon} alt="" className="w-4 h-4 object-contain shrink-0" />
@@ -664,7 +667,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                                         className={cn(
                                                                             "px-3.5 py-2 min-h-11 rounded-xl border text-xs font-bold transition-colors",
                                                                             memberStatus === s.id
-                                                                                ? "bg-elevated border-warning/50 text-foreground"
+                                                                                ? "bg-elevated border-border-strong text-foreground"
                                                                                 : "bg-surface/70 border-border text-muted-foreground hover:bg-elevated/70"
                                                                         )}
                                                                     >
@@ -677,7 +680,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                                 </span>
                                                             </div>
 
-                                                            {/* Colonnes membres : scoped au succès ouvert, max 24 pills puis « Afficher 24 de plus » */}
+                                                            {/* Colonnes membres : scoped au succès ouvert, listes denses + pagination 24/page */}
                                                             {hasActiveFilters &&
                                                             filteredMembers.missing.length === 0 &&
                                                             filteredMembers.hasCompleted.length === 0 ? (
@@ -698,37 +701,33 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                             ) : memberStatus === "missing" ? (
                                                                 <MemberColumn
                                                                     title={`Cherchent encore (${filteredMembers.missing.length})`}
-                                                                    variant="missing"
                                                                     members={filteredMembers.missing}
-                                                                    visibleCount={visibleMissingCount}
-                                                                    onShowMore={() => setVisibleMissingCount((c) => c + 24)}
+                                                                    page={missingPage}
+                                                                    onPage={setMissingPage}
                                                                     emptyLabel="Toute la guilde a validé ce succès !"
                                                                 />
                                                             ) : memberStatus === "completed" ? (
                                                                 <MemberColumn
                                                                     title={`Déjà validé (${filteredMembers.hasCompleted.length})`}
-                                                                    variant="completed"
                                                                     members={filteredMembers.hasCompleted}
-                                                                    visibleCount={visibleCompletedCount}
-                                                                    onShowMore={() => setVisibleCompletedCount((c) => c + 24)}
+                                                                    page={completedPage}
+                                                                    onPage={setCompletedPage}
                                                                     emptyLabel="Personne ne l'a encore validé."
                                                                 />
                                                             ) : (
                                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                                     <MemberColumn
                                                                         title={`Cherchent encore (${filteredMembers.missing.length})`}
-                                                                        variant="missing"
                                                                         members={filteredMembers.missing}
-                                                                        visibleCount={visibleMissingCount}
-                                                                        onShowMore={() => setVisibleMissingCount((c) => c + 24)}
+                                                                        page={missingPage}
+                                                                        onPage={setMissingPage}
                                                                         emptyLabel="Toute la guilde a validé ce succès !"
                                                                     />
                                                                     <MemberColumn
                                                                         title={`Déjà validé (${filteredMembers.hasCompleted.length})`}
-                                                                        variant="completed"
                                                                         members={filteredMembers.hasCompleted}
-                                                                        visibleCount={visibleCompletedCount}
-                                                                        onShowMore={() => setVisibleCompletedCount((c) => c + 24)}
+                                                                        page={completedPage}
+                                                                        onPage={setCompletedPage}
                                                                         emptyLabel="Personne ne l'a encore validé."
                                                                     />
                                                                 </div>

@@ -610,7 +610,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                         <div className="flex items-center justify-between gap-4">
                                             <div className="flex items-center gap-2.5">
                                                 <div className="p-1.5 rounded-lg bg-violet-500/15">
-                                                    <img src="/kamas-violet.png" alt="🟣" className="w-5 h-5" />
+                                                    <img src="/assets/icons/kamas-violet.png" alt="🟣" className="w-5 h-5" />
                                                 </div>
                                                 <div>
                                                     <p className="text-xs font-semibold text-foreground">

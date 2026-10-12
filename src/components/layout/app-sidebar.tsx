@@ -38,12 +38,14 @@ import {
     EyeOff,
     Settings,
     CheckCircle,
-    Rocket,
     History,
     Bug,
     Coins,
     Map,
-    CalendarClock
+    CalendarClock,
+    Ticket,
+    Terminal,
+    Store,
 } from "lucide-react";
 import { SidebarSearch } from "./sidebar-search";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -64,6 +66,8 @@ import { Separator } from "@/components/ui/separator";
 import { togglePinnedNavItem, toggleHiddenNavItem } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import { getUnreadNotifications } from "@/server/actions/notification-actions";
+import { isNavLockedDuringOnboarding } from "@/lib/onboarding-gating";
+import { navTelemetryId } from "@/lib/telemetry/normalize";
 
 interface AppSidebarProps {
     guildId: string;
@@ -72,7 +76,6 @@ interface AppSidebarProps {
     modules?: GuildModulesState;
     userGuilds?: { id: string; name: string; iconUrl: string | null }[];
     className?: string;
-    roadmapEnabled?: boolean;
 }
 
 export function AppSidebar({
@@ -81,7 +84,6 @@ export function AppSidebar({
     guildData,
     userGuilds = [],
     modules = DEFAULT_MODULES,
-    roadmapEnabled = false,
     className
 }: AppSidebarProps) {
     const [mounted, setMounted] = useState(false);
@@ -189,37 +191,37 @@ export function AppSidebar({
 
     // 1. HORS SECTION
     const NAV_GLOBAL = [
-        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "indigo", visible: user.isMember && user.canViewDashboard, isDashboard: true },
+        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, imgSrc: "/assets/nav/grid.png", exact: true, color: "indigo", visible: user.isMember && user.canViewDashboard, isDashboard: true },
     ];
 
     // 3. PROGRESSION
     const NAV_PROGRESSION = [
-        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "amber", tourKey: "missions", visible: user.canViewMissions && modules.missions },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "amber", tourKey: "ladder", visible: user.canViewLadder && modules.ladder },
-        { name: "Succès", href: `/dashboard/${guildId}/succes`, icon: Award, color: "amber", tourKey: "succes", visible: user.canViewSucces && modules.succes },
-        { name: "Les Dofus", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/module-dofus/Dofus_Sylvestre.png", color: "amber", tourKey: "quetes", visible: user.canViewQuests && modules.quests },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/assets/icons/ocre.png", color: "amber", tourKey: "ocre", visible: user.canViewOcre && modules.ocre },
+        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, imgSrc: "/assets/nav/quests.png", color: "amber", tourKey: "missions", visible: user.canViewMissions && modules.missions },
+        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, imgSrc: "/assets/nav/trophy.png", color: "amber", tourKey: "ladder", visible: user.canViewLadder && modules.ladder },
+        { name: "Succès/Fiches BOSS", href: `/dashboard/${guildId}/succes`, icon: Award, imgSrc: "/assets/nav/achievement.png", color: "amber", tourKey: "succes", visible: user.canViewSucces && modules.succes },
+        { name: "Les guides", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/assets/nav/sylvestre-white.png", color: "amber", tourKey: "quetes", visible: user.canViewQuests && modules.quests },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/assets/nav/archimonster.png", color: "amber", tourKey: "ocre", visible: user.canViewOcre && modules.ocre },
     ];
 
     // 4. OUTILS
     const NAV_TOOLS: any[] = [
-        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "indigo", tourKey: "songes", visible: user.canViewSonges && modules.songes },
-        { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
-        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", tourKey: "donjons", visible: user.canViewQuests && modules.donjons },
-        { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
-        { name: "Planning", href: `/dashboard/${guildId}/planning`, icon: CalendarClock, color: "indigo", tourKey: "availability", visible: user.canViewAvailability && modules.availability },
+        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, imgSrc: "/assets/nav/boss.png", color: "indigo", tourKey: "donjons", visible: user.canViewQuests && modules.donjons },
+        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, imgSrc: "/assets/nav/infinite.png", color: "indigo", tourKey: "songes", visible: user.canViewSonges && modules.songes },
+        { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, imgSrc: "/assets/nav/panoplie.png", color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
+        { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, imgSrc: "/assets/nav/exchange.png", color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
+        { name: "Marché", href: `/dashboard/${guildId}/marche`, icon: Store, imgSrc: "/assets/nav/exchange.png", color: "indigo", tourKey: "marche", visible: user.canViewMarket && modules.marche },
+        { name: "Planning", href: `/dashboard/${guildId}/planning`, icon: CalendarClock, imgSrc: "/assets/nav/hourglass.png", color: "indigo", tourKey: "availability", visible: user.canViewAvailability && modules.availability },
     ];
 
     // 5. AUTRES
     const NAV_OTHERS = [
-        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames },
-        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, color: "cyan", tourKey: "polls", visible: user.canViewPolls && modules.polls },
-        { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
-        { name: "Roadmap", href: "/roadmap", icon: Rocket, color: "amber", visible: roadmapEnabled },
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, imgSrc: "/assets/nav/dice.png", color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames && modules.minigames },
+        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, imgSrc: "/assets/nav/chat.png", color: "cyan", tourKey: "polls", visible: user.canViewPolls && modules.polls },
+        { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, imgSrc: "/assets/dofus/modules/map.png", color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
     ];
 
-    const NAV_ADMIN_TOP = { 
-        name: "Centre Admin", 
+    const NAV_ADMIN_TOP = {
+        name: "Staff",
         href: `/dashboard/${guildId}/admin`, 
         icon: Shield, 
         exact: true, 
@@ -236,6 +238,9 @@ export function AppSidebar({
             `/dashboard/${guildId}/admin/points`,
             `/dashboard/${guildId}/missions/manage`,
             `/dashboard/${guildId}/admin/logs`,
+            `/dashboard/${guildId}/reaction-roles`,
+            `/dashboard/${guildId}/tickets`,
+            `/dashboard/${guildId}/admin/commandes`,
         ]
     };
 
@@ -247,13 +252,15 @@ export function AppSidebar({
         ...NAV_TOOLS,
         ...NAV_OTHERS,
         NAV_ADMIN_TOP,
-        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald", visible: user.canViewRoster },
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald", visible: user.canViewCalendar },
-        { name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald", visible: user.canViewResources && modules.resources },
+        { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, imgSrc: "/assets/nav/genealogy.png", color: "emerald", visible: user.canViewRoster && modules.roster },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, imgSrc: "/assets/nav/calendar.png", color: "emerald", visible: user.canViewCalendar && modules.calendar },
+        { name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, imgSrc: "/assets/nav/resources.png", color: "emerald", visible: user.canViewResources && modules.resources },
+        { name: "Commandes Bot Discord", href: `/dashboard/${guildId}/commandes`, icon: Terminal, imgSrc: "/assets/nav/cog.png", color: "emerald", visible: user.canViewCommands && modules.commandes },
         { 
             name: "La guilde", 
             href: `/dashboard/${guildId}/guild-hub`, 
             icon: Sparkles, 
+            imgSrc: "/assets/nav/guild.png",
             color: "emerald",
             visible: (user.canViewWelcome || user.canViewPresentation || user.canViewStats),
             aliases: [
@@ -266,18 +273,30 @@ export function AppSidebar({
         // ADMIN SUB-ROUTES (Searchable & Pinnable)
         { name: "Paramètres Généraux", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "amber", visible: user.canViewSettings },
         { name: "Rôles & Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "zinc", visible: user.canManageRBAC },
+        { name: "Commandes Slash Discord", href: `/dashboard/${guildId}/admin/commandes`, icon: Terminal, color: "emerald", visible: user.isDiscordAdmin },
         { name: "Gestion des Modules", href: `/dashboard/${guildId}/admin/modules`, icon: Hammer, color: "indigo", visible: user.isDiscordAdmin },
-        { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation },
-        { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions },
-        { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions },
-        { name: "Gestion des Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, color: "cyan", visible: user.canManageMembers || user.canManageRelance },
+        { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation && modules.presentation },
+        { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions && modules.missions },
+        { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions && modules.missions },
+        { name: "Membres & Recrutement", href: `/dashboard/${guildId}/admin/members`, icon: Users, color: "cyan", visible: user.canManageMembers || user.canManageRelance },
         { name: "Points de Contribution", href: `/dashboard/${guildId}/admin/points`, icon: Coins, color: "amber", visible: user.canManagePoints },
-        { name: "Audit Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "zinc", visible: user.canViewAuditLogs },
+        { name: "Rôles par Réaction", href: `/dashboard/${guildId}/reaction-roles`, icon: Sparkles, color: "purple", visible: user.canManageReactionRoles && modules.reactionRoles },
+        { name: "Bot Tickets & Support", href: `/dashboard/${guildId}/tickets`, icon: Ticket, color: "amber", visible: user.canManageTickets && modules.tickets },
+        { name: "Logs d'Audit", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "rose", visible: user.canViewAuditLogs && modules.logs },
+        { name: "Documentation", href: "/docs", icon: BookOpen, color: "teal", visible: true },
         { name: "Mises à jour", href: "/changelog", icon: History, color: "indigo", visible: true },
         { name: "Tracker de Bugs", href: `/dashboard/${guildId}/tracker`, icon: Bug, color: "amber", visible: true },
     ];
 
     // --- NAVIGATION GROUPS ---
+
+    // Verrou onboarding : tant que la mise en route n'est pas terminée,
+    // l'admin ne voit QUE le Centre Admin (le reste — Dashboard, La guilde,
+    // Commandes… — fuyait à la 1re arrivée). God exempté (inspection).
+    const hideNonAdminNav = isNavLockedDuringOnboarding({
+        isOnboardingComplete: !!user.isOnboardingComplete,
+        isSuperAdmin: !!user.isSuperAdmin,
+    });
 
     // Permissions helpers — computed once
     const showProgressionGroup = Boolean(
@@ -290,6 +309,18 @@ export function AppSidebar({
 
     const showAdminGroup = hasAnyAdminPermission && !localPinnedHrefs.includes(NAV_ADMIN_TOP.href) && !localHiddenHrefs.includes(NAV_ADMIN_TOP.href);
 
+    // Console Pilotage — page dédiée natifs Discord (owner/0x8). Les délégués
+    // gardent /admin + /admin/permissions, jamais le pilotage.
+    const NAV_PILOTAGE = {
+        name: "Pilotage",
+        href: `/dashboard/${guildId}/admin/pilotage`,
+        icon: Crown,
+        exact: true,
+        color: "amber",
+        visible: user.isDiscordAdmin,
+        prefetch: false,
+    };
+
     const pinnedItems = localPinnedHrefs
         .filter(href => !localHiddenHrefs.includes(href))
         .map(href => NAV_REGISTRY.find(item => item.href === href))
@@ -300,6 +331,48 @@ export function AppSidebar({
         .filter(item => item && item.visible !== false) as any[];
 
     const [hiddenOpen, setHiddenOpen] = useState(true);
+
+    // Navbar redimensionnable à la volée (desktop) : largeur persistée en
+    // localStorage, propagée au layout via la variable CSS --app-sidebar-width
+    // (consommée uniquement par le layout dashboard fixe).
+    const APP_SIDEBAR_DEFAULT = 280;
+    const APP_SIDEBAR_MIN = 232;
+    const APP_SIDEBAR_MAX = 400;
+    const [sidebarWidth, setSidebarWidth] = useState(APP_SIDEBAR_DEFAULT);
+    const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+    const sidebarRef = useRef<HTMLDivElement>(null);
+    const sidebarWidthRef = useRef(sidebarWidth);
+    useEffect(() => {
+        sidebarWidthRef.current = sidebarWidth;
+        document.documentElement.style.setProperty("--app-sidebar-width", `${sidebarWidth}px`);
+    }, [sidebarWidth]);
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("sigilos-app-sidebar-width");
+            if (saved) {
+                const parsed = parseInt(saved, 10);
+                if (!Number.isNaN(parsed)) setSidebarWidth(Math.min(Math.max(parsed, APP_SIDEBAR_MIN), APP_SIDEBAR_MAX));
+            }
+        } catch { /* localStorage indisponible — largeur par défaut */ }
+    }, []);
+    useEffect(() => {
+        if (!isResizingSidebar) return;
+        const onMove = (e: MouseEvent) => {
+            const left = sidebarRef.current?.getBoundingClientRect().left ?? 0;
+            const next = Math.min(Math.max(e.clientX - left, APP_SIDEBAR_MIN), APP_SIDEBAR_MAX);
+            setSidebarWidth(next);
+        };
+        const onUp = () => {
+            setIsResizingSidebar(false);
+            try { localStorage.setItem("sigilos-app-sidebar-width", String(sidebarWidthRef.current)); } catch { /* ignore */ }
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+        return () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
+    }, [isResizingSidebar]);
 
     const handleTogglePin = async (href: string) => {
         // Optimistic Update
@@ -344,7 +417,7 @@ export function AppSidebar({
     };
 
     return (
-        <div className={cn("flex flex-col h-full bg-background border-r border-border", className)}>
+        <div ref={sidebarRef} className={cn("relative flex flex-col h-full bg-background border-r border-border", className)}>
 
             {/* 1. HEADER: BRAND & GUILD SWITCHER */}
             <div className="p-4 pb-2 space-y-4">
@@ -466,8 +539,8 @@ export function AppSidebar({
                     <nav className="space-y-8 pb-10">
                         <AnimatePresence mode="popLayout" initial={false}>
 
-                        {/* SECTION: FAVORI / PINNED */}
-                        {pinnedItems.length > 0 && (
+                        {/* SECTION: FAVORI / PINNED (masquée pendant l'onboarding) */}
+                        {!hideNonAdminNav && pinnedItems.length > 0 && (
                                 <div key="section-favorites" className="space-y-1 relative group/section">
                                     <SectionTitle 
                                         label="Favoris" 
@@ -500,7 +573,8 @@ export function AppSidebar({
                                 </div>
                         )}
 
-                        {/* SECTION: GLOBAL (DASHBOARD CARD) */}
+                        {/* SECTION: GLOBAL (DASHBOARD CARD — masquée pendant l'onboarding) */}
+                        {!hideNonAdminNav && (
                         <div key="section-global" className="mb-10 px-1">
                             <div className="space-y-1">
                                 {NAV_GLOBAL.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
@@ -515,7 +589,9 @@ export function AppSidebar({
                             ))}
                             </div>
                         </div>
+                        )}
 
+                        {!hideNonAdminNav && (
                         <div key="section-informations" className="relative group/section" data-tour-section="informations">
                             <SectionTitle 
                                 label="Informations" 
@@ -542,6 +618,7 @@ export function AppSidebar({
                                                     name: "La guilde", 
                                                     href: `/dashboard/${guildId}/guild-hub`, 
                                                     icon: Sparkles, 
+                                                    imgSrc: "/assets/nav/guild.png",
                                                     color: "emerald",
                                                     tourKey: "la-guilde",
                                                     aliases: [
@@ -562,13 +639,13 @@ export function AppSidebar({
                                             />
                                     )}
 
-                                    {/* Annuaire - Direct Link */}
-                                    {user.canViewRoster && 
-                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/members`) && 
+                                    {/* Annuaire - Direct Link (verrou module : invisible tant que l'admin n'active pas le module) */}
+                                    {user.canViewRoster && modules.roster &&
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/members`) &&
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/members`) && (
                                         <NavItem 
                                             key={`nav-roster`}
-                                            item={{ name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald", tourKey: "annuaire" }} 
+                                                item={{ name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, imgSrc: "/assets/nav/genealogy.png", color: "emerald", tourKey: "annuaire" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/members`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
@@ -577,13 +654,13 @@ export function AppSidebar({
                                         />
                                     )}
                                     
-                                    {/* Calendrier - Direct Link */}
-                                    {user.canViewCalendar && 
-                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/calendar`) && 
+                                    {/* Calendrier - Direct Link (verrou module : invisible tant que l'admin n'active pas le module) */}
+                                    {user.canViewCalendar && modules.calendar &&
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/calendar`) &&
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/calendar`) && (
                                         <NavItem 
                                             key={`nav-calendar`}
-                                            item={{ name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald", tourKey: "calendar" }} 
+                                                item={{ name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, imgSrc: "/assets/nav/calendar.png", color: "emerald", tourKey: "calendar" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/calendar`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
@@ -598,7 +675,7 @@ export function AppSidebar({
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/ressources`) && (
                                         <NavItem 
                                             key={`nav-resources`}
-                                            item={{ name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald", tourKey: "ressources" }} 
+                                                item={{ name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, imgSrc: "/assets/nav/resources.png", color: "emerald", tourKey: "ressources" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/ressources`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
@@ -606,13 +683,29 @@ export function AppSidebar({
                                             unreadCount={getUnreadCount(`/dashboard/${guildId}/ressources`)}
                                         />
                                     )}
+
+                                    {/* Commandes Bot - Direct Link */}
+                                    {user.canViewCommands && 
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/commandes`) && 
+                                    !localHiddenHrefs.includes(`/dashboard/${guildId}/commandes`) && (
+                                        <NavItem 
+                                            key={`nav-commandes`}
+                                                item={{ name: "Commandes Bot Discord", href: `/dashboard/${guildId}/commandes`, icon: Terminal, imgSrc: "/assets/nav/cog.png", color: "emerald", tourKey: "commandes" }} 
+                                            isActive={checkIsActive(`/dashboard/${guildId}/commandes`)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                            unreadCount={0}
+                                        />
+                                    )}
                                 </motion.div>
                             )}
                             <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-150" />
                         </div>
+                        )}
 
-                        {/* SECTION: PROGRESSION */}
-                        {showProgressionGroup && (
+                        {/* SECTION: PROGRESSION (masquée pendant l'onboarding) */}
+                        {!hideNonAdminNav && showProgressionGroup && (
                             <div key="section-progression" className="relative group/section" data-tour-section="progression">
                                 <SectionTitle 
                                     label="Progression" 
@@ -645,6 +738,7 @@ export function AppSidebar({
                             </div>
                         )}
 
+                        {!hideNonAdminNav && (
                         <div key="section-tools" className="relative group/section">
                             <SectionTitle 
                                 label="Outils" 
@@ -675,7 +769,9 @@ export function AppSidebar({
                             )}
                             <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
                         </div>
+                        )}
 
+                        {!hideNonAdminNav && (
                         <div key="section-others" className="relative group/section">
                             <SectionTitle 
                                 label="Autres" 
@@ -706,8 +802,9 @@ export function AppSidebar({
                             )}
                             <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
                         </div>
+                        )}
 
-                        {/* SECTION: SUPERVISION (ADMIN) */}
+                        {/* SECTION: SUPERVISION (ADMIN) — seule visible pendant l'onboarding */}
                         {showAdminGroup && (
                             <div key="section-supervision" className="relative group/section">
                                 <SectionTitle 
@@ -724,14 +821,24 @@ export function AppSidebar({
                                         transition={{ duration: 0.2, ease: "easeInOut" }}
                                         className="space-y-1 px-1 overflow-hidden"
                                     >
-                                        <NavItem 
-                                            item={NAV_ADMIN_TOP} 
-                                            isActive={checkIsActive(NAV_ADMIN_TOP.href, NAV_ADMIN_TOP.exact, NAV_ADMIN_TOP.aliases)} 
+                                        <NavItem
+                                            item={NAV_ADMIN_TOP}
+                                            isActive={checkIsActive(NAV_ADMIN_TOP.href, NAV_ADMIN_TOP.exact, NAV_ADMIN_TOP.aliases)}
                                             isPinned={false}
                                             onPin={handleTogglePin}
                                             onHide={handleToggleHide}
                                             unreadCount={getUnreadCount(NAV_ADMIN_TOP.href)}
                                         />
+                                        {NAV_PILOTAGE.visible && !localPinnedHrefs.includes(NAV_PILOTAGE.href) && !localHiddenHrefs.includes(NAV_PILOTAGE.href) && (
+                                            <NavItem
+                                                item={NAV_PILOTAGE}
+                                                isActive={checkIsActive(NAV_PILOTAGE.href, NAV_PILOTAGE.exact, undefined)}
+                                                isPinned={false}
+                                                onPin={handleTogglePin}
+                                                onHide={handleToggleHide}
+                                                unreadCount={getUnreadCount(NAV_PILOTAGE.href)}
+                                            />
+                                        )}
                                     </motion.div>
                                 )}
                                 <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-300" />
@@ -803,6 +910,16 @@ export function AppSidebar({
                     </div>
                 )}
             </div>
+            {/* Poignée de redimensionnement (desktop, largeur persistée) */}
+            <div
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setIsResizingSidebar(true); }}
+                title="Élargir / rétrécir la navbar — largeur sauvegardée"
+                aria-hidden="true"
+                className={cn(
+                    "absolute top-0 right-0 bottom-0 w-1.5 cursor-col-resize hover:bg-success/60 transition-colors z-20 hidden lg:block",
+                    isResizingSidebar && "bg-success"
+                )}
+            />
         </div>
     );
 }
@@ -880,6 +997,7 @@ function NavItem({
         <Link
             href={item.href}
             prefetch={item.prefetch ?? true}
+            data-telemetry-id={navTelemetryId(item.href)}
             data-tour={
                 tourKey
                     ? `sidebar-${tourKey}`
@@ -909,14 +1027,11 @@ function NavItem({
             {/* Glassmorphism Shine Effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none" />
 
-            {/* Framer Motion Indicator */}
+            {/* Framer Motion Indicator — neutre (fini le vert) */}
             {isActive && (
                 <motion.div
                     layoutId="sidebar-active-pill"
-                    className={cn(
-                        "absolute left-0 top-0 bottom-0 w-[3px]",
-                        scheme.accent
-                    )}
+                    className="absolute left-0 top-0 bottom-0 w-[3px] bg-white/30"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -926,17 +1041,16 @@ function NavItem({
             {/* Icon Container */}
             <div className={cn(
                 "relative transition-colors duration-150 shrink-0 flex items-center justify-center rounded-xl z-20",
-                "p-1.5 bg-surface border border-border group-hover:border-border-strong",
+                item.imgSrc
+                    ? "p-1.5 bg-[#161d27] border border-[#2a323d] group-hover:border-[#3a4550]"
+                    : "p-1.5 bg-surface border border-border group-hover:border-border-strong",
                 isActive 
-                    ? cn(scheme.bg, scheme.text, scheme.border, "shadow-inner shadow-black/20") 
+                    ? "bg-white/[0.06] border-white/15 text-foreground shadow-inner shadow-black/20"
                     : (!item.imgSrc ? cn(scheme.text, "opacity-70 group-hover:opacity-100") : "text-muted-foreground group-hover:text-foreground")
             )}>
-                {/* Neon Icon Glow */}
+                {/* Neon Icon Glow — neutre */}
                 {isActive && (
-                    <div className={cn(
-                        "absolute inset-0  opacity-40 -z-10",
-                        scheme.accent
-                    )} />
+                    <div className="absolute inset-0 opacity-40 -z-10 bg-white/10" />
                 )}
 
                 {item.imgSrc ? (
@@ -950,7 +1064,7 @@ function NavItem({
                             fill 
                             sizes="24px"
                             className={cn("object-contain transition-colors duration-150", 
-                                !isActive && "opacity-80 saturate-100 group-hover:opacity-100",
+                                !isActive && "saturate-100",
                                 isActive && ""
                             )} 
                         />
@@ -1019,6 +1133,7 @@ function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
         <Link
             href={item.href}
             prefetch={false}
+            data-telemetry-id={navTelemetryId(item.href)}
             className={cn(
                 "group flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all relative overflow-hidden",
                 isActive ? "text-success text-success bg-success/5" : "text-muted-foreground hover:text-success hover:bg-foreground/[0.02]"

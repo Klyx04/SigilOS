@@ -12,7 +12,6 @@ import { GodAccessBanner } from "./components/god-access-banner";
 import { getGodRoute } from "@/lib/god-route";
 import Link from "next/link";
 import { Bell } from "lucide-react";
-import { createGodAuditLog } from "@/server/actions/audit-actions";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 // R3 anti-scout : le panel God ne doit JAMAIS être indexé par les moteurs de recherche.
@@ -51,13 +50,11 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     // Super-admin complet = possède tous les scopes (getActiveScopes renvoie tous pour un admin).
     const isFullAdmin = activeScopes.length >= 6;
 
-    // ✅ R5 : Log d'accès au dashboard God (remplace le no-op logPageAccess)
-    await createGodAuditLog({
-        action: "GOD_DASHBOARD_ACCESS",
-        targetType: "SYSTEM_GOD",
-        targetId: "/god",
-        metadata: { environment: process.env.NODE_ENV },
-    });
+    // 🧹 A9 — plus AUCUNE ligne de journal par visite : la trace des accès est la
+    // **session** (`GodSessionTracker` → `GodSessionLog`) et son compteur agrégé par
+    // jour (`getGodAccessDailyStats`, affiché en tête de `/god/logs`). Mesure du
+    // 25/09/2026 : `GOD_DASHBOARD_ACCESS` pesait 749 lignes sur 1 033 (`AuditLog`),
+    // soit 72 % du journal — noyant tout ce qui comptait.
 
     // Fetch unread counts for the sidebar badges
     const unreadStats = await getGodUnreadCounts();
@@ -109,8 +106,12 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     </div>
                 </div>
 
-                {/* Scrollable content view */}
-                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent">
+                {/* Scrollable content view — le conteneur de défilement est **déclaré** ici
+                    (`data-god-scroll-container`). Le studio Rush Sylvestre s'y accroche par ce
+                    contrat, au lieu de deviner une classe Tailwind : `.flex-1.overflow-y-auto`
+                    habille aussi la barre latérale, donc la première correspondance du document
+                    pouvait être la mauvaise (mesuré le 08/10/2026). */}
+                <div data-god-scroll-container className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent">
                     <GodAccessBanner activeScopes={activeScopes} isFullAdmin={isFullAdmin} myGrants={myGrants} />
                     {children}
                 </div>

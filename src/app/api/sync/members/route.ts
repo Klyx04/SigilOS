@@ -15,13 +15,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncAllGuilds, syncMembershipStatus } from "@/server/actions/sync-actions";
 import { auth } from "@/auth";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 export async function POST(request: NextRequest) {
-    // Option 1: Cron job with secret
-    const cronSecret = request.headers.get("x-cron-secret");
-    const expectedSecret = process.env.CRON_SECRET;
-
-    if (cronSecret && expectedSecret && cronSecret === expectedSecret) {
+    // Option 1: Cron job with secret (fail-closed + temps constant)
+    if (verifyCronSecret(request)) {
         const results = await syncAllGuilds();
         return NextResponse.json(results);
     }
@@ -51,11 +49,8 @@ export async function POST(request: NextRequest) {
 
 // For Vercel Cron - GET request support
 export async function GET(request: NextRequest) {
-    const cronSecret = request.headers.get("x-cron-secret");
-    const expectedSecret = process.env.CRON_SECRET;
-
-    // Only allow cron jobs with secret
-    if (!cronSecret || !expectedSecret || cronSecret !== expectedSecret) {
+    // Only allow cron jobs with secret (fail-closed + temps constant)
+    if (!verifyCronSecret(request)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

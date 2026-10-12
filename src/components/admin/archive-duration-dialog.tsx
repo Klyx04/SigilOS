@@ -23,10 +23,10 @@ interface ArchiveDurationDialogProps {
 }
 
 const DURATIONS = [
-    { label: "30 Jours", value: 1, description: "Action standard pour un départ temporaire.", icon: Clock },
-    { label: "3 Mois", value: 3, description: "Idéal pour une pause prolongée.", icon: Calendar },
+    { label: "12 Mois", value: 12, description: "Politique d'archivage par défaut (une année de conservation).", icon: Archive },
     { label: "6 Mois", value: 6, description: "Archive longue durée pour absence indéfinie.", icon: History },
-    { label: "12 Mois", value: 12, description: "Conservation maximale avant suppression.", icon: Archive },
+    { label: "3 Mois", value: 3, description: "Idéal pour une pause prolongée.", icon: Calendar },
+    { label: "1 Mois", value: 1, description: "Action standard pour un départ temporaire.", icon: Clock },
 ];
 
 export function ArchiveDurationDialog({
@@ -36,7 +36,7 @@ export function ArchiveDurationDialog({
     memberName,
     onSuccess,
 }: ArchiveDurationDialogProps) {
-    const [selectedDuration, setSelectedDuration] = useState<number>(1);
+    const [selectedDuration, setSelectedDuration] = useState<number>(12);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleConfirm = async () => {
@@ -109,7 +109,7 @@ export function ArchiveDurationDialog({
                     <div className="p-4 rounded-xl bg-danger/5 border border-danger/10 flex items-start gap-3">
                         <ShieldAlert className="w-4 h-4 text-danger shrink-0 mt-0.5" />
                         <p className="text-caption text-muted-foreground italic leading-snug">
-                            Attention : À l'issue de cette période, toutes les données du membre (missions, succès, progression) seront **définitivement supprimées** du système pour respecter le RGPD.
+                            L'archivage suspend l'accès Dashboard du membre. Pendant la durée choisie, il peut être réintégré à tout moment. À l'issue de cette période, ses données (missions, succès, progression) sont définitivement supprimées pour respecter le RGPD.
                         </p>
                     </div>
                 </div>

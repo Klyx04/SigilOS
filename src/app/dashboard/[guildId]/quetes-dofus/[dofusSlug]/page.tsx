@@ -9,6 +9,7 @@ import {
     getDofusDetailWithChains,
     getGuildHeatmapForDofus,
     updateDolmanaxProgress,
+    updateDokilleProgress,
     getUserCompletedQuestIds,
 } from "@/server/actions/dofus-quest-actions";
 import { DofusQuestManagerV3 } from "@/components/dofus-quests/DofusQuestManagerV3";
@@ -17,6 +18,7 @@ import { DofusIcon } from "@/components/dofus-quests/DofusIcon";
 import { getDofusColor } from "@/components/dofus-quests/dofus-colors";
 import { DofusOcreMetamob } from "@/components/dofus-quests/DofusOcreMetamob";
 import { DofusDolmanaxTracker } from "@/components/dofus-quests/DofusDolmanaxTracker";
+import { DofusDokilleTracker, ALL_KROKILLE_MONSTERS } from "@/components/dofus-quests/DofusDokilleTracker";
 import { notFound } from "next/navigation";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
 import { DofusQuestBanner } from "@/components/dofus-quests/DofusQuestBanner";
@@ -43,12 +45,14 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
     if (!user.canViewQuests) return <AccessDenied />;
 
     const enabled = await isModuleEnabled(guildId, "quests");
-    if (!enabled) return <AccessDenied />;
+    if (!enabled && !user.isSuperAdmin) return <AccessDenied />;
 
-    const [result, heatmapResult, globalCompletedResult] = await Promise.all([
+    const isDolmanax = dofusSlug === "dolmanax";
+    const [result, heatmapResult, globalCompletedResult, almanaxList] = await Promise.all([
         getDofusDetailWithChains(guildId, dofusSlug, character),
         getGuildHeatmapForDofus(guildId, dofusSlug),
         getUserCompletedQuestIds(guildId, character),
+        isDolmanax ? (await import("@/server/actions/resources-actions")).getUpcomingAlmanax() : Promise.resolve([]),
     ]);
 
     if (!result.success || !result.data) return notFound();
@@ -64,6 +68,18 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
         initialPages = parseInt(dofus.notes.split(":")[1], 10) || 0;
     } else if (dofusSlug === "dolmanax") {
         initialPages = Math.round((dofus.progressPercent * 365) / 100);
+    }
+
+    // Extract captured Krokilles from notes if available (Format: "KROKILLES:[...]")
+    let initialCapturedKrokilles: string[] = [];
+    if (dofus.notes && dofus.notes.startsWith("KROKILLES:")) {
+        try {
+            initialCapturedKrokilles = JSON.parse(dofus.notes.slice("KROKILLES:".length));
+        } catch {
+            initialCapturedKrokilles = [];
+        }
+    } else if (dofusSlug === "dokille" && dofus.isObtained) {
+        initialCapturedKrokilles = [...ALL_KROKILLE_MONSTERS];
     }
 
     return (
@@ -92,26 +108,13 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 }}
             />
 
-            {/* Dofus hero header */}
+            {/* Dofus hero header — teinte d'immersion sans glow premium */}
             <div
-                className="relative overflow-hidden rounded-2xl px-6 py-8 flex flex-col sm:flex-row items-center gap-6"
+                className="relative overflow-hidden rounded-md px-6 py-8 flex flex-col sm:flex-row items-center gap-6 border border-border"
                 style={{
-                    background: `linear-gradient(135deg, ${color}18 0%, var(--foreground)/[0.02] 60%, ${color}08 100%)`,
-                    border: `1px solid ${color}33`,
-                    boxShadow: `0 8px 32px ${color}18`,
+                    background: `linear-gradient(135deg, ${color}14 0%, transparent 60%)`,
                 }}
             >
-                {/* Top accent line */}
-                <div
-                    className="absolute top-0 left-0 right-0 h-[2px]"
-                    style={{ background: `linear-gradient(90deg, transparent, ${color}88, transparent)` }}
-                />
-                {/* Ambient glow */}
-                <div
-                    className="absolute -top-12 -left-12 w-40 h-40 rounded-full pointer-events-none"
-                    style={{ background: `radial-gradient(circle, ${color}20 0%, transparent 70%)` }}
-                />
-
                 {/* Dofus image + ring */}
                 <div className="relative flex-shrink-0">
                     <DofusProgressRing
@@ -128,7 +131,6 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                             size={64}
                             color={color}
                             isObtained={dofus.isObtained}
-                            className="drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
                         />
                     </div>
                 </div>
@@ -160,7 +162,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                         )}
                         <span className="text-xs text-muted-foreground/50">Niveau {dofus.levelRecommended}+</span>
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-1 uppercase tracking-tight">{dofus.name}</h1>
+                    <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-1 tracking-tight">{dofus.name}</h1>
                     {dofus.successName && (
                         <p className="text-sm text-muted-foreground">
                             Succès : <span style={{ color }} className="font-bold">{dofus.successName}</span>
@@ -186,10 +188,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                                 className="h-full rounded-full transition-all duration-300 "
                                 style={{
                                     width: `${dofus.progressPercent}%`,
-                                    background: dofus.isObtained
-                                        ? `linear-gradient(90deg, ${color}, #fbbf24)`
-                                        : `linear-gradient(90deg, ${color}cc, ${color})`,
-                                    boxShadow: `0 0 12px ${color}66`,
+                                    background: color,
                                 }}
                             />
                         </div>
@@ -239,18 +238,12 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
 
             {dofusSlug === "dolmanax" && (
                 <div
-                    className="rounded-3xl p-6 border transition-all duration-300"
-                    style={{
-                        background: `linear-gradient(135deg, ${color}10 0%, var(--foreground)/[0.05] 100%)`,
-                        border: `1px solid ${color}25`,
-                    }}
+                    className="rounded-3xl p-6 border transition-all duration-300 bg-surface border-border"
                 >
-                    <div className="text-caption font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span style={{ color }}>📖</span> Progression Almanax
-                    </div>
                     <DofusDolmanaxTracker
                         guildId={guildId}
                         initialPages={initialPages}
+                        upcomingAlmanax={almanaxList}
                         onSave={async (pages) => {
                             "use server";
                             await updateDolmanaxProgress(guildId, dofus.id, pages, character);
@@ -268,7 +261,21 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 selectedCharacter={character}
                 initialGlobalCompletedIds={globalCompletedResult.success ? globalCompletedResult.data : []}
                 prereqsByQuestId={prereqsByQuestId}
-                metamobPseudo={user.metamobPseudo}
+                customSlotAfterPrerequisites={
+                    dofusSlug === "dokille" ? (
+                        <DofusDokilleTracker
+                            guildId={guildId}
+                            dofusId={dofus.id}
+                            dofusColor={color}
+                            isObtained={dofus.isObtained}
+                            initialCaptured={dofus.isObtained ? ALL_KROKILLE_MONSTERS : initialCapturedKrokilles}
+                            onSave={async (monsters) => {
+                                "use server";
+                                return updateDokilleProgress(guildId, dofus.id, monsters, character);
+                            }}
+                        />
+                    ) : undefined
+                }
             />
         </div>
     );

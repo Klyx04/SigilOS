@@ -201,7 +201,8 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
     return (
         <div className="space-y-8">
             {/* Micro Status Bar */}
-            <div className="relative overflow-hidden rounded-3xl bg-surface/40 border border-border p-4 sm:p-6 backdrop-blur-xl" data-tour="sondages-micro">
+            {/* PERF : fond opaque, pas de backdrop-blur (recalculé à chaque frame de scroll) */}
+            <div className="relative overflow-hidden rounded-3xl bg-surface border border-border p-4 sm:p-6" data-tour="sondages-micro">
                 <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
                     <div className="flex items-center gap-5">
                         <div className="relative flex-shrink-0">
@@ -209,7 +210,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                 <Mic2 className="w-7 h-7 text-info" />
                             </div>
                             {microStatus?.holder && (
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-info border-2 border-border animate-pulse" />
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-info border-2 border-border motion-safe:animate-pulse" />
                             )}
                         </div>
                         <div className="space-y-1">
@@ -342,7 +343,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                 : "bg-success/5 border-success/10 hover:border-success/30"
                         )}
                     >
-                        <div className={cn("w-2 h-2 rounded-full bg-success ", statusFilter === "ACTIVE" && "animate-pulse")} />
+                        <div className={cn("w-2 h-2 rounded-full bg-success ", statusFilter === "ACTIVE" && "motion-safe:animate-pulse")} />
                         <span className="text-success text-xs font-black uppercase tracking-widest">{activeCount} en cours</span>
                     </button>
                     <button

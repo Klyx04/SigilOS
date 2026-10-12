@@ -85,9 +85,11 @@ function EventsPopover({
                                 "hover:bg-surface disabled:cursor-not-allowed group"
                             )}
                         >
-                            {/* Colored dot or spinner */}
                             {isLoading ? (
                                 <Loader2 className="w-3.5 h-3.5 text-success animate-spin shrink-0" />
+                            ) : ev.type === "KRALAMOURE" ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src="/assets/calendar/kralamoure-head.png" alt="Krala" className="w-5 h-5 object-contain shrink-0" />
                             ) : (
                                 <span className={cn("w-2 h-2 rounded-full shrink-0 mt-0.5", cfg.dot)} />
                             )}
@@ -213,6 +215,9 @@ export function HeaderEventChip({ events, guildId, canViewCalendar }: HeaderEven
                     <span className="relative flex items-center justify-center w-3.5 h-3.5 shrink-0">
                         {isChipLoading ? (
                             <Loader2 className="w-3.5 h-3.5 text-success animate-spin" />
+                        ) : first.type === "KRALAMOURE" ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src="/assets/calendar/kralamoure-head.png" alt="Krala" className="w-5 h-5 object-contain" />
                         ) : (
                             <>
                                 <span className={cn(

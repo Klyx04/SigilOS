@@ -291,9 +291,7 @@ export function ProofUploadDialog({
                     {/* CONTRIBUTOR SECTION — Always visible in idle/preview */}
                     {/* ═══════════════════════════════════════ */}
                     {(state === "idle") && (
-                        <div className="relative rounded-xl border border-warning/40 bg-gradient-to-br from-warning/40 via-warning/20 to-surface/60 p-4 space-y-3 ">
-                            {/* Glow accent */}
-                            <div className="absolute -top-px left-6 right-6 h-px bg-gradient-to-r from-transparent via-warning/60 to-transparent" />
+                        <div className="relative rounded-xl border border-warning/30 bg-warning/5 p-4 space-y-3 ">
 
                             <div className="flex items-start gap-3">
                                 <div className="mt-0.5 p-2 rounded-lg bg-warning/20 border border-warning/30 shrink-0">

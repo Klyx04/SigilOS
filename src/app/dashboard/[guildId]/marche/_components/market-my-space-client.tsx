@@ -1,0 +1,331 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { MARKET_STATUS_CLASSES, marketStatusLabelFor } from "@/server/actions/market-constants";
+import { formatGroupedInteger, formatKamas } from "@/lib/market/kamas";
+import { formatMarketDate } from "@/lib/market/format-date";
+import { MarketItemIcon } from "@/components/market/market-item-icon";
+import { cn } from "@/lib/utils";
+import {
+    deleteMarketListing,
+    publishMarketListing,
+    renewMarketListing,
+    withdrawMarketListing,
+} from "@/server/actions/market-actions";
+import { toast } from "sonner";
+import { Boxes, Loader2, Pencil, Plus, RefreshCw, Store, Trash2, Upload, XCircle } from "lucide-react";
+import { MarketNegotiationPanel, type NegotiationOffer } from "./market-negotiation-panel";
+import { MarketStatLines, type MarketStatLine } from "@/components/market/market-stat-lines";
+import { DiscordProfileBubble, type DiscordProfileDTO } from "@/components/shared/discord-profile-bubble";
+
+type MyListing = {
+    id: string;
+    title: string;
+    status: "DRAFT" | "ACTIVE" | "RESERVED" | "SOLD" | "EXPIRED" | "WITHDRAWN";
+    /** Nature de l'annonce : un **lot** n'affiche pas de jet, mais un contenu. */
+    type: "EQUIPMENT" | "RESOURCE" | "SERVICE" | "WANTED" | "BUNDLE";
+    priceKamas: number | null;
+    publishedAt: string | null;
+    expiresAt: string | null;
+    renewCount: number;
+    itemName: string | null;
+    /** BUG-1/finition — vignette d'objet (URL **déjà normalisée** par le serveur). */
+    itemIconUrl: string | null;
+    /** Identifiant Ankama : repli sûr du proxy d'icône. */
+    dofusDbItemId: number | null;
+    itemTypeName: string | null;
+    quantity: number | null;
+    unitLabel: string | null;
+    /**
+     * Constat beta — contenu d'un lot : son **1ᵉʳ composant** fournit l'icône
+     * (une annonce de lot n'a ni `itemIconUrl` ni `dofusDbItemId` propres).
+     */
+    components?: {
+        id: string;
+        name: string;
+        quantity: number;
+        iconUrl: string | null;
+        dofusDbItemId: number | null;
+        /** Correctif 10/10/2026 — prix **de cet objet** (total du lot = somme). */
+        priceKamas?: number | null;
+    }[];
+    /**
+     * S8.15 — **jet déclaré** : déjà sérialisé par `getMyMarketData` (aucune
+     * requête supplémentaire). Optionnel : une annonce sans jet n'affiche rien.
+     */
+    stats?: MarketStatLine[];
+    /**
+     * Lot M1 — **critères d'une recherche d'achat** : sérialisés par
+     * `getMyMarketData` (inclus `wantedCriteria`). Optionnel.
+     */
+    wantedCriteria?: { id: string; effectId: number; label: string; minValue: number; tag: string }[];
+};
+
+/** Lignes de jet montrées sur une carte de « Mon espace » (le reste : la fiche). */
+const LISTING_STAT_PREVIEW = 4;
+
+interface MarketMySpaceClientProps {
+    guildId: string;
+    /** S8.14 — bulle profil du membre courant (« tu publies en tant que »). */
+    viewer?: DiscordProfileDTO | null;
+    active: MyListing[];
+    archived: MyListing[];
+    /** S4.10 — offres reçues sur mes annonces (centre de négociation). */
+    received: NegotiationOffer[];
+    /** S4.10 — mes offres déposées + les contre-offres qui m'attendent. */
+    sent: NegotiationOffer[];
+}
+
+export function MarketMySpaceClient({ guildId, viewer, active, archived, received, sent }: MarketMySpaceClientProps) {
+    const router = useRouter();
+    const [tab, setTab] = useState<"active" | "archived">("active");
+    const [isPending, startTransition] = useTransition();
+
+    function run(action: () => Promise<{ success: boolean; error?: string }>, successMessage: string) {
+        startTransition(async () => {
+            const result = await action();
+            if (result.success) {
+                toast.success(successMessage);
+                router.refresh();
+            } else {
+                toast.error(result.error || "Action impossible.");
+            }
+        });
+    }
+
+    const rows = tab === "active" ? active : archived;
+    // Lot M1 — « Mes ventes » / « Mes recherches » : sections affichées
+    // uniquement quand les deux existent (sinon liste unique, inchangée).
+    const saleRows = rows.filter((listing) => listing.type !== "WANTED");
+    const wantedRows = rows.filter((listing) => listing.type === "WANTED");
+    const sections = [
+        { key: "sales", title: "Mes ventes", list: saleRows },
+        { key: "wanted", title: "Mes recherches", list: wantedRows },
+    ].filter((section) => section.list.length > 0);
+
+    return (
+        <div className="space-y-6">
+            {/* S8.14 — bulle profil du membre courant (avatar Discord + pseudo). */}
+            {viewer ? (
+                <Card className="border-border bg-surface/60">
+                    <CardContent className="flex flex-wrap items-center gap-3 p-4">
+                        <DiscordProfileBubble profile={viewer} label="Tu publies en tant que" />
+                        <p className="text-xs text-muted-foreground sm:ml-auto">
+                            Les annonces listées ci-dessous sont les tiennes.
+                        </p>
+                    </CardContent>
+                </Card>
+            ) : null}
+
+            <MarketNegotiationPanel guildId={guildId} received={received} sent={sent} />
+
+            <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1 rounded-xl border border-border p-1">
+                    <Button variant={tab === "active" ? "secondary" : "ghost"} size="sm" className="h-8" onClick={() => setTab("active")}>
+                        En cours ({active.length})
+                    </Button>
+                    <Button variant={tab === "archived" ? "secondary" : "ghost"} size="sm" className="h-8" onClick={() => setTab("archived")}>
+                        Terminées ({archived.length})
+                    </Button>
+                </div>
+                <Button asChild className="gap-2 sm:ml-auto">
+                    <Link href={`/dashboard/${guildId}/marche/nouveau`}>
+                        <Plus className="w-4 h-4" />
+                        Nouvelle annonce
+                    </Link>
+                </Button>
+            </div>
+
+            {rows.length === 0 ? (
+                <EmptyState
+                    icon={Boxes}
+                    title={tab === "active" ? "Aucune annonce en cours" : "Aucune annonce terminée"}
+                    description={
+                        tab === "active"
+                            ? "Publie ta première annonce pour la voir apparaître ici."
+                            : "Les annonces vendues, expirées ou retirées apparaîtront ici."
+                    }
+                />
+            ) : (
+                <div className="space-y-3">
+                    {sections.map((section) => (
+                        <div key={section.key} className="space-y-3">
+                            {sections.length > 1 && (
+                                <h3 className="pt-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                                    {section.title} ({section.list.length})
+                                </h3>
+                            )}
+                            {section.list.map((listing) => (
+                        <Card key={listing.id} className="bg-surface/60 border-border">
+                            <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-start">
+                                {/* Constat beta — **vignette d'objet** : cet écran n'affichait
+                                    aucune image, seulement des lignes de stats en bloc. */}
+                                <div className="h-12 w-12 shrink-0 rounded-xl border border-border bg-background/60 flex items-center justify-center overflow-hidden">
+                                    <MarketItemIcon
+                                        src={listing.itemIconUrl ?? listing.components?.[0]?.iconUrl ?? null}
+                                        ankamaId={listing.dofusDbItemId ?? listing.components?.[0]?.dofusDbItemId ?? null}
+                                        alt={listing.itemName ?? listing.title}
+                                        size={44}
+                                        className="p-1"
+                                        fallback={<Store className="w-5 h-5 text-muted-foreground" />}
+                                    />
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="font-semibold text-foreground truncate">{listing.title}</p>
+                                        <Badge
+                                            variant="outline"
+                                            className={cn("text-[10px] font-black uppercase tracking-wider", MARKET_STATUS_CLASSES[listing.status])}
+                                        >
+                                            {marketStatusLabelFor(listing.status, listing.type)}
+                                        </Badge>
+                                        {listing.type === "WANTED" && (
+                                            <Badge variant="outline" className="text-[10px] uppercase tracking-wider border-info/40 text-info">
+                                                Recherche
+                                            </Badge>
+                                        )}
+                                        {(listing.type === "RESOURCE" || listing.type === "BUNDLE") && (
+                                            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                                                {listing.type === "BUNDLE" ? "Lot multiple" : "Lot"}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {listing.itemName ? `${listing.itemName} · ` : ""}
+                                        {formatKamas(
+                                            listing.type === "BUNDLE"
+                                                ? (listing.components ?? []).reduce(
+                                                      (sum, c) => sum + Math.max(0, Math.trunc(c.priceKamas ?? 0)),
+                                                      0
+                                                  )
+                                                : listing.priceKamas
+                                        )}
+                                        {listing.quantity
+                                            ? ` · ×${formatGroupedInteger(listing.quantity)}${listing.unitLabel ? ` ${listing.unitLabel}` : ""}`
+                                            : ""}
+                                        {listing.expiresAt ? ` · expire le ${formatMarketDate(listing.expiresAt)}` : ""}
+                                    </p>
+                                    {/* S8.15 — jet déclaré avec les icônes officielles.
+                                        Constat beta : l'écran **déversait toutes** les lignes ;
+                                        on n'en montre que les premières, la fiche a le détail. */}
+                                    {listing.stats && listing.stats.length > 0 ? (
+                                        <>
+                                            <MarketStatLines
+                                                stats={listing.stats.slice(0, LISTING_STAT_PREVIEW)}
+                                                className="mt-2"
+                                            />
+                                            {listing.stats.length > LISTING_STAT_PREVIEW && (
+                                                <Link
+                                                    href={`/dashboard/${guildId}/marche/${listing.id}`}
+                                                    className="mt-1 inline-block text-[11px] font-semibold text-info hover:underline"
+                                                >
+                                                    + {listing.stats.length - LISTING_STAT_PREVIEW} autre(s) ligne(s) — voir
+                                                    la fiche
+                                                </Link>
+                                            )}
+                                        </>
+                                    ) : null}
+                                    {/* Lot M1 — critères d'une recherche (pastilles). */}
+                                    {listing.type === "WANTED" && listing.wantedCriteria && listing.wantedCriteria.length > 0 ? (
+                                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                            {listing.wantedCriteria.slice(0, 4).map((criterion) => (
+                                                <span
+                                                    key={criterion.effectId}
+                                                    className="rounded-md border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] font-bold text-info"
+                                                    title={criterion.tag === "EXO" ? "Exo accepté" : criterion.tag === "OVER" ? "Over demandé" : "Natif"}
+                                                >
+                                                    {criterion.tag === "EXO" ? "✦ " : criterion.tag === "OVER" ? "⤴ " : "+"}
+                                                    {criterion.minValue} {criterion.label}
+                                                </span>
+                                            ))}
+                                            {listing.wantedCriteria.length > 4 && (
+                                                <span className="text-[10px] text-muted-foreground">
+                                                    +{listing.wantedCriteria.length - 4} critère(s)
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                    <Button asChild size="sm" variant="ghost">
+                                        <Link href={`/dashboard/${guildId}/marche/${listing.id}`}>Fiche</Link>
+                                    </Button>
+
+                                    {/* S7.13 — édition par le créateur (statuts éditables). */}
+                                    {["DRAFT", "ACTIVE", "EXPIRED"].includes(listing.status) && (
+                                        <Button asChild size="sm" variant="ghost" className="gap-2">
+                                            <Link href={`/dashboard/${guildId}/marche/${listing.id}/modifier`}>
+                                                <Pencil className="w-3.5 h-3.5" />
+                                                Modifier
+                                            </Link>
+                                        </Button>
+                                    )}
+
+                                    {listing.status === "DRAFT" && (
+                                        <Button
+                                            size="sm"
+                                            className="gap-2"
+                                            disabled={isPending}
+                                            onClick={() => run(() => publishMarketListing(guildId, listing.id), "Annonce publiée.")}
+                                        >
+                                            {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                                            Publier
+                                        </Button>
+                                    )}
+
+                                    {listing.status === "EXPIRED" && listing.renewCount < 1 && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="gap-2"
+                                            disabled={isPending}
+                                            onClick={() => run(() => renewMarketListing(guildId, listing.id), "Annonce renouvelée.")}
+                                        >
+                                            <RefreshCw className="w-3.5 h-3.5" />
+                                            Renouveler
+                                        </Button>
+                                    )}
+
+                                    {["DRAFT", "ACTIVE", "RESERVED"].includes(listing.status) && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="gap-2"
+                                            disabled={isPending}
+                                            onClick={() => run(() => withdrawMarketListing(guildId, listing.id), "Annonce retirée.")}
+                                        >
+                                            <XCircle className="w-3.5 h-3.5" />
+                                            Retirer
+                                        </Button>
+                                    )}
+
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="text-danger hover:text-danger"
+                                        disabled={isPending}
+                                        onClick={() => run(() => deleteMarketListing(guildId, listing.id), "Annonce supprimée.")}
+                                        title="Supprimer définitivement"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+

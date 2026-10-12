@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 
 import { Button } from "@/components/ui/button";
@@ -67,9 +67,17 @@ export function MetamobLink({
     const [availableQuests, setAvailableQuests] = useState<UserQuest[]>([]);
     const [questsLoading, setQuestsLoading] = useState(false);
 
+    // Client-only hydration guard: `formatDistanceToNow(lastSync)` produces a string that
+    // changes with the clock, so SSR and client hydration can disagree at a minute boundary
+    // → React #418. Gated behind `mounted`: SSR and first client render show a static
+    // "Synchronisé", then the relative time appears once mounted.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
     const handleLink = async (force: boolean = false) => {
-        if (!inputPseudo.trim()) {
-            setLinkError("Veuillez entrer un pseudo");
+        // Lot A — liaison clé-seule : le pseudo est optionnel (résolu via /v1/me).
+        if (!inputPseudo.trim() && !inputApiKey.trim()) {
+            setLinkError("Indiquez votre pseudo Metamob ou votre clé API");
             return;
         }
 
@@ -79,7 +87,7 @@ export function MetamobLink({
 
         const result = await linkOcreAccount({
             guildId,
-            pseudo: inputPseudo.trim(),
+            pseudo: inputPseudo.trim() || undefined,
             apiKey: inputApiKey.trim() || undefined,
             force,
             targetUserId,
@@ -251,7 +259,7 @@ export function MetamobLink({
                         <div className="flex items-baseline gap-2">
                             <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest shrink-0">Statut</span>
                             {isLinked ? (
-                                <span className="text-sm font-black text-foreground">{metamobLastSync ? `Synchronisé ${formatDistanceToNow(new Date(metamobLastSync), { addSuffix: true, locale: fr })}` : "En attente"}</span>
+                                <span className="text-sm font-black text-foreground">{mounted && metamobLastSync ? `Synchronisé ${formatDistanceToNow(new Date(metamobLastSync), { addSuffix: true, locale: fr })}` : metamobLastSync ? "Synchronisé" : "En attente"}</span>
                             ) : (
                                 <span className="text-caption font-bold text-muted-foreground uppercase italic">Liaison requise</span>
                             )}
@@ -318,8 +326,8 @@ export function MetamobLink({
                         </div>
                         {linkStep === 1 ? (
                             <div className="space-y-4">
-                                <label className="text-sm font-bold text-foreground">Pseudo Metamob</label>
-                                <Input placeholder="Ex: MonPseudo" value={inputPseudo} onChange={(e) => setInputPseudo(e.target.value)} className="h-12 bg-surface/50 border-border" />
+                                <label className="text-sm font-bold text-foreground">Pseudo Metamob <span className="text-muted-foreground font-normal">(optionnel si vous avez votre clé API)</span></label>
+                                <Input placeholder="Ex: MonPseudo — ou passez directement à la clé API" value={inputPseudo} onChange={(e) => setInputPseudo(e.target.value)} className="h-12 bg-surface/50 border-border" />
                             </div>
                         ) : (
                             <div className="space-y-4">
@@ -344,7 +352,7 @@ export function MetamobLink({
                     </div>
                     <DialogFooter className="p-8 border-t border-border flex gap-3">
                         {linkStep === 1 ? (
-                            <Button onClick={() => setLinkStep(2)} disabled={!inputPseudo.trim()} className="w-full bg-warning text-warning-foreground font-bold">Suivant</Button>
+                            <Button onClick={() => setLinkStep(2)} className="w-full bg-warning text-warning-foreground font-bold">{inputPseudo.trim() ? "Suivant" : "J'ai seulement ma clé API →"}</Button>
                         ) : (
                             <>
                                 <Button variant="ghost" onClick={() => setLinkStep(1)}>Retour</Button>

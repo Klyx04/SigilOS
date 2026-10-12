@@ -197,5 +197,39 @@ export async function godProcessInactivePosts(): Promise<{
         };
     }
 }
+/**
+ * 🔄 Déclenchement manuel du nettoyage des demandes de service inactives par le God.
+ * Calendrier : rapels au demandeur J+7 / J+14, clôture CANCELLED à J+21.
+ */
+export async function godProcessInactiveServiceRequests(): Promise<{
+    success: boolean;
+    remindersSent: number;
+    requestsCancelled: number;
+    error?: string;
+}> {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) {
+        return {
+            success: false,
+            remindersSent: 0,
+            requestsCancelled: 0,
+            error: "Non autorisé",
+        };
+    }
+
+    try {
+        const { processInactiveServiceRequests } = await import("./service-request-cleanup-actions");
+        return await processInactiveServiceRequests();
+    } catch (err: any) {
+        logger.error("[godProcessInactiveServiceRequests] Error:", err);
+        return {
+            success: false,
+            remindersSent: 0,
+            requestsCancelled: 0,
+            error: err?.message || "Erreur lors du traitement",
+        };
+    }
+}
+
 
 

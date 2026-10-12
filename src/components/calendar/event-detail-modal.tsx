@@ -10,7 +10,6 @@ import { fr } from "date-fns/locale";
 import Image from "next/image";
 import Link from "next/link";
 import {
-    Calendar,
     Clock,
     Users,
     User,
@@ -19,32 +18,27 @@ import {
     Edit,
     Check,
     X,
+    Play,
+    Square,
+    ChevronLeft,
+    ChevronRight,
     Loader2,
-    Swords,
-    PartyPopper,
     Target,
-    Wheat,
     Bell,
-    Share2,
-    ChevronDown,
-    AtSign,
     ExternalLink,
-    Eye,
-    Globe,
     Lock,
-    Shield,
     Trophy,
-    Star,
     Coins,
-    AlertTriangle,
-    Copy,
+    Undo2,
+    FileText,
+    Tv2,
+    ChevronDown,
 } from "lucide-react";
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,103 +53,98 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ClassIcon, getClassColor } from "@/components/shared/class-icon";
+import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
+import { isAgendaMirror } from "@/lib/agenda-mirror";
+import { resolveEventImagePath } from "@/lib/calendar-event-images";
+import { calendarEventTheme } from "@/lib/calendar-event-theme";
+import { PseudoChip } from "@/components/shared/pseudo-chip";
+import { DOFUS_CLASSES, getClass, resolveEffectiveClass } from "@/lib/dofus-assets";
+import { ClassIcon } from "@/components/shared/class-icon";
 import { RegistrationModal } from "./registration-modal";
 import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 import { getMissionsByIds } from "@/server/actions/mission-actions";
 import { kickParticipant, transferRaidCaptaincy } from "@/server/actions/calendar-actions";
-import { Skull, Zap, Clock as ClockIcon, Infinity as InfinityIcon, Sparkles as SparklesIcon } from "lucide-react";
+import { useRaidOverlay } from "@/hooks/use-raid-overlay";
+import { useRaidLive } from "@/hooks/use-raid-live";
+import {
+    getRaidLiveSession,
+    startRaidLiveSession,
+    endRaidLiveSession,
+    setRaidLiveStep,
+    setRaidLiveObjective,
+    type RaidLiveSessionView,
+} from "@/server/actions/raid-live-actions";
+import { liveAlertLevel, formatLiveRemaining } from "@/lib/raid-live";
+import { getLocalizedRaidData } from "@/lib/raid-overlay-data";
+
 
 // ============================================
 // 4 EVENT TYPES
 // ============================================
 
-interface TypeConfig {
-    label: string;
-    icon: React.ElementType;
-    color: string;
-    bgColor: string;
-    gradient: string;
-}
-
-const TYPE_CONFIG: Record<string, TypeConfig> = {
-    RAID_OFFICIAL: {
-        label: "Raid 3.6",
-        icon: Swords,
-        color: "text-danger",
-        bgColor: "bg-danger/10 border-danger/30",
-        gradient: "from-danger to-danger"
-    },
-    EVENT_GUILD: {
-        label: "Event Guilde",
-        icon: PartyPopper,
-        color: "text-info",
-        bgColor: "bg-info/10 border-info/30",
-        gradient: "from-info to-fuchsia-600"
-    },
-    SESSION_MISSIONS: {
-        label: "Missions Guilde",
-        icon: Target,
-        color: "text-warning",
-        bgColor: "bg-warning/10 border-warning/30",
-        gradient: "from-warning to-warning"
-    },
-    SORTIE_FARM: {
-        label: "Sortie Farm",
-        icon: Wheat,
-        color: "text-success",
-        bgColor: "bg-success/10 border-success/30",
-        gradient: "from-success to-green-600"
-    },
-    KRALAMOURE: {
-        label: "Kralamoure",
-        icon: Eye,
-        color: "text-pink-400",
-        bgColor: "bg-pink-500/10 border-pink-500/30",
-        gradient: "from-pink-600 to-danger"
-    },
-};
-
+/**
+ * Type d'événement → libellé, couleur, picto : **source unique**
+ * `@/lib/calendar-event-theme` (plus de table locale — les six composants du
+ * calendrier partageaient la même recopie, avec chacune son icône lucide).
+ */
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
     DRAFT: { label: "Brouillon", color: "text-muted-foreground", bg: "bg-muted" },
-    PUBLISHED: { label: "Ouvert", color: "text-green-400", bg: "bg-green-600" },
+    PUBLISHED: { label: "Ouvert", color: "text-success", bg: "bg-success" },
     COMPLETED: { label: "Terminé", color: "text-info", bg: "bg-info" },
     CANCELLED: { label: "Annulé", color: "text-danger", bg: "bg-danger" }
 };
 
-const MISSION_CATEGORY_CONFIG: Record<string, { icon: any; color: string; fallbackImage: string; label: string }> = {
+/**
+ * Raid (`metadata.raidType`) → guide + overlay + Raid Studio.
+ * Source unique côté calendrier : le guide se retrouve depuis l'event,
+ * sans deviner depuis le titre.
+ */
+const RAID_GUIDE_LINKS: Record<string, { guideHref: string; overlaySlug: "gigalodon" | "jardin-eternel"; guideLabel: string }> = {
+    gigalodon: {
+        guideHref: "/guides/raid-gigalodon-dofus-guide",
+        overlaySlug: "gigalodon",
+        guideLabel: "Guide du Raid : Gouffre du Gigalodon",
+    },
+    jardin: {
+        guideHref: "/guides/raid-sanctuaire-jardins-eternels-dofus-guide",
+        overlaySlug: "jardin-eternel",
+        guideLabel: "Guide du Raid : Sanctuaire des Jardins Éternels",
+    },
+};
+
+const MISSION_CATEGORY_CONFIG: Record<string, { picto: DofusUiIconName; color: string; fallbackImage: string; label: string }> = {
     DONJON: {
-        icon: Swords,
+        picto: "dungeon",
         color: "text-danger",
-        fallbackImage: "/assets/missions/donjon.png",
+        fallbackImage: "/banners/donjon.png",
         label: "Donjon"
     },
     REGULATION: {
-        icon: Skull,
+        picto: "skull",
         color: "text-success",
-        fallbackImage: "/assets/missions/regulation.png",
+        fallbackImage: "/banners/regulation.png",
         label: "Régulation"
     },
     ANOMALIE: {
-        icon: Zap,
-        color: "text-fuchsia-400",
+        picto: "monster",
+        color: "text-warning",
         fallbackImage: "/assets/missions/ano1.png",
         label: "Anomalie"
     },
     SONGES: {
-        icon: InfinityIcon,
+        picto: "hourglass",
         color: "text-info",
         fallbackImage: "/assets/missions/songes.png",
         label: "Songes"
     },
     EXPEDITION: {
-        icon: Clock,
-        color: "text-warning",
-        fallbackImage: "/assets/missions/expedition.png",
+        picto: "treasure",
+        color: "text-success",
+        fallbackImage: "/banners/expedition.png",
         label: "Expédition"
     },
     EVENT: {
-        icon: SparklesIcon,
+        picto: "trophy",
         color: "text-warning",
         fallbackImage: "/assets/missions/event.png",
         label: "Événement"
@@ -178,7 +167,7 @@ interface Participant {
         id: string;
         name: string | null;
         image: string | null;
-        profiles?: { discordNickname: string | null }[];
+        profiles?: { discordNickname: string | null; classe?: string | null }[];
     };
 }
 
@@ -232,13 +221,17 @@ interface EventDetailModalProps {
     onPublish?: () => Promise<void>;
     onComplete?: () => Promise<void>;
     onUndoComplete?: () => Promise<void>;
-    onSendReminder?: (roleId?: string) => Promise<{ success: boolean; sentCount?: number; discordSent?: boolean; error?: string }>;
+    onSendReminder?: (roleId?: string) => Promise<{ success: boolean; sentCount?: number; discordSent?: boolean; pinged?: number; skipped?: number; error?: string }>;
     onShareDiscord?: (roleId?: string) => Promise<{ success: boolean; error?: string }>;
     hasMetamobKey?: boolean;
     discordChannels?: DiscordChannels;
     donationsEnabled?: boolean;
     /** Kamas eligibility for RAID_OFFICIAL events. Null = loading or not a raid. */
     raidEligibility?: { isEligible: boolean; totalDonated: number } | null;
+    /** Personnages Dofus du membre (« Mes personnages » des modales d'inscription). */
+    myCharacters?: { main: string | null; secondaries: string[] };
+    /** Change MA classe sur cet événement (même règle serveur que le menu classe Discord). */
+    onMyClassChange?: (classe: string) => Promise<void>;
 }
 
 // ============================================
@@ -269,6 +262,8 @@ export function EventDetailModal({
     discordChannels,
     donationsEnabled = true,
     raidEligibility = null,
+    myCharacters,
+    onMyClassChange,
 }: EventDetailModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showRegistration, setShowRegistration] = useState(false);
@@ -286,11 +281,25 @@ export function EventDetailModal({
     const [presentParticipants, setPresentParticipants] = useState<Set<string>>(new Set());
     const [isCompletingRaid, setIsCompletingRaid] = useState(false);
     const [confirmRaidComplete, setConfirmRaidComplete] = useState(false);
-    // #191 — #179 — Doit être AVANT le guard `if (!event) return null` (règles des Hooks)
-    const [copiedPseudos, setCopiedPseudos] = useState(false);
+    const { openRaidOverlay } = useRaidOverlay();
 
     const eventMetadata = (event as any)?.metadata as any;
     const missionIds = eventMetadata?.missionIds as string[] | undefined;
+    // Miroir agenda R1 (DJ/Songes) : lecture seule pour tout le monde, même admin —
+    // toute action se fait dans le post / la run d'origine (décision D6).
+    const mirrorDetail = (isAgendaMirror(eventMetadata) ? (eventMetadata as any).mirror : null) as {
+        label?: string;
+        names?: string[];
+        message?: string | null;
+        achievements?: string[];
+        classes?: { classe: string; count: number }[];
+        memberCount?: number;
+        maxMembers?: number | null;
+        multiLines?: { name: string; date: string | null }[];
+        href?: string | null;
+        objectives?: string[];
+    } | null;
+    const isMirror = !!mirrorDetail;
     // Raid metadata
     const isRaid = event?.type === "RAID_OFFICIAL";
     const raidMeta = isRaid ? eventMetadata : null;
@@ -313,6 +322,70 @@ export function EventDetailModal({
         }
     }, [event?.type, missionIds]);
 
+    // Lot 2 — session live : visible par tous, pilotée par le lead seul
+    // (créateur OU capitaine actuel). Hooks avant le return précoce ci-dessous.
+    const liveEventId = isRaid && event?.id && !isMirror ? event.id : null;
+    const isLead = !!event && (event.creator.id === currentUserId || raidMeta?.raidCaptainId === currentUserId);
+    const [liveSession, setLiveSession] = useState<RaidLiveSessionView | null>(null);
+    const [liveLoading, setLiveLoading] = useState(false);
+    const [liveNow, setLiveNow] = useState(() => Date.now());
+
+    const fetchLiveSession = async () => {
+        if (!liveEventId) return;
+        try {
+            const res = await getRaidLiveSession(guildId, liveEventId);
+            if (res.success) setLiveSession(res.data ?? null);
+        } catch {
+            // Fail-soft : la modale reste utilisable sans live.
+        }
+    };
+
+    useEffect(() => {
+        setLiveSession(null);
+        if (!open || !liveEventId) return;
+        void fetchLiveSession();
+        const id = window.setInterval(fetchLiveSession, 15_000);
+        return () => window.clearInterval(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, liveEventId]);
+
+    useEffect(() => {
+        if (!liveSession || liveSession.status !== "LIVE") return;
+        const id = window.setInterval(() => setLiveNow(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, [liveSession?.id, liveSession?.status]);
+
+    const { presence: livePresence } = useRaidLive({
+        guildId,
+        eventId: liveEventId,
+        enabled: open && !!liveEventId,
+        onUpdate: () => {
+            void fetchLiveSession();
+        },
+    });
+
+    const handleLiveAction = async (
+        action: () => Promise<{ success: boolean; data?: RaidLiveSessionView | null; error?: string }>
+    ) => {
+        setLiveLoading(true);
+        try {
+            const res = await action();
+            if (res.success) {
+                setLiveSession(res.data ?? null);
+            } else {
+                toast.error(res.error || "Action impossible");
+            }
+        } catch {
+            toast.error("Action impossible");
+        } finally {
+            setLiveLoading(false);
+        }
+    };
+
+    const liveAlert = liveSession ? liveAlertLevel(new Date(liveSession.startedAt).getTime(), liveNow) : "ok";
+    const liveRemaining = liveSession ? formatLiveRemaining(new Date(liveSession.endsAt).getTime(), liveNow) : "";
+    const liveStepsCount = liveSession ? getLocalizedRaidData(liveSession.raidType, "fr").steps.length : 0;
+
     if (!event) return null;
 
     // Init present participants when entering completion mode
@@ -324,8 +397,10 @@ export function EventDetailModal({
         setShowRaidCompletion(true);
     };
 
-    const typeConfig = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
-    const statusConfig = STATUS_CONFIG[event.status] || STATUS_CONFIG.DRAFT;
+    const isCompleted = event.status === "COMPLETED" || (Boolean(event.endDate) && new Date(event.endDate).getTime() < Date.now());
+    const effectiveStatus = isCompleted ? "COMPLETED" : event.status;
+    const typeConfig = calendarEventTheme(event.type);
+    const statusConfig = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.DRAFT;
 
     const registeredCount = event.participants.filter(p => p.status === "REGISTERED").length;
     const reserveCount = event.participants.filter(p => p.status === "RESERVE").length;
@@ -337,11 +412,11 @@ export function EventDetailModal({
     const isImportedKralamoure = event.type === "KRALAMOURE" && !isDirectKralamoure;
     const isExternal = isDirectKralamoure; // Only direct Kralamoure events are truly external
 
-    const isOpen = event.status === "PUBLISHED";
+    const isOpen = effectiveStatus === "PUBLISHED";
     const isFull = event.maxParticipants ? registeredCount >= event.maxParticipants : false;
     const isCreator = event.creator.id === currentUserId;
     const isRegistered = isUserRegistered;
-    const canRegister = isOpen && !isRegistered && !isExternal;
+    const canRegister = isOpen && !isRegistered && !isExternal && !isMirror;
 
     // Extract Metamob creator from metadata or description for Kralamoure events
     const metamobCreator = (isDirectKralamoure || isImportedKralamoure)
@@ -353,24 +428,8 @@ export function EventDetailModal({
     const cachedCount = isKrala ? (eventMetadata?.metamobParticipantsCount || 0) : 0;
     const displayCount = registeredCount > 0 ? registeredCount : cachedCount;
 
-    // #179 — copier les pseudos des participants (organisateur + inscrits + réserve)
-    const participantDisplayName = (p: Participant): string =>
-        (p.user.profiles?.[0]?.discordNickname || p.user.name || "Anonyme").replace(/\s\(\d+\)$/, "");
-    const handleCopyPseudos = () => {
-        const names: string[] = [];
-        if (event.creator) names.push(event.creator.name || "Anonyme");
-        event.participants
-            .filter((p) => p.status === "REGISTERED" || p.status === "RESERVE")
-            .sort((a, b) => a.position - b.position)
-            .forEach((p) => names.push(participantDisplayName(p)));
-        const text = names.map((n) => `/w ${n}`).join("\n");
-        if (!text.trim()) return;
-        navigator.clipboard.writeText(text).then(() => {
-            setCopiedPseudos(true);
-            toast.success("Pseudos copiés !", { description: "Colle-les dans Discord pour chuchoter à tous." });
-            setTimeout(() => setCopiedPseudos(false), 2000);
-        }).catch(() => toast.error("Impossible de copier"));
-    };
+    // #179 — la copie des pseudos est UNITAIRE (voir `PseudoChip` dans `ParticipantRow`) :
+    // plus de bouton global qui collait toute la liste `\n/w Pseudo`.
 
     const handleAction = async (action: () => Promise<void>) => {
         setIsLoading(true);
@@ -421,43 +480,66 @@ export function EventDetailModal({
 
 
 
-    const TypeIcon = typeConfig.icon;
-
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent
                     draggable
-                    className="w-[95vw] sm:max-w-2xl bg-surface/98 backdrop-blur-xl border border-border ring-1 ring- p-0 overflow-hidden max-h-[90vh] flex flex-col  fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                    className="w-[95vw] sm:max-w-2xl bg-surface border border-border p-0 overflow-hidden max-h-[90vh] flex flex-col fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                 >
-                    {/* Header */}
-                    <div className={cn("relative px-8 pt-12 pb-10 border-b border-border/50 overflow-hidden", typeConfig.bgColor)}>
-                        <div className={cn("absolute inset-0 opacity-40 bg-gradient-to-br z-0", typeConfig.gradient)} />
-                        
+                    {/* Header — aplat de la couleur du type (aucun dégradé, aucun blur).
+                        ⚠️ Responsive : la rangée d'actions PASSE À LA LIGNE sous le titre sur
+                        mobile (elle ne peut ni rétrécir ni déborder à droite). */}
+                    <div className={cn("relative px-4 pt-10 pb-6 border-b border-border/50 sm:px-8 sm:pt-12 sm:pb-8", typeConfig.bg, typeConfig.border)}>
+
                         {/* Decorative Kralamoure Insert (Top Right) */}
                         {event.type === "KRALAMOURE" && (
                             <div className="absolute right-0 top-0 w-32 h-full opacity-60 pointer-events-none overflow-hidden select-none">
-                                <div className="absolute top-1/2 -translate-y-1/2 right-4 w-20 h-20 rounded-2xl border border-border-strong overflow-hidden rotate-12 shadow-2xl backdrop-blur-md bg-surface p-1">
-                                    <Image 
-                                        src="/game-data/dungeons/antre-du-kralamoure-g-ant.webp" 
-                                        alt="Kralamoure" 
+                                <div className="absolute top-1/2 -translate-y-1/2 right-4 h-20 w-16 overflow-hidden rounded-[4px] border border-border bg-elevated p-1">
+                                    <Image
+                                        src="/game-data/dungeons/antre-du-kralamoure-g-ant.webp"
+                                        alt="Kralamoure"
                                         fill
-                                        className="object-cover rounded-xl"
+                                        className="object-cover rounded-[3px]"
                                     />
                                 </div>
                             </div>
                         )}
 
-                        <div className="relative flex justify-between items-start z-10 w-full pr-8">
-                            <div className="flex gap-5">
-                                <div className={cn(
-                                    "p-3 rounded-2xl shadow-inner shrink-0",
-                                    "bg-muted/20 text-foreground backdrop-blur-sm border border-border"
-                                )}>
-                                    <TypeIcon className="w-6 h-6" />
+                        <div className="relative z-10 flex w-full flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                            <div className="flex min-w-0 gap-4">
+                                {/* Vrai visuel de l'événement : même source que l'embed Discord et
+                                    les cartes du dashboard (`resolveEventImagePath`). Pour un raid,
+                                    l'illustration 3:4 est affichée ENTIÈRE (jamais rognée). */}
+                                <div
+                                    className={cn(
+                                        "h-16 shrink-0 overflow-hidden rounded-[4px] border border-border bg-elevated",
+                                        isRaid ? "w-12" : "w-16"
+                                    )}
+                                >
+                                    {event.type === "KRALAMOURE" ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="h-full w-full object-contain p-1.5" />
+                                    ) : isRaid ? (
+                                        <Image
+                                            src={resolveEventImagePath(event.type, eventMetadata)}
+                                            alt=""
+                                            width={48}
+                                            height={64}
+                                            className="h-16 w-12 object-contain"
+                                        />
+                                    ) : (
+                                        <Image
+                                            src={resolveEventImagePath(event.type, eventMetadata)}
+                                            alt=""
+                                            width={64}
+                                            height={64}
+                                            className="h-16 w-16 object-cover"
+                                        />
+                                    )}
                                 </div>
 
-                                <div className="space-y-2">
+                                <div className="min-w-0 space-y-2">
                                     <div className="flex items-center gap-2">
                                         <Badge variant="outline" className={cn("text-caption font-black uppercase tracking-wider", typeConfig.color, "border-current/30 bg-current/5 px-2 py-0")}>
                                             {typeConfig.label}
@@ -468,7 +550,7 @@ export function EventDetailModal({
                                     </div>
                                     <DialogHeader>
                                         <DialogTitle className={cn(
-                                            "font-black tracking-tight text-foreground uppercase italic leading-tight break-words",
+                                            "font-black tracking-tight text-foreground uppercase leading-tight break-words",
                                             event.title.length > 40 ? "text-lg sm:text-xl" : "text-xl sm:text-2xl"
                                         )}>
                                             {event.title}
@@ -477,9 +559,11 @@ export function EventDetailModal({
                                 </div>
                             </div>
 
-                            {/* Move Complete Button Here */}
-                            {canManage && (
-                                <div className="flex items-center gap-2 ml-4">
+                            {/* Actions — repliées sous le titre sur mobile, alignées à droite
+                                sur desktop (jamais de débordement horizontal).
+                                Miroirs R1 : aucune action, même admin (lecture seule). */}
+                            {canManage && !isMirror && (
+                                <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
                                     {/* Edit button — only creator or admin, disabled for Kralamoure */}
                                     {onEdit && event.type !== "KRALAMOURE" && (isCreator || isAdmin) && (
                                         <Button
@@ -547,14 +631,19 @@ export function EventDetailModal({
                                         </Button>
                                     )}
 
-                                    {/* Complete button — raids get a special flow */}
-                                    {event.status === "PUBLISHED" && onComplete && (
+                                    {/* Complete button — raids get a special flow.
+                                        ⚠️ Events **Kralamoure** : la clôture vit sur
+                                        Metamob (l'event n'est pas « à nous ») ⇒ aucun
+                                        bouton « Terminer l'event » ici (décision user
+                                        18/09/2026). Les events Discord classiques et
+                                        les Raids gardent leur flux habituel. */}
+                                    {effectiveStatus === "PUBLISHED" && onComplete && !isKrala && (
                                         isRaid ? (
                                             <Button
                                                 size="sm"
                                                 onClick={initRaidCompletion}
                                                 disabled={isLoading}
-                                                className="bg-danger/80 hover:bg-danger text-danger-foreground shadow-sm border border-danger/50"
+                                                className="bg-danger text-danger-foreground hover:bg-danger/90"
                                             >
                                                 <Trophy className="h-4 w-4 mr-1.5" />
                                                 Clôturer le Raid
@@ -564,14 +653,14 @@ export function EventDetailModal({
                                                 size="sm"
                                                 onClick={() => handleAction(onComplete)}
                                                 disabled={isLoading}
-                                                className="bg-info/80 hover:bg-info text-info-foreground shadow-sm border border-info/50"
+                                                className="bg-info text-info-foreground hover:bg-info/90"
                                             >
                                                 <Check className="h-4 w-4 mr-1.5" />
                                                 Terminer l'event
                                             </Button>
                                         )
                                     )}
-                                    {event.status === "COMPLETED" && (
+                                    {effectiveStatus === "COMPLETED" && (
                                         <div className="flex items-center gap-2">
                                             {isRaid && onUndoComplete && (isCreator || canManage) && (
                                                 <Button
@@ -581,7 +670,7 @@ export function EventDetailModal({
                                                     disabled={isLoading}
                                                     className="text-success hover:text-success hover:bg-success/10"
                                                 >
-                                                    <span className="mr-1.5">↩</span>
+                                                    <Undo2 className="h-4 w-4 mr-1.5" />
                                                     Annuler la clôture
                                                 </Button>
                                             )}
@@ -596,7 +685,7 @@ export function EventDetailModal({
                     </div>
 
                     <ScrollArea className="flex-1 overflow-y-auto">
-                        <div className="p-6 space-y-5">
+                        <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
                             {canManage && !hasDiscordForType && !isExternal && (
                                 <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 flex items-start gap-3">
                                     <Bell className="h-5 w-5 text-warning shrink-0 mt-0.5" />
@@ -609,38 +698,39 @@ export function EventDetailModal({
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                                 <InfoCard
-                                    icon={<Calendar className="h-4 w-4 text-warning" />}
+                                    icon={<DofusUiIcon name="calendar" size={18} />}
                                     label="Date"
                                     value={format(new Date(event.startDate), "EEEE d MMMM", { locale: fr })}
                                 />
                                 <InfoCard
-                                    icon={<Clock className="h-4 w-4 text-info" />}
+                                    icon={<DofusUiIcon name="date" size={18} />}
                                     label="Horaires"
                                     value={`${format(new Date(event.startDate), "HH:mm")} - ${format(new Date(event.endDate), "HH:mm")}`}
                                 />
                                 <InfoCard
-                                    icon={<Users className="h-4 w-4 text-pink-400" />}
+                                    icon={<DofusUiIcon name="player" size={18} />}
                                     label="Participants"
                                     value={
                                         <div className="flex items-center gap-2">
                                             <span className="font-black text-lg">{displayCount}</span>
                                             {event.maxParticipants && <span className="text-muted-foreground text-xs font-bold">/ {event.maxParticipants}</span>}
                                             {reserveCount > 0 && (
-                                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-caption font-black">
-                                                    +{reserveCount} WAITING
+                                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-caption font-black normal-case gap-1">
+                                                    <DofusUiIcon name="hourglass" size={12} />
+                                                    {reserveCount} en attente
                                                 </Badge>
                                             )}
                                         </div>
                                     }
                                 />
                                 <InfoCard
-                                    icon={<Crown className="h-4 w-4 text-warning" />}
+                                    icon={<DofusUiIcon name="leader" size={18} />}
                                     label="Organisateur"
                                     value={
                                         (isDirectKralamoure || isImportedKralamoure) && metamobCreator ? (
-                                            <span className="truncate font-black italic uppercase text-foreground tracking-tight" title={metamobCreator}>
+                                            <span className="truncate font-black text-foreground tracking-tight" title={metamobCreator}>
                                                 {metamobCreator}
                                             </span>
                                         ) : event.creator ? (
@@ -671,28 +761,94 @@ export function EventDetailModal({
                                 </div>
                             )}
 
+                            {/* ========== MIROIR DJ / SONGES (R1) ========== */}
+                            {mirrorDetail && (
+                                <div className="space-y-3 rounded-lg border border-border bg-elevated/30 p-4">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <DofusUiIcon name={event.type === "SONGES_RUN" ? "hourglass" : "dungeon"} size={16} />
+                                            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
+                                                {mirrorDetail.label || "Groupe"} · {mirrorDetail.memberCount ?? 0}{mirrorDetail.maxMembers ? ` / ${mirrorDetail.maxMembers}` : ""} joueurs
+                                            </span>
+                                        </div>
+                                        <Badge variant="outline" className="bg-info/10 text-info border-info/30 text-caption font-black uppercase tracking-wider">
+                                            Miroir
+                                        </Badge>
+                                    </div>
+
+                                    {/* Composition : icônes de classes du groupe */}
+                                    {(mirrorDetail.classes ?? []).length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {mirrorDetail.classes!.map((c) => (
+                                                <span key={c.classe} className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1" title={`${c.classe} × ${c.count}`}>
+                                                    <ClassIcon classId={c.classe} size={22} />
+                                                    <span className="text-xs font-black text-foreground">× {c.count}</span>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Succès visés */}
+                                    {(mirrorDetail.achievements ?? []).length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            {mirrorDetail.achievements!.map((name) => (
+                                                <span key={name} className="flex items-center gap-1.5 rounded-lg bg-warning/10 border border-warning/20 px-2 py-1 text-xs font-bold text-warning">
+                                                    <DofusUiIcon name="success" size={14} />
+                                                    {name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Multi-donjons : détail par date */}
+                                    {(mirrorDetail.multiLines ?? []).length > 0 && (
+                                        <div className="space-y-1 border-t border-border pt-2">
+                                            {mirrorDetail.multiLines!.map((line, i) => (
+                                                <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                                                    <span className="font-bold text-foreground truncate">{line.name}</span>
+                                                    <span className="text-muted-foreground font-semibold shrink-0">
+                                                        {line.date ? format(new Date(line.date), "EEE d MMM HH:mm", { locale: fr }) : "Sans date"}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Objectifs Songes */}
+                                    {(mirrorDetail.objectives ?? []).length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
+                                            {mirrorDetail.objectives!.map((objective) => (
+                                                <Badge key={objective} variant="outline" className="bg-elevated text-muted-foreground border-border text-caption font-bold uppercase tracking-wider">
+                                                    {objective.replace(/_/g, " ")}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* ========== RAID INFO PANEL ========== */}
                             {isRaid && raidMeta && (
-                                <div className="space-y-3 p-4 rounded-xl border border-danger/20 bg-danger/[0.04] animate-in fade-in duration-300">
+                                <div className="space-y-3 rounded-lg border border-border bg-elevated/30 p-4">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <Swords className="h-4 w-4 text-danger" />
-                                        <span className="text-xs font-black text-danger uppercase tracking-widest">Détails du Raid</span>
+                                        <DofusUiIcon name="dungeon" size={16} />
+                                        <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">Détails du Raid</span>
                                     </div>
 
                                     {/* Raid type + badges */}
                                     <div className="flex flex-wrap items-center gap-2">
                                         {raidMeta.raidLabel && (
-                                            <span className="px-2.5 py-1 rounded-lg bg-danger/10 border border-danger/20 text-danger text-xs font-black uppercase tracking-wider">
+                                            <span className="px-2.5 py-1 rounded-lg bg-elevated border border-border text-foreground text-xs font-black uppercase tracking-wider">
                                                 {raidMeta.raidLabel}
                                             </span>
                                         )}
                                         {raidMeta.openToExternal ? (
-                                            <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-black uppercase tracking-wider">
-                                                <Globe className="h-3 w-3" /> Ouvert aux extérieurs
+                                            <span className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-success/10 border border-success/20 text-success text-caption font-bold uppercase tracking-wider">
+                                                <DofusUiIcon name="world" size={12} /> Ouvert aux extérieurs
                                             </span>
                                         ) : (
-                                            <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-elevated border border-border text-muted-foreground text-caption font-black uppercase tracking-wider">
-                                                <Lock className="h-3 w-3" /> Guilde uniquement
+                                            <span className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-elevated border border-border text-muted-foreground text-caption font-bold uppercase tracking-wider">
+                                                <DofusUiIcon name="guild" size={12} /> Guilde uniquement
                                             </span>
                                         )}
                                     </div>
@@ -700,9 +856,31 @@ export function EventDetailModal({
                                     {/* Captain */}
                                     {raidMeta.raidCaptain && (
                                         <div className="flex items-center gap-2 text-sm">
-                                            <Crown className="h-4 w-4 text-warning shrink-0" />
+                                            <DofusUiIcon name="leader" size={16} />
                                             <span className="text-muted-foreground text-xs uppercase tracking-wider">Capitaine :</span>
-                                            <span className="font-black text-warning uppercase tracking-tight">{raidMeta.raidCaptain}</span>
+                                            <span className="font-black text-warning tracking-tight">{raidMeta.raidCaptain}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Guide du raid + overlay : on retrouve la strat depuis l'event */}
+                                    {raidMeta?.raidType && RAID_GUIDE_LINKS[raidMeta.raidType] && (
+                                        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                                            <Link
+                                                href={RAID_GUIDE_LINKS[raidMeta.raidType].guideHref}
+                                                title={RAID_GUIDE_LINKS[raidMeta.raidType].guideLabel}
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
+                                            >
+                                                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                                                Voir le guide du raid
+                                            </Link>
+                                            <button
+                                                type="button"
+                                                onClick={() => openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug, eventId: event.id, guildId })}
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
+                                            >
+                                                <Tv2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                                Overlay
+                                            </button>
                                         </div>
                                     )}
 
@@ -712,25 +890,26 @@ export function EventDetailModal({
                                             <div className="flex items-center justify-between text-xs">
                                                 <span className="text-muted-foreground font-bold uppercase tracking-wider">Inscrits</span>
                                                 <span className={cn(
-                                                    "font-black",
+                                                    "flex items-center gap-1.5 font-bold",
                                                     registeredCount >= raidMeta.raidMin ? "text-success" : "text-warning"
                                                 )}>
-                                                    {registeredCount >= raidMeta.raidMin ? "✅ RAID GO" : `⏳ ${raidMeta.raidMin - registeredCount} manquant(s)`}
+                                                    <DofusUiIcon name={registeredCount >= raidMeta.raidMin ? "success" : "hourglass"} size={14} />
+                                                    {registeredCount >= raidMeta.raidMin
+                                                        ? "Raid go"
+                                                        : `${raidMeta.raidMin - registeredCount} manquant(s)`}
                                                 </span>
                                             </div>
                                             <div className="relative h-2.5 rounded-full bg-elevated overflow-hidden">
                                                 {/* Min threshold marker */}
                                                 <div
-                                                    className="absolute top-0 bottom-0 w-px bg-warning/50 z-10"
+                                                    className="absolute top-0 bottom-0 w-px bg-warning/60 z-10"
                                                     style={{ left: `${(raidMeta.raidMin / raidMeta.raidMax) * 100}%` }}
                                                 />
                                                 {/* Fill */}
                                                 <div
                                                     className={cn(
                                                         "h-full rounded-full transition-all duration-300",
-                                                        registeredCount >= raidMeta.raidMin
-                                                            ? "bg-gradient-to-r from-success to-success"
-                                                            : "bg-gradient-to-r from-danger to-warning"
+                                                        registeredCount >= raidMeta.raidMin ? "bg-success" : "bg-danger"
                                                     )}
                                                     style={{ width: `${Math.min(100, (registeredCount / raidMeta.raidMax) * 100)}%` }}
                                                 />
@@ -744,6 +923,141 @@ export function EventDetailModal({
                                                 <span className="text-lg font-black text-foreground">{registeredCount}</span>
                                                 <span className="text-muted-foreground text-xs font-bold"> / {raidMeta.raidMax} joueurs</span>
                                             </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ========== LOT 2 : SESSION LIVE (chrono + objectifs) ========== */}
+                            {isRaid && !isMirror && (liveSession?.status === "LIVE" || isLead) && (
+                                <div className="space-y-3 rounded-lg border border-border bg-elevated/30 p-4">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <DofusUiIcon name="hourglass" size={16} />
+                                            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
+                                                Session live
+                                            </span>
+                                        </div>
+                                        {liveSession?.status === "LIVE" && (
+                                            <span className={cn(
+                                                "font-mono font-black tabular-nums",
+                                                liveAlert === "alert45" || liveAlert === "ended" ? "text-danger" : liveAlert === "ok" ? "text-success" : "text-warning"
+                                            )}>
+                                                {liveRemaining}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {(!liveSession || liveSession.status !== "LIVE") ? (
+                                        <div className="space-y-2">
+                                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                                Lance le chrono de 60 min, l'étape suivie et les objectifs cochés — visibles en temps réel dans l'overlay des inscrits.
+                                            </p>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleLiveAction(() => startRaidLiveSession(guildId, event.id))}
+                                                disabled={liveLoading || isLoading}
+                                                className="bg-success text-success-foreground hover:bg-success/90"
+                                            >
+                                                {liveLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Play className="h-4 w-4 mr-1.5" />}
+                                                Lancer le raid
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between gap-2 text-xs">
+                                                <span className="font-black text-foreground tabular-nums">
+                                                    {(liveSession.score ?? 0).toLocaleString("fr-FR")} pts
+                                                </span>
+                                                {livePresence.length > 0 && (
+                                                    <span className="text-muted-foreground font-bold">
+                                                        {livePresence.length} overlay(s) ouvert(s)
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {liveStepsCount > 0 && (
+                                                <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-2 py-1.5">
+                                                    {isLead ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => handleLiveAction(() => setRaidLiveStep(guildId, { eventId: event.id, stepIndex: Math.max(0, liveSession.currentStepIndex - 1) }))}
+                                                            disabled={liveLoading || liveSession.currentStepIndex <= 0}
+                                                            className="h-7 w-7 p-0"
+                                                            title="Étape précédente"
+                                                        >
+                                                            <ChevronLeft className="h-4 w-4" />
+                                                        </Button>
+                                                    ) : <span />}
+                                                    <span className="text-xs font-bold text-foreground truncate">
+                                                        Étape {liveSession.currentStepIndex + 1}/{liveStepsCount}
+                                                        {" · "}
+                                                        {getLocalizedRaidData(liveSession.raidType, "fr").steps[liveSession.currentStepIndex]?.floor ?? ""}
+                                                    </span>
+                                                    {isLead ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => handleLiveAction(() => setRaidLiveStep(guildId, { eventId: event.id, stepIndex: Math.min(liveStepsCount - 1, liveSession.currentStepIndex + 1) }))}
+                                                            disabled={liveLoading || liveSession.currentStepIndex >= liveStepsCount - 1}
+                                                            className="h-7 w-7 p-0"
+                                                            title="Étape suivante"
+                                                        >
+                                                            <ChevronRight className="h-4 w-4" />
+                                                        </Button>
+                                                    ) : <span />}
+                                                </div>
+                                            )}
+
+                                            <div className="space-y-1">
+                                                {(liveSession.objectives ?? []).map((objective: { id: string; label: string; points: number; done: boolean }) => (
+                                                    <div key={objective.id} className="flex items-center gap-2 text-xs">
+                                                        {isLead ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleLiveAction(() => setRaidLiveObjective(guildId, { eventId: event.id, objectiveId: objective.id, done: !objective.done }))}
+                                                                disabled={liveLoading}
+                                                                className={cn(
+                                                                    "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                                                                    objective.done ? "bg-success border-success text-success-foreground" : "border-border text-transparent hover:border-success"
+                                                                )}
+                                                                title={objective.done ? "Décocher" : "Cocher"}
+                                                            >
+                                                                <Check className="h-3 w-3" />
+                                                            </button>
+                                                        ) : (
+                                                            <span className={cn(
+                                                                "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                                                                objective.done ? "bg-success/20 border-success/40 text-success" : "border-border text-transparent"
+                                                            )}>
+                                                                <Check className="h-3 w-3" />
+                                                            </span>
+                                                        )}
+                                                        <span className={cn("flex-1 leading-snug", objective.done ? "text-foreground font-bold" : "text-muted-foreground")}>
+                                                            {objective.label}
+                                                        </span>
+                                                        {objective.points > 0 && (
+                                                            <span className="shrink-0 font-mono font-bold text-warning">
+                                                                +{objective.points.toLocaleString("fr-FR")}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {isLead && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => handleLiveAction(() => endRaidLiveSession(guildId, event.id))}
+                                                    disabled={liveLoading}
+                                                    className="text-muted-foreground hover:text-danger hover:bg-danger/10"
+                                                >
+                                                    <Square className="h-4 w-4 mr-1.5" />
+                                                    Clôturer la session
+                                                </Button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -769,7 +1083,7 @@ export function EventDetailModal({
                                                 const config = MISSION_CATEGORY_CONFIG[mission.category] || MISSION_CATEGORY_CONFIG.EVENT;
                                                 const payload = mission.payload || {};
                                                 let imageUrl = payload.imageUrl || payload.image || config.fallbackImage;
-                                                
+
                                                 if (mission.category === 'SONGES') {
                                                     const diff: string = (payload.difficulty || 'Reve').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                                                     const levelMap: Record<string, number> = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4 };
@@ -783,25 +1097,22 @@ export function EventDetailModal({
                                                     <TooltipProvider key={mission.id}>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <Link 
+                                                                <Link
                                                                     href={`/dashboard/${guildId}/missions`}
                                                                     className="group relative aspect-[16/9] rounded-xl border border-border overflow-hidden bg-background shadow-lg block hover:border-warning/50 transition-all hover:scale-[1.02]"
                                                                 >
-                                                                    <Image 
-                                                                        src={imageUrl} 
-                                                                        alt={mTitle} 
-                                                                        fill 
-                                                                        className="object-contain p-2 opacity-60 group-hover:opacity-100 transition-opacity duration-300" 
+                                                                    <Image
+                                                                        src={imageUrl}
+                                                                        alt={mTitle}
+                                                                        fill
+                                                                        className="object-contain p-2 opacity-60 group-hover:opacity-100 transition-opacity duration-300"
                                                                         unoptimized
                                                                     />
                                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                                                                    
-                                                                    {/* Category Icon */}
-                                                                    <div className={cn(
-                                                                        "absolute top-2 left-2 p-1 rounded bg-black/60 border border-border backdrop-blur-md z-10",
-                                                                        config.color
-                                                                    )}>
-                                                                        <config.icon className="h-2.5 w-2.5" />
+
+                                                                    {/* Picto de catégorie (Dofus) */}
+                                                                    <div className="absolute top-2 left-2 z-10 flex h-6 w-6 items-center justify-center rounded-[3px] border border-border bg-black/60">
+                                                                        <DofusUiIcon name={config.picto} size={14} />
                                                                     </div>
 
                                                                     <div className="absolute inset-x-0 bottom-0 p-2">
@@ -834,28 +1145,14 @@ export function EventDetailModal({
                             {(() => {
                                 return (
                                     <div>
-                                        <h3 className="text-sm font-black text-muted-foreground mb-4 flex items-center justify-between uppercase italic tracking-widest">
+                                        <h3 className="text-sm font-black text-muted-foreground mb-4 flex items-center justify-between uppercase tracking-wider">
                                             <div className="flex items-center gap-2">
-                                                <Users className="h-4 w-4 text-pink-400" />
+                                                <DofusUiIcon name="player" size={15} />
                                                 Participants{isKrala ? " Metamob" : ""}
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                {/* #179 — copier les pseudos des participants */}
-                                                {event.participants.filter((p) => p.status === "REGISTERED" || p.status === "RESERVE").length > 0 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleCopyPseudos}
-                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-elevated/60 border border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors normal-case tracking-normal italic-none"
-                                                        title="Copier les pseudos des participants (format /w Pseudo)"
-                                                    >
-                                                        {copiedPseudos ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                                                        {copiedPseudos ? "Copié" : "Pseudos"}
-                                                    </button>
-                                                )}
-                                                <span className="px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-400 text-xs font-black shadow-lg shadow-pink-500/10">
-                                                    {displayCount}
-                                                </span>
-                                            </div>
+                                            <span className="px-2 py-0.5 rounded-md border border-border bg-surface/50 text-xs font-black text-foreground">
+                                                {displayCount}
+                                            </span>
                                         </h3>
 
                                         <div className="space-y-2">
@@ -864,14 +1161,21 @@ export function EventDetailModal({
                                                 .filter(p => p.status === "REGISTERED")
                                                 .sort((a, b) => a.position - b.position)
                                                 .map((participant) => (
+                                                        /* 🚫 Events Kralamoure : les inscrits viennent de Metamob (aucun
+                                                           `UserProfile` en base) ⇒ `kickParticipant` ne peut qu'échouer
+                                                           (« PARTICIPANT INTROUVABLE »). On ne propose donc plus l'action
+                                                           (décision user du 18/09/2026) : le désistement se fait sur Metamob. */
                                                         <ParticipantRow
                                                         key={participant.id}
                                                         participant={participant}
                                                         isCreator={participant.user.id === event.creator.id}
                                                         isCurrentUser={participant.user.id === currentUserId}
                                                         isRaid={isRaid}
+                                                        canEditClass={isOpen && !isExternal && participant.user.id === currentUserId}
+                                                        onClassChange={onMyClassChange}
+                                                        myCharacters={myCharacters}
                                                         onUnregister={!isExternal && onUnregister ? () => handleAction(onUnregister) : undefined}
-                                                        onKick={(isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
+                                                        onKick={!isKrala && (isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
                                                              ? () => handleAction(async () => {
                                                                  const res = await kickParticipant(guildId, event.id, participant.user.id);
                                                                  if (res.success) {
@@ -939,6 +1243,8 @@ export function EventDetailModal({
                                                         .filter(p => p.status === "RESERVE")
                                                         .sort((a, b) => a.position - b.position)
                                                         .map((participant) => (
+                                                            /* 🚫 Même règle MetaMob que la liste principale : pas
+                                                               d'expulsion possible sur un event Kralamoure. */
                                                             <ParticipantRow
                                                                 key={participant.id}
                                                                 participant={participant}
@@ -946,7 +1252,7 @@ export function EventDetailModal({
                                                                 isCurrentUser={participant.user.id === currentUserId}
                                                                 isRaid={isRaid}
                                                                 onUnregister={onUnregister ? () => handleAction(onUnregister) : undefined}
-                                                            onKick={(isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
+                                                            onKick={!isKrala && (isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
                                                                  ? () => handleAction(async () => {
                                                                      const res = await kickParticipant(guildId, event.id, participant.user.id);
                                                                      if (res.success) {
@@ -966,9 +1272,11 @@ export function EventDetailModal({
                                                 <div className="text-center py-12 rounded-xl border-2 border-dashed border-border/50 bg-surface/20">
                                                     <User className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
                                                     <p className="text-muted-foreground font-medium">
-                                                        {isKrala 
-                                                            ? "Détails des participants indisponibles" 
-                                                            : "Aucun participant inscrit"
+                                                        {isKrala
+                                                            ? "Détails des participants indisponibles"
+                                                            : isMirror
+                                                              ? "Les inscrits sont sur le post d'origine"
+                                                              : "Aucun participant inscrit"
                                                         }
                                                     </p>
                                                     {isKrala && (
@@ -989,9 +1297,29 @@ export function EventDetailModal({
 
                     {/* Footer */}
                     <div className="px-6 py-4 bg-background/50 border-t border-border/50 space-y-3">
-                        {/* User Actions */}
+                        {/* User Actions — miroirs R1 : seul CTA « Ouvrir le post d'origine »,
+                            même admin (aucune inscription ni action depuis le calendrier). */}
                         <div className="flex items-center gap-2 flex-wrap">
-                            {(isDirectKralamoure || isImportedKralamoure) ? (
+                            {isMirror ? (
+                                <div className="flex flex-col gap-2 w-full">
+                                    <Button
+                                        asChild
+                                        size="lg"
+                                        className="h-12 rounded-xl font-black text-sm uppercase tracking-wider px-8 bg-info hover:bg-info text-info-foreground"
+                                    >
+                                        <Link
+                                            href={mirrorDetail?.href ?? `/dashboard/${guildId}/donjons-et-quetes`}
+                                            className="flex items-center w-full h-full px-4 py-2"
+                                        >
+                                            <ExternalLink className="h-4 w-4 mr-2" />
+                                            Ouvrir le post d'origine
+                                        </Link>
+                                    </Button>
+                                    <p className="text-caption text-muted-foreground italic">
+                                        Miroir lecture seule — inscriptions et modifications depuis le post d'origine.
+                                    </p>
+                                </div>
+                            ) : (isDirectKralamoure || isImportedKralamoure) ? (
                                 <div className="flex flex-col gap-3 w-full">
                                     <div className="flex items-center gap-2">
                                         <Button
@@ -1106,8 +1434,8 @@ export function EventDetailModal({
                             )}
                         </div>
 
-                        {/* Admin Actions — only Rappel Discord (creator or admin) */}
-                        {canManage && !isExternal && (isCreator || isAdmin) && (
+                        {/* Admin Actions — only Rappel Discord (creator or admin, jamais sur un miroir) */}
+                        {canManage && !isMirror && !isExternal && (isCreator || isAdmin) && (
                             <div className="flex items-center justify-between gap-2 flex-wrap pt-4 mt-2 border-t border-border/30">
                                 <div className="flex items-center gap-2 ml-auto">
                                     {event.status === "PUBLISHED" && onSendReminder && event.participants.length > 0 && hasDiscordForType && (
@@ -1135,11 +1463,11 @@ export function EventDetailModal({
             {/* ========== RAID COMPLETION MODAL ========== */}
             {isRaid && showRaidCompletion && (
                 <Dialog open={showRaidCompletion} onOpenChange={setShowRaidCompletion}>
-                    <DialogContent className="w-[95vw] sm:max-w-lg bg-surface/98 backdrop-blur-xl border border-border ring-1 ring-danger/25 p-0 overflow-hidden ">
+                    <DialogContent className="w-[95vw] sm:max-w-lg bg-surface border border-danger/25 p-0 overflow-hidden">
                         <div className="relative p-6 border-b border-danger/10 bg-danger/5">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-danger/10 border border-danger/20 flex items-center justify-center">
-                                    <Trophy className="h-5 w-5 text-danger" />
+                                <div className="flex h-10 w-10 items-center justify-center rounded-[4px] border border-danger/20 bg-danger/10">
+                                    <DofusUiIcon name="trophy" size={20} />
                                 </div>
                                 <div>
                                     <DialogTitle className="text-foreground font-black uppercase tracking-tight">Clôturer le Raid</DialogTitle>
@@ -1151,8 +1479,8 @@ export function EventDetailModal({
                         <div className="p-6 space-y-5">
                             {/* Score */}
                             <div className="space-y-1.5">
-                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                                    <Star className="h-3.5 w-3.5 text-warning" />
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                    <DofusUiIcon name="success" size={14} />
                                     Score du Raid
                                 </label>
                                 <input
@@ -1162,7 +1490,7 @@ export function EventDetailModal({
                                     onChange={e => setRaidScore(e.target.value)}
                                     className="w-full h-11 px-4 rounded-xl bg-background/80 border border-border text-foreground font-black text-base placeholder:text-muted-foreground focus:outline-none focus:border-danger/50"
                                 />
-                                <p className="text-caption text-muted-foreground italic">Score visible dans le module de raid en jeu.</p>
+                                <p className="text-caption text-muted-foreground">Score visible dans le module de raid en jeu.</p>
                             </div>
 
                             {/* Participants présents */}
@@ -1249,7 +1577,7 @@ export function EventDetailModal({
                                     Annuler
                                 </Button>
                                 <Button
-                                    className="flex-1 bg-gradient-to-r from-danger to-danger hover:from-danger hover:to-danger text-foreground font-black shadow-lg shadow-red-500/20"
+                                    className="flex-1 bg-danger text-danger-foreground hover:bg-danger/90 font-bold"
                                     disabled={isCompletingRaid || !confirmRaidComplete}
                                     onClick={async () => {
                                         if (!onComplete) return;
@@ -1271,7 +1599,7 @@ export function EventDetailModal({
                                     {isCompletingRaid ? (
                                         <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Clôture...</>
                                     ) : (
-                                        <><Trophy className="h-4 w-4 mr-2" />Valider & Distribuer</>  
+                                        <><Trophy className="h-4 w-4 mr-2" />Valider & Distribuer</>
                                     )}
                                 </Button>
                             </div>
@@ -1285,6 +1613,7 @@ export function EventDetailModal({
                 onOpenChange={setShowRegistration}
                 eventTitle={event.title}
                 isFull={isFull}
+                myCharacters={myCharacters}
                 onSubmit={handleRegistration}
             />
 
@@ -1333,25 +1662,63 @@ function ParticipantRow({
     isReserve = false,
     isCurrentUser = false,
     isRaid = false,
+    canEditClass = false,
     onUnregister,
     onKick,
-    onTransferCaptaincy
+    onTransferCaptaincy,
+    onClassChange,
+    myCharacters
 }: {
     participant: Participant;
     isCreator?: boolean;
     isReserve?: boolean;
     isCurrentUser?: boolean;
     isRaid?: boolean;
+    /** Ma ligne sur un événement ouvert : sélecteur de MA classe (même règle que Discord). */
+    canEditClass?: boolean;
     onUnregister?: () => void;
     onKick?: () => void;
     onTransferCaptaincy?: () => Promise<void>;
+    onClassChange?: (classe: string) => Promise<void>;
+    /** Personnages déclarés dans mon profil (principal + mules) : choix proposés en premier. */
+    myCharacters?: { main: string | null; secondaries: string[] };
 }) {
     const [isConfirming, setIsConfirming] = useState(false);
     const [isKickConfirming, setIsKickConfirming] = useState(false);
     const [isTransferPending, setIsTransferPending] = useState(false);
     const [isTransferConfirming, setIsTransferConfirming] = useState(false);
+    const [isClassPending, setIsClassPending] = useState(false);
+    const [isClassPickerOpen, setIsClassPickerOpen] = useState(false);
+
+    // Classe affichée : celle de l'inscription, sinon celle du profil Dofus — la MÊME
+    // règle que les embeds Discord (`resolveEffectiveClass`). « Sans classe » seulement
+    // si les deux sont vides : plus de pseudo nu alors que le profil connaît la classe.
+    const effectiveClass = resolveEffectiveClass(participant.classe, participant.user.profiles?.[0]?.classe);
+    const effectiveClassId = getClass(effectiveClass ?? "")?.id ?? null;
+
+    // Mes personnages déclarés (principal + mules), en référentiel unique : proposés
+    // en premier dans le sélecteur, au lieu du dropdown générique des 19 classes.
+    const myRoster = (() => {
+        const values = [myCharacters?.main, ...(myCharacters?.secondaries ?? [])];
+        const found = values
+            .map((c) => getClass((c ?? "").trim()))
+            .filter((c): c is NonNullable<ReturnType<typeof getClass>> => Boolean(c));
+        return Array.from(new Map(found.map((c) => [c.id, c])).values());
+    })();
+
+    const pickClass = async (classeName: string) => {
+        if (!onClassChange || isClassPending) return;
+        setIsClassPending(true);
+        try {
+            await onClassChange(classeName);
+            setIsClassPickerOpen(false);
+        } finally {
+            setIsClassPending(false);
+        }
+    };
 
     return (
+        <>
         <div className={cn(
             "flex items-center justify-between p-2.5 rounded-lg transition-colors group",
             isReserve ? "bg-warning/5 border border-warning/10" : "bg-elevated/30 hover:bg-elevated/50"
@@ -1371,47 +1738,50 @@ function ParticipantRow({
                 </Avatar>
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                        <span className={cn("text-sm font-medium truncate", isCurrentUser ? "text-info" : "text-foreground")}>
-                            {(participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "")}
-                            {isCurrentUser && " (Moi)"}
-                        </span>
+                        <PseudoChip
+                            pseudo={(participant.user.profiles?.[0]?.discordNickname || participant.user.name || "Anonyme").replace(/\s\(\d+\)$/, "")}
+                            classe={effectiveClass}
+                            className="text-sm font-medium text-foreground"
+                        />
+                        {isCurrentUser && <span className="text-caption font-bold text-muted-foreground shrink-0">(Moi)</span>}
                         {isCreator && (
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger>
-                                        <Crown className="h-3.5 w-3.5 text-warning" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>Organisateur</TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                            <span title="Organisateur" className="shrink-0">
+                                <DofusUiIcon name="leader" size={14} />
+                            </span>
                         )}
                         {participant.hasParticipatedThisWeek && (
-                            <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-caption font-black uppercase py-0 px-1.5 shrink-0">
-                                ⚠️ Déjà participé cette semaine
+                            <Badge variant="outline" className="border-border bg-surface/50 text-muted-foreground text-caption font-black uppercase py-0 px-1.5 shrink-0">
+                                Déjà participé cette semaine
                             </Badge>
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        {participant.classe && (
-                            <div
-                                className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium"
-                                style={{
-                                    backgroundColor: `${getClassColor(participant.classe)}15`,
-                                    color: getClassColor(participant.classe)
-                                }}
-                            >
-                                <ClassIcon classId={participant.classe} size={16} showName />
-                            </div>
-                        )}
                         {participant.createdAt && (
                             <span className="text-caption text-muted-foreground/60" title={new Date(participant.createdAt).toLocaleString("fr-FR")}>
                                 {format(new Date(participant.createdAt), "d MMM à HH:mm", { locale: fr })}
                             </span>
                         )}
                         {participant.comment && (
-                            <span className="text-caption text-muted-foreground italic truncate max-w-[100px]">
+                            <span className="text-caption text-muted-foreground truncate max-w-[100px]">
                                 "{participant.comment}"
                             </span>
+                        )}
+                        {canEditClass && onClassChange && (
+                            <button
+                                type="button"
+                                onClick={() => setIsClassPickerOpen((v) => !v)}
+                                aria-expanded={isClassPickerOpen}
+                                aria-label="Changer ma classe pour cet événement"
+                                title="Changer ma classe"
+                                disabled={isClassPending}
+                                className="inline-flex h-5 items-center gap-1 rounded border border-border bg-surface/60 px-1 text-caption font-bold text-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                            >
+                                {effectiveClassId && (
+                                    <ClassIcon classId={effectiveClassId} size={12} />
+                                )}
+                                {effectiveClass ?? "Sans classe"}
+                                <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                            </button>
                         )}
                     </div>
                 </div>
@@ -1455,7 +1825,7 @@ function ParticipantRow({
                                                 {isRaid && !isCurrentUser && onTransferCaptaincy && (
                     <>
                         {isTransferConfirming && (
-                            <span className="text-caption font-bold text-warning/90 italic max-w-[180px] leading-tight inline-block align-middle">
+                            <span className="text-caption font-bold text-warning/90 max-w-[180px] leading-tight inline-block align-middle">
                                 Le capitanat passera à ce joueur — tu perdras les contrôles d'organisateur de ce raid.
                             </span>
                         )}
@@ -1538,5 +1908,81 @@ function ParticipantRow({
                 )}
             </div>
         </div>
+        {/* Sélecteur de classe : mes personnages déclarés d'abord, puis toutes
+            les classes en grille — panneau inline (pas de `<select>` natif). */}
+        {canEditClass && onClassChange && isClassPickerOpen && (
+            <div className="rounded-lg border border-border bg-background p-3">
+                {myRoster.length > 0 && (
+                    <div className="mb-3">
+                        <p className="mb-1.5 text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                            Mes personnages
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {myRoster.map((classe) => {
+                                const isPicked = effectiveClassId === classe.id;
+                                return (
+                                    <button
+                                        key={classe.id}
+                                        type="button"
+                                        disabled={isClassPending}
+                                        onClick={() => pickClass(classe.name)}
+                                        className={cn(
+                                            "flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-caption font-bold transition-colors disabled:opacity-50",
+                                            isPicked
+                                                ? "border-foreground/40 bg-foreground/10 text-foreground"
+                                                : "border-border bg-surface/50 text-muted-foreground hover:text-foreground",
+                                        )}
+                                    >
+                                        <ClassIcon classId={classe.id} size={14} />
+                                        {classe.name}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+                <p className="mb-1.5 text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                    {myRoster.length > 0 ? "Toutes les classes" : "Choisir ma classe"}
+                </p>
+                <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                    <button
+                        type="button"
+                        disabled={isClassPending}
+                        onClick={() => pickClass("")}
+                        className={cn(
+                            "flex flex-col items-center gap-1 rounded-lg border p-2 transition-colors disabled:opacity-50",
+                            !effectiveClassId
+                                ? "border-foreground/40 bg-foreground/10 text-foreground"
+                                : "border-border bg-surface/50 text-muted-foreground hover:text-foreground",
+                        )}
+                    >
+                        <X className="h-6 w-6" aria-hidden="true" />
+                        <span className="text-caption font-medium leading-tight">Sans classe</span>
+                    </button>
+                    {DOFUS_CLASSES.map((classe) => {
+                        const isPicked = effectiveClassId === classe.id;
+                        return (
+                            <button
+                                key={classe.id}
+                                type="button"
+                                disabled={isClassPending}
+                                onClick={() => pickClass(classe.name)}
+                                title={classe.name}
+                                className={cn(
+                                    "flex flex-col items-center gap-1 rounded-lg border p-2 transition-colors disabled:opacity-50",
+                                    isPicked
+                                        ? "border-foreground/40 bg-foreground/10 text-foreground"
+                                        : "border-border bg-surface/50 text-muted-foreground hover:text-foreground",
+                                )}
+                            >
+                                <ClassIcon classId={classe.id} size={24} />
+                                <span className="text-caption font-medium leading-tight">{classe.name}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        )}
+        </>
     );
 }

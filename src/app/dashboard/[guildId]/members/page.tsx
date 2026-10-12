@@ -21,6 +21,13 @@ export default async function MembersPage({ params }: { params: Promise<{ guildI
         return <AccessDenied />;
     }
 
+    // 🔒 Verrou de module (guilde ∪ plateforme) : une URL directe reboucle (A1).
+    // Le God plateforme garde l'accès (`bypassModules = isGod`).
+    if (!user.isSuperAdmin) {
+        const { isModuleLocked } = await import("@/server/actions/module-actions");
+        if (await isModuleLocked(guildId, "roster")) redirect(`/dashboard/${guildId}`);
+    }
+
     const [response, legendaryItems] = await Promise.all([
         getGuildMembers(guildId),
         db.legendaryItem.findMany({ orderBy: { name: "asc" } })

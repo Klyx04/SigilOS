@@ -206,7 +206,7 @@ export function AlignmentSection({
                                         <Sparkles className="w-4 h-4" /> 2. Choisir l'Ordre
                                     </h4>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        {(ORDERS as any)[selectedAlignment].map((order: any) => {
+                                        {((ORDERS as any)[selectedAlignment] || []).map((order: any) => {
                                             const isSelected = selectedOrder === order.id;
                                             return (
                                                 <button

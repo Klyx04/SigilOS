@@ -258,6 +258,16 @@ html:has(.boss-detail-shell) {
 @layer components {
   .registre {
     font-family: var(--font-source-sans), system-ui, -apple-system, sans-serif;
+    /* ⚠️ BUG MESURÉ le 10/12/2026 — les pages publiques écrivent `className="registre … font-sans …"`
+       sur LE MÊME élément (`almanax`, `boss`, `bestiaire`, `auth/*`…). La couche `utilities` gagne
+       sur `components` ⇒ `font-sans` (= `--font-sans` = **Inter**) écrasait ce réglage : ces pages
+       rendaient en Inter, la police de hero des templates IA. `font-heading` (= **Space Grotesk**)
+       portait le même piège. On réaligne les deux variables DANS le scope. La landing, elle, ne
+       portait pas `font-sans` (son `h1` héritait donc déjà Source Sans 3) : le « vibe IA » du
+       titre de hero venait de son TRAITEMENT (`font-bold tracking-tight leading-[1.06]`), corrigé
+       dans `landing/registre/hero.tsx`. */
+    --font-sans: var(--font-source-sans);
+    --font-heading: var(--font-source-sans);
     --radius-sm: 3px;
     --radius-md: 4px;
     --radius-lg: 6px;

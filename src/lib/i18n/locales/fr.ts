@@ -11,15 +11,21 @@ export const fr = {
         tools: "Outils",
         toolsHint: "Outils ouverts sans compte",
         connectDiscord: "Connexion Discord",
-        /** Encart du serveur Discord (header public) : ce qu'on y gagne, en clair. */
+        /** Encart du « Tableau de bord » (header public, visiteur) : ce que c'est, comment y entrer. */
+        dashboardCard: {
+            title: "Le tableau de bord",
+            intro: "L'espace de votre guilde : membres, sorties, quêtes et progression.",
+            points: [
+                "Il faut être membre d'une guilde partenaire — l'accès passe par Discord",
+                "Pas encore de guilde ? L'annuaire montre celles qui sont ouvertes",
+            ],
+        },
+        /** Encart du serveur Discord (header public) : deux choses, pas quatre. */
         discordCard: {
             title: "Le serveur Discord",
-            intro: "Rejoins le serveur pour être prévenu quand quelque chose bouge sur Dofus.",
             benefits: [
-                "Les patch notes Dofus, dès leur sortie",
-                "L'Almanax du jour, sans y penser",
-                "Les nouveaux cosmétiques dès leur ajout en jeu",
-                "L'entraide entre guildes, et de quoi demander un accès",
+                "Les mises à jour du site y sont annoncées",
+                "Toutes les demandes passent par là : question, bug, accès, idée",
             ],
             cta: "Rejoindre le serveur",
         },

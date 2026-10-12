@@ -234,6 +234,18 @@ export function resolveDofusAssetImageUrl(
 export function internalDofusDbImageUrl(upstreamUrl?: string | null): string | null {
     const parsed = upstreamUrl ? parseDofusDbImageUrl(upstreamUrl) : null;
     if (!parsed) return null;
+    // 🐛 Mesure du **12/10/2026** (carte du monde → panneau « Archimonstres », constat user
+    // « certains archi leur image ne correspond pas ») : pour un MONSTRE, le nombre d'une URL
+    // `img/monsters/{n}.png` est un **gfxId** (l'apparence), JAMAIS l'id de l'entité. Les deux
+    // espaces se contredisent : « Kiroyal le Sirupeux » = monstre **2508**, `img/monsters/90.png` ;
+    // or `/api/assets-dofus/monsters/90` sert le monstre **90** — mesuré en bêta : le sprite 90 est
+    // un dragon violet, la réponse du proxy était une « Gelée royale » (autre créature), figée 1 an
+    // en cache `immutable`. On demande donc explicitement l'espace **apparence** (`sprite=1`) : le
+    // proxy sert le fichier amont tel quel et le met en cache sous `{n}.sprite.webp`.
+    if (parsed.type === "monsters" && !parsed.sortPrefixed) {
+        const query = upstreamQuery(upstreamUrl);
+        return `/api/assets-dofus/monsters/${parsed.id}${query}${query ? "&sprite=1" : "?sprite=1"}`;
+    }
     // Une URL d'**icône** (`sort_<n>`) porte un iconId : on ne le présente donc pas comme un id
     // d'entité (pour un sort, cela servirait l'icône d'un autre sort — mesure du 11/10/2026).
     return resolveDofusAssetImageUrl(parsed.type, parsed.sortPrefixed ? null : parsed.id, upstreamUrl);

@@ -181,7 +181,17 @@ function Families({
     return (
         <div className="space-y-6">
             {hub.families.map((family) => (
-                <section key={family.raceId} className="rounded-xl border border-border bg-surface/30 p-4 sm:p-5">
+                <section
+                    key={family.raceId}
+                    className="rounded-xl border border-border bg-surface/30 p-4 sm:p-5"
+                    // 🚦 Mesure du 12/10/2026 : 264 familles et ~4 399 `<img>` dans une seule page ⇒
+                    // le navigateur payait la mise en page et le décodage de **tout** à chaque
+                    // défilement (« ça lag comme pas possible »). `content-visibility: auto` lui
+                    // permet d'ignorer les familles hors écran (elles restent dans le HTML servi,
+                    // donc indexables) ; `contain-intrinsic-size` lui donne une hauteur estimée pour
+                    // que la barre de défilement ne saute pas.
+                    style={{ contentVisibility: "auto", containIntrinsicSize: "auto 600px" }}
+                >
                     <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                         <h2 className="text-base sm:text-lg font-bold text-foreground">
                             {family.name ?? t.bossPage.bestiaryHub.otherFamily}
@@ -207,7 +217,15 @@ function Families({
                                     >
                                         {sprite ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={sprite} alt="" className="h-8 w-8 shrink-0 object-contain" loading="lazy" />
+                                            <img
+                                                src={sprite}
+                                                alt=""
+                                                width={32}
+                                                height={32}
+                                                decoding="async"
+                                                loading="lazy"
+                                                className="h-8 w-8 shrink-0 object-contain"
+                                            />
                                         ) : null}
                                         <span className="min-w-0">
                                             <span className="block truncate text-xs font-bold text-foreground">{monster.name}</span>

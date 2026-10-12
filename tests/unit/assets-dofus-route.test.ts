@@ -275,6 +275,66 @@ describe("GET /api/assets-dofus/monsters/[id] — l'apparence suit le gfxId (aut
     });
 });
 
+describe("GET /api/assets-dofus/monsters/{gfx}?sprite=1 — espace d'APPARENCE (gfxId ≠ id de monstre)", () => {
+    /**
+     * 🐛 Mesure du 12/10/2026 (constat user « certains archi leur image ne correspond pas », carte du
+     * monde → panneau « Archimonstres » de la zone « Village des Dopeuls ») : `img/monsters/90.png`
+     * est le **gfxId** 90 (petit dragon violet), alors que le monstre **90** est une « Gelée royale »
+     * ⇒ `/api/assets-dofus/monsters/90` servait une AUTRE créature, et la figeait 1 an
+     * (`immutable`). Vérifié des deux côtés : `api.dofusdb.fr/img/monsters/90.png` = dragon violet,
+     * `beta.sigilos.fr/api/assets-dofus/monsters/90` = gelée couronnée.
+     * L'espace d'apparence sert le fichier amont **tel quel** et le cache sous `{n}.sprite.webp`
+     * (clé disjointe de `{n}.webp`, où l'espace d'entité écrit).
+     */
+    const SPRITE_URL = "https://api.dofusdb.fr/img/monsters/90.png";
+
+    it("sert le fichier amont TEL QUEL (l'API monstre n'est jamais interrogée) + cache `.sprite.webp`", async () => {
+        const calls: string[] = [];
+        const fetchMock = vi.fn((url: any) => {
+            calls.push(String(url));
+            return Promise.resolve(imageResponse());
+        });
+        vi.stubGlobal("fetch", fetchMock);
+        mockExistsSync.mockReturnValue(false);
+
+        const res = await GET(
+            req(`http://localhost/api/assets-dofus/monsters/90?url=${encodeURIComponent(SPRITE_URL)}&sprite=1`),
+            ctx("monsters", "90")
+        );
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("image/webp");
+        // Le piège mesuré : `/monsters/90` (API entité) ne doit JAMAIS être appelé ici.
+        expect(calls).toEqual([SPRITE_URL]);
+        expect(String(mockWriteFile.mock.calls[0][0])).toMatch(/[\\/]90\.sprite\.webp$/);
+    });
+
+    it("sans `?url=` exploitable : placeholder — on ne devine jamais un monstre par ce nombre", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        mockExistsSync.mockReturnValue(false);
+
+        const res = await GET(req("http://localhost/api/assets-dofus/monsters/90?sprite=1"), ctx("monsters", "90"));
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("x-sigilos-placeholder")).toBe("1");
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("apparence déjà siphonnée → 200 depuis le disque, aucun appel réseau", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        mockExistsSync.mockImplementation((p: any) => String(p).endsWith("90.sprite.webp"));
+        mockReadFileSync.mockReturnValue(Buffer.alloc(100));
+
+        const res = await GET(req("http://localhost/api/assets-dofus/monsters/90?sprite=1"), ctx("monsters", "90"));
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("image/webp");
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+});
+
 describe("GET /api/assets-dofus/spells/sort_<iconId> — espace d'ICÔNE (le nom fait l'identité)", () => {
     /**
      * 🐛 Mesure beta du 11/10/2026 (fiche publique `/boss/sam-sagaz`, avis de recherche) : 3 des

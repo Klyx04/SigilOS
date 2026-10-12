@@ -100,3 +100,63 @@ export function buildCronCheckIn(
         ...(duration !== undefined ? { duration } : {}),
     };
 }
+
+/**
+ * 🕰️ **Tâche muette** — « cette tâche ne tourne plus » (constat user du 12/10/2026).
+ *
+ * 🐛 Mesure du 12/10/2026 : **23 des 25 moniteurs Sentry sont désactivés** — plafond
+ * d'abonnement, message officiel : « *A check-in was sent but dropped due to the monitor being
+ * disabled* » ⇒ les check-ins sont **jetés** et **aucune alerte ne partira jamais** de ce côté.
+ * Le panneau God « Tâches CRON » connaît pourtant la **dernière exécution** de chaque tâche
+ * (télémétrie Redis) *et* sa **cadence déclarée** (`KNOWN_CRON_TASKS`) : comparer les deux suffit
+ * à crier quand une tâche s'arrête — **sans aucune dépendance** à un quota externe.
+ *
+ * 🔒 On ne crie jamais au hasard :
+ *  • cadence non reconnue (`Automatique`) ⇒ **aucune** alerte ;
+ *  • tâche qui n'a **jamais** tourné ⇒ **aucune** alerte (ligne de crontab absente = cas connu,
+ *    et le panneau affiche déjà « Jamais »).
+ * Seuil = **double** de la cadence + la marge déjà utilisée côté Sentry (30 min) : une tâche
+ * quotidienne n'est muette qu'après ~2 jours, une tâche de 10 min après ~50 min.
+ */
+export const CRON_SILENT_FACTOR = 2;
+
+export interface CronStaleness {
+    /** Vrai seulement si la tâche a **déjà** tourné **et** dépasse le seuil. */
+    silent: boolean;
+    /** Cadence attendue, en minutes (`null` : libellé non exploitable ⇒ jamais d'alerte). */
+    expectedMinutes: number | null;
+    /** Minutes écoulées depuis la dernière exécution (`null` : jamais tourné). */
+    elapsedMinutes: number | null;
+    /** Seuil appliqué, en minutes (`null` : pas de seuil). */
+    thresholdMinutes: number | null;
+}
+
+const MINUTES_PER_UNIT = { minute: 1, hour: 60, day: 24 * 60, week: 7 * 24 * 60 } as const;
+
+/** Verdict de silence d'une tâche — **pur** (aucune IO, `now` injectable). */
+export function cronStaleness(
+    scheduleLabel: string,
+    lastRunIso: string | null | undefined,
+    now: Date = new Date()
+): CronStaleness {
+    const schedule = cronMonitorScheduleFromLabel(scheduleLabel);
+    const expectedMinutes =
+        schedule?.type === "interval" ? schedule.value * MINUTES_PER_UNIT[schedule.unit] : null;
+    if (!expectedMinutes) {
+        return { silent: false, expectedMinutes: null, elapsedMinutes: null, thresholdMinutes: null };
+    }
+
+    const thresholdMinutes = expectedMinutes * CRON_SILENT_FACTOR + CRON_CHECKIN_MARGIN_MINUTES;
+    const last = lastRunIso ? new Date(lastRunIso).getTime() : Number.NaN;
+    if (!Number.isFinite(last)) {
+        return { silent: false, expectedMinutes, elapsedMinutes: null, thresholdMinutes };
+    }
+
+    const elapsedMinutes = Math.max(0, (now.getTime() - last) / 60_000);
+    return {
+        silent: elapsedMinutes > thresholdMinutes,
+        expectedMinutes,
+        elapsedMinutes,
+        thresholdMinutes,
+    };
+}

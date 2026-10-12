@@ -79,6 +79,19 @@ type SerializedListing = {
     elementPotionId: number | null;
     elementPotionTier: number | null;
     huntingWeapon: string | null;
+    /** Lot M1 — souhait de forge d'une recherche (`ANY`/`REQUIRED`/`FORBIDDEN`). */
+    wantedTranscendence?: string | null;
+    /** Lot M1 — critères de jet d'une recherche. */
+    wantedCriteria?: {
+        id: string;
+        effectId: number;
+        characteristic: number | null;
+        label: string;
+        minValue: number;
+        naturalMax: number | null;
+        exo: boolean;
+        tag: string;
+    }[];
     publishedAt: string | null;
     expiresAt: string | null;
     renewCount: number;
@@ -607,6 +620,41 @@ export function MarketListingClient({
                         </CardContent>
                     </Card>
                 )}
+
+                {/* Lot M1 — critères exigés d'une recherche d'achat. */}
+                {listing.type === "WANTED" && (
+                    <Card className="bg-surface/60 border-border">
+                        <CardHeader>
+                            <CardTitle className="text-base">Critères recherchés</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {listing.wantedTranscendence && listing.wantedTranscendence !== "ANY" && (
+                                <p className="text-sm text-foreground">
+                                    🔨 {listing.wantedTranscendence === "REQUIRED" ? "Transcendé exigé" : "Non-transcendé exigé (à forgemager)"}
+                                </p>
+                            )}
+                            {(listing.wantedCriteria ?? []).length === 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    Aucun critère de jet : tout jet convient, au budget affiché.
+                                </p>
+                            )}
+                            {(listing.wantedCriteria ?? []).map((criterion) => (
+                                <div key={criterion.id} className="flex items-center justify-between gap-3 text-sm border-b border-border/60 py-1.5">
+                                    <span className="text-foreground">
+                                        {criterion.tag === "EXO" ? "✦ Exo " : criterion.tag === "OVER" ? "⤴ Over " : ""}
+                                        {criterion.label}
+                                        <span className="text-muted-foreground">
+                                            {criterion.naturalMax != null ? ` [max natif ${criterion.naturalMax}]` : ""}
+                                        </span>
+                                    </span>
+                                    <span className="font-bold tabular-nums text-info">
+                                        +{criterion.minValue} min
+                                    </span>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             {/* Colonne latérale */}
@@ -614,7 +662,9 @@ export function MarketListingClient({
                 <Card className="bg-surface/60 border-border">
                     <CardContent className="p-5 space-y-4">
                         <div>
-                            <p className="text-[11px] uppercase tracking-wider font-black text-muted-foreground">Prix</p>
+                            <p className="text-[11px] uppercase tracking-wider font-black text-muted-foreground">
+                                {listing.type === "WANTED" ? "Budget max" : "Prix"}
+                            </p>
                             <p className="text-2xl font-black text-gold tabular-nums">{formatKamas(displayPrice)}</p>
                             {listing.type === "BUNDLE" && (
                                 <p className="text-[11px] text-muted-foreground">
@@ -714,11 +764,12 @@ export function MarketListingClient({
                         <CardHeader>
                             <CardTitle className="text-sm flex items-center gap-2">
                                 <Handshake className="w-4 h-4 text-success" />
-                                Acheter
+                                {(listing as { type?: string }).type === "WANTED" ? "Proposer" : "Acheter"}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            {listing.status === "ACTIVE" ? (
+                            {/* Lot M1 — pas de réservation sur une recherche. */}
+                            {(listing as { type?: string }).type !== "WANTED" && listing.status === "ACTIVE" ? (
                                 <>
                                     <Button
                                         className="w-full gap-2"
@@ -738,6 +789,11 @@ export function MarketListingClient({
                                         prévue par la guilde. L&apos;échange se conclut toujours en jeu.
                                     </p>
                                 </>
+                            ) : (listing as { type?: string }).type === "WANTED" ? (
+                                <p className="text-xs text-muted-foreground">
+                                    Recherche d&apos;achat : pas de réservation ici — propose ton objet et
+                                    ton prix ci-dessous, le demandeur tranche dans son espace.
+                                </p>
                             ) : listing.reservation?.isMine ? (
                                 <div className="space-y-2">
                                     <p className="text-xs text-info">
@@ -790,7 +846,7 @@ export function MarketListingClient({
                                             <input
                                                 value={offerKamas}
                                                 onChange={(event) => setOfferKamas(event.target.value)}
-                                                placeholder="Ton prix en kamas (ex. 12 500)"
+                                                placeholder={(listing as { type?: string }).type === "WANTED" ? "Ton prix de vente en kamas" : "Ton prix en kamas (ex. 12 500)"}
                                                 inputMode="numeric"
                                                 maxLength={20}
                                                 className="w-full h-10 rounded-xl border border-border bg-background/60 px-3 text-sm"
@@ -798,7 +854,7 @@ export function MarketListingClient({
                                             <input
                                                 value={offerNote}
                                                 onChange={(event) => setOfferNote(event.target.value)}
-                                                placeholder="Message au vendeur (facultatif)"
+                                                placeholder={(listing as { type?: string }).type === "WANTED" ? "Précisions sur ton objet (jet, état…)" : "Message au vendeur (facultatif)"}
                                                 maxLength={500}
                                                 className="w-full h-10 rounded-xl border border-border bg-background/60 px-3 text-sm"
                                             />
@@ -852,7 +908,7 @@ export function MarketListingClient({
                                             onClick={() => setOfferOpen(true)}
                                         >
                                             <Flag className="w-4 h-4" />
-                                            Faire une offre
+                                            {(listing as { type?: string }).type === "WANTED" ? "Proposer mon objet" : "Faire une offre"}
                                         </Button>
                                     )}
                                 </div>

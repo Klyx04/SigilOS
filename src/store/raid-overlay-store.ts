@@ -9,6 +9,14 @@ export interface RaidOverlayPayload {
   activeStepIndex?: number;
   /** Vrai si ouvert en Document PiP (toujours-au-dessus), faux si popup fallback */
   pinned: boolean;
+  /**
+   * Lot 2 — session live : event calendrier + guilde (tous deux optionnels).
+   * Présents quand l'overlay est ouvert DEPUIS un event (modale, carte) :
+   * l'overlay affiche alors le bandeau live (chrono, étape, objectifs).
+   * Absents (guide public, random) ⇒ overlay statique inchangé.
+   */
+  eventId?: string;
+  guildId?: string;
 }
 
 interface RaidOverlayState {
@@ -22,6 +30,8 @@ interface RaidOverlayState {
   close: () => void;
   setRaid: (raidSlug: RaidSlug) => void;
   setActiveStep: (stepIndex: number) => void;
+  /** Lot 2 — rattache l'overlay ouvert à une session live (event + guilde). */
+  setLive: (eventId: string | undefined, guildId: string | undefined) => void;
   setExecrabeShape: (index: number, shape: string) => void;
   clearExecrabeShapes: () => void;
   setCompact: (compact: boolean | ((prev: boolean) => boolean)) => void;
@@ -57,6 +67,13 @@ export const useRaidOverlayStore = create<RaidOverlayState>()((set, get) => ({
     const current = get().payload;
     if (current) {
       set({ payload: { ...current, activeStepIndex: stepIndex } });
+    }
+  },
+
+  setLive: (eventId, guildId) => {
+    const current = get().payload;
+    if (current) {
+      set({ payload: { ...current, eventId, guildId } });
     }
   },
 

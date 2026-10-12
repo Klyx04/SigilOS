@@ -385,6 +385,8 @@ export const MARKET_EPHEMERAL = {
     RESERVE_UNAVAILABLE: "❌ Cette annonce n'est plus disponible.",
     /** S4.2 — §11.3 : quelqu'un a validé le verrou transactionnel avant. */
     RESERVE_CONFLICT: "❌ Cette annonce vient d'être réservée par quelqu'un d'autre.",
+    /** Lot M1 — pas de réservation sur une recherche d'achat (proposition). */
+    RESERVE_WANTED: "ℹ️ Les recherches d'achat se traitent par proposition : utilise « Proposer ».",
     /** S4.3 — un vendeur ne fait pas d'offre sur sa propre annonce (§11.2/D34). */
     OFFER_OWN_LISTING: "❌ Tu ne peux pas faire d'offre sur ta propre annonce.",
     /** S4.3 — annonce plus `ACTIVE` (déjà réservée / vendue / expirée / retirée). */

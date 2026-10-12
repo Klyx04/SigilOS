@@ -76,7 +76,7 @@ export const guide = {
             <li><strong>Client automation:</strong> Enable auto-follow, auto-join fights and auto-ready to save precious minutes on the overall instance timer.</li>
             <li><strong>Pre-purchased consumables:</strong> Stock up on bread, energy potions and recall potions before entering. Player trading is completely disabled inside the Chasm.</li>
             <li><strong>Split into 3 squads of 4:</strong> Divide your 12 players into 3 autonomous teams of 4 fighters. This setup is mandatory to clear floor -1 packs in parallel and speed up floor -5 farming.</li>
-            <li><strong>Achievement choices:</strong> Complete normal fight challenges on monsters and bosses. However, <em>skip the « Salt » achievement (100 salts held)</em> during score runs, as hoarding 100 salts plunges the floor into pitch black and overbuffs monsters.</li>
+            <li><strong>Achievement choices:</strong> Complete normal fight challenges on monsters and bosses. However, <em>skip the « Salt » achievement (100 salts shown)</em> during score runs: 100 salts shown means that much salt not spent on light — hoarding and lighting are incompatible on a timed run.</li>
         </ul>
 
         <hr />
@@ -131,6 +131,7 @@ export const guide = {
         <div class="callout callout-tip">
             <strong>Golden rule of Salt management</strong>
             <p>Maintain brightness at <strong>Level 3</strong> while clearing trash packs: the monster buff (+20% HP / +100 Power) remains trivial while saving guild salt. In contrast, push up to <strong>Level 4</strong> right before engaging Moraympress (-2) and Crabinator (-4) to strip away their 200% bonus HP. Note that Willorka (-6) and Gigalodon ignore Dark Thoughts completely.</p>
+            <p><strong>Cumulative costs:</strong> 0→1 = 1 salt, →2 = +3 (4), →3 = +6 (10), →4 = +10 (20 salts total from 0). Light starts at Level 4 on raid entry; each newly unlocked floor starts at Level 1 — and the decay timer runs even if nobody has set foot there (0 after 2 minutes).</p>
         </div>
 
         <hr />
@@ -187,6 +188,60 @@ export const guide = {
             </tbody>
         </table>
 
+        <div class="callout callout-tip">
+            <strong>Gigalodon Alterations (team buffs, low unknown rate)</strong>
+            <p>Random drops during the raid, benefiting the whole team until the end: <em>Gigalodon Haste</em> (+2 AP), <em>Gigalodon Insolence</em> (+2 MP), <em>Gigalodon Rage</em> (+50% Critical). Watch your gear prerequisites (AP/MP caps).</p>
+        </div>
+
+        <hr />
+
+        <h2>III-bis. Chasm Bestiary (6 Monsters)</h2>
+        <p>
+            Mobs appear as you descend and back up the bosses. All take Dark Thoughts into account (see §II).
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Monster</th>
+                    <th>First Seen</th>
+                    <th>Key Spells</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Madreporor</strong></td>
+                    <td>Floor -1</td>
+                    <td>« KO'rail » 450 air (size-3 square, 7 Range) · « Récidif » 550 fire + 4-cell pull (size-4 cross, 7 Range)</td>
+                </tr>
+                <tr>
+                    <td><strong>Kokapebble</strong></td>
+                    <td>Floor -1</td>
+                    <td>« Épinade » 450 earth on itself (size-3 star) · « Hydrage » 400 water lifesteal (melee)</td>
+                </tr>
+                <tr>
+                    <td><strong>Leviatank</strong></td>
+                    <td>Floor -2</td>
+                    <td>« Absolutte » 5-cell dash + 325 air (size-2 cone, 5 Range line) · « Branchiche » 450 fire in line + 250 fire glyph (melee)</td>
+                </tr>
+                <tr>
+                    <td><strong>Calarmure</strong></td>
+                    <td>Floor -3</td>
+                    <td>« Armucus » 600%-of-level shield (2 turns, 6 Range) · « Encornéant » 550 air (size-3 circle, 6 Range)</td>
+                </tr>
+                <tr>
+                    <td><strong>Ecaillon</strong></td>
+                    <td>Floor -4</td>
+                    <td>« Enfourchage » 3-cell push + 450 fire (size-4 line, 6 Range line) · « Tridémence » 550 earth (size-1 cone, melee)</td>
+                </tr>
+                <tr>
+                    <td><strong>Krak'Haine</strong></td>
+                    <td>Floor -5</td>
+                    <td>« Abjection » 150 × 4 elements (infinite line, melee) · « Férosignal » unparryable -1 MP to everyone (1 turn) + 1 MP to the nearest monster per hit ally</td>
+                </tr>
+            </tbody>
+        </table>
+
         <hr />
 
         <h2>IV. Floor-by-Floor Walkthrough (Strategy & /travel Commands)</h2>
@@ -213,9 +268,11 @@ export const guide = {
 
         <ul>
             <li><strong>Boss specs:</strong> 51,000 HP, 6 MP, 264 MP Parry (accompanied by 3 monsters: Madreporor, Kokapebble, Leviatank).</li>
-            <li><strong>Key spell « Disperssssion »:</strong> Deals 700 water damage and summons up to 2 <em>Murays</em> adjacent to players within 10 Range (maximum 10 Murays on the field).</li>
-            <li><strong>Passive « Empress »:</strong> Moraympress gains +100 Power per living Muray on the map.</li>
-            <li><strong>Poison « Corroside »:</strong> Murays inflict a stacking poison dealing 250 extra fire damage per damage instance taken by the target.</li>
+            <li><strong>Key spell « Disperssssion » (4 AP, 1-10 Range, no line of sight, twice/turn):</strong> Deals ~700 water damage and summons one <em>Muray</em> next to the target (maximum 10 Murays on the field).</li>
+            <li><strong>« Cuirage » (5 AP, 1-7 Range, no line of sight):</strong> Deals ~800 air damage and grants 2,000 shield (2 turns) to Murays aligned with the target.</li>
+            <li><strong>« Triplicité » (6 AP, melee only):</strong> Deals ~1,150 earth damage in a size-4 fork zone.</li>
+            <li><strong>Passive « Empress »:</strong> Moraympress gains +100 Power (1 turn, dispellable) per Muray alive at the start of her turn.</li>
+            <li><strong>Poison « Corroside » (Murays, up to 5 Range, twice/turn):</strong> 400 fire damage + stacking state: each damage instance taken adds 250 fire lifesteal by Moraympress (10× max/turn). Killing a Muray cleanses the state within 2 cells.</li>
         </ul>
 
         <div class="callout callout-tip">
@@ -275,39 +332,43 @@ export const guide = {
             <span class="guide-caption">Crabinator changes element and morphology across HP thresholds</span>
         </div>
 
+        <p>
+            Crabinator (100,000 HP, Unmovable, 64 MP Parry — MP removal shuts it down) shifts appearance at each HP threshold (80,000 / 60,000 / 40,000 / 20,000) in a <strong>random order every raid</strong> — hence mandatory memorization. Each form adds an effect and changes the element/zone of « Bisque » (950 damage, 7 Range). Other spells: « Canopince » (600 water or air, melee, twice/turn), « Encornage » (850 earth + 7-cell push, 2-Range line).
+        </p>
+
         <table>
             <thead>
                 <tr>
-                    <th>Number</th>
                     <th>Elemental Form</th>
                     <th>Attack Element</th>
                     <th>Floor Symbol</th>
+                    <th>Threshold Effect</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td><strong>1</strong></td>
-                    <td>Seashell</td>
+                    <td><strong>Seashell</strong></td>
                     <td>Earth</td>
                     <td>Circle</td>
+                    <td>+5,000 Shield (infinite)</td>
                 </tr>
                 <tr>
-                    <td><strong>2</strong></td>
-                    <td>Urchin</td>
+                    <td><strong>Urchin</strong></td>
                     <td>Air</td>
                     <td>Star</td>
+                    <td>Reflects 20% damage (until form change)</td>
                 </tr>
                 <tr>
-                    <td><strong>3</strong></td>
-                    <td>Pearl</td>
+                    <td><strong>Pearl</strong></td>
                     <td>Fire</td>
                     <td>Square</td>
+                    <td>Removes 63 Range from everyone for 2 turns (undebuffable)</td>
                 </tr>
                 <tr>
-                    <td><strong>4</strong></td>
-                    <td>Octopus</td>
+                    <td><strong>Octopus</strong></td>
                     <td>Water</td>
                     <td>Cone</td>
+                    <td>Pulls 10 cells (line and diagonal)</td>
                 </tr>
             </tbody>
         </table>
@@ -336,11 +397,11 @@ export const guide = {
 
         <h3>Express Return & Deposit Sequence</h3>
         <ol>
-            <li>From [6,10], click the lantern fish shortcut to reappear on floor -2 at [4,8].</li>
+            <li>From [6,10], click the lantern fish shortcut to reappear on floor -2 at [4,7].</li>
             <li>Run <pre><code>/travel 2,7</code></pre> then <pre><code>/travel 3,2</code></pre></li>
             <li>Climb the ladder up to the Outpost (-1).</li>
             <li><strong>All 12 players deposit their full loot into the Raid Chest</strong> to pass 10,000 points.</li>
-            <li>Climb down the ladder, then run <pre><code>/travel 4,3</code></pre> followed by <pre><code>/travel 4,8</code></pre></li>
+            <li>Climb down the ladder, then run <pre><code>/travel 4,3</code></pre> followed by <pre><code>/travel 4,7</code></pre></li>
             <li>Enter the bottom right cave to warp straight back to floor -4.</li>
             <li>Run <pre><code>/travel 9,11</code></pre>, click the pool, and enter the bottom right cave towards floor -5.</li>
         </ol>
@@ -375,7 +436,8 @@ export const guide = {
 
         <ul>
             <li><strong>Boss specs:</strong> 62,000 HP, Rooted (immune to classic push/pull, but can be carried by Pandawa!), immune to Dark Thoughts.</li>
-            <li><strong>Lantern mechanics:</strong> 10 lantern fish surround the boss, triggering MP buffs, stealth and damage spikes on his spell <em>Dark Chant</em>.</li>
+            <li><strong>Lantern mechanics (Light Count):</strong> 10 unkillable lantern fish (4 lit at start, 200% resistances, 550,000 HP): +10% Light Count per lit fish. At 100%: Willorka loses 20% resistances (1 turn). At 0%: « Dark Chant » hits ~1,400 fire (size-10 circle) and « That's Enough » grants 10 MP + stealth (1 turn).</li>
+            <li><strong>43,400 HP threshold (Random Fish):</strong> all fish go dark, Light Count to 0%. Each spell (« That's Enough » on itself, « Echolok » 950 fire up to 5 Range) toggles the fish nearest the target: lighting ≤3 Range heals 20% max HP, going dark ≤3 Range deals neutral 20% of players' current HP.</li>
         </ul>
 
         <div class="callout callout-tip">
@@ -407,6 +469,8 @@ export const guide = {
             <li><strong>Death zone « Jaws of Despair »:</strong> NEVER begin your turn on the 3 direct melee cells in front of Gigalodon mouth. Ending a turn there causes him to swallow you (turn skipped) and spawns a black glyph. If any ally steps on it, the swallowed player dies instantly!</li>
             <li><strong>Mandatory diagonals:</strong> Position your fighters diagonally from the monster to dodge lateral water cones (<em>Ultrasplash</em>) and stay away from edges to avoid being pushed 7 cells by <em>Finspin</em>.</li>
             <li><strong>3-cell spacing rule:</strong> Gigalodon casts <em>Gigarumble</em>: 700 earth damage to any target within 2 Range of an ally or summon, chaining across targets. Maintain at least 3 cells of empty space between players.</li>
+            <li><strong><em>Maxquale</em>:</strong> 500 air damage, infinite Range without line of sight, up to 5 times per turn (once per target) — bring air resistances.</li>
+            <li><strong>Double play:</strong> Gigalodon plays twice per turn (start + mid-turn, after half the fighters) and cannot be moved. Preparation phase: 3 minutes.</li>
         </ul>
 
         <div class="guide-image-container">
@@ -424,26 +488,21 @@ export const guide = {
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>100,000 damage</td>
-                    <td>+5,000 points</td>
-                    <td>Discovery raid / standard gear</td>
-                </tr>
-                <tr>
-                    <td>250,000 damage</td>
-                    <td>+9,000 points</td>
-                    <td>Solid boost coordination (AP / Power)</td>
-                </tr>
-                <tr>
-                    <td>500,000 damage</td>
-                    <td>+12,000 points</td>
-                    <td>Optimized squad (Eliotrope Portals + Vulnerability)</td>
-                </tr>
-                <tr>
-                    <td><strong>1,000,000 damage</strong></td>
-                    <td><strong>+15,000 points (Score Cap)</strong></td>
-                    <td>Flawless burst (Iop, Pandawa, Rogue/Cra, Cloudy T1/T3, Vulbis)</td>
-                </tr>
+                <tr><td>10,000 damage</td><td>+1,000 points</td><td>Safety net</td></tr>
+                <tr><td>20,000 damage</td><td>+2,000 points</td><td>Safety net</td></tr>
+                <tr><td>40,000 damage</td><td>+3,000 points</td><td>Safety net</td></tr>
+                <tr><td>70,000 damage</td><td>+4,000 points</td><td>Safety net</td></tr>
+                <tr><td>100,000 damage</td><td>+5,000 points</td><td>Discovery raid / standard gear</td></tr>
+                <tr><td>130,000 damage</td><td>+6,000 points</td><td>Progression</td></tr>
+                <tr><td>160,000 damage</td><td>+7,000 points</td><td>Progression</td></tr>
+                <tr><td>200,000 damage</td><td>+8,000 points</td><td>Progression</td></tr>
+                <tr><td>250,000 damage</td><td>+9,000 points</td><td>Solid boost coordination (AP / Power)</td></tr>
+                <tr><td>300,000 damage</td><td>+10,000 points</td><td>Milestone</td></tr>
+                <tr><td>400,000 damage</td><td>+11,000 points</td><td>Milestone</td></tr>
+                <tr><td>500,000 damage</td><td>+12,000 points</td><td>Optimized squad (Eliotrope Portals + Vulnerability)</td></tr>
+                <tr><td>600,000 damage</td><td>+13,000 points</td><td>Milestone</td></tr>
+                <tr><td>800,000 damage</td><td>+14,000 points</td><td>Milestone</td></tr>
+                <tr><td><strong>1,000,000 damage</strong></td><td><strong>+15,000 points (Score Cap)</strong></td><td>Flawless burst (Iop, Pandawa, Rogue/Cra, Cloudy T1/T3, Vulbis)</td></tr>
             </tbody>
         </table>
 
@@ -582,9 +641,11 @@ export const guide = {
         </div>
 
         <ul>
-            <li><strong>Tiers 1 to 5 (1,000 to 13,000 pts):</strong> Guildatons, guild XP and <em>Chasm Chests</em> (contains abyssal resources and 1% drop chance of <strong>Minilodon</strong> pet).</li>
-            <li><strong>Tiers 6 to 10 (19,000 to 60,000 pts):</strong> <em>Majestic Chasm Chests</em>, rare boss resources, 1% Minilodon, and 0.5% direct drop chance of <strong>Chasm Set</strong> pieces (Willorka Dorsal, Crabinator Clawspear, Moraympress Visage).</li>
-            <li><strong>Guild Leaderboard (Tuesday 6am):</strong> Exclusive Gold, Silver and Bronze ornaments awarded to members of the top 3 guilds across all servers.</li>
+            <li><strong>Tiers (weekly best score):</strong> 1,000 · 2,000 · 5,000 · 8,000 · 13,000 · 19,000 · 27,000 · 36,000 · 45,000 · 60,000. Tiers 1-5: <em>Chasm Chests</em> (+ guildatons and XP); tiers 6-10: <em>Majestic Chasm Chests</em>.</li>
+            <li><strong>Chasm Chest:</strong> Abyssal glow (69%), Willorka Fin / Crabinator Carapace / Moraympress Venom (10% each), 1% <strong>Minilodon</strong> (costume pet).</li>
+            <li><strong>Majestic Chest:</strong> the 3 boss resources (32.5% each), 1% Minilodon, 0.5% per <strong>Chasm Set</strong> piece (Willorka Dorsal, Crabinator Clawspear, Moraympress Visage).</li>
+            <li><strong>Guild:</strong> 250 activity points per participating character. <strong>One track per week</strong> (Sanctuary or Chasm, pick one).</li>
+            <li><strong>Leaderboard (Tuesday 6am reset):</strong> Top 1 Gold Ornament + « Terror of the Depths » title, Top 2 Silver, Top 3 Bronze (+ scaling Guild Recognitions and guild XP down to Top 100%). Ladder rewards benefit the whole guild.</li>
         </ul>
 
         <div class="guide-image-container">

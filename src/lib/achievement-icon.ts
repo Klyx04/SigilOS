@@ -21,3 +21,23 @@ export function getAchievementIconUrl(slug: string | null | undefined, apiIconUr
     if (slug) return `/game-data/achievements/${slug}.png`;
     return null;
 }
+
+/**
+ * Résout l'icône d'un **succès de donjon** (`DungeonAchievement`), en source unique pour
+ * l'onglet public ET l'onglet interne (mesure du 12/10/2026 : le tracker interne lisait
+ * `challenge.iconUrl` **brut** — sans proxy — d'où des icônes sans la couleur orange dès que la
+ * valeur en base était un chemin local, alors que la fiche publique passait par la résolution).
+ *
+ * Ordre : ① icône du **succès** lui-même (`DungeonAchievement.imageUrl`, spécifique au donjon —
+ * la vraie icône quand elle a été siphonnée) → proxy ; ② icône du **challenge** (partagée) via
+ * la même résolution que le reste du site. Jamais de chemin disque rendu brut.
+ */
+export function getDungeonAchievementIconUrl(achievement: {
+    imageUrl?: string | null;
+    challenge?: { slug?: string | null; iconUrl?: string | null } | null;
+} | null | undefined): string | null {
+    if (!achievement) return null;
+    const own = internalDofusDbImageUrl(achievement.imageUrl);
+    if (own) return own;
+    return getAchievementIconUrl(achievement.challenge?.slug ?? null, achievement.challenge?.iconUrl ?? null);
+}

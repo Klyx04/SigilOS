@@ -52,6 +52,10 @@ export default async function MarketListingEditPage({
     }
     // L'assistant couvre l'équipement, les lots de ressources **et** le 🧺 lot
     // multiple (décision user du 14/09/2026) ; les autres natures restent au MVP.
+    // Lot M1 — les recherches d'achat s'éditent dans leur assistant dédié.
+    if (listing.type === "WANTED") {
+        redirect(`/dashboard/${guildId}/marche/nouveau/recherche?id=${listingId}`);
+    }
     if (
         listing.type !== "EQUIPMENT" &&
         listing.type !== "RESOURCE" &&

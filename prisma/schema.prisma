@@ -504,6 +504,9 @@ model GuildConfig {
   marketModeratorRoleId            String?  // rôle modérateur du marché (facultatif)
   marketMinRoleId                  String?  // rôle minimum pour publier (facultatif)
   marketMaxActivePerMember         Int      @default(5)
+  /// Lot M1 — plafond d'annonces **WANTED** (recherches d'achat) actives par
+  /// membre, compteur SÉPARÉ des ventes (défaut 5, même règle anti-abus §8.4).
+  marketMaxWantedPerMember          Int      @default(5)
   marketDefaultDurationDays        Int      @default(7)
   marketMaxLifetimeDays            Int      @default(20)   // D18 — plafond de survie
   marketReminderDays               Json     @default("[7, 15]") // D18 — paliers de rappel
@@ -1380,6 +1383,29 @@ model EventParticipant {
 
   @@unique([eventId, userId])
   @@index([eventId, position])
+}
+
+/// Session live d'un raid (lot 2) : chrono SERVEUR + étape imposée +
+/// objectifs cochés par le lead (avec points théoriques).
+/// Un event = une session (`eventId` unique). Pilotée par créateur/capitaine ;
+/// lue par les inscrits (overlay live) — le chrono jeu démarre au lancement,
+/// pas à l'heure planifiée. Zéro sel déclaré (retour terrain : le jeu l'affiche).
+model RaidLiveSession {
+  id              String   @id @default(cuid())
+  guildId         String   // = GuildConfig.id (JAMAIS le discordGuildId)
+  eventId         String   @unique // GuildEvent.id du raid
+  raidType        String   // "gigalodon" | "jardin"
+  createdByUserId String   // User.id du lanceur (créateur ou capitaine)
+  startedAt       DateTime @default(now())
+  endsAt          DateTime // startedAt + 60 min (fenêtre de lancement du Gigalodon)
+  status          String   @default("LIVE") // LIVE | ENDED
+  currentStepIndex Int     @default(0)
+  objectives      Json     // [{ id, label, points, done }] — source : siphon guides
+  endedAt         DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([guildId, status])
 }
 
 model ImageHash {
@@ -3942,6 +3968,13 @@ model MarketListing {
   deletedAt      DateTime?
   deletedReason  String?             // AUTO_EXPIRED | SELLER | MODERATION | GUILD
 
+  // ── Lot M1 — recherche d'achat (WANTED) ───────────────────────────────
+  // Souhait de forge sur l'objet recherché : ANY (indifférent) | REQUIRED
+  // (transcendé exigé) | FORBIDDEN (non-transcendé exigé, pour forgemager
+  // soi-même). Colonne générique (tous types) pour éviter une migration
+  // conditionnelle ; seuls les WANTED la portent.
+  wantedTranscendence String @default("ANY")
+
   // ── Anticipation inter-guilde (D24) — réservé, NON utilisé au MVP ───────
   visibility     String    @default("GUILD")   // GUILD | INTER_GUILD (V2)
 
@@ -3957,6 +3990,8 @@ model MarketListing {
   profile        UserProfile           @relation("MarketListingsAsSeller", fields: [profileId], references: [id], onDelete: Cascade)
   stats          MarketListingStat[]
   components     MarketListingComponent[]
+  /// Lot M1 — critères de jet d'une recherche d'achat (WANTED).
+  wantedCriteria MarketWantedCriterion[]
   offers         MarketOffer[]
   reservations   MarketReservation[]
   media          MarketListingMedia[]
@@ -4068,6 +4103,29 @@ model MarketListingComponentStat {
 
   @@unique([componentId, effectId, origin])   // une ligne par effet et par origine
   @@index([componentId])
+}
+
+/// Lot M1 — critère de jet d'une recherche d'achat (WANTED) : effet exigé
+/// (natifs) ou toléré en exo, valeur minimale, pastille calculée serveur
+/// (`tag` : NATIVE | EXO | OVER). Un critère par effet et par annonce.
+model MarketWantedCriterion {
+  id             String   @id @default(cuid())
+  listingId      String
+
+  effectId       Int                // identifiant d'effet DofusDB
+  characteristic Int?               // identifiant de caractéristique (icône/couleur)
+  label          String             // libellé FR figé (référentiel GameEffect)
+  minValue       Int                // valeur minimale exigée
+  naturalMax     Int?               // plage native catalogue (null si exo pur)
+  exo            Boolean  @default(false) // effet hors-natif accepté
+  tag            String   @default("NATIVE") // NATIVE | EXO | OVER (calculé serveur)
+
+  createdAt      DateTime @default(now())
+
+  listing        MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, effectId])
+  @@index([listingId])
 }
 
 /// La négociation (offre / contre-offre).

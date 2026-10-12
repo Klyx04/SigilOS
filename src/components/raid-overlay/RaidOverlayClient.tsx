@@ -22,12 +22,34 @@ import { cn } from "@/lib/utils";
 import { useRaidOverlayStore, type RaidSlug } from "@/store/raid-overlay-store";
 import {
   getLocalizedRaidData,
+  RAID_BESTIARY,
   type RaidStep,
 } from "@/lib/raid-overlay-data";
 import { useI18n } from "@/lib/i18n/client";
 import { getClass } from "@/lib/dofus-assets";
 import { parseCoordinates } from "@/lib/rush-guide-utils";
 import { copyToClipboard } from "@/lib/clipboard";
+import {
+  parseInvocationId,
+  resolveInvocationLabel,
+  scaleUnityDamageLine,
+} from "@/lib/monster-spell-levels";
+import {
+  getRaidBestiaryEntry,
+  getMonsterSpellLevels,
+  resolveMonsterNames,
+  type RaidBestiaryEntryView,
+} from "@/server/actions/monster-spell-actions";
+import {
+  getRaidLiveSession,
+  type RaidLiveSessionView,
+} from "@/server/actions/raid-live-actions";
+import {
+  liveAlertLevel,
+  formatLiveRemaining,
+  type RaidLiveObjective,
+} from "@/lib/raid-live";
+import { useRaidLive } from "@/hooks/use-raid-live";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
 import { JardinsEnigmaTracker } from "@/app/raids/_components/JardinsEnigmaTracker";
 
@@ -245,7 +267,7 @@ export function RaidOverlayClient({
   const lightScale = useMemo(() => getLightScale(isEn), [isEn]);
 
   // Onglets principaux : texte pur, simple soulignement
-  const [mainView, setMainView] = useState<"step" | "statues" | "safe_travel" | "light" | "burst" | "enigmes">("step");
+  const [mainView, setMainView] = useState<"step" | "statues" | "safe_travel" | "light" | "burst" | "enigmes" | "bestiaire">("step");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [zoomedImage, setZoomedImage] = useState<{ src: string; title: string } | null>(null);
   const [imageCollapsed, setImageCollapsed] = useState(false);
@@ -259,13 +281,122 @@ export function RaidOverlayClient({
   );
   const [travelSubTab, setTravelSubTab] = useState<"routes" | "salts">("routes");
 
+  // Lot 2 — session live (chrono serveur + étape du lead + objectifs).
+  const liveEventId = payload?.eventId ?? null;
+  const liveGuildId = payload?.guildId ?? null;
+  const [liveSession, setLiveSession] = useState<RaidLiveSessionView | null>(null);
+  const [liveNow, setLiveNow] = useState(() => Date.now());
+
+  const fetchLiveSession = async () => {
+    if (!liveEventId || !liveGuildId) return;
+    try {
+      const res = await getRaidLiveSession(liveGuildId, liveEventId);
+      if (res.success) setLiveSession(res.data ?? null);
+    } catch {
+      // Fail-soft : l'overlay statique reste affiché.
+    }
+  };
+
+  useEffect(() => {
+    setLiveSession(null);
+    if (!liveEventId || !liveGuildId) return;
+    void fetchLiveSession();
+    const id = window.setInterval(fetchLiveSession, 15_000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveEventId, liveGuildId]);
+
+  const { presence: livePresence } = useRaidLive({
+    guildId: liveGuildId,
+    eventId: liveEventId,
+    onUpdate: () => {
+      void fetchLiveSession();
+    },
+  });
+
+  // Le lead fait avancer l'étape : tous les overlays suivent.
+  useEffect(() => {
+    if (!liveSession || liveSession.status !== "LIVE") return;
+    const idx = liveSession.currentStepIndex;
+    if (Number.isInteger(idx) && idx >= 0 && idx < raid.steps.length && idx !== activeStepIdx) {
+      setActiveStep(idx);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSession?.currentStepIndex, liveSession?.status]);
+
+  // Horloge du chrono (1 s) quand une session live est affichée.
+  useEffect(() => {
+    if (!liveSession || liveSession.status !== "LIVE") return;
+    const id = window.setInterval(() => setLiveNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [liveSession?.id, liveSession?.status]);
+
+  const liveAlert = liveSession
+    ? liveAlertLevel(new Date(liveSession.startedAt).getTime(), liveNow)
+    : "ok";
+  const liveRemaining = liveSession ? formatLiveRemaining(new Date(liveSession.endsAt).getTime(), liveNow) : "";
+  const liveObjectives: RaidLiveObjective[] = liveSession?.objectives ?? [];
+
+  // Lot 5 — modale bestiaire (onglet + boss cliquables des étapes).
+  const [bestiarySlug, setBestiarySlug] = useState<string | null>(null);
+  const [bestiaryEntry, setBestiaryEntry] = useState<RaidBestiaryEntryView | null>(null);
+  const [bestiaryLoading, setBestiaryLoading] = useState(false);
+  const [bestiaryConditions, setBestiaryConditions] = useState<Record<number, string[]>>({});
+  const [bestiarySummons, setBestiarySummons] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    setBestiaryEntry(null);
+    setBestiaryConditions({});
+    setBestiarySummons({});
+    if (!bestiarySlug) {
+      setBestiaryLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setBestiaryLoading(true);
+    getRaidBestiaryEntry(bestiarySlug)
+      .then((res) => {
+        if (cancelled || !res.success || !res.data) return;
+        setBestiaryEntry(res.data);
+        const entry = res.data;
+        getMonsterSpellLevels(entry.monsterId)
+          .then((lv) => {
+            if (cancelled || !lv.success || !lv.data) return;
+            const conds: Record<number, string[]> = {};
+            for (const s of lv.data.spells) {
+              if (s.conditions.length > 0) conds[s.spellId] = s.conditions;
+            }
+            setBestiaryConditions(conds);
+          })
+          .catch(() => {});
+        const ids = entry.spells
+          .flatMap((s) => s.effects)
+          .map((label) => parseInvocationId(String(label)))
+          .filter((n): n is number => n !== null);
+        if (ids.length > 0) {
+          resolveMonsterNames(ids)
+            .then((rn) => {
+              if (!cancelled && rn.success && rn.data) setBestiarySummons(rn.data);
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setBestiaryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bestiarySlug]);
+
   // Synchronisation stricte de l'état selon le raid actif (aucun reliquat d'onglets ou de sous-onglets)
   useEffect(() => {
     if (raid.safeRoutes?.[0]?.id) {
       setActiveTravelRouteId(raid.safeRoutes[0].id);
     }
     setTravelSubTab("routes");
-    if (currentRaidSlug === "jardin-eternel" && (mainView === "statues" || mainView === "light")) {
+    if (currentRaidSlug === "jardin-eternel" && (mainView === "statues" || mainView === "light" || mainView === "bestiaire")) {
       setMainView("step");
     } else if (currentRaidSlug === "gigalodon" && mainView === "enigmes") {
       setMainView("step");
@@ -351,6 +482,8 @@ export function RaidOverlayClient({
           setIsRaidMenuOpen(false);
         } else if (zoomedImage) {
           setZoomedImage(null);
+        } else if (bestiarySlug) {
+          setBestiarySlug(null);
         } else if (onClose) {
           onClose();
         }
@@ -358,7 +491,7 @@ export function RaidOverlayClient({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isRaidMenuOpen, zoomedImage, onClose]);
+  }, [isRaidMenuOpen, zoomedImage, bestiarySlug, onClose]);
 
   return (
     <div className="w-full h-full min-h-screen bg-[#0e1015] text-[#d6d8df] flex flex-col font-sans select-none overflow-hidden isolate text-[12px]">
@@ -480,6 +613,61 @@ export function RaidOverlayClient({
 
       {!pinned && <OverlayPinNotice />}
 
+      {/* ── LOT 2 : BANDEAU SESSION LIVE (chrono serveur + étape + score) ── */}
+      {liveSession && (
+        <div
+          className={cn(
+            "shrink-0 px-3 py-1.5 border-b border-white/[0.08] flex items-center gap-2 text-[11px]",
+            liveSession.status !== "LIVE" || liveAlert === "ended"
+              ? "bg-white/[0.03] text-white/50"
+              : liveAlert === "alert45"
+              ? "bg-rose-500/[0.12] text-rose-200"
+              : liveAlert === "warn30" || liveAlert === "warn15"
+              ? "bg-amber-500/[0.10] text-amber-200"
+              : "bg-emerald-500/[0.08] text-emerald-200"
+          )}
+        >
+          <span
+            className={cn(
+              "w-1.5 h-1.5 rounded-full shrink-0",
+              liveSession.status !== "LIVE" || liveAlert === "ended"
+                ? "bg-white/30"
+                : liveAlert === "alert45"
+                ? "bg-rose-400 animate-pulse"
+                : "bg-emerald-400 animate-pulse"
+            )}
+          />
+          {liveSession.status !== "LIVE" || liveAlert === "ended" ? (
+            <span className="font-semibold">{isEn ? "Live session over" : "Session live terminée"}</span>
+          ) : (
+            <>
+              <span className="font-mono font-bold tabular-nums" title={isEn ? "Time left to start the final fight" : "Temps restant pour lancer le combat final"}>
+                {liveRemaining}
+              </span>
+              <span className="text-white/30">·</span>
+              <span className="font-semibold tabular-nums">
+                {(liveSession.score ?? 0).toLocaleString(isEn ? "en-US" : "fr-FR")} pts
+              </span>
+              {livePresence.length > 0 && (
+                <>
+                  <span className="text-white/30">·</span>
+                  <span className="text-white/60">
+                    {livePresence.length} {isEn ? "here" : "ici"}
+                  </span>
+                </>
+              )}
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setMainView("step")}
+            className="ml-auto text-[10px] text-white/50 hover:text-white underline underline-offset-2 decoration-dotted"
+          >
+            {raid.steps[liveSession.currentStepIndex]?.floor ?? ""}
+          </button>
+        </div>
+      )}
+
       {/* ── 2. NAVIGATION ÉPURÉE (1 SEULE RANGÉE DE TEXTE, DYNAMIQUE PAR RAID) ── */}
       <nav className="flex items-center justify-between shrink-0 bg-[#14161d] border-b border-white/[0.14] px-3 text-[11px]">
         {(currentRaidSlug === "jardin-eternel"
@@ -495,6 +683,7 @@ export function RaidOverlayClient({
               { id: "trajets", label: isEn ? "Routes" : "Trajets" },
               { id: "light", label: isEn ? "Light" : "Lumière" },
               { id: "burst", label: isEn ? "Burst" : "Burst" },
+              { id: "bestiaire", label: isEn ? "Bestiary" : "Bestiaire" },
             ] as const)
         ).map((tab) => {
           const tabKey = tab.id === "trajets" ? "safe_travel" : tab.id;
@@ -560,11 +749,14 @@ export function RaidOverlayClient({
               </button>
             );
           })}
+          {/* Coussin de fin : le dernier étage ne reste jamais coupé à mi-mot. */}
+          <div className="w-3 shrink-0" aria-hidden="true" />
         </div>
       )}
 
       {/* ── 4. CONTENU PRINCIPAL EN LISTE CONTINUE ── */}
-      <main className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0 scrollbar-thin scrollbar-thumb-white/10">
+      <main className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-white/10 bg-[#0b0d12]">
+        <div className="p-3 space-y-3 min-h-full flex flex-col [&>*]:shrink-0 [&>*:only-child]:flex-1">
         {/* ════════════════════════════════════════════════════════════════════ */}
         {/* VUE 1 : STRATÉGIE SALLE (LISTE CONTINUE, PAS DE CARTES MULTIPLES)   */}
         {/* ════════════════════════════════════════════════════════════════════ */}
@@ -575,7 +767,19 @@ export function RaidOverlayClient({
               <div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <h2 className="text-[13px] font-semibold text-white">
-                    {currentStep.floor} · {currentStep.bossName || currentStep.title}
+                    {currentStep.floor} ·{" "}
+                    {currentStep.monsterSlug ? (
+                      <button
+                        type="button"
+                        onClick={() => setBestiarySlug(currentStep.monsterSlug!)}
+                        className="underline decoration-dotted decoration-cyan-400/60 underline-offset-2 hover:text-cyan-200 transition-colors cursor-pointer"
+                        title={isEn ? "Open monster sheet" : "Ouvrir la fiche du monstre"}
+                      >
+                        {currentStep.bossName || currentStep.title}
+                      </button>
+                    ) : (
+                      currentStep.bossName || currentStep.title
+                    )}
                   </h2>
                   {currentStep.bossHp && (
                     <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-white/5 text-rose-300 border border-rose-500/20">
@@ -986,6 +1190,7 @@ export function RaidOverlayClient({
                       </button>
                     );
                   })}
+                  <div className="w-3 shrink-0" aria-hidden="true" />
                 </div>
 
                 {(() => {
@@ -1176,8 +1381,8 @@ export function RaidOverlayClient({
 
             <div className="p-2 rounded border-l-2 border-l-rose-500 bg-rose-500/[0.06] text-[10.5px] text-rose-200/90">
               {isEn
-                ? "⚠️ 100 salts deposited = permanent total darkness. Do NOT attempt the Salt achievement during a score run!"
-                : "⚠️ 100 sels déposés = nuit totale permanente. Ne tentez PAS le succès Sel lors d'un run de score !"}
+                ? "⚠️ Salt achievement = 100 salts SHOWN in the raid UI (spent salts don't count). Hoarding is not darkness — spending is. Skip it on score runs!"
+                : "⚠️ Succès Sel = 100 sels AFFICHÉS dans l'interface (les dépensés ne comptent pas). Thésauriser n'éteint rien — dépenser, si. À ignorer en run de score !"}
             </div>
           </div>
         )}
@@ -1310,6 +1515,61 @@ export function RaidOverlayClient({
             </div>
           </div>
         )}
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {/* VUE BESTIAIRE : LOT 5 — ENCYCLOPÉDIE DU RAID (GIGALODON)          */}
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {mainView === "bestiaire" && (
+          <div className="rounded-md border border-white/[0.08] bg-[#121319] p-3 space-y-3">
+            <div>
+              <h2 className="text-[13px] font-semibold text-white">
+                {isEn ? "Raid Bestiary" : "Bestiaire du raid"}
+              </h2>
+              <p className="text-[11px] text-white/50">
+                {isEn
+                  ? "All bosses & mobs, with their sheets. Boss names in room steps open the same sheet."
+                  : "Boss et monstres avec leurs fiches. Les noms de boss des étapes ouvrent la même fiche."}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-1.5">
+              {(RAID_BESTIARY[currentRaidSlug] ?? []).map((entry) => (
+                <button
+                  key={entry.slug}
+                  type="button"
+                  onClick={() => setBestiarySlug(entry.slug)}
+                  className="p-2 rounded border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] flex items-center justify-between gap-2 text-left transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-semibold text-white truncate">{entry.name}</p>
+                    <p className="text-[10px] text-white/40">
+                      {entry.role === "boss"
+                        ? (isEn ? "Boss" : "Boss")
+                        : entry.role === "invocation"
+                        ? (isEn ? "Summon" : "Invocation")
+                        : (isEn ? "Monster" : "Monstre")}
+                      {" · "}
+                      {entry.floors}
+                      {entry.scorePts ? ` · +${entry.scorePts.toLocaleString(isEn ? "en-US" : "fr-FR")} pts` : ""}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0",
+                      entry.role === "boss"
+                        ? "text-amber-300 border-amber-500/30 bg-amber-500/10"
+                        : entry.role === "invocation"
+                        ? "text-violet-300 border-violet-500/30 bg-violet-500/10"
+                        : "text-white/60 border-white/10 bg-white/[0.04]"
+                    )}
+                  >
+                    {isEn ? "Sheet" : "Fiche"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        </div>
       </main>
 
       {/* ── MODALE D'AGRANDISSEMENT D'IMAGE (ZOOM FULLSCREEN) ── */}
@@ -1339,6 +1599,143 @@ export function RaidOverlayClient({
                 alt={zoomedImage.title}
                 className="max-w-full max-h-[70vh] object-contain rounded"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODALE BESTIAIRE (LOT 5) : fiche compacte + lien fiche complète ── */}
+      {bestiarySlug && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center p-3 animate-in fade-in duration-150"
+          onClick={() => setBestiarySlug(null)}
+        >
+          <div
+            className="w-full max-w-[95vw] max-h-[85vh] bg-[#101217] border border-white/20 rounded-md overflow-hidden shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-3 py-2 bg-white/[0.04] border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
+              <span className="text-[12px] font-semibold text-white truncate">
+                {bestiaryEntry?.name ?? bestiarySlug}
+              </span>
+              <button
+                onClick={() => setBestiarySlug(null)}
+                className="p-1 rounded text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="p-3 overflow-y-auto space-y-3 min-h-0">
+              {bestiaryLoading && !bestiaryEntry ? (
+                <p className="text-[11px] text-white/50 text-center py-6">
+                  {isEn ? "Loading sheet…" : "Chargement de la fiche…"}
+                </p>
+              ) : !bestiaryEntry ? (
+                <p className="text-[11px] text-white/50 text-center py-6">
+                  {isEn ? "Sheet unavailable." : "Fiche indisponible."}
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={bestiaryEntry.imageUrl}
+                      alt={bestiaryEntry.name}
+                      className="w-12 h-12 object-contain rounded border border-white/10 bg-black/40 shrink-0"
+                      loading="lazy"
+                    />
+                    <div className="text-[11px] text-white/70 space-y-0.5">
+                      {bestiaryEntry.lifePoints !== null && (
+                        <p>
+                          <span className="font-mono font-bold text-rose-300">{bestiaryEntry.lifePoints.toLocaleString(isEn ? "en-US" : "fr-FR")}</span>{" "}
+                          PV
+                          {bestiaryEntry.actionPoints !== null && (
+                            <span className="text-white/40"> · {bestiaryEntry.actionPoints} PA</span>
+                          )}
+                          {bestiaryEntry.movementPoints !== null && (
+                            <span className="text-white/40"> · {bestiaryEntry.movementPoints} PM</span>
+                          )}
+                        </p>
+                      )}
+                      <p className="font-mono text-[10px] text-white/50">
+                        {[
+                          bestiaryEntry.resistances.neutral !== null ? `${bestiaryEntry.resistances.neutral}% N` : null,
+                          bestiaryEntry.resistances.earth !== null ? `${bestiaryEntry.resistances.earth}% T` : null,
+                          bestiaryEntry.resistances.fire !== null ? `${bestiaryEntry.resistances.fire}% F` : null,
+                          bestiaryEntry.resistances.water !== null ? `${bestiaryEntry.resistances.water}% E` : null,
+                          bestiaryEntry.resistances.air !== null ? `${bestiaryEntry.resistances.air}% A` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                      {(bestiaryEntry.dodgeAp !== null || bestiaryEntry.dodgeMp !== null) && (
+                        <p className="font-mono text-[10px] text-white/40">
+                          {isEn ? "Dodge" : "Esquive"}
+                          {bestiaryEntry.dodgeAp !== null ? ` PA ${bestiaryEntry.dodgeAp}` : ""}
+                          {bestiaryEntry.dodgeMp !== null ? ` · PM ${bestiaryEntry.dodgeMp}` : ""}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-2 rounded border-l-2 border-l-cyan-500 bg-cyan-500/[0.06] text-[10.5px] text-cyan-200/90">
+                    {isEn
+                      ? "Tactical summary (official spell texts unavailable)."
+                      : "Résumé tactique (textes officiels des sorts indisponibles)."}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {bestiaryEntry.spells.map((spell) => {
+                      const lookup = (id: number): string | null => bestiarySummons[id] ?? null;
+                      return (
+                        <div key={spell.id} className="p-2 rounded border border-white/[0.06] bg-white/[0.02] text-[11px]">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-white">{spell.name}</span>
+                            <span className="font-mono text-[10px] text-white/40">
+                              {spell.apCost} PA · {spell.minRange === spell.range ? spell.range : `${spell.minRange}-${spell.range}`} PO
+                            </span>
+                          </div>
+                          {(bestiaryConditions[spell.id] ?? []).length > 0 && (
+                            <p className="text-[10px] text-cyan-300/80 mt-0.5">
+                              {(bestiaryConditions[spell.id] ?? []).join(" · ")}
+                            </p>
+                          )}
+                          {spell.effects.length > 0 && (
+                            <ul className="mt-1 space-y-0.5 text-white/60">
+                              {spell.effects.map((effect, i) => (
+                                <li key={i} className="text-[10.5px]">
+                                  {scaleUnityDamageLine(
+                                    resolveInvocationLabel(String(effect), lookup),
+                                    bestiaryEntry.damageStats
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {bestiaryEntry.passiveName && (
+                    <p className="text-[10.5px] text-white/50">
+                      <span className="font-semibold text-white/70">{bestiaryEntry.passiveName}</span>
+                      {" — "}
+                      {isEn ? "start-of-fight passive" : "passif de début de combat"}
+                    </p>
+                  )}
+
+                  <a
+                    href={`/bestiaire/${bestiaryEntry.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-cyan-200 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition-colors"
+                  >
+                    <FileText size={12} />
+                    <span>{isEn ? "Full sheet" : "Fiche complète"}</span>
+                  </a>
+                </>
+              )}
             </div>
           </div>
         </div>

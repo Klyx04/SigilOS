@@ -11,8 +11,14 @@
  * panneau « Avis de recherche » et cette modale se comportent exactement pareil.
  */
 import { useEffect, useState } from "react";
-import { Loader2, MapPin, Search } from "lucide-react";
+import { ChevronDown, Loader2, MapPin, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import {
     getArchimonstresByFilter,
@@ -32,6 +38,8 @@ export interface ArchimonsterMapEntry {
     centerX: number | null;
     centerY: number | null;
     worldMapId: number;
+    /** Toutes les zones RÉELLES de la cible (dataset souverain) — dropdown « chaque zone ». */
+    zones?: Array<{ subAreaId: number; name: string; centerX: number | null; centerY: number | null; worldMapId: number }>;
 }
 
 interface ArchimonsterMapModalProps {
@@ -152,12 +160,15 @@ export function ArchimonsterMapModal({ isOpen, onClose, onSelect, currentWorldId
                         </p>
                     ) : (
                         results.map((entry) => (
-                            <button
+                            <div
                                 key={entry.id}
-                                type="button"
-                                onClick={() => { onSelect(entry); onClose(); }}
-                                className="flex w-full items-center gap-3 px-5 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
+                                className="flex w-full items-center gap-3 px-5 py-2.5 transition-colors hover:bg-white/[0.04]"
                             >
+                                <button
+                                    type="button"
+                                    onClick={() => { onSelect(entry); onClose(); }}
+                                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                                >
                                 {entry.imageUrl ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={entry.imageUrl} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded object-contain" />
@@ -176,7 +187,42 @@ export function ArchimonsterMapModal({ isOpen, onClose, onSelect, currentWorldId
                                         {entry.level > 0 ? ` · niv. ${entry.level}` : ""}
                                     </span>
                                 </span>
+                                </button>
                                 <span className="flex shrink-0 flex-col items-end gap-0.5">
+                                    {/* Un archimonstre apparaît souvent dans PLUSIEURS zones
+                                        (donnée de jeu, `subareas` DofusDB) : on propose chaque
+                                        zone pour ouvrir précisément la bonne. */}
+                                    {Array.isArray(entry.zones) && entry.zones.length > 1 && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-foreground/70 transition-colors hover:text-foreground"
+                                                >
+                                                    {entry.zones.length} zones <ChevronDown size={10} />
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
+                                                {entry.zones.map((zone) => (
+                                                    <DropdownMenuItem
+                                                        key={zone.subAreaId}
+                                                        onSelect={() => {
+                                                            onSelect({
+                                                                ...entry,
+                                                                subAreaIds: [zone.subAreaId],
+                                                                centerX: zone.centerX,
+                                                                centerY: zone.centerY,
+                                                                worldMapId: zone.worldMapId,
+                                                            });
+                                                            onClose();
+                                                        }}
+                                                    >
+                                                        {zone.name}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
                                     {entry.isOcre && (
                                         <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-400">
                                             Ocre
@@ -188,7 +234,7 @@ export function ArchimonsterMapModal({ isOpen, onClose, onSelect, currentWorldId
                                         </span>
                                     )}
                                 </span>
-                            </button>
+                            </div>
                         ))
                     )}
                 </div>

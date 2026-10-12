@@ -9,6 +9,8 @@ import {
     summarizeLadderSync,
     buildLadderSyncMessage,
     buildLadderSyncFields,
+    buildLadderWorkerMessage,
+    buildLadderWorkerFields,
     LADDER_SYNC_MAX_LISTED_FAILURES,
 } from "@/lib/ladder-sync-alert";
 
@@ -85,5 +87,53 @@ describe("buildLadderSyncFields", () => {
         expect(names).toEqual(["Profils traités", "À jour", "Échecs"]);
         expect(fields.find((f) => f.name === "Échecs")?.value).toBe("1");
         expect(names).not.toContain("fail_count");
+    });
+});
+
+describe("run du WORKER BullMQ — message et champs FR (fin du jargon synced/notFound/errored)", () => {
+    it("nomme les pseudos introuvables et en erreur (borné + suffixe)", () => {
+        const many = Array.from({ length: LADDER_SYNC_MAX_LISTED_FAILURES + 2 }, (_, i) => `miss${i}`);
+        const msg = buildLadderWorkerMessage({
+            synced: 117,
+            notFound: 8,
+            errored: 1,
+            total: 126,
+            notFoundPseudos: many,
+            erroredPseudos: ["Kaput"],
+        });
+        expect(msg).toContain("117/126");
+        expect(msg).toContain("miss0");
+        expect(msg).toContain(`(+${many.length - LADDER_SYNC_MAX_LISTED_FAILURES})`);
+        expect(msg).toContain("En erreur : Kaput");
+        // Jamais de clé technique dans le message.
+        expect(msg).not.toContain("notFound");
+        expect(msg).not.toContain("errored");
+    });
+
+    it("sans liste fournie : message honnête, aucune section « qui »", () => {
+        const msg = buildLadderWorkerMessage({ synced: 2, notFound: 0, errored: 0, total: 2 });
+        expect(msg).not.toContain("Introuvables :");
+        expect(msg).not.toContain("En erreur :");
+    });
+
+    it("run interrompu : le dit explicitement", () => {
+        const msg = buildLadderWorkerMessage({ synced: 0, notFound: 0, errored: 0, total: 50, aborted: true });
+        expect(msg).toContain("interrompue");
+    });
+
+    it("champs d'embed en français (jamais jobId/synced/notFound)", () => {
+        const fields = buildLadderWorkerFields({ synced: 4, notFound: 8, errored: 0, total: 12 });
+        const names = fields.map((f) => f.name);
+        expect(names).toEqual(["Profils traités", "À jour", "Introuvables", "Erreurs"]);
+        expect(names).not.toContain("jobId");
+        expect(names).not.toContain("synced");
+        expect(fields.find((f) => f.name === "Introuvables")?.value).toBe("8");
+    });
+
+    it("ajoute la pause anti-blocage seulement si le run en a pris", () => {
+        expect(buildLadderWorkerFields({ total: 1 }).some((f) => f.name === "Pauses anti-blocage")).toBe(false);
+        expect(
+            buildLadderWorkerFields({ total: 1, cooldowns: 1 }).some((f) => f.name === "Pauses anti-blocage"),
+        ).toBe(true);
     });
 });

@@ -35,6 +35,7 @@ export type MarketReservationFailure =
     | "NOT_AVAILABLE"
     | "CONFLICT"
     | "INVALID"
+    | "WANTED_NO_RESERVE"
     | "ERROR";
 
 export type MarketReservationOutcome =
@@ -47,6 +48,8 @@ const FAILURE_MESSAGES: Record<MarketReservationFailure, string> = {
     NOT_AVAILABLE: "Cette annonce n'est plus disponible.",
     CONFLICT: "Cette annonce vient d'être réservée.",
     INVALID: "Demande invalide.",
+    // Lot M1 — une recherche d'achat se traite par proposition, pas par réservation.
+    WANTED_NO_RESERVE: "Les recherches d'achat se traitent par proposition : fais une offre au demandeur.",
     ERROR: "Erreur interne, réessaie dans un instant.",
 };
 
@@ -83,6 +86,7 @@ export async function reserveMarketListingCore(params: {
                 id: true,
                 profileId: true,
                 status: true,
+                type: true,
                 // §11.9 — destinataire de l'alerte vendeur (propriétaire logique)
                 // et deep-link : jamais le snowflake en dur côté appelant.
                 userId: true,
@@ -92,6 +96,8 @@ export async function reserveMarketListingCore(params: {
         });
         if (!listing) return fail("NOT_FOUND");
         if (listing.profileId === params.buyerProfileId) return fail("OWN_LISTING");
+        // Lot M1 — pas de réservation sur une recherche (fail-closed).
+        if (listing.type === "WANTED") return fail("WANTED_NO_RESERVE");
         if (listing.status !== "ACTIVE") return fail("NOT_AVAILABLE");
 
         const now = new Date();

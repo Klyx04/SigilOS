@@ -10,12 +10,13 @@ import { DocContent } from '../doc/doc-content';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { getZoneMonsters, getBountiesForZone, searchDungeonsAdvanced } from '@/server/actions/game-data-actions';
+import { getZoneMonsters, getBountiesForZone, getDungeonsForSubArea } from '@/server/actions/game-data-actions';
 import { getZoneArchmonsters, getGuildOcreTrades } from '@/server/actions/ocre-actions';
 import { getBountyFiche, type BountyFichePayload } from '@/server/actions/bounty-actions';
 import { BountyFicheView } from '@/components/succes/BountyFicheView';
 import { groupZoneFamilies } from '@/lib/zone-families';
 import { monsterFicheHref } from '@/lib/bestiaire-fiche';
+import { FilterDropdown } from '@/components/ui/filter-dropdown';
 
 interface ZoneDetailModalProps {
     isOpen: boolean;
@@ -61,6 +62,28 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
         [monsters]
     );
 
+    /**
+     * Filtre par **type** de l'onglet « Familles » — même grammaire que les fiches monstres :
+     * les familles de la sous-zone sont groupées par **super-famille officielle**
+     * (« Créatures de quête », « Créatures Archimonstres », « Blops »…). Les libellés viennent
+     * du référentiel siphonné, jamais inventés ; aucune entrée si la zone n'a pas de type connu.
+     */
+    const [familyType, setFamilyType] = useState<string>("");
+    const familyTypes = useMemo(() => {
+        const types = new Set<string>();
+        for (const family of (monsters?.families ?? [])) {
+            const label = String(family?.superRaceName ?? "").trim();
+            if (label) types.add(label);
+        }
+        return [...types].sort((a, b) => a.localeCompare(b, "fr"));
+    }, [monsters]);
+    const visibleFamilyGroups = useMemo(
+        () => (familyType === ""
+            ? familyGroups
+            : familyGroups.filter((group: any) => String(group?.family?.superRaceName ?? "").trim() === familyType)),
+        [familyGroups, familyType]
+    );
+
     useEffect(() => {
         if (isOpen && zoneName) {
             setActiveTab("tuile");
@@ -74,30 +97,18 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
             Promise.all([
                 getZoneMonsters(zoneName, subAreaId),
                 archisPromise,
-                getBountiesForZone(zoneName),
-                searchDungeonsAdvanced({ query: zoneName }),
+                getBountiesForZone(zoneName, subAreaId),
+                getDungeonsForSubArea(subAreaId),
                 tradesPromise,
             ]).then(([mRes, aRes, bRes, dRes, tRes]) => {
-                const localAvis = (mRes.success && mRes.data) ? mRes.data.avisDeRecherche : [];
-                const dbAvis = bRes.success ? bRes.data || [] : [];
-                
-                // Merge and deduplicate by name. Seules les lignes issues de la table
-                // `Bounty` (bRes) portent un identifiant de fiche : les avis remontés par
-                // les familles locales sont marqués `ficheAvailable: false` pour ne jamais
-                // demander une fiche qui n'existe pas.
-                const mergedAvis = dbAvis.map((b: any) => ({ ...b, ficheAvailable: Boolean(b?.id) }));
-                (localAvis || []).forEach((la: any) => {
-                    if (!mergedAvis.some(dba => dba.name.toLowerCase() === la.name.toLowerCase())) {
-                        mergedAvis.push({
-                            id: la.id,
-                            name: la.name,
-                            imageUrl: la.imageUrl || `https://static.ankama.com/dofus/www/game/monsters/${la.id}.png`,
-                            level: la.level || 0,
-                            subarea: zoneName,
-                            ficheAvailable: false
-                        });
-                    }
-                });
+                // Les avis viennent de la **sous-zone réelle** (dataset souverain, siphon
+                // DofusDB) : plus aucune fusion par nom de famille — c'est exactement ce qui
+                // faisait apparaître « Qil Bil » (Cimetière des Torturés) dans « Cimetière ».
+                // `ficheAvailable` suit le `bountyId` (ligne `Bounty` réellement siphonnée).
+                const mergedAvis = (bRes.success ? bRes.data || [] : []).map((b: any) => ({
+                    ...b,
+                    ficheAvailable: Boolean(b?.bountyId),
+                }));
 
                 if (mRes.success && mRes.data) setMonsters(mRes.data);
                 if (aRes.success) {
@@ -137,13 +148,16 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
             return;
         }
         const row = bounties.find((b: any) => b.id === activeBountyId);
-        if (!row?.ficheAvailable) {
+        // `bountyId` = la ligne `Bounty` réellement siphonnée (`null` pour un avis réel de la
+        // zone qui n'a pas encore de fiche) : on ne demande jamais une fiche qui n'existe pas.
+        const bountyId: string | null = row?.bountyId ?? null;
+        if (!bountyId) {
             setBountyFiche(null);
             return;
         }
         let cancelled = false;
         setLoadingBountyFiche(true);
-        getBountyFiche(activeBountyId)
+        getBountyFiche(bountyId)
             .then((res) => {
                 if (!cancelled) setBountyFiche(res.success && res.data ? res.data : null);
             })
@@ -357,6 +371,9 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                     {archis.map((archi) => {
                                                         const isMissing = archi.state === 'MANQUANT';
                                                         const showGuildStatus = isGuildMode && archi.state !== 'INCONNU';
+                                                        // Fiche du monstre : un archimonstre EST un monstre
+                                                        // (race 78) ⇒ `/bestiaire/<slug>`, jamais une URL inventée.
+                                                        const archiFicheHref = monsterFicheHref(isGuildMode ? guildId : null, { name: archi.name });
                                                         return (
                                                             <div 
                                                                 key={archi.id} 
@@ -372,14 +389,24 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                     <img src={archi.image} alt="" className="w-8 h-8 object-contain" />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className={`text-xs font-bold truncate leading-tight ${showGuildStatus ? (isMissing ? 'text-rose-400' : 'text-emerald-400') : 'text-foreground'}`}>
-                                                                        {archi.name}
-                                                                    </p>
+                                                                    {archiFicheHref ? (
+                                                                        <Link
+                                                                            href={archiFicheHref}
+                                                                            title={`Ouvrir la fiche de ${archi.name}`}
+                                                                            className={`block truncate text-xs font-bold leading-tight hover:underline ${showGuildStatus ? (isMissing ? 'text-rose-400' : 'text-emerald-400') : 'text-foreground'}`}
+                                                                        >
+                                                                            {archi.name}
+                                                                        </Link>
+                                                                    ) : (
+                                                                        <p className={`text-xs font-bold truncate leading-tight ${showGuildStatus ? (isMissing ? 'text-rose-400' : 'text-emerald-400') : 'text-foreground'}`}>
+                                                                            {archi.name}
+                                                                        </p>
+                                                                    )}
                                                                     <p className="text-[11px] text-foreground/40 truncate">
                                                                         {archi.subzone || archi.zone || "Zone inconnue"}
                                                                     </p>
                                                                 </div>
-                                                                <div className="shrink-0">
+                                                                <div className="flex shrink-0 items-center gap-1.5">
                                                                     {showGuildStatus ? (
                                                                         isMissing ? (
                                                                             <span className="px-2 py-0.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold">
@@ -390,11 +417,27 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                                 {archi.owned > 1 ? `x${archi.owned}` : 'Capturé'}
                                                                             </span>
                                                                         )
-                                                                    ) : (
+                                                                    ) : archi.step > 0 ? (
                                                                         <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold">
-                                                                            Étape {archi.step ?? 1}
+                                                                            Étape {archi.step}
+                                                                        </span>
+                                                                    ) : (
+                                                                        // Sans compte Metamob lié, l'« étape » n'existe pas :
+                                                                        // on affiche le **niveau réel** du monstre, jamais un faux.
+                                                                        <span className="px-2 py-0.5 rounded-lg bg-white/5 border border-border/60 text-foreground/50 text-[10px] font-bold tabular-nums">
+                                                                            Niv. {archi.levelMin || archi.levelMax || "?"}
                                                                         </span>
                                                                     )}
+                                                                    {/* Source officielle de la Quête Ocre (URL vérifiée). */}
+                                                                    <a
+                                                                        href="https://www.metamob.fr/"
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        title="Ouvrir Metamob"
+                                                                        className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-border/60 text-foreground/40 transition-colors hover:text-amber-400"
+                                                                    >
+                                                                        <ExternalLink size={12} />
+                                                                    </a>
                                                                 </div>
                                                             </div>
                                                         );
@@ -549,12 +592,26 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                 </TabsContent>
                                 <TabsContent value="families" className="m-0">
                                     <div className="space-y-6">
-                                        {familyGroups.length > 0 ? (
+                                        {/* Filtre par **type** de créature (super-famille officielle) —
+                                            le MÊME menu déroulant du design system que les fiches
+                                            monstres, alimenté par la sous-zone réelle. */}
+                                        {familyTypes.length > 1 && (
+                                            <FilterDropdown
+                                                value={familyType}
+                                                onChange={setFamilyType}
+                                                ariaLabel="Filtrer par type de créature"
+                                                options={[
+                                                    { value: "", label: `Tous les types (${familyGroups.length})` },
+                                                    ...familyTypes.map((type) => ({ value: type, label: type })),
+                                                ]}
+                                            />
+                                        )}
+                                        {visibleFamilyGroups.length > 0 ? (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {/* Familles RÉELLEMENT peuplées de la zone (règle pure
                                                     `@/lib/zone-families`) : aucune famille vide, aucun monstre
                                                     rattaché à la mauvaise famille. */}
-                                                {familyGroups.map(({ family, monsters: familyMonsters }) => {
+                                                {visibleFamilyGroups.map(({ family, monsters: familyMonsters }) => {
                                                     const familyImg = family.imageUrl
                                                         ? (family.imageUrl.startsWith('/') || family.imageUrl.startsWith('http')
                                                             ? family.imageUrl

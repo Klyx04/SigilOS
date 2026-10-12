@@ -129,6 +129,8 @@ interface BossDungeon {
     achievements?: {
         id: string;
         points: number;
+        /** Icône propre au donjon (`DungeonAchievement.imageUrl`) — vraie quand siphonnée. */
+        imageUrl?: string | null;
         /** Succès lié (challenge) — `name` est le libellé publié, le reste sert l'icône/la description. */
         challenge?: { name: string; slug?: string | null; iconUrl?: string | null; description?: string | null };
     }[];
@@ -1166,6 +1168,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                 name: a.challenge?.name ?? "Succès",
                                 slug: a.challenge?.slug ?? null,
                                 iconUrl: a.challenge?.iconUrl ?? null,
+                                imageUrl: a.imageUrl ?? null,
                                 points: a.points ?? 0,
                                 description: a.challenge?.description ?? null,
                             }))}

@@ -117,3 +117,38 @@ export function pickDofensiveMonsterId(
     return Number.isFinite(boss) && boss > 0 ? boss : null;
 }
 
+/**
+ * Variante STRICTE de `pickDofensiveMonsterId` (lot 6 « sorts étrangers »).
+ *
+ * Même ordre exact → partiel unique, mais **JAMAIS de repli sur
+ * `bossMonsterId`** : quand le donjon apparié est lui-même incertain
+ * (match flou/token), servir les sorts d'un boss étranger est pire que
+ * servir aucun sort Dofensive (le repli local DofusDB/Unity reste affiché).
+ *
+ * Cas de référence : « Mureine » / « Plateau de la Mureine » — le donjon
+ * Dofensive apparié n'est pas le bon et le repli historique injectait
+ * « Rouge et Noir », « Négativisme », « Éclair Rouge », « Pulsation
+ * Malsaine » dans la fiche. Avec ce sélecteur : `null` ⇒ l'appelant garde
+ * ses sorts locaux (fail-closed).
+ */
+export function pickDofensiveMonsterIdStrict(
+    monsters: Array<{ id: number; name: string }> | null | undefined,
+    requestedName: string | null | undefined
+): number | null {
+    const list = (Array.isArray(monsters) ? monsters : [])
+        .map((m) => ({ id: Number(m?.id), name: String(m?.name ?? "") }))
+        .filter((m) => Number.isFinite(m.id) && m.id > 0);
+    const wanted = normLite(requestedName ?? "");
+    if (list.length === 0 || !wanted) return null;
+
+    const exact = list.find((m) => normLite(m.name) === wanted);
+    if (exact) return exact.id;
+
+    const partial = list.filter((m) => {
+        const n = normLite(m.name);
+        return n.length >= 4 && wanted.length >= 4 && (n.includes(wanted) || wanted.includes(n));
+    });
+    if (partial.length === 1) return partial[0].id;
+    return null;
+}
+

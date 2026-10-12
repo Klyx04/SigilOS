@@ -15,13 +15,31 @@ const ALERT_TTL = 600;
  * Alerte God (notifyGod) throttlée en Redis — déclenchée en cas de panne
  * Dofusbook répétée ou de réponse au schéma inattendu (API cassée → FM KO).
  * Fail-closed : si Redis est KO, on ne notifie pas (pas bloquant pour la requête).
+ *
+ * `options` permet de requalifier l'alerte : le **repli serveur refusé** (403) est
+ * le comportement **attendu** (Dofusbook bloque les clients serveur par conception ;
+ * la galerie passe par le bake navigateur) ⇒ on le trace en web-only, sans ton
+ * « incident » ni ping Discord (mesure du 12/10/2026 : embeds « 🚫 Dofusbook bloque
+ * les appels serveur » alors que la galerie fonctionnait).
  */
-async function notifyGodOnce(title: string, message: string, metadata: Record<string, unknown>) {
+async function notifyGodOnce(
+    title: string,
+    message: string,
+    metadata: Record<string, unknown>,
+    options: { type?: string; success?: boolean; webOnly?: boolean } = {},
+) {
     try {
         const ok = await redis.set(ALERT_KEY, "1", "EX", ALERT_TTL, "NX");
         if (!ok) return; // déjà notifié récemment
         const { notifyGod } = await import("@/server/actions/god-notif-actions");
-        await notifyGod({ title, message, type: "SECURITY_ALERT", success: false, metadata });
+        await notifyGod({
+            title,
+            message,
+            type: (options.type ?? "SECURITY_ALERT") as any,
+            success: options.success ?? false,
+            webOnly: options.webOnly ?? false,
+            metadata,
+        } as any);
     } catch {
         /* non bloquant */
     }
@@ -235,9 +253,11 @@ export async function GET(
                 await openDofusbookBreaker(`proxy build ${finalId} → statut ${status}`);
 
                 await notifyGodOnce(
-                    "🚫 Dofusbook bloque les appels serveur",
-                    `Dofusbook (Cloudflare) refuse les requêtes serveur pour le stuff #${finalId} (statut ${status}) — challenge anti-bot probable. Les bakes sont gelés 15 min et le fallback direct VPS est désactivé (l'IP du VPS n'est plus exposée).`,
-                    { buildId: finalId, status, source: "dofusbook-proxy" }
+                    "Dofusbook : repli serveur refusé (attendu, pas un incident)",
+                    `Le repli serveur vers Dofusbook a été refusé pour le stuff #${finalId} (statut ${status}) — comportement **attendu** : Dofusbook bloque les clients serveur par conception. La galerie et la modale passent par le **bake navigateur** (worker signé) : il n'y a donc rien à corriger. Bakes gelés 15 min, IP du VPS non exposée.`,
+                    { buildId: finalId, status, source: "dofusbook-proxy" },
+                    // Web-only (pas de ping Discord) : c'est une trace, pas une alerte.
+                    { type: "SYSTEM", success: true, webOnly: true },
                 );
             } else {
                 // #41 — alerte God (throttle 10 min) : API injoignable pour une autre raison.

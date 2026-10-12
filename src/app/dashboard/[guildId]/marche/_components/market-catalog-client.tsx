@@ -180,6 +180,13 @@ export function MarketCatalogClient({
                         Publier une annonce
                     </Link>
                 </Button>
+                {/* Lot M1 — recherches d'achat (commandes : objet + budget + critères). */}
+                <Button asChild variant="outline" className="gap-2" data-tour="marche-create-wanted">
+                    <Link href={`/dashboard/${guildId}/marche/nouveau/recherche`}>
+                        <Search className="w-4 h-4" />
+                        Recherche d&apos;achat
+                    </Link>
+                </Button>
                 <Button asChild variant="outline" className="gap-2" data-tour="marche-my-listings">
                     <Link href={`/dashboard/${guildId}/marche/mes-espaces`}>
                         <Boxes className="w-4 h-4" />
@@ -235,6 +242,7 @@ export function MarketCatalogClient({
                                     <SelectItem value="EQUIPMENT">Équipement</SelectItem>
                                     <SelectItem value="RESOURCE">Ressources</SelectItem>
                                     <SelectItem value="BUNDLE">Lot multiple</SelectItem>
+                                    <SelectItem value="WANTED">Recherches</SelectItem>
                                 </SelectContent>
                             </Select>
                             <Select value={status} onValueChange={setStatus}>

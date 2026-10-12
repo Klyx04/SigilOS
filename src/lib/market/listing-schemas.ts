@@ -81,6 +81,84 @@ export const marketStatSchema = z.object({
     origin: z.enum(["NATIVE", "EXO"]).default("NATIVE"),
 });
 
+/** Lot M1 — un critère de jet d'une recherche d'achat (forme seule). */
+export const marketWantedCriterionSchema = z.object({    effectId: z
+        .number({ message: "Critère incomplet : effet non reconnu." })
+        .int("Critère incomplet : effet non reconnu.")
+        .positive("Critère incomplet : effet non reconnu."),
+    characteristic: z
+        .number({ message: "Critère incomplet : caractéristique non reconnue." })
+        .int("Critère incomplet : caractéristique non reconnue.")
+        .nullable()
+        .optional(),
+    label: z
+        .string({ message: "Critère sans nom." })
+        .trim()
+        .min(1, "Critère sans nom : supprime-le ou choisis un effet dans la liste.")
+        .max(80, "Nom d'effet trop long."),
+    minValue: z
+        .number({ message: "Valeur minimale invalide : un nombre entier est attendu." })
+        .int("Valeur minimale invalide : un nombre entier est attendu.")
+        .min(1, "Valeur minimale invalide : au moins 1.")
+        .max(MARKET_LIMITS.STAT_VALUE_MAX, "Valeur invraisemblable, vérifie ta saisie"),
+    exo: z.boolean().default(false),
+});
+
+/**
+ * Lot M1 — règle WANTED **pure** (source unique, testée) : objet + quantité
+ * + budget > 0 + négociable. Consommée par la cohérence serveur
+ * (`market-actions.ts`) ET testée ici. Les règles catalogue (existence de
+ * l'objet, nativité des effets, pastilles) restent serveur (D17).
+ */
+export function wantedBasicsError(input: {
+    dofusDbItemId?: number | null;
+    quantity?: number | null;
+    priceKamas?: number | null;
+    negotiable?: boolean;
+    /** Lignes de jet / lot / forge : interdites sur une recherche (critères seuls). */
+    statsCount?: number;
+    componentsCount?: number;
+    itemsCount?: number;
+    hasForge?: boolean;
+}): string | null {
+    if (!Number.isInteger(input.dofusDbItemId) || (input.dofusDbItemId as number) <= 0) {
+        return "Choisis un objet du catalogue pour une recherche d'achat.";
+    }
+    if (!Number.isInteger(input.quantity) || (input.quantity as number) < 1) {
+        return "Renseigne la quantité recherchée (au moins 1).";
+    }
+    if (!Number.isInteger(input.priceKamas) || (input.priceKamas as number) <= 0) {
+        return "Renseigne ton budget maximum en kamas (au moins 1).";
+    }
+    if (input.negotiable === false) {
+        return "Une recherche d'achat reste négociable : ce sont les propositions qui font le prix.";
+    }
+    if ((input.statsCount ?? 0) > 0 || (input.componentsCount ?? 0) > 0 || (input.itemsCount ?? 0) > 0) {
+        return "Une recherche ne porte ni jet déclaré ni lot : objet + budget + critères uniquement.";
+    }
+    if (input.hasForge) {
+        return "Une recherche ne déclare pas de forge : décris-la dans tes critères ou ta note.";
+    }
+    return null;
+}
+
+/**
+ * Lot M1-finalisation — règle de prix d'une VENTE (source unique, testée) :
+ * prix > 0 **ou** troc accepté. Une annonce « Kamas uniquement » sans montant
+ * est un cul-de-sac (réservation et offre au prix impossibles). BUNDLE exclu :
+ * le prix vit par objet (validé par `bundleItemsSchema`).
+ */
+export function salePriceError(input: {
+    priceKamas?: number | null;
+    acceptsTrade?: boolean;
+}): string | null {
+    if (input.acceptsTrade) return null;
+    if (!Number.isInteger(input.priceKamas) || (input.priceKamas as number) <= 0) {
+        return "Renseigne un prix en kamas (au moins 1) ou accepte le troc.";
+    }
+    return null;
+}
+
 export const marketListingBaseSchema = z.object({
     // 🧺 Décision user du 14/09/2026 — `BUNDLE` = lot de 2 à 5 objets, **prix par objet**.
     type: z.enum(["EQUIPMENT", "RESOURCE", "SERVICE", "WANTED", "BUNDLE"]),
@@ -137,7 +215,21 @@ export const marketListingBaseSchema = z.object({
      * (§13.4 : une seule source de vérité, jamais dupliquée).
      */
     items: z.array(bundleItemSchema).max(MARKET_BUNDLE_MAX_ITEMS).default([]),
-    stats: z.array(marketStatSchema).max(MARKET_LIMITS.MAX_STATS).default([]),
+    stats: z
+        .array(marketStatSchema)
+        .max(MARKET_LIMITS.MAX_STATS)
+        .default([])
+        .refine(
+            (rows) =>
+                new Set(rows.map((row) => `${row.effectId}|${row.origin ?? "NATIVE"}`)).size === rows.length,
+            { message: "Ligne de jet en double : un effet ne peut être déclaré qu'une fois." }
+        ),
+    // Lot M1 — critères de jet d'une recherche d'achat (WANTED) : ici la
+    // FORME seule (effet + valeur min bornée) ; le serveur valide l'effet
+    // (référentiel GameEffect), la nativité (catalogue) et calcule les
+    // pastilles EXO / OVER. `wantedTranscendence` : ANY | REQUIRED | FORBIDDEN.
+    wantedTranscendence: z.enum(["ANY", "REQUIRED", "FORBIDDEN"]).default("ANY"),
+    criteria: z.array(marketWantedCriterionSchema).max(MARKET_LIMITS.WANTED_MAX_CRITERIA).default([]),
     // S8.10 — forge réelle déclarée (source unique : `forge-guards.ts`).
     ...marketForgeFieldsSchema.shape,
 });
@@ -160,7 +252,10 @@ function segmentLabel(segment: string | number): string {
         stats: "jet déclaré",
         quantity: "quantité",
         minQuantity: "quantité minimale",
-        unitLabel: "libellé d'unité",
+        criteria: "critères de jet",
+        minValue: "valeur minimale",
+        exo: "exo",
+        wantedTranscendence: "souhait de forge",        unitLabel: "libellé d'unité",
         name: "nom",
         label: "nom de la ligne",
         actualValue: "valeur",
@@ -183,9 +278,9 @@ function segmentLabel(segment: string | number): string {
 export function fieldLabel(path: (string | number)[]): string {
     if (path.length === 0) return "formulaire";
     const [head, ...rest] = path;
-    if ((head === "items" || head === "components" || head === "stats") && typeof rest[0] === "number") {
+    if ((head === "items" || head === "components" || head === "stats" || head === "criteria") && typeof rest[0] === "number") {
         const index = rest[0] + 1;
-        const scope = head === "stats" ? "ligne de jet" : "objet";
+        const scope = head === "stats" ? "ligne de jet" : head === "criteria" ? "critère" : "objet";
         const tail = rest.slice(1).map(segmentLabel).join(" — ");
         return `${scope} n°${index}${tail ? ` — ${tail}` : ""}`;
     }

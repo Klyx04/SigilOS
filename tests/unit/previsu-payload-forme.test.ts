@@ -43,18 +43,19 @@ describe("version de FORME du payload stocké — règle pure", () => {
         expect(SPELLS_RAW).toMatch(/v2\*\* = lot 3a/);
         expect(SPELLS_RAW).toMatch(/v3\*\* = lot 4/);
         expect(SPELLS_RAW).toMatch(/v4\*\* = MAJ 3.7/);
+        expect(SPELLS_RAW).toMatch(/v5\*\* = lot 6/);
     });
 
-    it("la version courante est la v4 (MAJ 3.7 : puissance, soins, triggers, zones 3.7)", () => {
-        expect(COMBAT_SPELLS_PAYLOAD_VERSION).toBe(4);
-        expect(SPELLS_RAW).toMatch(/COMBAT_SPELLS_PAYLOAD_VERSION = 4;/);
+    it("la version courante est la v5 (lot 6 « sorts étrangers » : garde d'appartenance)", () => {
+        expect(COMBAT_SPELLS_PAYLOAD_VERSION).toBe(5);
+        expect(SPELLS_RAW).toMatch(/COMBAT_SPELLS_PAYLOAD_VERSION = 5;/);
     });
 
     it("toute forme antérieure (ou absente) est obsolète — la courante et les suivantes non", () => {
-        for (const version of [undefined, null, "", NaN, 0, 1, 1.9, "1", 2, "2", 3, "3"]) {
+        for (const version of [undefined, null, "", NaN, 0, 1, 1.9, "1", 2, "2", 3, "3", 4, "4"]) {
             expect(isCombatSpellsPayloadOutdated(version)).toBe(true);
         }
-        for (const version of [4, 4.0, "4", 5, 99]) {
+        for (const version of [5, 99]) {
             expect(isCombatSpellsPayloadOutdated(version)).toBe(false);
         }
     });

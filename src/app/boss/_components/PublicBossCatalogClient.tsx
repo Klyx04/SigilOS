@@ -61,7 +61,13 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
   const [monsterFamilyId, setMonsterFamilyId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (selectedType !== "monstre") return;
+    /**
+     * Bestiaire local chargé dès que l'on affiche des **monstres** : filtre
+     * « Monstres » **ou** filtre « Tout » (qui doit, lui aussi, inclure les
+     * monstres normaux — « tout » ne filtrait en fait que les boss : mesure
+     * du 12/10/2026, contrôle user).
+     */
+    if (selectedType !== "monstre" && selectedType !== "all") return;
     let cancelled = false;
     setLoadingMonsters(true);
     const timer = setTimeout(() => {
@@ -102,17 +108,9 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
     const range = RAW_LEVEL_RANGES[selectedRange];
     const q = search.trim().toLowerCase();
 
-    // Filtre « Monstres » : la liste vient du bestiaire local complet et la recherche a déjà
-    // été faite **côté serveur** (`searchNormalMonsters` — accents, familles, 5 129 entrées).
-    // On n'applique ici que la tranche de niveau — via la règle pure `matchesLevelBracket`
-    // (un niveau absent matche « tous les niveaux », il n'est jamais inventé) : re-filtrer le
-    // texte contredirait le serveur (« piou rouge » : le filtre local ignore espaces et accents).
-    if (selectedType === "monstre") {
-      const bracket = BOSS_LEVEL_BRACKETS[selectedRange] ?? BOSS_LEVEL_BRACKETS[0];
-      return monsterCatalog.filter((m) => matchesLevelBracket(m.level, bracket));
-    }
-
-    return bosses.filter((b) => {
+    // Créatures déjà publiées (`/boss/<slug>`) : boss de donjon, avis de recherche,
+    // titans, anomalies et boss de raid. Passe quand « Tout » ou le type exact est choisi.
+    const published = bosses.filter((b) => {
       if (b.type !== "boss" && b.type !== "titan" && b.type !== "anomalie" && b.type !== "bounty" && b.type !== "raid") return false;
       if (selectedType !== "all" && b.type !== selectedType) return false;
       const lvl = b.level ?? 0;
@@ -123,6 +121,19 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
         b.bossName?.toLowerCase().includes(q)
       );
     });
+
+    // Un filtre de type explicite autre que « monstre » ne montre QUE ces créatures.
+    if (selectedType === "boss" || selectedType === "anomalie" || selectedType === "titan" || selectedType === "bounty" || selectedType === "raid") {
+      return published;
+    }
+
+    // « Monstres » (monstres normaux seuls) ou « Tout » (tout) : on ajoute le bestiaire
+    // local complet. La recherche est faite **côté serveur** (`searchNormalMonsters` —
+    // accents, familles, 5 129 entrées) : on n'applique ici que la tranche de niveau,
+    // via la règle pure `matchesLevelBracket` (re-filtrer le texte contredirait le serveur).
+    const bracket = BOSS_LEVEL_BRACKETS[selectedRange] ?? BOSS_LEVEL_BRACKETS[0];
+    const monsters = monsterCatalog.filter((m) => matchesLevelBracket(m.level, bracket));
+    return selectedType === "all" ? [...published, ...monsters] : monsters;
   }, [bosses, monsterCatalog, search, selectedRange, selectedType]);
 
   return (
@@ -172,10 +183,14 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
           ? locale === "en"
             ? `monster${filteredBosses.length > 1 ? "s" : ""} — normal monsters (no dungeon boss, bounty or titan)`
             : `monstre${filteredBosses.length > 1 ? "s" : ""} — monstres normaux (hors boss de donjon, avis et titans)`
-          : locale === "en"
-            ? `entry${filteredBosses.length > 1 ? "ies" : ""} — dungeon bosses, bounties, titans, anomalies and raids`
-            : `entrée${filteredBosses.length > 1 ? "s" : ""} — boss de donjon, avis de recherche, titans, anomalies et raids`}
-        {selectedType === "monstre" && !loadingMonsters && monsterCatalog.length >= MONSTER_LIST_LIMIT && (
+          : selectedType === "all"
+            ? locale === "en"
+              ? `entries — dungeon bosses, monsters, bounties, titans, anomalies and raids`
+              : `entrées — boss de donjon, monstres, avis de recherche, titans, anomalies et raids`
+            : locale === "en"
+              ? `entry${filteredBosses.length > 1 ? "ies" : ""} — dungeon bosses, bounties, titans, anomalies and raids`
+              : `entrée${filteredBosses.length > 1 ? "s" : ""} — boss de donjon, avis de recherche, titans, anomalies et raids`}
+        {(selectedType === "monstre" || selectedType === "all") && !loadingMonsters && monsterCatalog.length >= MONSTER_LIST_LIMIT && (
           <span className="ml-2 opacity-80">
             {locale === "en"
               ? `(first ${MONSTER_LIST_LIMIT} shown — refine your search)`
@@ -185,7 +200,7 @@ export function PublicBossCatalogClient({ bosses }: PublicBossCatalogClientProps
       </div>
 
       {/* ── CARTES ── */}
-      {selectedType === "monstre" && loadingMonsters && filteredBosses.length === 0 ? (
+      {(selectedType === "monstre" || selectedType === "all") && loadingMonsters && filteredBosses.length === 0 ? (
         <div className="p-8 text-center rounded-xl border border-border bg-surface/30 text-muted-foreground text-xs">
           <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
           {locale === "en" ? "Loading monsters…" : "Chargement des monstres…"}

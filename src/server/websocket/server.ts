@@ -12,6 +12,7 @@ import { getRushActiveMembers } from "../actions/rush-actions";
 import { logger as AppLogger } from "../../lib/logger";
 import { createGuidePresence } from "./guide-presence";
 import { createDofusPresence } from "./dofus-presence";
+import { createRaidLivePresence } from "./raid-live";
 
 // Fallback if logger is not correctly initialized
 const logger = AppLogger || console;
@@ -292,6 +293,17 @@ const dofusPresence = createDofusPresence({
     isMemberOfGuild,
 });
 
+// === RAID LIVE (lot 2) — sessions live de raid ===
+// Room `guild:<guildId>:raid-live:<eventId>` + canal Redis `raid-live:*`
+// (chrono/étape/objectifs publiés par les server actions, présence éphémère
+// pour le compteur « inscrits avec overlay ouvert »).
+const raidLivePresence = createRaidLivePresence({
+    io,
+    subClient,
+    wsAuthEnabled: WS_AUTH_ENABLED,
+    isMemberOfGuild,
+});
+
 // === DASHBOARD PRESENCE (temps réel avec période de grâce anti-flapping) ===
 // Suivi multi-sockets par profil pour éviter les faux leave/join lors de la navigation
 const dashboardActiveSockets = new Map<string, Set<string>>();
@@ -464,6 +476,17 @@ io.on("connection", (socket: Socket) => {
         guildId?: string; dofusSlug?: string; questId?: string; userName?: string; userAvatar?: string;
     }) => {
         dofusPresence.handleHeartbeat(socket, data).catch(() => {});
+    });
+
+    // === RAID LIVE (lot 2) ===
+    socket.on("raid-live:join", (data: { guildId?: string; eventId?: string }) => {
+        raidLivePresence.handleJoin(socket, data).catch(() => {});
+    });
+    socket.on("raid-live:leave", (data: { guildId?: string; eventId?: string }) => {
+        raidLivePresence.handleLeave(socket, data).catch(() => {});
+    });
+    socket.on("raid-live:heartbeat", (data: { guildId?: string; eventId?: string; userName?: string; userAvatar?: string }) => {
+        raidLivePresence.handleHeartbeat(socket, data).catch(() => {});
     });
 
     // === DASHBOARD PRESENCE (temps réel avec période de grâce anti-flapping) ===

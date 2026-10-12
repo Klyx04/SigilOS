@@ -2510,7 +2510,10 @@ export async function getZoneArchmonsters(guildId?: string | null, zoneName?: st
                 levelMax: a.level || (metamobData ? metamobData.levelMax : 0),
                 type: "archimonstre",
                 typeId: 0,
-                step: metamobData ? metamobData.step : 1,
+                // ⚠️ `step` est une donnée **Metamob** (progression du joueur), pas un fait de
+                // jeu : sans compte lié, elle est **inconnue** (`0`) — l'ancien repli `1`
+                // affichait « Étape 1 » partout (constat user du 12/10/2026).
+                step: metamobData ? metamobData.step : 0,
                 owned: metamobData ? metamobData.owned : 0,
                 status: metamobData ? metamobData.status : 0,
                 state: metamobData ? metamobData.state : "MANQUANT",

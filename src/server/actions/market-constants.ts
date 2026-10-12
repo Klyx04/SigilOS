@@ -63,11 +63,14 @@ export const MARKET_LIMITS = {
     NOTE_MAX: 500,
     /** Max de résultats renvoyés par le catalogue (budget §4.2). */
     CATALOG_PAGE_SIZE: 120,
+    /** Lot M1 — max de critères de jet par recherche d'achat. */
+    WANTED_MAX_CRITERIA: 8,
 } as const;
 
 /** Valeurs par défaut des réglages de guilde (§9.1) — miroir du schéma Prisma. */
 export const MARKET_SETTINGS_DEFAULTS = {
     marketMaxActivePerMember: 5,
+    marketMaxWantedPerMember: 5,
     marketDefaultDurationDays: 7,
     marketMaxLifetimeDays: 20,
     marketReminderDays: [7, 15] as number[],
@@ -82,6 +85,7 @@ export const MARKET_SETTINGS_DEFAULTS = {
 /** Bornes des réglages (validation Zod côté serveur). */
 export const MARKET_SETTINGS_BOUNDS = {
     marketMaxActivePerMember: { min: 1, max: 20 },
+    marketMaxWantedPerMember: { min: 1, max: 20 },
     marketDefaultDurationDays: { min: 1, max: 30 },
     marketMaxLifetimeDays: { min: 5, max: 60 },
     marketReminderDays: { min: 1, max: 59 },
@@ -119,6 +123,31 @@ export const MARKET_STATUS_LABELS: Record<MarketListingStatus, string> = {
     EXPIRED: "Expiré",
     WITHDRAWN: "Retiré",
 };
+
+/**
+ * Lot M1 — libellés d'une recherche d'achat (`WANTED`) : le statut `SOLD`
+ * se lit « Honorée » (commande satisfaite). Pas de nouvel enum : la
+ * surcouche vit dans ces helpers (une seule source).
+ */
+export function marketStatusLabelFor(status: MarketListingStatus, type?: string | null): string {
+    if (type === "WANTED") {
+        if (status === "ACTIVE") return "Recherche";
+        if (status === "SOLD") return "Honorée";
+    }
+    return MARKET_STATUS_LABELS[status];
+}
+
+/** Souhait de forge d'une recherche d'achat (`wantedTranscendence`). */
+export const MARKET_WANTED_TRANSCENDENCE_LABELS = {
+    ANY: "Indifférent",
+    REQUIRED: "Transcendé exigé",
+    FORBIDDEN: "Non-transcendé (à forgemager)",
+} as const;
+
+export type MarketWantedTranscendence = keyof typeof MARKET_WANTED_TRANSCENDENCE_LABELS;
+
+/** Pastille d'un critère de recherche (calculée serveur à la création). */
+export const MARKET_WANTED_CRITERION_TAGS = ["NATIVE", "EXO", "OVER"] as const;
 
 /**
  * Classe Tailwind (token du design system) associée à un statut.

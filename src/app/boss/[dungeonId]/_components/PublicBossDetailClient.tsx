@@ -306,7 +306,12 @@ export function PublicBossDetailClient({
           try {
             const dRes = await getBossDofensiveSpells(target, dungeon.name, undefined, false, undefined, locale);
             if (!cancelled && dRes.success && dRes.data) {
-              data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
+              // Lot 6 — garde d'appartenance (sorts du monstre + passif uniquement).
+              const legitIds = [
+                ...(data.spells ?? []).map((s: any) => Number(s?.id)),
+                ...(Number((data as any)?.passive?.spellId) > 0 ? [Number((data as any).passive.spellId)] : []),
+              ];
+              data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data, legitIds) };
             }
           } catch { /* sorts locaux conservés */ }
           if (!cancelled) {
@@ -336,7 +341,11 @@ export function PublicBossDetailClient({
     getBossDofensiveSpells(target, dungeon.name, targetGrade, false, undefined, locale)
       .then((dRes) => {
         if (!cancelled && dRes.success && dRes.data && currentStats) {
-          const merged = mergeDofensiveSpells(currentStats.spells ?? [], dRes.data);
+          const legitIds = [
+            ...(currentStats.spells ?? []).map((s: any) => Number(s?.id)),
+            ...(Number((currentStats as any)?.passive?.spellId) > 0 ? [Number((currentStats as any).passive.spellId)] : []),
+          ];
+          const merged = mergeDofensiveSpells(currentStats.spells ?? [], dRes.data, legitIds);
           setStatsByKey((prev) => ({
             ...prev,
             [targetGradeKey]: { ...currentStats, spells: merged },
@@ -429,7 +438,12 @@ export function PublicBossDetailClient({
         setStatsByKey((prev) => {
           const cur = prev[entityKey];
           if (!cur) return prev;
-          return { ...prev, [entityKey]: { ...cur, spells: mergeDofensiveSpells(cur.spells ?? [], res.data) } };
+          // Lot 6 — garde d'appartenance (sorts du monstre + passif uniquement).
+          const legitIds = [
+            ...(cur.spells ?? []).map((s: any) => Number(s?.id)),
+            ...(Number((cur as any)?.passive?.spellId) > 0 ? [Number((cur as any).passive.spellId)] : []),
+          ];
+          return { ...prev, [entityKey]: { ...cur, spells: mergeDofensiveSpells(cur.spells ?? [], res.data, legitIds) } };
         });
       })
       .catch(() => {});

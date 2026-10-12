@@ -53,6 +53,8 @@ export async function GET(req: Request) {
         let imagesSiphoned = 0;
         let errors = 0;
         let skippedFresh = 0;
+        // « Qui » a échoué : noms de boss réellement en erreur (bornés à l'affichage).
+        const errorBosses: string[] = [];
         // Boss d'anomalie (siphon section 3) — compteurs SÉPARÉS des fiches de donjon/titans.
         let anomalySynced = 0;
         let anomalyErrors = 0;
@@ -113,6 +115,7 @@ export async function GET(req: Request) {
                 }
             } catch (err) {
                 errors++;
+                errorBosses.push(b.bossName);
                 logger.warn(`[Cron:SyncMonsterStats] Erreur sur ${b.bossName}:`, { error: String(err) });
             }
         }
@@ -340,6 +343,26 @@ export async function GET(req: Request) {
             }
         }
 
+        // 5 bis. Succès « SPÉCIAUX » **par donjon** (Lot E) : re-pointe le challenge placeholder
+        //        « Spécial » (générique, partagé) vers le **challenge réel** du boss (nom/description/
+        //        icône réels lus chez DofusDB) + l'icône du succès. Borné et idempotent.
+        let specialAchievementsSiphoned = 0;
+        if (process.env.VITEST !== "true") {
+            try {
+                const { siphonSpecialAchievements } = await import("@/lib/achievement-details-siphon");
+                const special = await siphonSpecialAchievements({ db: db as any, apply: true, limit: 10 });
+                specialAchievementsSiphoned = special.written;
+                if (special.updated > 0 || special.errors > 0) {
+                    logger.info(
+                        `[Cron:SyncMonsterStats] Succès spéciaux : ${special.written} re-pointé(s), `
+                            + `${special.missing} introuvable(s), ${special.errors} erreur(s)`
+                    );
+                }
+            } catch (err) {
+                logger.warn("[Cron:SyncMonsterStats] Erreur siphon des succès spéciaux:", { error: String(err) });
+            }
+        }
+
         logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés · veille fiches: ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"} , filigrane ${veilleFiches.cursor ?? "début"})`);
 
         // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
@@ -353,17 +376,30 @@ export async function GET(req: Request) {
         });
 
         // Envoi d'une alerte/notification God
+        // Champs d'embed FR explicites (fin du dump brut `synced`/`totalBosses`/`skippedFresh`)
+        // + « qui » a échoué : les boss réellement en erreur (bornés).
+        const failedPreview = errorBosses.slice(0, 5).join(", ");
+        const failedSuffix = errorBosses.length > 5 ? ` … (+${errorBosses.length - 5})` : "";
         const { notifyGod } = await import("@/server/actions/god-notif-actions");
         await notifyGod({
             title: "Siphon Monstres & Sorts terminé",
-            message: `${synced} monstres synchronisés avec succès (${errors} erreurs sur ${bosses.length}, ${imagesSiphoned} images siphonnées, ${skippedFresh} frais < 24 h ignorés).`,
+            message: `${synced} monstres synchronisés avec succès (${errors} erreurs sur ${bosses.length}, ${imagesSiphoned} images siphonnées, ${skippedFresh} frais < 24 h ignorés).`
+                + (failedPreview ? `\nEn erreur : ${failedPreview}${failedSuffix}` : ""),
             type: "WORKER_SYNC",
             success: errors === 0,
+            fields: [
+                { name: "Monstres synchronisés", value: String(synced), inline: true },
+                { name: "Images siphonnées", value: String(imagesSiphoned), inline: true },
+                { name: "Erreurs", value: String(errors), inline: true },
+                { name: "Fiches fraîches ignorées", value: String(skippedFresh), inline: true },
+                { name: "Succès complétés", value: String(achievementsSiphoned + specialAchievementsSiphoned), inline: true },
+            ],
             metadata: {
                 synced,
                 errors,
                 totalBosses: bosses.length,
                 skippedFresh,
+                errorBosses: errorBosses.slice(0, 20),
             },
         });
 
@@ -372,7 +408,7 @@ export async function GET(req: Request) {
         await recordCronExecution("sync_monster_stats", {
             success: errors === 0 && anomalyErrors === 0 && bountyErrors === 0 && achievementSiphonErrors === 0,
             durationMs: Date.now() - startedAt,
-            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés) · ${anomalySynced} gardien(s) d'anomalie · ${anomalyCompanions} monstre(s) de l'anomalie · ${bountySynced} avis de recherche · veille fiches ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"}) · ${achievementsSiphoned} succès complété(s)`,
+            summary: `${synced} monstres synchronisés, ${errors} erreur(s) sur ${bosses.length} (${skippedFresh} frais ignorés) · ${anomalySynced} gardien(s) d'anomalie · ${anomalyCompanions} monstre(s) de l'anomalie · ${bountySynced} avis de recherche · veille fiches ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"}) · ${achievementsSiphoned} succès complété(s) · ${specialAchievementsSiphoned} succès spécial(aux)`,
             details: {
                 synced,
                 errors,

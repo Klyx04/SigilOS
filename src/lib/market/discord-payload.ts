@@ -108,6 +108,18 @@ export type MarketDiscordPayloadInput = {
      */
     stats?: never;
     /**
+     * Lot M1 — recherche d'achat (`WANTED`) : rend la variante « Recherche »
+     * (acheteur, budget max, critères) au lieu de la variante vente. Absent
+     * ou autre type ⇒ vente (comportement historique inchangé).
+     */
+    listingType?: string;
+    /** Libellés prêts à afficher des critères (« +50 Force min », « Exo PA »). */
+    wantedCriteria?: string[];
+    /** Souhait de forge déjà libellé (« Transcendé exigé », …) ou `null`. */
+    wantedTranscendenceLabel?: string | null;
+    /** Quantité recherchée (affichée « ×N »). */
+    wantedQuantity?: number | null;
+    /**
      * S8.17 (D40/D41) — **forge réelle déclarée** : Transcendé, élément de frappe
      * (+ palier de potion) et arme de chasse. Ce sont des données **déclarées**
      * par le vendeur (jamais déduites du jet) et **jamais identifiantes**
@@ -334,7 +346,14 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         acceptsTrade,
         reservedByLabel,
         reservedUntil,
+        listingType,
+        wantedCriteria,
+        wantedTranscendenceLabel,
+        wantedQuantity,
     } = input;
+
+    // Lot M1 — variante « Recherche d'achat » : même pipeline, rendu inversé.
+    const isWanted = listingType === "WANTED";
 
     const priceLabel = formatKamas(priceKamas ?? null);
     const exoBadge = buildExoBadge(exoLabels);
@@ -343,16 +362,31 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
     const headName = itemName || title;
     // Correction 13/09 — sans prix, le titre ne doit PAS finir par « — — »
     // (constat user) : `formatKamas(null)` renvoie un tiret de remplacement.
-    const embedTitle = priceKamas != null ? `${headName} — ${priceLabel}` : headName;
+    const embedTitle = isWanted
+        ? `🔍 Rech. : ${headName}${wantedQuantity ? ` ×${wantedQuantity.toLocaleString("fr-FR")}` : ""} — Budget ${priceLabel}`
+        : priceKamas != null ? `${headName} — ${priceLabel}` : headName;
 
     const descriptionLines: string[] = [];
-    if (itemLevel) {
-        descriptionLines.push(`**Niveau ${itemLevel}**${itemTypeName ? ` · ${itemTypeName}` : ""}`);
-    } else if (itemTypeName) {
-        descriptionLines.push(`**${itemTypeName}**`);
+    if (isWanted) {
+        if (itemLevel) {
+            descriptionLines.push(`**Niveau ${itemLevel}**${itemTypeName ? ` · ${itemTypeName}` : ""}`);
+        } else if (itemTypeName) {
+            descriptionLines.push(`**${itemTypeName}**`);
+        }
+        if (wantedTranscendenceLabel) descriptionLines.push(`🔨 ${wantedTranscendenceLabel}`);
+        if (wantedCriteria && wantedCriteria.length > 0) {
+            const visible = wantedCriteria.slice(0, 8);
+            descriptionLines.push(`**Critères :**\n${visible.map((c) => `• ${c}`).join("\n")}`);
+        }
+    } else {
+        if (itemLevel) {
+            descriptionLines.push(`**Niveau ${itemLevel}**${itemTypeName ? ` · ${itemTypeName}` : ""}`);
+        } else if (itemTypeName) {
+            descriptionLines.push(`**${itemTypeName}**`);
+        }
+        if (unitLabel) descriptionLines.push(`Lot : ${unitLabel}`);
+        if (exoBadge) descriptionLines.push(exoBadge);
     }
-    if (unitLabel) descriptionLines.push(`Lot : ${unitLabel}`);
-    if (exoBadge) descriptionLines.push(exoBadge);
 
     // S8.17 — **STATUT** de forge (Transcendé / élément de frappe + palier /
     // arme de chasse) puis « Troc accepté » ou « Kamas uniquement » (D43).
@@ -400,10 +434,17 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
     }
 
     // ── Fields (3) ───────────────────────────────────────────────────────────
+    // Lot M1 — statuts relus côté recherche (« Recherche » / « Honorée »).
+    const statusValue =
+        isWanted && status === "ACTIVE"
+            ? "Recherche"
+            : isWanted && status === "SOLD"
+              ? "Honorée"
+              : MARKET_DISCORD_STATUS_LABELS[status];
     const fields: MarketDiscordField[] = [
-        { name: "Statut", value: MARKET_DISCORD_STATUS_LABELS[status], inline: true },
-        { name: "Négociable", value: negotiable ? "Oui" : "Non", inline: true },
-        { name: "Offres", value: `${offersCount} en cours`, inline: true },
+        { name: "Statut", value: statusValue, inline: true },
+        { name: isWanted ? "Budget max" : "Négociable", value: isWanted ? priceLabel : negotiable ? "Oui" : "Non", inline: true },
+        { name: isWanted ? "Propositions" : "Offres", value: isWanted ? `${offersCount} reçue(s)` : `${offersCount} en cours`, inline: true },
     ];
 
     // ── Boutons ──────────────────────────────────────────────────────────────
@@ -423,7 +464,21 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
      * publié avant cette livraison continue de réserver l'annonce entière.
      */
     const componentSuffix = componentId ? `:${componentId}` : "";
-    const buttons: Array<Record<string, unknown>> = [
+    // Lot M1 — une recherche se traite par PROPOSITION (pas de réservation) :
+    // un seul bouton d'action (« Proposer » = modale d'offre) + le lien fiche.
+    const buttons: Array<Record<string, unknown>> = isWanted
+        ? [
+              {
+                  type: 2,
+                  style: 1,
+                  label: "Proposer",
+                  custom_id: `mkt:offer:${listingId}${componentSuffix}`,
+                  // §13.5 : l'offre exige une annonce négociable et non terminale.
+                  disabled: !["ACTIVE", "RESERVED"].includes(status) || !negotiable,
+              },
+              buildMarketDashboardLinkButton(dashboardUrl, MARKET_DASHBOARD_LINK_LABEL),
+          ]
+        : [
         {
             type: 2,
             style: 3,
@@ -459,12 +514,15 @@ export function buildMarketDiscordPayload(input: MarketDiscordPayloadInput): Mar
         buildMarketDashboardLinkButton(dashboardUrl, MARKET_DASHBOARD_LINK_LABEL),
     ];
 
-    const author = serverName ? `Vendeur : ${sellerName} • ${serverName}` : `Vendeur : ${sellerName}`;
+    const author = isWanted
+        ? serverName ? `Acheteur : ${sellerName} • ${serverName}` : `Acheteur : ${sellerName}`
+        : serverName ? `Vendeur : ${sellerName} • ${serverName}` : `Vendeur : ${sellerName}`;
 
     return {
         embedTitle,
         embedDescription: `${author}\n${descriptionLines.join("\n")}`.trim(),
-        embedColor: MARKET_DISCORD_COLORS[status],
+        // Lot M1 — une recherche ACTIVE se repère en bleu (vente = doré).
+        embedColor: isWanted && status === "ACTIVE" ? 0x3b82f6 : MARKET_DISCORD_COLORS[status],
         embedFooter: componentId
             ? `SigilOS Market • Annonce #${shortListingId(listingId)} • Objet #${shortListingId(componentId)}`
             : `SigilOS Market • Annonce #${shortListingId(listingId)}`,

@@ -46,7 +46,7 @@ export function LandingHero({ guild, clientId = "", autoOnboardingOn = true }: L
                         {t.landing.badge}
                     </p>
 
-                    <h1 className="mt-5 max-w-[13ch] text-[clamp(2rem,4.2vw,3.1rem)] font-bold leading-[1.06] tracking-tight text-foreground">
+                    <h1 className="mt-5 max-w-[13ch] text-[clamp(2rem,4.2vw,3.1rem)] font-bold leading-[1.12] tracking-[-0.012em] text-foreground">
                         {t.landing.heroTitle}
                     </h1>
 

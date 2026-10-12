@@ -532,6 +532,14 @@ describe("outil d'exploitation des succès spéciaux — complet et lançable en
         expect(script).toContain('args.includes("--apply")');
     });
 
+    it("ne noie jamais les lignes à traiter dans le compte rendu", () => {
+        // Mesure du 10/12/2026 : 55 succès écrits ⇒ les « aucun succès (Spécial) » disparaissaient
+        // dans le `slice(0, 20)`. Ils sortent maintenant **tous**, avant les succès.
+        expect(script).toContain("function printDetails(");
+        expect(script).toMatch(/line\.includes\("aucune écriture"\)/);
+        expect(script).toContain("printDetails(special.details);");
+    });
+
     it("sait purger les challenges orphelins (God les listait encore)", () => {
         // ⚠️ Le critère est **strict** : aucun rattachement ET `conditions` non nulles (les 28
         // challenges du seed ont `conditions: null`) — un challenge créé à la main dans God est

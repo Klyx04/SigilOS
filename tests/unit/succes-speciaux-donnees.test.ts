@@ -298,18 +298,22 @@ describe("succès « spéciaux » par donjon — titre « Spécial », mécaniqu
         expect(nestedChallengeOf({ objectives: [{ criterion: "(EH>979,0)" }] })).toBeNull();
     });
 
-    it("apparie le boss par libellé : exact, puis le SEUL candidat qui le prolonge (`Tynril` → `Tynrils`)", () => {
+    it("apparie le boss par libellé : exact, préfixe (`Tynril` → `Tynrils`), puis par MOTS", () => {
         const index = new Map<string, any>([
             ["mobleponge", ACHIEVEMENT],
             ["tynrils", { id: 6204, name: { fr: "Tynrils (Spécial)" } }],
             ["blopindigo", { id: 3, name: { fr: "Blop Indigo (Spécial)" } }],
             ["blopcoco", { id: 4, name: { fr: "Blop Coco (Spécial)" } }],
+            ["grozillaetgrasmerasomnambules", { id: 5, name: { fr: "Grozilla et Grasmera Somnambules (Spécial)" } }],
         ]);
         expect(findSpecialAchievement(index, "Mob l'Éponge")?.id).toBe(6150);
         // 🐛 Mesure du 10/12/2026 (constat user « ton scraping est forcément mauvais ») : le lookup
         // par nom exact ratait `Tynril` → **`Tynrils (Spécial)`** (id 6204).
         expect(findSpecialAchievement(index, "Tynril")?.id).toBe(6204);
-        // Deux candidats ⇒ AUCUN (jamais « le premier venu »), ni pour un nom vide.
+        // Libellé qui ne partage pas le préfixe : on exige TOUS les mots du boss (mesure : DofusDB
+        // nomme « Grozilla et Grasmera Somnambules » là où notre donjon dit « Grozilla Somnambule »).
+        expect(findSpecialAchievement(index, "Grozilla Somnambule")?.id).toBe(5);
+        // Deux candidats et un seul mot ⇒ AUCUN (jamais « le premier venu »), ni pour un nom vide.
         expect(findSpecialAchievement(index, "Blop")).toBeNull();
         expect(findSpecialAchievement(index, "")).toBeNull();
     });

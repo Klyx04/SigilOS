@@ -336,18 +336,45 @@ export async function fetchSpecialAchievementIndex(
 }
 
 /**
- * Associe un nom de boss au succès « (Spécial) » de l'index : correspondance **exacte** d'abord,
- * puis le **seul** candidat dont le libellé prolonge le nom du boss (ou l'inverse) — `Tynril` →
- * `Tynrils`. Plusieurs candidats ⇒ **aucun** (on ne devine jamais « le premier venu »).
+ * Mots d'un libellé, normalisés (accents/casse retirés) — sert à l'appariement par mots.
+ * `« Grozilla Somnambule »` → `["grozilla", "somnambule"]`.
+ */
+export function achievementWords(value: unknown): string[] {
+    return String(value ?? "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean);
+}
+
+/**
+ * Associe un nom de boss au succès « (Spécial) » de l'index, du plus sûr au plus souple :
+ *  ① correspondance **exacte** ;
+ *  ② le **seul** candidat dont le libellé **prolonge** le nom (ou l'inverse) — `Tynril` → `Tynrils` ;
+ *  ③ le **seul** candidat qui contient **tous les mots** du boss (≥ 2 mots) — `Grozilla Somnambule`
+ *     → « Grozilla et Grasmera **Somnambul**es » (mesuré le 10/12/2026).
+ * Plusieurs candidats à une étape ⇒ on passe à la suivante, et si rien n'est **unique** : `null`
+ * (on ne devine jamais « le premier venu »).
  */
 export function findSpecialAchievement(index: Map<string, any>, bossName: string): any | null {
     const boss = challengeNameKey(bossName);
     if (!boss) return null;
     const exact = index.get(boss);
     if (exact) return exact;
+
+    const prefixes: any[] = [];
+    for (const [key, value] of index) {
+        if (key.startsWith(boss) || boss.startsWith(key)) prefixes.push(value);
+    }
+    if (prefixes.length === 1) return prefixes[0];
+
+    // Un seul mot de boss (« Grozilla ») matcherait trop large : on s'arrête là.
+    const words = achievementWords(bossName);
+    if (words.length < 2) return null;
     const candidates: any[] = [];
     for (const [key, value] of index) {
-        if (key.startsWith(boss) || boss.startsWith(key)) candidates.push(value);
+        if (words.every((word) => key.includes(word))) candidates.push(value);
     }
     return candidates.length === 1 ? candidates[0] : null;
 }

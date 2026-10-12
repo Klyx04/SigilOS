@@ -238,7 +238,13 @@ Chaque tâche CRON enregistre automatiquement son état, sa durée et son résum
    minimal, `$CRON_SECRET` y est **vide** ⇒ 401 silencieux), sortie **redirigée vers le log** lu par
    God (sinon panneau « Inconnu »), URL **`$APP_URL`** (jamais `sigilos.fr` en dur : depuis le VPS
    beta, on appellerait la prod) et **`%` échappé en `\%`** (cron coupe la ligne au premier `%` non
-   échappé ⇒ la tâche ne s'exécute **jamais** : erreur de syntaxe bash, exit 2, aucun log) :
+   échappé ⇒ la tâche ne s'exécute **jamais** : erreur de syntaxe bash, exit 2, aucun log).
+   ⚠️ **En pratique (relevé dans `crontab -l` le 12/10/2026)** : `APP_URL`, `LOG_DIR` et
+   **`CRON_SECRET`** sont définis **en tête du crontab**, et c'est cette variable qui alimente le
+   header ; le fichier `~/.sigilos-cron-secret` **n'existe pas** sur ce VPS (`cat: No such file…`
+   ⇒ `{"error":"Unauthorized"}` si l'on colle une ligne dans un shell) — remplacer donc
+   `$(cat /home/sigiladmin/.sigilos-cron-secret)` par `$CRON_SECRET`, ou créer le fichier une fois
+   (cf. § ci-dessus) :
    ```
    */10 * * * * curl -s -o /dev/null -w "market-expire \%{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/market-expire" >> "$LOG_DIR/market-expire.log" 2>&1
    30 3 * * * curl -s -o /dev/null -w "sync-dofensive-maps \%{http_code} $(date -Is)\n" -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" "$APP_URL/api/cron/sync-dofensive-maps" >> "$LOG_DIR/sync-dofensive-maps.log" 2>&1

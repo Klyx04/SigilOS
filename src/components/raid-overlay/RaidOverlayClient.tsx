@@ -15,7 +15,6 @@ import {
   Flame,
   Swords,
   Languages,
-  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

@@ -13,7 +13,7 @@ interface GuidesGridProps {
 }
 
 /**
- * Carte d'un guide raid : overlay PiP + lien Raid Studio.
+ * Carte d'un guide raid : overlay PiP.
  * Slugs du registre (`src/content/guides/index.ts`).
  */
 const RAID_GUIDE_CONFIG: Record<string, { raidSlug: "gigalodon" | "jardin-eternel"; themeColor: string }> = {

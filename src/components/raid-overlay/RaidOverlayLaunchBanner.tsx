@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tv2, ChevronRight, Loader2, ExternalLink, FileText, Compass } from "lucide-react";
+import { Tv2, ChevronRight, Loader2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
 import { isDocumentPipSupported } from "@/hooks/use-guide-pip";

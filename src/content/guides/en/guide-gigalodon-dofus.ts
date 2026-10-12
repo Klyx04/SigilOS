@@ -13,14 +13,11 @@ export const guide = {
         </div>
 
         <div class="callout callout-info">
-            <strong>🛠️ Public Tools: Raid Studio 3.6 & Detachable Overlay</strong>
-            <p>To prepare and run your raid efficiently, SigilOS provides free interactive tools:</p>
+            <strong>🛠️ Detachable In-Game Overlay (PiP)</strong>
+            <p>To run your raid efficiently, SigilOS provides a free overlay:</p>
             <ul>
-                <li><strong>12-Player Squad Planner:</strong> assign your 3 squads of 4, balance critical roles (Tank, Burst T3, Melee Positioning, Multiplier), check party synergy and export to Discord in 1 click.</li>
-                <li><strong>Interactive Luminarium Solver (Floor -3):</strong> cascade Lights Out 4x4 solver to clear the puzzle in seconds without wasting instance time.</li>
                 <li><strong>Always-on-Top In-Game Overlay (PiP):</strong> copy <code>/travel</code> positions in 1 click, track Execrab's 4 forms, and read floor guides without alt-tabbing.</li>
             </ul>
-            <p><a href="/raids?raid=gigalodon"><strong>→ Open Gigalodon Planner & Solvers in Raid Studio 3.6</strong></a></p>
         </div>
 
         <h2>I. Preparation & Setup (Pre-Raid Checklist)</h2>
@@ -313,11 +310,6 @@ export const guide = {
             <li>Repeat on row 3 clicking into row 4.</li>
             <li>Solve bottom corners to complete full illumination and open the door to floor -4.</li>
         </ol>
-
-        <div class="callout callout-tip">
-            <strong>Interactive Online Solver</strong>
-            <p>Unsure about your lantern layout? Use our <a href="/raids?raid=gigalodon"><strong>Luminarium Solver in Raid Studio 3.6</strong></a> to mirror your board and get the exact lighting sequence in seconds.</p>
-        </div>
 
         <hr />
 

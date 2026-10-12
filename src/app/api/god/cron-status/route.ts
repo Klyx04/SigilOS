@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { getAllCronStatuses, getCronHistory, KNOWN_CRON_TASKS } from "@/lib/cron-telemetry";
+import { cronStaleness } from "@/lib/cron-monitor";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -67,6 +68,10 @@ export async function GET() {
 
     // Si on a un log disque plus récent ou si Redis est vide mais disque a des données
     const lastRun = task.lastRun || diskLastRun;
+    // 🕰️ Verdict « muette » : les moniteurs Sentry sont plafonnés (23 désactivés le 12/10/2026,
+    // check-ins jetés) ⇒ le panneau God porte lui-même l'alerte « cette tâche ne tourne plus »,
+    // à partir de la cadence déclarée et de la dernière exécution connue.
+    const staleness = cronStaleness(task.schedule, lastRun);
     const finalLines = task.lines && task.lines.length > 0 
       ? task.lines 
       : (diskLines.length > 0 ? diskLines.slice(-10) : (task.summary ? [task.summary] : []));
@@ -84,6 +89,7 @@ export async function GET() {
       details: task.details ?? null,
       lastLines: finalLines,
       history: histories[idx] ?? [],
+      staleness,
     };
   });
 
@@ -91,10 +97,17 @@ export async function GET() {
   const errorCount = results.filter((r) => r.status === "error").length;
   const successCount = results.filter((r) => r.status === "success").length;
   const unknownCount = results.filter((r) => r.status === "unknown").length;
+  const silentCount = results.filter((r) => r.staleness.silent).length;
 
   return NextResponse.json({
     tasks: results,
-    summary: { total: results.length, success: successCount, error: errorCount, unknown: unknownCount },
+    summary: {
+      total: results.length,
+      success: successCount,
+      error: errorCount,
+      unknown: unknownCount,
+      silent: silentCount,
+    },
     logDir: LOG_DIR,
     generatedAt: new Date().toISOString(),
   });

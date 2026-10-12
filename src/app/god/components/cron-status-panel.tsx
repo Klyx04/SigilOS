@@ -39,11 +39,18 @@ interface CronTask {
   summary?: string | null;
   lastLines: string[];
   history?: HistoryEntry[];
+  /** 🕰️ Verdict « muette » calculé côté serveur (cadence déclarée vs dernière exécution). */
+  staleness?: {
+    silent: boolean;
+    expectedMinutes: number | null;
+    elapsedMinutes: number | null;
+    thresholdMinutes: number | null;
+  } | null;
 }
 
 interface CronStatusData {
   tasks: CronTask[];
-  summary: { total: number; success: number; error: number; unknown: number };
+  summary: { total: number; success: number; error: number; unknown: number; silent: number };
   logDir: string;
   generatedAt: string;
 }
@@ -106,6 +113,8 @@ function TaskRow({ task, onOpen }: { task: CronTask; onOpen: (task: CronTask) =>
       "rounded-xl border transition-all duration-200",
       task.status === "error"
         ? "border-red-500/30 bg-red-500/5"
+        : task.staleness?.silent
+        ? "border-amber-500/30 bg-amber-500/5"
         : task.status === "success"
         ? "border-border bg-surface"
         : "border-border bg-surface opacity-70"
@@ -120,6 +129,15 @@ function TaskRow({ task, onOpen }: { task: CronTask; onOpen: (task: CronTask) =>
         </span>
 
         <StatusBadge status={task.status} />
+
+        {task.staleness?.silent && (
+          <span
+            title={`Aucune exécution depuis plus du double de sa cadence (${task.staleness.expectedMinutes} min attendues, seuil ${task.staleness.thresholdMinutes} min)`}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/20"
+          >
+            <Clock className="w-3 h-3" /> Muette
+          </span>
+        )}
 
         <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
           <span className="font-medium text-sm text-foreground truncate">{task.name}</span>
@@ -176,6 +194,12 @@ function CronDetailModal({ task, onClose }: { task: CronTask | null; onClose: ()
               <MetaCell label="Durée" value={task.durationMs ? formatDuration(task.durationMs) : "—"} />
               <MetaCell label="Taille log" value={task.sizeBytes > 0 ? formatBytes(task.sizeBytes) : "—"} />
               <MetaCell label="Dernier run (précis)" value={task.lastRun ? new Date(task.lastRun).toLocaleString("fr-FR") : "—"} />
+              {task.staleness?.silent && (
+                <MetaCell
+                  label="Silence"
+                  value={`muette · seuil ${task.staleness.thresholdMinutes} min`}
+                />
+              )}
             </div>
 
             {task.summary && (
@@ -284,6 +308,7 @@ export function CronStatusPanel() {
   if (!data) return null;
 
   const errorTasks = data.tasks.filter(t => t.status === "error");
+  const silentTasks = data.tasks.filter(t => t.staleness?.silent);
 
   return (
     <div className="space-y-6">
@@ -304,6 +329,11 @@ export function CronStatusPanel() {
           <span className="text-xs text-muted-foreground">
             {data.summary.success}/{data.summary.total} OK · {data.summary.unknown} inconnu(s)
           </span>
+          {silentTasks.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/20">
+              <Clock className="w-3.5 h-3.5" /> {silentTasks.length} tâche(s) muette(s)
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -327,6 +357,23 @@ export function CronStatusPanel() {
           <p className="text-sm font-semibold text-red-400 mb-1">⚠️ Tâches en erreur</p>
           <ul className="text-xs text-red-300/80 space-y-0.5">
             {errorTasks.map(t => <li key={t.id}>• {t.name} — {t.logFile}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Alerte « muettes » : celles qui ne donnent plus signe de vie (Sentry est plafonné). */}
+      {silentTasks.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <p className="text-sm font-semibold text-amber-400 mb-1">
+            🕰️ Tâches muettes — aucune exécution depuis plus du double de leur cadence
+          </p>
+          <ul className="text-xs text-amber-200/80 space-y-0.5">
+            {silentTasks.map(t => (
+              <li key={t.id}>
+                • {t.name} — dernière exécution {formatRelativeTime(t.lastRun)}
+                {t.staleness?.expectedMinutes ? ` · cadence ${t.staleness.expectedMinutes} min` : ""}
+              </li>
+            ))}
           </ul>
         </div>
       )}

@@ -25,6 +25,7 @@ import {
     buildCronCheckIn,
     cronMonitorConfigFor,
     cronMonitorScheduleFromLabel,
+    cronStaleness,
 } from "@/lib/cron-monitor";
 import { KNOWN_CRON_TASKS } from "@/lib/cron-telemetry";
 
@@ -134,5 +135,64 @@ describe("Cron → Sentry : cadence déduite du libellé déjà déclaré", () =
         expect(read("src/lib/cron-monitor.ts")).not.toContain("captureCheckIn(");
         // Marge volontairement large : on veut apprendre un ARRÊT, pas un retard.
         expect(CRON_CHECKIN_MARGIN_MINUTES).toBeGreaterThanOrEqual(30);
+    });
+});
+
+/**
+ * 🕰️ Le **second filet** : « cette tâche ne tourne plus » **sans dépendre de Sentry**.
+ *
+ * 🐛 Mesure du 12/10/2026 : les moniteurs Sentry sont **plafonnés par l'abonnement** — 23 des 25
+ * sont `disabled` et le bandeau officiel dit tout : « *A check-in was sent but dropped due to the
+ * monitor being disabled* ». Aucune alerte ne partira donc de ce côté. Or le panneau God connaît
+ * la **dernière exécution** (Redis) *et* la **cadence déclarée** : comparer les deux suffit.
+ */
+describe("Tâche muette — verdict calculé côté SigilOS (zéro dépendance à un quota externe)", () => {
+    const now = new Date("2026-10-12T12:00:00.000Z");
+    const minutesAgo = (m: number) => new Date(now.getTime() - m * 60_000).toISOString();
+
+    it("⑤ dans les temps, ou simple retard ⇒ PAS muette", () => {
+        // Quotidien : seuil = 2 × 1440 + 30 = 2910 min (~2 jours).
+        expect(cronStaleness("Quotidien 03h45", minutesAgo(60), now).silent).toBe(false);
+        expect(cronStaleness("Quotidien 03h45", minutesAgo(20 * 60), now).silent).toBe(false);
+        // Toutes les 10 min : seuil 50 min.
+        expect(cronStaleness("Toutes les 10 min", minutesAgo(45), now).silent).toBe(false);
+    });
+
+    it("⑤ au-delà du double de la cadence ⇒ muette", () => {
+        expect(cronStaleness("Toutes les 10 min", minutesAgo(51), now).silent).toBe(true);
+        expect(cronStaleness("Toutes les 12h", minutesAgo(12 * 60 * 2 + 31), now).silent).toBe(true);
+        expect(cronStaleness("Quotidien 03h45", minutesAgo(2 * 24 * 60 + 31), now).silent).toBe(true);
+    });
+
+    it("⑤ jamais d'alerte au hasard : cadence inconnue, jamais lancée, date illisible", () => {
+        expect(cronStaleness("Automatique", minutesAgo(10_000), now).silent).toBe(false);
+        expect(cronStaleness("quand on y pense", minutesAgo(10_000), now).silent).toBe(false);
+        expect(cronStaleness("Quotidien 04h00", null, now).silent).toBe(false);
+        expect(cronStaleness("Quotidien 04h00", "pas une date", now).silent).toBe(false);
+        // …mais la cadence reste affichable même sans exécution connue.
+        expect(cronStaleness("Quotidien 04h00", null, now).elapsedMinutes).toBeNull();
+    });
+
+    it("⑤ la cadence attendue sort en MINUTES (ce que le panneau affiche)", () => {
+        expect(cronStaleness("Toutes les 10 min", null, now).expectedMinutes).toBe(10);
+        expect(cronStaleness("Toutes les 12h", null, now).expectedMinutes).toBe(720);
+        expect(cronStaleness("Quotidien 03h00", null, now).expectedMinutes).toBe(1440);
+        expect(cronStaleness("Mardi 08h00", null, now).expectedMinutes).toBe(10080);
+    });
+
+    it("⑤ CHAQUE tâche déclarée a un verdict calculable (jamais « on ne sait pas »)", () => {
+        const sansVerdict = Object.entries(KNOWN_CRON_TASKS)
+            .filter(([, meta]) => cronStaleness(meta.schedule, minutesAgo(1), now).expectedMinutes === null)
+            .map(([id, meta]) => `${id} (« ${meta.schedule} »)`);
+        expect(sansVerdict).toEqual([]);
+    });
+
+    it("⑤ le panneau God l'affiche (API + badge) — Sentry plafonné n'est plus un angle mort", () => {
+        const route = read("src/app/api/god/cron-status/route.ts");
+        expect(route).toContain("cronStaleness(task.schedule, lastRun)");
+        expect(route).toContain("silent: silentCount");
+        const panel = read("src/app/god/components/cron-status-panel.tsx");
+        expect(panel).toContain("Tâches muettes");
+        expect(panel).toContain("staleness?.silent");
     });
 });

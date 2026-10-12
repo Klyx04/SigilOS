@@ -53,7 +53,15 @@ const TOUR_PHASE_TO_DOC_SLUG: Record<string, { slug: string; title: string }> = 
  * - Affiche [ ❓ Tutoriel ] (lance le tour interactif du module)
  * Design professionnel, épuré, dark-glass, zéro AI-slop.
  */
-export function ModuleTourReplayButton({ phase, className }: { phase: TourPhase; className?: string }) {
+export function ModuleTourReplayButton({
+    phase,
+    className,
+    appearance,
+}: {
+    phase: TourPhase;
+    className?: string;
+    appearance?: "standalone" | "grouped";
+}) {
     const docInfo = phase ? TOUR_PHASE_TO_DOC_SLUG[phase] : null;
 
     return (
@@ -62,6 +70,7 @@ export function ModuleTourReplayButton({ phase, className }: { phase: TourPhase;
             docTitle={docInfo?.title}
             tourPhase={phase}
             className={className}
+            appearance={appearance}
         />
     );
 }

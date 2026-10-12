@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -64,7 +64,7 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
 
     if (loading) {
         return (
-            <div className="rounded-xl bg-gradient-to-b from-[#1a0933] to-[#0d0520] border border-info/30 p-4">
+            <div className="rounded-lg bg-background border border-info/30 p-4">
                 <div className="flex items-center justify-center py-4 text-info">
                     <Loader2 className="w-5 h-5 animate-spin mr-2" />
                     Chargement des candidatures...
@@ -74,7 +74,7 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
     }
 
     return (
-        <div className="rounded-xl bg-gradient-to-b from-[#1a0933] to-[#0d0520] border border-info/30 p-4">
+        <div className="rounded-lg bg-background border border-info/30 p-4">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
                 <Users className="w-5 h-5 text-warning" />
                 Candidatures ({requests.length})
@@ -120,7 +120,7 @@ export function JoinRequestsPanel({ guildId, runId, isLeader }: JoinRequestsPane
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            className="h-8 w-8 bg-green-900/30 hover:bg-green-600 text-green-400 hover:text-foreground"
+                                            className="h-8 w-8 bg-success/10 hover:bg-success/15 text-success hover:text-foreground"
                                             onClick={() => handleRespond(request.id, true)}
                                             disabled={actionLoading === request.id || isPending}
                                         >

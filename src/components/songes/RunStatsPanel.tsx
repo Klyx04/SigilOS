@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -123,37 +123,37 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
     };
 
     return (
-        <div className="rounded-xl bg-gradient-to-b from-[#1a0933] to-[#0d0520] border border-purple-500/30 p-4">
+        <div className="rounded-lg bg-background border border-info/40 p-4">
             <h3 className="text-lg font-semibold text-foreground mb-4">📊 Statistiques</h3>
 
             {/* Progress */}
             <div className="mb-4">
                 <div className="flex justify-between text-sm mb-2">
-                    <span className="text-purple-200">Progression globale</span>
-                    <span className="text-amber-400">{Math.round(progress)}%</span>
+                    <span className="text-info">Progression globale</span>
+                    <span className="text-warning">{Math.round(progress)}%</span>
                 </div>
-                <div className="h-3 bg-purple-900/50 rounded-full overflow-hidden">
+                <div className="h-3 bg-info/10 rounded-full overflow-hidden">
                     <div
-                        className="h-full bg-gradient-to-r from-green-500 via-purple-500 to-amber-500 transition-all"
+                        className="h-full bg-info transition-all"
                         style={{ width: `${progress}%` }}
                     />
                 </div>
             </div>
 
             {/* Current Palier */}
-            <div className="p-3 rounded-lg bg-purple-900/30 border border-purple-500/20 mb-4">
-                <div className="text-sm text-purple-300">Palier actuel</div>
+            <div className="p-3 rounded-lg bg-info/10 border border-info/40 mb-4">
+                <div className="text-sm text-info">Palier actuel</div>
                 <div className="text-lg font-bold" style={{ color: currentPalier.couleur }}>
                     {currentPalier.nom}
                 </div>
-                <div className="text-sm text-purple-300/70">
+                <div className="text-sm text-info">
                     Étages {currentPalier.etages[0]} - {currentPalier.etages[currentPalier.etages.length - 1]}
                 </div>
             </div>
 
             {/* Team with Dofus Pseudos */}
             <div className="mb-4">
-                <h4 className="text-sm font-medium text-purple-200 mb-2">Équipe</h4>
+                <h4 className="text-sm font-medium text-info mb-2">Équipe</h4>
                 <div className="space-y-2">
                     {run.members.map((member) => {
                         const displayName = getDisplayName(member.userId);
@@ -164,18 +164,18 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                         return (
                             <div
                                 key={member.id}
-                                className="flex items-center gap-2 p-2 rounded-lg bg-purple-900/20 border border-purple-500/20"
+                                className="flex items-center gap-2 p-2 rounded-lg bg-info/10 border border-info/40"
                             >
-                                <div className="w-8 h-8 rounded-full bg-purple-600/50 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-info/15 flex items-center justify-center">
                                     {memberIsLeader ? (
-                                        <Crown className="w-4 h-4 text-amber-400" />
+                                        <Crown className="w-4 h-4 text-warning" />
                                     ) : (
-                                        <User className="w-4 h-4 text-purple-300" />
+                                        <User className="w-4 h-4 text-info" />
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="text-sm text-foreground truncate">{displayName}</div>
-                                    <div className="text-xs text-purple-300/70">
+                                    <div className="text-xs text-info">
                                         {classe && <span className="mr-2">{classe}</span>}
                                         {memberIsLeader ? "👑 Leader" : "Membre"}
                                     </div>
@@ -190,7 +190,7 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                             {member.linkedStuffThumbnail && (
                                                 <img src={member.linkedStuffThumbnail} className="w-5 h-5 rounded object-cover border border-border" alt="" />
                                             )}
-                                            <span className="text-caption font-bold text-indigo-300 group-hover:text-indigo-200 truncate max-w-[120px]">
+                                            <span className="text-caption font-bold text-info group-hover:text-info truncate max-w-[120px]">
                                                 {member.linkedStuffName || "Voir le stuff"}
                                             </span>
                                         </a>
@@ -206,11 +206,11 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                                 <Button
                                                     size="icon"
                                                     variant="ghost"
-                                                    className="h-7 w-7 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-900/30"
+                                                    className="h-7 w-7 text-info hover:text-info hover:bg-info/10"
                                                 >
                                                     <div className="relative">
                                                         <User className="w-3 h-3" />
-                                                        <div className="absolute -bottom-1 -right-1 bg-indigo-500 rounded-full w-2 h-2 border border-[#0d0520]" />
+                                                        <div className="absolute -bottom-1 -right-1 bg-info/15 rounded-full w-2 h-2 border border-border" />
                                                     </div>
                                                 </Button>
                                             </DialogTrigger>
@@ -247,10 +247,10 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                                             placeholder="Ex: Stuff Terre/Feu"
                                                             value={customStuffName}
                                                             onChange={(e) => setCustomStuffName(e.target.value)}
-                                                            className="w-full bg-purple-900/30 border border-purple-500/30 rounded-md px-3 py-2 text-sm text-foreground focus:outline-none"
+                                                            className="w-full bg-info/10 border border-info/40 rounded-md px-3 py-2 text-sm text-foreground focus:outline-none"
                                                         />
                                                     </div>
-                                                    <Button onClick={handleUpdateStuff} disabled={loadingAction === "updateStuff"} className="w-full bg-indigo-600 hover:bg-indigo-500">
+                                                    <Button onClick={handleUpdateStuff} disabled={loadingAction === "updateStuff"} className="w-full bg-info/15 hover:bg-info/15">
                                                         {loadingAction === "updateStuff" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Mettre à jour mon stuff"}
                                                     </Button>
                                                 </div>
@@ -262,7 +262,7 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                             <Button
                                                 size="icon"
                                                 variant="ghost"
-                                                className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-900/30"
+                                                className="h-7 w-7 text-danger hover:text-danger hover:bg-danger/10"
                                                 onClick={() => handleKick(member.userId)}
                                                 disabled={loadingAction === member.userId}
                                             >
@@ -279,7 +279,7 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                                             <Button
                                                 size="icon"
                                                 variant="ghost"
-                                                className="h-7 w-7 text-orange-400 hover:text-orange-300 hover:bg-orange-900/30"
+                                                className="h-7 w-7 text-warning hover:text-warning hover:bg-warning/10"
                                                 onClick={handleLeave}
                                                 disabled={loadingAction === "leave"}
                                             >
@@ -299,9 +299,9 @@ export function RunStatsPanel({ guildId, run, currentUserId, isLeader = false }:
                     {[...Array(4 - run.members.length)].map((_, i) => (
                         <div
                             key={`empty-${i}`}
-                            className="flex items-center gap-2 p-2 rounded-lg border border-dashed border-purple-700/50 text-purple-500/50"
+                            className="flex items-center gap-2 p-2 rounded-lg border border-dashed border-info/40 text-info"
                         >
-                            <div className="w-8 h-8 rounded-full bg-purple-900/20 flex items-center justify-center text-purple-600">
+                            <div className="w-8 h-8 rounded-full bg-info/10 flex items-center justify-center text-info">
                                 +
                             </div>
                             <div className="text-sm">Slot libre</div>

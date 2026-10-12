@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
@@ -41,52 +41,44 @@ interface BonusInventoryProps {
 // ─────────────────────────────────────────────
 const RARITY_CONFIG = {
     Légendaire: {
-        bar: "bg-amber-400",
-        glow: "",
-        border: "border-amber-500/40",
-        bg: "bg-gradient-to-br from-[#1c1100] to-[#0f0a00]",
-        text: "text-amber-300",
-        badge: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-        icon: "🟡",
-        dot: "bg-amber-400",
+        bar: "bg-warning/15",
+        border: "border-warning/40",
+        bg: "bg-background",
+        text: "text-warning",
+        badge: "bg-warning/15 text-warning border-warning/40",
+        dot: "bg-warning/15",
     },
     Épique: {
-        bar: "bg-violet-500",
-        glow: "",
-        border: "border-violet-500/40",
-        bg: "bg-gradient-to-br from-[#120b20] to-[#0a0712]",
-        text: "text-violet-300",
-        badge: "bg-violet-500/20 text-violet-300 border-violet-500/30",
-        icon: "🟣",
-        dot: "bg-violet-400",
+        bar: "bg-info/15",
+        border: "border-info/40",
+        bg: "bg-background",
+        text: "text-info",
+        badge: "bg-info/15 text-info border-info/40",
+        dot: "bg-info/15",
     },
     Rare: {
-        bar: "bg-sky-500",
-        glow: "",
-        border: "border-sky-500/30",
-        bg: "bg-gradient-to-br from-[#051218] to-[#03090f]",
-        text: "text-sky-300",
-        badge: "bg-sky-500/20 text-sky-300 border-sky-500/30",
-        icon: "🔵",
-        dot: "bg-sky-400",
+        bar: "bg-info/15",
+        border: "border-info/40",
+        bg: "bg-background",
+        text: "text-info",
+        badge: "bg-info/15 text-info border-info/40",
+        dot: "bg-info/15",
     },
     Commun: {
         bar: "bg-muted",
-        glow: "",
         border: "border-border/30",
-        bg: "bg-gradient-to-br from-[#0e1016] to-[#080b10]",
+        bg: "bg-background",
         text: "text-foreground",
         badge: "bg-muted/20 text-foreground border-border/30",
-        icon: "⚪",
-        dot: "bg-slate-400",
+        dot: "bg-muted-foreground",
     },
 };
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-    passif: { label: "Passif", color: "text-amber-400", icon: "✦" },
-    actif: { label: "Actif", color: "text-violet-400", icon: "⚡" },
-    bonus: { label: "Bonus", color: "text-sky-400", icon: "▲" },
-    consommable: { label: "Conso", color: "text-emerald-400", icon: "◆" },
+    passif: { label: "Passif", color: "text-warning", icon: "✦" },
+    actif: { label: "Actif", color: "text-info", icon: "⚡" },
+    bonus: { label: "Bonus", color: "text-info", icon: "▲" },
+    consommable: { label: "Conso", color: "text-success", icon: "◆" },
 };
 
 const SUBFILTERS_BY_TYPE: Record<string, string[]> = {
@@ -192,7 +184,7 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
             <div
                 key={group.id}
                 className={`group relative flex items-center gap-3 px-4 py-2.5 rounded-lg border transition-all
-                    ${isMinor ? "border-border bg-surface" : `${rar.border} ${rar.bg} ${rar.glow}`}
+                    ${isMinor ? "border-border bg-surface" : `${rar.border} ${rar.bg} `}
                 `}
             >
                 {/* Dot couleur */}
@@ -220,7 +212,7 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-950/50 transition-all rounded-full shrink-0"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 text-danger hover:text-danger hover:bg-danger/10 transition-all rounded-full shrink-0"
                         onClick={() => handleDelete(group.allIds[group.allIds.length - 1])}
                     >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -235,14 +227,14 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
     // ─────────────────────────────────────────────
     const renderShopCard = (bonus: SongesBonus & { nouveau?: boolean }, i: number) => {
         const rar = RARITY_CONFIG[bonus.rarete as keyof typeof RARITY_CONFIG] ?? RARITY_CONFIG.Commun;
-        const typ = TYPE_CONFIG[bonus.type] ?? { label: bonus.type, color: "text-foreground", icon: "•" };
+        const typ = TYPE_CONFIG[bonus.type] ?? { label: bonus.type, color: "text-foreground" };
         const fullEffects = bonus.effets?.replace(/\|/g, " · ") || "";
 
         return (
             <div
                 key={`${bonus.nom}-${i}`}
-                className={`relative flex flex-col rounded-xl border overflow-hidden transition-all duration-200 group
-                    hover:scale-[1.01] hover:z-10 ${rar.border} ${rar.bg} ${rar.glow}`}
+                className={`relative flex flex-col rounded-lg border overflow-hidden transition-all duration-200 group
+ hover:z-10 ${rar.border} ${rar.bg} `}
             >
                 {/* Barre latérale colorée */}
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${rar.bar}`} />
@@ -256,14 +248,14 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                             </p>
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 <span className={`text-caption font-bold uppercase tracking-wide ${typ.color}`}>
-                                    {typ.icon} {typ.label}
+                                     {typ.label}
                                 </span>
                                 <span className="text-foreground/20">·</span>
                                 <span className={`text-caption uppercase font-semibold tracking-wide ${rar.text} opacity-70`}>
                                     {bonus.rarete}
                                 </span>
                                 {bonus.nouveau && (
-                                    <span className="text-caption font-black uppercase tracking-widest text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                                    <span className="text-caption font-semibold uppercase tracking-wider text-success bg-success/15 border border-success/40 px-1.5 py-0.5 rounded">
                                         NOUVEAU 3.5
                                     </span>
                                 )}
@@ -293,7 +285,7 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                             disabled={loading}
                             onClick={() => handleBuy(bonus)}
                             className={`w-full h-8 text-xs font-bold uppercase tracking-wider transition-all border
-                                ${rar.badge} hover:opacity-90`}
+ ${rar.badge} hover:opacity-90`}
                             variant="outline"
                         >
                             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Enregistrer"}
@@ -305,15 +297,15 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
     };
 
     return (
-        <div className="rounded-xl border border-white/8 bg-[#07030f]/95 overflow-hidden relative shadow-2xl">
+        <div className="rounded-lg border border-white/8 bg-background overflow-hidden relative">
             {/* Fond subtil */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(109,40,217,0.06),transparent_60%)] pointer-events-none" />
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/6 relative z-10">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                        <Package className="w-4 h-4 text-indigo-300" />
+                    <div className="w-8 h-8 rounded-lg bg-info/15 border border-info/40 flex items-center justify-center">
+                        <Package className="w-4 h-4 text-info" />
                     </div>
                     <div>
                         <h3 className="text-sm font-bold text-foreground tracking-wide">Inventaire Onirique</h3>
@@ -328,7 +320,7 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                         <DialogTrigger asChild>
                             <Button
                                 size="sm"
-                                className="bg-indigo-600 hover:bg-indigo-500 text-foreground border border-indigo-400/30   transition-all text-xs font-bold gap-1.5"
+                                className="bg-info/15 hover:bg-info/15 text-foreground border border-info/40 transition-all text-xs font-bold gap-1.5"
                             >
                                 <Image src="/assets/songes/boutique.png" alt="Fontaine" width={16} height={16} className="object-contain" />
                                 Fontaine Onirique
@@ -338,22 +330,22 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                         {/* ──────────────────────────────────────────────── */}
                         {/* MODALE FONTAINE                                  */}
                         {/* ──────────────────────────────────────────────── */}
-                        <DialogContent className="bg-[#08040e] border-border text-foreground w-full sm:max-w-[1400px] h-[92vh] flex flex-col p-0 overflow-hidden shadow-2xl shadow-black/60">
+                        <DialogContent className="bg-background border-border text-foreground w-full sm:max-w-[1400px] h-[92vh] flex flex-col p-0 overflow-hidden">
                             {/* Titre */}
                             <div className="px-6 py-5 border-b border-white/6 flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 flex items-center justify-center shrink-0 drop-shadow-[0_0_10px_rgba(99,102,241,0.3)]">
+                                    <div className="w-12 h-12 flex items-center justify-center shrink-0">
                                         <Image src="/assets/songes/boutique.png" alt="Fontaine" width={48} height={48} className="object-contain" />
                                     </div>
                                     <div>
-                                        <DialogTitle className="text-lg font-black text-foreground tracking-wide">
+                                        <DialogTitle className="text-lg font-semibold text-foreground tracking-wide">
                                             Fontaine des Songes
                                         </DialogTitle>
                                         <p className="text-xs text-foreground/30 mt-0.5">Choisissez les bonus de votre run</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-caption font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded tracking-widest uppercase">
+                                    <span className="text-caption font-bold text-success bg-success/15 border border-success/40 px-2 py-1 rounded tracking-wider uppercase">
                                         MAJ 3.5
                                     </span>
                                 </div>
@@ -365,13 +357,13 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                                     <TabsList className="bg-white/4 border border-white/8 w-auto inline-flex gap-1 p-1">
                                         <TabsTrigger
                                             value="shop"
-                                            className="data-[state=active]:bg-indigo-600 data-[state=active]:text-foreground data-[state=active]: text-foreground/50 px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all rounded"
+                                            className="data-[state=active]:bg-info/15 data-[state=active]:text-foreground data-[state=active]: text-foreground/50 px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all rounded"
                                         >
                                             Fontaine Majeure
                                         </TabsTrigger>
                                         <TabsTrigger
                                             value="minor"
-                                            className="data-[state=active]:bg-indigo-600 data-[state=active]:text-foreground data-[state=active]: text-foreground/50 px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all rounded"
+                                            className="data-[state=active]:bg-info/15 data-[state=active]:text-foreground data-[state=active]: text-foreground/50 px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all rounded"
                                         >
                                             Bonus Mineurs
                                         </TabsTrigger>
@@ -390,7 +382,7 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                                                     placeholder="Rechercher..."
                                                     value={searchQuery}
                                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                                    className="pl-9 h-8 bg-white/4 border-border text-foreground placeholder:text-foreground/25 focus-visible:ring-indigo-500/50 text-sm"
+                                                    className="pl-9 h-8 bg-white/4 border-border text-foreground placeholder:text-foreground/25 focus-visible:ring-info/40 text-sm"
                                                 />
                                                 {searchQuery && (
                                                     <button
@@ -416,7 +408,7 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                                                                     : "text-foreground/35 border-transparent hover:text-foreground/60 hover:bg-surface"
                                                                 }`}
                                                         >
-                                                            {tc.icon} {type}
+                                                             {type}
                                                         </button>
                                                     );
                                                 })}
@@ -424,20 +416,20 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
 
                                             {/* Filtre rareté */}
                                             {typeFilter && availableRarities.length > 0 && (
-                                                <div className="flex gap-1 animate-in fade-in slide-in-from-left-2">
+                                                <div className="flex gap-1">
                                                     {availableRarities.map((rarity) => {
                                                         const rr = RARITY_CONFIG[rarity as keyof typeof RARITY_CONFIG];
                                                         return (
                                                             <button
                                                                 key={rarity}
-                                                                onClick={() => setRarityFilter(rarityFilter === rarity ? null : rarity)}
-                                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-all border
+                                                                 onClick={() => setRarityFilter(rarityFilter === rarity ? null : rarity)}
+                                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-colors border
                                                                     ${rarityFilter === rarity
                                                                         ? `${rr.text} ${rr.border} bg-surface`
-                                                                        : "text-foreground/30 border-transparent hover:text-foreground/50 hover:bg-white/4"
+                                                                        : "text-muted-foreground border-transparent hover:text-foreground hover:bg-surface"
                                                                     }`}
                                                             >
-                                                                {rr.icon} {rarity}
+                                                                {rarity}
                                                             </button>
                                                         );
                                                     })}
@@ -473,9 +465,9 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
                                         {MINOR_BONUSES.map((bonus, i) => (
                                             <div
                                                 key={i}
-                                                className="group flex flex-col items-center text-center gap-2 p-4 rounded-xl border border-white/6 bg-white/3 hover:bg-white/6 hover:border-border transition-all"
+                                                className="group flex flex-col items-center text-center gap-2 p-4 rounded-lg border border-white/6 bg-white/3 hover:bg-white/6 hover:border-border transition-all"
                                             >
-                                                <div className="w-11 h-11 rounded-2xl bg-surface border border-white/8 flex items-center justify-center text-2xl group- transition-transform">
+                                                <div className="w-11 h-11 rounded-lg bg-surface border border-white/8 flex items-center justify-center text-2xl group- transition-transform">
                                                     {bonus.icon}
                                                 </div>
                                                 <div>
@@ -506,7 +498,7 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
             <div className="px-5 py-4 space-y-4 relative z-10">
                 {groupedMajor.length > 0 && (
                     <div>
-                        <p className="text-caption font-black uppercase tracking-widest text-foreground/20 mb-2 pl-1">Bonus Majeurs</p>
+                        <p className="text-caption font-semibold uppercase tracking-wider text-foreground/20 mb-2 pl-1">Bonus Majeurs</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                             {groupedMajor.map((group) => renderBonusRow(group, false))}
                         </div>
@@ -515,7 +507,7 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
 
                 {groupedMinor.length > 0 && (
                     <div>
-                        <p className="text-caption font-black uppercase tracking-widest text-foreground/20 mb-2 pl-1">Bonus Mineurs</p>
+                        <p className="text-caption font-semibold uppercase tracking-wider text-foreground/20 mb-2 pl-1">Bonus Mineurs</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                             {groupedMinor.map((group) => renderBonusRow(group, true))}
                         </div>
@@ -524,7 +516,7 @@ export function BonusInventory({ guildId, bonuses, runId, isLeader = false, onUp
 
                 {groupedMajor.length === 0 && groupedMinor.length === 0 && (
                     <div className="py-10 text-center">
-                        <div className="w-12 h-12 rounded-2xl bg-white/3 border border-white/6 flex items-center justify-center mx-auto mb-3">
+                        <div className="w-12 h-12 rounded-lg bg-white/3 border border-white/6 flex items-center justify-center mx-auto mb-3">
                             <Sparkles className="w-5 h-5 text-foreground/15" />
                         </div>
                         <p className="text-sm text-foreground/20 italic">Aucun bonus actif.</p>

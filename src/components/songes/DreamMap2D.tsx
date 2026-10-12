@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState } from "react";
 import Image from "next/image";
@@ -54,7 +54,7 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
     const [hoveredFloor, setHoveredFloor] = useState<number | null>(null);
 
     return (
-        <div className="rounded-xl bg-gradient-to-b from-[#0a0118] to-[#1a0933] border border-info/30 p-6 overflow-hidden">
+        <div className="rounded-lg bg-background border border-info/30 p-6 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
@@ -71,7 +71,7 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
             <div className="mb-6">
                 <div className="h-3 bg-info/50 rounded-full overflow-hidden">
                     <div
-                        className="h-full bg-gradient-to-r from-info via-info to-warning transition-all duration-300"
+                        className="h-full bg-info transition-all duration-300"
                         style={{ width: `${(currentFloor / 26) * 100}%` }}
                     />
                 </div>
@@ -83,7 +83,7 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
                     <div key={palierIdx} className="relative">
                         {/* Palier header */}
                         <div
-                            className="flex items-center gap-2 mb-2 sticky top-0 bg-[#0d0520] py-1 z-10"
+                            className="flex items-center gap-2 mb-2 sticky top-0 bg-background py-1 z-10"
                             style={{ borderLeftColor: palier.color }}
                         >
                             <div
@@ -109,16 +109,16 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
                                     <div
                                         key={floor}
                                         className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all duration-200 cursor-pointer
-                                            ${isCurrent
-                                                ? "border-warning ring-2 ring-warning/50 scale-105 z-10"
-                                                : isCompleted
-                                                    ? "border-green-500/50 opacity-60"
-                                                    : isNext && isLeader
-                                                        ? "border-info/50 hover:border-info"
-                                                        : "border-info/30"
-                                            }
-                                            ${canClick ? " hover:z-10" : ""}
-                                        `}
+ ${isCurrent
+ ? "border-warning ring-2 ring-warning/50 scale-105 z-10"
+ : isCompleted
+ ? "border-success/40 opacity-60"
+ : isNext && isLeader
+ ? "border-info/50 hover:border-info"
+ : "border-info/30"
+ }
+ ${canClick ? " hover:z-10" : ""}
+ `}
                                         onMouseEnter={() => setHoveredFloor(floor)}
                                         onMouseLeave={() => setHoveredFloor(null)}
                                         onClick={() => canClick && onFloorSelect?.(floor)}
@@ -134,27 +134,23 @@ export function DreamMap2D({ currentFloor, isLeader, onFloorSelect }: DreamMap2D
 
                                         {/* Floor number overlay */}
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded bg-black/60
-                                                ${isCurrent ? "text-warning" : isCompleted ? "text-green-400" : "text-foreground"}
-                                            `}>
+                                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded bg-background/80
+ ${isCurrent ? "text-warning" : isCompleted ? "text-success" : "text-foreground"}
+ `}>
                                                 {floor}
                                             </span>
                                         </div>
 
                                         {/* Completed checkmark */}
                                         {isCompleted && (
-                                            <div className="absolute top-1 right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                            <div className="absolute top-1 right-1 w-4 h-4 bg-success/15 rounded-full flex items-center justify-center">
                                                 <span className="text-foreground text-xs">✓</span>
                                             </div>
                                         )}
 
                                         {/* Current indicator */}
                                         {isCurrent && (
-                                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 
-                                                border-l-[6px] border-l-transparent 
-                                                border-r-[6px] border-r-transparent 
-                                                border-b-[8px] border-b-amber-400
-                                                rotate-180"
+                                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-amber-400 rotate-180"
                                             />
                                         )}
                                     </div>

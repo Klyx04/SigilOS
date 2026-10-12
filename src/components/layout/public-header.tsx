@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, LayoutDashboard, LogOut } from "lucide-react";
+import { ChevronRight, LayoutDashboard, LogOut, Newspaper, CalendarDays, Sparkles, Users } from "lucide-react";
 import type { User } from "next-auth";
 import { loginWithDiscord, logoutAction } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
@@ -32,6 +32,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ThemeToggle } from "./ThemeToggle";
 import { DashboardDrawer } from "./dashboard-drawer";
 import { LanguageToggle } from "./LanguageToggle";
@@ -39,6 +40,13 @@ import { useI18n } from "@/lib/i18n/client";
 
 /** Serveur Discord d'entraide — seule invitation publique connue. */
 const DISCORD_INVITE = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
+
+/**
+ * Contenu de l'encart Discord — quatre choses **réelles** qu'on y trouve (aucune liste
+ * copiée) : les patch notes du jeu, l'Almanax, les cosmétiques ajoutés, l'entraide entre
+ * guildes. L'ordre suit celui des phrases (`nav.discordCard.benefits`).
+ */
+const DISCORD_BENEFITS = [Newspaper, CalendarDays, Sparkles, Users] as const;
 
 /**
  * Outils ouverts sans compte : regroupés sous « Outils » (« Produit » est trop vague).
@@ -331,14 +339,50 @@ export function PublicHeader({
                             </Link>
                         ))}
 
-                        <a
-                            href={DISCORD_INVITE}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={cn(linkClass(false), "reg-external")}
-                        >
-                            Discord
-                        </a>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <button
+                                    type="button"
+                                    className={cn(linkClass(false), "gap-1.5")}
+                                    aria-label={t.nav.discordCard.title}
+                                >
+                                    <DiscordIcon className="w-4 h-4" aria-hidden="true" />
+                                    Discord
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-80 space-y-4 p-5">
+                                <div className="flex items-start gap-3">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#5865F2]/30 bg-[#5865F2]/15">
+                                        <DiscordIcon className="w-5 h-5 text-[#5865F2]" aria-hidden="true" />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="reg-eyebrow">{t.nav.discordCard.title}</p>
+                                        <p className="pt-1 text-xs leading-snug text-muted-foreground">
+                                            {t.nav.discordCard.intro}
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul className="space-y-2">
+                                    {DISCORD_BENEFITS.map((Icon, index) => (
+                                        <li key={index} className="flex items-start gap-2.5 text-xs text-foreground">
+                                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-surface">
+                                                <Icon className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
+                                            </span>
+                                            <span className="pt-0.5 leading-snug">{t.nav.discordCard.benefits[index]}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <a
+                                    href={DISCORD_INVITE}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="reg-external flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#5865F2]/40 bg-[#5865F2]/15 text-sm font-semibold text-foreground transition-colors hover:bg-[#5865F2]/25"
+                                >
+                                    <DiscordIcon className="w-4 h-4" aria-hidden="true" />
+                                    {t.nav.discordCard.cta}
+                                </a>
+                            </PopoverContent>
+                        </Popover>
                     </nav>
 
                     {/* Actions : langue, thème, connexion / compte */}
@@ -455,10 +499,11 @@ export function PublicHeader({
                                                 href={DISCORD_INVITE}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="flex items-center justify-between min-h-11 px-2 rounded-md text-sm font-medium text-foreground hover:bg-surface transition-colors"
+                                                className="flex items-center gap-2 min-h-11 px-2 rounded-md text-sm font-medium text-foreground hover:bg-surface transition-colors"
                                             >
+                                                <DiscordIcon className="w-4 h-4" aria-hidden="true" />
                                                 Discord
-                                                <ChevronRight className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                                                <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" aria-hidden="true" />
                                             </a>
                                         </div>
 

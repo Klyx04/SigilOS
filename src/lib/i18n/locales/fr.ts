@@ -11,6 +11,18 @@ export const fr = {
         tools: "Outils",
         toolsHint: "Outils ouverts sans compte",
         connectDiscord: "Connexion Discord",
+        /** Encart du serveur Discord (header public) : ce qu'on y gagne, en clair. */
+        discordCard: {
+            title: "Le serveur Discord",
+            intro: "Rejoins le serveur pour être prévenu quand quelque chose bouge sur Dofus.",
+            benefits: [
+                "Les patch notes Dofus, dès leur sortie",
+                "L'Almanax du jour, sans y penser",
+                "Les nouveaux cosmétiques dès leur ajout en jeu",
+                "L'entraide entre guildes, et de quoi demander un accès",
+            ],
+            cta: "Rejoindre le serveur",
+        },
         logout: "Déconnexion",
         myGuilds: "Mes guildes",
         noGuildFound: "Aucune guilde",

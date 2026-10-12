@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tv2, ChevronRight, Loader2, ExternalLink, FileText, Compass } from "lucide-react";
+import { Tv2, ChevronRight, Loader2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
 import { isDocumentPipSupported } from "@/hooks/use-guide-pip";
@@ -124,15 +124,6 @@ export function RaidOverlayLaunchBanner({
           <span>{loading ? (isEn ? "Opening…" : "Ouverture…") : isOpen ? (isEn ? "Close Overlay" : "Fermer l'overlay") : (isEn ? "Launch Overlay" : "Lancer l'Overlay")}</span>
           {!loading && !isOpen && <ChevronRight size={13} />}
         </button>
-
-        <a
-          href={`/raids?raid=${raidSlug === "jardin-eternel" ? "sanctuaire" : "gigalodon"}`}
-          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 transition-colors"
-        >
-          <Compass size={12} style={{ color: themeColor }} />
-          <span>{isEn ? "Raid Studio 3.6 (Tools & Roles)" : "Raid Studio 3.6 (Outils & Rôles)"}</span>
-          <ExternalLink size={10} className="opacity-50" />
-        </a>
       </div>
     );
   }
@@ -217,16 +208,6 @@ export function RaidOverlayLaunchBanner({
             <span>{loading ? (isEn ? "Opening…" : "Ouverture…") : isOpen ? (isEn ? "Close Overlay" : "Fermer l'overlay") : (isEn ? "Launch Overlay" : "Lancer l'Overlay")}</span>
             {!loading && !isOpen && <ChevronRight size={14} />}
           </button>
-
-          {/* Lien Raid Studio 3.6 */}
-          <a
-            href={`/raids?raid=${raidSlug === "jardin-eternel" ? "sanctuaire" : "gigalodon"}`}
-            className="px-3 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/5 text-white/70 hover:text-white transition-all shrink-0 flex items-center gap-1.5 text-xs font-semibold"
-            title={isEn ? "Open Raid Studio 3.6 (Planner & Tools)" : "Ouvrir Raid Studio 3.6 (Planificateur & Outils)"}
-          >
-            <Compass size={13} style={{ color: themeColor }} />
-            <span className="hidden sm:inline">Raid Studio</span>
-          </a>
 
           {/* Lien guide complet en icon */}
           <a

@@ -41,14 +41,6 @@ export function LandingTools() {
             icon: "/assets/nav/map.png",
             tag: t.landing.openToolsTags.cartography,
         },
-        {
-            name: t.landing.toolsCards.raidTitle,
-            gain: t.landing.toolsCards.raidGain,
-            cta: t.landing.toolsCards.raidCta,
-            href: "/raids",
-            icon: "/assets/raids/sanctuaire.webp",
-            tag: t.landing.openToolsTags.raids,
-        },
     ];
 
     return (

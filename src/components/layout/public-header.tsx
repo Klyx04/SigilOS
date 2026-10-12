@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, LayoutDashboard, LogOut, Newspaper, CalendarDays, Sparkles, Users } from "lucide-react";
+import { ChevronRight, LayoutDashboard, LogOut, Newspaper, Ticket, Users, Compass } from "lucide-react";
 import type { User } from "next-auth";
 import { loginWithDiscord, logoutAction } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
@@ -42,11 +42,16 @@ import { useI18n } from "@/lib/i18n/client";
 const DISCORD_INVITE = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || "https://discord.gg/uX7G6SUDgN";
 
 /**
- * Contenu de l'encart Discord — quatre choses **réelles** qu'on y trouve (aucune liste
- * copiée) : les patch notes du jeu, l'Almanax, les cosmétiques ajoutés, l'entraide entre
- * guildes. L'ordre suit celui des phrases (`nav.discordCard.benefits`).
+ * Contenu de l'encart Discord — **deux** lignes, celles du besoin réel : les mises à jour du
+ * site s'annoncent là-bas, et c'est là qu'on demande. L'ordre suit `nav.discordCard.benefits`.
  */
-const DISCORD_BENEFITS = [Newspaper, CalendarDays, Sparkles, Users] as const;
+const DISCORD_BENEFITS = [Newspaper, Ticket] as const;
+
+/**
+ * Contenu de l'encart « Tableau de bord » (visiteur) : pourquoi on y entre, et par où.
+ * L'ordre suit `nav.dashboardCard.points`.
+ */
+const DASHBOARD_POINTS = [Users, Compass] as const;
 
 /**
  * Outils ouverts sans compte : regroupés sous « Outils » (« Produit » est trop vague).
@@ -92,13 +97,6 @@ const TOOLS = [
         hint: "Positions et trajets",
         href: "/carte-du-monde",
         icon: "/assets/nav/map.png",
-    },
-    {
-        id: "raids",
-        label: "Raid Studio 3.6",
-        hint: "Compos, Luminarium & Énigmes",
-        href: "/raids",
-        icon: "/assets/raids/sanctuaire.webp",
     },
     {
         id: "elevage",
@@ -185,13 +183,6 @@ export function PublicHeader({
             icon: "/assets/nav/map.png",
         },
         {
-            id: "raids",
-            label: t.tools.raidTitle,
-            hint: t.tools.raidHint,
-            href: "/raids",
-            icon: "/assets/raids/sanctuaire.webp",
-        },
-        {
             id: "elevage",
             label: t.tools.elevageTitle,
             hint: t.tools.elevageHint,
@@ -276,11 +267,56 @@ export function PublicHeader({
                                 {t.nav.dashboard}
                             </Link>
                         ) : (
-                            <form action={loginWithDiscord}>
-                                <button type="submit" className={linkClass(false)}>
-                                    {t.nav.dashboard}
-                                </button>
-                            </form>
+                            /* Sans session : un encart explique ce qu'est le tableau de bord et
+                               par où l'on entre. Avant, le clic partait droit sur la connexion
+                               Discord sans rien dire (même si ça marche encore via le CTA). */
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <button type="button" className={linkClass(false)}>
+                                        {t.nav.dashboard}
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent align="start" className="w-80 space-y-4 p-5">
+                                    <div className="flex items-start gap-3">
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-surface">
+                                            <LayoutDashboard className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+                                        </span>
+                                        <div className="min-w-0">
+                                            <p className="reg-eyebrow">{t.nav.dashboardCard.title}</p>
+                                            <p className="pt-1 text-xs leading-snug text-muted-foreground">
+                                                {t.nav.dashboardCard.intro}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <ul className="space-y-2">
+                                        {DASHBOARD_POINTS.map((Icon, index) => (
+                                            <li key={index} className="flex items-start gap-2.5 text-xs text-foreground">
+                                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-surface">
+                                                    <Icon className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
+                                                </span>
+                                                <span className="pt-0.5 leading-snug">{t.nav.dashboardCard.points[index]}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="space-y-2">
+                                        <form action={loginWithDiscord}>
+                                            <button
+                                                type="submit"
+                                                className="reg-btn reg-btn-primary w-full min-h-11 text-sm"
+                                            >
+                                                <DiscordIcon className="w-4 h-4" aria-hidden="true" />
+                                                {t.nav.connectDiscord}
+                                            </button>
+                                        </form>
+                                        <Link
+                                            href="/guilds"
+                                            className="block text-center text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                                        >
+                                            {t.nav.guilds}
+                                        </Link>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                         )}
 
                         <details
@@ -351,16 +387,11 @@ export function PublicHeader({
                                 </button>
                             </PopoverTrigger>
                             <PopoverContent align="end" className="w-80 space-y-4 p-5">
-                                <div className="flex items-start gap-3">
-                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#5865F2]/30 bg-[#5865F2]/15">
-                                        <DiscordIcon className="w-5 h-5 text-[#5865F2]" aria-hidden="true" />
+                                <div className="flex items-center gap-3">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-surface">
+                                        <DiscordIcon className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
                                     </span>
-                                    <div className="min-w-0">
-                                        <p className="reg-eyebrow">{t.nav.discordCard.title}</p>
-                                        <p className="pt-1 text-xs leading-snug text-muted-foreground">
-                                            {t.nav.discordCard.intro}
-                                        </p>
-                                    </div>
+                                    <p className="reg-eyebrow min-w-0">{t.nav.discordCard.title}</p>
                                 </div>
                                 <ul className="space-y-2">
                                     {DISCORD_BENEFITS.map((Icon, index) => (
@@ -376,7 +407,7 @@ export function PublicHeader({
                                     href={DISCORD_INVITE}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="reg-external flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#5865F2]/40 bg-[#5865F2]/15 text-sm font-semibold text-foreground transition-colors hover:bg-[#5865F2]/25"
+                                    className="reg-btn reg-btn-primary reg-external w-full min-h-11 text-sm"
                                 >
                                     <DiscordIcon className="w-4 h-4" aria-hidden="true" />
                                     {t.nav.discordCard.cta}

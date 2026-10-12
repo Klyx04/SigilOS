@@ -224,21 +224,12 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent className="bg-zinc-900 border-white/10">
-                                            <SelectItem value="PUBLIC" className="focus:bg-teal-500/20 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <Globe className="w-4 h-4 text-teal-400" />
-                                                    <div className="flex flex-col text-left">
-                                                        <span className="font-bold text-xs uppercase tracking-widest text-white">Membres</span>
-                                                        <span className="text-caption text-zinc-500 font-medium">Tout membre connecté, toutes guildes</span>
-                                                    </div>
-                                                </div>
-                                            </SelectItem>
                                             <SelectItem value="MEMBER" className="focus:bg-teal-500/20 py-3">
                                                 <div className="flex items-center gap-2">
                                                     <Users className="w-4 h-4 text-teal-400" />
                                                     <div className="flex flex-col text-left">
-                                                        <span className="font-bold text-xs uppercase tracking-widest text-white">Membre identifié</span>
-                                                        <span className="text-caption text-zinc-500 font-medium">Exige une session (jamais anonyme)</span>
+                                                        <span className="font-bold text-xs uppercase tracking-widest text-white">Membres</span>
+                                                        <span className="text-caption text-zinc-500 font-medium">Tout membre connecté d&apos;une guilde</span>
                                                     </div>
                                                 </div>
                                             </SelectItem>
@@ -247,10 +238,26 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                                     <Shield className="w-4 h-4 text-amber-500" />
                                                     <div className="flex flex-col text-left">
                                                         <span className="font-bold text-xs uppercase tracking-widest text-white">Staff</span>
-                                                        <span className="text-caption text-zinc-500 font-medium">Réservé aux Officiers / Staff</span>
+                                                        <span className="text-caption text-zinc-500 font-medium">Rôle staff (RBAC) uniquement</span>
                                                     </div>
                                                 </div>
                                             </SelectItem>
+                                            {/* `PUBLIC` n'est plus proposé : mesuré, il n'a AUCUN public propre —
+                                                tout membre connecté reçoit PUBLIC *et* MEMBER (`getAllDocs`), et
+                                                `/docs` exige déjà une session + une guilde. Il reste affiché pour les
+                                                fiches qui le portent encore, sinon leur valeur serait blanche ET les
+                                                enregistrer réécrirait la donnée à l'insu de l'auteur. */}
+                                            {formData.accessLevel === "PUBLIC" && (
+                                                <SelectItem value="PUBLIC" className="focus:bg-zinc-500/20 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Globe className="w-4 h-4 text-zinc-500" />
+                                                        <div className="flex flex-col text-left">
+                                                            <span className="font-bold text-xs uppercase tracking-widest text-white">Membres (ancien « Public »)</span>
+                                                            <span className="text-caption text-zinc-500 font-medium">Hérité — même public que « Membres »</span>
+                                                        </div>
+                                                    </div>
+                                                </SelectItem>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                     {/* La doc n'est JAMAIS publique au sens « internet » : `/docs` exige une
@@ -258,7 +265,8 @@ export function DocEditor({ initialData }: { initialData?: DocPageData }) {
                                         « membre » et « staff » — cf. tests/unit/doc-acces-membres.test.ts. */}
                                     <p className="text-caption text-zinc-600 leading-snug">
                                         Aucun visiteur anonyme ne lit la doc : <span className="font-mono">/docs</span> demande une
-                                        connexion <em>et</em> une guilde. Ce niveau ne choisit qu&apos;entre « membre » et « staff ».
+                                        connexion <em>et</em> une guilde. « Staff » suit le <strong>rôle RBAC</strong> de la guilde
+                                        (permission staff), pas une liste tenue ici.
                                     </p>
                                 </div>
 

@@ -13,21 +13,11 @@ export const guide = {
         </div>
 
         <div class="callout callout-info">
-            <strong>🛠️ Outils Publics Raid Studio 3.6 & Overlay Détachable</strong>
-            <p>Pour organiser vos 16 joueurs et réussir les énigmes sans perdre de points de vie d'équipe, SigilOS propose une suite d'outils interactifs 100% gratuits :</p>
+            <strong>🛠️ Overlay In-Game Détachable (PiP)</strong>
+            <p>Pour organiser vos 16 joueurs et suivre les énigmes sans perdre de points de vie d'équipe, SigilOS propose un overlay interactif 100% gratuit :</p>
             <ul>
-                <li><strong>Planificateur d'Escouades 16 Joueurs :</strong> répartissez les rôles (Tank CaC, DPS distance, Healer, Placement), composez vos duos pour les 4 ailes et exportez l'annonce en 1 clic pour Discord.</li>
-                <li><strong>Solveurs des 4 Énigmes du Sanctuaire :</strong>
-                    <ul>
-                        <li>⛵ <em>Solveur Bataille Navale :</em> grilles maritimes jumelles 4x3 en [19,15] et [21,17].</li>
-                        <li>♟️ <em>Solveur Échiquier de Belladone :</em> grille 11x11 A1..K11 et calcul des 4 pièces (Tours et Fous).</li>
-                        <li>🌸 <em>Suivi des Objets & Fleurs :</em> inventaire des 8 objets sur les stèles I à IV et détection de la couleur clé.</li>
-                        <li>🗿 <em>Calculateur Protecteurs & Statues :</em> comparaison Clos vs Éphèdre, détection du monstre central, calcul automatique de la cible et flèche d'orientation.</li>
-                    </ul>
-                </li>
                 <li><strong>Overlay In-Game Toujours au Premier Plan (PiP) :</strong> activez l'overlay via le bouton en haut de page pour copier les positions <code>/travel</code> d'un clic et exécuter les solveurs directement en jeu sans alt-tab.</li>
             </ul>
-            <p><a href="/raids?raid=sanctuaire"><strong>→ Ouvrir le Planificateur Sanctuaire & les 4 Solveurs dans Raid Studio 3.6</strong></a></p>
         </div>
 
         <h2>I. Synthèse & Règles Fondamentales</h2>
@@ -123,7 +113,7 @@ export const guide = {
 
         <div class="callout callout-tip">
             <strong>Outil Bateaux Interactif</strong>
-            <p>Utilisez l'onglet <strong>Énigmes &gt; Bateaux</strong> dans Raid Studio 3.6 ou l'overlay PiP pour cliquer sur la grille 4x3 et cocher vos 6 navires au fur et à mesure.</p>
+            <p>Utilisez l'onglet <strong>Énigmes &gt; Bateaux</strong> de l'overlay PiP pour cliquer sur la grille 4x3 et cocher vos 6 navires au fur et à mesure.</p>
         </div>
 
         <hr />
@@ -547,7 +537,7 @@ export const guide = {
 
         <div class="callout callout-info">
             <strong>Planifier votre prochain raid de guilde</strong>
-            <p>Retrouvez vos fiches de composition, l'organisation des rôles et l'inscription des membres directement dans le <a href="/raids?raid=sanctuaire"><strong>Raid Studio 3.6</strong></a> et l'outil de gestion de raids de votre espace de guilde SigilOS.</p>
+            <p>Retrouvez vos fiches de composition, l'organisation des rôles et l'inscription des membres directement dans l'outil de gestion de raids de votre espace de guilde SigilOS.</p>
         </div>
     `,
 };

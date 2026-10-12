@@ -22,7 +22,6 @@ import {
     buildRaidReminderMentions,
     pickRaidReminderChannelId,
     raidReminderLeadLabel,
-    raidOverlayDeeplink,
     shouldSendRaidReminder,
     RAID_CLOSURE_REMINDER_AGE_MS,
     RAID_CLOSURE_REMINDER_MAX_AGE_MS,
@@ -120,10 +119,8 @@ async function deliverRaidReminder(args: {
     const leadLabel = raidReminderLeadLabel(decision.leadMinutes);
     const startTs = Math.floor(event.startDate.getTime() / 1000);
     const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/calendar?event=${event.id}`;
-    // Lot 4a — champ overlay du H-1 (raids à overlay uniquement). Le lien
-    // pointe vers `/raids` (bouton de lancement), jamais un deep-link PiP
-    // (client-side, non adressable depuis Discord).
-    const overlayDeeplink = raidOverlayDeeplink(meta.raidType);
+    // Le rappel ne porte plus de lien vers une page publique : l'overlay s'ouvre en JS
+    // depuis l'app (calendrier, guides, stratège), jamais depuis Discord.
 
     // Clé Redis unique par message : si deux rappels (auto + manuel) partent pour
     // le même raid, la seconde ne doit pas écraser la résolution de la première.
@@ -144,13 +141,6 @@ async function deliverRaidReminder(args: {
                     inline: true,
                 },
                 { name: "💡 Avant de partir", value: "Vérifie ta classe sur le dashboard et prépare ton stuff.", inline: false },
-                ...(overlayDeeplink
-                    ? [{
-                        name: "🖥️ Overlay",
-                        value: `Pense à lancer l'overlay avant le départ : [Ouvrir l'overlay ${overlayDeeplink.label}](${getAppBaseUrl()}/raids?raid=${overlayDeeplink.param}) — /travel en 1 clic, sans alt-tab.`,
-                        inline: false,
-                    }]
-                    : []),
             ],
             // Outbox : demande au worker d'ancrer le vrai ID Discord dans Redis.
             // Sans cette clé, le messageId stocké reste "outbox:<jobId>" et la

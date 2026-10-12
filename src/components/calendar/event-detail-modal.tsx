@@ -95,7 +95,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 };
 
 /**
- * Raid (`metadata.raidType`) → guide + overlay + Raid Studio.
+ * Raid (`metadata.raidType`) → guide + overlay.
  * Source unique côté calendrier : le guide se retrouve depuis l'event,
  * sans deviner depuis le titre.
  */

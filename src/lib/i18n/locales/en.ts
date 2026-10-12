@@ -14,6 +14,18 @@ export const en: Translations = {
         tools: "Tools",
         toolsHint: "Open tools without an account",
         connectDiscord: "Connect with Discord",
+        /** Discord server card (public header): what joining actually gets you. */
+        discordCard: {
+            title: "The Discord server",
+            intro: "Join the server to hear when something moves in Dofus.",
+            benefits: [
+                "Dofus patch notes, as they land",
+                "The Almanax of the day, without thinking about it",
+                "New cosmetics as soon as they hit the game",
+                "Help between guilds, and a way to request access",
+            ],
+            cta: "Join the server",
+        },
         logout: "Sign Out",
         myGuilds: "My Guilds",
         noGuildFound: "No guild found",

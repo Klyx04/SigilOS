@@ -50,6 +50,13 @@ export interface CollectDofusDbResult<T> {
 export interface CollectDofusDbOptions {
     /** Injection de test ; par défaut le fetch poli anti-ban (`dofusDbFetch`). */
     fetchImpl?: typeof fetch;
+    /**
+     * Injection de test de la **pause** ; par défaut `setTimeout`. Même esprit que `fetchImpl` :
+     * les verrous prouvent la **cadence demandée** (combien de pauses, de quelle durée) au lieu de
+     * chronométrer la machine — un test au chrono a échoué en CI le 12/10/2026
+     * (« expected 79 to be greater than or equal to 80 » pour une pause de 2 × 40 ms).
+     */
+    sleepImpl?: (ms: number) => Promise<void>;
     /** Taille de page demandée (défaut 50 = plafond API). */
     pageLimit?: number;
     /** Borne de sécurité anti-boucle infinie (défaut 60 pages ≈ 3 000 lignes). */
@@ -82,6 +89,7 @@ export async function collectDofusDbPages<T>(
     opts: CollectDofusDbOptions = {}
 ): Promise<CollectDofusDbResult<T>> {
     const fetchImpl = opts.fetchImpl ?? dofusDbFetch;
+    const sleepImpl = opts.sleepImpl ?? sleep;
     const limit = opts.pageLimit ?? DOFUSDB_PAGE_SIZE;
     const maxPages = opts.maxPages ?? 60;
     const retryDelayMs = opts.retryDelayMs ?? 1_000;
@@ -98,7 +106,7 @@ export async function collectDofusDbPages<T>(
     for (let page = 0; page < maxPages; page++) {
         // 🚦 Cadence du budget partagé : sans elle, cette boucle vidait la fenêtre de
         // 30 req/min en rafale et affamait les autres siphons (« Référentiel incomplet »).
-        if (page > 0 && pagePauseMs > 0) await sleep(pagePauseMs);
+        if (page > 0 && pagePauseMs > 0) await sleepImpl(pagePauseMs);
         pages++;
 
         /**

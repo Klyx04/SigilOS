@@ -274,12 +274,21 @@ describe("collectDofusDbPages — budget local (A2)", () => {
             100: { count: 50, total: 150 },
         });
 
-        const started = Date.now();
-        const res = await collectDofusDbPages(urlFor, { ...opts, pagePauseMs: 40 });
-        const elapsed = Date.now() - started;
+        // ⚠️ Mesure du 12/10/2026 : ce verrou échouait **en CI** (« expected 79 to be greater than
+        // or equal to 80 ») — 2 × 40 ms de pause, et le chronomètre de la machine a rendu 79 ms.
+        // On prouve désormais la MÊME règle (une pause **entre** chaque page, avec la durée
+        // demandée) en observant les pauses elles-mêmes : plus aucune dépendance à l'horloge.
+        const pauses: number[] = [];
+        const res = await collectDofusDbPages(urlFor, {
+            ...opts,
+            pagePauseMs: 40,
+            sleepImpl: async (ms) => {
+                pauses.push(ms);
+            },
+        });
 
         expect(res.rows).toHaveLength(150);
-        expect(elapsed).toBeGreaterThanOrEqual(80); // 3 pages ⇒ 2 pauses
+        expect(pauses).toEqual([40, 40]); // 3 pages ⇒ 2 pauses, jamais avant la 1ʳᵉ page
     });
 });
 

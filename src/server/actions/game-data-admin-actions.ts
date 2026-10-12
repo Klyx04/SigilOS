@@ -415,6 +415,45 @@ export async function getDungeonsWithAchievements(
     }
 }
 
+/** Bornage de la description (le texte est écrit par le siphon, pas par l'utilisateur : on tient la même longueur). */
+const DungeonAchievementDescriptionSchema = z.string().max(600);
+
+/**
+ * Description **propre au donjon** d'un succès (`DungeonAchievement.description`).
+ *
+ * C'est la colonne qu'écrit le siphon `achievement-details-siphon.ts` (le titre reste
+ * « Spécial », la mécanique est ici). Le God doit pouvoir la corriger — ou la poser à la
+ * main — quand le siphon n'a rien trouvé : c'est la seule porte d'écriture de cette colonne
+ * côté interface.
+ */
+export async function updateDungeonAchievementDescription(
+    achievementId: string,
+    description: string
+): Promise<ActionResponse<{ id: string; description: string | null }>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        if (!achievementId) return { success: false, error: 'Succès non identifié' };
+        const clean = DungeonAchievementDescriptionSchema.parse(description).trim();
+        const achievement = await db.dungeonAchievement.update({
+            where: { id: achievementId },
+            data: { description: clean || null },
+        });
+        await logGameDataWrite('update-dungeon-achievement-description', achievementId, {
+            dungeonId: achievement.dungeonId,
+            challengeId: achievement.challengeId,
+        });
+
+        revalidatePath('/god/game-data');
+        return { success: true, data: { id: achievement.id, description: achievement.description } };
+    } catch (error: any) {
+        logger.error('[updateDungeonAchievementDescription] Error:', error);
+        if (error?.code === 'P2025') return { success: false, error: 'Succès introuvable' };
+        return { success: false, error: 'Erreur lors de la mise à jour de la description' };
+    }
+}
+
 export async function createDungeon(
     data: z.infer<typeof DungeonFormSchema>
 ): Promise<ActionResponse<any>> {

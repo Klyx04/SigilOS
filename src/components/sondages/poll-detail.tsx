@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useCallback, useMemo, useRef, useEffect, memo } from "react";
 import { cn } from "@/lib/utils";
+import { formatPollEnd } from "@/lib/poll-format";
 import {
     BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, ArrowLeft,
     Crown, Trash2, AlertTriangle, Edit2, Megaphone, Send, Info, ExternalLink
@@ -465,6 +466,8 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
     const cat = CATEGORY_CONFIG[poll.category];
     const isActive = poll.status === "ACTIVE";
+    // Fin de vote : une seule règle de formatage (date + heure + écart), valable aussi clôturé.
+    const pollEnd = formatPollEnd(poll.expiresAt);
     const isCreator = currentProfileId === poll.creatorId;
     const canManage = isAdmin || isCreator;
     const maxVotes = useMemo(
@@ -613,30 +616,31 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                 {cat.label}
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {/* Réglages du vote : DITS, jamais cachés derrière une infobulle
+                                    (retour user du 13/10/2026 : « indique choix multiple »). */}
+                                <span className={cn(
+                                    "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-caption font-bold uppercase tracking-wider",
+                                    poll.allowMultipleVotes
+                                        ? "bg-info/10 border-info/30 text-info"
+                                        : "bg-surface border-border text-muted-foreground"
+                                )}>
+                                    <Users className="w-3.5 h-3.5" />
+                                    {poll.allowMultipleVotes ? "Choix multiple" : "Choix unique"}
+                                </span>
                                 {poll.isAnonymous && (
-                                    <Tooltip>
-                                        <TooltipTrigger className="bg-surface border border-border p-2 rounded-xl text-muted-foreground hover:text-foreground transition-colors">
-                                            <Lock className="w-4 h-4" />
-                                        </TooltipTrigger>
-                                        <TooltipContent className="bg-background border-border text-caption uppercase font-bold tracking-widest">Votes anonymes</TooltipContent>
-                                    </Tooltip>
-                                )}
-                                {poll.allowMultipleVotes && (
-                                    <Tooltip>
-                                        <TooltipTrigger className="bg-surface border border-border p-2 rounded-xl text-muted-foreground hover:text-foreground transition-colors">
-                                            <Users className="w-4 h-4" />
-                                        </TooltipTrigger>
-                                        <TooltipContent className="bg-background border-border text-caption uppercase font-bold tracking-widest">Multi-vote activé</TooltipContent>
-                                    </Tooltip>
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                        <Lock className="w-3.5 h-3.5" />
+                                        Votes anonymes
+                                    </span>
                                 )}
                                 <div className={cn(
-                                    "px-5 py-2 rounded-2xl text-caption font-black uppercase tracking-[0.2em] shadow-lg",
-                                    isActive ? "bg-success/10 border border-success/20 text-success shadow-emerald-900/10" :
-                                        poll.status === "CLOSED" ? "bg-warning/10 border border-warning/20 text-warning shadow-amber-900/10" :
-                                            "bg-danger/10 border border-danger/20 text-danger shadow-red-900/10"
+                                    "px-5 py-2 rounded-lg text-caption font-black uppercase tracking-[0.2em]",
+                                    isActive ? "bg-success/10 border border-success/20 text-success" :
+                                        poll.status === "CLOSED" ? "bg-warning/10 border border-warning/20 text-warning" :
+                                            "bg-danger/10 border border-danger/20 text-danger"
                                 )}>
-                                    {isActive ? "Sondage Ouvert" : poll.status === "CLOSED" ? "Archivé / Terminé" : "Consultation Annulée"}
+                                    {isActive ? "En direct" : poll.status === "CLOSED" ? "Archivé / Terminé" : "Consultation Annulée"}
                                 </div>
                             </div>
                         </div>
@@ -692,11 +696,19 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                     {localTotalVotes} votant{localTotalVotes !== 1 ? "s" : ""}
                                 </p>
                             </div>
-                            {poll.expiresAt && isActive && (
+                            {/* Fin de vote : TOUJOURS affichée (date + heure), y compris clôturée —
+                                avant, le bloc disparaissait dès la clôture et n'affichait que l'heure. */}
+                            {pollEnd && (
                                 <div className="space-y-1">
-                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">Status temps</p>
-                                    <p className="text-sm text-warning/80 font-bold border-l-2 border-warning/30 pl-3">
-                                        Fin {new Date(poll.expiresAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">
+                                        Fin de vote
+                                    </p>
+                                    <p className="text-sm text-foreground font-bold flex items-center gap-2 flex-wrap">
+                                        <Clock className="w-4 h-4 text-muted-foreground" />
+                                        {pollEnd.absolute}
+                                        <span className="text-caption font-semibold text-muted-foreground">
+                                            ({pollEnd.relative})
+                                        </span>
                                     </p>
                                 </div>
                             )}

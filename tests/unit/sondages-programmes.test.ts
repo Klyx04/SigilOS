@@ -27,15 +27,22 @@ import { readFileSync } from "node:fs";
 import {
     MAX_DURATION_HOURS,
     MAX_HORIZON_DAYS,
+    MAX_REPEAT_EVERY,
+    MAX_REPEAT_UNTIL_DAYS,
     MAX_SCHEDULED_POLLS,
     MIN_DURATION_HOURS,
     MIN_LEAD_MINUTES,
+    REPEAT_EVERY_ERROR,
+    REPEAT_UNTIL_ERROR,
     SLOT_LIMIT_ERROR,
     canScheduleAnotherPoll,
     findMinuteConflict,
     isPendingStatus,
     isSameMinute,
+    nextOccurrence,
     remainingSlots,
+    repeatLabel,
+    repeatOccurrences,
     resolveDurationHours,
     validateScheduledAt,
 } from "@/lib/polls/scheduling";
@@ -52,7 +59,7 @@ const PUBLISH = "src/server/polls/publish.ts";
 const CORE = "src/server/scheduled-polls-core.ts";
 const ACTIONS = "src/server/actions/scheduled-poll-actions.ts";
 const CRON_ROUTE = "src/app/api/cron/publish-scheduled-polls/route.ts";
-const PAGE = "src/app/dashboard/[guildId]/sondages/programmes/page.tsx";
+const PAGE = "src/app/dashboard/[guildId]/admin/sondages-programmes/page.tsx";
 const SETTINGS_CLIENT = "src/app/dashboard/[guildId]/admin/_components/scheduled-poll-settings-client.tsx";
 const SETTINGS_PAGE = "src/app/dashboard/[guildId]/admin/settings/page.tsx";
 const POLL_ACTIONS = "src/server/actions/poll-actions.ts";
@@ -174,7 +181,7 @@ describe("module enregistré partout (désactivation God globale ET par guilde, 
 
         const coverage = MODULE_DOC_COVERAGE.scheduledPolls;
         expect(coverage?.staff).toBe("admin-sondages-programmes");
-        expect(MODULE_ROUTES["admin-sondages-programmes"]?.href).toBe("/sondages/programmes");
+        expect(MODULE_ROUTES["admin-sondages-programmes"]?.href).toBe("/admin/sondages-programmes");
 
         // Sans lecture dans le `select` de getUserContext, le module serait
         // « activé mais invisible » (régression déjà vécue sur `marche`).
@@ -293,6 +300,183 @@ describe("encart de paramètres (2ᵉ carte de l'onglet Sondages)", () => {
         expect(client).toContain('updateAllowedPingRolesAction(guildId, pingRoleIds, "scheduledPolls")');
         expect(client).toContain("updateScheduledPollSettings");
         expect(client).toContain("POLL_SLOT_COUNTER");
+    });
+});
+
+
+describe("placement — module STAFF, dans le Centre de contrôle (jamais dans la sidebar)", () => {
+    const SIDEBAR = "src/components/layout/app-sidebar.tsx";
+    const ADMIN_PAGE = "src/app/dashboard/[guildId]/admin/page.tsx";
+    const ADMIN_STAFF_PAGE = "src/app/dashboard/[guildId]/admin/sondages-programmes/page.tsx";
+
+    it("aucune entrée de navigation pour le module (il n'est pas un onglet membre)", () => {
+        const sidebar = codeOnly(SIDEBAR);
+        expect(sidebar).not.toContain("sondages/programmes");
+        expect(sidebar).not.toContain("Sondages programmés");
+        // … mais son URL reste une **alias** du bouton « Staff » (surbrillance correcte).
+        expect(sidebar).toContain("/admin/sondages-programmes");
+    });
+
+    it("la permission du module ouvre le bouton « Staff » de la sidebar", () => {
+        const sidebar = codeOnly(SIDEBAR);
+        expect(sidebar).toMatch(/hasAnyAdminPermission = [\s\S]{0,400}user\.canSchedulePolls/);
+        expect(sidebar).toContain('visible: hasAnyAdminPermission');
+    });
+
+    it("la carte du module est dans le Centre de contrôle, derrière sa permission", () => {
+        const admin = codeOnly(ADMIN_PAGE);
+        expect(admin).toContain("/admin/sondages-programmes");
+        expect(admin).toContain('title: "Sondages programmés"');
+        expect(admin).toContain("permission: (u) => u.canSchedulePolls");
+        expect(admin).toContain('modules: "scheduledPolls"');
+    });
+
+    it("la carte « Gestion des Modules » ne double plus : elle vit dans Pilotage → Modules", () => {
+        const admin = codeOnly(ADMIN_PAGE);
+        expect(admin).not.toContain("Gestion des Modules");
+        expect(admin).not.toContain("/admin/modules");
+        // La surface de pilotage reste la seule à porter les toggles.
+        const pilotage = codeOnly("src/app/dashboard/[guildId]/admin/pilotage/page.tsx");
+        expect(pilotage).toContain("ModulesClient");
+    });
+
+    it("la page du module accepte le rôle staff (permission) et ses RÉGLAGES aussi", () => {
+        const page = codeOnly(ADMIN_STAFF_PAGE);
+        expect(page).toContain("canSchedulePolls");
+        expect(page).toContain('isModuleEnabled(guildId, "scheduledPolls")');
+        expect(page).toContain("ScheduledPollSettingsClient");
+
+        const actions = codeOnly(ACTIONS);
+        // L'encart de réglages est accessible soit par un admin, soit par le rôle du module.
+        expect(actions).toContain("requireScheduledPollSettingsAccess");
+        expect(actions).toMatch(/requireGuildConfigAccess\(discordGuildId, context\)[\s\S]{0,400}if \(staff\.ok\) return \{ ok: true \}/);
+    });
+});
+
+
+describe("récurrence — « tous les N jours / semaines / mois »", () => {
+    const FORM = "src/components/sondages/programmes/scheduled-poll-form.tsx";
+    const BOARD = "src/components/sondages/programmes/scheduled-poll-board.tsx";
+
+    it("avance d'un cran dans chaque unité en gardant l'HEURE LOCALE (DST comprise)", () => {
+        // Heure locale (jamais UTC) : « chaque dimanche 21 h » doit rester 21 h
+        // même après un changement d'heure — d'où des attentes en composantes
+        // locales, indépendantes du fuseau de la machine de test.
+        const base = new Date(2026, 9, 20, 21, 30);
+        const plus3j = nextOccurrence(base, 3, "DAYS");
+        expect([plus3j.getFullYear(), plus3j.getMonth(), plus3j.getDate(), plus3j.getHours(), plus3j.getMinutes()])
+            .toEqual([2026, 9, 23, 21, 30]);
+
+        const plus2s = nextOccurrence(base, 2, "WEEKS");
+        expect([plus2s.getMonth(), plus2s.getDate(), plus2s.getHours(), plus2s.getMinutes()])
+            .toEqual([10, 3, 21, 30]);
+
+        // 20 octobre → 20 novembre traverse le changement d'heure : l'heure
+        // locale ne bouge pas (21 h 30 les deux fois).
+        const plus1m = nextOccurrence(base, 1, "MONTHS");
+        expect([plus1m.getMonth(), plus1m.getDate(), plus1m.getHours(), plus1m.getMinutes()])
+            .toEqual([10, 20, 21, 30]);
+    });
+
+    it("plafonne au dernier jour du mois (31 janvier + 1 mois ≠ 3 mars)", () => {
+        const jan31 = new Date(2026, 0, 31, 10, 0);
+        const feb = nextOccurrence(jan31, 1, "MONTHS");
+        expect([feb.getFullYear(), feb.getMonth(), feb.getDate(), feb.getHours()])
+            .toEqual([2026, 1, 28, 10]);
+
+        // 2028 est bissextile : on garde bien le 29.
+        const febLeap = nextOccurrence(new Date(2028, 0, 31, 10, 0), 1, "MONTHS");
+        expect([febLeap.getFullYear(), febLeap.getMonth(), febLeap.getDate()]).toEqual([2028, 1, 29]);
+
+        // Décembre → janvier de l'année suivante.
+        const jan = nextOccurrence(new Date(2026, 11, 15, 8, 0), 1, "MONTHS");
+        expect([jan.getFullYear(), jan.getMonth(), jan.getDate(), jan.getHours()]).toEqual([2027, 0, 15, 8]);
+    });
+
+    it("libellé FR juste (singulier/pluriel, jours/semaines/mois)", () => {
+        expect(repeatLabel({ every: 1, unit: "DAYS" })).toBe("chaque jour");
+        expect(repeatLabel({ every: 1, unit: "WEEKS" })).toBe("chaque semaine");
+        expect(repeatLabel({ every: 1, unit: "MONTHS" })).toBe("chaque mois");
+        expect(repeatLabel({ every: 2, unit: "WEEKS" })).toBe("toutes les 2 semaines");
+        expect(repeatLabel({ every: 3, unit: "MONTHS" })).toBe("tous les 3 mois");
+        expect(repeatLabel({ every: 15, unit: "DAYS" })).toBe("tous les 15 jours");
+        expect(repeatLabel({ every: null, unit: null })).toBeNull();
+        expect(repeatLabel({ every: 2, unit: null })).toBeNull();
+    });
+
+    it("aperçu borné par la fin choisie, et sans fin quand il n'y en a pas", () => {
+        const from = new Date(2026, 9, 20, 21, 30);
+        const sansFin = repeatOccurrences({ from, every: 7, unit: "DAYS" }, 3);
+        expect(sansFin.map((d) => [d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()])).toEqual([
+            [9, 27, 21, 30],
+            [10, 3, 21, 30],
+            [10, 10, 21, 30],
+        ]);
+        const avecFin = repeatOccurrences({ from, every: 7, unit: "DAYS", until: new Date(2026, 10, 1) }, 5);
+        expect(avecFin.map((d) => [d.getMonth(), d.getDate()])).toEqual([[9, 27]]);
+        // Une fin antérieure à la première occurrence ⇒ aucune suivante.
+        expect(repeatOccurrences({ from, every: 1, unit: "DAYS", until: new Date(2026, 8, 1) })).toEqual([]);
+    });
+
+    it("bornes : intervalle 1..90, fin ≤ 365 jours", () => {
+        expect(MAX_REPEAT_EVERY).toBe(90);
+        expect(MAX_REPEAT_UNTIL_DAYS).toBe(365);
+        expect(REPEAT_EVERY_ERROR).toContain("90");
+        expect(REPEAT_UNTIL_ERROR).toContain("365");
+    });
+
+    it("le moteur repose la suivante APRÈS avoir publié (une seule à la fois)", () => {
+        const core = codeOnly(CORE);
+        expect(core).toContain("nextOccurrence");
+        expect(core).toContain("scheduledPoll.create");
+        expect(core.indexOf("publishPollToDiscord")).toBeLessThan(core.indexOf("Occurrence suivante programmée"));
+        expect(core).toContain("let nextScheduledAt: Date | null = null");
+    });
+
+    it("la modale propose l'option et l'explique (aperçu), le tableau la rappelle", () => {
+        const form = codeOnly(FORM);
+        expect(form).toContain("repeatOccurrences");
+        expect(form).toContain("repeatLabel");
+        expect(form).toContain("Aucune (créneau unique)");
+        expect(form).toContain("Prochaines publications");
+        expect(codeOnly(BOARD)).toContain("repeatLabel");
+    });
+
+    it("la répétition est bornée côté serveur (Zod + contrôle applicatif)", () => {
+        const actions = codeOnly(ACTIONS);
+        expect(actions).toContain("MAX_REPEAT_EVERY");
+        expect(actions).toMatch(/repeatEvery: z\.number\(\)\.int\(\)\.min\(1\)\.max\(MAX_REPEAT_EVERY\)/);
+        expect(actions).toContain('z.enum(["DAYS", "WEEKS", "MONTHS"])');
+        expect(actions).toContain("Répétition incomplète");
+    });
+});
+
+describe("emoji & harmonie des deux modales", () => {
+    const TILES = "src/components/sondages/poll-category-tiles.tsx";
+    const FORM = "src/components/sondages/programmes/scheduled-poll-form.tsx";
+
+    it("un composant UNIQUE de tuiles sert les deux modales (zéro duplication)", () => {
+        const tiles = codeOnly(TILES);
+        expect(tiles).toContain("export function PollCategoryTiles");
+        expect(tiles).toContain("grid-cols-3 sm:grid-cols-5");
+        expect(codeOnly(POLL_CREATOR)).toContain("PollCategoryTiles");
+        expect(codeOnly(FORM)).toContain("PollCategoryTiles");
+    });
+
+    it("la description accepte des emojis (picker partagé, insertion au curseur) — les deux modales", () => {
+        for (const path of [POLL_CREATOR, FORM]) {
+            const source = codeOnly(path);
+            expect(source, path).toContain("@/components/editor/emoji-picker");
+            expect(source, path).toContain("insertEmoji");
+            expect(source, path).toContain("selectionStart");
+            expect(source, path).toContain("requestAnimationFrame");
+        }
+    });
+
+    it("les choix portent aussi un emoji dans la modale staff (juste milieu demandé)", () => {
+        const form = codeOnly(FORM);
+        expect(form).toContain("EmojiPicker");
+        expect(form).toMatch(/emoji: string/);
     });
 });
 

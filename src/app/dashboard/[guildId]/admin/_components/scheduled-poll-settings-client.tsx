@@ -131,7 +131,7 @@ export function ScheduledPollSettingsClient({ guildId }: ScheduledPollSettingsCl
                                 {slots ? `${slots.used}/${slots.max} créneaux en attente` : "Module désactivé — compteur indisponible"}
                             </span>
                             <Link
-                                href={`/dashboard/${guildId}/sondages/programmes`}
+                                href={`/dashboard/${guildId}/admin/sondages-programmes`}
                                 className="text-caption text-info hover:underline inline-flex items-center gap-1.5"
                             >
                                 Gérer les sondages programmés

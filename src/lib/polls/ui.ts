@@ -53,7 +53,14 @@ export const POLL_SCHEDULED_TAG =
 export const POLL_SLOT_COUNTER = "text-caption uppercase tracking-wider text-muted-foreground";
 
 /**
- * Libellés des catégories de sondage (source unique côté UI) : les catégories
+ * Contrôle du **filtre de participation** (recherche membre / rôle) : hauteur
+ * unique, rayon court, tokens du thème — jamais un contrôle qui prend la moitié
+ * de l'écran.
+ */
+export const POLL_FILTER_CONTROL =
+    "h-9 rounded-lg border border-border bg-surface/60 px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50";
+
+/** Libellés des catégories de sondage (source unique côté UI) : les catégories
  * vivent en base sous forme d'enum (`PollCategory`), l'écran n'a jamais à
  * réinventer le mot affiché.
  */

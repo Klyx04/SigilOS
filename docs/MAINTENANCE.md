@@ -136,9 +136,12 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 # quotidienne dans `maintenance.sh` — ne publie jamais deux fois le même sondage.
 # ⚠️ La minute manquée n'est pas perdue : l'exécution suivante rattrape tous les
 #    créneaux échus (c'est ce qui rend le déclencheur « sans état »).
-* * * * * curl -s -o /dev/null -w "publish-scheduled-polls \%{http_code} $(date -Is)\n" \
-  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
-  "$APP_URL/api/cron/publish-scheduled-polls" >> "$LOG_DIR/publish-scheduled-polls.log" 2>&1
+# ⚠️ `CRON_SECRET`, `APP_URL` et `LOG_DIR` sont définis EN TÊTE du crontab de ce
+#    VPS (relevé du 12/10/2026) : on utilise donc `$CRON_SECRET` (et non
+#    `$(cat ~/.sigilos-cron-secret)`, fichier absent). Le log porte EXACTEMENT le
+#    nom déclaré dans `KNOWN_CRON_TASKS` (`publish-scheduled-polls.log`), sinon
+#    le panneau God affiche « Inconnu ».
+* * * * * curl -s -o /dev/null -w "publish-scheduled-polls \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/publish-scheduled-polls" >> "$LOG_DIR/publish-scheduled-polls.log" 2>&1
 
 # Rappels des raids (toutes les 10 min) — ① ping des INSCRITS 1 h avant le départ
 # (un seul ping par raid, silence si un rappel manuel vient d'être envoyé) ;

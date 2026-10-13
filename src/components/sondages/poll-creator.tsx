@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -45,6 +45,8 @@ import {
     POLL_TITLE_MAX_LENGTH,
     pollTitleLengthError,
 } from "@/lib/polls/limits";
+import { PollCategoryTiles } from "./poll-category-tiles";
+import { EmojiPicker } from "@/components/editor/emoji-picker";
 
 interface PollCreatorProps {
     guildId: string;
@@ -65,14 +67,6 @@ interface PollCreatorProps {
     onSuccess?: () => void;
 }
 
-const CATEGORIES = [
-    { value: "SUGGESTION", label: "💡 Suggestion", color: "text-info" },
-    { value: "AMELIORATION", label: "🔧 Amélioration", color: "text-success" },
-    { value: "EVENT", label: "🎉 Événement", color: "text-warning" },
-    { value: "MISSION", label: "🎯 Mission", color: "text-danger" },
-    { value: "AUTRE", label: "📋 Autres", color: "text-violet-400" },
-];
-
 const DEFAULT_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
 // Plafond de durée d'un sondage : 30 jours max. Les sondages « sans date » (toggle off) sont fermés auto à 30 j (cron close-old-polls).
@@ -90,6 +84,8 @@ export function PollCreator({
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
+    /** Zone de description : sert à insérer un emoji **au curseur**. */
+    const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
     // Steps (modèle DJ/songes : formulaire → configuration Discord)
     const [step, setStep] = useState(1);
@@ -262,6 +258,27 @@ export function PollCreator({
 
 
 
+    /**
+     * Insertion d'un emoji **à la position du curseur** : un emoji expliqué dans
+     * une description part dans l'embed, il doit atterrir là où l'auteur regarde
+     * (jamais collé à la fin, ce qui obligerait à recouper le texte à la main).
+     */
+    const insertEmoji = (emoji: string) => {
+        const el = descriptionRef.current;
+        if (!el) {
+            setDescription((prev) => prev + emoji);
+            return;
+        }
+        const start = el.selectionStart ?? description.length;
+        const end = el.selectionEnd ?? start;
+        setDescription(description.slice(0, start) + emoji + description.slice(end));
+        requestAnimationFrame(() => {
+            el.focus();
+            const caret = start + emoji.length;
+            el.setSelectionRange(caret, caret);
+        });
+    };
+
     const executeSubmit = () => {
         const expiresAt = hasExpiry
             ? new Date(Date.now() + Math.min(expiryHours, MAX_EXPIRY_HOURS) * 60 * 60 * 1000).toISOString()
@@ -320,10 +337,14 @@ export function PollCreator({
                         <Button
                             disabled={microStatus?.holder && !microStatus?.isMicroHolder}
                             className={cn(
-                                "gap-2 transition-all font-bold uppercase tracking-wider text-caption h-11 px-6 rounded-xl",
+                                // MÊME hauteur / padding / graisse que « Documentation » et
+                                // « Tutoriel » du même en-tête : trois boutons de tailles
+                                // différentes, c'est le défaut le plus visible. L'accent
+                                // (`info`) reste réservé à cette action.
+                                "gap-2 h-9 px-3.5 rounded-lg text-xs font-semibold transition-colors",
                                 microStatus?.holder && !microStatus?.isMicroHolder
-                                    ? "bg-elevated text-muted-foreground border border-border cursor-not-allowed"
-                                    : "bg-info hover:bg-info text-info-foreground shadow-lg shadow-cyan-900/20"
+                                    ? "bg-surface/40 text-muted-foreground border border-border cursor-not-allowed"
+                                    : "bg-info hover:bg-info/90 text-info-foreground border border-info"
                             )}
                         >
                             {microStatus?.holder && !microStatus?.isMicroHolder ? (
@@ -333,7 +354,7 @@ export function PollCreator({
                                 </>
                             ) : (
                                 <>
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="w-3.5 h-3.5" />
                                     Nouveau sondage
                                 </>
                             )}
@@ -448,32 +469,12 @@ export function PollCreator({
                                         </div>
                                         <div className="space-y-3">
                                             <label className="text-caption font-bold uppercase tracking-widest text-muted-foreground ml-1">Thématique</label>
-                                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                                {CATEGORIES.map((c) => {
-                                                    const isSelected = category === c.value;
-                                                    return (
-                                                        <button
-                                                            key={c.value}
-                                                            type="button"
-                                                            onClick={() => setCategory(c.value)}
-                                                            className={cn(
-                                                                "relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all",
-                                                                isSelected
-                                                                    ? "bg-surface border-border-strong shadow-lg"
-                                                                    : "bg-surface border-border hover:bg-surface opacity-60"
-                                                            )}
-                                                        >
-                                                            <span className="text-xl mb-1">{c.label.split(" ")[0]}</span>
-                                                            <span className={cn(
-                                                                "text-caption font-bold uppercase tracking-tight text-center break-words min-w-0",
-                                                                isSelected ? c.color : "text-muted-foreground"
-                                                            )}>
-                                                                {c.label.split(" ").slice(1).join(" ")}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
+                                            {/* Tuiles partagées avec la modale staff : une seule liste de
+                                                catégories, 3 colonnes sur petit écran (aucun libellé qui déborde). */}
+                                            <PollCategoryTiles
+                                                value={category}
+                                                onChange={(next) => setCategory(next)}
+                                            />
                                         </div>
                                     </div>
 
@@ -499,8 +500,12 @@ export function PollCreator({
                                             )}>
                                                 {description.length}/{POLL_DESCRIPTION_MAX_LENGTH} {description.trim().length > 0 && description.trim().length < POLL_DESCRIPTION_MIN_LENGTH && `(min. ${POLL_DESCRIPTION_MIN_LENGTH} car.)`}
                                             </span>
+                                            {/* Emoji : inséré À LA POSITION DU CURSEUR (grand choix,
+                                                composant partagé avec le profil et la doc). */}
+                                            <EmojiPicker onSelect={insertEmoji} />
                                         </div>
                                         <textarea
+                                            ref={descriptionRef}
                                             value={description}
                                             onChange={(e) => setDescription(e.target.value)}
                                             rows={5}

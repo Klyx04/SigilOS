@@ -58,7 +58,7 @@ export default async function PollsPage({ params }: { params: Promise<{ guildId:
                     iconColor="#06b6d4"
                     backHref={`/dashboard/${guildId}`}
                     actions={
-                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
                             {canCreate && (
                                 <div data-tour="sondages-create">
                                     <PollCreator

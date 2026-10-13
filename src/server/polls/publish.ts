@@ -131,6 +131,13 @@ export function getProgressBar(percentage: number, length = 12): string {
  * `isUpdate` court-circuite la validation du salon (l'embed existe déjà, donc le
  * salon est connu) — c'est le seul cas où la validation est sautée.
  */
+/**
+ * Ce qu'a fait une publication : l'appelant peut le **dire** à l'utilisateur
+ * (un embed dont l'ID de message n'est pas résolu n'a **pas** été modifié, et un
+ * rattrapage doit le compter, pas le taire).
+ */
+export type PollPublishOutcome = "sent" | "updated" | "skipped" | "unresolved" | "failed";
+
 export async function publishPollToDiscord(
     discordGuildId: string,
     pollId: string,
@@ -138,7 +145,7 @@ export async function publishPollToDiscord(
     mentionEveryone: boolean,
     mentionRoleId?: string,
     isUpdate = false
-): Promise<void> {
+): Promise<PollPublishOutcome> {
     try {
         const { updateChannelMessage, validateChannelBelongsToGuild } = await import("@/server/discord");
 
@@ -147,7 +154,7 @@ export async function publishPollToDiscord(
             const isValid = await validateChannelBelongsToGuild(channelId, discordGuildId);
             if (!isValid) {
                 logger.error("[Polls] Channel does not belong to guild", { channelId, discordGuildId });
-                return;
+                return "failed";
             }
         }
 
@@ -169,7 +176,7 @@ export async function publishPollToDiscord(
                 creator: { include: { user: { select: { image: true } } } }
             },
         });
-        if (!poll) return;
+        if (!poll) return "skipped";
 
         const catConfig = POLL_CATEGORY_CONFIG[poll.category as PollCategory];
         const appUrl = getAppBaseUrl();
@@ -329,7 +336,7 @@ export async function publishPollToDiscord(
                     pollId,
                     discordMessageId: poll.discordMessageId,
                 });
-                return;
+                return "unresolved";
             }
             await updateChannelMessage(poll.discordChannelId, realMessageId, description, embedOptions);
             if (realMessageId !== poll.discordMessageId) {
@@ -339,6 +346,7 @@ export async function publishPollToDiscord(
                     data: { discordMessageId: realMessageId },
                 }).catch(() => null);
             }
+            return "updated";
         } else {
             const messageId = await sendChannelMessage(channelId, description, {
                 ...embedOptions,
@@ -352,8 +360,80 @@ export async function publishPollToDiscord(
                     data: { discordMessageId: messageId, discordChannelId: channelId },
                 });
             }
+            return "sent";
         }
     } catch (error) {
         logger.error("[Polls] publishToDiscord error", { error, pollId, channelId });
+        return "failed";
+    }
+}
+
+export interface PollResultOptions {
+    /** Titre du bloc de décision (« Décision Finale » d'un admin, fin d'occurrence…). */
+    decisionTitle: string;
+    /** Corps du bloc : ce qui est décidé, ou pourquoi le vote se termine. */
+    decision: string;
+    /** Pied d'embed : **qui** a clôturé (administrateur, clôture automatique…). */
+    footer: string;
+}
+
+/**
+ * Publie le **résultat** d'un vote dans le salon : un **message neuf** (jamais un
+ * remplacement d'embed — le résultat doit rester lisible même si l'embed
+ * interactif a été supprimé), barres figées, pourcentages, décision.
+ *
+ * Une seule fabrique pour les **deux** clôtures : manuelle (décision d'un admin,
+ * via `closePoll`) et automatique (fin d'une occurrence de série récurrente,
+ * avant que la suivante n'apparaisse). Deux textes, un seul rendu.
+ */
+export async function publishPollResultToDiscord(
+    discordGuildId: string,
+    pollId: string,
+    options: PollResultOptions,
+): Promise<boolean> {
+    try {
+        const poll = await db.poll.findUnique({
+            where: { id: pollId },
+            include: { options: { include: { _count: { select: { votes: true } } } } },
+        });
+        if (!poll || !poll.discordChannelId) return false;
+
+        const catConfig = POLL_CATEGORY_CONFIG[poll.category as PollCategory];
+        const appUrl = getAppBaseUrl();
+        const voteUrl = `${appUrl}/dashboard/${discordGuildId}/sondages/${pollId}`;
+
+        const totalVotes = poll.options.reduce((acc, option) => acc + (option._count.votes || 0), 0);
+        const resultsList = poll.options
+            .map((option) => {
+                const votes = option._count.votes || 0;
+                const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                const votesLabel = `(${votes} vote${votes !== 1 ? "s" : ""})`;
+                return `**${option.emoji || "🔹"} ${option.label}**\n${getProgressBar(pct, 10)} \`${pct}%\` ${votesLabel}`;
+            })
+            .join("\n\n");
+
+        const description = [
+            "## 📊 Résultats du vote",
+            "",
+            resultsList,
+            "",
+            "---",
+            "",
+            `### 📝 ${options.decisionTitle} :`,
+            options.decision,
+            "",
+            `*📌 Retrouvez le détail sur [SigilOS](${voteUrl})*`,
+        ].join("\n");
+
+        await sendChannelMessage(poll.discordChannelId, description, {
+            embedTitle: `🏁 SONDAGE TERMINÉ : ${poll.title.toUpperCase()}`,
+            embedColor: catConfig.color,
+            embedFooter: options.footer,
+            embedUrl: voteUrl,
+        });
+        return true;
+    } catch (error) {
+        logger.error("[Polls] publishPollResultToDiscord error", { error, pollId });
+        return false;
     }
 }

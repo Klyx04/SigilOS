@@ -1794,6 +1794,17 @@ model ScheduledPoll {
   lastError         String?
   /** Sondage réellement créé à l'échéance (jamais deviné : lu en base). */
   createdPollId     String?
+  /**
+   * **Série de répétition** : identifiant partagé par toutes les occurrences d'une
+   * même série (la première occurrence porte le sien, les suivantes le recopient).
+   *
+   * C'est ce qui permet au moteur, au moment de publier l'occurrence N+1, de
+   * retrouver l'occurrence N **par donnée explicite** — et donc de la clore et de
+   * publier son résultat avant que la nouvelle n'apparaisse. Jamais un
+   * rapprochement par titre ou par créateur : se tromper de cible veut dire
+   * clôturer un autre sondage. Nul pour un créneau unique (aucune répétition).
+   */
+  seriesId          String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   guild             GuildConfig         @relation(fields: [guildId], references: [id], onDelete: Cascade)
@@ -1802,6 +1813,7 @@ model ScheduledPoll {
   @@unique([guildId, scheduledAt])
   @@index([guildId, status])
   @@index([status, scheduledAt])
+  @@index([guildId, seriesId])
 }
 
 model ScheduledPollOption {

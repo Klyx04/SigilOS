@@ -77,6 +77,7 @@ export type AuditAction =
     | "GUILDATON_SETTINGS_UPDATE"
     // S8.18 — supervision du Marché (God « Marché », `isGodLog: true`)
     | "GOD_MARKET_RESYNC"        // Resynchronisation Discord d'une annonce (ou lot)
+    | "GOD_POLL_EMBED_RESYNC"    // Rattrapage des embeds de sondages (barres, %, métadonnées)
     | "GOD_MARKET_IMAGE_REGEN"   // Régénération de la carte PNG + embed
     | "GOD_MARKET_MEDIA_PURGE"   // Purge cross-guild des médias expirés
     | "GOD_MARKET_SETTINGS"     // Réglages globaux (verrou plateforme + rétention)

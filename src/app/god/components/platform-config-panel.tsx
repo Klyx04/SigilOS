@@ -622,6 +622,60 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                     </div>
                 </div>
 
+                {/* CARTE 5: RATTRAPAGE DES EMBEDS DE SONDAGES (barres de %) */}
+                <div className="p-8 rounded-3xl bg-zinc-950/40 border border-white/5 space-y-6 md:col-span-2">
+                    <div className="border-b border-white/5 pb-4 space-y-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <ClipboardList className="w-4 h-4 text-sky-400" />
+                                Rattrapage des embeds de sondages
+                            </h4>
+                            <p className="text-zinc-500 text-xs font-medium">
+                                Un embed n'est réécrit que sur un nouveau vote : un sondage lancé avant la refonte reste figé (pas de barres de %, pas de métadonnées à jour) alors que les votes sont déjà en base. Ce balayage relit l'état réel et <strong>modifie le message existant</strong> — même message, même salon, aucun ping, aucun doublon.
+                            </p>
+                        </div>
+                        <Button
+                            size="sm"
+                            disabled={isPending}
+                            onClick={() => {
+                                startTransition(async () => {
+                                    const { godRefreshPollEmbeds } = await import("@/server/actions/god-system-actions");
+                                    const res = await godRefreshPollEmbeds();
+                                    if (res.success) {
+                                        toast.success(
+                                            `Rattrapage terminé : ${res.refreshed} embed(s) réécrit(s), ${res.unresolved} non résolu(s), ${res.failed} en échec.`
+                                        );
+                                    } else {
+                                        toast.error(res.error || "Erreur lors du rattrapage");
+                                    }
+                                });
+                            }}
+                            className="bg-sky-500/10 border border-sky-500/30 text-sky-300 hover:bg-sky-500/20 text-xs font-bold shrink-0"
+                        >
+                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Activity className="w-4 h-4 mr-2" />}
+                            Lancer le rattrapage maintenant
+                        </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Cible</span>
+                            <p className="text-white font-black text-sm">Sondages en cours</p>
+                            <span className="text-zinc-600 text-caption block">Salon + message connus, 200 par balayage</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Effet</span>
+                            <p className="text-sky-400 font-black text-sm">Barres & % réels</p>
+                            <span className="text-zinc-600 text-caption block">Réécriture du message, jamais un nouveau</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900/40 border border-white/5 space-y-1">
+                            <span className="text-zinc-500 text-caption uppercase font-bold">Cas non résolus</span>
+                            <p className="text-amber-400 font-black text-sm">Comptés à part</p>
+                            <span className="text-zinc-600 text-caption block">Identifiant de file perdu (bêta) : republication requise</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
         </div>

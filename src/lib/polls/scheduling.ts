@@ -173,6 +173,34 @@ export function durationChoices(currentHours?: number | null): DurationChoice[] 
 }
 
 /** Un créneau est-il encore « en attente » (il occupe une place) ? */
+/**
+ * Fin de vote d'une occurrence de **série récurrente** : `now + durationHours`,
+ * **jamais au-delà du déclenchement suivant**.
+ *
+ * Pourquoi : une série peut demander une durée de vote plus longue que son
+ * intervalle (« tous les jours » avec un vote de 48 h). Sans ce plafond, deux
+ * sondages de la même série resteraient ouverts en même temps, et le second
+ * chasserait le premier sans que son résultat soit lisible. La clôture de
+ * l'occurrence précédente est faite par le moteur au moment de publier la
+ * suivante ; ce plafond est la **seconde ceinture** : la fin de vote annoncée
+ * sur Discord et la clôture quotidienne (`close-old-polls`) tombent à la bonne
+ * seconde même si la série s'arrête entre-temps.
+ *
+ * `durationHours` nul ⇒ aucune fin de vote (comportement historique : clôture
+ * par le cron après 30 jours).
+ */
+export function expiryForOccurrence(
+    now: Date,
+    durationHours: number | null,
+    nextScheduledAt?: Date | null,
+): Date | null {
+    if (!durationHours) return null;
+    const natural = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+    if (!nextScheduledAt) return natural;
+    return nextScheduledAt.getTime() < natural.getTime() ? nextScheduledAt : natural;
+}
+
+/** Un créneau est-il encore « en attente » (il occupe une place) ? */
 export function isPendingStatus(status: ScheduledPollStatus): boolean {
     return status === "SCHEDULED" || status === "PUBLISHING";
 }

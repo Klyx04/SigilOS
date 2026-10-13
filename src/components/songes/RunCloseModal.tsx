@@ -17,6 +17,7 @@ import {
     Search,
     ChevronDown,
     Moon,
+    Flag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,6 +37,8 @@ interface RunCloseModalProps {
     runId: string;
     guildId: string;
     difficulty: string;
+    /** Libellé de l'épreuve quand la run en est une (« Épreuve FONSOCAC ») — affiché, jamais bloquant. */
+    epreuveLabel?: string | null;
     /** userIds of run members (excl. leader) — used to match against guild profiles */
     memberUserIds: string[];
     onClose: () => void;
@@ -58,6 +61,7 @@ export function RunCloseModal({
     guildId,
     difficulty,
     memberUserIds,
+    epreuveLabel = null,
     onClose,
     onClosed,
 }: RunCloseModalProps) {
@@ -263,6 +267,18 @@ export function RunCloseModal({
 
                             {!isLoading && (
                                 <>
+                                    {/* Run épreuve : on le DIT (le barème s'applique comme ailleurs) —
+                                        l'écran envoyait sinon le leader vers une erreur serveur. */}
+                                    {epreuveLabel && (
+                                        <div className="flex items-start gap-2.5 rounded-lg px-3.5 py-3 border border-border bg-surface">
+                                            <Flag className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
+                                            <p className="text-xs text-foreground leading-relaxed">
+                                                Run <strong>épreuve — {epreuveLabel}</strong>. Les points du barème
+                                                sont attribués exactement comme pour une run standard.
+                                            </p>
+                                        </div>
+                                    )}
+
                                     {/* Info banner */}
                                     <div
                                         className="flex items-start gap-2.5 rounded-lg px-3.5 py-3 border"

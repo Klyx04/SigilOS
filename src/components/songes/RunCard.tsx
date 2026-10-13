@@ -542,6 +542,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                 runId={run.id}
                 guildId={params.guildId as string}
                 difficulty={run.difficulty}
+                epreuveLabel={epreuve?.label ?? null}
                 memberUserIds={run.members.filter(m => m.userId !== run.leaderId).map(m => m.userId)}
                 onClose={() => setCloseModalOpen(false)}
                 onClosed={() => { setCloseModalOpen(false); router.refresh(); }}

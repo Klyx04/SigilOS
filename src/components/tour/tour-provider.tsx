@@ -517,13 +517,6 @@ const ADMIN_OVERVIEW_STEPS: TourStep[] = [
         requiresPerm: "canManageRBAC"
     },
     {
-        target: '[data-tour="admin-overview-card-modules"]',
-        title: "Gestion des Modules",
-        description: "Active ou désactive les modules (Missions, Songes, Ocre, Services, Calendrier…). Par défaut, tout est désactivé : compose l'expérience de ta guilde sans surcharge.",
-        placement: "right",
-        requiresPerm: "isDiscordAdmin"
-    },
-    {
         target: '[data-tour="admin-overview-card-presentation"]',
         title: "Identité de Guilde",
         description: "Édite la page publique de ta guilde (recrutement, objectifs, présentation). C'est la vitrine que découvrent les candidats avant de rejoindre le serveur.",

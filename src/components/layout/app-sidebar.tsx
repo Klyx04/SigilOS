@@ -187,7 +187,7 @@ export function AppSidebar({
     // #66bis/#72 : reflète l'ensemble des cartes du Centre Admin — inclut les RBAC
     // déléguables (points, validation, relances). Sans cela, un membre autorisé
     // accédait à sa page admin en URL directe sans voir le « Centre Admin ».
-    const hasAnyAdminPermission = user.isAdmin || user.canManageMembers || user.canManageRelance || user.canManageMissions || user.canValidateMissions || user.canEditPresentation || user.canViewAuditLogs || user.canViewSettings || user.canManageRBAC || user.canManagePoints || false;
+    const hasAnyAdminPermission = user.isAdmin || user.canManageMembers || user.canManageRelance || user.canManageMissions || user.canValidateMissions || user.canEditPresentation || user.canViewAuditLogs || user.canViewSettings || user.canManageRBAC || user.canManagePoints || user.canSchedulePolls || false;
 
     // 1. HORS SECTION
     const NAV_GLOBAL = [
@@ -217,7 +217,6 @@ export function AppSidebar({
     const NAV_OTHERS = [
         { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, imgSrc: "/assets/nav/dice.png", color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames && modules.minigames },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, imgSrc: "/assets/nav/chat.png", color: "cyan", tourKey: "polls", visible: user.canViewPolls && modules.polls },
-        { name: "Sondages programmés", href: `/dashboard/${guildId}/sondages/programmes`, icon: CalendarClock, imgSrc: "/assets/nav/hourglass.png", color: "cyan", visible: user.canSchedulePolls && modules.scheduledPolls },
         { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, imgSrc: "/assets/dofus/modules/map.png", color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
     ];
 
@@ -241,7 +240,7 @@ export function AppSidebar({
             `/dashboard/${guildId}/admin/logs`,
             `/dashboard/${guildId}/reaction-roles`,
             `/dashboard/${guildId}/tickets`,
-            `/dashboard/${guildId}/sondages/programmes`,
+            `/dashboard/${guildId}/admin/sondages-programmes`,
             `/dashboard/${guildId}/admin/commandes`,
         ]
     };
@@ -276,7 +275,6 @@ export function AppSidebar({
         { name: "Paramètres Généraux", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "amber", visible: user.canViewSettings },
         { name: "Rôles & Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "zinc", visible: user.canManageRBAC },
         { name: "Commandes Slash Discord", href: `/dashboard/${guildId}/admin/commandes`, icon: Terminal, color: "emerald", visible: user.isDiscordAdmin },
-        { name: "Gestion des Modules", href: `/dashboard/${guildId}/admin/modules`, icon: Hammer, color: "indigo", visible: user.isDiscordAdmin },
         { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation && modules.presentation },
         { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions && modules.missions },
         { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions && modules.missions },

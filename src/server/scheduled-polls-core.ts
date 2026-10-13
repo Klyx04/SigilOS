@@ -30,6 +30,7 @@ import { godLocksOf, resolveModuleState } from "@/lib/module-lock";
 import { getPlatformModuleState } from "@/server/platform-module-state";
 import { publishPollToDiscord } from "@/server/polls/publish";
 import { resolveDurationHours } from "@/lib/polls/scheduling";
+import { nextOccurrence, type ScheduledRepeatUnit } from "@/lib/polls/scheduling";
 
 const LAST_ERROR_MAX_LENGTH = 300;
 
@@ -179,6 +180,56 @@ async function publishClaimedSlot(slotId: string, now: Date): Promise<"published
 
     // ④ Publication de l'embed (même fabrique que le module Sondages).
     await publishPollToDiscord(discordGuildId, pollId, channelId, false, mentionRoleId);
+
+    // ⑤ Répétition : on repose l'occurrence suivante AVANT de marquer le créneau
+    // publié, pour qu'un plantage entre les deux laisse un créneau `PUBLISHING`
+    // (reprenable) plutôt qu'une série silencieusement arrêtée.
+    let nextScheduledAt: Date | null = null;
+    if (slot.repeatEvery && slot.repeatUnit) {
+        const candidate = nextOccurrence(now, slot.repeatEvery, slot.repeatUnit as ScheduledRepeatUnit);
+        const until = slot.repeatUntil;
+        if (!until || candidate.getTime() <= until.getTime()) {
+            nextScheduledAt = candidate;
+        }
+    }
+
+    if (nextScheduledAt) {
+        try {
+            await db.scheduledPoll.create({
+                data: {
+                    guildId: slot.guild.id,
+                    createdById: slot.createdById,
+                    creatorName: slot.creatorName,
+                    title: slot.title,
+                    description: slot.description,
+                    category: slot.category,
+                    allowMultipleVotes: slot.allowMultipleVotes,
+                    isAnonymous: slot.isAnonymous,
+                    externalUrl: slot.externalUrl,
+                    scheduledAt: nextScheduledAt,
+                    durationHours: slot.durationHours,
+                    repeatEvery: slot.repeatEvery,
+                    repeatUnit: slot.repeatUnit,
+                    repeatUntil: slot.repeatUntil,
+                    discordChannelId: slot.discordChannelId,
+                    mentionEveryone: slot.mentionEveryone,
+                    mentionRoleId: slot.mentionRoleId,
+                    options: {
+                        create: slot.options.map((opt) => ({ label: opt.label, emoji: opt.emoji, order: opt.order })),
+                    },
+                },
+            });
+            logger.info("[ScheduledPolls] Occurrence suivante programmée", { slotId, nextScheduledAt, guildId: discordGuildId });
+        } catch (error) {
+            // Série interrompue : la contrainte (guildId, scheduledAt) protège d'un
+            // doublon ; on le dit, on ne publie jamais deux fois le même créneau.
+            logger.error("[ScheduledPolls] Occurrence suivante NON programmée (fin de série)", {
+                slotId,
+                nextScheduledAt,
+                error: boundedError(error),
+            });
+        }
+    }
 
     await db.scheduledPoll.updateMany({
         where: { id: slotId, status: "PUBLISHING" },

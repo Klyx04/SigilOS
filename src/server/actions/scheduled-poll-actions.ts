@@ -31,8 +31,12 @@ import { sanitizeHtml, sanitizeName } from "@/lib/security";
 import { rateLimit } from "@/lib/ratelimit";
 import {
     MAX_DURATION_HOURS,
+    MAX_REPEAT_EVERY,
+    MAX_REPEAT_UNTIL_DAYS,
     MAX_SCHEDULED_POLLS,
     MIN_DURATION_HOURS,
+    REPEAT_EVERY_ERROR,
+    REPEAT_UNTIL_ERROR,
     SLOT_LIMIT_ERROR,
     canScheduleAnotherPoll,
     findMinuteConflict,
@@ -71,6 +75,10 @@ const CreateScheduledPollSchema = z.object({
     isAnonymous: z.boolean().default(false),
     scheduledAt: z.string().datetime({ message: "Date de programmation invalide" }),
     durationHours: z.number().int().min(MIN_DURATION_HOURS).max(MAX_DURATION_HOURS).nullish(),
+    // Répétition : « tous les N jours / semaines / mois », fin facultative.
+    repeatEvery: z.number().int().min(1).max(MAX_REPEAT_EVERY).nullish(),
+    repeatUnit: z.enum(["DAYS", "WEEKS", "MONTHS"]).nullish(),
+    repeatUntil: z.string().datetime({ message: "Fin de répétition invalide" }).nullish(),
     discordChannelId: z.string().regex(/^\d{17,20}$/, "Salon Discord invalide").nullish(),
     mentionRoleIds: z.array(z.string().regex(/^\d{17,20}$/, "Rôle Discord invalide")).max(10).default([]),
     externalUrl: z.string().url().nullish().or(z.literal("")),
@@ -99,6 +107,25 @@ async function requireScheduledPollsStaff(discordGuildId: string): Promise<
 
 // --- Paramètres (onglet Paramètres → Sondages, 2ᵉ encart) ---
 
+/**
+ * Accès aux **réglages du module** : soit un admin/`system:config` (encart de
+ * Paramètres → Sondages), soit un rôle qui détient `staff:scheduled_polls`
+ * (page du Centre de contrôle). Fail-closed : les deux échouent ⇒ refus.
+ *
+ * Pourquoi ce « ou » : le module est **staff**, sa configuration doit donc être
+ * accessible au rôle qui le gère, sans lui ouvrir tout l'écran Paramètres.
+ */
+async function requireScheduledPollSettingsAccess(discordGuildId: string, context: string): Promise<{ ok: boolean; error?: string }> {
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(discordGuildId, context);
+    if (guard.isAuthorized) return { ok: true };
+
+    const staff = await requireScheduledPollsStaff(discordGuildId);
+    if (staff.ok) return { ok: true };
+
+    return { ok: false, error: guard.error || staff.error || "Accès refusé" };
+}
+
 export async function getScheduledPollSettings(guildId: string): Promise<ScheduledPollResponse<{
     scheduledPollsChannelId: string | null;
     scheduledPollsPingRoleIds: string[];
@@ -107,9 +134,8 @@ export async function getScheduledPollSettings(guildId: string): Promise<Schedul
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildConfigAccess } = await import("./guards");
-    const guard = await requireGuildConfigAccess(guildId, "Lecture des paramètres de Sondages programmés");
-    if (!guard.isAuthorized) return { success: false, error: guard.error || "Accès refusé" };
+    const access = await requireScheduledPollSettingsAccess(guildId, "Lecture des paramètres de Sondages programmés");
+    if (!access.ok) return { success: false, error: access.error };
 
     try {
         const config = await db.guildConfig.findUnique({
@@ -147,9 +173,8 @@ export async function updateScheduledPollSettings(
     const parsed = UpdateScheduledPollSettingsSchema.safeParse(rawData);
     if (!parsed.success) return { success: false, error: "Données invalides" };
 
-    const { requireGuildConfigAccess } = await import("./guards");
-    const guard = await requireGuildConfigAccess(guildId, "Mise à jour des paramètres de Sondages programmés");
-    if (!guard.isAuthorized) return { success: false, error: guard.error };
+    const access = await requireScheduledPollSettingsAccess(guildId, "Mise à jour des paramètres de Sondages programmés");
+    if (!access.ok) return { success: false, error: access.error };
 
     try {
         if (parsed.data.scheduledPollsChannelId) {
@@ -198,6 +223,10 @@ export interface ScheduledPollSlotView {
     status: string;
     scheduledAt: string;
     durationHours: number | null;
+    /** Répétition : intervalle + unité, et fin facultative (ISO). */
+    repeatEvery: number | null;
+    repeatUnit: string | null;
+    repeatUntil: string | null;
     discordChannelId: string | null;
     mentionRoleIds: string[];
     mentionEveryone: boolean;
@@ -236,10 +265,39 @@ async function validateSlot(
     guild: Awaited<ReturnType<typeof getGuildOrThrow>>,
     discordGuildId: string,
     ignoreId?: string,
-): Promise<{ ok: true; scheduledAt: Date; mentionRoleId: string | null; channelId: string | null } | { ok: false; error: string }> {
+): Promise<
+    | { ok: true; scheduledAt: Date; mentionRoleId: string | null; channelId: string | null; repeatEvery: number | null; repeatUnit: "DAYS" | "WEEKS" | "MONTHS" | null; repeatUntil: Date | null }
+    | { ok: false; error: string }
+> {
     const when = new Date(data.scheduledAt);
     const bounds = validateScheduledAt(when);
     if (!bounds.ok) return { ok: false, error: bounds.error || "Date invalide" };
+
+    // Répétition : soit rien, soit un couple intervalle + unité (jamais un demi-état).
+    let repeatEvery: number | null = null;
+    let repeatUnit: "DAYS" | "WEEKS" | "MONTHS" | null = null;
+    let repeatUntil: Date | null = null;
+    if (data.repeatEvery || data.repeatUnit || data.repeatUntil) {
+        if (!data.repeatEvery || !data.repeatUnit) {
+            return { ok: false, error: "Répétition incomplète : choisissez un intervalle et une unité." };
+        }
+        if (data.repeatEvery < 1 || data.repeatEvery > MAX_REPEAT_EVERY) {
+            return { ok: false, error: REPEAT_EVERY_ERROR };
+        }
+        repeatEvery = data.repeatEvery;
+        repeatUnit = data.repeatUnit;
+
+        if (data.repeatUntil) {
+            const until = new Date(data.repeatUntil);
+            if (Number.isNaN(until.getTime()) || until.getTime() <= when.getTime()) {
+                return { ok: false, error: "La fin de répétition doit être postérieure au premier créneau." };
+            }
+            if ((until.getTime() - Date.now()) / 86_400_000 > MAX_REPEAT_UNTIL_DAYS) {
+                return { ok: false, error: REPEAT_UNTIL_ERROR };
+            }
+            repeatUntil = until;
+        }
+    }
 
     const pending = await db.scheduledPoll.findMany({
         where: { guildId: guild.id, status: { in: ["SCHEDULED", "PUBLISHING"] } },
@@ -275,7 +333,7 @@ async function validateSlot(
     }
     const kept = data.mentionRoleIds.filter((id) => allowedRoleIds.includes(id));
 
-    return { ok: true, scheduledAt: when, mentionRoleId: kept.length > 0 ? kept.join(",") : null, channelId };
+    return { ok: true, scheduledAt: when, mentionRoleId: kept.length > 0 ? kept.join(",") : null, channelId, repeatEvery, repeatUnit, repeatUntil };
 }
 
 /**
@@ -309,6 +367,9 @@ export async function getScheduledPolls(guildId: string): Promise<ScheduledPollR
                     status: slot.status,
                     scheduledAt: slot.scheduledAt.toISOString(),
                     durationHours: slot.durationHours,
+                    repeatEvery: slot.repeatEvery,
+                    repeatUnit: slot.repeatUnit,
+                    repeatUntil: slot.repeatUntil ? slot.repeatUntil.toISOString() : null,
                     discordChannelId: slot.discordChannelId,
                     mentionRoleIds: slot.mentionRoleId ? slot.mentionRoleId.split(",").filter(Boolean) : [],
                     mentionEveryone: slot.mentionEveryone,
@@ -375,6 +436,9 @@ export async function createScheduledPoll(rawData: unknown): Promise<ScheduledPo
                 externalUrl: data.externalUrl || null,
                 scheduledAt: checked.scheduledAt,
                 durationHours: data.durationHours ?? null,
+                repeatEvery: checked.repeatEvery,
+                repeatUnit: checked.repeatUnit,
+                repeatUntil: checked.repeatUntil,
                 discordChannelId: checked.channelId,
                 // Jamais @everyone depuis un créneau (même règle que le
                 // formulaire du module Sondages) : seuls les rôles whitelistés.
@@ -399,7 +463,7 @@ export async function createScheduledPoll(rawData: unknown): Promise<ScheduledPo
             },
         });
 
-        revalidatePath(`/dashboard/${data.guildId}/sondages/programmes`);
+        revalidatePath(`/dashboard/${data.guildId}/admin/sondages-programmes`);
         return { success: true, data: { slotId: slot.id } };
     } catch (error) {
         // Course perdue sur la contrainte d'unicité (guildId, scheduledAt).
@@ -453,6 +517,9 @@ export async function updateScheduledPoll(rawData: unknown): Promise<ScheduledPo
                     externalUrl: data.externalUrl || null,
                     scheduledAt: checked.scheduledAt,
                     durationHours: data.durationHours ?? null,
+                    repeatEvery: checked.repeatEvery,
+                    repeatUnit: checked.repeatUnit,
+                    repeatUntil: checked.repeatUntil,
                     discordChannelId: checked.channelId,
                     mentionRoleId: checked.mentionRoleId,
                     options: {
@@ -476,7 +543,7 @@ export async function updateScheduledPoll(rawData: unknown): Promise<ScheduledPo
             metadata: { title: data.title, scheduledAt: checked.scheduledAt.toISOString() },
         });
 
-        revalidatePath(`/dashboard/${data.guildId}/sondages/programmes`);
+        revalidatePath(`/dashboard/${data.guildId}/admin/sondages-programmes`);
         return { success: true };
     } catch (error) {
         if ((error as { code?: string })?.code === "P2002") {
@@ -522,7 +589,7 @@ export async function cancelScheduledPoll(guildId: string, slotId: string): Prom
             metadata: { title: slot.title },
         });
 
-        revalidatePath(`/dashboard/${guildId}/sondages/programmes`);
+        revalidatePath(`/dashboard/${guildId}/admin/sondages-programmes`);
         return { success: true };
     } catch (error) {
         logger.error("[ScheduledPolls] cancelScheduledPoll error", { error, slotId });
@@ -570,7 +637,7 @@ export async function publishScheduledPollNow(guildId: string, slotId: string): 
             metadata: { title: slot.title, pollId: published?.createdPollId ?? null, manual: true },
         });
 
-        revalidatePath(`/dashboard/${guildId}/sondages/programmes`);
+        revalidatePath(`/dashboard/${guildId}/admin/sondages-programmes`);
         revalidatePath(`/dashboard/${guildId}/sondages`);
         return { success: true, data: { pollId: published?.createdPollId ?? undefined } };
     } catch (error) {

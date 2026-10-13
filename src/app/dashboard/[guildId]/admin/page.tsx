@@ -16,7 +16,6 @@ import {
     CheckCircle,
     Swords,
     Sparkles,
-    Puzzle,
     Users,
     BookOpen,
     ArrowRight,
@@ -27,6 +26,7 @@ import {
     Ticket,
     Key,
     Terminal,
+    CalendarClock,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
@@ -92,16 +92,6 @@ function buildSections(guildId: string): AdminSection[] {
                     dofusAsset: "/assets/dofus/modules/guildShop.png",
                 },
                 {
-                    href: `/dashboard/${guildId}/admin/modules`,
-                    icon: Puzzle,
-                    title: "Gestion des Modules",
-                    description: "Activez ou désactivez les fonctionnalités (Chat, Songe, Ocre, etc.) pour votre guilde.",
-                    accent: "violet",
-                    permission: (u) => u.isDiscordAdmin,
-                    tourId: "admin-overview-card-modules",
-                    dofusAsset: "/assets/dofus/modules/build.png",
-                },
-                {
                     href: `/dashboard/${guildId}/reaction-roles`,
                     icon: Sparkles,
                     title: "Rôles par Réaction (Reaction Roles)",
@@ -111,6 +101,20 @@ function buildSections(guildId: string): AdminSection[] {
                     permission: (u) => u.canManageReactionRoles,
                     tourId: "admin-overview-card-reaction-roles",
                     dofusAsset: "/assets/dofus/modules/starShield.png",
+                },
+                {
+                    // Module **staff** : sa place est ici, dans le Centre de contrôle, jamais
+                    // dans la navigation des membres. La permission `staff:scheduled_polls`
+                    // suffit à ouvrir la carte (et donc le bouton « Staff » de la sidebar).
+                    href: `/dashboard/${guildId}/admin/sondages-programmes`,
+                    icon: CalendarClock,
+                    title: "Sondages programmés",
+                    description: "Programmez un sondage (date, heure et minute) : publication automatique dans le salon Discord choisi, 3 créneaux maximum.",
+                    accent: "cyan",
+                    modules: "scheduledPolls",
+                    permission: (u) => u.canSchedulePolls,
+                    tourId: "admin-overview-card-scheduled-polls",
+                    dofusAsset: "/assets/dofus/modules/chat.png",
                 },
                 {
                     href: `/dashboard/${guildId}/tickets`,

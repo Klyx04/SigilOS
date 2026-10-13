@@ -192,7 +192,6 @@ export default async function GettingStartedPage({
 
                 <AdminConsoleNav
                     guildId={guildId}
-                    showModules={user.isDiscordAdmin}
                     showAccess={user.canManageRBAC || user.isAdmin}
                     showOnboarding={true}
                     showPilotage={user.isDiscordAdmin}

@@ -9,18 +9,16 @@ import { cn } from "@/lib/utils";
  * Sous-navigation des pages profondes (modules, permissions, mise en route).
  * PAS de "Vue d'ensemble" : l'accueil c'est /admin (Staff), on n'y revient
  * pas via un onglet redondant. Règles d'audience :
- * - Pilotage + Modules : natifs Discord uniquement.
+ * - Pilotage (qui porte désormais **les interrupteurs de modules**) : natifs Discord uniquement.
  * - Accès & Rôles : natifs + délégués `system:rbac` (succession).
  */
 export function AdminConsoleNav({
     guildId,
-    showModules,
     showAccess,
     showOnboarding,
     showPilotage,
 }: {
     guildId: string;
-    showModules: boolean;
     showAccess: boolean;
     showOnboarding: boolean;
     /** Onglet Pilotage (page dédiée natifs Discord). Absent = non affiché. */
@@ -47,13 +45,6 @@ export function AdminConsoleNav({
             icon: Rocket,
             active: pathname.startsWith(`/dashboard/${guildId}/admin/getting-started`),
             visible: showOnboarding,
-        },
-        {
-            href: `/dashboard/${guildId}/admin/modules`,
-            label: "Modules",
-            icon: Puzzle,
-            active: pathname.startsWith(`/dashboard/${guildId}/admin/modules`),
-            visible: showModules,
         },
         {
             href: `/dashboard/${guildId}/admin/permissions`,

@@ -14,7 +14,7 @@
  * sélecteur comme bornes serveur, jamais des valeurs recopiées à la main.
  */
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CalendarClock, Info, Plus, Trash2, TriangleAlert } from "lucide-react";
@@ -38,7 +38,17 @@ import {
     MIN_DURATION_HOURS,
     MIN_LEAD_MINUTES,
 } from "@/lib/polls/scheduling";
-import { POLL_CATEGORY_LABELS, POLL_SLOT_COUNTER } from "@/lib/polls/ui";
+import { formatPollEnd } from "@/lib/poll-format";
+import { POLL_SLOT_COUNTER } from "@/lib/polls/ui";
+import { PollCategoryTiles } from "../poll-category-tiles";
+import { EmojiPicker } from "@/components/editor/emoji-picker";
+import {
+    MAX_REPEAT_EVERY,
+    MAX_REPEAT_UNTIL_DAYS,
+    repeatLabel,
+    repeatOccurrences,
+    type ScheduledRepeatUnit,
+} from "@/lib/polls/scheduling";
 import { cn } from "@/lib/utils";
 
 interface ScheduledPollFormProps {
@@ -73,7 +83,7 @@ export function ScheduledPollForm({
 
     // Bornes du sélecteur : maintenant + délai minimal → maintenant + horizon.
     // Calculées à l'OUVERTURE (jamais pendant le rendu : `Date.now()` est impur).
-    const [bounds, setBounds] = useState<{ min?: string; max?: string }>({});
+    const [bounds, setBounds] = useState<{ min?: string; max?: string; maxUntil?: string }>({});
 
     useEffect(() => {
         if (!open) return;
@@ -81,17 +91,27 @@ export function ScheduledPollForm({
         setBounds({
             min: toLocalInputValue(new Date(now + MIN_LEAD_MINUTES * 60_000)),
             max: toLocalInputValue(new Date(now + MAX_HORIZON_DAYS * 24 * 60 * 60_000)),
+            maxUntil: toLocalInputValue(new Date(now + MAX_REPEAT_UNTIL_DAYS * 24 * 60 * 60_000)),
         });
     }, [open]);
 
     const [title, setTitle] = useState(slot?.title ?? "");
     const [description, setDescription] = useState(slot?.description ?? "");
     const [category, setCategory] = useState(slot?.category ?? "SUGGESTION");
-    const [options, setOptions] = useState<string[]>(slot?.options.map((o) => o.label) ?? ["", ""]);
+    const [options, setOptions] = useState<{ label: string; emoji: string }[]>(
+        slot?.options.map((o) => ({ label: o.label, emoji: o.emoji ?? "" })) ?? [
+            { label: "", emoji: "" },
+            { label: "", emoji: "" },
+        ],
+    );
     const [allowMultipleVotes, setAllowMultipleVotes] = useState(slot?.allowMultipleVotes ?? false);
     const [isAnonymous, setIsAnonymous] = useState(slot?.isAnonymous ?? false);
     const [externalUrl, setExternalUrl] = useState(slot?.externalUrl ?? "");
     const [scheduledAt, setScheduledAt] = useState(slot ? toLocalInputValue(new Date(slot.scheduledAt)) : "");
+    const [repeatUnit, setRepeatUnit] = useState<"" | ScheduledRepeatUnit>((slot?.repeatUnit as ScheduledRepeatUnit) ?? "");
+    const [repeatEvery, setRepeatEvery] = useState<string>(slot?.repeatEvery ? String(slot.repeatEvery) : "1");
+    const [repeatUntil, setRepeatUntil] = useState<string>(slot?.repeatUntil ? toLocalInputValue(new Date(slot.repeatUntil)) : "");
+    const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
     const [durationHours, setDurationHours] = useState<string>(slot?.durationHours ? String(slot.durationHours) : defaultDurationH ? String(defaultDurationH) : "");
     const [channelId, setChannelId] = useState(slot?.discordChannelId ?? "");
     const [mentionRoleIds, setMentionRoleIds] = useState<string[]>(slot?.mentionRoleIds ?? []);
@@ -111,7 +131,40 @@ export function ScheduledPollForm({
         };
     }, [open, guildId]);
 
-    const filledOptions = options.map((label) => label.trim()).filter(Boolean);
+    const filledOptions = options.filter((option) => option.label.trim().length > 0);
+
+    /** Occurrences suivantes (aperçu) : la répétition doit être LUE avant d'être posée. */
+    const repeatPreview = useMemo(() => {
+        if (!repeatUnit || !scheduledAt) return [];
+        const from = new Date(scheduledAt);
+        if (Number.isNaN(from.getTime())) return [];
+        return repeatOccurrences({
+            from,
+            every: Number(repeatEvery) || 1,
+            unit: repeatUnit,
+            until: repeatUntil ? new Date(repeatUntil) : null,
+        });
+    }, [repeatUnit, repeatEvery, repeatUntil, scheduledAt]);
+
+    const repeatSummary = repeatLabel({ every: Number(repeatEvery) || 1, unit: repeatUnit || null });
+
+    /** Insertion d'un emoji **au curseur** (même comportement que le module membre). */
+    const insertEmoji = (emoji: string) => {
+        const el = descriptionRef.current;
+        if (!el) {
+            setDescription((prev) => prev + emoji);
+            return;
+        }
+        const start = el.selectionStart ?? description.length;
+        const end = el.selectionEnd ?? start;
+        setDescription(description.slice(0, start) + emoji + description.slice(end));
+        requestAnimationFrame(() => {
+            el.focus();
+            const caret = start + emoji.length;
+            el.setSelectionRange(caret, caret);
+        });
+    };
+
     const canSubmit =
         title.trim().length >= 3 &&
         title.trim().length <= POLL_TITLE_MAX_LENGTH &&
@@ -126,11 +179,14 @@ export function ScheduledPollForm({
                 title: title.trim(),
                 description: description.trim(),
                 category,
-                options: filledOptions.map((label) => ({ label })),
+                options: filledOptions.map((option) => ({ label: option.label.trim(), emoji: option.emoji || undefined })),
                 allowMultipleVotes,
                 isAnonymous,
                 scheduledAt: new Date(scheduledAt).toISOString(),
                 durationHours: durationHours.trim() ? Number(durationHours) : null,
+                repeatEvery: repeatUnit ? (Number(repeatEvery) || 1) : null,
+                repeatUnit: repeatUnit || null,
+                repeatUntil: repeatUnit && repeatUntil ? new Date(repeatUntil).toISOString() : null,
                 discordChannelId: channelId.trim() || null,
                 mentionRoleIds,
                 externalUrl: externalUrl.trim() || null,
@@ -156,13 +212,13 @@ export function ScheduledPollForm({
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {trigger || (
-                    <Button disabled={slotFull} className="gap-2 h-10">
-                        <Plus className="w-4 h-4" />
+                    <Button disabled={slotFull} className="gap-2 h-9 px-3.5 rounded-lg text-xs font-semibold">
+                        <Plus className="w-3.5 h-3.5" />
                         Nouveau créneau
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto premium-scrollbar">
                 <DialogHeader>
                     <DialogTitle>{isEdit ? "Modifier le créneau" : "Programmer un sondage"}</DialogTitle>
                     <DialogDescription>
@@ -197,11 +253,17 @@ export function ScheduledPollForm({
                     <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                             <label className="text-caption font-semibold text-muted-foreground">Description</label>
-                            <span className={POLL_SLOT_COUNTER}>
-                                {description.length}/{POLL_DESCRIPTION_MAX_LENGTH}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                                <span className={POLL_SLOT_COUNTER}>
+                                    {description.length}/{POLL_DESCRIPTION_MAX_LENGTH}
+                                </span>
+                                {/* Même picker d'emoji que le module membre (insertion au curseur) :
+                                    c'est ce qui rend cette modale aussi vivante sans la barioler. */}
+                                <EmojiPicker onSelect={insertEmoji} />
+                            </div>
                         </div>
                         <textarea
+                            ref={descriptionRef}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             rows={4}
@@ -211,48 +273,123 @@ export function ScheduledPollForm({
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-caption font-semibold text-muted-foreground">Catégorie</label>
+                    <div className="space-y-2">
+                        <label className="text-caption font-semibold text-muted-foreground">Thématique</label>
+                        {/* Tuiles partagées avec la modale membre : mêmes libellés, même rendu. */}
+                        <PollCategoryTiles value={category} onChange={setCategory} />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-caption font-semibold text-muted-foreground flex items-center gap-1.5">
+                            <CalendarClock className="w-3.5 h-3.5" />
+                            Date, heure et minute de publication
+                        </label>
+                        <Input
+                            type="datetime-local"
+                            value={scheduledAt}
+                            min={bounds.min}
+                            max={bounds.max}
+                            onChange={(e) => setScheduledAt(e.target.value)}
+                            className="sm:max-w-xs"
+                        />
+                        <p className="text-caption text-muted-foreground">
+                            Au moins {MIN_LEAD_MINUTES} minutes dans le futur, {MAX_HORIZON_DAYS} jours au maximum.
+                        </p>
+                    </div>
+
+                    {/* Répétition : « tous les N jours / semaines / mois », fin facultative.
+                        Une seule occurrence existe à la fois — la suivante est programmée à la
+                        publication, donc le plafond de 3 créneaux reste tenu. */}
+                    <div className="space-y-2 p-3 rounded-lg bg-surface/40 border border-border">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-caption font-semibold text-muted-foreground">Répétition</span>
                             <select
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value)}
-                                className="w-full h-10 rounded-lg bg-surface/60 border border-border px-3 text-sm"
+                                value={repeatUnit}
+                                onChange={(e) => setRepeatUnit(e.target.value as "" | ScheduledRepeatUnit)}
+                                aria-label="Répétition du sondage programmé"
+                                className="h-9 rounded-lg border border-border bg-surface/60 px-2.5 text-xs"
                             >
-                                {Object.entries(POLL_CATEGORY_LABELS).map(([value, label]) => (
-                                    <option key={value} value={value}>{label}</option>
-                                ))}
+                                <option value="">Aucune (créneau unique)</option>
+                                <option value="DAYS">Tous les… jours</option>
+                                <option value="WEEKS">Toutes les… semaines</option>
+                                <option value="MONTHS">Tous les… mois</option>
                             </select>
+                            {repeatUnit && (
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    max={MAX_REPEAT_EVERY}
+                                    value={repeatEvery}
+                                    onChange={(e) => setRepeatEvery(e.target.value)}
+                                    aria-label="Intervalle de répétition"
+                                    className="h-9 w-20"
+                                />
+                            )}
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-caption font-semibold text-muted-foreground flex items-center gap-1.5">
-                                <CalendarClock className="w-3.5 h-3.5" />
-                                Date, heure et minute de publication
-                            </label>
-                            <Input
-                                type="datetime-local"
-                                value={scheduledAt}
-                                min={bounds.min}
-                                max={bounds.max}
-                                onChange={(e) => setScheduledAt(e.target.value)}
-                            />
-                            <p className="text-caption text-muted-foreground">
-                                Au moins {MIN_LEAD_MINUTES} minutes dans le futur, {MAX_HORIZON_DAYS} jours au maximum.
-                            </p>
-                        </div>
+
+                        {repeatUnit && (
+                            <>
+                                <div className="flex flex-wrap items-end gap-2">
+                                    <div className="space-y-1">
+                                        <label className="text-caption text-muted-foreground">Fin (facultative)</label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={repeatUntil}
+                                            max={bounds.maxUntil}
+                                            onChange={(e) => setRepeatUntil(e.target.value)}
+                                            className="h-9"
+                                        />
+                                    </div>
+                                    {repeatUntil && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setRepeatUntil("")}
+                                            className="text-caption"
+                                        >
+                                            Sans fin
+                                        </Button>
+                                    )}
+                                </div>
+                                <p className="text-caption text-muted-foreground">
+                                    {repeatSummary} — la série s&apos;arrête {repeatUntil ? "à la fin choisie" : "quand tu l'annules"}
+                                    {repeatUntil ? "" : `, et au plus tard ${MAX_REPEAT_UNTIL_DAYS} jours après le premier créneau`}.
+                                </p>
+                                {repeatPreview.length > 0 && (
+                                    <p className="text-caption text-info">
+                                        Prochaines publications : {repeatPreview.map((date) => formatPollEnd(date)?.absolute ?? "").join(" · ")}
+                                    </p>
+                                )}
+                            </>
+                        )}
                     </div>
 
                     <div className="space-y-2">
                         <label className="text-caption font-semibold text-muted-foreground">
                             Choix ({filledOptions.length}/{POLL_OPTION_MAX_COUNT})
                         </label>
-                        {options.map((label, index) => (
+                        {options.map((option, index) => (
                             <div key={index} className="flex items-center gap-2">
+                                {/* Emoji du choix : même geste que le module membre (l'embed
+                                    l'utilise comme préfixe du bouton de vote). */}
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <span className="w-6 text-center text-base leading-none" aria-hidden="true">
+                                        {option.emoji || ""}
+                                    </span>
+                                    <EmojiPicker
+                                        onSelect={(emoji) => {
+                                            const next = [...options];
+                                            next[index] = { ...next[index], emoji };
+                                            setOptions(next);
+                                        }}
+                                    />
+                                </div>
                                 <Input
-                                    value={label}
+                                    value={option.label}
                                     onChange={(e) => {
                                         const next = [...options];
-                                        next[index] = e.target.value;
+                                        next[index] = { ...next[index], label: e.target.value };
                                         setOptions(next);
                                     }}
                                     placeholder={`Choix ${index + 1}`}
@@ -274,7 +411,7 @@ export function ScheduledPollForm({
                             variant="outline"
                             size="sm"
                             disabled={options.length >= POLL_OPTION_MAX_COUNT}
-                            onClick={() => setOptions([...options, ""])}
+                            onClick={() => setOptions([...options, { label: "", emoji: "" }])}
                             className="gap-2"
                         >
                             <Plus className="w-3.5 h-3.5" />

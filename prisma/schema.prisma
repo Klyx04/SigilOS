@@ -1769,6 +1769,18 @@ model ScheduledPoll {
   scheduledAt       DateTime
   /** Durée du vote une fois publié (heures, bornée 1–720). Null = durée par défaut des paramètres. */
   durationHours     Int?
+  /**
+   * Répétition (optionnelle) : tous les `repeatEvery` `repeatUnit`, jusqu'à
+   * `repeatUntil` (inclus) ou sans fin si `repeatUntil` est nul.
+   *
+   * Un seul créneau existe à la fois : à la publication, le moteur crée
+   * l'occurrence suivante (même minute du jour, options recopiées) tant que
+   * `repeatUntil` n'est pas dépassée. Le plafond de 3 créneaux en attente reste
+   * respecté par construction (le créneau publié libère sa place).
+   */
+  repeatEvery      Int?
+  repeatUnit       ScheduledRepeatUnit?
+  repeatUntil      DateTime?
   discordChannelId  String?
   mentionEveryone   Boolean             @default(false)
   /** CSV de rôles (pattern `Poll.mentionRoleId`), tous whitelistés à l'écriture. */
@@ -3264,6 +3276,16 @@ enum ScheduledPollStatus {
   PUBLISHED
   CANCELLED
   FAILED
+}
+
+/**
+ * Unité de répétition d'un créneau (`ScheduledPoll.repeatEvery`) :
+ * tous les N jours / semaines / mois, avec une fin facultative.
+ */
+enum ScheduledRepeatUnit {
+  DAYS
+  WEEKS
+  MONTHS
 }
 
 enum DjSearchMode {

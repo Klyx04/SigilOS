@@ -20,10 +20,12 @@ import { toast } from "sonner";
 import {
     CalendarClock,
     CheckCircle2,
+    CalendarPlus,
     ExternalLink,
     Hash,
     Hourglass,
     Pencil,
+    Repeat,
     Send,
     TriangleAlert,
     XCircle,
@@ -38,7 +40,7 @@ import {
     POLL_SLOT_STATUS_ACTIVE,
     POLL_SLOT_STATUS_IDLE,
 } from "@/lib/polls/ui";
-import { SCHEDULED_POLL_TAG } from "@/lib/polls/scheduling";
+import { SCHEDULED_POLL_TAG, repeatLabel, type ScheduledRepeatUnit } from "@/lib/polls/scheduling";
 import {
     cancelScheduledPoll,
     publishScheduledPollNow,
@@ -118,6 +120,15 @@ export function ScheduledPollBoard({ guildId, board }: ScheduledPollBoardProps) 
                     slotsLeft={board.slotsLeft}
                     defaultChannelId={board.defaultChannelId}
                     defaultDurationH={board.defaultDurationH}
+                    trigger={
+                        <Button
+                            disabled={board.slotsLeft <= 0}
+                            className="gap-2 h-9 px-3.5 rounded-lg text-xs font-semibold bg-info hover:bg-info/90 text-info-foreground border border-info"
+                        >
+                            <CalendarPlus className="w-3.5 h-3.5" />
+                            Nouveau créneau
+                        </Button>
+                    }
                 />
             </div>
 
@@ -159,6 +170,12 @@ export function ScheduledPollBoard({ guildId, board }: ScheduledPollBoardProps) 
                                                 {slot.discordChannelId ? "Salon dédié" : "Salon par défaut"}
                                             </span>
                                             <span>{slot.options.length} choix</span>
+                                            {slot.repeatEvery && slot.repeatUnit && (
+                                                <span className="flex items-center gap-1.5 text-info">
+                                                    <Repeat className="w-3.5 h-3.5" />
+                                                    {repeatLabel({ every: slot.repeatEvery, unit: slot.repeatUnit as ScheduledRepeatUnit })}
+                                                </span>
+                                            )}
                                             {slot.allowMultipleVotes && <span>Choix multiple</span>}
                                             {slot.isAnonymous && <span>Anonyme</span>}
                                             {slot.mentionRoleIds.length > 0 && (

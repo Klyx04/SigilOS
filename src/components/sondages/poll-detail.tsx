@@ -9,6 +9,8 @@ import {
     POLL_SEGMENT_ITEM_ACTIVE, POLL_SEGMENT_ITEM_IDLE, POLL_SCHEDULED_TAG,
 } from "@/lib/polls/ui";
 import { SCHEDULED_POLL_TAG } from "@/lib/polls/scheduling";
+import { filterPollMembers } from "@/lib/polls/member-filter";
+import { PollParticipationFilter } from "./poll-participation-filter";
 import {
     BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, ArrowLeft,
     Crown, Trash2, AlertTriangle, Edit2, Megaphone, Send, Info, ExternalLink,
@@ -16,7 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { castVote, closePoll, deletePoll } from "@/server/actions/poll-actions";
+import { castVote, closePoll, deletePoll, getPollParticipationFilters } from "@/server/actions/poll-actions";
 import { PollCreator } from "./poll-creator";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -107,31 +109,44 @@ function formatVoterDate(iso: string) {
  * Ligne de membre — **rendu unique** des deux listes (votants d'un choix, non-votants) :
  * rayon court, tokens du thème, une seule source pour l'avatar de secours.
  */
-function PollMemberRow({ name, image, meta }: { name: string; image?: string | null; meta?: string }) {
+function PollMemberRow({ name, image, meta, href }: { name: string; image?: string | null; meta?: string; href?: string }) {
+    const avatar = image ? (
+        <img
+            src={image}
+            alt=""
+            width={32}
+            height={32}
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            className="w-8 h-8 rounded-full object-cover border border-border shrink-0"
+            onError={(e) => {
+                (e.target as HTMLElement).style.display = "none";
+            }}
+        />
+    ) : (
+        <div className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold uppercase shrink-0",
+            AVATAR_FALLBACK
+        )}>
+            {name.charAt(0)}
+        </div>
+    );
+
     return (
         <div className={POLL_MEMBER_ROW}>
             <div className="flex items-center gap-3 min-w-0">
-                {image ? (
-                    <img
-                        src={image}
-                        alt=""
-                        width={32}
-                        height={32}
-                        loading="lazy"
-                        decoding="async"
-                        draggable={false}
-                        className="w-8 h-8 rounded-full object-cover border border-border shrink-0"
-                        onError={(e) => {
-                            (e.target as HTMLElement).style.display = "none";
-                        }}
-                    />
+                {/* Avatar cliquable → fiche profil en LECTURE SEULE (même route que l'annuaire). */}
+                {href ? (
+                    <Link
+                        href={href}
+                        title={`Ouvrir la fiche de ${name}`}
+                        className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-info/40"
+                    >
+                        {avatar}
+                    </Link>
                 ) : (
-                    <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold uppercase shrink-0",
-                        AVATAR_FALLBACK
-                    )}>
-                        {name.charAt(0)}
-                    </div>
+                    avatar
                 )}
                 <span className="text-sm text-foreground truncate">{name}</span>
             </div>
@@ -157,6 +172,8 @@ const PollOptionRow = memo(function PollOptionRow({
     isAnonymous,
     barColor,
     onVote,
+    visibleVotes,
+    profileHref,
 }: {
     option: PollOption;
     index: number;
@@ -168,6 +185,9 @@ const PollOptionRow = memo(function PollOptionRow({
     isAnonymous: boolean;
     barColor: string;
     onVote: (optionId: string) => void;
+    /** Votants **après filtre** (recherche membre / rôle) — même ordre que le serveur. */
+    visibleVotes: PollVote[];
+    profileHref: (profileId: string) => string;
 }) {
     const percent = totalVotes > 0 ? (option.voteCount / totalVotes) * 100 : 0;
     const isWinning = option.voteCount === maxVotes && totalVotes > 0;
@@ -287,54 +307,67 @@ const PollOptionRow = memo(function PollOptionRow({
                         <Lock className="w-3.5 h-3.5" />
                         <span>Votes anonymes — les identités des votants sont masquées</span>
                     </div>
-                ) : option.votes.length === 0 ? (
-                    <span className="text-xs text-muted-foreground">Aucun vote pour cette proposition pour l&apos;instant</span>
+                ) : visibleVotes.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">
+                        {option.votes.length === 0
+                            ? "Aucun vote pour cette proposition pour l'instant"
+                            : "Aucun votant ne correspond au filtre"}
+                    </span>
                 ) : (
                     <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mr-1">
-                            Votants ({option.votes.length})
+                            Votants ({visibleVotes.length === option.votes.length
+                                ? option.votes.length
+                                : `${visibleVotes.length}/${option.votes.length}`})
                         </span>
-                        {option.votes.slice(0, 8).map((v) => (
+                        {visibleVotes.slice(0, 8).map((v) => (
                             <div
                                 key={v.id}
                                 className="inline-flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-surface border border-border hover:border-info/30 transition-colors group/voter"
                                 title={`${v.voterName} (a voté le ${formatVoterDate(v.createdAt)})`}
                             >
-                                {v.voterImage ? (
-                                    <img
-                                        src={v.voterImage}
-                                        alt={v.voterName}
-                                        width={20}
-                                        height={20}
-                                        loading="lazy"
-                                        decoding="async"
-                                        draggable={false}
-                                        className="w-5 h-5 rounded-full object-cover border border-border/50 shrink-0"
-                                        onError={(e) => {
-                                            (e.target as HTMLElement).style.display = "none";
-                                        }}
-                                    />
-                                ) : (
-                                    <div className={cn(
-                                        "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold uppercase shrink-0",
-                                        AVATAR_FALLBACK
-                                    )}>
-                                        {v.voterName.charAt(0)}
-                                    </div>
-                                )}
+                                {/* Avatar cliquable → fiche profil (lecture seule). */}
+                                <Link
+                                    href={profileHref(v.voterId)}
+                                    title={`Ouvrir la fiche de ${v.voterName}`}
+                                    className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-info/40"
+                                >
+                                    {v.voterImage ? (
+                                        <img
+                                            src={v.voterImage}
+                                            alt={v.voterName}
+                                            width={20}
+                                            height={20}
+                                            loading="lazy"
+                                            decoding="async"
+                                            draggable={false}
+                                            className="w-5 h-5 rounded-full object-cover border border-border/50"
+                                            onError={(e) => {
+                                                (e.target as HTMLElement).style.display = "none";
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className={cn(
+                                            "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold uppercase",
+                                            AVATAR_FALLBACK
+                                        )}>
+                                            {v.voterName.charAt(0)}
+                                        </div>
+                                    )}
+                                </Link>
                                 <span className="text-xs font-bold text-foreground group-hover/voter:text-info transition-colors truncate max-w-[130px]">
                                     {v.voterName}
                                 </span>
                             </div>
                         ))}
-                        {option.votes.length > 8 && (
+                        {visibleVotes.length > 8 && (
                             <Dialog>
                                 <DialogTrigger asChild>
                                     <button
                                         type="button"
                                         className="text-xs font-medium text-info hover:underline px-2.5 py-1 rounded-full bg-info/10 border border-info/25 cursor-pointer transition-colors hover:bg-info/20"
                                     >
-                                        +{option.votes.length - 8} autres
+                                        +{visibleVotes.length - 8} autres
                                     </button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-md">
@@ -343,16 +376,17 @@ const PollOptionRow = memo(function PollOptionRow({
                                             Votants — {option.label}
                                         </DialogTitle>
                                         <p className="text-xs text-muted-foreground">
-                                            {option.votes.length} membre{option.votes.length > 1 ? "s" : ""}
+                                            {visibleVotes.length} membre{visibleVotes.length > 1 ? "s" : ""}
                                         </p>
                                     </DialogHeader>
                                     <div className="max-h-80 overflow-y-auto space-y-2 pr-1 premium-scrollbar">
-                                        {option.votes.map((v) => (
+                                        {visibleVotes.map((v) => (
                                             <PollMemberRow
                                                 key={v.id}
                                                 name={v.voterName}
                                                 image={v.voterImage}
                                                 meta={formatVoterDate(v.createdAt)}
+                                                href={profileHref(v.voterId)}
                                             />
                                         ))}
                                     </div>
@@ -496,6 +530,75 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
     const maxVotes = useMemo(
         () => Math.max(...localOptions.map(o => o.voteCount), 1),
         [localOptions]
+    );
+
+    // ── Filtre de participation (recherche membre + rôle Discord) ────────────
+    // Un SEUL état pour les deux listes (votants d'un choix, non-votants) : deux
+    // filtres séparés produiraient deux listes qui se contredisent.
+    const [memberQuery, setMemberQuery] = useState("");
+    const [roleFilter, setRoleFilter] = useState("");
+    const [participationRoles, setParticipationRoles] = useState<{
+        roles: { id: string; name: string; color?: string | null }[];
+        rolesByProfileId: Record<string, string[]>;
+    }>({ roles: [], rolesByProfileId: {} });
+
+    // Jamais sur un sondage anonyme : les identités y sont masquées partout
+    // ailleurs, un filtre par rôle les recouperait.
+    useEffect(() => {
+        if (poll.isAnonymous) return;
+        let cancelled = false;
+        getPollParticipationFilters(guildId)
+            .then((res) => {
+                if (!cancelled && res.success && res.data) {
+                    setParticipationRoles({
+                        roles: res.data.roles,
+                        rolesByProfileId: res.data.rolesByProfileId,
+                    });
+                }
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [guildId, poll.isAnonymous]);
+
+    const memberFilter = useMemo(
+        () => ({ query: memberQuery, roleId: roleFilter, rolesByProfileId: participationRoles.rolesByProfileId }),
+        [memberQuery, roleFilter, participationRoles.rolesByProfileId]
+    );
+
+    const profileHref = useCallback(
+        (profileId: string) => `/dashboard/${guildId}/members/${profileId}`,
+        [guildId]
+    );
+
+    /** Votants affichés, par proposition (même filtre que les non-votants). */
+    const visibleVotesByOption = useMemo(() => {
+        const map: Record<string, PollVote[]> = {};
+        for (const option of localOptions) {
+            const filtered = filterPollMembers(
+                option.votes.map((vote) => ({ id: vote.voterId, name: vote.voterName, vote })),
+                memberFilter
+            );
+            map[option.id] = filtered.map((item) => item.vote);
+        }
+        return map;
+    }, [localOptions, memberFilter]);
+
+    /** Non-votants affichés (le filtre ne doit pas révéler un votant : il part de la même liste). */
+    const visibleNonVoters = useMemo(
+        () => filterPollMembers(nonVoters, memberFilter),
+        [nonVoters, memberFilter]
+    );
+
+    /** Compteurs du filtre : « X / Y » (votants distincts en Résultats, membres en Absents). */
+    const distinctVoterCount = useMemo(
+        () => new Set(localOptions.flatMap((option) => option.votes.map((vote) => vote.voterId))).size,
+        [localOptions]
+    );
+    const visibleVoterCount = useMemo(
+        () => new Set(Object.values(visibleVotesByOption).flat().map((vote) => vote.voterId)).size,
+        [visibleVotesByOption]
     );
 
     // Miroir ref pour un callback de vote stable (les lignes mémoïsées ne
@@ -773,6 +876,21 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                     )}
                 </div>
 
+                {/* Filtre de participation : recherche membre + rôle Discord, sur les DEUX onglets.
+                    Masqué sur un sondage anonyme (aucune identité publiée, donc rien à filtrer). */}
+                {!poll.isAnonymous && (
+                    <PollParticipationFilter
+                        query={memberQuery}
+                        onQueryChange={setMemberQuery}
+                        roleId={roleFilter}
+                        onRoleChange={setRoleFilter}
+                        roles={participationRoles.roles}
+                        shown={activeTab === "absent" ? visibleNonVoters.length : visibleVoterCount}
+                        total={activeTab === "absent" ? nonVoters.length : (poll.voterCount ?? distinctVoterCount)}
+                        className="px-2"
+                    />
+                )}
+
                 {/* Bascule résultats / non-votants : la seconde liste est le COMPLÉMENT de la première
                     et n'existe que si le serveur la publie (jamais sur un sondage anonyme). */}
                 {hasParticipationTab && (
@@ -803,12 +921,19 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                         <p className="px-2 text-xs text-muted-foreground">
                             {nonVoters.length === 0
                                 ? "Tout le monde a voté."
-                                : `${nonVoters.length} membre${nonVoters.length > 1 ? "s" : ""} sur ${poll.memberCount ?? nonVoters.length} n'ont pas encore voté.`}
+                                : visibleNonVoters.length === 0
+                                    ? "Aucun membre ne correspond au filtre."
+                                    : `${visibleNonVoters.length} membre${visibleNonVoters.length > 1 ? "s" : ""} sur ${poll.memberCount ?? nonVoters.length} n'ont pas encore voté.`}
                         </p>
-                        {nonVoters.length > 0 && (
+                        {visibleNonVoters.length > 0 && (
                             <div className="max-h-[28rem] overflow-y-auto space-y-2 pr-1 premium-scrollbar">
-                                {nonVoters.map((member) => (
-                                    <PollMemberRow key={member.id} name={member.name} image={member.image} />
+                                {visibleNonVoters.map((member) => (
+                                    <PollMemberRow
+                                        key={member.id}
+                                        name={member.name}
+                                        image={member.image}
+                                        href={profileHref(member.id)}
+                                    />
                                 ))}
                             </div>
                         )}
@@ -828,6 +953,8 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                 isAnonymous={poll.isAnonymous}
                                 barColor={cat.barColor}
                                 onVote={handleVote}
+                                visibleVotes={visibleVotesByOption[option.id] ?? option.votes}
+                                profileHref={profileHref}
                             />
                         ))}
                     </div>

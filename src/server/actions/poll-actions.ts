@@ -872,6 +872,97 @@ export async function processPollVote(
 }
 
 
+// --- Filtres de participation (rôle Discord + recherche membre) ---
+
+export interface PollParticipationFilters {
+    /** Rôles Discord de la guilde (hiérarchie Discord), pour le sélecteur. */
+    roles: { id: string; name: string; color: string | null }[];
+    /** `profileId` → identifiants de rôles Discord (fail-soft : `{}` si indisponible). */
+    rolesByProfileId: Record<string, string[]>;
+}
+
+function toHexColor(color: number | null | undefined): string | null {
+    if (!color || color <= 0) return null; // 0 = pas de couleur Discord (rôle neutre)
+    return `#${color.toString(16).padStart(6, "0")}`;
+}
+
+/**
+ * Rôles Discord + appartenance de chaque membre — **lecture seule**, pour filtrer
+ * les listes de participation (votants / non-votants) côté dashboard.
+ *
+ * Pourquoi côté serveur : l'appartenance à un rôle est une donnée Discord, pas
+ * une donnée SigilOS. On la lit donc par **un seul** appel mis en cache 10 min
+ * (`listGuildMembers`) et on la croise avec les profils de la guilde via les
+ * comptes Discord. Aucun rôle n'est déduit, aucune donnée inventée.
+ *
+ * 🔒 SECURITY : session + membre de la guilde + `canViewPolls` exigés (même
+ * garde que la fiche d'un sondage) ; `guildId` résolu côté serveur.
+ * 🔒 Fail-soft : toute erreur Discord ⇒ `{ roles: [], rolesByProfileId: {} }`
+ * (le filtre par rôle disparaît, les listes restent complètes — jamais vides
+ * parce qu'on n'a pas pu savoir).
+ */
+export async function getPollParticipationFilters(guildId: string): Promise<ActionResponse<PollParticipationFilters>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isMember || !ctx.canViewPolls) return { success: false, error: "Accès refusé" };
+
+        const empty: PollParticipationFilters = { roles: [], rolesByProfileId: {} };
+
+        try {
+            const { listGuildMembers, fetchGuildRoles } = await import("@/server/discord");
+            const [discordMembers, discordRoles, profiles] = await Promise.all([
+                listGuildMembers(guildId, 1000),
+                fetchGuildRoles(guildId, { excludeManaged: true }).catch(() => []),
+                db.userProfile.findMany({
+                    where: { guildId: guildConfig.id, status: "ACTIVE" },
+                    select: { id: true, userId: true },
+                }),
+            ]);
+
+            const accounts = await db.account.findMany({
+                where: { provider: "discord", userId: { in: profiles.map((p) => p.userId) } },
+                select: { userId: true, providerAccountId: true },
+            });
+            const discordIdByUserId = new Map(accounts.map((a) => [a.userId, a.providerAccountId]));
+
+            const rolesByProfileId: Record<string, string[]> = {};
+            for (const profile of profiles) {
+                const discordId = discordIdByUserId.get(profile.userId);
+                if (!discordId) continue;
+                const member = discordMembers.find((m) => m.user?.id === discordId);
+                if (!member) continue;
+                // `@everyone` (id = id de la guilde) n'est pas un rôle filtrable : tout le
+                // monde l'a, il ne discrimine rien.
+                rolesByProfileId[profile.id] = (member.roles ?? []).filter((roleId) => roleId !== guildId);
+            }
+
+            const roles = discordRoles
+                .slice()
+                .sort((a, b) => (b.position ?? 0) - (a.position ?? 0))
+                .map((role) => ({ id: role.id, name: role.name, color: toHexColor(role.color) }));
+
+            return { success: true, data: { roles, rolesByProfileId } };
+        } catch (error) {
+            // Fail-soft volontaire : le filtre par rôle est un confort, jamais une condition
+            // d'affichage des résultats.
+            logger.warn("[Polls] Filtres de participation indisponibles (Discord) — listes complètes", { error });
+            return { success: true, data: empty };
+        }
+    } catch (error) {
+        logger.error("[Polls] getPollParticipationFilters error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
 export async function closePoll(
     discordGuildId: string,
     pollId: string,

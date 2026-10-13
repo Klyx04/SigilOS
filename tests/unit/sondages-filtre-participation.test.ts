@@ -134,6 +134,23 @@ describe("sondages — câblage du filtre (un seul état, deux listes)", () => {
         expect(ui).toContain("sm:flex-row");
         expect(ui).toContain("roles.length > 0");
     });
+
+    it("🔒 le rôle se choisit dans un menu de l'APP, jamais dans une liste native", () => {
+        const ui = codeOnly(FILTER_UI);
+        // Le reproche mesuré en bêta : le `<select>` ouvrait la liste du système
+        // (thème ignoré, une vingtaine de rôles d'affilée, aucune recherche).
+        expect(ui).not.toContain("<select");
+        expect(ui).toContain("POLL_FILTER_MENU");
+        expect(ui).toContain("CommandInput");
+        expect(ui).toContain("Chercher un rôle");
+        expect(ui).toContain("Tous les rôles");
+        // Le rôle actif est LISIBLE : pastille de couleur Discord + coche.
+        expect(ui).toContain("roleDotColor");
+        expect(ui).toContain("<Check");
+        // Le contrôle garde la géométrie de la ligne (et son libellé accessible).
+        expect(ui).toContain('aria-label="Filtrer par rôle Discord"');
+        expect(ui).toContain("w-full sm:w-48");
+    });
 });
 
 describe("sondages — en-têtes harmonisés et modale responsive", () => {

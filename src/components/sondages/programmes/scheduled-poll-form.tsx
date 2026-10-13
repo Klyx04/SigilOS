@@ -6,8 +6,11 @@
  * Mêmes champs que le module Sondages (question, description, catégorie, choix,
  * votes multiples, anonymat, source externe, salon, pings) : un créneau produit
  * un **sondage normal** à l'échéance, donc l'auteur doit tout pouvoir régler
- * ici. La seule différence de fond : on choisit **quand** publier (date, heure,
- * minute) et **combien de temps** le vote reste ouvert.
+ * ici. Les réglages du vote (votes multiples, anonymat, expiration, lien
+ * externe) sont le **composant partagé** `PollVoteSettings` — mêmes cartes et
+ * mêmes durées proposées que la modale membre, zéro duplication. La seule
+ * différence de fond : on choisit **quand** publier (date, heure, minute) ;
+ * la durée du vote court **à partir de la publication**.
  *
  * Bornes : elles viennent toutes de `@/lib/polls/limits` et
  * `@/lib/polls/scheduling` (une seule source, testée) — `min`/`max` du
@@ -20,7 +23,6 @@ import { toast } from "sonner";
 import { CalendarClock, Info, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
@@ -33,14 +35,14 @@ import {
     POLL_TITLE_MAX_LENGTH,
 } from "@/lib/polls/limits";
 import {
-    MAX_DURATION_HOURS,
+    DURATION_PRESETS,
     MAX_HORIZON_DAYS,
-    MIN_DURATION_HOURS,
     MIN_LEAD_MINUTES,
 } from "@/lib/polls/scheduling";
 import { formatPollEnd } from "@/lib/poll-format";
 import { POLL_SLOT_COUNTER } from "@/lib/polls/ui";
 import { PollCategoryTiles } from "../poll-category-tiles";
+import { PollVoteSettings } from "../poll-vote-settings";
 import { EmojiPicker } from "@/components/editor/emoji-picker";
 import {
     MAX_REPEAT_EVERY,
@@ -112,7 +114,15 @@ export function ScheduledPollForm({
     const [repeatEvery, setRepeatEvery] = useState<string>(slot?.repeatEvery ? String(slot.repeatEvery) : "1");
     const [repeatUntil, setRepeatUntil] = useState<string>(slot?.repeatUntil ? toLocalInputValue(new Date(slot.repeatUntil)) : "");
     const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
-    const [durationHours, setDurationHours] = useState<string>(slot?.durationHours ? String(slot.durationHours) : defaultDurationH ? String(defaultDurationH) : "");
+    // Durée du vote : celle du créneau, sinon le défaut de la guilde, sinon la
+    // première durée proposée — et jamais un champ libre (les quatre durées du
+    // module se choisissent d'un clic, la valeur courante restant affichée).
+    const [hasExpiry, setHasExpiry] = useState<boolean>(
+        slot ? slot.durationHours !== null : defaultDurationH !== null,
+    );
+    const [expiryHours, setExpiryHours] = useState<number>(
+        slot?.durationHours ?? defaultDurationH ?? DURATION_PRESETS[0].hours,
+    );
     const [channelId, setChannelId] = useState(slot?.discordChannelId ?? "");
     const [mentionRoleIds, setMentionRoleIds] = useState<string[]>(slot?.mentionRoleIds ?? []);
     const [roles, setRoles] = useState<{ id: string; name: string; color: string }[]>([]);
@@ -183,7 +193,7 @@ export function ScheduledPollForm({
                 allowMultipleVotes,
                 isAnonymous,
                 scheduledAt: new Date(scheduledAt).toISOString(),
-                durationHours: durationHours.trim() ? Number(durationHours) : null,
+                durationHours: hasExpiry ? expiryHours : null,
                 repeatEvery: repeatUnit ? (Number(repeatEvery) || 1) : null,
                 repeatUnit: repeatUnit || null,
                 repeatUntil: repeatUnit && repeatUntil ? new Date(repeatUntil).toISOString() : null,
@@ -419,18 +429,29 @@ export function ScheduledPollForm({
                         </Button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-surface/40 border border-border">
-                            <span className="text-sm">Votes multiples</span>
-                            <Switch checked={allowMultipleVotes} onCheckedChange={setAllowMultipleVotes} />
-                        </div>
-                        <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-surface/40 border border-border">
-                            <span className="text-sm">Votes anonymes</span>
-                            <Switch checked={isAnonymous} onCheckedChange={setIsAnonymous} />
-                        </div>
+                    {/* Réglages du vote : composant PARTAGÉ avec la modale classique
+                        (mêmes durées proposées d'un clic, même carte « Lien externe »). */}
+                    <div className="space-y-2">
+                        <label className="text-caption font-semibold text-muted-foreground">
+                            Réglages du vote (appliqués à la publication)
+                        </label>
+                        <PollVoteSettings
+                            allowMultipleVotes={allowMultipleVotes}
+                            onAllowMultipleVotesChange={setAllowMultipleVotes}
+                            isAnonymous={isAnonymous}
+                            onIsAnonymousChange={setIsAnonymous}
+                            hasExpiry={hasExpiry}
+                            onHasExpiryChange={setHasExpiry}
+                            expiryHours={expiryHours}
+                            onExpiryHoursChange={setExpiryHours}
+                            externalUrl={externalUrl}
+                            onExternalUrlChange={setExternalUrl}
+                        />
+                        <p className="text-caption text-muted-foreground">
+                            La durée choisie court à partir de la publication du sondage, jamais de
+                            l&apos;enregistrement du créneau.
+                        </p>
                     </div>
-
-
 
                     <div className="space-y-1.5">
                         <label className="text-caption font-semibold text-muted-foreground">Salon Discord de publication</label>
@@ -451,31 +472,6 @@ export function ScheduledPollForm({
                             roles={roles}
                             description="Seuls les rôles autorisés dans les paramètres du module (onglet Sondages → Sondages programmés) sont proposés."
                         />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-caption font-semibold text-muted-foreground">
-                                Durée du vote une fois publié (heures)
-                            </label>
-                            <Input
-                                type="number"
-                                min={MIN_DURATION_HOURS}
-                                max={MAX_DURATION_HOURS}
-                                value={durationHours}
-                                onChange={(e) => setDurationHours(e.target.value)}
-                                placeholder={defaultDurationH ? `Défaut : ${defaultDurationH} h` : "Vide = sans date de fin"}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-caption font-semibold text-muted-foreground">Source externe (optionnel)</label>
-                            <Input
-                                type="url"
-                                value={externalUrl}
-                                onChange={(e) => setExternalUrl(e.target.value)}
-                                placeholder="https://…"
-                            />
-                        </div>
                     </div>
 
                     <p className="text-caption text-muted-foreground flex items-start gap-2">

@@ -6,8 +6,6 @@ import { cn } from "@/lib/utils";
 import {
     Plus,
     Sparkles,
-    Clock,
-    Users,
     Lock,
     Trash2,
     GripVertical,
@@ -17,7 +15,6 @@ import {
     ChevronRight,
     AlertTriangle,
     X,
-    Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +43,11 @@ import {
     pollTitleLengthError,
 } from "@/lib/polls/limits";
 import { PollCategoryTiles } from "./poll-category-tiles";
+import { PollVoteSettings } from "./poll-vote-settings";
 import { EmojiPicker } from "@/components/editor/emoji-picker";
+// Le plafond de durée d'un vote (30 jours) appartient aux règles du module
+// Sondages : on le tient d'ici plutôt que de recopier « 720 » une 2ᵉ fois.
+import { MAX_DURATION_HOURS } from "@/lib/polls/scheduling";
 
 interface PollCreatorProps {
     guildId: string;
@@ -69,8 +70,9 @@ interface PollCreatorProps {
 
 const DEFAULT_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
-// Plafond de durée d'un sondage : 30 jours max. Les sondages « sans date » (toggle off) sont fermés auto à 30 j (cron close-old-polls).
-const MAX_EXPIRY_HOURS = 720;
+// Plafond de durée d'un sondage : 30 jours max (règle partagée `MAX_DURATION_HOURS`).
+// Les sondages « sans date » (toggle off) sont fermés auto à 30 j (cron close-old-polls).
+const MAX_EXPIRY_HOURS = MAX_DURATION_HOURS;
 
 export function PollCreator({
     guildId,
@@ -594,105 +596,19 @@ export function PollCreator({
                                         </div>
                                     </div>
 
-                                    {/* Settings Grid */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2.5 rounded-xl bg-info/10">
-                                                        <Users className="w-4 h-4 text-info" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-caption font-bold text-foreground uppercase tracking-tight">Votes multiples</p>
-                                                        <p className="text-caption text-muted-foreground font-medium tracking-tight">Plusieurs choix possibles</p>
-                                                    </div>
-                                                </div>
-                                                <Switch checked={allowMultipleVotes} onCheckedChange={setAllowMultipleVotes} className="scale-90" />
-                                            </div>
-
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2.5 rounded-xl bg-warning/10">
-                                                        <Clock className="w-4 h-4 text-warning" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-caption font-bold text-foreground uppercase tracking-tight">Expiration</p>
-                                                        <p className="text-caption text-muted-foreground font-medium tracking-tight">Fin automatique</p>
-                                                    </div>
-                                                </div>
-                                                <Switch checked={hasExpiry} onCheckedChange={setHasExpiry} className="scale-90" />
-                                            </div>
-
-                                            <AnimatePresence mode="wait">
-                                                {hasExpiry && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: "auto" }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        className="overflow-hidden"
-                                                    >
-                                                        <div className="grid grid-cols-4 gap-2 p-1 rounded-xl bg-surface/80 border border-border mt-3">
-                                                            {[
-                                                                { value: 24, label: "24h", emoji: "⏳" },
-                                                                { value: 48, label: "48h", emoji: "⌛" },
-                                                                { value: 168, label: "7j", emoji: "📅" },
-                                                                { value: 720, label: "30j", emoji: "📆" }
-                                                            ].map((opt) => (
-                                                                <button
-                                                                    key={opt.value}
-                                                                    type="button"
-                                                                    onClick={() => setExpiryHours(opt.value)}
-                                                                    className={cn(
-                                                                        "relative py-3 rounded-lg text-caption font-bold uppercase tracking-widest transition-all",
-                                                                        expiryHours === opt.value
-                                                                            ? "text-info"
-                                                                            : "text-muted-foreground hover:text-muted-foreground hover:bg-surface"
-                                                                    )}
-                                                                >
-                                                                    {expiryHours === opt.value && (
-                                                                        <motion.div
-                                                                            layoutId="expiry-bg"
-                                                                            className="absolute inset-0 bg-info/10 border border-info/20 rounded-lg"
-                                                                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                                                        />
-                                                                    )}
-                                                                    <span className="relative z-10 flex flex-col items-center gap-1">
-                                                                        <span className="text-sm opacity-80">{opt.emoji}</span>
-                                                                        <span>{opt.label}</span>
-                                                                    </span>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                            {!hasExpiry && (
-                                                <p className="text-caption text-muted-foreground mt-2">
-                                                    Sans date : le sondage sera fermé automatiquement après 30 jours.
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 rounded-xl bg-info/10">
-                                                    <Info className="w-4 h-4 text-info" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-caption font-bold text-foreground uppercase tracking-tight">Lien externe (Optionnel)</p>
-                                                    <p className="text-caption text-muted-foreground font-medium tracking-tight">URL associée au sondage</p>
-                                                </div>
-                                            </div>
-                                            <Input
-                                                type="url"
-                                                placeholder="https://..."
-                                                value={externalUrl}
-                                                onChange={(e) => setExternalUrl(e.target.value)}
-                                                className="bg-background/40 border-border focus:border-info/30 text-foreground rounded-xl text-xs h-10 focus:outline-none"
-                                            />
-                                        </div>
-                                    </div>
-
+                                    {/* Réglages du vote : composant PARTAGÉ avec la modale staff
+                                        (mêmes durées proposées d'un clic, même carte « Lien externe »).
+                                        L'anonymat n'est pas passé : cette modale ne le propose pas. */}
+                                    <PollVoteSettings
+                                        allowMultipleVotes={allowMultipleVotes}
+                                        onAllowMultipleVotesChange={setAllowMultipleVotes}
+                                        hasExpiry={hasExpiry}
+                                        onHasExpiryChange={setHasExpiry}
+                                        expiryHours={expiryHours}
+                                        onExpiryHoursChange={setExpiryHours}
+                                        externalUrl={externalUrl}
+                                        onExternalUrlChange={setExternalUrl}
+                                    />
 
                                     {/* Footer - Details Step */}
                                     <div className="pt-8 border-t border-border mt-4">

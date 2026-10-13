@@ -116,7 +116,7 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     },
     [PERMISSIONS.STAFF_SCHEDULED_POLLS]: {
         label: "Sondages programmés",
-        description: "Programmer des sondages (date, heure, minute), choisir le salon Discord et le rôle à mentionner, annuler ou publier un créneau en avance.",
+        description: "Programmer des sondages (date, heure, minute) dans le salon défini par la guilde, choisir les rôles à mentionner parmi ceux autorisés, annuler ou publier un créneau en avance.",
         module: "admin",
         modules: ["Sondages programmés", "Créneaux", "Publication Discord"]
     },

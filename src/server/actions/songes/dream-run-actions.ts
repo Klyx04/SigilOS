@@ -1760,11 +1760,19 @@ export async function getSongesGuildMembersForClose(
 }
 
 /**
- * Close a Songes run and award contribution points to validated participants.
- * - Only available for non-épreuve runs (caller must check epreuveCode === null)
- * - Leader (creator) does NOT receive points
- * - Members are identified by their internal profile ID
- * @param validatedProfileIds - profileIds of participants to reward
+ * Clôture une run Songes et distribue les points de contribution aux présents validés.
+ *
+ * - **Les runs « épreuve » distribuent AUSSI** : l'écran de clôture annonce le barème de la
+ *   difficulté (réglé par la guilde dans `admin/points`) et « Confirmer & distribuer » ⇒ refuser
+ *   ici était une **impasse**. Mesure du 13/10/2026 : une run PARADOXE II (épreuve) affichait
+ *   « +2 points » puis renvoyait « Les runs épreuve ne distribuent pas de points de contribution »
+ *   — la garde venait d'un passage sécurité générique (`4881fb1b`, 04/04/2026) et **aucun appelant
+ *   ne la respectait** (le docblock l'imputait au client, qui ne l'a jamais vérifiée).
+ * - Le **leader** (créateur) ne reçoit pas de points.
+ * - Les membres sont identifiés par leur **profileId** interne ; l'écriture reste **bornée à la
+ *   guilde** (`guildId: guildConfig.id`) et **journalisée** (`SONGES_RUN_CLOSED_WITH_CONTRIBUTIONS`,
+ *   avec la difficulté **et** le code d'épreuve éventuel).
+ * @param validatedProfileIds - profileIds des participants à récompenser (validés par le leader)
  */
 export async function closeRunWithContributions(
     guildId: string,
@@ -1787,10 +1795,8 @@ export async function closeRunWithContributions(
         return { success: false, error: "Seul le leader peut valider la clôture avec distribution" };
     }
 
-    // Security: skip point distribution for épreuves
-    if (run.epreuveCode) {
-        return { success: false, error: "Les runs épreuve ne distribuent pas de points de contribution" };
-    }
+    // Les runs « épreuve » distribuent le barème de leur difficulté, exactement comme les autres :
+    // l'écran de clôture l'annonce, le leader est exclu, l'écriture est bornée à la guilde.
 
     // Get internal guildConfig to resolve profile IDs + config points personnalisée (admin)
     const guildConfig = await db.guildConfig.findUnique({
@@ -1857,6 +1863,7 @@ export async function closeRunWithContributions(
                 targetId: runId,
                 metadata: {
                     difficulty: run.difficulty,
+                    epreuveCode: run.epreuveCode,
                     pointsAwarded: pts,
                     rewardedCount: toReward.length,
                 } as any,

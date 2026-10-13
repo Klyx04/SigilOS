@@ -105,7 +105,6 @@ export function PollCreator({
         { label: "", emoji: "2️⃣" },
     ]);
     const [allowMultipleVotes, setAllowMultipleVotes] = useState(false);
-    const [isAnonymous, setIsAnonymous] = useState(false);
     const [hasExpiry, setHasExpiry] = useState(false);
     const [expiryHours, setExpiryHours] = useState(24);
 
@@ -129,7 +128,6 @@ export function PollCreator({
             setCategory(editPoll.category);
             setOptions(editPoll.options.map((o: any) => ({ label: o.label, emoji: o.emoji || "" })));
             setAllowMultipleVotes(editPoll.allowMultipleVotes);
-            setIsAnonymous(editPoll.isAnonymous);
             setHasExpiry(!!editPoll.expiresAt);
             if (editPoll.expiresAt) {
                 const hours = Math.round((new Date(editPoll.expiresAt).getTime() - new Date(editPoll.createdAt).getTime()) / (1000 * 60 * 60));
@@ -231,7 +229,6 @@ export function PollCreator({
         setCategory("SUGGESTION");
         setOptions([{ label: "", emoji: "1️⃣" }, { label: "", emoji: "2️⃣" }]);
         setAllowMultipleVotes(false);
-        setIsAnonymous(false);
         setHasExpiry(false);
         setExpiryHours(24);
         setPublishToDiscord(!!discordSetup?.channelId);
@@ -300,7 +297,6 @@ export function PollCreator({
                     emoji: o.emoji || undefined,
                 })),
                 allowMultipleVotes,
-                isAnonymous,
                 expiresAt,
                 publishToDiscord: finalPublishToDiscord,
                 discordChannelId: discordSetup?.channelId || undefined,

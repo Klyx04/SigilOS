@@ -72,7 +72,6 @@ const CreateScheduledPollSchema = z.object({
         emoji: z.string().max(10).optional(),
     })).min(POLL_OPTION_MIN_COUNT, `Au moins ${POLL_OPTION_MIN_COUNT} choix`).max(POLL_OPTION_MAX_COUNT, `${POLL_OPTION_MAX_COUNT} choix maximum`),
     allowMultipleVotes: z.boolean().default(false),
-    isAnonymous: z.boolean().default(false),
     scheduledAt: z.string().datetime({ message: "Date de programmation invalide" }),
     durationHours: z.number().int().min(MIN_DURATION_HOURS).max(MAX_DURATION_HOURS).nullish(),
     // Répétition : « tous les N jours / semaines / mois », fin facultative.
@@ -231,7 +230,6 @@ export interface ScheduledPollSlotView {
     mentionRoleIds: string[];
     mentionEveryone: boolean;
     allowMultipleVotes: boolean;
-    isAnonymous: boolean;
     externalUrl: string | null;
     options: { id: string; label: string; emoji: string | null; order: number }[];
     createdPollId: string | null;
@@ -374,7 +372,6 @@ export async function getScheduledPolls(guildId: string): Promise<ScheduledPollR
                     mentionRoleIds: slot.mentionRoleId ? slot.mentionRoleId.split(",").filter(Boolean) : [],
                     mentionEveryone: slot.mentionEveryone,
                     allowMultipleVotes: slot.allowMultipleVotes,
-                    isAnonymous: slot.isAnonymous,
                     externalUrl: slot.externalUrl,
                     options: slot.options.map((o) => ({ id: o.id, label: o.label, emoji: o.emoji, order: o.order })),
                     createdPollId: slot.createdPollId,
@@ -432,7 +429,9 @@ export async function createScheduledPoll(rawData: unknown): Promise<ScheduledPo
                     })),
                 },
                 allowMultipleVotes: data.allowMultipleVotes,
-                isAnonymous: data.isAnonymous,
+                // ⛔ Anonymat retiré (14/10/2026) : le champ n'est plus accepté
+                // (schéma `.strict()`) et aucun sondage anonyme n'est créé.
+                isAnonymous: false,
                 externalUrl: data.externalUrl || null,
                 scheduledAt: checked.scheduledAt,
                 durationHours: data.durationHours ?? null,
@@ -513,7 +512,7 @@ export async function updateScheduledPoll(rawData: unknown): Promise<ScheduledPo
                     description: sanitizeHtml(data.description || null, 2000) || null,
                     category: data.category,
                     allowMultipleVotes: data.allowMultipleVotes,
-                    isAnonymous: data.isAnonymous,
+                    isAnonymous: false,
                     externalUrl: data.externalUrl || null,
                     scheduledAt: checked.scheduledAt,
                     durationHours: data.durationHours ?? null,

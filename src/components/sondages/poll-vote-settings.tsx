@@ -2,8 +2,8 @@
 
 /**
  * Sondages — **réglages du vote**, partagés par les deux modales de création
- * (sondage classique et sondage programmé) : votes multiples, anonymat
- * (facultatif), expiration avec ses durées proposées, et lien externe.
+ * (sondage classique et sondage programmé) : votes multiples, expiration avec ses
+ * durées proposées, et lien externe.
  *
  * Pourquoi un composant unique : les deux modales posaient la même question de
  * deux façons — quatre durées d'un clic côté module membre, un nombre d'heures
@@ -11,14 +11,14 @@
  * resynchronisations le jour où une durée proposée change ; ici une seule source
  * (`DURATION_PRESETS`, bornée par `MIN_DURATION_HOURS`/`MAX_DURATION_HOURS`).
  *
- * L'**anonymat** est facultatif : une modale qui ne le propose pas ne le rend
- * pas (le module membre ne l'expose pas aujourd'hui — l'état existe côté serveur,
- * ce composant ne l'invente pas).
+ * ⛔ **Anonymat retiré** (14/10/2026, demande du propriétaire de guilde) : plus
+ * aucune modale ne propose « Votes anonymes » et le serveur écrit `false` — voir
+ * `docs/ROADMAP.md` (session 15/10) pour ce qui reste des sondages **anciens**.
  */
 
 import { useId } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Clock, Info, Lock, Users } from "lucide-react";
+import { Clock, Info, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { durationChoices } from "@/lib/polls/scheduling";
@@ -31,9 +31,6 @@ export const POLL_NO_EXPIRY_NOTE =
 interface PollVoteSettingsProps {
     allowMultipleVotes: boolean;
     onAllowMultipleVotesChange: (value: boolean) => void;
-    /** Anonymat — absent : cette modale ne propose pas le réglage. */
-    isAnonymous?: boolean;
-    onIsAnonymousChange?: (value: boolean) => void;
     hasExpiry: boolean;
     onHasExpiryChange: (value: boolean) => void;
     /** Durée du vote (heures) : la valeur courante est toujours affichée, même hors presets. */
@@ -47,8 +44,6 @@ interface PollVoteSettingsProps {
 export function PollVoteSettings({
     allowMultipleVotes,
     onAllowMultipleVotesChange,
-    isAnonymous,
-    onIsAnonymousChange,
     hasExpiry,
     onHasExpiryChange,
     expiryHours,
@@ -83,26 +78,6 @@ export function PollVoteSettings({
                         className="scale-90 shrink-0"
                     />
                 </div>
-
-                {typeof isAnonymous === "boolean" && onIsAnonymousChange && (
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                            <div className="p-2.5 rounded-xl bg-elevated shrink-0">
-                                <Lock className="w-4 h-4 text-muted-foreground" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-caption font-bold text-foreground uppercase tracking-tight">Votes anonymes</p>
-                                <p className="text-caption text-muted-foreground font-medium tracking-tight">Votants masqués</p>
-                            </div>
-                        </div>
-                        <Switch
-                            checked={isAnonymous}
-                            onCheckedChange={onIsAnonymousChange}
-                            aria-label="Masquer l'identité des votants"
-                            className="scale-90 shrink-0"
-                        />
-                    </div>
-                )}
 
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">

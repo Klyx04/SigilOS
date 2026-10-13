@@ -248,7 +248,9 @@ async function publishClaimedSlot(slotId: string, now: Date): Promise<"published
                     creatorId: creator.id,
                     creatorName: slot.creatorName,
                     allowMultipleVotes: slot.allowMultipleVotes,
-                    isAnonymous: slot.isAnonymous,
+                    // ⛔ Anonymat retiré : le sondage publié ne l'est jamais, et
+                    // l'occurrence suivante non plus.
+                    isAnonymous: false,
                     expiresAt,
                     mentionEveryone: false,
                     mentionRoleId: mentionRoleId ?? null,
@@ -292,7 +294,7 @@ async function publishClaimedSlot(slotId: string, now: Date): Promise<"published
                     description: slot.description,
                     category: slot.category,
                     allowMultipleVotes: slot.allowMultipleVotes,
-                    isAnonymous: slot.isAnonymous,
+                    isAnonymous: false,
                     externalUrl: slot.externalUrl,
                     scheduledAt: nextScheduledAt,
                     durationHours: slot.durationHours,

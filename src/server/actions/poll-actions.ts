@@ -162,7 +162,6 @@ const CreatePollSchema = z.object({
         emoji: z.string().max(10).optional(),
     })).min(POLL_OPTION_MIN_COUNT).max(POLL_OPTION_MAX_COUNT), // 10 options max : au-delà, Discord n'a plus de place pour les boutons
     allowMultipleVotes: z.boolean().default(false),
-    isAnonymous: z.boolean().default(false),
     expiresAt: z.string().datetime().optional().nullable(),
     // Discord publish config
     publishToDiscord: z.boolean().default(false),
@@ -181,7 +180,6 @@ const UpdatePollSchema = z.object({
     description: z.string().min(POLL_DESCRIPTION_MIN_LENGTH).max(POLL_DESCRIPTION_MAX_LENGTH).optional().nullable(),
     category: z.enum(["SUGGESTION", "AMELIORATION", "EVENT", "MISSION", "AUTRE"]).optional(),
     allowMultipleVotes: z.boolean().optional(),
-    isAnonymous: z.boolean().optional(),
     expiresAt: z.string().datetime().optional().nullable(),
     externalUrl: z.string().url().optional().nullable().or(z.literal("")),
 }).strict();
@@ -567,7 +565,11 @@ export async function createPoll(
                     creatorId: profile.id,
                     creatorName,
                     allowMultipleVotes: data.allowMultipleVotes,
-                    isAnonymous: data.isAnonymous,
+                    // ⛔ Anonymat RETIRÉ (14/10/2026, demande du propriétaire) :
+                    // aucune entrée client n'est acceptée (les schémas Zod ne portent
+                    // plus le champ, et ils sont `.strict()`), et le serveur écrit
+                    // `false` — la colonne ne sert plus qu'à lire d'anciens sondages.
+                    isAnonymous: false,
                     expiresAt: finalExpiresAt,
                     mentionEveryone: safeMentionEveryone,
                     mentionRoleId: safeMentionRoleId || null,
@@ -686,7 +688,9 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
                 description: data.description !== undefined ? sanitizeHtml(data.description || null, 2000) : undefined,
                 category: data.category as PollCategory,
                 allowMultipleVotes: data.allowMultipleVotes,
-                isAnonymous: data.isAnonymous,
+                // Un sondage anonyme d'avant le retrait perd son anonymat dès sa
+                // première modification (aucun champ client ne peut le maintenir).
+                isAnonymous: false,
                 expiresAt: data.expiresAt ? new Date(Math.min(new Date(data.expiresAt).getTime(), Date.now() + MAX_POLL_DURATION_MS)) : data.expiresAt === null ? null : poll.expiresAt,
                 externalUrl: data.externalUrl !== undefined ? (data.externalUrl || null) : undefined,
             }

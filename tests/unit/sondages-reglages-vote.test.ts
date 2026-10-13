@@ -88,10 +88,15 @@ describe("sondages — un seul composant de réglages pour les deux modales", ()
         }
     });
 
-    it("l'anonymat du module staff survit à l'extraction", () => {
-        const form = codeOnly(STAFF_FORM);
-        expect(form).toContain("isAnonymous={isAnonymous}");
-        expect(form).toContain("onIsAnonymousChange={setIsAnonymous}");
+    it("⛔ l'anonymat est RETIRÉ : aucune case, aucun état dans les deux modales", () => {
+        // Le composant partagé ne porte plus la moindre trace du réglage…
+        const ui = codeOnly(SETTINGS_UI);
+        expect(ui).not.toContain("isAnonymous");
+        expect(ui).not.toContain("Votes anonymes");
+        expect(ui).not.toContain("Votants masqués");
+        // … et aucune des deux modales ne peut l'activer.
+        expect(codeOnly(CREATOR)).not.toContain("isAnonymous");
+        expect(codeOnly(STAFF_FORM)).not.toContain("isAnonymous");
     });
 
     it("le staff ne saisit plus un nombre d'heures à la main", () => {
@@ -102,5 +107,44 @@ describe("sondages — un seul composant de réglages pour les deux modales", ()
         expect(form).toContain("durationHours: hasExpiry ? expiryHours : null");
         // Le défaut est la première durée proposée, pas un « 24 » recopié.
         expect(form).toContain("DURATION_PRESETS[0].hours");
+    });
+});
+
+/**
+ * ⛔ Anonymat retiré (14/10/2026, demande du propriétaire de guilde) — le verrou
+ * protège les **deux** moitiés de la décision :
+ * ① plus rien ne peut l'activer (champ absent des schémas `.strict()`, serveur
+ *    qui écrit `false`, aucune trace dans les modales) ;
+ * ② la **lecture** des sondages **anciens** reste intacte : tant que les colonnes
+ *    existent, un sondage anonyme d'avant le retrait continue de masquer ses
+ *    votants (on ne « nettoie » pas une garde de confidentialité par réflexe).
+ */
+describe("sondages — anonymat retiré (écriture) et anciens sondages préservés (lecture)", () => {
+    const POLL_ACTIONS = "src/server/actions/poll-actions.ts";
+    const SCHED_ACTIONS = "src/server/actions/scheduled-poll-actions.ts";
+    const CORE = "src/server/scheduled-polls-core.ts";
+    const PUBLISH = "src/server/polls/publish.ts";
+
+    it("les schémas d'entrée n'acceptent plus le champ (`.strict()`)", () => {
+        const polls = codeOnly(POLL_ACTIONS);
+        expect(polls).not.toContain("isAnonymous: z.boolean()");
+        const scheduled = codeOnly(SCHED_ACTIONS);
+        expect(scheduled).not.toContain("isAnonymous: z.boolean()");
+    });
+
+    it("le serveur écrit `false` : création, modification, publication et occurrence suivante", () => {
+        for (const path of [POLL_ACTIONS, SCHED_ACTIONS, CORE]) {
+            const source = codeOnly(path);
+            expect(source, path).toContain("isAnonymous: false");
+            expect(source, path).not.toContain("isAnonymous: data.isAnonymous");
+            expect(source, path).not.toContain("isAnonymous: slot.isAnonymous");
+        }
+    });
+
+    it("la lecture des anciens sondages reste masquante (aucune donnée révélée)", () => {
+        // Gardes de masquage conservées : elles lisent des lignes d'avant le retrait.
+        expect(codeOnly(POLL_ACTIONS)).toContain("if (!poll.isAnonymous)");
+        expect(codeOnly(PUBLISH)).toContain("if (poll.isAnonymous)");
+        expect(codeOnly(PUBLISH)).toContain("if (!poll.isAnonymous && o.votes");
     });
 });

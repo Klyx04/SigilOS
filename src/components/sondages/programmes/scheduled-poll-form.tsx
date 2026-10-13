@@ -107,7 +107,6 @@ export function ScheduledPollForm({
         ],
     );
     const [allowMultipleVotes, setAllowMultipleVotes] = useState(slot?.allowMultipleVotes ?? false);
-    const [isAnonymous, setIsAnonymous] = useState(slot?.isAnonymous ?? false);
     const [externalUrl, setExternalUrl] = useState(slot?.externalUrl ?? "");
     const [scheduledAt, setScheduledAt] = useState(slot ? toLocalInputValue(new Date(slot.scheduledAt)) : "");
     const [repeatUnit, setRepeatUnit] = useState<"" | ScheduledRepeatUnit>((slot?.repeatUnit as ScheduledRepeatUnit) ?? "");
@@ -191,7 +190,6 @@ export function ScheduledPollForm({
                 category,
                 options: filledOptions.map((option) => ({ label: option.label.trim(), emoji: option.emoji || undefined })),
                 allowMultipleVotes,
-                isAnonymous,
                 scheduledAt: new Date(scheduledAt).toISOString(),
                 durationHours: hasExpiry ? expiryHours : null,
                 repeatEvery: repeatUnit ? (Number(repeatEvery) || 1) : null,
@@ -438,8 +436,6 @@ export function ScheduledPollForm({
                         <PollVoteSettings
                             allowMultipleVotes={allowMultipleVotes}
                             onAllowMultipleVotesChange={setAllowMultipleVotes}
-                            isAnonymous={isAnonymous}
-                            onIsAnonymousChange={setIsAnonymous}
                             hasExpiry={hasExpiry}
                             onHasExpiryChange={setHasExpiry}
                             expiryHours={expiryHours}

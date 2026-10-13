@@ -177,7 +177,6 @@ export function ScheduledPollBoard({ guildId, board }: ScheduledPollBoardProps) 
                                                 </span>
                                             )}
                                             {slot.allowMultipleVotes && <span>Choix multiple</span>}
-                                            {slot.isAnonymous && <span>Anonyme</span>}
                                             {slot.mentionRoleIds.length > 0 && (
                                                 <span>{slot.mentionRoleIds.length} rôle(s) mentionné(s)</span>
                                             )}

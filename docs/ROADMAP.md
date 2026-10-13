@@ -8,6 +8,15 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
+## ⛔ Session 14/10/2026 (suite 2) — **Anonymat des votes retiré du produit (sondage programmé ET classique)** — branche `fix/sondages-retrait-anonymat`
+
+> **Demande user (verbatim)** : « mais supprime ce truc je ne veux pas d'anonymat sur les votes programmé ou classique » — en réponse à la mesure : la modale **membre** n'avait **jamais** proposé le réglage (`isAnonymous` y vivait en **état** + **envoi** seulement, `git log -S` sur `poll-creator.tsx` ne renvoie qu'un commit : jamais retiré, jamais affiché), tandis que la modale **staff** l'exposait — un membre pouvait donc valider à l'aveugle un anonymat qu'il ne voyait pas, et l'asymétrie faisait croire à une fonctionnalité réservée.
+> **Fait** : **① UI** — réglage supprimé du composant **partagé** `poll-vote-settings.tsx` (ligne « Votes anonymes / Votants masqués » + props + icône `Lock`), états et payloads retirés des **deux** modales (`poll-creator.tsx`, `scheduled-poll-form.tsx`), badge « Anonyme » du tableau staff retiré, `ScheduledPollSlotView.isAnonymous` retiré (plus aucun lecteur) ; **② serveur (fail-closed, au bon étage)** — champ retiré des **deux** schémas Zod (`.strict()` ⇒ un client qui l'enverrait encore est **refusé**, pas ignoré) et `isAnonymous: false` écrit à la **création**, à la **modification**, à la **publication** d'un créneau et sur l'**occurrence suivante** : plus aucun sondage anonyme ne peut naître, ni par la modale, ni par action directe.
+> **Non touché, volontairement** : les colonnes `Poll.isAnonymous` / `ScheduledPoll.isAnonymous` et les **lectures** de masquage (liste des votants, onglet « N'ont pas voté », ligne « 🕵️ Anonymat » de l'embed, chip de la carte) — un sondage **anonyme d'avant** continue de protéger ses votants, et **dropper** une colonne (`DROP COLUMN` = suppression de données) reste un arrêt + question, pas un réflexe de nettoyage.
+> **Preuves** : `tests/unit/sondages-reglages-vote.test.ts` (**10 cas**, dont **3 neufs** : champs absents des schémas `.strict()`, écritures `false` sur les 3 surfaces, gardes de **lecture** préservées) · `npx tsc --noEmit` **0** · `eslint` **0 erreur** · `npm run test:run` **365 fichiers / 3 994 tests ✓**.
+> **Reste / ops (humain)** : trancher le sort des sondages **anciens** anonymes (les révéler **et** supprimer les colonnes = migration destructive) · contrôle à l'œil (les deux modales n'ont plus le réglage ; un anonyme d'avant reste masqué).
+
+
 ## 🗳️ Session 14/10/2026 — **Sondages programmés : une série récurrente se clôt et publie son résultat avant la suivante + rattrapage God des embeds** — branche `feat/sondages-recurrence-serie-et-rattrapage-god`
 
 > **Demandes user (verbatim)** : « les sondages programmées répititif : un sondage répétitif en cours doit expirer, se clôturer seul et envoyez le resultat seul avant le prochain déclenchement du suivant » · « encore une question, les sondages déjà en cours sur discord avant les maj, impossible de leur afficher les barres en % de vote etc ? » · « boiuton que sur god pour rattrapage, et l'autre tu choisis ».

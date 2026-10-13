@@ -12,7 +12,7 @@ const ORDER: ModuleKey[] = [
     "resources", "services", "marche", "calendar", "polls", "minigames", "succes",
     "gallery", "roster", "stats", "profile", "presentation", "docs",
     "availability", "logs", "reactionRoles", "tickets", "commandes",
-    "ladderSync", "manualLadderSync",
+    "ladderSync", "manualLadderSync", "scheduledPolls",
 ];
 
 export function GodGuildModulesClient({

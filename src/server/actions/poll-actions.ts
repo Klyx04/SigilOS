@@ -9,9 +9,21 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { checkGuildPermission, getUserContext } from "@/server/actions/user-actions";
 // Local types to avoid Prisma export issues
-type PollCategory = "SUGGESTION" | "AMELIORATION" | "EVENT" | "MISSION" | "AUTRE";
 type PollStatus = "DRAFT" | "ACTIVE" | "CLOSED" | "CANCELLED";
-import { sendChannelMessage, deleteChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
+import { sendChannelMessage, deleteChannelMessage } from "@/server/discord";
+// Fabrique d'embed **partagée** avec le module « Sondages programmés » : une
+// seule source de vérité pour la description, les boutons de vote et la
+// publication en salon (fichier sans `"use server"` ⇒ jamais exposé au client).
+import { POLL_CATEGORY_CONFIG, getProgressBar, publishPollToDiscord, type PollCategory } from "@/server/polls/publish";
+import {
+    POLL_DESCRIPTION_MAX_LENGTH,
+    POLL_DESCRIPTION_MIN_LENGTH,
+    POLL_OPTION_LABEL_MAX_LENGTH,
+    POLL_OPTION_MAX_COUNT,
+    POLL_OPTION_MIN_COUNT,
+    POLL_TITLE_MAX_LENGTH,
+    POLL_TITLE_MIN_LENGTH,
+} from "@/lib/polls/limits";
 import { createAuditLog } from "@/server/actions/audit-actions";
 import { getGameDisplayName } from "@/lib/display-name";
 import { sanitizeHtml, sanitizeName } from "@/lib/security";
@@ -21,18 +33,6 @@ import { computeNonVoters, type PollMember } from "@/lib/polls/participation";
 // Durée max d'un sondage : 30 jours (au-delà, valeur plafonnée côté serveur).
 // Un sondage « sans date » (expiresAt null) est fermé automatiquement par le cron close-old-polls après 30 jours.
 const MAX_POLL_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
-
-/**
- * Generates a visual progress bar for Discord embeds.
- */
-function getProgressBar(percentage: number, length = 12): string {
-    const filledLength = Math.max(0, Math.min(length, Math.round((percentage / 100) * length)));
-    const emptyLength = length - filledLength;
-    // Using standard Discord emojis for better compatibility
-    const filled = "🟩".repeat(filledLength);
-    const empty = "⬜".repeat(emptyLength);
-    return filled + empty;
-}
 
 // --- Types ---
 
@@ -154,13 +154,13 @@ export async function updatePollSettings(
 
 const CreatePollSchema = z.object({
     guildId: z.string().min(1),
-    title: z.string().min(3, "Titre trop court (min 3 caractères)").max(80, "Titre trop long (max 80 caractères)"),
-    description: z.string().min(5, "La description est obligatoire (min 5 caractères)").max(2000, "Description trop longue (max 2000 caractères)"),
+    title: z.string().min(POLL_TITLE_MIN_LENGTH, `Titre trop court (min ${POLL_TITLE_MIN_LENGTH} caractères)`).max(POLL_TITLE_MAX_LENGTH, `Titre trop long (max ${POLL_TITLE_MAX_LENGTH} caractères)`),
+    description: z.string().min(POLL_DESCRIPTION_MIN_LENGTH, `La description est obligatoire (min ${POLL_DESCRIPTION_MIN_LENGTH} caractères)`).max(POLL_DESCRIPTION_MAX_LENGTH, `Description trop longue (max ${POLL_DESCRIPTION_MAX_LENGTH} caractères)`),
     category: z.enum(["SUGGESTION", "AMELIORATION", "EVENT", "MISSION", "AUTRE"]),
     options: z.array(z.object({
-        label: z.string().min(1).max(200),
+        label: z.string().min(1).max(POLL_OPTION_LABEL_MAX_LENGTH),
         emoji: z.string().max(10).optional(),
-    })).min(2).max(10), // Limited to 10 options for better UX
+    })).min(POLL_OPTION_MIN_COUNT).max(POLL_OPTION_MAX_COUNT), // 10 options max : au-delà, Discord n'a plus de place pour les boutons
     allowMultipleVotes: z.boolean().default(false),
     isAnonymous: z.boolean().default(false),
     expiresAt: z.string().datetime().optional().nullable(),
@@ -177,8 +177,8 @@ const CreatePollSchema = z.object({
 const UpdatePollSchema = z.object({
     pollId: z.string().min(1),
     guildId: z.string().min(1),
-    title: z.string().min(3).max(80).optional(),
-    description: z.string().min(5).max(2000).optional().nullable(),
+    title: z.string().min(POLL_TITLE_MIN_LENGTH).max(POLL_TITLE_MAX_LENGTH).optional(),
+    description: z.string().min(POLL_DESCRIPTION_MIN_LENGTH).max(POLL_DESCRIPTION_MAX_LENGTH).optional().nullable(),
     category: z.enum(["SUGGESTION", "AMELIORATION", "EVENT", "MISSION", "AUTRE"]).optional(),
     allowMultipleVotes: z.boolean().optional(),
     isAnonymous: z.boolean().optional(),
@@ -187,34 +187,9 @@ const UpdatePollSchema = z.object({
 }).strict();
 
 // --- Category Config ---
-
-const POLL_CATEGORY_CONFIG: Record<PollCategory, { label: string; color: number; emoji: string }> = {
-    SUGGESTION: {
-        label: "💡 Suggestion",
-        color: 0x06b6d4,
-        emoji: "💡",
-    },
-    AMELIORATION: {
-        label: "🔧 Amélioration",
-        color: 0x10b981,
-        emoji: "🔧",
-    },
-    EVENT: {
-        label: "🎉 Événement",
-        color: 0xf59e0b,
-        emoji: "🎉",
-    },
-    MISSION: {
-        label: "🎯 Mission",
-        color: 0xef4444,
-        emoji: "🎯",
-    },
-    AUTRE: {
-        label: "📋 Autres",
-        color: 0x8b5cf6,
-        emoji: "📋",
-    },
-};
+// `POLL_CATEGORY_CONFIG` (et `PollCategory`) vivent dans `@/server/polls/publish`
+// depuis le module « Sondages programmés » : la même palette alimente l'embed
+// publié par une action et celui publié automatiquement par le cron.
 
 // --- Helpers ---
 
@@ -1076,205 +1051,8 @@ export async function deletePoll(
     }
 }
 
-// --- Discord Embed ---
-
-async function publishPollToDiscord(
-    discordGuildId: string,
-    pollId: string,
-    channelId: string,
-    mentionEveryone: boolean,
-    mentionRoleId?: string,
-    isUpdate = false
-): Promise<void> {
-    try {
-        const { updateChannelMessage } = await import("@/server/discord");
-
-        // Security: validate channel belongs to guild (only on initial publish)
-        if (!isUpdate) {
-            const isValid = await validateChannelBelongsToGuild(channelId, discordGuildId);
-            if (!isValid) {
-                logger.error("[Polls] Channel does not belong to guild", { channelId, discordGuildId });
-                return;
-            }
-        }
-
-        const poll = await db.poll.findUnique({
-            where: { id: pollId },
-            include: {
-                options: {
-                    include: {
-                        _count: { select: { votes: true } },
-                        votes: {
-                            select: {
-                                voter: { select: { pseudoDofus: true, discordNickname: true } },
-                            },
-                            take: 5, // récupère les 5 premiers pour le preview embed
-                        },
-                    },
-                    orderBy: { order: "asc" }
-                },
-                creator: { include: { user: { select: { image: true } } } }
-            },
-        });
-        if (!poll) return;
-
-        const catConfig = POLL_CATEGORY_CONFIG[poll.category as PollCategory];
-        const appUrl = getAppBaseUrl();
-        const voteUrl = `${appUrl}/dashboard/${discordGuildId}/sondages/${pollId}`;
-
-        // Calculate total votes
-        const totalVotes = poll.options.reduce((acc, opt) => acc + (opt._count.votes || 0), 0);
-
-        // Build options list with progress bars
-        // Each option gets a numbered label (e.g. 1️⃣) matching the button below
-        const NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
-
-        const optionsList = poll.options
-            .map((o: any, i: number) => {
-                const votes = o._count.votes || 0;
-                const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
-                const bar = getProgressBar(pct, 10);
-                const prefix = o.emoji ? o.emoji : (NUMBER_EMOJIS[i] || `${i + 1}.`);
-
-                // Affiche les noms des votants pour les sondages non-anonymes
-                let votersLine = "";
-                if (!poll.isAnonymous && o.votes && o.votes.length > 0) {
-                    const names = (o.votes as any[]).slice(0, 3).map((v: any) =>
-                        v.voter.pseudoDofus || v.voter.discordNickname || "Membre"
-                    );
-                    const remaining = votes - (o.votes as any[]).length;
-                    const suffix = remaining > 0 ? ` +${remaining} autres` : "";
-                    votersLine = `\n👥 *${names.join(", ")}${suffix}*`;
-                }
-
-                return `${prefix} **${o.label}**\n${bar} \`${pct}%\` (${votes} vote${votes !== 1 ? 's' : ''})${votersLine}`;
-            })
-            .join("\n\n");
-
-        const descriptionParts = [];
-
-        if (poll.description) {
-            descriptionParts.push(`> *${poll.description}*`);
-        }
-
-        if (poll.externalUrl) {
-            descriptionParts.push(`🔗 **Source externe :** [Ouvrir le lien ↗](${poll.externalUrl})`);
-        }
-
-        descriptionParts.push(`\n**📊 Choix :**\n${optionsList}`);
-
-        const metadata = [];
-        if (poll.expiresAt) {
-            metadata.push(`⏰ **Expire** — <t:${Math.floor(poll.expiresAt.getTime() / 1000)}:R>`);
-        }
-        metadata.push(poll.allowMultipleVotes ? "✅ **Votes multiples** — Autorisés" : "👆 **Vote unique** — Un seul choix");
-
-        if (poll.isAnonymous) {
-            metadata.push("🕵️ **Anonymat** — Activé");
-        }
-
-        descriptionParts.push(`\n---\n${metadata.join(" · ")}`);
-        descriptionParts.push(`\n*👉 Clique sur le bouton correspondant à ton choix pour voter !*`);
-        descriptionParts.push(`*Seuls les membres de la guilde peuvent voter via [SigilOS](${voteUrl})*`);
-
-        const description = descriptionParts.join("\n");
-
-        // Build mention content (only on first publish)
-        let mentionContent: string | undefined;
-        if (!isUpdate) {
-            if (mentionEveryone) {
-                mentionContent = "Bonjour @everyone !";
-            } else if (mentionRoleId) {
-                if (mentionRoleId === "here") {
-                    mentionContent = "Bonjour @here !";
-                } else {
-                    // Multi-rôles stockés CSV (pattern DJ/songes)
-                    const roleMentions = mentionRoleId.split(",").map(id => `<@&${id.trim()}>`).join(" ");
-                    mentionContent = `Bonjour ${roleMentions} !`;
-                }
-            }
-        }
-
-        // === BUTTONS ===
-        // Discord allows max 5 ActionRows with max 5 buttons each.
-        // Strategy: group vote buttons 2 per row → max 5 rows for 10 options.
-        // Reserve the last row for the Link button.
-        const discordComponents: any[] = [];
-
-        // Build vote buttons — always 2 per ActionRow for visual clarity
-        const optionButtons = poll.options.map((o: any, i: number) => {
-            const prefix = o.emoji ? o.emoji : (NUMBER_EMOJIS[i] || `${i + 1}.`);
-            // Truncate label for Discord button (max 80 chars)
-            const rawLabel = `${o.emoji ? '' : (NUMBER_EMOJIS[i] ? '' : `${i + 1}. `)}${o.label}`;
-            const truncated = rawLabel.length > 75 ? rawLabel.substring(0, 72) + "..." : rawLabel;
-            return {
-                type: 2, // Button
-                style: 1, // Primary (blurple)
-                label: truncated,
-                emoji: o.emoji ? { name: o.emoji } : (NUMBER_EMOJIS[i] ? { name: NUMBER_EMOJIS[i] } : undefined),
-                custom_id: `poll:vote:${o.id}`,
-            };
-        });
-
-        // Chunk into rows of 2 buttons each
-        const buttonRows: any[] = [];
-        for (let i = 0; i < optionButtons.length; i += 2) {
-            buttonRows.push({
-                type: 1, // ActionRow
-                components: optionButtons.slice(i, i + 2)
-            });
-        }
-
-        // We have max 4 button rows for options + 1 row for link button = 5 total
-        // If we overflow (> 4 vote rows), compress last row with link button together
-        const linkButton = {
-            type: 2,
-            style: 5, // Link
-            label: "🌐 Résultats & Détails",
-            url: voteUrl,
-        };
-
-        if (buttonRows.length < 5) {
-            // Room for a dedicated link row
-            buttonRows.forEach(row => discordComponents.push(row));
-            discordComponents.push({ type: 1, components: [linkButton] });
-        } else {
-            // Overflow: append link button to the last row (it will have ≤2+1=3 buttons — within Discord's limit of 5)
-            buttonRows.forEach(row => discordComponents.push(row));
-            discordComponents[discordComponents.length - 1].components.push(linkButton);
-        }
-
-        const embedOptions = {
-            embedTitle: `📊 ${poll.title.toUpperCase()}`,
-            embedColor: catConfig.color,
-            embedFooter: `SigilOS • ${catConfig.label}`,
-            embedAuthor: {
-                name: `Sondage lancé par ${poll.creatorName}`,
-                iconUrl: (poll.creator as any)?.user?.image || undefined
-            },
-            // embedUrl intentionnellement absent : évite que le titre de l'embed
-            // soit cliquable (confusion avec le lien externe du sondage).
-            // La navigation vers le dashboard se fait via le bouton "Résultats & Détails".
-            mentionContent,
-            components: discordComponents,
-        };
-
-        if (isUpdate && poll.discordMessageId && poll.discordChannelId) {
-            await updateChannelMessage(poll.discordChannelId, poll.discordMessageId, description, embedOptions);
-        } else {
-            const messageId = await sendChannelMessage(channelId, description, embedOptions);
-            if (messageId) {
-                await (db as any).poll.update({
-                    where: { id: pollId },
-                    data: { discordMessageId: messageId, discordChannelId: channelId },
-                });
-            }
-        }
-    } catch (error) {
-        logger.error("[Polls] publishToDiscord error", { error, pollId, channelId });
-    }
-}
-
+// --- Discord Embed : la fabrique d'embed et les boutons de vote vivent dans
+// `@/server/polls/publish` (module « Sondages programmés ») — une seule source.
 export async function publishPollEmbed(
     discordGuildId: string,
     pollId: string,

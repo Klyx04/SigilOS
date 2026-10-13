@@ -87,6 +87,8 @@ function allOn(): Record<string, boolean> {
         reactionRoles: true, tickets: true, quests: true, worldmap: true,
         resources: true, gallery: true, ladderSync: true, manualLadderSync: true,
         minigames: true, succes: true, commandes: true, marche: true,
+        // Module staff « Sondages programmés » (créneaux publiés automatiquement).
+        scheduledPolls: true,
     };
 }
 

@@ -242,6 +242,26 @@ else
     echo "⚠️  Sondages ignoré : CRON_SECRET ou APP_URL manquant"
 fi
 
+# 6d2. Sondages PROGRAMMÉS (module staff) — filet de rattrapage quotidien.
+# La voie normale est une ligne de crontab dédiée **chaque minute** (à poser une
+# fois sur le VPS, voir docs/MAINTENANCE.md § Crontab) :
+#   * * * * * curl -s -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/publish-scheduled-polls" >> "$LOG_DIR/publish-scheduled-polls.log" 2>&1
+# Cet appel-ci ne sert qu'à rattraper des créneaux si la ligne minute a été
+# oubliée : la publication est idempotente (revendication atomique en base),
+# donc un double déclenchement ne publie jamais deux fois le même sondage.
+if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
+    SCHEDULED_POLLS_RESPONSE=$(curl -s -o /tmp/scheduled-polls-response.json -w "%{http_code}" \
+        -H "x-cron-secret: $CRON_SECRET" \
+        "$APP_URL/api/cron/publish-scheduled-polls")
+    if [ "$SCHEDULED_POLLS_RESPONSE" -eq 200 ]; then
+        echo "✅ Sondages programmés : créneaux échus traités"
+    else
+        echo "⚠️  Sondages programmés : HTTP $SCHEDULED_POLLS_RESPONSE (non bloquant)"
+    fi
+else
+    echo "⚠️  Sondages programmés ignoré : CRON_SECRET ou APP_URL manquant"
+fi
+
 # 7. Nettoyage cache proxy-image (images Ganymède / Imgur / DofusDB)
 # Supprime les fichiers de plus de 90 jours (TTL identique à la logique Node)
 echo "🖼️  Nettoyage cache proxy-image..."

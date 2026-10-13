@@ -57,6 +57,7 @@ const UpdateModulesSchema = z.object({
     reactionRoles: z.boolean(),
     tickets: z.boolean(),
     commandes: z.boolean(),
+    scheduledPolls: z.boolean(),
 });
 
 type ActionResponse<T = undefined> = {
@@ -143,6 +144,7 @@ async function readGuildModules(discordGuildId: string): Promise<CachedGuildModu
             marche: dbModules.marche ?? DEFAULT_MODULES.marche,
             tickets: dbModules.tickets ?? DEFAULT_MODULES.tickets,
             commandes: dbModules.commandes ?? DEFAULT_MODULES.commandes,
+            scheduledPolls: dbModules.scheduledPolls ?? DEFAULT_MODULES.scheduledPolls,
         };
 
         const entry: CachedGuildModules = {

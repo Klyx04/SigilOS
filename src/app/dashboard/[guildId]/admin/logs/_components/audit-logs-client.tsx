@@ -43,6 +43,11 @@ const ACTION_COLORS: Record<string, string> = {
     POLL_CLOSED: "bg-warning/20 text-warning border-warning/30",
     POLL_DELETED: "bg-danger/20 text-danger border-danger/30",
     POLL_CREATOR_ROLE_ACQUIRED: "bg-info/10 text-info border-info/20 ",
+    // Sondages programmés (module staff)
+    SCHEDULED_POLL_CREATED: "bg-info/20 text-info border-info/30",
+    SCHEDULED_POLL_UPDATED: "bg-surface/40 text-muted-foreground border-border",
+    SCHEDULED_POLL_CANCELLED: "bg-muted/20 text-muted-foreground border-border",
+    SCHEDULED_POLL_PUBLISHED: "bg-success/20 text-success border-success/30",
     // GDPR
     USER_GDPR_DELETE: "bg-danger/20 text-danger border-danger/30",
 };
@@ -81,6 +86,11 @@ const ACTION_LABELS: Record<string, string> = {
     POLL_CLOSED: "🔒 Sondage clôturé",
     POLL_DELETED: "🗑️ Sondage supprimé",
     POLL_CREATOR_ROLE_ACQUIRED: "🎤 Micro acquis",
+    // Sondages programmés (module staff)
+    SCHEDULED_POLL_CREATED: "🗓️ Sondage programmé créé",
+    SCHEDULED_POLL_UPDATED: "🗓️ Sondage programmé modifié",
+    SCHEDULED_POLL_CANCELLED: "🗓️ Sondage programmé annulé",
+    SCHEDULED_POLL_PUBLISHED: "📣 Sondage programmé publié",
     // GDPR
     USER_GDPR_DELETE: "🗑️ Suppression RGPD",
 };
@@ -132,7 +142,7 @@ const ACTION_OPTIONS = [    { value: "all", label: "Toutes les actions" },
     { value: "RBAC_UPDATE", label: "Permissions modifiées" },
     { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions" },
     { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus" },
-    { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED", label: "📊 Sondages & Micro" },
+    { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED,SCHEDULED_POLL_CREATED,SCHEDULED_POLL_UPDATED,SCHEDULED_POLL_CANCELLED,SCHEDULED_POLL_PUBLISHED", label: "📊 Sondages & Micro" },
     { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,PLATFORM_ARRIVAL,PLATFORM_DEPARTURE,PROFILE_ARCHIVED,PROFILE_REACTIVATED,MEMBER_PSEUDO_UPDATE,MEMBER_ANKAMA_ID_UPDATE", label: "🔄 Mouvements" },
     { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration" },
     { value: "ADMIN_FULL_DENIED,SECURITY_ALERT", label: "🛡️ Sécurité" },

@@ -376,6 +376,12 @@ model GuildConfig {
   missionDiscordMessageId          String?
   pollsNotifyChannelId             String?
   pollsNotifyRoleId                String?
+  // Module « Sondages programmés » (staff) : salon par défaut de l'embed publié
+  // automatiquement, whitelist de ping dédiée (fail-closed, pattern polls) et
+  // durée de vote par défaut proposée dans le formulaire (bornée 1–720 h).
+  scheduledPollsChannelId          String?
+  scheduledPollsPingRoleIds        String[]                @default([])
+  scheduledPollsDurationH          Int?
   ocreNotifyChannelId              String?
   djNotifyChannelId                String?
   // Chantier — points de contribution personnalisables (DJ / quêtes / Songes), config JSON admin
@@ -450,6 +456,7 @@ model GuildConfig {
   reactionRoleGroups               ReactionRoleGroup[]
   reactionRoleIconPacks            ReactionRoleIconPack[]
   polls                            Poll[]
+  scheduledPolls                   ScheduledPoll[]
   relances                         Relance[]
   resourceCategories               ResourceCategory[]
   serviceActivityLogs              ServiceActivityLog[]
@@ -588,6 +595,12 @@ model GuildModules {
   commandes       Boolean     @default(true)
   /** Module « Marché » — OFF par défaut pour les nouvelles guildes (D15). */
   marche          Boolean     @default(false)
+  /**
+   * Module « Sondages programmés » (staff) — OFF par défaut : un sondage
+   * publié automatiquement dans un salon Discord n'est jamais un défaut
+   * implicite, l'admin l'active explicitement.
+   */
+  scheduledPolls   Boolean     @default(false)
   guild            GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
   /**
    * Modules verrouillés par le staff (noms de ModuleKey). Un module verrouillé
@@ -1687,6 +1700,10 @@ model Poll {
   updatedAt          DateTime     @updatedAt
   outcome            String?
   externalUrl        String?
+  // Marqueur « Sondage programmé » : le sondage a été publié automatiquement
+  // par le module staff (cron publish-scheduled-polls) et non à la main.
+  // Tag affiché sur la carte, la fiche et l'embed Discord.
+  isScheduled        Boolean      @default(false)
   creator            UserProfile  @relation("PollCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   guild              GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
   options            PollOption[]
@@ -1718,6 +1735,72 @@ model PollVote {
   @@unique([optionId, voterId])
   @@index([optionId])
   @@index([voterId])
+}
+
+/**
+ * Créneau de sondage programmé (module staff `scheduledPolls`).
+ *
+ * Un créneau n'est **pas** un sondage : c'est une consigne « publier ce
+ * sondage-là, dans ce salon-là, à cet instant-là ». À l'échéance, le cron
+ * `publish-scheduled-polls` crée un `Poll` normal (mêmes options, mêmes
+ * boutons Discord `poll:vote:`, même fiche dashboard) marqué
+ * `Poll.isScheduled = true`, puis passe le créneau à `PUBLISHED` avec
+ * `createdPollId` pour la traçabilité.
+ *
+ * Règles portées par le modèle :
+ * - `@@unique([guildId, scheduledAt])` ⇒ **jamais deux créneaux à la même
+ *   minute** dans une même guilde ;
+ * - `@@index([status, scheduledAt])` ⇒ la lecture du cron (créneaux échus) est
+ *   indexée, quel que soit le volume de guildes ;
+ * - `status` + `claimedAt` portent la **revendication atomique** (garde d'état
+ *   dans le `WHERE`) : deux exécutions simultanées ne publient jamais deux fois.
+ */
+model ScheduledPoll {
+  id                String              @id @default(cuid())
+  guildId           String
+  createdById       String
+  creatorName       String
+  title             String
+  description       String?
+  category          PollCategory
+  allowMultipleVotes Boolean            @default(false)
+  isAnonymous       Boolean             @default(false)
+  externalUrl       String?
+  scheduledAt       DateTime
+  /** Durée du vote une fois publié (heures, bornée 1–720). Null = durée par défaut des paramètres. */
+  durationHours     Int?
+  discordChannelId  String?
+  mentionEveryone   Boolean             @default(false)
+  /** CSV de rôles (pattern `Poll.mentionRoleId`), tous whitelistés à l'écriture. */
+  mentionRoleId     String?
+  status            ScheduledPollStatus @default(SCHEDULED)
+  claimedAt         DateTime?
+  publishedAt       DateTime?
+  cancelledAt       DateTime?
+  cancelledById     String?
+  /** Dernière raison d'échec ou de blocage (module coupé, salon invalide…). */
+  lastError         String?
+  /** Sondage réellement créé à l'échéance (jamais deviné : lu en base). */
+  createdPollId     String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  guild             GuildConfig         @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  options           ScheduledPollOption[]
+
+  @@unique([guildId, scheduledAt])
+  @@index([guildId, status])
+  @@index([status, scheduledAt])
+}
+
+model ScheduledPollOption {
+  id              String        @id @default(cuid())
+  scheduledPollId String
+  label           String
+  order           Int           @default(0)
+  emoji           String?
+  scheduledPoll   ScheduledPoll @relation(fields: [scheduledPollId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledPollId])
 }
 
 model DjSearchPost {
@@ -3167,6 +3250,20 @@ enum PollStatus {
   ACTIVE
   CLOSED
   CANCELLED
+}
+
+/**
+ * Cycle de vie d'un créneau de sondage programmé (module staff).
+ * `PUBLISHING` est l'état de **revendication atomique** : un créneau ne peut
+ * passer de `SCHEDULED` à `PUBLISHING` qu'une seule fois (garde d'état dans le
+ * `WHERE`), ce qui rend le déclencheur (cron) sans état et rejouable.
+ */
+enum ScheduledPollStatus {
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  CANCELLED
+  FAILED
 }
 
 enum DjSearchMode {

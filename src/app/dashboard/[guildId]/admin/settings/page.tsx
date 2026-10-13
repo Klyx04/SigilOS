@@ -25,6 +25,7 @@ import { MemberStatsOverview } from "@/components/admin/member-stats-overview";
 import { MemberManagementTable } from "@/components/admin/member-management-table";
 import { getGuildMemberStats, getGuildMembers } from "@/server/actions/user-actions";
 import { PollSettingsClient } from "../_components/poll-settings-client";
+import { ScheduledPollSettingsClient } from "../_components/scheduled-poll-settings-client";
 import { DjSettingsClient } from "../_components/dj-settings-client";
 import { LoansSettingsClient } from "../_components/loans-settings-client";
 import { SystemSettingsClient } from "../_components/system-settings-client";
@@ -314,7 +315,14 @@ export default async function FeatureSettingsPage({
                                 </div>
                             )}
                             {resolvedTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
-                            {resolvedTab === "sondages" && <PollSettingsClient guildId={guildId} />}
+                            {resolvedTab === "sondages" && (
+                                <div className="space-y-8">
+                                    <PollSettingsClient guildId={guildId} />
+                                    <div className="pt-8 border-t border-border">
+                                        <ScheduledPollSettingsClient guildId={guildId} />
+                                    </div>
+                                </div>
+                            )}
                             { resolvedTab === "blacklist" && <BlacklistSettingsClient guildId={guildId} /> }
                             { resolvedTab === "relance" && <RelanceSettingsClient guildId={guildId} /> }
                             { resolvedTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }

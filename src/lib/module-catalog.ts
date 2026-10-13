@@ -348,6 +348,15 @@ export const MODULE_GROUPS: ModuleGroup[] = [
                 borderColor: "border-amber-500/30",
             },
             {
+                key: "scheduledPolls",
+                label: "Sondages programmés",
+                description: "Module staff : programmer un sondage (date, heure et minute), le publier automatiquement dans un salon Discord, avec salon par défaut, rôles de ping autorisés et 3 créneaux en attente maximum.",
+                icon: CalendarClock,
+                color: "text-info",
+                bgColor: "bg-info/10",
+                borderColor: "border-info/30",
+            },
+            {
                 key: "logs",
                 label: "Logs d'Audit",
                 description: "Journal des actions administratives. Traçabilité complète des modifications de configuration.",

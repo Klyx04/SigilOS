@@ -23,6 +23,13 @@ import { formatPollEnd } from "@/lib/poll-format";
 const DETAIL = "src/components/sondages/poll-detail.tsx";
 const CARD = "src/components/sondages/poll-card.tsx";
 const ACTIONS = "src/server/actions/poll-actions.ts";
+/**
+ * L'embed ne vit plus dans le fichier d'actions : il a été **extrait** dans
+ * `src/server/polls/publish.ts` pour être partagé avec le module « Sondages
+ * programmés » (une seule fabrique, un seul embed). Le verrou suit la source de
+ * vérité — il ne s'affaiblit pas, il change de fichier.
+ */
+const PUBLISH = "src/server/polls/publish.ts";
 
 describe("sondages — règle unique de fin de vote", () => {
     const now = new Date("2026-10-13T12:00:00.000Z");
@@ -78,10 +85,12 @@ describe("sondages — les deux surfaces consomment la règle", () => {
     });
 
     it("l'embed Discord garde les trois informations de la capture", () => {
-        const actions = readFileSync(ACTIONS, "utf8");
-        expect(actions).toContain("**📊 Choix :**");
-        expect(actions).toContain("**Expire**");
-        expect(actions).toContain("**Votes multiples**");
-        expect(actions).toContain("**Vote unique**");
+        const publish = readFileSync(PUBLISH, "utf8");
+        expect(publish).toContain("**📊 Choix :**");
+        expect(publish).toContain("**Expire**");
+        expect(publish).toContain("**Votes multiples**");
+        expect(publish).toContain("**Vote unique**");
+        // Et l'action du module Sondages consomme bien cette fabrique unique.
+        expect(readFileSync(ACTIONS, "utf8")).toContain("@/server/polls/publish");
     });
 });

@@ -13,6 +13,8 @@ export const PERMISSIONS = {
     STAFF_AUDIT: "staff:audit",
     STAFF_REACTION_ROLES: "staff:reaction_roles",
     STAFF_TICKETS: "staff:tickets",
+    /** Module « Sondages programmés » — créneaux publiés automatiquement (staff). */
+    STAFF_SCHEDULED_POLLS: "staff:scheduled_polls",
 
     // Modules & Information
     PRESENTATION_VIEW: "presentation:view",
@@ -111,6 +113,12 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         description: "Gérer le bot de tickets, les catégories, formulaires d'intake, réclamations staff et clôtures.", 
         module: "admin",
         modules: ["Tickets Discord", "Panneaux", "SLA & Modals", "Transcripts"]
+    },
+    [PERMISSIONS.STAFF_SCHEDULED_POLLS]: {
+        label: "Sondages programmés",
+        description: "Programmer des sondages (date, heure, minute), choisir le salon Discord et le rôle à mentionner, annuler ou publier un créneau en avance.",
+        module: "admin",
+        modules: ["Sondages programmés", "Créneaux", "Publication Discord"]
     },
     [PERMISSIONS.SYSTEM_CONFIG]: { 
         label: "Paramétrage Technique", 
@@ -262,6 +270,7 @@ export const PERMISSION_GUILD_MODULES: Record<string, string[]> = {
     [PERMISSIONS.STAFF_AUDIT]: ["logs"],
     [PERMISSIONS.STAFF_REACTION_ROLES]: ["reactionRoles"],
     [PERMISSIONS.STAFF_TICKETS]: ["tickets"],
+    [PERMISSIONS.STAFF_SCHEDULED_POLLS]: ["scheduledPolls"],
     [PERMISSIONS.COMMANDS_VIEW]: ["commandes"],
 };
 /**
@@ -306,6 +315,7 @@ export const GUILD_MODULE_LABELS: Record<string, string> = {
     availability: "Disponibilités",
     logs: "Audit Logs",
     polls: "Sondages",
+    scheduledPolls: "Sondages programmés",
     reactionRoles: "Reaction Roles",
     tickets: "Tickets",
     quests: "Quêtes Dofus",

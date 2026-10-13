@@ -129,6 +129,17 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   "$APP_URL/api/cron/status-ping" >> "$LOG_DIR/status-ping.log" 2>&1
 
+# Sondages PROGRAMMÉS (module staff `scheduledPolls`) — CHAQUE MINUTE : le
+# formulaire choisit une date, une heure ET une minute, c'est donc la cadence
+# exigée par la fonctionnalité. Le core revendique chaque créneau en base
+# (garde d'état dans le `WHERE`) : un double déclenchement — ou la reprise
+# quotidienne dans `maintenance.sh` — ne publie jamais deux fois le même sondage.
+# ⚠️ La minute manquée n'est pas perdue : l'exécution suivante rattrape tous les
+#    créneaux échus (c'est ce qui rend le déclencheur « sans état »).
+* * * * * curl -s -o /dev/null -w "publish-scheduled-polls \%{http_code} $(date -Is)\n" \
+  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  "$APP_URL/api/cron/publish-scheduled-polls" >> "$LOG_DIR/publish-scheduled-polls.log" 2>&1
+
 # Rappels des raids (toutes les 10 min) — ① ping des INSCRITS 1 h avant le départ
 # (un seul ping par raid, silence si un rappel manuel vient d'être envoyé) ;
 # ② rappel de CLÔTURE au capitaine 24 h après la fin (un seul par raid)

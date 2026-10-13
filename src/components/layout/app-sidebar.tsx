@@ -217,6 +217,7 @@ export function AppSidebar({
     const NAV_OTHERS = [
         { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, imgSrc: "/assets/nav/dice.png", color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames && modules.minigames },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, imgSrc: "/assets/nav/chat.png", color: "cyan", tourKey: "polls", visible: user.canViewPolls && modules.polls },
+        { name: "Sondages programmés", href: `/dashboard/${guildId}/sondages/programmes`, icon: CalendarClock, imgSrc: "/assets/nav/hourglass.png", color: "cyan", visible: user.canSchedulePolls && modules.scheduledPolls },
         { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, imgSrc: "/assets/dofus/modules/map.png", color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
     ];
 
@@ -240,6 +241,7 @@ export function AppSidebar({
             `/dashboard/${guildId}/admin/logs`,
             `/dashboard/${guildId}/reaction-roles`,
             `/dashboard/${guildId}/tickets`,
+            `/dashboard/${guildId}/sondages/programmes`,
             `/dashboard/${guildId}/admin/commandes`,
         ]
     };

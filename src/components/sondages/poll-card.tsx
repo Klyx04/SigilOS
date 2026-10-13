@@ -2,7 +2,9 @@
 
 import { cn } from "@/lib/utils";
 import { formatPollEnd } from "@/lib/poll-format";
-import { BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, MessageSquare, ChevronRight, Crown } from "lucide-react";
+import { SCHEDULED_POLL_TAG } from "@/lib/polls/scheduling";
+import { POLL_SCHEDULED_TAG } from "@/lib/polls/ui";
+import { BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, MessageSquare, ChevronRight, Crown, CalendarClock } from "lucide-react";
 import Link from "next/link";
 const POLL_CATEGORIES = ["SUGGESTION", "AMELIORATION", "EVENT", "MISSION", "AUTRE"] as const;
 type PollCategory = (typeof POLL_CATEGORIES)[number];
@@ -74,6 +76,8 @@ interface PollCardProps {
         outcome: string | null;
         options: PollOption[];
         _count: { options: number };
+        /** Publié automatiquement par le module staff « Sondages programmés ». */
+        isScheduled?: boolean;
     };
     guildId: string;
     index?: number;
@@ -111,6 +115,12 @@ export function PollCard({ poll, guildId }: PollCardProps) {
                         <div className="flex items-center gap-2.5">
                             <span className="text-lg">{cat.emoji}</span>
                             <span className={cn("text-caption font-black uppercase tracking-[0.2em]", cat.color)}>{cat.label}</span>
+                            {poll.isScheduled && (
+                                <span className={POLL_SCHEDULED_TAG}>
+                                    <CalendarClock className="w-3 h-3" />
+                                    {SCHEDULED_POLL_TAG}
+                                </span>
+                            )}
                         </div>
                         <div className="flex items-center gap-4">
                             {poll.allowMultipleVotes && (

@@ -3,9 +3,15 @@
 import { useState, useTransition, useCallback, useMemo, useRef, useEffect, memo } from "react";
 import { cn } from "@/lib/utils";
 import { formatPollEnd } from "@/lib/poll-format";
+import { type PollMember } from "@/lib/polls/participation";
+import {
+    POLL_MEMBER_ROW, POLL_SEGMENT_GROUP, POLL_SEGMENT_ITEM,
+    POLL_SEGMENT_ITEM_ACTIVE, POLL_SEGMENT_ITEM_IDLE,
+} from "@/lib/polls/ui";
 import {
     BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, ArrowLeft,
-    Crown, Trash2, AlertTriangle, Edit2, Megaphone, Send, Info, ExternalLink
+    Crown, Trash2, AlertTriangle, Edit2, Megaphone, Send, Info, ExternalLink,
+    Lightbulb, Wrench, PartyPopper, Target, Folder, UserX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -14,7 +20,6 @@ import { PollCreator } from "./poll-creator";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -22,34 +27,22 @@ import { Switch } from "@/components/ui/switch";
 type PollCategory = "SUGGESTION" | "AMELIORATION" | "EVENT" | "MISSION" | "AUTRE";
 type PollStatus = "DRAFT" | "ACTIVE" | "CLOSED" | "CANCELLED";
 
+/**
+ * Catégories : **libellé + icône + ton du thème**, jamais d'emoji picto (le module portait cinq
+ * placeholders `💡🔧🎉🎯📋`) et plus de champs morts (`gradient` / `glowColor` n'étaient lus nulle part).
+ */
 const CATEGORY_CONFIG: Record<string, {
-    label: string; emoji: string; color: string;
-    gradient: string; glowColor: string; barColor: string;
+    label: string; icon: React.ElementType; color: string; barColor: string;
 }> = {
-    SUGGESTION: { label: "Suggestion", emoji: "💡", color: "text-info", gradient: "from-info to-info", glowColor: "rgba(6,182,212,0.4)", barColor: "bg-info" },
-    AMELIORATION: { label: "Amélioration", emoji: "🔧", color: "text-success", gradient: "from-success to-success", glowColor: "rgba(16,185,129,0.4)", barColor: "bg-success" },
-    EVENT: { label: "Événement", emoji: "🎉", color: "text-warning", gradient: "from-warning to-warning", glowColor: "rgba(245,158,11,0.4)", barColor: "bg-warning" },
-    MISSION: { label: "Mission", emoji: "🎯", color: "text-danger", gradient: "from-danger to-danger", glowColor: "rgba(244,63,94,0.4)", barColor: "bg-danger" },
-    AUTRE: { label: "Autres", emoji: "📋", color: "text-info", gradient: "from-info to-info", glowColor: "rgba(99,102,241,0.4)", barColor: "bg-info" },
+    SUGGESTION: { label: "Suggestion", icon: Lightbulb, color: "text-info", barColor: "bg-info" },
+    AMELIORATION: { label: "Amélioration", icon: Wrench, color: "text-success", barColor: "bg-success" },
+    EVENT: { label: "Événement", icon: PartyPopper, color: "text-warning", barColor: "bg-warning" },
+    MISSION: { label: "Mission", icon: Target, color: "text-danger", barColor: "bg-danger" },
+    AUTRE: { label: "Autres", icon: Folder, color: "text-muted-foreground", barColor: "bg-muted-foreground" },
 };
 
-const AVATAR_PALETTES = [
-    "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30",
-    "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
-    "bg-amber-500/20 text-amber-400 border border-amber-500/30",
-    "bg-rose-500/20 text-rose-400 border border-rose-500/30",
-    "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30",
-    "bg-purple-500/20 text-purple-400 border border-purple-500/30",
-    "bg-teal-500/20 text-teal-400 border border-teal-500/30",
-];
-
-function getAvatarColor(name: string) {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return AVATAR_PALETTES[Math.abs(hash) % AVATAR_PALETTES.length];
-}
+/** Avatar de secours : un seul jeton neutre (sept familles de palette en dur auparavant, pour rien). */
+const AVATAR_FALLBACK = "border border-border bg-surface text-muted-foreground";
 
 interface PollVote {
     id: string;
@@ -90,6 +83,11 @@ interface PollDetailProps {
         options: PollOption[];
         userVotedOptionIds: string[];
         totalVotes: number;
+        /** Membres actifs n'ayant PAS voté (complément des votants). Vide / absent si anonyme. */
+        nonVoters?: PollMember[];
+        /** Nombre de votants distincts et de membres actifs (participation honnête). */
+        voterCount?: number;
+        memberCount?: number;
     };
     guildId: string;
     isAdmin: boolean;
@@ -100,6 +98,43 @@ interface PollDetailProps {
 
 function formatVoterDate(iso: string) {
     return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * Ligne de membre — **rendu unique** des deux listes (votants d'un choix, non-votants) :
+ * rayon court, tokens du thème, une seule source pour l'avatar de secours.
+ */
+function PollMemberRow({ name, image, meta }: { name: string; image?: string | null; meta?: string }) {
+    return (
+        <div className={POLL_MEMBER_ROW}>
+            <div className="flex items-center gap-3 min-w-0">
+                {image ? (
+                    <img
+                        src={image}
+                        alt=""
+                        width={32}
+                        height={32}
+                        loading="lazy"
+                        decoding="async"
+                        draggable={false}
+                        className="w-8 h-8 rounded-full object-cover border border-border shrink-0"
+                        onError={(e) => {
+                            (e.target as HTMLElement).style.display = "none";
+                        }}
+                    />
+                ) : (
+                    <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold uppercase shrink-0",
+                        AVATAR_FALLBACK
+                    )}>
+                        {name.charAt(0)}
+                    </div>
+                )}
+                <span className="text-sm text-foreground truncate">{name}</span>
+            </div>
+            {meta && <span className="text-xs text-muted-foreground shrink-0">{meta}</span>}
+        </div>
+    );
 }
 
 // ── Ligne d'option mémoïsée ──────────────────────────────────────────────
@@ -137,11 +172,11 @@ const PollOptionRow = memo(function PollOptionRow({
     return (
         <div
             className={cn(
-                "w-full rounded-2xl border transition-colors duration-200 overflow-hidden",
-                "bg-surface p-5 md:p-6 space-y-4",
+                "w-full rounded-lg border transition-colors duration-200 overflow-hidden",
+                "bg-surface p-4 md:p-5 space-y-3",
                 "[content-visibility:auto] [contain-intrinsic-size:auto_240px]",
                 isVoted
-                    ? "border-info/40 shadow-lg shadow-cyan-900/10 bg-info/[0.03]"
+                    ? "border-info/40 bg-info/[0.03]"
                     : "border-border hover:border-border-strong"
             )}
         >
@@ -150,25 +185,25 @@ const PollOptionRow = memo(function PollOptionRow({
                 <div className="flex items-center gap-3.5 flex-1 min-w-0">
                     {/* Emoji ou numéro */}
                     <div className={cn(
-                        "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border",
+                        "w-10 h-10 rounded-md flex items-center justify-center shrink-0 border",
                         isVoted
-                            ? "bg-info text-info-foreground border-info shadow-md shadow-cyan-500/20"
+                            ? "bg-info text-info-foreground border-info"
                             : "bg-surface border-border text-foreground"
                     )}>
                         {option.emoji ? (
                             <span className="text-xl">{option.emoji}</span>
                         ) : (
-                            <span className="text-base font-black">{index + 1}</span>
+                            <span className="text-sm font-semibold">{index + 1}</span>
                         )}
                     </div>
 
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-base md:text-lg font-black text-foreground break-words leading-snug">
+                            <h3 className="text-base font-semibold text-foreground break-words leading-snug">
                                 {option.label}
                             </h3>
                             {isWinning && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-warning/15 text-warning border border-warning/30 shadow-sm">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-warning/15 text-warning border border-warning/30">
                                     <Crown className="w-3 h-3 text-warning" />
                                     En tête
                                 </span>
@@ -182,7 +217,7 @@ const PollOptionRow = memo(function PollOptionRow({
                     <div className="text-left sm:text-right">
                         <div className="flex items-baseline sm:justify-end gap-1.5">
                             <span className={cn(
-                                "text-2xl font-black tabular-nums leading-none tracking-tight",
+                                "text-xl font-semibold tabular-nums leading-none",
                                 isWinning ? "text-warning" : "text-foreground"
                             )}>
                                 {Math.round(percent)}%
@@ -200,10 +235,10 @@ const PollOptionRow = memo(function PollOptionRow({
                                 onClick={() => onVote(option.id)}
                                 disabled={isPending}
                                 className={cn(
-                                    "h-10 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-colors duration-200 shadow-sm",
+                                    "h-9 px-4 rounded-md font-semibold text-xs transition-colors duration-200",
                                     isVoted
                                         ? "bg-success/15 hover:bg-danger/15 text-success hover:text-danger border border-success/30 hover:border-danger/30 group/votedbtn"
-                                        : "bg-info hover:bg-info/85 text-info-foreground shadow-cyan-900/10 active:scale-95"
+                                        : "bg-info hover:bg-info/85 text-info-foreground"
                                 )}
                             >
                                 {isVoted ? (
@@ -221,7 +256,7 @@ const PollOptionRow = memo(function PollOptionRow({
                                 )}
                             </Button>
                         ) : (
-                            <span className="text-[11px] font-bold text-muted-foreground uppercase px-3 py-1.5 rounded-xl bg-surface border border-border">
+                            <span className="text-[11px] font-medium text-muted-foreground px-3 py-1.5 rounded-md bg-surface border border-border">
                                 {isVoted ? "✓ Votre vote" : "Fermé"}
                             </span>
                         )}
@@ -232,39 +267,34 @@ const PollOptionRow = memo(function PollOptionRow({
             {/* Barre de progression : scaleX GPU, anneau sur le conteneur */}
             <div className="w-full space-y-1">
                 <div className={cn(
-                    "w-full h-3 rounded-full bg-surface border overflow-hidden",
+                    "w-full h-2 rounded-full bg-surface border overflow-hidden",
                     isWinning ? "border-warning/50" : "border-border/60"
                 )}>
                     <div
                         className={cn("h-full w-full origin-left rounded-full transition-transform duration-500 ease-out", barColor)}
                         style={{ transform: `scaleX(${percent / 100})` }}
-                    >
-                        {/* Reflet brillant doux */}
-                        <div className="h-full w-full bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
-                    </div>
+                    />
                 </div>
             </div>
 
             {/* Liste des votants : propre, avec bulle profil Discord + pseudo */}
             <div className="pt-2 border-t border-border/40">
                 {isAnonymous ? (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium italic">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Lock className="w-3.5 h-3.5" />
                         <span>Votes anonymes — les identités des votants sont masquées</span>
                     </div>
                 ) : option.votes.length === 0 ? (
-                    <span className="text-xs text-muted-foreground/60 italic font-medium">
-                        Aucun vote pour cette proposition pour l'instant
-                    </span>
+                    <span className="text-xs text-muted-foreground">Aucun vote pour cette proposition pour l&apos;instant</span>
                 ) : (
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground mr-1">
-                            Votants ({option.votes.length}) :
+                        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mr-1">
+                            Votants ({option.votes.length})
                         </span>
                         {option.votes.slice(0, 8).map((v) => (
                             <div
                                 key={v.id}
-                                className="inline-flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-surface border border-border hover:border-info/30 transition-colors shadow-sm group/voter"
+                                className="inline-flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-surface border border-border hover:border-info/30 transition-colors group/voter"
                                 title={`${v.voterName} (a voté le ${formatVoterDate(v.createdAt)})`}
                             >
                                 {v.voterImage ? (
@@ -283,8 +313,8 @@ const PollOptionRow = memo(function PollOptionRow({
                                     />
                                 ) : (
                                     <div className={cn(
-                                        "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black uppercase shrink-0",
-                                        getAvatarColor(v.voterName)
+                                        "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold uppercase shrink-0",
+                                        AVATAR_FALLBACK
                                     )}>
                                         {v.voterName.charAt(0)}
                                     </div>
@@ -299,52 +329,28 @@ const PollOptionRow = memo(function PollOptionRow({
                                 <DialogTrigger asChild>
                                     <button
                                         type="button"
-                                        className="text-xs font-black text-info hover:text-info hover:underline px-2.5 py-1 rounded-full bg-info/10 border border-info/25 cursor-pointer transition-colors hover:bg-info/15"
+                                        className="text-xs font-medium text-info hover:underline px-2.5 py-1 rounded-full bg-info/10 border border-info/25 cursor-pointer transition-colors hover:bg-info/20"
                                     >
-                                        +{option.votes.length - 8} autres...
+                                        +{option.votes.length - 8} autres
                                     </button>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-md bg-background border border-border rounded-2xl p-6">
+                                <DialogContent className="max-w-md">
                                     <DialogHeader>
-                                        <DialogTitle className="text-base font-black flex items-center gap-2">
-                                            <span>Votants pour &quot;{option.label}&quot;</span>
-                                            <span className="text-xs font-bold text-muted-foreground px-2.5 py-0.5 rounded-full bg-surface border border-border">
-                                                {option.votes.length}
-                                            </span>
+                                        <DialogTitle className="text-sm font-semibold">
+                                            Votants — {option.label}
                                         </DialogTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            {option.votes.length} membre{option.votes.length > 1 ? "s" : ""}
+                                        </p>
                                     </DialogHeader>
-                                    <div className="max-h-80 overflow-y-auto space-y-2 mt-4 pr-1 premium-scrollbar">
+                                    <div className="max-h-80 overflow-y-auto space-y-2 pr-1 premium-scrollbar">
                                         {option.votes.map((v) => (
-                                            <div
+                                            <PollMemberRow
                                                 key={v.id}
-                                                className="flex items-center justify-between p-2.5 rounded-xl bg-surface/50 border border-border hover:bg-surface transition-colors"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {v.voterImage ? (
-                                                        <img
-                                                            src={v.voterImage}
-                                                            alt={v.voterName}
-                                                            width={32}
-                                                            height={32}
-                                                            loading="lazy"
-                                                            decoding="async"
-                                                            draggable={false}
-                                                            className="w-8 h-8 rounded-full object-cover border border-border shrink-0"
-                                                        />
-                                                    ) : (
-                                                        <div className={cn(
-                                                            "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black uppercase shrink-0",
-                                                            getAvatarColor(v.voterName)
-                                                        )}>
-                                                            {v.voterName.charAt(0)}
-                                                        </div>
-                                                    )}
-                                                    <span className="text-sm font-bold text-foreground">{v.voterName}</span>
-                                                </div>
-                                                <span className="text-[11px] text-muted-foreground font-medium">
-                                                    {formatVoterDate(v.createdAt)}
-                                                </span>
-                                            </div>
+                                                name={v.voterName}
+                                                image={v.voterImage}
+                                                meta={formatVoterDate(v.createdAt)}
+                                            />
                                         ))}
                                     </div>
                                 </DialogContent>
@@ -380,39 +386,39 @@ function ClosePollDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
                 <Button
-                    className="h-14 px-8 rounded-2xl bg-success hover:bg-success text-success-foreground font-black uppercase tracking-widest text-caption shadow-lg shadow-emerald-900/20 gap-3"
+                    className="h-9 gap-2 rounded-md bg-success hover:bg-success/85 text-success-foreground text-xs font-semibold"
                 >
-                    <CheckCircle2 className="w-5 h-5" />
+                    <CheckCircle2 className="w-4 h-4" />
                     Clôturer avec décision
                 </Button>
             </DialogTrigger>
-            <DialogContent className="bg-background border-border max-w-xl p-8 rounded-[2rem]">
-                <DialogHeader className="mb-6">
-                    <DialogTitle className="flex items-center gap-4 text-success text-2xl font-black tracking-tighter">
-                        <Megaphone className="w-8 h-8" />
+            <DialogContent className="max-w-xl">
+                <DialogHeader className="mb-4">
+                    <DialogTitle className="flex items-center gap-3 text-success text-base font-semibold">
+                        <Megaphone className="w-4 h-4" />
                         Acter la décision
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-8">
-                    <div className="space-y-3">
-                        <Label className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Conclusion de la guilde</Label>
+                <div className="space-y-5">
+                    <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Conclusion de la guilde</Label>
                         <Textarea
                             placeholder="Ex: Suite aux votes, nous lançons l'extension du coffre dès demain !"
                             value={outcomeText}
                             onChange={(e) => setOutcomeText(e.target.value)}
-                            className="bg-surface/80 border-border focus:border-success/30 min-h-[160px] rounded-2xl p-4 text-foreground font-medium text-base resize-none"
+                            className="bg-surface border-border min-h-[140px] rounded-md p-3 text-sm resize-none"
                         />
                     </div>
 
-                    <div className="p-6 rounded-2xl bg-[#5865F2]/5 border border-[#5865F2]/10 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-[#5865F2]/20 p-3 rounded-xl">
-                                <Megaphone className="w-5 h-5 text-[#5865F2]" />
+                    <div className="p-4 rounded-md bg-[#5865F2]/5 border border-[#5865F2]/10 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-[#5865F2]/20 p-2 rounded-md">
+                                <Megaphone className="w-4 h-4 text-[#5865F2]" />
                             </div>
                             <div>
-                                <p className="text-sm font-black text-foreground uppercase tracking-tight">Annonce Discord</p>
-                                <p className="text-caption text-muted-foreground">Notifier tous les membres instantanément</p>
+                                <p className="text-sm font-medium text-foreground">Annonce Discord</p>
+                                <p className="text-xs text-muted-foreground">Notifier tous les membres instantanément</p>
                             </div>
                         </div>
                         <Switch
@@ -424,27 +430,27 @@ function ClosePollDialog({
                     </div>
 
                     {!isDiscordConfigured && (
-                        <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/5 border border-warning/10">
+                        <div className="flex items-start gap-3 p-3 rounded-md bg-warning/5 border border-warning/10">
                             <Info className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-                            <p className="text-caption font-bold text-warning/80 uppercase tracking-tight leading-relaxed">
+                            <p className="text-xs text-warning leading-relaxed">
                                 Le salon Discord pour les sondages n&apos;est pas configuré. L&apos;annonce ne sera pas envoyée.
                             </p>
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                         <Button
                             variant="outline"
                             onClick={() => onConfirm(undefined, notifyDiscord)}
                             disabled={isPending}
-                            className="h-14 rounded-2xl border-border text-muted-foreground hover:text-foreground uppercase font-black text-caption tracking-widest"
+                            className="h-9 rounded-md border-border text-muted-foreground hover:text-foreground text-xs font-medium"
                         >
                             Fermer sans texte
                         </Button>
                         <Button
                             onClick={() => onConfirm(outcomeText, notifyDiscord)}
                             disabled={isPending || !outcomeText.trim()}
-                            className="h-14 rounded-2xl bg-success hover:bg-success text-success-foreground shadow-xl shadow-emerald-950/40 uppercase font-black text-caption tracking-widest gap-2"
+                            className="h-9 gap-2 rounded-md bg-success hover:bg-success/85 text-success-foreground text-xs font-semibold"
                         >
                             {isPending ? "Publication..." : <>Valider <Send className="w-4 h-4" /></>}
                         </Button>
@@ -462,14 +468,28 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
     const [localTotalVotes, setLocalTotalVotes] = useState(poll.totalVotes);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showOutcomeModal, setShowOutcomeModal] = useState(false);
+    // Onglet de la section « Propositions et résultats » : les résultats par défaut, la
+    // participation (qui n'a pas voté) sur demande.
+    const [activeTab, setActiveTab] = useState<"results" | "absent">("results");
     const router = useRouter();
 
     const cat = CATEGORY_CONFIG[poll.category];
+    const CatIcon = cat.icon;
     const isActive = poll.status === "ACTIVE";
     // Fin de vote : une seule règle de formatage (date + heure + écart), valable aussi clôturé.
     const pollEnd = formatPollEnd(poll.expiresAt);
     const isCreator = currentProfileId === poll.creatorId;
     const canManage = isAdmin || isCreator;
+    // La liste des non-votants n'est publiée que pour un sondage **non anonyme** (`getPoll`) :
+    // sans elle, pas d'onglet — sinon il révélerait les votants par complément.
+    const hasParticipationTab = !poll.isAnonymous && Array.isArray(poll.nonVoters);
+    // Mon propre vote sort de la liste **instantanément**, sans attendre le refresh serveur.
+    const nonVoters = useMemo(
+        () => (poll.nonVoters ?? []).filter(
+            (member) => !(votedOptionIds.length > 0 && member.id === currentProfileId)
+        ),
+        [poll.nonVoters, votedOptionIds, currentProfileId]
+    );
     const maxVotes = useMemo(
         () => Math.max(...localOptions.map(o => o.voteCount), 1),
         [localOptions]
@@ -553,17 +573,14 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
     };
 
     return (
-        <TooltipProvider>
-        <div className="max-w-4xl mx-auto space-y-12">
-            {/* Back Hero */}
-            <div className="flex items-center justify-between px-2">
+        <div className="max-w-4xl mx-auto space-y-6">
+            {/* Retour + actions de gestion */}
+            <div className="flex items-center justify-between gap-4 flex-wrap px-2">
                 <Link
                     href={`/dashboard/${guildId}/sondages`}
-                    className="flex items-center gap-3 text-caption font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors group"
+                    className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
-                    <div className="h-8 w-8 rounded-full border border-border bg-surface/50 flex items-center justify-center group-hover:bg-surface transition-colors group-hover:-translate-x-1">
-                        <ArrowLeft className="h-4 w-4" />
-                    </div>
+                    <ArrowLeft className="h-4 w-4" />
                     Retour à la liste
                 </Link>
 
@@ -577,7 +594,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 gap-2 text-caption font-black uppercase tracking-widest text-muted-foreground hover:text-info hover:bg-info/5"
+                                    className="h-8 gap-2 text-xs font-medium text-muted-foreground hover:text-info hover:bg-info/5"
                                 >
                                     <Edit2 className="w-3 h-3" />
                                     Modifier
@@ -590,7 +607,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                             variant="ghost"
                             size="sm"
                             onClick={() => setShowDeleteConfirm(true)}
-                            className="h-8 gap-2 text-caption font-black uppercase tracking-widest text-muted-foreground hover:text-danger hover:bg-danger/5 underline decoration-red-500/30 decoration-dotted"
+                            className="h-8 gap-2 text-xs font-medium text-muted-foreground hover:text-danger hover:bg-danger/5"
                         >
                             <Trash2 className="w-3 h-3" />
                             Supprimer
@@ -603,16 +620,16 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
             {/* PERF : fond opaque, pas de backdrop-blur (recalculé à chaque frame
                 de scroll) ni de halo blur-[120px] décoratif. */}
             <div className="relative">
-                <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-surface shadow-xl">
-                    <div className="p-8 md:p-12 space-y-10">
+                <div className="relative overflow-hidden rounded-lg border border-border bg-surface">
+                    <div className="p-6 md:p-8 space-y-8">
                         {/* Status + Category Row */}
                         <div className="flex items-center justify-between flex-wrap gap-4">
                             <div className={cn(
-                                "flex items-center gap-3 px-4 py-2 rounded-2xl border text-caption font-black uppercase tracking-[0.15em]",
+                                "inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-caption font-medium uppercase tracking-wide",
                                 cat.color,
                                 "bg-surface border-border"
                             )}>
-                                <span className="text-sm">{cat.emoji}</span>
+                                <CatIcon className="w-3.5 h-3.5" />
                                 {cat.label}
                             </div>
 
@@ -635,7 +652,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                     </span>
                                 )}
                                 <div className={cn(
-                                    "px-5 py-2 rounded-lg text-caption font-black uppercase tracking-[0.2em]",
+                                    "px-3 py-1.5 rounded-md text-caption font-medium uppercase tracking-wide",
                                     isActive ? "bg-success/10 border border-success/20 text-success" :
                                         poll.status === "CLOSED" ? "bg-warning/10 border border-warning/20 text-warning" :
                                             "bg-danger/10 border border-danger/20 text-danger"
@@ -647,7 +664,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
                         {/* Title & Description */}
                         <div className="space-y-4">
-                            <h1 className="text-4xl md:text-5xl font-black text-foreground tracking-tighter leading-[0.95] max-w-2xl">
+                            <h1 className="text-2xl md:text-3xl font-semibold text-foreground tracking-tight max-w-2xl">
                                 {poll.title}
                             </h1>
                             {poll.description && (
@@ -660,53 +677,53 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                     href={poll.externalUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-elevated/60 text-foreground border border-border hover:bg-muted/60 hover:text-foreground hover:border-border-strong transition-colors group w-fit"
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium bg-surface text-foreground border border-border hover:border-border-strong transition-colors w-fit"
                                 >
-                                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-info transition-colors" />
+                                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                                     Source externe
-                                    <span className="text-muted-foreground group-hover:text-muted-foreground transition-colors normal-case font-medium truncate max-w-[200px]">
+                                    <span className="text-muted-foreground font-normal truncate max-w-[200px]">
                                         {(() => { try { return new URL(poll.externalUrl).hostname; } catch { return poll.externalUrl; } })()}
                                     </span>
                                 </a>
                             )}
                         </div>
 
-                        {/* Meta Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-4 border-t border-border">
+                        {/* Chiffres clés */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-border">
                             <div className="space-y-1">
-                                <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">Initiateur</p>
-                                <p className="text-sm text-foreground font-bold flex items-center gap-2 group cursor-default">
-                                    <span className="w-5 h-5 rounded-full bg-warning/10 flex items-center justify-center border border-warning/20">
-                                        <Crown className="w-3 h-3 text-warning" />
-                                    </span>
-                                    <span className="group-hover:text-info transition-colors">{poll.creatorName}</span>
+                                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Initiateur</p>
+                                <p className="text-sm text-foreground font-medium flex items-center gap-2">
+                                    <Crown className="w-3.5 h-3.5 text-warning" />
+                                    {poll.creatorName}
                                 </p>
                             </div>
                             <div className="space-y-1">
-                                <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">Date</p>
-                                <p className="text-sm text-foreground font-bold flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-muted-foreground" />
+                                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Date</p>
+                                <p className="text-sm text-foreground font-medium flex items-center gap-2">
+                                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                                     {new Date(poll.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
                                 </p>
                             </div>
                             <div className="space-y-1">
-                                <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">Participation</p>
-                                <p className="text-sm text-foreground font-bold flex items-center gap-2">
-                                    <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                                    {localTotalVotes} votant{localTotalVotes !== 1 ? "s" : ""}
+                                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Participation</p>
+                                <p className="text-sm text-foreground font-medium flex items-center gap-2">
+                                    <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
+                                    {hasParticipationTab
+                                        ? `${poll.voterCount ?? 0} / ${poll.memberCount ?? 0} membres`
+                                        : `${localTotalVotes} vote${localTotalVotes !== 1 ? "s" : ""}`}
                                 </p>
                             </div>
                             {/* Fin de vote : TOUJOURS affichée (date + heure), y compris clôturée —
                                 avant, le bloc disparaissait dès la clôture et n'affichait que l'heure. */}
                             {pollEnd && (
                                 <div className="space-y-1">
-                                    <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">
+                                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">
                                         Fin de vote
                                     </p>
-                                    <p className="text-sm text-foreground font-bold flex items-center gap-2 flex-wrap">
-                                        <Clock className="w-4 h-4 text-muted-foreground" />
+                                    <p className="text-sm text-foreground font-medium flex items-center gap-2 flex-wrap">
+                                        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                                         {pollEnd.absolute}
-                                        <span className="text-caption font-semibold text-muted-foreground">
+                                        <span className="text-xs text-muted-foreground">
                                             ({pollEnd.relative})
                                         </span>
                                     </p>
@@ -717,68 +734,102 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                 </div>
             </div>
 
-            {/* Outcome Display (Professional) */}
+            {/* Décision actée */}
             {poll.outcome && (
-                <div className="bg-success/5 border border-success/10 rounded-[2.5rem] p-8 md:p-12 relative overflow-hidden shadow-xl shadow-emerald-950/20 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none" aria-hidden="true">
-                        <CheckCircle2 className="w-32 h-32 text-success" />
-                    </div>
-
-                    <div className="max-w-3xl relative z-10">
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="bg-success/20 p-3 rounded-2xl border border-success/30">
-                                <Crown className="w-6 h-6 text-success" />
-                            </div>
-                            <div>
-                                <h4 className="text-success font-black tracking-widest text-caption uppercase">Décision Officielle</h4>
-                                <p className="text-muted-foreground text-caption font-bold uppercase tracking-tighter">Status: Clôturé avec succès</p>
-                            </div>
+                <div className="bg-success/5 border border-success/10 rounded-lg p-6 md:p-8">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Crown className="w-4 h-4 text-success shrink-0" />
+                        <div>
+                            <h4 className="text-success text-[11px] uppercase tracking-wide">Décision officielle</h4>
+                            <p className="text-muted-foreground text-xs">Sondage clôturé avec décision</p>
                         </div>
-                        <p className="text-foreground text-xl md:text-2xl leading-relaxed italic font-bold max-w-[90%] decoration-emerald-500/20 underline decoration-double underline-offset-8">
-                            &quot;{poll.outcome}&quot;
-                        </p>
                     </div>
+                    <p className="text-foreground text-base md:text-lg leading-relaxed max-w-3xl">
+                        {poll.outcome}
+                    </p>
                 </div>
             )}
 
-            {/* Voting Section */}
-            <div className="grid grid-cols-1 gap-4">
-                <div className="flex items-center justify-between mb-2 px-2">
-                    <h2 className="text-caption font-black uppercase tracking-widest text-muted-foreground">Propositions et résultats</h2>
+            {/* Propositions et résultats, ou participation */}
+            <div className="grid grid-cols-1 gap-3">
+                <div className="flex items-center justify-between gap-4 flex-wrap px-2">
+                    <h2 className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Propositions et résultats</h2>
                     {isActive && (
                         <span className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-info motion-safe:animate-pulse" />
-                            <span className="text-caption font-bold text-info uppercase tracking-widest">Votes ouverts</span>
+                            <span className="w-2 h-2 rounded-full bg-info" />
+                            <span className="text-caption font-medium text-info">Votes ouverts</span>
                         </span>
                     )}
                 </div>
 
-                <div className="space-y-4">
-                    {localOptions.map((option, i) => (
-                        <PollOptionRow
-                            key={option.id}
-                            option={option}
-                            index={i}
-                            totalVotes={localTotalVotes}
-                            maxVotes={maxVotes}
-                            isVoted={votedOptionIds.includes(option.id)}
-                            isActive={isActive}
-                            isPending={isPending}
-                            isAnonymous={poll.isAnonymous}
-                            barColor={cat.barColor}
-                            onVote={handleVote}
-                        />
-                    ))}
-                </div>
+                {/* Bascule résultats / non-votants : la seconde liste est le COMPLÉMENT de la première
+                    et n'existe que si le serveur la publie (jamais sur un sondage anonyme). */}
+                {hasParticipationTab && (
+                    <div className={POLL_SEGMENT_GROUP} role="group" aria-label="Participation au sondage">
+                        <button
+                            type="button"
+                            aria-pressed={activeTab === "results"}
+                            onClick={() => setActiveTab("results")}
+                            className={cn(POLL_SEGMENT_ITEM, activeTab === "results" ? POLL_SEGMENT_ITEM_ACTIVE : POLL_SEGMENT_ITEM_IDLE)}
+                        >
+                            <BarChart3 className="w-3.5 h-3.5" />
+                            Résultats ({localOptions.length})
+                        </button>
+                        <button
+                            type="button"
+                            aria-pressed={activeTab === "absent"}
+                            onClick={() => setActiveTab("absent")}
+                            className={cn(POLL_SEGMENT_ITEM, activeTab === "absent" ? POLL_SEGMENT_ITEM_ACTIVE : POLL_SEGMENT_ITEM_IDLE)}
+                        >
+                            <UserX className="w-3.5 h-3.5" />
+                            {"N'ont pas voté"} ({nonVoters.length})
+                        </button>
+                    </div>
+                )}
+
+                {activeTab === "absent" && hasParticipationTab ? (
+                    <div className="space-y-2">
+                        <p className="px-2 text-xs text-muted-foreground">
+                            {nonVoters.length === 0
+                                ? "Tout le monde a voté."
+                                : `${nonVoters.length} membre${nonVoters.length > 1 ? "s" : ""} sur ${poll.memberCount ?? nonVoters.length} n'ont pas encore voté.`}
+                        </p>
+                        {nonVoters.length > 0 && (
+                            <div className="max-h-[28rem] overflow-y-auto space-y-2 pr-1 premium-scrollbar">
+                                {nonVoters.map((member) => (
+                                    <PollMemberRow key={member.id} name={member.name} image={member.image} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {localOptions.map((option, i) => (
+                            <PollOptionRow
+                                key={option.id}
+                                option={option}
+                                index={i}
+                                totalVotes={localTotalVotes}
+                                maxVotes={maxVotes}
+                                isVoted={votedOptionIds.includes(option.id)}
+                                isActive={isActive}
+                                isPending={isPending}
+                                isAnonymous={poll.isAnonymous}
+                                barColor={cat.barColor}
+                                onVote={handleVote}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
 
-            {/* Footer Admin Actions */}
+            {/* Fin de consultation (gestion) */}
             {canManage && isActive && (
-                <div className="pt-12 border-t border-border">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 bg-surface/40 p-10 rounded-[2.5rem] border border-border">
-                        <div className="space-y-2 text-center sm:text-left">
-                            <h3 className="text-foreground font-black text-xl tracking-tight">Fin de consultation ?</h3>
-                            <p className="text-muted-foreground text-caption font-medium max-w-xs">
+                <div className="pt-8 border-t border-border">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 bg-surface/40 p-6 rounded-lg border border-border">
+                        <div className="space-y-1 text-center sm:text-left">
+                            <h3 className="text-foreground font-semibold text-base">Fin de consultation ?</h3>
+                            <p className="text-muted-foreground text-xs max-w-xs">
                                 Clôturez le sondage pour valider une décision officielle et notifier les membres sur Discord.
                             </p>
                         </div>
@@ -798,26 +849,26 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
             {/* Delete Confirmation */}
             <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-                <DialogContent className="bg-background border-border max-w-md rounded-[2rem]">
+                <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-3 text-danger font-black text-xl">
-                            <AlertTriangle className="w-6 h-6" />
-                            Suppression Définitive
+                        <DialogTitle className="flex items-center gap-3 text-danger text-base font-semibold">
+                            <AlertTriangle className="w-4 h-4" />
+                            Suppression définitive
                         </DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-6 pt-4">
-                        <p className="text-muted-foreground text-sm leading-relaxed font-medium">
+                    <div className="space-y-4 pt-2">
+                        <p className="text-muted-foreground text-sm leading-relaxed">
                             Vous êtes sur le point de supprimer <span className="text-foreground font-bold">&quot;{poll.title}&quot;</span>.
                             Cette action effacera également les votes et l&apos;embed Discord associé.
                         </p>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} className="h-12 rounded-xl text-muted-foreground hover:text-foreground uppercase font-black text-caption tracking-widest">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} className="h-9 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground">
                                 Annuler
                             </Button>
                             <Button
                                 onClick={handleDelete}
                                 disabled={isPending}
-                                className="h-12 rounded-xl bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20 uppercase font-black text-caption tracking-widest"
+                                className="h-9 rounded-md border border-danger/20 bg-danger/10 text-xs font-medium text-danger hover:bg-danger/20"
                             >
                                 {isPending ? "..." : "Confirmer"}
                             </Button>
@@ -826,6 +877,5 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                 </DialogContent>
             </Dialog>
         </div>
-        </TooltipProvider>
     );
 }

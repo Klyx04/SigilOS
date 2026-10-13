@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 🐞 Session 13/10/2026 (suite 6) — **Sondages : onglet « N'ont pas voté » + fiche désloppée** — branche `feat/sondages-participation-deslop`
+> **Demande user (verbatim)** : « Ajoute un détail juste côté dashboard dans le vote, un onglet pour avoir la liste de tous ceux qui n'ont pas voté » puis « deslop » (capture de la modale « Votants pour … »).
+> **Mesure** : la fiche n'exposait que les **votants** ⇒ impossible de relancer les absents ; la modale portait compteur en pastille, `rounded-2xl`, `shadow-*`, `font-black`/`tracking-widest`, 7 familles de palette en dur (`getAvatarColor`) ; `CATEGORY_CONFIG` gardait 2 champs morts et 5 emoji pictos ; `TooltipProvider` vide sur la fiche.
+> **Fait** : règle pure `src/lib/polls/participation.ts` (`computeNonVoters`, `pollMemberName`) · `getPoll` publie `nonVoters`/`voterCount`/`memberCount` (membres ACTIFS de la guilde, **jamais** sur un sondage anonyme) · onglet **Résultats / « N'ont pas voté (N) »** via `src/lib/polls/ui.ts` + participation « X / Y membres » · déslop complet de `poll-detail.tsx` (rayons ≤ 8 px, zéro ombre/palette/animation, emoji → icônes, une seule ligne de membre).
+> **Preuves** : `tests/unit/sondages-non-votants.test.ts` (22 cas) · `tsc` **0** · `lint` **0 erreur** · **360 fichiers / 3 898 tests ✓**.
+> **Reste / ops (humain)** : contrôle visuel bêta (onglet sur non-anonyme, absent sur anonyme) · `poll-list.tsx` (liste + archives) à déslopper (chantier dédié) · rotation d'`activeContext.md` toujours **non tranchée** (les blocs sortis restent dans `git log`).
+
+
 ## 🐞 Session 13/10/2026 (suite 5) — **Sondages : « choix multiple », « en direct », fin de vote** (règle unique `formatPollEnd`) — branche `fix/sondages-fin-de-vote`
 > **Retour user (verbatim)** : « réapplique ça dans les sondages stp on le vois plus dans l'embed » (capture de l'embed Discord) puis « indique choix multiple et … en direct, date de fin ».
 > **Mesure** : l'embed Discord avait **déjà** « 📊 Choix : », « ⏰ Expire — <t:…:R> » et « ✅ Votes multiples / 👆 Vote unique » ⇒ le manque était **dans l'app** : réglages du vote **en infobulle**, fin de vote **seulement si actif** et **sans date**, relatif recopié **4 fois**.

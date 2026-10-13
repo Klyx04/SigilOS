@@ -33,6 +33,23 @@ export const MAX_HORIZON_DAYS = 30;
 export const MIN_DURATION_HOURS = 1;
 export const MAX_DURATION_HOURS = 720;
 
+/**
+ * Durées de vote **proposées** dans les deux modales de création (sondage
+ * classique et sondage programmé) : la question « combien de temps le vote reste
+ * ouvert » se répond d'un clic, jamais dans un champ libre à remplir.
+ *
+ * Les quatre valeurs restent dans `MIN_DURATION_HOURS`..`MAX_DURATION_HOURS`
+ * (un preset hors bornes serait un bug affiché, pas une décision) : le verrou de
+ * test le vérifie, comme il vérifie que les deux modales tirent leurs durées
+ * d'ici — une seule source.
+ */
+export const DURATION_PRESETS = [
+    { hours: 24, label: "24h", emoji: "⏳" },
+    { hours: 48, label: "48h", emoji: "⌛" },
+    { hours: 168, label: "7j", emoji: "📅" },
+    { hours: 720, label: "30j", emoji: "📆" },
+] as const;
+
 /** Libellé unique du tag, partagé par la carte, la fiche et l'embed Discord. */
 export const SCHEDULED_POLL_TAG = "Sondage programmé";
 
@@ -127,6 +144,32 @@ export function resolveDurationHours(
     if (candidate === null || candidate === undefined) return null;
     if (!Number.isFinite(candidate)) return null;
     return Math.min(MAX_DURATION_HOURS, Math.max(MIN_DURATION_HOURS, Math.round(candidate)));
+}
+
+export interface DurationChoice {
+    hours: number;
+    label: string;
+    emoji: string;
+}
+
+/**
+ * Choix affichés sous le réglage « Expiration » : les presets, **plus la valeur
+ * courante** quand elle n'en fait pas partie.
+ *
+ * Pourquoi : la durée par défaut de la guilde (ou celle d'un créneau déjà
+ * enregistré) est libre — elle peut valoir 12 h. Sans cette ligne, l'écran
+ * afficherait « expiration activée » sans aucun choix surligné : on croirait
+ * qu'aucune durée n'est posée alors que le serveur en applique une. On ne
+ * remplace **jamais** une valeur par un preset — on la montre. La valeur
+ * affichée passe par `resolveDurationHours` : jamais hors bornes, jamais un
+ * libellé inventé (`12.4 h`).
+ */
+export function durationChoices(currentHours?: number | null): DurationChoice[] {
+    const presets: DurationChoice[] = DURATION_PRESETS.map((preset) => ({ ...preset }));
+    const current = resolveDurationHours(currentHours, null);
+    if (current === null || presets.some((preset) => preset.hours === current)) return presets;
+    return [...presets, { hours: current, label: `${current}h`, emoji: "⏱️" }]
+        .sort((a, b) => a.hours - b.hours);
 }
 
 /** Un créneau est-il encore « en attente » (il occupe une place) ? */

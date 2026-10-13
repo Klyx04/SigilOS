@@ -60,6 +60,15 @@ export const POLL_SLOT_COUNTER = "text-caption uppercase tracking-wider text-mut
 export const POLL_FILTER_CONTROL =
     "h-9 rounded-lg border border-border bg-surface/60 px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-info/50";
 
+/**
+ * Menu déroulant d'un contrôle du **filtre de participation** : mêmes tokens que
+ * le contrôle (`surface`, filet, rayon court), ouvert par l'application — jamais
+ * la liste native du système, qui ignore le thème, affiche les libellés à sa
+ * façon et ne permet pas de chercher dans une vingtaine de rôles.
+ */
+export const POLL_FILTER_MENU =
+    "w-[17rem] max-w-[calc(100vw-2rem)] p-0 bg-surface border-border rounded-lg overflow-hidden";
+
 /** Libellés des catégories de sondage (source unique côté UI) : les catégories
  * vivent en base sous forme d'enum (`PollCategory`), l'écran n'a jamais à
  * réinventer le mot affiché.

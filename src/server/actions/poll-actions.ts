@@ -16,6 +16,7 @@ import { createAuditLog } from "@/server/actions/audit-actions";
 import { getGameDisplayName } from "@/lib/display-name";
 import { sanitizeHtml, sanitizeName } from "@/lib/security";
 import { rateLimit } from "@/lib/ratelimit";
+import { computeNonVoters, type PollMember } from "@/lib/polls/participation";
 
 // Durée max d'un sondage : 30 jours (au-delà, valeur plafonnée côté serveur).
 // Un sondage « sans date » (expiresAt null) est fermé automatiquement par le cron close-old-polls après 30 jours.
@@ -425,6 +426,49 @@ export async function getPoll(
                 .map((o: any) => o.id)
             : [];
 
+        // Onglet « N'ont pas voté » : membres ACTIFS de la guilde privés des votants (règle pure
+        // `computeNonVoters`). Une seule requête de votants, `distinct` sur le profil : en choix
+        // multiple un votant laisse plusieurs lignes, qui ne doivent pas devenir « plusieurs votants ».
+        // 🔒 Cloisonnement : les membres sont lus avec `poll.guildId` (le sondage a déjà été vérifié
+        //    comme appartenant à la guilde plus haut) — jamais un identifiant venu du client.
+        // 🔒 Jamais sur un sondage anonyme : la liste des non-votants révélerait les votants par
+        //    complément, alors que leurs identités sont masquées partout ailleurs dans ce cas.
+        let nonVoters: PollMember[] = [];
+        let voterCount = 0;
+        let memberCount = 0;
+        if (!poll.isAnonymous) {
+            const [votes, members] = await Promise.all([
+                db.pollVote.findMany({
+                    where: { option: { pollId } },
+                    select: { voterId: true },
+                    distinct: ["voterId"],
+                }),
+                db.userProfile.findMany({
+                    where: { guildId: poll.guildId, status: "ACTIVE" },
+                    select: {
+                        id: true,
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: { select: { name: true, image: true } },
+                    },
+                }),
+            ]);
+
+            const voterProfileIds = votes.map((vote) => vote.voterId);
+            voterCount = new Set(voterProfileIds).size;
+            memberCount = members.length;
+            nonVoters = computeNonVoters(
+                members.map((member) => ({
+                    id: member.id,
+                    pseudoDofus: member.pseudoDofus,
+                    discordNickname: member.discordNickname,
+                    userName: member.user?.name ?? null,
+                    image: member.user?.image ?? null,
+                })),
+                voterProfileIds
+            );
+        }
+
         // If anonymous, strip voter info
         const sanitizedPoll = {
             ...poll,
@@ -443,6 +487,9 @@ export async function getPoll(
             })),
             userVotedOptionIds,
             totalVotes: poll.options.reduce((sum: number, o: any) => sum + o._count.votes, 0),
+            nonVoters,
+            voterCount,
+            memberCount,
         };
 
         return { success: true, data: JSON.parse(JSON.stringify(sanitizedPoll, (_, v) => typeof v === 'bigint' ? v.toString() : v)) };

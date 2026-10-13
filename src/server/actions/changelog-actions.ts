@@ -18,6 +18,7 @@ import { ChangelogCategory } from '@prisma/client';
 import { getAppBaseUrl } from '@/lib/utils';
 import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/types';
 import { getServerLocale } from '@/lib/i18n/server';
+import { sanitizeHtml } from '@/lib/security';
 import {
     CHANGELOG_CATEGORY_LABELS,
     CHANGELOG_CATEGORY_EMOJI,
@@ -629,14 +630,23 @@ export async function sendSentryTestEvent() {
 }
 /**
  * Texte brut d'un résumé HTML (les embeds Discord ne rendent pas le HTML).
+ *
+ * Sécurité : on passe par l'assainisseur **unique** du dépôt (`sanitizeHtml` → DOMPurify) avant la
+ * mise à plat, et le retrait des balises est **répété jusqu'à stabilité** : un seul passage de
+ * `/<[^>]*>/g` peut laisser « <script> » derrière lui (alerte CodeQL « incomplete multi-character
+ * sanitization » — corrigée le 13/10/2026 sur la PR du module docs).
  */
 function changelogSummaryText(summary: string | null): string {
-    const text = (summary ?? "")
-        .replace(/<[^>]*>/g, "")
-        .replace(/&nbsp;/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-    return text || "_Améliorations et corrections de bugs._";
+    const safe = sanitizeHtml(summary ?? "", 2000, true) ?? "";
+    let text = safe;
+    for (let previous = ""; previous !== text; ) {
+        previous = text;
+        text = text.replace(/<[^>]*>/g, "");
+    }
+    return (
+        text.replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim() ||
+        "_Améliorations et corrections de bugs._"
+    );
 }
 
 /**

@@ -15,9 +15,6 @@
 -- CreateEnum
 CREATE TYPE "ScheduledPollStatus" AS ENUM ('SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'CANCELLED', 'FAILED');
 
--- CreateEnum
-CREATE TYPE "ScheduledRepeatUnit" AS ENUM ('DAYS', 'WEEKS', 'MONTHS');
-
 -- AlterTable
 ALTER TABLE "GuildConfig" ADD COLUMN IF NOT EXISTS     "scheduledPollsChannelId" TEXT,
 ADD COLUMN IF NOT EXISTS     "scheduledPollsDurationH" INTEGER,
@@ -43,9 +40,6 @@ CREATE TABLE "ScheduledPoll" (
     "externalUrl" TEXT,
     "scheduledAt" TIMESTAMP(3) NOT NULL,
     "durationHours" INTEGER,
-    "repeatEvery" INTEGER,
-    "repeatUnit" "ScheduledRepeatUnit",
-    "repeatUntil" TIMESTAMP(3),
     "discordChannelId" TEXT,
     "mentionEveryone" BOOLEAN NOT NULL DEFAULT false,
     "mentionRoleId" TEXT,

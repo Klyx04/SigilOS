@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -149,21 +149,21 @@ export function RunCandidacyBox({
     if (!pendingRequest && !canApplyConditions) return null;
 
     return (
-        <div className="rounded-xl bg-gradient-to-b from-[#1a0933] to-[#0d0520] border border-purple-500/30 p-4 shadow-lg shadow-purple-900/10">
+        <div className="rounded-lg bg-background border border-info/40 p-4 shadow-purple-900/10">
             {pendingRequest ? (
                 <div className="flex flex-col gap-3 items-center text-center">
-                    <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/30 animate-pulse">
-                        <Clock className="w-6 h-6 text-amber-400" />
+                    <div className="w-12 h-12 rounded-full bg-warning/15 flex items-center justify-center border border-warning/40">
+                        <Clock className="w-6 h-6 text-warning" />
                     </div>
                     <div>
-                        <h4 className="font-bold text-amber-400">Candidature en attente</h4>
-                        <p className="text-xs text-purple-200/70 mt-1">Le meneur de la run a été notifié.</p>
+                        <h4 className="font-bold text-warning">Candidature en attente</h4>
+                        <p className="text-xs text-info mt-1">Le meneur de la run a été notifié.</p>
                     </div>
                     <Button
                         size="sm"
                         onClick={handleCancelRequest}
                         disabled={isPending}
-                        className="w-full bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 mt-2"
+                        className="w-full bg-warning/15 hover:bg-warning/15 text-warning mt-2"
                     >
                         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4 mr-2" />}
                         Annuler la candidature
@@ -172,25 +172,25 @@ export function RunCandidacyBox({
             ) : canApply ? (
                 <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button className="w-full bg-green-600 hover:bg-green-500 text-foreground font-bold h-14 text-lg ">
+                        <Button className="w-full bg-success/15 hover:bg-success/15 text-foreground font-bold h-14 text-lg">
                             <UserPlus className="w-5 h-5 mr-3" />
                             Postuler à cette Run
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-[#1a0933] border-purple-500/30 text-foreground w-[90vw] max-w-[425px] rounded-xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
+                    <DialogContent className="bg-surface border-info/40 text-foreground w-[90vw] max-w-[425px] rounded-lg max-h-[85vh] overflow-y-auto overflow-x-hidden">
                         <DialogHeader>
                             <DialogTitle>Candidature Run Songes</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 pt-4">
                             <div className="space-y-2">
-                                <Label className="text-purple-200">Classe</Label>
+                                <Label className="text-info">Classe</Label>
                                 <Select value={selectedClasse} onValueChange={(v) => setSelectedClasse(v as DofusClass)}>
-                                    <SelectTrigger className="bg-purple-900/30 border-purple-500/30 w-full">
+                                    <SelectTrigger className="bg-info/10 border-info/40 w-full">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-[#1a0933] border-purple-500/30">
+                                    <SelectContent className="bg-surface border-info/40">
                                         {DOFUS_CLASSES.map((classe) => (
-                                            <SelectItem key={classe} value={classe} className="text-foreground focus:bg-purple-700/50 text-left">
+                                            <SelectItem key={classe} value={classe} className="text-foreground focus:bg-info/10 text-left">
                                                 <div className="flex items-center">
                                                     <ClassIcon classId={classe} size={20} className="mr-2" />
                                                     {classe}
@@ -201,7 +201,7 @@ export function RunCandidacyBox({
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-purple-200">Message (optionnel)</Label>
+                                <Label className="text-info">Message (optionnel)</Label>
                                 <Textarea
                                     placeholder="Ex: Cra opti dispo 21h"
                                     value={message}
@@ -210,20 +210,20 @@ export function RunCandidacyBox({
                                 />
                             </div>
 
-                            <div className="space-y-4 border-t border-purple-500/20 pt-4">
-                                <Label className="text-purple-200 flex items-center gap-2">
+                            <div className="space-y-4 border-t border-info/40 pt-4">
+                                <Label className="text-info flex items-center gap-2">
                                     🛡️ Relier un Stuff (Optionnel)
                                 </Label>
                                 
                                 <div className="space-y-2">
                                     <Select value={selectedStuffId} onValueChange={setSelectedStuffId}>
-                                        <SelectTrigger className="bg-purple-900/30 border-purple-500/30 w-full">
+                                        <SelectTrigger className="bg-info/10 border-info/40 w-full">
                                             <SelectValue placeholder="Choisir un stuff..." />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-[#1a0933] border-purple-500/30">
+                                        <SelectContent className="bg-surface border-info/40">
                                             <SelectItem value="none" className="text-muted-foreground italic">Aucun stuff</SelectItem>
                                             {stuffs.map((stuff) => (
-                                                <SelectItem key={stuff.id} value={stuff.id} className="text-foreground focus:bg-purple-700/50">
+                                                <SelectItem key={stuff.id} value={stuff.id} className="text-foreground focus:bg-info/10">
                                                     <div className="flex items-center gap-2">
                                                         {stuff.previewData?.thumbnail && (
                                                             <img src={stuff.previewData.thumbnail} className="w-6 h-6 rounded object-cover border border-border" alt="" />
@@ -237,27 +237,27 @@ export function RunCandidacyBox({
                                 </div>
 
                                 {selectedStuffId !== "none" && (
-                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
-                                        <Label className="text-xs text-purple-300/70">Nom personnalisé (optionnel)</Label>
+                                    <div className="space-y-2 duration-300">
+                                        <Label className="text-xs text-info">Nom personnalisé (optionnel)</Label>
                                         <input
                                             type="text"
                                             placeholder="Ex: Stuff Eau/Air Distant"
                                             value={customStuffName}
                                             onChange={(e) => setCustomStuffName(e.target.value)}
-                                            className="w-full bg-purple-900/30 border border-purple-500/30 rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                            className="w-full bg-info/10 border border-info/40 rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-info/40"
                                         />
                                     </div>
                                 )}
                             </div>
 
-                            <Button onClick={handleSendJoinRequest} disabled={loading} className="w-full bg-green-600 hover:bg-green-500 h-10 mt-2">
+                            <Button onClick={handleSendJoinRequest} disabled={loading} className="w-full bg-success/15 hover:bg-success/15 h-10 mt-2">
                                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Envoyer ma candidature"}
                             </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
             ) : canApplyConditions && !canJoinSonges ? (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm text-center">
+                <div className="p-3 rounded-lg bg-danger/15 border border-danger/40 text-danger text-sm text-center">
                     Vous n'avez pas la permission de candidater dans les Songes.
                 </div>
             ) : null}

@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState } from "react";
 import { GlassPanel } from "@/components/ui/glass-panel";
@@ -78,7 +78,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                         e.stopPropagation();
                         setIsModalOpen(true);
                     }}
-                    className="h-8 w-8 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                    className="h-8 w-8 text-info hover:text-info hover:bg-info/15"
                     title="Envoyer un rappel aux membres"
                 >
                     <Bell className="h-4 w-4" />
@@ -96,10 +96,10 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
 
     return (
         <>
-            <GlassPanel className="p-4 border-purple-500/20 bg-purple-500/10 dark:bg-purple-500/5">
+            <GlassPanel className="p-4 border-info/40 bg-info/15 dark:bg-info/15">
                 <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300 font-semibold mb-1">
-                        <Bell className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <div className="flex items-center gap-2 text-info dark:text-info font-semibold mb-1">
+                        <Bell className="w-4 h-4 text-info dark:text-info" />
                         <span>Gestion Leader</span>
                     </div>
 
@@ -112,7 +112,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                     <Button
                         onClick={() => setIsModalOpen(true)}
                         variant="outline"
-                        className="w-full border-purple-500/30 hover:bg-purple-500/10 text-purple-700 dark:text-purple-200 font-bold gap-2"
+                        className="w-full border-info/40 hover:bg-info/15 text-info dark:text-info font-bold gap-2"
                     >
                         <Send className="w-4 h-4" />
                         Envoyer un rappel
@@ -129,7 +129,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogContent className="sm:max-w-[425px] bg-background border-border text-foreground" onClick={(e) => e.stopPropagation()}>
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-purple-400">
+                        <DialogTitle className="flex items-center gap-2 text-info">
                             <Bell className="w-5 h-5" />
                             Planifier un rappel
                         </DialogTitle>
@@ -141,10 +141,10 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                     </DialogHeader>
 
                     {!isDiscordConfigured && (
-                        <div className="mx-0 mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5">
-                            <Bell className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                            <div className="text-caption text-amber-200/80 leading-relaxed font-medium">
-                                <span className="text-amber-500 font-bold block mb-0.5">Configuration Discord absente</span>
+                        <div className="mx-0 mt-2 px-3 py-2 bg-warning/15 border border-warning/40 rounded-lg flex items-start gap-2.5">
+                            <Bell className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                            <div className="text-caption text-warning leading-relaxed font-medium">
+                                <span className="text-warning font-bold block mb-0.5">Configuration Discord absente</span>
                                 Le salon de notification des Songes n&apos;est pas configuré. Seule la notification interne SigilOS sera envoyée.
                             </div>
                         </div>
@@ -152,18 +152,18 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
 
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
-                            <label className="text-xs font-medium text-purple-300/80 uppercase tracking-wider">Message</label>
+                            <label className="text-xs font-medium text-info uppercase tracking-wider">Message</label>
                             <Textarea
                                 placeholder="Ex: On commence dans 15 minutes, tout le monde en jeu !"
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
-                                className="bg-surface border-border focus:border-purple-500/50 min-h-[80px] text-sm"
+                                className="bg-surface border-border focus:border-info/40 min-h-[80px] text-sm"
                             />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-purple-300/80 uppercase tracking-wider">Date</label>
+                                <label className="text-xs font-medium text-info uppercase tracking-wider">Date</label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button
@@ -177,7 +177,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                                             {date ? format(date, "PPP", { locale: fr }) : <span>Choisir</span>}
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-black border-border z-[200]">
+                                    <PopoverContent className="w-auto p-0 bg-background border-border z-[200]">
                                         <Calendar
                                             mode="single"
                                             selected={date}
@@ -190,7 +190,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-purple-300/80 uppercase tracking-wider">Heure</label>
+                                <label className="text-xs font-medium text-info uppercase tracking-wider">Heure</label>
                                 <div className="relative">
                                     <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                     <Input
@@ -215,7 +215,7 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                         <Button
                             onClick={handleSendReminder}
                             disabled={loading}
-                            className="bg-purple-600 hover:bg-purple-500 text-foreground min-w-[120px]"
+                            className="bg-info/15 hover:bg-info/15 text-foreground min-w-[120px]"
                         >
                             {loading ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />

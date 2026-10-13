@@ -124,7 +124,7 @@ const eslintConfig = defineConfig([
       "sigil/no-hardcoded-colors": ["warn", {
         allowFiles: [
           // dark-locked (Phase 2C) — modules volontairement sombres
-          "songes", "worldmap", "ocre-filter-bar",
+          "worldmap", "ocre-filter-bar",
           // guides / Rush / géoguesseur — surfaces legacy en cours de reprise (chantiers dédiés)
           "guide", "rush", "geoguesser",
           // God — console admin dark legacy : chantier dédié (93 fichiers, ~3 500 couleurs)

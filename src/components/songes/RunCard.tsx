@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState, useEffect, useTransition } from "react";
 import Image from "next/image";
@@ -204,12 +204,12 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     }
 
     return (
-        <div className="group relative overflow-hidden rounded-2xl bg-surface/90 border border-border p-6 transition-colors duration-200 hover:border-border-strong shadow-sm">
+        <div className="group relative overflow-hidden rounded-lg bg-surface border border-border p-6 transition-colors duration-200 hover:border-border-strong">
 
             {/* --- HEADER --- */}
             <div className="relative z-10 flex justify-between items-start gap-4 mb-6">
                 <div className="flex items-center gap-4 min-w-0">
-                    <div className="relative w-12 h-12 shrink-0 bg-elevated rounded-xl border border-border p-2 flex items-center justify-center overflow-hidden shadow-xs">
+                    <div className="relative w-12 h-12 shrink-0 bg-elevated rounded-lg border border-border p-2 flex items-center justify-center overflow-hidden">
                         <Image
                             src={`/assets/missions/${
                                 run.difficulty?.toLowerCase()
@@ -226,7 +226,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </div>
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <h3 className="text-xl font-black uppercase tracking-tight text-foreground leading-none truncate">{difficulty?.label || run.difficulty}</h3>
+                            <h3 className="text-xl font-semibold uppercase tracking-tight text-foreground leading-none truncate">{difficulty?.label || run.difficulty}</h3>
                             <div className="px-2 py-0.5 rounded-md bg-elevated border border-border">
                                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{objective?.label}</span>
                             </div>
@@ -248,10 +248,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
             {/* --- ÉPREUVE BOX --- */}
             {epreuve && (
-                <div className="relative z-10 p-4 rounded-2xl border border-border bg-elevated/70 mb-5">
+                <div className="relative z-10 p-4 rounded-lg border border-border bg-elevated/70 mb-5">
                     <div className="flex items-center gap-2 mb-1.5">
                         <SongesPicto asset={epreuve.asset} size={20} title={epreuve.label} />
-                        <span className="text-caption font-black uppercase tracking-widest" style={{ color: epreuve.color }}>{epreuve.label}</span>
+                        <span className="text-caption font-semibold uppercase tracking-wider" style={{ color: epreuve.color }}>{epreuve.label}</span>
                     </div>
                     <p className="text-caption text-muted-foreground leading-relaxed">{epreuve.description}</p>
                 </div>
@@ -263,7 +263,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     <div className="flex flex-col">
                         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Étage Actuel</span>
                         <div className="flex items-baseline gap-2">
-                           <span className="text-4xl font-black text-foreground">{run.currentFloor}</span>
+                           <span className="text-4xl font-semibold text-foreground">{run.currentFloor}</span>
                            <span className="text-sm font-bold text-muted-foreground/60 uppercase">/ 26</span>
                         </div>
                     </div>
@@ -293,13 +293,13 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         return (
                             <div key={slot} className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-[1rem] border transition-all truncate",
-                                member ? "bg-elevated border-border shadow-xs" : "bg-muted/30 border-border border-dashed"
+                                member ? "bg-elevated border-border " : "bg-muted/30 border-border border-dashed"
                             )}>
                                 <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center bg-surface border border-border overflow-hidden">
                                     {member ? (
                                         <Avatar className="w-full h-full">
                                             <DiscordAvatarImage src={profile?.avatar || undefined} />
-                                            <AvatarFallback className="text-caption font-black">
+                                            <AvatarFallback className="text-caption font-semibold">
                                                 {profile?.pseudoDofus?.charAt(0) || "?"}
                                             </AvatarFallback>
                                         </Avatar>
@@ -310,10 +310,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                         <PseudoChip
                                             pseudo={pseudo}
                                             classe={memberClassId}
-                                            className="text-xs font-black text-foreground"
+                                            className="text-xs font-semibold text-foreground"
                                         />
                                     ) : (
-                                        <span className="text-xs font-black text-foreground/30">{pseudo}</span>
+                                        <span className="text-xs font-semibold text-foreground/30">{pseudo}</span>
                                     )}
                                     {member?.joinedAt && (
                                         <span className="text-[10px] text-foreground/30 font-medium block truncate" title={new Date(member.joinedAt).toLocaleString("fr-FR")}>
@@ -332,10 +332,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
             {/* --- CANDIDACIES SECTION --- */}
             {isLeader && run.joinRequests && run.joinRequests.filter(r => r.status !== 'ACCEPTED').length > 0 && (
-                <div className="relative z-10 p-5 rounded-2xl bg-warning/5 border border-warning/20 mb-6 animate-in slide-in-from-bottom-2 duration-300">
+                <div className="relative z-10 p-5 rounded-lg bg-surface border border-border mb-6">
                     <div className="flex items-center gap-2 mb-4">
                         <Bell className="w-3.5 h-3.5 text-warning" />
-                        <p className="text-caption font-black uppercase tracking-widest text-warning/70">Candidatures</p>
+                        <p className="text-caption font-semibold uppercase tracking-wider text-warning/70">Candidatures</p>
                     </div>
 
                     <div className="space-y-3">
@@ -343,10 +343,10 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                             const profile = profiles.find(p => p.userId === c.userId);
                             const name = profile?.pseudoDofus || profile?.discordNickname || "Candidat";
                             return (
-                                <div key={c.id} className="p-3 rounded-xl bg-black/40 border border-border flex flex-col gap-3">
+                                <div key={c.id} className="p-3 rounded-lg bg-elevated/60 border border-border flex flex-col gap-3">
                                     <div className="flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <Avatar className="w-9 h-9 border border-border rounded-xl">
+                                            <Avatar className="w-9 h-9 border border-border rounded-lg">
                                                 <DiscordAvatarImage src={profile?.avatar || undefined} />
                                                 <AvatarFallback className="bg-elevated text-caption font-bold">{name.charAt(0)}</AvatarFallback>
                                             </Avatar>
@@ -354,7 +354,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                                 <PseudoChip
                                                     pseudo={name}
                                                     classe={c.classe as DofusClass}
-                                                    className="text-sm font-black text-foreground"
+                                                    className="text-sm font-semibold text-foreground"
                                                 />
                                             </div>
                                         </div>
@@ -370,7 +370,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                             <Button
                                                 size="icon"
                                                 variant="ghost"
-                                                className="w-8 h-8 rounded-lg text-foreground/20 hover:text-danger hover:bg-danger/10"
+                                                className="w-8 h-8 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger/10"
                                                 onClick={() => handleRespondCandidacy(c.id, false)}
                                                 disabled={!!actionLoading}
                                             >
@@ -379,7 +379,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                         </div>
                                     </div>
                                     {c.message && (
-                                        <div className="relative p-2.5 rounded-xl bg-surface border-l-2 border-amber-500/50">
+                                        <div className="relative p-2.5 rounded-lg bg-surface border-l-2 border-warning/40">
                                             <p className="text-caption italic text-foreground/50 leading-relaxed font-medium">“{c.message}”</p>
                                         </div>
                                     )}
@@ -405,7 +405,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
                         <Button
                             variant="secondary"
-                            className={cn(SONGES_BUTTON.secondary, "flex-1 h-11 uppercase tracking-widest text-caption rounded-xl font-black")}
+                            className={cn(SONGES_BUTTON.secondary, "flex-1 h-11 uppercase tracking-wider text-caption rounded-lg font-semibold")}
                             onClick={() => setProgressModalOpen(true)}
                         >
                             <TrendingUp className="w-4 h-4 mr-2" />
@@ -413,14 +413,14 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         </Button>
                         <Button
                             variant="secondary"
-                            className={cn(SONGES_BUTTON.secondary, "flex-1 h-11 uppercase tracking-widest text-caption rounded-xl font-black")}
+                            className={cn(SONGES_BUTTON.secondary, "flex-1 h-11 uppercase tracking-wider text-caption rounded-lg font-semibold")}
                             onClick={() => setEditModalOpen(true)}
                         >
                             <Pencil className="w-4 h-4 mr-2" />
                             Modifier
                         </Button>
                         <Button
-                            className={cn(SONGES_BUTTON.close, "flex-1 h-11 uppercase tracking-widest text-caption rounded-xl")}
+                            className={cn(SONGES_BUTTON.close, "flex-1 h-11 uppercase tracking-wider text-caption rounded-lg")}
                             onClick={() => setCloseModalOpen(true)}
                         >
                             <Check className="w-4 h-4 mr-2" />
@@ -430,7 +430,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                 ) : isMember ? (
                     <Button
                         variant="ghost"
-                        className={cn(SONGES_BUTTON.danger, "flex-1 h-11 uppercase tracking-widest text-caption rounded-xl")}
+                        className={cn(SONGES_BUTTON.danger, "flex-1 h-11 uppercase tracking-wider text-caption rounded-lg")}
                         onClick={handleLeave}
                     >
                         <LogOut className="w-4 h-4 mr-2" />
@@ -438,13 +438,13 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </Button>
                 ) : pendingRequest ? (
                     <div className="flex-1 flex gap-2">
-                        <div className="flex-1 h-11 flex items-center justify-center rounded-xl bg-warning/10 text-warning border border-warning/20 font-black uppercase tracking-widest text-caption">
+                        <div className="flex-1 h-11 flex items-center justify-center rounded-lg bg-elevated text-warning border border-warning/30 font-semibold uppercase tracking-wider text-caption">
                             <Clock className="w-4 h-4 mr-2" />
                             En attente
                         </div>
                         <Button
                             variant="ghost"
-                            className={cn(SONGES_BUTTON.ghost, "h-11 w-11 rounded-xl border border-border hover:text-danger")}
+                            className={cn(SONGES_BUTTON.ghost, "h-11 w-11 rounded-lg border border-border hover:text-danger")}
                             onClick={handleCancelRequest}
                         >
                             <X className="w-4 h-4" />
@@ -454,20 +454,20 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     // File d'attente Songes : la promotion est AUTOMATIQUE (dès qu'un membre
                     // part ou est éjecté), mais la carte ne le disait nulle part — le joueur
                     // lisait « Équipe complète » sans savoir qu'il attendait une place.
-                    <div className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl bg-warning/10 text-warning border border-warning/20 font-black uppercase tracking-widest text-caption">
+                    <div className="flex-1 h-11 flex items-center justify-center gap-2 rounded-lg bg-elevated text-warning border border-warning/30 font-semibold uppercase tracking-wider text-caption">
                         <Clock className="w-4 h-4" />
                         File d&apos;attente — position {myWaitlistEntry.position}
                     </div>
                 ) : canApply ? (
                     <Button
-                        className="flex-1 h-11 bg-surface hover:bg-elevated text-foreground font-black uppercase tracking-widest text-caption rounded-xl border border-border transition-colors"
+                        className={cn(SONGES_BUTTON.secondary, "flex-1 h-11 uppercase tracking-wider text-caption rounded-lg")}
                         onClick={() => setJoinDialogOpen(true)}
                     >
                         <UserPlus className="w-4 h-4 mr-2" />
                         Postuler
                     </Button>
                 ) : (
-                    <div className="flex-1 h-11 flex items-center justify-center rounded-xl bg-surface text-foreground/20 text-caption font-black uppercase tracking-widest border border-border">
+                    <div className="flex-1 h-11 flex items-center justify-center rounded-lg bg-surface text-muted-foreground text-caption font-semibold uppercase tracking-wider border border-border">
                         <ShieldCheck className="w-4 h-4 mr-2" />
                         Équipe complète
                     </div>
@@ -476,18 +476,18 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
             {/* --- MODALS --- */}
             <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
-                <DialogContent className="bg-background border-border text-foreground max-w-sm rounded-[2rem] p-0 overflow-hidden shadow-2xl">
+                <DialogContent className="bg-background border-border text-foreground max-w-sm rounded-lg p-0 overflow-hidden">
                     <div className="p-8">
                         <DialogHeader className="mb-8">
-                            <DialogTitle className="flex items-center gap-3 text-2xl font-black uppercase tracking-tighter">
+                            <DialogTitle className="flex items-center gap-3 text-2xl font-semibold uppercase tracking-tight">
                                 <UserPlus className="w-6 h-6 text-muted-foreground" /> Postuler
                             </DialogTitle>
                         </DialogHeader>
                         <div className="space-y-6">
                             <div className="space-y-3">
-                                <Label className="text-caption font-black uppercase tracking-widest text-muted-foreground">Classe Dofus</Label>
+                                <Label className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Classe Dofus</Label>
                                 <Select value={selectedClasse} onValueChange={(v) => setSelectedClasse(v as DofusClass)}>
-                                    <SelectTrigger className="bg-surface border-border h-12 rounded-xl">
+                                    <SelectTrigger className="bg-surface border-border h-12 rounded-lg">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="bg-background border-border">
@@ -495,7 +495,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                             <SelectItem key={classe} value={classe} className="focus:bg-surface">
                                                 <div className="flex items-center gap-3">
                                                     <ClassIcon classId={classe} size={20} />
-                                                    <span className="text-sm font-black">{classe}</span>
+                                                    <span className="text-sm font-semibold">{classe}</span>
                                                 </div>
                                             </SelectItem>
                                         ))}
@@ -503,17 +503,17 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                 </Select>
                             </div>
                             <div className="space-y-3">
-                                <Label className="text-caption font-black uppercase tracking-widest text-foreground/30">Note de motivation</Label>
+                                <Label className="text-caption font-semibold uppercase tracking-wider text-foreground/30">Note de motivation</Label>
                                 <Textarea
                                     placeholder="Dis-nous pourquoi on doit te prendre..."
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
                                     maxLength={100}
-                                    className="bg-surface border-border min-h-[100px] text-sm resize-none rounded-xl p-4"
+                                    className="bg-surface border-border min-h-[100px] text-sm resize-none rounded-lg p-4"
                                 />
                             </div>
 
-                            <Button onClick={handleSendJoinRequest} disabled={loading} className="w-full bg-surface hover:bg-elevated text-foreground border border-border font-black uppercase tracking-[0.2em] h-14 rounded-xl shadow-xl">
+                            <Button onClick={handleSendJoinRequest} disabled={loading} className="w-full bg-surface hover:bg-elevated text-foreground border border-border font-semibold uppercase tracking-wider h-14 rounded-lg">
                                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Envoyer ma candidature"}
                             </Button>
                         </div>

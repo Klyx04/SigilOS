@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -81,14 +81,14 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
         <Dialog open={isOpen} onOpenChange={(o) => { if (!o && !pending) onClose(); }}>
             <DialogContent className="bg-background border-border text-foreground sm:max-w-md max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-black flex items-center gap-2 uppercase tracking-tight">
-                        <Pencil className="w-5 h-5 text-purple-400" />
+                    <DialogTitle className="text-xl font-semibold flex items-center gap-2 uppercase tracking-tight">
+                        <Pencil className="w-5 h-5 text-info" />
                         Modifier la Run
                     </DialogTitle>
                 </DialogHeader>
                 <div className="py-4 space-y-5">
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-muted-foreground uppercase tracking-widest">Difficulté</label>
+                        <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wider">Difficulté</label>
                         <Select value={difficulty} onValueChange={setDifficulty}>
                             <SelectTrigger className="w-full bg-surface border-border text-sm font-medium">
                                 <SelectValue />
@@ -107,7 +107,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Épreuve (optionnel)</label>
+                        <label className="text-caption font-semibold text-foreground/40 uppercase tracking-wider">Épreuve (optionnel)</label>
                         <Select value={epreuveCode} onValueChange={setEpreuveCode}>
                             <SelectTrigger className="w-full bg-surface border-border text-sm font-medium">
                                 <SelectValue placeholder="Run standard" />
@@ -126,16 +126,16 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                         </Select>
                         {!epreuveCode && (
                             <div className="space-y-1.5">
-                                <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Objectifs</label>
+                                <label className="text-caption font-semibold text-foreground/40 uppercase tracking-wider">Objectifs</label>
                                 <div className="grid grid-cols-1 gap-2">
                                     {Object.entries(OBJECTIVES).map(([key, obj]) => (
                                         <button
                                             key={key}
                                             type="button"
                                             onClick={() => toggleObjective(key)}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
                                                 objectives.includes(key)
-                                                    ? "bg-purple-500/10 border-purple-500/40 text-foreground"
+                                                    ? "bg-info/15 border-info/40 text-foreground"
                                                     : "bg-surface border-border text-foreground/60 hover:border-border-strong"
                                             }`}
                                         >
@@ -149,7 +149,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">
+                        <label className="text-caption font-semibold text-foreground/40 uppercase tracking-wider">
                             Date de départ <span className="normal-case font-medium">(optionnel)</span>
                         </label>
                         {/* Même sélecteur que le reste de l'app : « Sans heure » possible,
@@ -164,7 +164,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-caption font-black text-foreground/40 uppercase tracking-widest">Étage actuel (0-26)</label>
+                        <label className="text-caption font-semibold text-foreground/40 uppercase tracking-wider">Étage actuel (0-26)</label>
                         <Input
                             type="number"
                             min={0}

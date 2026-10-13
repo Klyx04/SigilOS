@@ -1,5 +1,5 @@
 "use client";
-// dark-locked — module volontairement sombre (V2 Dual-Theme Phase 2C) : ne PAS utiliser les tokens thème-aware ici (voir memo 21/08 + prompt 22/08).
+// Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Search, X, Star, Swords, Shield, Wind, BookOpen, Lightbulb, ChevronDown, ExternalLink, Dice5 } from "lucide-react";
@@ -61,7 +61,7 @@ function DifficultyStars({ difficulty }: { difficulty: number }) {
                     className={cn(
                         "w-3.5 h-3.5 transition-all",
                         i < difficulty
-                            ? "text-warning fill-amber-400 drop-shadow-[0_0_3px_rgba(251,191,36,0.5)]"
+                            ? "text-warning fill-warning "
                             : "text-foreground/15"
                     )}
                 />
@@ -137,14 +137,14 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
     const advice = (shortVersion && boss.AdviceShort) ? boss.AdviceShort : boss.Advice;
 
     return (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="space-y-4 duration-300">
             {/* Boss Header */}
             <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
                 {/* Boss Image & Viability Bars Group */}
                 <div className="flex items-start gap-4 shrink-0">
                     {/* Boss Image */}
                     <div className="relative">
-                        <div className="w-24 h-24 rounded-xl border border-border bg-black/40 overflow-hidden shadow-lg shadow-black/30">
+                        <div className="w-24 h-24 rounded-lg border border-border bg-elevated/60 overflow-hidden">
                             <img
                                 src={`/images/songes-bosses/${boss.Image}`}
                                 alt={boss.Name}
@@ -173,7 +173,7 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
 
                 {/* Name + Difficulty + Bars (Desktop Layout) */}
                 <div className="flex-1 min-w-0">
-                    <h3 className="text-xl md:text-2xl font-black text-foreground tracking-tight truncate">{boss.Name}</h3>
+                    <h3 className="text-xl md:text-2xl font-semibold text-foreground tracking-tight truncate">{boss.Name}</h3>
                     <div className="flex items-center gap-2 mt-1">
                         <span className="text-caption uppercase tracking-wider text-foreground/30 font-bold">Difficulté</span>
                         <DifficultyStars difficulty={boss.Difficulty} />
@@ -208,7 +208,7 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
                 {/* Illustration (if exists) */}
                 {boss.Illustration && (
                     <div className="shrink-0 w-full md:w-auto md:max-w-[200px] space-y-2">
-                        <div className="rounded-xl border border-border bg-black/40 overflow-hidden shadow-lg aspect-auto md:aspect-square flex items-center justify-center">
+                        <div className="rounded-lg border border-border bg-elevated/60 overflow-hidden aspect-auto md:aspect-square flex items-center justify-center">
                             <img
                                 src={`/images/songes-bosses/${boss.Illustration}`}
                                 alt="Illustration"
@@ -227,7 +227,7 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-4">
                     {/* Information Panel */}
-                    <div className="rounded-xl border border-info/20 bg-info/5 p-4 h-fit">
+                    <div className="rounded-lg border border-info/20 bg-info/5 p-4 h-fit">
                         <div className="flex items-center gap-2 mb-2">
                             <BookOpen className="w-4 h-4 text-info" />
                             <span className="text-xs font-bold uppercase tracking-wider text-info">Informations</span>
@@ -239,7 +239,7 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
 
                     {/* Mechanic Panel */}
                     {mechanic && (
-                        <div className="rounded-xl border border-warning/20 bg-warning/5 p-4 h-fit">
+                        <div className="rounded-lg border border-warning/20 bg-warning/5 p-4 h-fit">
                             <div className="flex items-center gap-2 mb-2">
                                 <Swords className="w-4 h-4 text-warning" />
                                 <span className="text-xs font-bold uppercase tracking-wider text-warning">Mécaniques</span>
@@ -253,7 +253,7 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
 
                 <div className="space-y-4">
                     {/* Advice Panel */}
-                    <div className="rounded-xl border border-success/20 bg-success/5 p-4 h-fit">
+                    <div className="rounded-lg border border-success/20 bg-success/5 p-4 h-fit">
                         <div className="flex items-center gap-2 mb-2">
                             <Lightbulb className="w-4 h-4 text-success" />
                             <span className="text-xs font-bold uppercase tracking-wider text-success">Conseils</span>
@@ -268,7 +268,7 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
                         href={`https://dofensive.com/fr/monster/${boss.Id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-border bg-surface text-foreground/60 hover:bg-surface hover:text-foreground transition-all text-sm font-medium group mt-auto"
+                        className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-border bg-surface text-foreground/60 hover:bg-surface hover:text-foreground transition-all text-sm font-medium group mt-auto"
                     >
                         <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                         Besoin de détails ? (Dofensive)
@@ -333,30 +333,30 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
+                className="absolute inset-0 bg-background/80 duration-200"
                 onClick={onClose}
             />
 
             {/* Modal */}
             <div className={cn(
-                "relative w-full max-h-[85vh] bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 flex flex-col transition-all duration-300",
+                "relative w-full max-h-[85vh] bg-surface border border-border rounded-lg overflow-hidden flex flex-col",
                 selectedBoss ? (WIDTH_EXCEPTIONS[selectedBoss.Name] || "max-w-2xl") : "max-w-2xl"
             )}>
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur-xl border-b border-border px-6 py-5">
+                <div className="sticky top-0 z-10 bg-surface/95 border-b border-border px-6 py-5">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-warning/10 border border-warning/20">
+                            <div className="p-2 rounded-lg bg-warning/10 border border-warning/20">
                                 <BookOpen className="w-6 h-6 text-warning" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-black text-foreground tracking-tight">Guide des Boss</h2>
+                                <h2 className="text-xl font-semibold text-foreground tracking-tight">Guide des Boss</h2>
                                 <p className="text-xs text-muted-foreground mt-0.5">Songes Pour Les Noobs — par Volcasaurus</p>
                             </div>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 rounded-xl bg-surface hover:bg-surface text-foreground/50 hover:text-foreground transition-colors"
+                            className="p-2 rounded-lg bg-surface hover:bg-surface text-foreground/50 hover:text-foreground transition-colors"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -371,7 +371,7 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                             placeholder="Rechercher un boss..."
                             value={search}
                             onChange={e => { setSearch(e.target.value); setSelectedBoss(null); }}
-                            className="w-full pl-12 pr-4 py-3 rounded-xl bg-surface border border-border text-foreground text-base placeholder:text-foreground/30 focus:outline-none focus:border-warning/40 focus:ring-1 focus:ring-warning/20 transition-all"
+                            className="w-full pl-12 pr-4 py-3 rounded-lg bg-surface border border-border text-foreground text-base placeholder:text-foreground/30 focus:outline-none focus:border-warning/40 focus:ring-1 focus:ring-warning/20 transition-all"
                         />
                         {search && (
                             <button
@@ -396,7 +396,7 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                         </label>
                         <button
                             onClick={randomBoss}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-warning/10 border border-warning/20 text-warning hover:bg-warning/20 hover:text-warning transition-all text-sm font-medium"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-warning/10 border border-warning/20 text-warning hover:bg-warning/20 hover:text-warning transition-all text-sm font-medium"
                         >
                             <Dice5 className="w-4 h-4" />
                             Boss aléatoire
@@ -426,9 +426,9 @@ export function BossGuide({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                                 <button
                                     key={boss.Id}
                                     onClick={() => setSelectedBoss(boss)}
-                                    className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-surface transition-all text-left group"
+                                    className="w-full flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-surface transition-all text-left group"
                                 >
-                                    <div className="w-12 h-12 rounded-xl border border-border bg-black/40 overflow-hidden shrink-0">
+                                    <div className="w-12 h-12 rounded-lg border border-border bg-elevated/60 overflow-hidden shrink-0">
                                         <img
                                             src={`/images/songes-bosses/${boss.Image}`}
                                             alt={boss.Name}

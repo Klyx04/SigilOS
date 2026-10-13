@@ -1,10 +1,11 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { SONGES_BUTTON } from "@/lib/songes/ui";
 
 
 import { useState, useTransition, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import {
     CheckCircle2,
     Circle,
@@ -64,7 +65,7 @@ export function RunCloseModal({
 
     const pts = getSongesPoints(difficulty);
     const diffConfig = DIFFICULTIES[difficulty as DifficultyKey];
-    const accentColor = diffConfig?.couleur ?? "#a855f7";
+    const accentColor = diffConfig?.couleur ?? "var(--color-info)";
 
     // ── All guild members (profileId, userId, name, image) ──────────────────
     const [allMembers, setAllMembers] = useState<GuildMember[]>([]);
@@ -194,38 +195,33 @@ export function RunCloseModal({
     return (
         <AnimatePresence>
             {isOpen && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
+                <div
+                   
+                   
+                   
                     className="fixed inset-0 z-50 flex items-center justify-center p-4"
                     onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
                 >
                     {/* Backdrop */}
-                    <div className="absolute inset-0 bg-black/75 backdrop-blur-md" />
+                    <div className="absolute inset-0 bg-background/80" />
 
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 12 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className="relative w-full max-w-md bg-background border border-border rounded-2xl shadow-2xl overflow-hidden"
+                    <div
+                       
+                       
+                       
+                       
+                        className="relative w-full max-w-md bg-background border border-border rounded-lg overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Top glow bar (difficulty color) */}
-                        <div
-                            className="absolute top-0 left-0 right-0 h-px"
-                            style={{
-                                background: `linear-gradient(to right, transparent, ${accentColor}80, transparent)`,
-                            }}
-                        />
+                        {/* Filet supérieur (la couleur du palier vient de la donnée, jamais d'un halo) */}
+                        <div className="absolute top-0 left-0 right-0 h-px bg-border" />
 
                         {/* Header */}
                         <div className="p-6 pb-4 border-b border-border bg-surface/30">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-center gap-3">
                                     <div
-                                        className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0"
+                                        className="w-10 h-10 rounded-lg border flex items-center justify-center shrink-0"
                                         style={{
                                             backgroundColor: `${accentColor}20`,
                                             borderColor: `${accentColor}40`,
@@ -234,7 +230,7 @@ export function RunCloseModal({
                                         <Moon className="w-5 h-5" style={{ color: accentColor }} />
                                     </div>
                                     <div>
-                                        <h2 className="text-base font-black text-foreground">
+                                        <h2 className="text-base font-semibold text-foreground">
                                             Clôturer la Run
                                         </h2>
                                         <p
@@ -269,7 +265,7 @@ export function RunCloseModal({
                                 <>
                                     {/* Info banner */}
                                     <div
-                                        className="flex items-start gap-2.5 rounded-xl px-3.5 py-3 border"
+                                        className="flex items-start gap-2.5 rounded-lg px-3.5 py-3 border"
                                         style={{
                                             backgroundColor: `${accentColor}10`,
                                             borderColor: `${accentColor}30`,
@@ -299,7 +295,7 @@ export function RunCloseModal({
                                             className="w-2 h-2 rounded-full shrink-0"
                                             style={{ backgroundColor: accentColor }}
                                         />
-                                        <span className="text-caption uppercase tracking-widest font-bold text-muted-foreground">
+                                        <span className="text-caption uppercase tracking-wider font-bold text-muted-foreground">
                                             Barème — {diffConfig?.label}
                                         </span>
                                         <div className="flex items-center gap-1 ml-auto">
@@ -308,13 +304,13 @@ export function RunCloseModal({
                                                     key={i}
                                                     className="w-3 h-3"
                                                     style={{
-                                                        color: i <= pts ? accentColor : "#374151",
+                                                        color: i <= pts ? accentColor : "var(--color-border)",
                                                         fill: i <= pts ? accentColor : "transparent",
                                                     }}
                                                 />
                                             ))}
                                             <span
-                                                className="text-xs font-black ml-1"
+                                                className="text-xs font-semibold ml-1"
                                                 style={{ color: accentColor }}
                                             >
                                                 {pts} pt{pts > 1 ? "s" : ""}
@@ -325,7 +321,7 @@ export function RunCloseModal({
                                     {/* Participants list */}
                                     {totalListCount > 0 && (
                                         <div className="space-y-2">
-                                            <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">
+                                            <p className="text-caption text-muted-foreground font-bold uppercase tracking-wider">
                                                 Membres ({runParticipants.length} dans la run
                                                 {extraMembers.length > 0
                                                     ? ` + ${extraMembers.length} ajouté${extraMembers.length > 1 ? "s" : ""}`
@@ -340,19 +336,15 @@ export function RunCloseModal({
                                                         key={m.id}
                                                         onClick={() => toggle(m.id)}
                                                         className={cn(
-                                                            "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                                                            "w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
                                                             isVal 
-                                                                ? "bg-black/40 border-border shadow-inner" 
+                                                                ? "bg-elevated/60 border-border" 
                                                                 : "bg-surface/20 border-border hover:bg-surface/40"
                                                         )}
-                                                        style={{ 
-                                                            borderColor: isVal ? `${accentColor}20` : undefined,
-                                                            boxShadow: isVal ? `inset 0 0 15px ${accentColor}05` : undefined
-                                                        }}
                                                     >
                                                         <Avatar className="w-8 h-8 shrink-0">
                                                             <AvatarImage src={m.image ?? undefined} />
-                                                            <AvatarFallback className="bg-elevated text-foreground/50 text-caption font-black">
+                                                            <AvatarFallback className="bg-elevated text-foreground/50 text-caption font-semibold">
                                                                 {m.name.charAt(0).toUpperCase()}
                                                             </AvatarFallback>
                                                         </Avatar>
@@ -363,7 +355,7 @@ export function RunCloseModal({
                                                         </div>
                                                         {isVal && (
                                                             <span
-                                                                className="flex items-center gap-1 text-caption font-black px-2 py-0.5 rounded-md border"
+                                                                className="flex items-center gap-1 text-caption font-semibold px-2 py-0.5 rounded-md border"
                                                                 style={{
                                                                     color: `${accentColor}cc`,
                                                                     backgroundColor: `${accentColor}10`,
@@ -390,7 +382,7 @@ export function RunCloseModal({
                                                 return (
                                                     <div
                                                         key={m.id}
-                                                        className="w-full flex items-center gap-3 p-3 rounded-xl border bg-warning/10 border-warning/30"
+                                                        className="w-full flex items-center gap-3 p-3 rounded-lg border bg-warning/10 border-warning/30"
                                                     >
                                                         <Avatar className="w-8 h-8 shrink-0">
                                                             <AvatarImage src={m.image ?? undefined} />
@@ -408,7 +400,7 @@ export function RunCloseModal({
                                                         </div>
                                                         <button onClick={() => toggle(m.id)} className="shrink-0">
                                                             {isVal ? (
-                                                                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                                                                <CheckCircle2 className="w-5 h-5 text-success" />
                                                             ) : (
                                                                 <Circle className="w-5 h-5 text-muted-foreground" />
                                                             )}
@@ -438,7 +430,7 @@ export function RunCloseModal({
 
                                     {/* ── Add member manually ─────────────────────────────── */}
                                     <div className="pt-2 border-t border-border" ref={dropdownRef}>
-                                        <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                        <p className="text-caption text-muted-foreground font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                             <UserPlus className="w-3 h-3" />
                                             Ajouter un participant hors-liste
                                         </p>
@@ -449,7 +441,7 @@ export function RunCloseModal({
                                                     setDropdownOpen((v) => !v);
                                                     setTimeout(() => searchRef.current?.focus(), 50);
                                                 }}
-                                                className="w-full flex items-center gap-2 px-3 py-2.5 bg-surface/60 border border-border rounded-xl text-sm text-muted-foreground hover:border-purple-500/40 hover:text-foreground transition-all"
+                                                className="w-full flex items-center gap-2 px-3 py-2.5 bg-surface/60 border border-border rounded-lg text-sm text-muted-foreground hover:border-info/40 hover:text-foreground transition-all"
                                             >
                                                 <Search className="w-4 h-4 shrink-0" />
                                                 <span className="flex-1 text-left truncate">
@@ -462,12 +454,12 @@ export function RunCloseModal({
 
                                             <AnimatePresence>
                                                 {dropdownOpen && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, y: -4 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        exit={{ opacity: 0, y: -4 }}
-                                                        transition={{ duration: 0.15 }}
-                                                        className="absolute z-10 top-full mt-1 w-full bg-surface border border-border rounded-xl shadow-2xl overflow-hidden"
+                                                    <div
+                                                       
+                                                       
+                                                       
+                                                       
+                                                        className="absolute z-10 top-full mt-1 w-full bg-surface border border-border rounded-lg overflow-hidden"
                                                     >
                                                         <div className="p-2 border-b border-border">
                                                             <div className="flex items-center gap-2 px-2">
@@ -508,7 +500,7 @@ export function RunCloseModal({
                                                                 ))
                                                             )}
                                                         </div>
-                                                    </motion.div>
+                                                    </div>
                                                 )}
                                             </AnimatePresence>
                                         </div>
@@ -535,19 +527,14 @@ export function RunCloseModal({
                                 variant="ghost"
                                 onClick={onClose}
                                 disabled={isPending}
-                                className="flex-1 h-12 border border-border bg-surface text-muted-foreground hover:text-foreground hover:bg-surface font-bold rounded-xl transition-all order-2 sm:order-1"
+                                className={cn(SONGES_BUTTON.ghost, "flex-1 h-12 rounded-lg order-2 sm:order-1")}
                             >
                                 Annuler
                             </Button>
                             <Button
                                 onClick={handleConfirm}
                                 disabled={isPending || isLoading}
-                                className="flex-1 h-12 text-foreground font-black uppercase tracking-[0.15em] text-caption rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] border shadow-xl order-1 sm:order-2"
-                                style={{ 
-                                    backgroundColor: "#0d0d12",
-                                    borderColor: `${accentColor}30`,
-                                    boxShadow: `0 0 25px ${accentColor}10, inset 0 0 8px ${accentColor}05`
-                                }}
+                                className={cn(SONGES_BUTTON.close, "flex-1 h-12 uppercase tracking-wider text-caption rounded-lg order-1 sm:order-2")}
                             >
                                 {isPending ? (
                                     <>
@@ -562,8 +549,8 @@ export function RunCloseModal({
                                 )}
                             </Button>
                         </div>
-                    </motion.div>
-                </motion.div>
+                    </div>
+                </div>
             )}
         </AnimatePresence>
     );

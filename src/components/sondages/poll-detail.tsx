@@ -6,12 +6,13 @@ import { formatPollEnd } from "@/lib/poll-format";
 import { type PollMember } from "@/lib/polls/participation";
 import {
     POLL_MEMBER_ROW, POLL_SEGMENT_GROUP, POLL_SEGMENT_ITEM,
-    POLL_SEGMENT_ITEM_ACTIVE, POLL_SEGMENT_ITEM_IDLE,
+    POLL_SEGMENT_ITEM_ACTIVE, POLL_SEGMENT_ITEM_IDLE, POLL_SCHEDULED_TAG,
 } from "@/lib/polls/ui";
+import { SCHEDULED_POLL_TAG } from "@/lib/polls/scheduling";
 import {
     BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, ArrowLeft,
     Crown, Trash2, AlertTriangle, Edit2, Megaphone, Send, Info, ExternalLink,
-    Lightbulb, Wrench, PartyPopper, Target, Folder, UserX,
+    Lightbulb, Wrench, PartyPopper, Target, Folder, UserX, CalendarClock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -88,6 +89,8 @@ interface PollDetailProps {
         /** Nombre de votants distincts et de membres actifs (participation honnête). */
         voterCount?: number;
         memberCount?: number;
+        /** Publié automatiquement par le module staff « Sondages programmés ». */
+        isScheduled?: boolean;
     };
     guildId: string;
     isAdmin: boolean;
@@ -634,6 +637,14 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                             </div>
 
                             <div className="flex items-center gap-2 flex-wrap">
+                                {/* « Sondage programmé » : publié automatiquement par le module
+                                    staff, jamais à la main — le lecteur doit le savoir. */}
+                                {poll.isScheduled && (
+                                    <span className={POLL_SCHEDULED_TAG}>
+                                        <CalendarClock className="w-3.5 h-3.5" />
+                                        {SCHEDULED_POLL_TAG}
+                                    </span>
+                                )}
                                 {/* Réglages du vote : DITS, jamais cachés derrière une infobulle
                                     (retour user du 13/10/2026 : « indique choix multiple »). */}
                                 <span className={cn(

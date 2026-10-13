@@ -38,6 +38,13 @@ import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
 import { PingEstimate } from "@/components/shared/ping-estimate";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import {
+    POLL_DESCRIPTION_MAX_LENGTH,
+    POLL_DESCRIPTION_MIN_LENGTH,
+    POLL_OPTION_MIN_COUNT,
+    POLL_TITLE_MAX_LENGTH,
+    pollTitleLengthError,
+} from "@/lib/polls/limits";
 
 interface PollCreatorProps {
     guildId: string;
@@ -300,10 +307,10 @@ export function PollCreator({
     };
 
     const isValid =
-        title.trim().length >= 3 &&
-        title.trim().length <= 80 &&
-        description.trim().length >= 5 &&
-        options.filter(o => o.label.trim()).length >= 2;
+        !pollTitleLengthError(title) &&
+        description.trim().length >= POLL_DESCRIPTION_MIN_LENGTH &&
+        description.trim().length <= POLL_DESCRIPTION_MAX_LENGTH &&
+        options.filter(o => o.label.trim()).length >= POLL_OPTION_MIN_COUNT;
 
     return (
         <>
@@ -426,16 +433,16 @@ export function PollCreator({
                                                 </label>
                                                 <span className={cn(
                                                     "text-caption font-bold",
-                                                    title.length > 70 ? "text-warning" : "text-muted-foreground/60"
+                                                    title.length > POLL_TITLE_MAX_LENGTH - 10 ? "text-warning" : "text-muted-foreground/60"
                                                 )}>
-                                                    {title.length}/80
+                                                    {title.length}/{POLL_TITLE_MAX_LENGTH}
                                                 </span>
                                             </div>
                                             <Input
                                                 value={title}
                                                 onChange={(e) => setTitle(e.target.value)}
                                                 placeholder="Ex: Quelle refonte pour les grades ?"
-                                                maxLength={80}
+                                                maxLength={POLL_TITLE_MAX_LENGTH}
                                                 className="h-14 bg-surface/60 border-border text-foreground placeholder:text-muted-foreground text-lg font-bold rounded-xl focus:ring-info/20 focus:border-info/30 transition-all shadow-inner focus:outline-none"
                                             />
                                         </div>
@@ -490,18 +497,18 @@ export function PollCreator({
                                                     ? "text-warning"
                                                     : "text-muted-foreground/60"
                                             )}>
-                                                {description.length}/500 {description.trim().length > 0 && description.trim().length < 5 && "(min. 5 car.)"}
+                                                {description.length}/{POLL_DESCRIPTION_MAX_LENGTH} {description.trim().length > 0 && description.trim().length < POLL_DESCRIPTION_MIN_LENGTH && `(min. ${POLL_DESCRIPTION_MIN_LENGTH} car.)`}
                                             </span>
                                         </div>
                                         <textarea
                                             value={description}
                                             onChange={(e) => setDescription(e.target.value)}
-                                            rows={3}
-                                            placeholder="Contextualisez votre question, expliquez les choix et les enjeux... (sera affiché sur Discord et dans le dashboard)"
-                                            maxLength={500}
+                                            rows={5}
+                                            placeholder="Contextualisez votre question, expliquez les choix et les enjeux... (retours à la ligne respectés dans l'embed Discord et le dashboard)"
+                                            maxLength={POLL_DESCRIPTION_MAX_LENGTH}
                                             className={cn(
                                                 "w-full bg-surface/60 hover:bg-surface/80 border rounded-2xl px-5 py-4 text-sm text-foreground focus:outline-none transition-all resize-none placeholder:text-muted-foreground",
-                                                description.trim().length > 0 && description.trim().length < 5
+                                                description.trim().length > 0 && description.trim().length < POLL_DESCRIPTION_MIN_LENGTH
                                                     ? "border-warning/50 focus:border-warning focus:ring-2 focus:ring-warning/10"
                                                     : "border-border focus:border-info/50 focus:ring-2 focus:ring-info/10"
                                             )}

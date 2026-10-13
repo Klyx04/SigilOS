@@ -36,7 +36,9 @@ export type ModuleKey =
     | "reactionRoles"
     | "tickets"
     | "marche"
-    | "commandes";
+    | "commandes"
+    /** Module staff « Sondages programmés » : créneaux publiés automatiquement. */
+    | "scheduledPolls";
 
 export type GuildModulesState = {
     // Général
@@ -75,6 +77,8 @@ export type GuildModulesState = {
     /** Module « Marché » (annonces FM) — OFF par défaut (D15). */
     marche: boolean;
     commandes: boolean;
+    /** Module staff « Sondages programmés » (publication automatique en salon). */
+    scheduledPolls: boolean;
 };
 
 /**
@@ -123,5 +127,10 @@ export const DEFAULT_MODULES: GuildModulesState = {
     // "désactivé = invisible"). Inactif par défaut pour les nouvelles guildes
     // (ligne absente) ; les guildes existantes gardent true via la migration.
     commandes: false,
+    // Module staff « Sondages programmés » : inactif par défaut — publier un
+    // sondage automatiquement dans un salon Discord n'est jamais un défaut
+    // implicite, l'admin l'active explicitement (et le God peut le couper
+    // globalement ou pour une guilde, comme n'importe quel module).
+    scheduledPolls: false,
 };
 

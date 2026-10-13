@@ -55,6 +55,7 @@ export const MODULE_ROUTES: Record<string, ModuleRoute> = {
     "admin-tickets":                   { label: "Bot Tickets & Support",       href: "/admin/tickets" },
     "admin-presentation":              { label: "Identité & Vitrine Publique", href: "/admin/presentation" },
     "admin-missions":                  { label: "Gestion des Missions",        href: "/missions/manage" },
+    "admin-sondages-programmes":       { label: "Sondages programmés (staff)", href: "/sondages/programmes" },
     "admin-validation":                { label: "File de Validation OCR",      href: "/admin/validation" },
     "admin-members":                   { label: "Audit Roster Discord",        href: "/admin/members" },
     "module-recrutement-cycle-de-vie": { label: "Recrutement & Cycle de Vie", href: "/admin/members" },
@@ -155,6 +156,7 @@ export const MODULE_DOC_COVERAGE: Record<string, ModuleDocCoverage> = {
     // Administration (staff uniquement)
     reactionRoles: { staff: "admin-reaction-roles" },
     tickets: { staff: "admin-tickets" },
+    scheduledPolls: { staff: "admin-sondages-programmes" },
     logs: { staff: "admin-logs" },
 };
 

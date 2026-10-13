@@ -42,6 +42,11 @@ export type AuditAction =
     | "POLL_CLOSED"           // Poll closed
     | "POLL_DELETED"          // Poll deleted
     | "POLL_CREATOR_ROLE_ACQUIRED" // Member took the guild micro
+    // Module staff « Sondages programmés » (créneaux publiés automatiquement)
+    | "SCHEDULED_POLL_CREATED"   // Créneau créé (date + heure + minute)
+    | "SCHEDULED_POLL_UPDATED"   // Créneau modifié (même minute, mêmes options)
+    | "SCHEDULED_POLL_CANCELLED" // Créneau annulé avant échéance
+    | "SCHEDULED_POLL_PUBLISHED" // Créneau publié (automatique par le cron, ou à la main)
     | "MEMBER_RELANCE"            // Admin sent pings/changed roles for absents
     | "MEMBER_BANNED"             // Member was banned on Discord
     | "MEMBER_PSEUDO_UPDATE"      // Manual pseudo override
@@ -93,6 +98,7 @@ export type AuditTargetType =
     | "GUILD"
     | "CHAT"
     | "POLL"
+    | "SCHEDULED_POLL"
     | "MEMBER"
     | "SYSTEM_GOD"
     | "WHITELIST"

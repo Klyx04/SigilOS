@@ -225,6 +225,8 @@ export type UserContext = {
     canViewStuffGallery: boolean;
     canViewMiniGames: boolean;
     canViewPolls: boolean;
+    /** Sondages programmés (staff) : créer / annuler des créneaux (module `scheduledPolls` + `staff:scheduled_polls`). */
+    canSchedulePolls: boolean;
     canViewCalendar: boolean;
     canManageCalendar: boolean;
     canManageRaid: boolean;
@@ -410,6 +412,7 @@ const GUILD_CONFIG_CACHE_SELECT = {
             stats: true,
             presentation: true,
             polls: true,
+            scheduledPolls: true,
             logs: true,
             quests: true,
             worldmap: true,
@@ -543,6 +546,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewStuffGallery: false,
         canViewMiniGames: false,
         canViewPolls: false,
+        canSchedulePolls: false,
         canViewCalendar: false,
         canManageCalendar: false,
         canManageRaid: false,
@@ -1154,6 +1158,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canManageRelance = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
     const canManageReactionRoles = permissionSet.has(PERMISSIONS.STAFF_REACTION_ROLES) || isAdminFinal;
     const canManageTickets = permissionSet.has(PERMISSIONS.STAFF_TICKETS) || isAdminFinal;
+    // Sondages programmés (module staff) : la permission dédiée ouvre la page et
+    // les actions ; le module effectif est appliqué à la projection (plus bas).
+    const canSchedulePolls = permissionSet.has(PERMISSIONS.STAFF_SCHEDULED_POLLS) || isAdminFinal;
     const canManageRBAC = permissionSet.has(PERMISSIONS.SYSTEM_RBAC) || hasDiscordAdmin || isGod;
     const canViewSettings = permissionSet.has(PERMISSIONS.SYSTEM_CONFIG) || isAdminFinal;
     const canViewAuditLogs = permissionSet.has(PERMISSIONS.STAFF_AUDIT) || isAdminFinal;
@@ -1248,6 +1255,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewStuffGallery: !!applyModule(!!mod?.gallery, !!canViewStuffGallery),
         canViewMiniGames: !!applyModule(!!mod?.minigames, !!canViewMiniGames),
         canViewPolls: !!applyModule(!!mod?.polls, !!canViewPolls),
+        canSchedulePolls: !!applyModule(!!mod?.scheduledPolls, !!canSchedulePolls),
         canViewCalendar: !!applyModule(!!mod?.calendar, !!canViewCalendar),
         canManageCalendar: !!applyModule(!!mod?.calendar, !!canManageCalendar),
         canManageRaid: !!applyModule(!!mod?.calendar, !!canManageRaid),
@@ -1332,6 +1340,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewStuffGallery = false;
         finalContext.canViewMiniGames = false;
         finalContext.canViewPolls = false;
+        finalContext.canSchedulePolls = false;
         finalContext.canViewCalendar = false;
         finalContext.canManageCalendar = false;
         finalContext.canManageRaid = false;
@@ -2285,7 +2294,7 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
     return { success: true, data: updated };
 }
 
-export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "polls" | "missions" | "legacy" | "raid" }) {
+export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "polls" | "scheduledPolls" | "missions" | "legacy" | "raid" }) {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -2298,7 +2307,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             fetchGuildRoles(guildId, { excludeManaged: true }),
             db.guildConfig.findUnique({
                 where: { discordGuildId: guildId },
-                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true, pollsPingRoleIds: true, missionPingRoleIds: true }
+                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true, pollsPingRoleIds: true, missionPingRoleIds: true, scheduledPollsPingRoleIds: true }
             })
         ]);
 
@@ -2316,6 +2325,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             else if (options?.context === "dj") allowedIds = guildConfig?.djPingRoleIds || [];
             else if (options?.context === "songes") allowedIds = guildConfig?.songesPingRoleIds || [];
             else if (options?.context === "polls") allowedIds = guildConfig?.pollsPingRoleIds || [];
+            else if (options?.context === "scheduledPolls") allowedIds = guildConfig?.scheduledPollsPingRoleIds || [];
             else if (options?.context === "missions") allowedIds = guildConfig?.missionPingRoleIds || [];
             else allowedIds = guildConfig?.allowedPingRoleIds || [];
 
@@ -2378,7 +2388,7 @@ export async function countPingedMembers(
 /**
  * Update the whitelist of allowed Discord roles for pings (Admin only)
  */
-export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "polls" | "missions" | "legacy" | "raid" = "legacy") {
+export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "polls" | "scheduledPolls" | "missions" | "legacy" | "raid" = "legacy") {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -2393,6 +2403,7 @@ export async function updateAllowedPingRolesAction(guildId: string, roleIds: str
         else if (context === "dj") data.djPingRoleIds = roleIds;
         else if (context === "songes") data.songesPingRoleIds = roleIds;
         else if (context === "polls") data.pollsPingRoleIds = roleIds;
+        else if (context === "scheduledPolls") data.scheduledPollsPingRoleIds = roleIds;
         else if (context === "missions") data.missionPingRoleIds = roleIds;
         else data.allowedPingRoleIds = roleIds;
 

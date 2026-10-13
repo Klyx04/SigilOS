@@ -72,7 +72,7 @@ export const AUDIT_ACTION_FILTER_OPTIONS: readonly {
     { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT", label: "👥 Cycle de vie membre", category: "functional" },
     { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions", category: "functional" },
     { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus", category: "functional" },
-    { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED", label: "📊 Sondages & micro", category: "functional" },
+    { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED,SCHEDULED_POLL_CREATED,SCHEDULED_POLL_UPDATED,SCHEDULED_POLL_CANCELLED,SCHEDULED_POLL_PUBLISHED", label: "📊 Sondages & micro", category: "functional" },
     { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD", category: "functional" },
     { value: "GOD_GUILD_WHITELIST,GOD_USER_PLATFORM_BAN,GOD_CONFIG_OVERRIDE,GOD_DATABASE_SYNC,GOD_MODULE_LOCK,GOD_MARKET_SETTINGS", label: "🛡️ Actions God", category: "functional" },
 ];

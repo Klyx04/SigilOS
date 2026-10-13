@@ -162,6 +162,13 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Quotidien 04h10 (UTC)",
         logFile: "sync-raid-spells.log",
     },
+    publish_scheduled_polls: {
+        name: "Sondages programmés — publication automatique",
+        // « Toutes les 1 min » : même format que les autres tâches, pour que la
+        // surveillance « tâche muette » (2× cadence + marge = ~32 min) s'applique.
+        schedule: "Toutes les 1 min",
+        logFile: "publish-scheduled-polls.log",
+    },
 };
 
 const REDIS_PREFIX = "cron:telemetry:";
@@ -170,8 +177,9 @@ const TTL_SECONDS = 7 * 24 * 60 * 60; // 7 jours
 /**
  * 🔔 Check-in Sentry du moniteur de cette tâche — « je viens de tourner » (ou « j'ai échoué »).
  *
- * **Un seul point de branchement pour les 25 crons** : toutes les routes `/api/cron/*`
- * passent par `recordCronExecution` (vérifié le 11/10/2026 : 25/25) ⇒ aucune route à
+ * **Un seul point de branchement pour les crons** : toutes les routes `/api/cron/*`
+ * passent par `recordCronExecution` (vérifié le 11/10/2026 : 25/25 — tient
+ * toujours avec `publish_scheduled_polls`, ajouté le 13/10/2026) ⇒ aucune route à
  * modifier, aucune oubliable, toute route future surveillée d'office.
  *
  * Jamais bloquant, jamais fatal : l'observabilité ne doit pas casser un cron (et en

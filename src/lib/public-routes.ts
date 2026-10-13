@@ -12,7 +12,6 @@ const PUBLIC_PREFIXES = [
     "/almanax",
     "/boss",
     "/carte-du-monde",
-    "/changelog",
     "/demo",
     "/docs",
     "/guides",

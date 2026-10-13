@@ -157,7 +157,6 @@ COPY --from=prisma-cli --chown=nextjs:nodejs /prisma-cli /opt/prisma-cli
 # Copy bundled seeds
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed-data/seed.js ./prisma/seed-data/
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/
-COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed-docs.js ./prisma/
 
 # Copy bundled worker
 COPY --from=builder --chown=nextjs:nodejs /app/dist/worker.js ./worker.js

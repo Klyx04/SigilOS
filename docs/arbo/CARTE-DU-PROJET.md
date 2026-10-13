@@ -68,7 +68,7 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 
 | Fichier | Rôle |
 |---|---|
-| `package.json` / `package-lock.json` | Dépendances + scripts npm (`dev`, `build`, `test:run`, `seed:docs`, `build:worker`…) |
+| `package.json` / `package-lock.json` | Dépendances + scripts npm (`dev`, `build`, `test:run`, `build:worker`…) |
 | `next.config.ts` | Config Next.js (images, redirections, sécurité) |
 | `tsconfig.json` | Config TypeScript |
 | `postcss.config.mjs` / `components.json` | Design system (Tailwind v4 **CSS-first** + shadcn) |
@@ -158,7 +158,7 @@ docs/
 |---|---|
 | `schema.prisma` | **La source de vérité du modèle** (toutes les tables) |
 | `migrations/` (253) | Historique SQL. **Ne jamais modifier une migration déjà appliquée** (checksum Prisma → deploy cassé) |
-| `seed.ts`, `seed-docs.ts`, `seed-legendary.ts`, `seed-data/seed.ts` | Seeds : données par défaut, catalogue des docs, items légendaires |
+| `seed.ts`, `seed-legendary.ts`, `seed-data/seed.ts` | Seeds : données par défaut, items légendaires |
 | `seed-data/dofus-quests/*-compiled.json` (30+) | Quêtes Dofus compilées, par serveur (Ébène, Ivoire, Vulbis…) |
 | `seeds/game-data.json`, `seed-data/game-data.json` | Données de jeu de référence (deux emplacements) |
 | `clear.ts`, `clear-dj-posts.sql`, `add-new-creators.ts` | Outils one-shot de maintenance BDD |

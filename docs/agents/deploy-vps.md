@@ -51,7 +51,6 @@ décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
 | **ÉTAPE 4/5** `Base à jour — 262 migrations connues, aucune à appliquer` (la ligne `262 migrations found…` de Prisma, elle, n'est pas toujours écrite) | `262` = les migrations **du dépôt** (une par changement de schéma déjà validé), **comptées dans le dépôt** (`find prisma/migrations -mindepth 1 -maxdepth 1 -type d \| wc -l`) et non relues du log — mesuré le 30/09/2026 : deux déploiements d'affilée au code identique, la ligne présente au premier, absente au second. Prisma compare cette liste à la table `_prisma_migrations` de la base et n'applique **que la différence** ⇒ ici rien à faire, **aucune donnée touchée** |
 | **ÉTAPE 4/5** `✓ Schéma déjà à jour` (beta seulement) | `db push` : la base **beta** reçoit les écarts de schéma sans fichier de migration (itération rapide). Volontairement **absent en prod** |
 | **ÉTAPE 5/5** `Données de jeu inchangées — seed ignoré` | le seed de `game-data.json` ne tourne que si son **hash** a changé depuis le dernier déploiement |
-| *(plus de ligne de doc)* | 🛑 Depuis le **12/10/2026**, le déploiement **ne synchronise plus** les fiches de `src/lib/docs-catalog.ts` : `seed:docs` **écrasait** chaque `DocPage` (title/category/content/accessLevel) et **supprimait** celles dont le slug n'était pas au catalogue ⇒ toute correction faite dans l'interface était perdue au déploiement suivant. La doc se publie **à la demande** (voir § Après le deploy) |
 | `⚠  Des fichiers locaux sont modifiés` | fichiers **suivis** modifiés sur le serveur **hors** des classes connues : à comprendre, pas à ignorer (§ L'arbre de travail) |
 | `ℹ️  N fichier(s) suivi(s) portés par CE serveur — laissés tels quels` | médias/JSON que le serveur écrit lui-même (`SERVER_OWNED`) : comptés **à part**, jamais touchés, **rien à faire** |
 | **Un passage qui affiche l'ancienne sortie** (barre douteuse, `npm notice`, ancien libellé) | `bash` lit le script **au fil de l'exécution**, et le `git pull` le réécrit **pendant** : un passage peut montrer un **mélange** des deux versions (mesuré le 30/09/2026 — inode remplacé ⇒ l'ancienne version continue · réécriture en place ⇒ la nouvelle est exécutée). Ce n'est **pas** une régression : les **images** déployées sont toujours les nouvelles, et le passage **suivant** est intégralement à jour |
@@ -60,10 +59,6 @@ décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
 
 ### Bruit supprimé et questions déjà posées (mesures du 30/09/2026)
 
-- **`npm notice New major version of npm available!`** : c'était npm publiant sa propre mise à
-  jour au milieu de l'étape 5. Tous les appels passent maintenant par `npm run --silent` +
-  `NO_UPDATE_NOTIFIER=1` (dans **les deux** scripts) ⇒ plus de bandeau
-  `> temp-sigil@0.1.0 seed:docs:prod` non plus.
 - **Barre qui semble bloquée à 91 %** (`app ✓ téléchargée█████░░]  91%%`) : deux défauts
   d'**affichage**, jamais un téléchargement incomplet. (a) le `✓` était écrit avec `\r` **sans
   effacer la fin de la ligne** ⇒ le reste de la barre (plus longue) restait visible à droite ;
@@ -272,12 +267,8 @@ conteneurs (le déploiement n'est donc jamais à moitié appliqué).
 
 ## Après le deploy
 
-- ⚠️ **La doc en base n'est plus écrasée par le déploiement** (décision du 12/10/2026) : ce que
-  tu édites dans l'interface **survit** aux déploiements. Le catalogue
-  (`src/lib/docs-catalog.ts`) reste la **source de publication**, à rejouer **à la demande** —
-  et en sachant que c'est **destructif** :
-  `sudo docker compose -f docker-compose.prod.yml --env-file .env.<env> exec <app> sh -c 'NO_UPDATE_NOTIFIER=1 npm_config_update_notifier=false npm run --silent seed:docs:prod'`
-  **écrase** les fiches (contenu, titre, catégorie, accès) **et supprime** celles dont le slug n'est
-  pas au catalogue.
+- ⚠️ **La doc en base n'est jamais écrasée par le déploiement** : ce que
+  tu édites dans l'interface **survit** aux déploiements — le sync/seed de docs
+  a été **supprimé**, il n'y a plus rien à rejouer.
 - Vérifier l'app : `sudo docker compose ps` (3 services `Up/healthy`), puis un
   chargement de page réel.

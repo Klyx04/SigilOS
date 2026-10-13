@@ -173,9 +173,7 @@ run_conditional_seed() {
         dim "⏭️  Seeding ignoré (game-data.json inchangé depuis le dernier déploiement)."
     fi
 
-    # 🛑 Plus de synchronisation de la doc au déploiement (décision user du 12/10/2026) :
-    # `seed:docs` écrase les fiches `DocPage` par le catalogue et supprime les slugs absents
-    # du catalogue (cf. la note détaillée dans `deploy-cd.sh`). À publier à la demande.
+    # La documentation vit en base (`DocPage`, éditée via /god/docs) : aucun seed de docs ici.
 }
 
 # -----------------------------------------------------------------------------

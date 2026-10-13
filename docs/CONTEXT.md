@@ -114,17 +114,17 @@
 
 ## 📚 Système de Documentation Intégré (DocDrawer)
 
-> Référence : `prisma/seed-docs.ts` · Contenu en base `DocPage` ·
-> **publication à la demande** `npm run seed:docs` — ⚠️ **destructif** : elle **écrase** les fiches
-> existantes (titre, catégorie, contenu, accès) et **supprime** celles dont le slug n'est pas dans
-> `OFFICIAL_DOCS`. **Plus jamais au déploiement** depuis le 12/10/2026 : les corrections faites
-> dans l'interface sont conservées.
+> Source de vérité : la base `DocPage` (éditée via `/god/docs`, groupée par module,
+> recherche + filtre Membres/Staff). `src/lib/docs-catalog.ts` est une **référence figée**
+> (secours + garde-fous de tests) — plus aucun sync, seed ou bouton ne peut écraser les fiches.
 
 ### Architecture du système
 
 | Fichier | Rôle |
 |---------|------|
-| `prisma/seed-docs.ts` | Source de vérité de toutes les documentations (HTML sémantique) |
+| `/god/docs` + `_components/docs-library.tsx` | Bibliothèque God : recherche, portée, groupes par module, opérations voir/modifier/supprimer |
+| `src/lib/docs-modules.ts` | Rangements purs : ordre canonique, groupement, slug → route dashboard · contrat `MODULE_DOC_COVERAGE` (un module = une fiche, même vide — testé) |
+| `src/components/editor/advanced-editor.tsx` | TipTap : collage Markdown converti, import `.html`, callouts, images |
 | `src/components/doc/doc-drawer.tsx` | Slide-over contextuel (TOC auto, scroll-spy, plein écran) |
 | `src/components/doc/doc-drawer-context.tsx` | Context React global `openDoc(slug, title)` / `closeDoc()` |
 | `src/components/doc/module-help-actions.tsx` | Bouton `[ 📖 Documentation ]` + `[ ❓ Tutoriel ]` à placer dans chaque header de module |
@@ -140,7 +140,7 @@
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 <ModuleHelpActions
-    docSlug="mon-module"          // Correspond au slug dans seed-docs.ts
+    docSlug="mon-module"          // Slug de la fiche en base (créée via /god/docs)
     docTitle="Titre du Module"    // Affiché dans le drawer
     tourPhase="monModuleTour"     // Phase du tour interactif
 />
@@ -167,7 +167,7 @@ import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 ### Déploiement VPS
 
-`scripts/deploy.sh` exécute automatiquement `npm run seed:docs` — les docs sont toujours à jour en prod.
+Rien à faire : la doc vit en base et suit les sauvegardes — aucun seed, aucun sync au déploiement.
 
 ---
 

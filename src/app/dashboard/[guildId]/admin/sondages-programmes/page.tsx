@@ -15,8 +15,15 @@ import AccessDenied from "@/components/access-denied";
  *
  * C'est la permission RBAC `staff:scheduled_polls` qui ouvre l'accès : un rôle
  * qui la détient voit le bouton « Staff » de la sidebar, la carte du module dans
- * `/admin`, **et** peut éditer ici les réglages (salon de l'embed, rôles de ping
- * autorisés, durée par défaut) **et** les créneaux.
+ * `/admin`, **et** peut créer/modifier/annuler des créneaux ici.
+ *
+ * ⛔ **Un seul écran par réglage** (14/10/2026) : le salon de l'embed, les rôles de
+ * ping autorisés et la durée de vote par défaut sont des réglages de **guilde** —
+ * ils vivent dans `Paramètres → Sondages` (2ᵉ encart) et n'ont **pas** à être
+ * répétés ici. Seule exception, mesurée : le rôle staff n'a pas `system:config`,
+ * donc `Paramètres` lui est **fermé** (`canViewSettings`) ⇒ l'encart lui reste
+ * affiché ici, et lui seul — jamais deux fois le même jour sur le même écran.
+ * Le compteur de places, lui, est porté par le tableau.
  *
  * Triple garde, dans cet ordre : `canSchedulePolls` (permission **et** module
  * effectif — verrous God plateforme/guilde compris), entrée du God plateforme,
@@ -55,9 +62,12 @@ export default async function ScheduledPollsPage({ params }: { params: Promise<{
                 }
             />
 
-            {/* Réglages du module (mêmes réglages que l'encart de Paramètres → Sondages,
-                un seul composant partagé : aucune règle dupliquée). */}
-            <ScheduledPollSettingsClient guildId={guildId} />
+            {/* Réglages du module : ils vivent dans « Paramètres → Sondages » (un seul
+                écran par réglage), donc **rien** pour un admin. Mais le rôle staff n'a
+                pas `system:config` : mesuré, `Paramètres` lui est fermé
+                (`canViewSettings`) ⇒ on lui garde l'encart ici (même composant partagé,
+                donc aucune règle dupliquée), et l'écran reste unique pour chacun. */}
+            {!user.canViewSettings && <ScheduledPollSettingsClient guildId={guildId} />}
 
             {!result.success || !result.data ? (
                 <div className="p-4 rounded-lg border border-warning/30 bg-warning/10 text-sm text-warning">

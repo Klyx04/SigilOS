@@ -24,7 +24,6 @@ import { CalendarClock, Info, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { createScheduledPoll, updateScheduledPoll, type ScheduledPollSlotView } from "@/server/actions/scheduled-poll-actions";
@@ -122,7 +121,6 @@ export function ScheduledPollForm({
     const [expiryHours, setExpiryHours] = useState<number>(
         slot?.durationHours ?? defaultDurationH ?? DURATION_PRESETS[0].hours,
     );
-    const [channelId, setChannelId] = useState(slot?.discordChannelId ?? "");
     const [mentionRoleIds, setMentionRoleIds] = useState<string[]>(slot?.mentionRoleIds ?? []);
     const [roles, setRoles] = useState<{ id: string; name: string; color: string }[]>([]);
 
@@ -195,7 +193,6 @@ export function ScheduledPollForm({
                 repeatEvery: repeatUnit ? (Number(repeatEvery) || 1) : null,
                 repeatUnit: repeatUnit || null,
                 repeatUntil: repeatUnit && repeatUntil ? new Date(repeatUntil).toISOString() : null,
-                discordChannelId: channelId.trim() || null,
                 mentionRoleIds,
                 externalUrl: externalUrl.trim() || null,
             };
@@ -449,16 +446,18 @@ export function ScheduledPollForm({
                         </p>
                     </div>
 
-                    <div className="space-y-1.5">
-                        <label className="text-caption font-semibold text-muted-foreground">Salon Discord de publication</label>
-                        <DiscordChannelPicker
-                            guildId={guildId}
-                            value={channelId}
-                            onChange={setChannelId}
-                            allowEmptyLabel="Salon par défaut des paramètres"
-                            placeholder={defaultChannelId ? "Salon par défaut (paramètres)" : "Choisir un salon…"}
-                        />
-                    </div>
+                    {/* Le salon est un réglage de **guilde** (Paramètres → Sondages) : la modale
+                        n'a pas à le proposer. Elle dit où le créneau partira, et prévient
+                        quand il n'y a rien à utiliser (la publication échouerait). */}
+                    <p className={cn(
+                        "text-caption flex items-start gap-2",
+                        defaultChannelId ? "text-muted-foreground" : "text-warning"
+                    )}>
+                        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        {defaultChannelId
+                            ? "Salon de publication : celui défini dans Paramètres → Sondages (réglage commun à tous les créneaux)."
+                            : "Aucun salon par défaut configuré : réglez-le dans Paramètres → Sondages, sinon la publication échouera à l'échéance."}
+                    </p>
 
                     <div className="space-y-2">
                         <label className="text-caption font-semibold text-muted-foreground">Rôles à mentionner à la publication</label>

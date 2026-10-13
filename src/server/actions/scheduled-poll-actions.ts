@@ -78,7 +78,6 @@ const CreateScheduledPollSchema = z.object({
     repeatEvery: z.number().int().min(1).max(MAX_REPEAT_EVERY).nullish(),
     repeatUnit: z.enum(["DAYS", "WEEKS", "MONTHS"]).nullish(),
     repeatUntil: z.string().datetime({ message: "Fin de répétition invalide" }).nullish(),
-    discordChannelId: z.string().regex(/^\d{17,20}$/, "Salon Discord invalide").nullish(),
     mentionRoleIds: z.array(z.string().regex(/^\d{17,20}$/, "Rôle Discord invalide")).max(10).default([]),
     externalUrl: z.string().url().nullish().or(z.literal("")),
 }).strict();
@@ -254,7 +253,8 @@ export interface ScheduledPollBoard {
 
 /**
  * Validation commune création/modification : bornes de date, minute libre,
- * plafond de créneaux, salon autorisé et pings whitelistés.
+ * plafond de créneaux et pings whitelistés. Le **salon** n'est plus validé ici :
+ * ce n'est plus un champ du créneau (réglage de guilde, Paramètres → Sondages).
  * Toute règle métier vient de `@/lib/polls/scheduling` (testée) ; ici on la
  * confronte à l'état réel de la guilde.
  */
@@ -264,7 +264,7 @@ async function validateSlot(
     discordGuildId: string,
     ignoreId?: string,
 ): Promise<
-    | { ok: true; scheduledAt: Date; mentionRoleId: string | null; channelId: string | null; repeatEvery: number | null; repeatUnit: "DAYS" | "WEEKS" | "MONTHS" | null; repeatUntil: Date | null }
+    | { ok: true; scheduledAt: Date; mentionRoleId: string | null; repeatEvery: number | null; repeatUnit: "DAYS" | "WEEKS" | "MONTHS" | null; repeatUntil: Date | null }
     | { ok: false; error: string }
 > {
     const when = new Date(data.scheduledAt);
@@ -312,16 +312,9 @@ async function validateSlot(
         return { ok: false, error: "Un sondage programmé occupe déjà ce créneau (même date, même heure, même minute)." };
     }
 
-    let channelId: string | null = data.discordChannelId || null;
-    if (channelId) {
-        const { validateChannelBelongsToGuild } = await import("@/server/discord");
-        if (!(await validateChannelBelongsToGuild(channelId, discordGuildId))) {
-            return { ok: false, error: "Ce salon n'appartient pas à votre serveur Discord." };
-        }
-    } else {
-        channelId = null;
-    }
-
+    // ⛔ Salon : réglage de **guilde** (Paramètres → Sondages), plus un choix du
+    // créneau (14/10/2026). Le créneau ne porte donc plus de salon : le moteur
+    // publie dans `guild.scheduledPollsChannelId` (et refuse d'office si vide).
     // 🔒 SECURITY: whitelist des rôles de ping appliquée identiquement aux
     // admins et au staff (fail-closed, pattern du module Sondages).
     const allowedRoleIds: string[] = guild.scheduledPollsPingRoleIds || [];
@@ -331,7 +324,7 @@ async function validateSlot(
     }
     const kept = data.mentionRoleIds.filter((id) => allowedRoleIds.includes(id));
 
-    return { ok: true, scheduledAt: when, mentionRoleId: kept.length > 0 ? kept.join(",") : null, channelId, repeatEvery, repeatUnit, repeatUntil };
+    return { ok: true, scheduledAt: when, mentionRoleId: kept.length > 0 ? kept.join(",") : null, repeatEvery, repeatUnit, repeatUntil };
 }
 
 /**
@@ -438,7 +431,10 @@ export async function createScheduledPoll(rawData: unknown): Promise<ScheduledPo
                 repeatEvery: checked.repeatEvery,
                 repeatUnit: checked.repeatUnit,
                 repeatUntil: checked.repeatUntil,
-                discordChannelId: checked.channelId,
+                // ⛔ Plus de salon par créneau : la publication suit le réglage de
+                // guilde (Paramètres → Sondages). Un créneau d'avant garde le sien
+                // (il reste prioritaire côté moteur), on ne le réécrit plus.
+                discordChannelId: null,
                 // Jamais @everyone depuis un créneau (même règle que le
                 // formulaire du module Sondages) : seuls les rôles whitelistés.
                 mentionEveryone: false,
@@ -519,7 +515,7 @@ export async function updateScheduledPoll(rawData: unknown): Promise<ScheduledPo
                     repeatEvery: checked.repeatEvery,
                     repeatUnit: checked.repeatUnit,
                     repeatUntil: checked.repeatUntil,
-                    discordChannelId: checked.channelId,
+                    discordChannelId: null,
                     mentionRoleId: checked.mentionRoleId,
                     options: {
                         create: data.options.map((opt, index) => ({

@@ -340,16 +340,42 @@ describe("placement — module STAFF, dans le Centre de contrôle (jamais dans l
         expect(pilotage).toContain("ModulesClient");
     });
 
-    it("la page du module accepte le rôle staff (permission) et ses RÉGLAGES aussi", () => {
+    it("les réglages du module n'apparaissent qu'UNE fois (jamais en double pour un admin)", () => {
         const page = codeOnly(ADMIN_STAFF_PAGE);
         expect(page).toContain("canSchedulePolls");
         expect(page).toContain('isModuleEnabled(guildId, "scheduledPolls")');
-        expect(page).toContain("ScheduledPollSettingsClient");
+        // Un admin lit ses réglages dans Paramètres → Sondages, jamais ici : le seul
+        // rendu de la page staff est **conditionné** à l'absence d'accès à Paramètres.
+        const renders = page.match(/<ScheduledPollSettingsClient guildId=\{guildId\} \/>/g) ?? [];
+        expect(renders).toHaveLength(1);
+        expect(page).toContain("{!user.canViewSettings && <ScheduledPollSettingsClient guildId={guildId} />}");
+        expect(codeOnly("src/app/dashboard/[guildId]/admin/settings/page.tsx")).toContain("<ScheduledPollSettingsClient guildId={guildId} />");
+        // … et le compteur de places reste porté par le tableau (rien n'est perdu).
+        expect(codeOnly("src/components/sondages/programmes/scheduled-poll-board.tsx")).toContain("{board.pendingCount}/{board.maxSlots}");
+        // Mesure qui justifie l'exception : `Paramètres` est fermé sans `system:config`,
+        // donc le rôle staff garderait sinon AUCUN accès à ses propres réglages.
+        expect(codeOnly("src/server/actions/user-actions.ts")).toContain(
+            "canViewSettings = permissionSet.has(PERMISSIONS.SYSTEM_CONFIG) || isAdminFinal"
+        );
 
         const actions = codeOnly(ACTIONS);
-        // L'encart de réglages est accessible soit par un admin, soit par le rôle du module.
+        // Les réglages restent éditables par le rôle du module, depuis Paramètres.
         expect(actions).toContain("requireScheduledPollSettingsAccess");
         expect(actions).toMatch(/requireGuildConfigAccess\(discordGuildId, context\)[\s\S]{0,400}if \(staff\.ok\) return \{ ok: true \}/);
+    });
+
+    it("le salon n'est plus un champ du créneau (ni modale, ni API)", () => {
+        const form = codeOnly("src/components/sondages/programmes/scheduled-poll-form.tsx");
+        expect(form).not.toContain("DiscordChannelPicker");
+        expect(form).not.toContain("Salon Discord de publication");
+        // La modale dit où le créneau partira, et prévient si rien n'est réglé.
+        expect(form).toContain("Paramètres → Sondages");
+
+        const actions = codeOnly(ACTIONS);
+        expect(actions).not.toContain("discordChannelId: z.string()");
+        expect(actions).not.toContain("checked.channelId");
+        // Le créneau ne porte plus de salon : la publication suit la guilde.
+        expect(actions).toContain("discordChannelId: null");
     });
 });
 

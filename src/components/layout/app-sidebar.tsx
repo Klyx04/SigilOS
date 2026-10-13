@@ -284,7 +284,7 @@ export function AppSidebar({
         { name: "Bot Tickets & Support", href: `/dashboard/${guildId}/tickets`, icon: Ticket, color: "amber", visible: user.canManageTickets && modules.tickets },
         { name: "Logs d'Audit", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "rose", visible: user.canViewAuditLogs && modules.logs },
         { name: "Documentation", href: "/docs", icon: BookOpen, color: "teal", visible: true },
-        { name: "Mises à jour", href: "/changelog", icon: History, color: "indigo", visible: true },
+        { name: "Mises à jour", href: `/dashboard/${guildId}/changelog`, icon: History, color: "indigo", visible: true },
         { name: "Tracker de Bugs", href: `/dashboard/${guildId}/tracker`, icon: Bug, color: "amber", visible: true },
     ];
 
@@ -898,7 +898,7 @@ export function AppSidebar({
                                 <BookOpen className="w-4 h-4" />
                                 <span className="text-caption font-medium">Docs</span>
                             </Link>
-                            <Link href="/changelog" className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Changelog">
+                            <Link href={`/dashboard/${guildId}/changelog`} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface transition-colors duration-150" title="Changelog">
                                 <History className="w-4 h-4" />
                                 <span className="text-caption font-medium">Maj</span>
                             </Link>

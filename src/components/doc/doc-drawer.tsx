@@ -21,6 +21,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { getDocMeta } from "@/lib/doc-meta";
 
 interface DocDrawerProps {
     guildId?: string;
@@ -137,7 +138,10 @@ export function DocDrawer({ guildId }: DocDrawerProps) {
                         <div className="p-4 sm:p-5 border-b border-border/80 bg-surface/40 flex items-center justify-between gap-3 shrink-0">
                             <div className="flex items-center gap-3 min-w-0">
                                 <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 text-primary">
-                                    <BookOpen className="w-5 h-5" />
+                                    {(() => {
+                                        const DocIcon = getDocMeta(currentSlug ?? "").icon;
+                                        return <DocIcon className="w-5 h-5" />;
+                                    })()}
                                 </div>
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">

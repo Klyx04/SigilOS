@@ -42,7 +42,6 @@ npx prisma generate
 npx prisma migrate deploy      # ou `npx prisma migrate dev` si tu crées une migration
 npm run seed                   # données de base
 npm run seed:game-data         # données de jeu (monstres, donjons, items…)
-npm run seed:docs              # catalogue de la documentation publique
 
 # 5. Application (http://localhost:3000)
 npm run dev
@@ -63,7 +62,7 @@ docker compose up -d
 | `npm run test:coverage` | Idem avec couverture |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | Vérification TypeScript (aussi jouée par le hook pre-commit) |
-| `npm run seed` / `seed:game-data` / `seed:docs` | Seeds (défauts / données de jeu / catalogue docs) |
+| `npm run seed` / `seed:game-data` | Seeds (défauts / données de jeu) |
 | `npm run worker` · `npm run ws` | Worker BullMQ · serveur WebSocket (dev) |
 | `npm run build:worker` · `build:ws` · `build:seeds` · `build:maintenance` | Bundles esbuild utilisés par le Dockerfile |
 | `npm run migrate:uploads` | Migration des fichiers `public/uploads` → `private_uploads` |

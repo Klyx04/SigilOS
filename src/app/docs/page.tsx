@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { getDocMeta, CATEGORY_META } from "@/lib/doc-meta";
+import { DOC_CATEGORY_ORDER } from "@/lib/docs-modules";
 import { JsonLd } from "@/components/shared/json-ld";
 
 export const metadata: Metadata = {
@@ -26,13 +27,7 @@ export default async function DocsHubPage() {
         groupedDocs[cat].push(doc);
     });
 
-    const categoryOrder = [
-        "Progression & Objectifs",
-        "Outils & Services",
-        "Communauté & Guilde",
-        "Administration & Staff",
-        "Spécifications Techniques"
-    ];
+    const categoryOrder: readonly string[] = DOC_CATEGORY_ORDER;
 
     const sortedCategories = Object.keys(groupedDocs).sort((a, b) => {
         const indexA = categoryOrder.indexOf(a);
@@ -75,7 +70,7 @@ export default async function DocsHubPage() {
                     <section className="reg-panel p-6">
                         <p className="text-[15px] font-semibold text-foreground">Aucun guide pour le moment</p>
                         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-                            La documentation est en cours de synchronisation.
+                            La documentation est en cours de rédaction.
                         </p>
                     </section>
                 )}

@@ -41,6 +41,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { EmojiPicker } from "./emoji-picker";
+import { looksLikeMarkdown, markdownToHtml } from "@/lib/markdown-paste";
 
 interface AdvancedEditorProps {
     initialContent?: string;
@@ -106,6 +107,19 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                                 }
                             });
                         }
+                        return true;
+                    }
+                }
+
+                // Collage Markdown en texte brut : on convertit vers le HTML
+                // de l'éditeur au lieu d'afficher les marqueurs littéralement.
+                // Ne s'applique que sans fragment HTML (copié depuis un rendu).
+                const clipboardHtml = event.clipboardData?.getData("text/html");
+                const clipboardText = event.clipboardData?.getData("text/plain");
+                if (!clipboardHtml && clipboardText && editor) {
+                    if (looksLikeMarkdown(clipboardText)) {
+                        event.preventDefault();
+                        editor.chain().focus().insertContent(markdownToHtml(clipboardText)).run();
                         return true;
                     }
                 }

@@ -310,9 +310,10 @@ export async function deleteDoc(id: string): Promise<ActionResponse<void>> {
 
 // Admin Fetcher (Gets unpublished too)
 export async function getAdminDocs(): Promise<DocPageData[]> {
-    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const { isSuperAdmin, canAccessBrick } = await import("@/server/actions/super-admin-actions");
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    // P2 — même gate que la page /god/docs : un sous-god avec la brique "docs" liste aussi.
+    if (!isAdmin && !(await canAccessBrick("docs"))) return [];
 
     const docs = await (db.docPage as any).findMany({
         orderBy: [
@@ -325,77 +326,66 @@ export async function getAdminDocs(): Promise<DocPageData[]> {
 }
 
 /**
- * 🔄 Synchronisation 1-clic du catalogue documentaire officiel SigilOS.
- * Réservé exclusivement au Super Admin / rôle staff ayant accès à la brique "docs".
+ * Crée les pages de couverture manquantes « un module = une fiche »
+ * (`MODULE_DOC_COVERAGE`) — création **seule** : un slug existant n'est
+ * jamais touché (ni écrasé, ni republié). Idempotente : rejouable sans effet.
  */
-export async function syncOfficialDocsAction(): Promise<ActionResponse<{ createdCount: number; updatedCount: number; total: number }>> {
+export async function createMissingModuleDocsAction(): Promise<ActionResponse<{ created: string[] }>> {
+    const { isSuperAdmin, canAccessBrick } = await import("@/server/actions/super-admin-actions");
+    const isAdmin = await isSuperAdmin();
+    const isBrick = await canAccessBrick("docs");
+    if (!isAdmin && !isBrick) return { success: false, error: "Non autorisé" };
+
     try {
-        const { isSuperAdmin, canAccessBrick } = await import("@/server/actions/super-admin-actions");
-        const isAdmin = await isSuperAdmin();
-        const isBrick = await canAccessBrick("docs");
-        if (!isAdmin && !isBrick) return { success: false, error: "Non autorisé" };
+        const { missingModuleDocSlugs, missingDocStarterContent } = await import("@/lib/docs-modules");
+        const { moduleLabel } = await import("@/lib/module-catalog");
+        const { sanitizeHtml } = await import("@/lib/security");
 
-        const { OFFICIAL_DOCS } = await import("@/lib/docs-catalog");
-        const validSlugs = OFFICIAL_DOCS.map(d => d.slug);
+        const existing = await (db.docPage as any).findMany({ select: { slug: true } });
+        const missing = missingModuleDocSlugs(existing.map((d: any) => d.slug));
 
-        // Nettoyage des anciennes documentations obsolètes
-        await (db.docPage as any).deleteMany({
-            where: {
-                slug: { notIn: validSlugs }
-            }
-        });
-
-        let createdCount = 0;
-        let updatedCount = 0;
-
-        for (const doc of OFFICIAL_DOCS) {
-            const existing = await (db.docPage as any).findUnique({ where: { slug: doc.slug } });
-            if (existing) {
-                await (db.docPage as any).update({
-                    where: { slug: doc.slug },
-                    data: {
-                        title: doc.title,
-                        category: doc.category,
-                        content: doc.content.trim(),
-                        accessLevel: doc.accessLevel,
-                        isPublished: true,
-                    }
-                });
-                updatedCount++;
-            } else {
-                await (db.docPage as any).create({
-                    data: {
-                        slug: doc.slug,
-                        title: doc.title,
-                        category: doc.category,
-                        content: doc.content.trim(),
-                        accessLevel: doc.accessLevel,
-                        isPublished: true,
-                    }
-                });
-                createdCount++;
-            }
+        const created: string[] = [];
+        for (const page of missing) {
+            const already = await (db.docPage as any).findUnique({
+                where: { slug: page.slug },
+                select: { id: true },
+            });
+            if (already) continue;
+            await (db.docPage as any).create({
+                data: {
+                    slug: page.slug,
+                    title: page.title,
+                    content: sanitizeHtml(
+                        missingDocStarterContent(page.title, moduleLabel(page.moduleKey), page.scope),
+                        5000000,
+                        false
+                    ) || "",
+                    category: page.category,
+                    order: 0,
+                    isPublished: true,
+                    accessLevel: page.accessLevel,
+                    guildId: null,
+                },
+            });
+            created.push(page.slug);
         }
 
+        if (!isAdmin) {
+            const { createGodAuditLog } = await import("@/server/actions/audit-actions");
+            await createGodAuditLog({
+                action: "GOD_DOC_UPDATE",
+                targetType: "DATA_SYNC",
+                targetId: "missing-module-docs",
+                metadata: { op: "create-missing-docs", created },
+            });
+        }
         revalidatePath("/docs");
         revalidatePath("/god/docs");
+        logger.info(`[DOCS] Pages de couverture créées : ${created.length}`, { created });
 
-        const { createGodAuditLog } = await import("@/server/actions/audit-actions");
-        await createGodAuditLog({
-            action: "GOD_DOC_UPDATE",
-            targetType: "DATA_SYNC",
-            targetId: "official-docs-seed",
-            metadata: { createdCount, updatedCount, total: OFFICIAL_DOCS.length },
-        });
-
-        logger.info(`[DOCS_SYNC] Synced official docs: ${createdCount} created, ${updatedCount} updated`);
-
-        return {
-            success: true,
-            data: { createdCount, updatedCount, total: OFFICIAL_DOCS.length }
-        };
+        return { success: true, data: { created } };
     } catch (error) {
-        logger.error("Error syncing official docs:", error);
-        return { success: false, error: "Erreur lors de la synchronisation de la documentation" };
+        logger.error("Error creating missing module docs:", error);
+        return { success: false, error: "Erreur lors de la création des pages manquantes" };
     }
 }

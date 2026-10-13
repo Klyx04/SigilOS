@@ -89,7 +89,9 @@ Une entité = **un seul message** (édition, jamais de repost) · boutons **dés
 `isSuperAdmin()` **fail-closed** (page **et** action) · **audit** de chaque mutation · réglages **bornés** et validés · jamais d'action « par guilde » sans vérification d'appartenance.
 
 ### 5.5 Documentation du module (obligatoire — `docs/RULES.md` § doc)
-Source unique = **`src/lib/docs-catalog.ts`** (fiche du module, permissions, nouvelles fonctions) ⇒ **`npm run seed:docs`** en local (+ `npm run build:seeds` si demandé) — ⚠️ **destructif** : il **écrase** les fiches `DocPage` (contenu, titre, catégorie, accès) et **supprime** les slugs hors catalogue ; **jamais au déploiement** (retiré le 12/10/2026) · pas de markdown brut, pas de nom de rôle Discord en dur, pas d'exemple propre à une guilde · **tour** (`tour-provider.tsx`) mis à jour si un écran change.
+Source unique = **la fiche en base, éditée via `/god/docs`** (titre, catégorie, accès, contenu HTML ;
+collage Markdown converti, import `.html` dispo) · **nouveau module = squelette créé même vide**
+(bouton « pages manquantes » de la bibliothèque God, contrat `MODULE_DOC_COVERAGE` verrouillé par test) · pas de markdown brut, pas de nom de rôle Discord en dur, pas d'exemple propre à une guilde · **tour** (`tour-provider.tsx`) mis à jour si un écran change.
 
 ---
 
@@ -122,7 +124,7 @@ La CI **`Verify & Build`** enchaîne : `npm ci` → intégrité du lockfile → 
 - [ ] `npm run test:run` **vert** · `npx tsc --noEmit` **0** · `eslint` **0 erreur** · `build` **0** (ou délégué à la CI).
 - [ ] `tests/security/*` **verts** · **0 migration** non voulue (sinon **additive + idempotente**).
 - [ ] Sécurité repassée (§4) : auth, isolation guilde, RBAC/God, Zod borné, fail-closed, logger, rate limit, garde d'état dans le `WHERE`.
-- [ ] Docs : `docs/ROADMAP.md` + `docs/agents/activeContext.md` + **§25 du plan** du module + fiche `seed-docs` si le module change + mémo `memo-<AAAA-MM-JJ>-<sujet>.md` (zone volatile).
+- [ ] Docs : `docs/ROADMAP.md` + `docs/agents/activeContext.md` + **§25 du plan** du module + fiche `/god/docs` si le module change + mémo `memo-<AAAA-MM-JJ>-<sujet>.md` (zone volatile).
 - [ ] `debug.md` (zone volatile `src/temp/`) mis à jour (constats traités / restants / décisions).
 - [ ] PR → `dev` · **CI verte** · merge · branche supprimée · `dev` repullé · `gh pr list --state open` **vide**.
 - [ ] Rapport final **court** : ce qui est fait · ce qui reste · ce que **le user** doit faire (ops).
@@ -175,8 +177,7 @@ middleware.ts) · tests/security/* verts · 0 migration (sinon additive + idempo
 demande-moi AVANT).
 
 VÉRIFS avant PR — npm run test:run · npx tsc --noEmit · npx eslint <fichiers touchés> ·
-npm run build (délégué à la CI si `next dev` tourne — dis-le) · npm run seed:docs si
-docs-catalog.ts a changé. Push : docs/agents/git-push.md (sync origin/dev +
+npm run build (délégué à la CI si `next dev` tourne — dis-le). Push : docs/agents/git-push.md (sync origin/dev +
 `npm install --package-lock-only` si package.json a bougé), hook pre-commit vert, PR vers
 `dev`, `gh pr checks` jusqu'au vert, merge, branche supprimée, `dev` repullé.
 

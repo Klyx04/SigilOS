@@ -343,14 +343,14 @@ Le script `maintenance.sh` tourne chaque nuit à 4h00 pour purger les caches Doc
 
 ## 📖 Règle de Documentation — OBLIGATOIRE
 
-> **Toute modification d'un module existant ou création d'un nouveau module implique une mise à jour (ou création) de sa documentation officielle dans `prisma/seed-docs.ts`.**
+> **Toute modification d'un module existant ou création d'un nouveau module implique une mise à jour (ou création) de sa fiche de documentation via `/god/docs` (base `DocPage`, groupée par module) — squelette même vide (titre + `h2` + encadré « en cours de rédaction »), jamais de page manquante.**
 
 ### Déclencheurs obligatoires
 
 | Événement | Action requise |
 |-----------|----------------|
-| **Nouveau module créé** (`/admin/xxx`, `/dashboard/xxx`) | Créer un doc `slug: 'nom-du-module'` dans `seed-docs.ts` avec contenu HTML riche |
-| **Module existant modifié en profondeur** | Mettre à jour le contenu du doc correspondant |
+| **Nouveau module créé** (`/admin/xxx`, `/dashboard/xxx`) | Créer la fiche `slug: 'nom-du-module'` dans `/god/docs` avec contenu HTML riche — **ou le squelette vide** + entrée dans `MODULE_DOC_COVERAGE` (`src/lib/docs-modules.ts`, le test `docs-modules` l'exige) |
+| **Module existant modifié en profondeur** | Mettre à jour le contenu de la fiche correspondante |
 | **Nouveau champ Prisma ou nouvelle Server Action** | Documenter le nouveau comportement dans la doc du module concerné |
 | **Nouvelle permission RBAC ajoutée dans `permissions.ts`** | L'ajouter dans la doc `admin-permissions` (toutes les permissions doivent être documentées) |
 | **Nouveau module ajouté à la sidebar** (`app-sidebar.tsx`) | Lui associer un bouton `<ModuleHelpActions docSlug="..." />` |
@@ -376,13 +376,11 @@ Conseil pratique basé sur l'usage réel de la fonctionnalité.
 //              chiffres ou exemples spécifiques à une guilde.
 ```
 
-### Après chaque mise à jour de `seed-docs.ts`
+### Publication
 
 ```bash
-# TOUJOURS exécuter pour synchroniser la DB locale
-npm run seed:docs
-
-# Le VPS est mis à jour automatiquement via scripts/deploy.sh (npm run seed:docs inclus)
+# Rien à jouer : la fiche éditée dans /god/docs est publiée aussitôt
+# (revalidatePath). La doc suit les sauvegardes de la base.
 ```
 
 ---

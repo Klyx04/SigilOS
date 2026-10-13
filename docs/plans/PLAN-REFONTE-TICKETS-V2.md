@@ -13,7 +13,7 @@
 > boucler**, dans l'ordre, avec les fichiers exacts. Il remplace le brouillon de session
 > `temp/PROMPT-REPRISE-TICKETS-V2.md` (zone volatile, non versionnée).
 > Le **mode d'emploi destiné aux chefs de guilde** ne vit pas ici : il est dans le **guide
-> in-app** (`src/lib/docs-catalog.ts`, entrée `admin-tickets`), appliqué par `npm run seed:docs`.
+> in-app** (fiche `admin-tickets` en base, éditée via `/god/docs`).
 
 ## 1. Où en est le chantier (mesuré le 24/09/2026)
 
@@ -193,7 +193,6 @@ npm run test:run                 # suite complète (~2 360 cas)
 npx tsc --noEmit                 # types
 npm run lint                     # 0 erreur attendue
 npx prisma generate              # après tout changement de schéma
-npm run seed:docs                # après un changement de docs-catalog.ts (guide in-app)
 ```
 
 ## 7. Base locale : appliquer les tables v2 (état au 24/09/2026, suite 27 : ✅ **déjà appliqué**)

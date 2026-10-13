@@ -28,8 +28,8 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { godLocksOf, resolveModuleState } from "@/lib/module-lock";
 import { getPlatformModuleState } from "@/server/platform-module-state";
-import { publishPollToDiscord } from "@/server/polls/publish";
-import { resolveDurationHours } from "@/lib/polls/scheduling";
+import { publishPollResultToDiscord, publishPollToDiscord } from "@/server/polls/publish";
+import { expiryForOccurrence, resolveDurationHours } from "@/lib/polls/scheduling";
 import { nextOccurrence, type ScheduledRepeatUnit } from "@/lib/polls/scheduling";
 
 const LAST_ERROR_MAX_LENGTH = 300;
@@ -71,6 +71,79 @@ function filterAllowedRoles(roleCsv: string | null, allowed: string[]): string |
     const allowedSet = new Set(allowed);
     const kept = roleCsv.split(",").map((id) => id.trim()).filter((id) => id && allowedSet.has(id));
     return kept.length > 0 ? kept.join(",") : undefined;
+}
+
+/**
+ * Clôt l'occurrence **précédente** d'une série et publie son résultat.
+ *
+ * Pourquoi : une série peut demander un vote plus long que son intervalle
+ * (« tous les jours » avec 48 h de vote). L'occurrence suivante prend le relais,
+ * donc la précédente doit être **close et son résultat publié** d'abord — jamais
+ * deux sondages de la même série ouverts en même temps, jamais un résultat qui
+ * disparaît sans avoir été lu.
+ *
+ * La série est identifiée par **donnée explicite** (`ScheduledPoll.seriesId`),
+ * jamais par un rapprochement de titre ou de créateur : une mauvaise cible
+ * clôturerait le sondage de quelqu'un d'autre. L'antériorité se lit sur
+ * `scheduledAt` — deux créneaux d'une même guilde ne peuvent pas tomber à la
+ * même minute (contrainte d'unicité en base).
+ *
+ * Renvoie l'identifiant du sondage clôturé, ou `null` s'il n'y avait rien à clore
+ * (première occurrence de la série, occurrence déjà close, sondage supprimé).
+ */
+async function closePreviousSeriesOccurrence(
+    guildId: string,
+    seriesId: string,
+    before: Date,
+    discordGuildId: string,
+    now: Date,
+): Promise<string | null> {
+    const previousSlot = await db.scheduledPoll.findFirst({
+        where: {
+            guildId,
+            seriesId,
+            status: "PUBLISHED",
+            createdPollId: { not: null },
+            scheduledAt: { lt: before },
+        },
+        select: { createdPollId: true },
+        orderBy: { scheduledAt: "desc" },
+    });
+    const pollId = previousSlot?.createdPollId;
+    if (!pollId) return null;
+
+    const previousPoll = await db.poll.findUnique({
+        where: { id: pollId },
+        select: { id: true, status: true, discordChannelId: true, discordMessageId: true },
+    });
+    if (!previousPoll || previousPoll.status !== "ACTIVE") return null;
+
+    // ① Geler le vote AVANT de lire les résultats : la garde d'état vit dans le
+    //    `WHERE`, donc un vote concurrent ne peut pas se glisser entre les deux.
+    const closed = await db.poll.updateMany({
+        where: { id: previousPoll.id, status: "ACTIVE" },
+        data: { status: "CLOSED", closedAt: now },
+    });
+    if (closed.count === 0) return null;
+
+    // ② Résultat (message neuf, jamais un remplacement d'embed) puis retrait de
+    //    l'embed interactif : même contrat que la clôture manuelle (`closePoll`).
+    await publishPollResultToDiscord(discordGuildId, previousPoll.id, {
+        decisionTitle: "Clôture automatique",
+        decision: "Fin de cette occurrence : le prochain sondage de la série prend le relais. Le résultat ci-dessus est définitif.",
+        footer: "SigilOS • Clôture automatique (série récurrente)",
+    });
+    if (previousPoll.discordChannelId && previousPoll.discordMessageId) {
+        const { deleteChannelMessage } = await import("@/server/discord");
+        await deleteChannelMessage(previousPoll.discordChannelId, previousPoll.discordMessageId).catch(() => null);
+    }
+
+    logger.info("[ScheduledPolls] Occurrence précédente clôturée et résultat publié", {
+        seriesId,
+        pollId: previousPoll.id,
+        guildId: discordGuildId,
+    });
+    return previousPoll.id;
 }
 
 /**
@@ -134,9 +207,33 @@ async function publishClaimedSlot(slotId: string, now: Date): Promise<"published
         return "failed";
     }
 
+    // Série de répétition : la **première** occurrence porte sa propre série, les
+    // suivantes la recopient. L'affectation se fait à la publication (aucune
+    // écriture supplémentaire à la création), donc une série née avant la colonne
+    // s'identifie d'elle-même à sa prochaine occurrence.
+    const seriesId = slot.repeatEvery && slot.repeatUnit ? (slot.seriesId ?? slot.id) : null;
+
+    // Occurrence suivante — calculée AVANT la création du sondage : elle borne la
+    // fin de vote (jamais une fin de vote après le déclenchement suivant).
+    let nextScheduledAt: Date | null = null;
+    if (slot.repeatEvery && slot.repeatUnit) {
+        const candidate = nextOccurrence(now, slot.repeatEvery, slot.repeatUnit as ScheduledRepeatUnit);
+        const until = slot.repeatUntil;
+        if (!until || candidate.getTime() <= until.getTime()) {
+            nextScheduledAt = candidate;
+        }
+    }
+
     const durationHours = resolveDurationHours(slot.durationHours, slot.guild.scheduledPollsDurationH);
-    const expiresAt = durationHours ? new Date(now.getTime() + durationHours * 60 * 60 * 1000) : null;
+    const expiresAt = expiryForOccurrence(now, durationHours, nextScheduledAt);
     const mentionRoleId = filterAllowedRoles(slot.mentionRoleId, slot.guild.scheduledPollsPingRoleIds || []);
+
+    // ③bis — Série : l'occurrence **précédente** est close et son résultat publié
+    // AVANT que la nouvelle n'apparaisse (jamais deux sondages de la même série
+    // ouverts en même temps, jamais un résultat perdu).
+    if (seriesId) {
+        await closePreviousSeriesOccurrence(slot.guild.id, seriesId, slot.scheduledAt, discordGuildId, now);
+    }
 
     let pollId: string;
     try {
@@ -184,15 +281,6 @@ async function publishClaimedSlot(slotId: string, now: Date): Promise<"published
     // ⑤ Répétition : on repose l'occurrence suivante AVANT de marquer le créneau
     // publié, pour qu'un plantage entre les deux laisse un créneau `PUBLISHING`
     // (reprenable) plutôt qu'une série silencieusement arrêtée.
-    let nextScheduledAt: Date | null = null;
-    if (slot.repeatEvery && slot.repeatUnit) {
-        const candidate = nextOccurrence(now, slot.repeatEvery, slot.repeatUnit as ScheduledRepeatUnit);
-        const until = slot.repeatUntil;
-        if (!until || candidate.getTime() <= until.getTime()) {
-            nextScheduledAt = candidate;
-        }
-    }
-
     if (nextScheduledAt) {
         try {
             await db.scheduledPoll.create({
@@ -211,6 +299,7 @@ async function publishClaimedSlot(slotId: string, now: Date): Promise<"published
                     repeatEvery: slot.repeatEvery,
                     repeatUnit: slot.repeatUnit,
                     repeatUntil: slot.repeatUntil,
+                    seriesId,
                     discordChannelId: slot.discordChannelId,
                     mentionEveryone: slot.mentionEveryone,
                     mentionRoleId: slot.mentionRoleId,
@@ -237,6 +326,9 @@ async function publishClaimedSlot(slotId: string, now: Date): Promise<"published
             status: "PUBLISHED",
             publishedAt: now,
             createdPollId: pollId,
+            // La série est **écrite** ici : c'est la trace qui permettra à
+            // l'occurrence suivante de retrouver celle-ci et de la clore.
+            seriesId,
             discordChannelId: channelId,
             mentionRoleId: mentionRoleId ?? null,
             lastError: null,

@@ -10,11 +10,11 @@ import { z } from "zod";
 import { checkGuildPermission, getUserContext } from "@/server/actions/user-actions";
 // Local types to avoid Prisma export issues
 type PollStatus = "DRAFT" | "ACTIVE" | "CLOSED" | "CANCELLED";
-import { sendChannelMessage, deleteChannelMessage } from "@/server/discord";
+import { deleteChannelMessage } from "@/server/discord";
 // Fabrique d'embed **partagée** avec le module « Sondages programmés » : une
 // seule source de vérité pour la description, les boutons de vote et la
 // publication en salon (fichier sans `"use server"` ⇒ jamais exposé au client).
-import { POLL_CATEGORY_CONFIG, getProgressBar, publishPollToDiscord, type PollCategory } from "@/server/polls/publish";
+import { publishPollResultToDiscord, publishPollToDiscord, type PollCategory } from "@/server/polls/publish";
 import {
     POLL_DESCRIPTION_MAX_LENGTH,
     POLL_DESCRIPTION_MIN_LENGTH,
@@ -1029,46 +1029,21 @@ export async function closePoll(
     }
 }
 
+/**
+ * Résultat d'une clôture **manuelle**. Le rendu vit dans
+ * `@/server/polls/publish` (une seule fabrique, partagée avec la clôture
+ * automatique d'une série récurrente) : ici, seul le texte de décision est
+ * propre à la clôture humaine.
+ */
 async function sendPollOutcomeToDiscord(
     discordGuildId: string,
     pollId: string,
     outcome: string
 ) {
-    const poll = await (db as any).poll.findUnique({
-        where: { id: pollId },
-        include: {
-            options: {
-                include: { _count: { select: { votes: true } } }
-            }
-        }
-    });
-    if (!poll || !poll.discordChannelId) return;
-
-    const catConfig = POLL_CATEGORY_CONFIG[poll.category as PollCategory];
-    const appUrl = getAppBaseUrl();
-    const voteUrl = `${appUrl}/dashboard/${discordGuildId}/sondages/${poll.id}`;
-
-    // Calculate results
-    const sortedOptions = [...poll.options].sort((a: any, b: any) => b._count.votes - a._count.votes);
-    const winner = sortedOptions[0];
-    const totalVotes = poll.options.reduce((acc: number, o: any) => acc + o._count.votes, 0);
-
-    const resultsList = poll.options
-        .map((o: any) => {
-            const votes = o._count.votes || 0;
-            const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
-            const bar = getProgressBar(pct, 10);
-            return `**${o.emoji || "🔹"} ${o.label}**\n${bar} \`${pct}%\` (${votes} votes)`;
-        })
-        .join("\n\n");
-
-    const description = `## 📊 Résultats du vote\n\n${resultsList}\n\n---\n\n### 📝 Décision Finale :\n${outcome}\n\n*📌 Retrouvez le détail sur [SigilOS](${voteUrl})*`;
-
-    await sendChannelMessage(poll.discordChannelId, description, {
-        embedTitle: `🏁 SONDAGE TERMINÉ : ${poll.title.toUpperCase()}`,
-        embedColor: catConfig.color,
-        embedFooter: `SigilOS • Résultat acté par un admin`,
-        embedUrl: voteUrl,
+    await publishPollResultToDiscord(discordGuildId, pollId, {
+        decisionTitle: "Décision Finale",
+        decision: outcome,
+        footer: "SigilOS • Résultat acté par un admin",
     });
 }
 

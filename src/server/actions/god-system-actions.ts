@@ -161,6 +161,94 @@ export async function getInternalSystemStatus() {
 /**
  * #107 — Déclenchement manuel du traitement des posts inactifs par le God.
  */
+/** Plafond de sondages traités par balayage (jamais une boucle non bornée). */
+const GOD_POLL_EMBED_RESYNC_LIMIT = 200;
+
+/**
+ * **Rattrapage God** — réécrit les embeds Discord des sondages **en cours**.
+ *
+ * Pourquoi ce bouton existe : un embed publié n'est réécrit que sur un **nouveau
+ * vote**. Un sondage lancé avant la refonte de l'embed (barres `%`, métadonnées,
+ * tag « Sondage programmé ») reste donc figé tant que personne ne vote — alors
+ * que les votes, eux, sont déjà en base.
+ *
+ * Ce que fait le balayage : pour chaque sondage `ACTIVE` ayant salon **et**
+ * message, il relit l'état réel et **modifie le message existant** (même message,
+ * même salon, aucun ping, aucun doublon). Le rapport distingue ce qui a pu être
+ * réécrit de ce qui ne pouvait pas l'être :
+ * - `refreshed` — embed réécrit ;
+ * - `unresolved` — l'ID stocké est un identifiant de **file** (`outbox:<jobId>`,
+ *   bêta) sans équivalent résolu ⇒ aucune édition possible (il faudrait republier) ;
+ * - `failed` — Discord en échec, ou message supprimé.
+ *
+ * God uniquement (`isSuperAdmin`, fail-closed), audité (`GOD_POLL_EMBED_RESYNC`)
+ * parce que le balayage touche **toutes** les guildes.
+ */
+export async function godRefreshPollEmbeds(): Promise<{
+    success: boolean;
+    scanned?: number;
+    refreshed?: number;
+    unresolved?: number;
+    failed?: number;
+    error?: string;
+}> {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: "Non autorisé" };
+
+    try {
+        const { publishPollToDiscord } = await import("@/server/polls/publish");
+        const polls = await db.poll.findMany({
+            where: {
+                status: "ACTIVE",
+                discordChannelId: { not: null },
+                discordMessageId: { not: null },
+            },
+            select: {
+                id: true,
+                discordChannelId: true,
+                guild: { select: { discordGuildId: true } },
+            },
+            orderBy: { createdAt: "asc" },
+            take: GOD_POLL_EMBED_RESYNC_LIMIT,
+        });
+
+        let refreshed = 0;
+        let unresolved = 0;
+        let failed = 0;
+        for (const poll of polls) {
+            const outcome = await publishPollToDiscord(
+                poll.guild.discordGuildId,
+                poll.id,
+                poll.discordChannelId as string,
+                false,
+                undefined,
+                true, // édition du message existant : jamais un nouveau message
+            );
+            if (outcome === "updated") refreshed++;
+            else if (outcome === "unresolved") unresolved++;
+            else failed++;
+        }
+
+        const { createGodAuditLog } = await import("./audit-actions");
+        await createGodAuditLog({
+            action: "GOD_POLL_EMBED_RESYNC",
+            targetType: "POLL",
+            metadata: { scanned: polls.length, refreshed, unresolved, failed },
+        });
+
+        logger.info("[God] Rattrapage des embeds de sondages", {
+            scanned: polls.length,
+            refreshed,
+            unresolved,
+            failed,
+        });
+        return { success: true, scanned: polls.length, refreshed, unresolved, failed };
+    } catch (error) {
+        logger.error("[God] godRefreshPollEmbeds error", { error });
+        return { success: false, error: "Erreur lors du rattrapage des embeds" };
+    }
+}
+
 export async function godProcessInactivePosts(): Promise<{
     success: boolean;
     djRemindersSent: number;

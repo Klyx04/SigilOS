@@ -80,7 +80,8 @@ describe("déslop du module Membres (chantier B)", () => {
     it("la liste unifiée passe bien par les règles pures (aucun filtre maison)", () => {
         const list = readFileSync("src/components/admin/members/member-roster-list.tsx", "utf8");
         expect(list).toContain("queryRoster(");
-        expect(list).toContain("rosterCounts(");
+        expect(list).toContain("rosterStatusCounts(rows, filters)");
+        expect(list).toContain("rosterDashboardCounts(rows, filters)");
         expect(list).toContain("rosterRoleOptions(");
     });
 });

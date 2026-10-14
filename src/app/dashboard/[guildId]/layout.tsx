@@ -77,12 +77,6 @@ export default async function DashboardLayout({
     const maintenanceOn = configRes.success && configRes.data ? (configRes.data as any).maintenanceMode === true : false;
     if (maintenanceOn) redirect("/maintenance");
 
-    // #5 — Couleur de guilde (teinte OKLCH) : le dashboard se teinte via --accent/--ring.
-    const accentHue = await db.guildConfig
-        .findUnique({ where: { discordGuildId: guildId }, select: { accentHue: true } })
-        .then(g => g?.accentHue ?? null)
-        .catch(() => null);
-
     const headersList = await headers();
     const pathname = headersList.get("x-pathname") || "";
 
@@ -291,9 +285,10 @@ export default async function DashboardLayout({
                 {/* V2 Phase 0 — teinte de guilde posée sur le root EXISTANT du dashboard
                     (pas de div empilé, ne casse pas le flex h-screen) :
                     --guild-hue / --guild-chroma-* / --success-hue → --accent / --ring /
-                    --success recalculés par les tokens GROK. Un seul mécanisme d'injection. */}
+                    --success recalculés par les tokens GROK. Un seul mécanisme d'injection.
+                    La teinte n'est plus choisissable par la guilde (onglet « Apparence »
+                    retiré le 14/10/2026) : c'est la teinte par défaut du design system. */}
                 <GuildAccentStyle
-                    hue={accentHue}
                     className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout"
                 >
 

@@ -1,22 +1,14 @@
 /**
- * Couleur de guilde — teinte seule, luminosité/chroma imposées.
- * Design system §5 + WCAG 2.2 1.4.3 / 1.4.11 (contrastes mesurés, non arrondis).
+ * Teinte du dashboard — luminosité/chroma imposées (contrastes mesurés, non arrondis).
+ * Design system §5 + WCAG 2.2 1.4.3 / 1.4.11.
  *
- * V2 Phase 0 (GROK) : la guilde ne choisit qu'une teinte 0-360° ; le système
- * impose luminosité + chroma → contraste garanti dans les deux thèmes.
- * (getGuildAccentStyle — type React orphelin — volontairement ignoré.)
+ * ⚠️ Depuis le 14/10/2026, la guilde **ne choisit plus** sa teinte : l'onglet
+ * « Apparence » a été retiré avec son code (`GuildConfig.accentHue` reste en base,
+ * inutilisée — colonne conservée, aucune donnée supprimée). Cette lib ne sert donc
+ * plus qu'à poser la **teinte par défaut** du design system.
  */
 
 export const DEFAULT_GUILD_HUE = 155;
-
-export const GUILD_HUE_PRESETS = [
-    { id: "emeraude", label: "Émeraude", hue: 155 },
-    { id: "saphir", label: "Saphir", hue: 250 },
-    { id: "rubis", label: "Rubis", hue: 15 },
-    { id: "amethyste", label: "Améthyste", hue: 300 },
-    { id: "ambre", label: "Ambre", hue: 75 },
-    { id: "cyan", label: "Cyan", hue: 210 },
-] as const;
 
 const YELLOW_HUE_MIN = 90;
 const YELLOW_HUE_MAX = 110;

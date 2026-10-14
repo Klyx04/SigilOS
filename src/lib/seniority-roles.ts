@@ -110,9 +110,11 @@ export const DEFAULT_SENIORITY_ROLES_CONFIG: GuildSeniorityRolesConfig = {
  */
 export function normalizeSeniorityTiers(raw: unknown): SeniorityTier[] {
     const source = Array.isArray(raw) ? raw : [];
-    const claimedRoleIds = new Set<string>();
-    const tiers: SeniorityTier[] = [];
+    const candidates: SeniorityTier[] = [];
 
+    // ① Paliers valables (seuil entier dans les bornes, identifiants Discord), **sans encore**
+    //    arbitrer les rôles en doublon : l'arbitrage doit venir **après** le tri par seuil,
+    //    sinon c'est l'ordre reçu du formulaire qui décide — pas la règle.
     for (const entry of source) {
         if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
         const candidate = entry as { days?: unknown; roleIds?: unknown };
@@ -123,17 +125,33 @@ export function normalizeSeniorityTiers(raw: unknown): SeniorityTier[] {
         const roleIds: string[] = [];
         const rawRoleIds = Array.isArray(candidate.roleIds) ? candidate.roleIds : [];
         for (const roleId of rawRoleIds) {
-            if (!isDiscordSnowflake(roleId) || claimedRoleIds.has(roleId)) continue;
-            claimedRoleIds.add(roleId);
+            if (!isDiscordSnowflake(roleId)) continue;
             roleIds.push(roleId);
             if (roleIds.length >= SENIORITY_ROLES_MAX_ROLES_PER_TIER) break;
         }
         if (roleIds.length === 0) continue;
 
-        tiers.push({ days, roleIds });
+        candidates.push({ days, roleIds });
     }
 
-    tiers.sort((a, b) => a.days - b.days);
+    // ② Tri par seuil : l'ordre de lecture redevient l'ordre logique de la règle.
+    candidates.sort((a, b) => a.days - b.days);
+
+    // ③ Un rôle n'est porté que par le palier **le plus précoce** ; un palier qui n'a plus
+    //    aucun rôle est écarté (il n'attribuerait rien).
+    const claimedRoleIds = new Set<string>();
+    const tiers: SeniorityTier[] = [];
+    for (const candidate of candidates) {
+        const roleIds: string[] = [];
+        for (const roleId of candidate.roleIds) {
+            if (claimedRoleIds.has(roleId)) continue;
+            claimedRoleIds.add(roleId);
+            roleIds.push(roleId);
+        }
+        if (roleIds.length === 0) continue;
+        tiers.push({ days: candidate.days, roleIds });
+    }
+
     return tiers.slice(0, SENIORITY_ROLES_MAX_TIERS);
 }
 

@@ -12,6 +12,7 @@ import type { RosterRoleInput, RosterRow } from "@/lib/member-roster";
 import { DailyReportButton } from "@/components/admin/daily-report-button";
 import { MemberBlacklist } from "./member-blacklist";
 import { MemberRosterList } from "./member-roster-list";
+import { SeniorityRolesPanel } from "./seniority-roles-panel";
 
 interface MemberManagementProps {
     guildId: string;
@@ -34,8 +35,11 @@ interface MemberManagementProps {
 /** Onglets (assets Dofus réels, jamais d'emoji dans un libellé structurant). */
 const TABS = [
     { id: "membres", label: "Membres", icon: "party.png" },
+    { id: "anciennete", label: "Rôles d'ancienneté", icon: "ladder.png" },
     { id: "blacklist", label: "Blacklist", icon: "circle-warning.png" },
 ] as const;
+
+type MembersTab = (typeof TABS)[number]["id"];
 
 export default function MemberManagement({
     guildId,
@@ -48,8 +52,14 @@ export default function MemberManagement({
     canDeleteMembers,
     currentUserId,
     ownerId,
+    initialTab,
 }: MemberManagementProps) {
-    const [activeTab, setActiveTab] = useState<"membres" | "blacklist">("membres");
+    // L'onglet « Rôles d'ancienneté » n'existe que pour ceux qui gèrent déjà les membres : la
+    // page est leur garde, donc **aucune permission ni entrée de menu** à inventer (brief §7-2).
+    const visibleTabs = TABS.filter((tab) => tab.id !== "anciennete" || canManageMembers);
+    const [activeTab, setActiveTab] = useState<MembersTab>(
+        initialTab === "anciennete" && canManageMembers ? "anciennete" : "membres",
+    );
 
     const fillPercent =
         stats.maxMembers > 0 ? Math.min(100, Math.round((stats.active / stats.maxMembers) * 100)) : 0;
@@ -71,11 +81,11 @@ export default function MemberManagement({
     return (
         <Tabs
             value={activeTab}
-            onValueChange={(value) => setActiveTab(value as "membres" | "blacklist")}
+            onValueChange={(value) => setActiveTab(value as MembersTab)}
             className="space-y-6"
         >
             <TabsList className="h-auto w-full gap-1 rounded-lg border border-border-strong bg-surface p-1 sm:w-fit">
-                {TABS.map((tab) => (
+                {visibleTabs.map((tab) => (
                     <TabsTrigger
                         key={tab.id}
                         value={tab.id}
@@ -137,6 +147,10 @@ export default function MemberManagement({
                     currentUserId={currentUserId}
                     ownerId={ownerId}
                 />
+            </TabsContent>
+
+            <TabsContent value="anciennete">
+                <SeniorityRolesPanel guildId={guildId} />
             </TabsContent>
 
             <TabsContent value="blacklist">

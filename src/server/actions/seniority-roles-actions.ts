@@ -1,0 +1,236 @@
+"use server";
+
+/**
+ * Chantier Y (lot Y-3) — réglages « Rôles automatiques par ancienneté » : lecture et écriture.
+ *
+ * Les types, les bornes et les règles pures vivent dans `src/lib/seniority-roles.ts` (un
+ * fichier `"use server"` ne peut exporter que des fonctions async). Ici : l'auth, la
+ * validation Zod **bornée**, le rate limit, la vérification du salon et l'écriture.
+ *
+ * Toute écriture exige `canManageMembers` (ou admin) — **le même drapeau que l'onglet**,
+ * revérifié côté serveur : masquer un onglet ne ferme pas une action (fail-closed).
+ */
+
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/ratelimit";
+import { getUserContext } from "@/server/actions/user-actions";
+import { computeSeniorityDays, resolveJoinedAt } from "@/lib/member-registry";
+import {
+    SENIORITY_ANNOUNCEMENT_DESCRIPTION_MAX_LENGTH,
+    SENIORITY_ANNOUNCEMENT_MESSAGE_MAX_LENGTH,
+    SENIORITY_ANNOUNCEMENT_TITLE_MAX_LENGTH,
+    SENIORITY_ROLES_MAX_DAYS,
+    SENIORITY_ROLES_MAX_ROLES_PER_TIER,
+    SENIORITY_ROLES_MAX_TIERS,
+    SENIORITY_ROLES_MIN_DAYS,
+    mergeSeniorityRolesConfig,
+    normalizeSeniorityTiers,
+    resolveSeniorityRoleTier,
+    type SeniorityAnnouncementConfig,
+    type SeniorityTier,
+} from "@/lib/seniority-roles";
+
+/** Identifiant Discord (snowflake) — même borne que le reste du dépôt. */
+const SNOWFLAKE = z.string().regex(/^\d{17,20}$/, "Identifiant Discord invalide");
+
+/** Bornes partagées avec la règle pure : jamais une valeur que la règle refuserait ensuite. */
+const SETTINGS_SCHEMA = z
+    .object({
+        enabled: z.boolean(),
+        channelId: SNOWFLAKE.nullable(),
+        tiers: z
+            .array(
+                z.object({
+                    days: z.number().int().min(SENIORITY_ROLES_MIN_DAYS).max(SENIORITY_ROLES_MAX_DAYS),
+                    roleIds: z.array(SNOWFLAKE).min(1).max(SENIORITY_ROLES_MAX_ROLES_PER_TIER),
+                }),
+            )
+            .max(SENIORITY_ROLES_MAX_TIERS),
+        announcement: z.object({
+            messageTemplate: z.string().trim().min(1).max(SENIORITY_ANNOUNCEMENT_MESSAGE_MAX_LENGTH),
+            embedTitle: z.string().trim().min(1).max(SENIORITY_ANNOUNCEMENT_TITLE_MAX_LENGTH),
+            embedDescription: z.string().trim().min(1).max(SENIORITY_ANNOUNCEMENT_DESCRIPTION_MAX_LENGTH),
+            color: z.number().int().min(0).max(0xffffff),
+            thumbnail: z.enum(["avatar", "guild", "none"]),
+        }),
+    })
+    .strict();
+
+export interface SeniorityRolesSettingsPayload {
+    enabled: boolean;
+    channelId: string | null;
+    tiers: SeniorityTier[];
+    announcement: SeniorityAnnouncementConfig;
+    /** Marqueur d'activation : `null` tant que le module n'a jamais été mis en service. */
+    activatedAt: string | null;
+    /** Nom de la guilde — sert l'aperçu du message (variable `{guilde}`). */
+    guildName: string;
+    /** Icône de la guilde — sert l'aperçu quand la miniature est « icône de guilde ». */
+    guildIconUrl: string | null;
+    /** Répartition **lue à l'instant** : membres actifs ayant atteint chaque palier (index de `tiers`). */
+    tierCounts: number[];
+    /** Membres actifs sous le premier palier. */
+    belowFirstTier: number;
+    announcements: { total: number; lastAt: string | null };
+    /** Dernière passe connue du robot (télémétrie des crons) — `null` si jamais passée. */
+    lastRun: { at: string | null; status: string; summary: string | null } | null;
+}
+
+/** Garde commune lecture/écriture : le drapeau de l'onglet, revérifié ici. */
+async function requireMemberManager(guildId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.isMember) return { allowed: false as const, error: "Non autorisé" };
+    const allowed = !!ctx.isAdmin || !!ctx.canManageMembers;
+    return {
+        allowed,
+        error: allowed ? null : "Permission requise (Gestion des membres)",
+        ctx,
+    };
+}
+
+/** Lecture des réglages **et** de l'état lisible (répartition, annonces, dernière passe). */
+export async function getSeniorityRolesSettings(guildId: string) {
+    const access = await requireMemberManager(guildId);
+    if (!access.allowed) return { success: false as const, error: access.error };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                id: true,
+                name: true,
+                iconUrl: true,
+                seniorityRolesEnabled: true,
+                seniorityRolesChannelId: true,
+                seniorityRolesTiers: true,
+                seniorityRolesAnnouncement: true,
+                seniorityRolesActivatedAt: true,
+            },
+        });
+        if (!guild) return { success: false as const, error: "Guilde introuvable" };
+
+        const config = mergeSeniorityRolesConfig(guild);
+
+        // Répartition : **une** lecture des membres actifs, puis un calcul pur (jamais une
+        // requête par membre). Les paliers relus sont déjà triés par `mergeSeniorityRolesConfig`.
+        const profiles = await db.userProfile.findMany({
+            where: { guildId: guild.id, status: "ACTIVE" },
+            select: { guildJoinedAt: true, discordJoinedAt: true, createdAt: true },
+        });
+        const now = new Date();
+        const tierCounts = config.tiers.map(() => 0);
+        let belowFirstTier = 0;
+        for (const profile of profiles) {
+            const joinedAtIso = resolveJoinedAt({
+                guildJoinedAt: profile.guildJoinedAt ? profile.guildJoinedAt.toISOString() : null,
+                discordJoinedAt: profile.discordJoinedAt ? profile.discordJoinedAt.toISOString() : null,
+                createdAt: profile.createdAt.toISOString(),
+            });
+            const tierIndex = resolveSeniorityRoleTier(config.tiers, computeSeniorityDays(joinedAtIso, now));
+            if (tierIndex < 0) belowFirstTier += 1;
+            else tierCounts[tierIndex] += 1;
+        }
+
+        const [announcementTotal, lastAnnouncement] = await Promise.all([
+            db.seniorityRoleAnnouncement.count({ where: { guildId: guild.id } }),
+            db.seniorityRoleAnnouncement.findFirst({
+                where: { guildId: guild.id },
+                orderBy: { announcedAt: "desc" },
+                select: { announcedAt: true },
+            }),
+        ]);
+
+        // Dernière passe : télémétrie des crons. **Jamais bloquante** — un écran de réglages
+        // ne dépend pas de l'observabilité (Redis muet ⇒ on ne l'affiche simplement pas).
+        let lastRun: SeniorityRolesSettingsPayload["lastRun"] = null;
+        try {
+            const { getAllCronStatuses } = await import("@/lib/cron-telemetry");
+            const record = (await getAllCronStatuses()).find((entry) => entry.id === "seniority_roles");
+            if (record) lastRun = { at: record.lastRun, status: record.status, summary: record.summary };
+        } catch (error) {
+            logger.warn("[SeniorityRoles] Télémétrie du cron illisible (non bloquant)", { error: String(error) });
+        }
+
+        const data: SeniorityRolesSettingsPayload = {
+            ...config,
+            activatedAt: guild.seniorityRolesActivatedAt ? guild.seniorityRolesActivatedAt.toISOString() : null,
+            guildName: guild.name,
+            guildIconUrl: guild.iconUrl,
+            tierCounts,
+            belowFirstTier,
+            announcements: {
+                total: announcementTotal,
+                lastAt: lastAnnouncement?.announcedAt.toISOString() ?? null,
+            },
+            lastRun,
+        };
+
+        return { success: true as const, data };
+    } catch (e) {
+        logger.error("[getSeniorityRolesSettings] error:", e);
+        return { success: false as const, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Écriture des réglages — **mêmes bornes que la règle pure** (Zod), salon vérifié auprès de
+ * Discord, rate limit par utilisateur, et marqueur d'activation posé **une seule fois**.
+ */
+export async function updateSeniorityRolesSettings(guildId: string, input: unknown) {
+    const access = await requireMemberManager(guildId);
+    if (!access.allowed) return { success: false as const, error: access.error };
+
+    const limit = await rateLimit(`seniority-roles-config:${access.ctx?.id ?? "anon"}`, 10, 60_000);
+    if (!limit.success) {
+        return { success: false as const, error: "Trop de modifications d'affilée : réessaie dans une minute" };
+    }
+
+    const parsed = SETTINGS_SCHEMA.safeParse(input);
+    if (!parsed.success) {
+        return { success: false as const, error: "Configuration invalide : vérifie les seuils et les rôles" };
+    }
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, seniorityRolesActivatedAt: true },
+        });
+        if (!guild) return { success: false as const, error: "Guilde introuvable" };
+
+        if (parsed.data.channelId) {
+            // 🔒 Isolation : un salon d'une autre guilde (ou inexistant) est refusé ici,
+            // pas seulement masqué à l'écran.
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const valid = await validateChannelBelongsToGuild(parsed.data.channelId, guildId);
+            if (!valid) return { success: false as const, error: "Ce salon n'appartient pas à votre serveur Discord" };
+        }
+
+        // Marqueur d'activation : posé **à la première mise en service**, jamais déplacé.
+        // Il sépare un franchissement à fêter d'un rattrapage (lot Y-2) : le déplacer ferait
+        // refêter des paliers déjà passés.
+        const activatedAt = guild.seniorityRolesActivatedAt ?? (parsed.data.enabled ? new Date() : null);
+
+        await db.guildConfig.update({
+            where: { id: guild.id },
+            data: {
+                seniorityRolesEnabled: parsed.data.enabled,
+                seniorityRolesChannelId: parsed.data.channelId,
+                // On stocke **normalisé** (trié, dédoublonné, borné) : la base ne contient
+                // jamais une config que la règle devrait ensuite rattraper.
+                seniorityRolesTiers: normalizeSeniorityTiers(parsed.data.tiers) as unknown as Prisma.InputJsonValue,
+                seniorityRolesAnnouncement: parsed.data.announcement as unknown as Prisma.InputJsonValue,
+                seniorityRolesActivatedAt: activatedAt,
+            },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/members`);
+        return { success: true as const };
+    } catch (e) {
+        logger.error("[updateSeniorityRolesSettings] error:", e);
+        return { success: false as const, error: "Erreur serveur" };
+    }
+}

@@ -69,7 +69,7 @@ on ne « corrige » pas une supposition.
 
 ---
 
-## 3. Chantier **Y** — rôles automatiques par ancienneté ⏳ *Y-1 et Y-2 livrés, Y-3 à faire*
+## 3. Chantier **Y** — rôles automatiques par ancienneté ✅ *clos le 14/10/2026 (Y-1 → Y-3 livrés)*
 
 > Référence produit : module « Autoroles » de Dyno. Cadré le 14/10/2026. `docs/plans/FILE-EXECUTION.md`
 > §1 « Y » + **étape 59** (« juste après l'étape 24 = chantier B », **livrée**). Plan durable : **créé** —
@@ -182,6 +182,9 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
 - [ ] Contrôles à l'œil : mule **réelle** acceptée avec son **niveau**, mule inexistante **refusée**,
       recruteur trouvé au **pseudo** · fiche d'un **hors dashboard** (pas de bandeau « Zone sensible ») ·
       liste sans doublon · bouton de suppression **seulement** avec `staff:member_delete`.
+- [ ] Contrôles à l'œil (chantier **Y**) : onglet « Rôles d'ancienneté » **visible seulement** avec la
+      gestion des membres · aperçu qui correspond au message enregistré · état (membres par palier,
+      dernière passe) rafraîchi après enregistrement.
 
 ## 7. Décisions ouvertes (elles bloquent un lot, elles ne se devinent pas)
 
@@ -241,4 +244,12 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
   **`resolveSeniorityCrossingIso`**, **`resolveJoinedAt`** qui gagne le repli **`discordJoinedAt`**, core
   `src/server/seniority-roles-core.ts` + cron `/api/cron/seniority-roles` (télémétrie + ligne `30 4 * * *`
   dans `docs/MAINTENANCE.md`), **24 cas** dans `tests/unit/seniority-roles-cron.test.ts`. Reste **Y-3**.
+- **14/10/2026 (nuit, suite)** — **chantier Y CLOS** : lot **Y-3** livré (`feat/roles-anciennete-y3`) —
+  **onglet « Rôles d'ancienneté »** dans `/admin/members` (`?tab=anciennete`, visible si
+  `canManageMembers`, **sans RBAC nouvelle**), éditeur des paliers + du message, **aperçu live par le
+  même rendu pur que l'envoi**, état réel (membres par palier, annonces, dernière passe) ; action
+  serveur gardée (Zod borné, rate limit, salon vérifié, écriture normalisée, marqueur d'activation
+  posé une fois) ; salon déclaré dans les deux listes de la veille ; correction de
+  `normalizeSeniorityTiers` (l'arbitrage des doublons se fait **après** le tri). **16 cas**
+  (`tests/unit/seniority-roles-ui.test.ts`). ⇒ l'étape **60** de la file (**Z**) est **débloquée**.
 

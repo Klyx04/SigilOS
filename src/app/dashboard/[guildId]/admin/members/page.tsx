@@ -152,7 +152,7 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
                         canDeleteMembers={!!ctx.canDeleteMembers}
                         currentUserId={ctx.id || ""}
                         ownerId={guildConfig?.ownerId ?? null}
-                        initialTab={tab === "registre" ? "registre" : undefined}
+                        initialTab={tab === "anciennete" ? "anciennete" : tab === "registre" ? "registre" : undefined}
                     />
                 </div>
             </Suspense>

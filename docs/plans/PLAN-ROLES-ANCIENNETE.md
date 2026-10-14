@@ -9,7 +9,7 @@ description: Chantier Y — rôles automatiques par ancienneté : besoin, état 
 > d'exécution (c'est `docs/plans/FILE-EXECUTION.md`, étape 59) ni le fil des demandes
 > (`docs/plans/BRIEF-REPRISE.md` §3).
 > Référence produit : module « **Autoroles** » de **Dyno**. Cadrage : 14/10/2026.
-> **Statut : Y-1 et Y-2 ✅ livrés** (14/10/2026) — reste **Y-3** (onglet dans Membres, éditeur, aperçu). Voir §6.
+> **Statut : chantier ✅ CLOS** — **Y-1, Y-2 et Y-3 livrés** (14/10/2026). Voir §6.
 
 ---
 
@@ -123,13 +123,29 @@ télémétrie `recordCronExecution("seniority_roles", …)`), déclarée dans `K
 **Invariants tenus** : membre inconnu de Discord ⇒ ignoré ; rôle non déclaré ⇒ jamais touché ;
 échec de pose ⇒ **aucune annonce** ; aucun salon ⇒ rôles seuls ; jeton manquant ⇒ arrêt immédiat.
 
-### Y-3 — onglet, éditeur, aperçu (à faire)
+### Y-3 ✅ — onglet, éditeur, aperçu (livré le 14/10/2026)
 
-1. **Onglet « Rôles d'ancienneté »** dans `src/components/admin/members/member-management.tsx` (3ᵉ onglet, à côté de « Membres » et « Blacklist »), lien profond `?tab=anciennete`, onglet visible si `canManageMembers`.
-2. **Écran** : activation, choix du salon (`DiscordChannelPicker`), liste des paliers (seuil en jours + rôles, ajout/suppression), éditeur du message (ping, titre, description, couleur, miniature).
-3. **Aperçu live** : `DiscordEmbedPreview` alimenté par le **même rendu pur** que l'envoi réel — l'aperçu ne peut pas mentir.
-4. **État lisible** : « X membres au palier N », « dernière passe : hier 04:00 » (télémétrie du cron).
-5. **Action serveur** `updateSeniorityRolesSettings` : Zod bornée, `getUserContext` + garde fail-closed (mêmes flags que la page), rate limit, isolation de guilde, salon vérifié (`validateChannelBelongsToGuild`).
+**Action serveur** — `src/server/actions/seniority-roles-actions.ts` :
+`getSeniorityRolesSettings` (réglages + **état lisible** : répartition par palier calculée en une
+seule lecture, annonces envoyées, dernière passe issue de la télémétrie — jamais bloquante) et
+`updateSeniorityRolesSettings` (Zod **borné aux mêmes limites que la règle**, rate limit, salon
+vérifié auprès de Discord, écriture **normalisée**, marqueur d'activation posé une seule fois,
+`revalidatePath`). Les deux exigent `canManageMembers` (ou admin), revérifié serveur.
+
+**Écran** — `src/components/admin/members/seniority-roles-panel.tsx`, monté en **3ᵉ onglet** de
+`/admin/members` (`?tab=anciennete`, onglet **visible seulement** si `canManageMembers`) :
+
+- activation (OFF par défaut) et salon de l'annonce (`DiscordChannelPicker`) ;
+- paliers : seuil en jours + rôles (sélecteur multiple avec recherche), ajout / suppression ;
+- message : ligne de ping, titre, description, couleur, miniature — avec la liste des **variables
+  disponibles** et un **aperçu live** construit par le **même rendu pur** que l'envoi
+  (`renderSeniorityAnnouncement` → `DiscordEmbedPreview`) ;
+- état réel : membres par palier, membres sous le premier palier, annonces envoyées, dernière
+  passe du robot, date d'activation (et le rappel qu'aucune annonce n'est rétroactive).
+
+**Veille de salons** — `seniorityRolesChannelId` déclaré dans les **deux** listes de
+`src/server/actions/discord-channel-watch-actions.ts` (`CHANNEL_FIELDS` + `select`), sinon le
+salon perdu ne serait jamais signalé.
 
 ---
 
@@ -150,6 +166,13 @@ rate, rien sans salon), profils sans compte Discord, membre absent de Discord, j
 route (401 sans secret, télémétrie enregistrée) et câblage (tâche déclarée, migration, schéma,
 le core ne réécrit aucune règle).
 
+**Verrou de Y-3** — `tests/unit/seniority-roles-ui.test.ts`, **16 cas** : fail-closed de l'écriture
+(sans `canManageMembers`, sous rate limit, config hors bornes — seuil, rôles, couleur, texte —
+salon étranger), écriture **normalisée** + `revalidatePath`, marqueur d'activation (posé une fois,
+jamais déplacé, jamais posé module éteint), lecture (refus sans permission, répartition en **une**
+requête, télémétrie muette non bloquante) et câblage (aperçu = même rendu, onglet gardé, `?tab=`,
+salon déclaré dans les deux listes du veilleur).
+
 **Acceptation du chantier** (vérifiée au fil des lots) :
 - un membre qui franchit un seuil **reçoit ses rôles** ; l'embed part **une seule fois** (cron relancé = rien de plus) ;
 - un membre **hors** mapping de guilde ne reçoit rien (fail-closed) ;
@@ -164,7 +187,7 @@ le core ne réécrit aucune règle).
 |---|---|---|
 | **Y-1** — données + règles pures | ✅ **livré le 14/10/2026** (PR #964) | `tests/unit/seniority-roles.test.ts` (**26 cas**) · `src/lib/seniority-roles.ts` · 4 colonnes `GuildConfig` + migration additive `20270107000000_add_seniority_roles_config` |
 | **Y-2** — cron + embed | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-cron.test.ts` (**24 cas**) · `src/server/seniority-roles-core.ts` + `src/app/api/cron/seniority-roles/route.ts` · `GuildConfig.seniorityRolesActivatedAt` + table `SeniorityRoleAnnouncement` (migration `20270108000000_add_seniority_role_announcements`) · tâche déclarée (`KNOWN_CRON_TASKS`) + ligne de crontab documentée |
-| **Y-3** — onglet + éditeur + aperçu | ⏳ à faire | Y-2 est livré, l'« état lisible » a donc sa source (télémétrie `seniority_roles` + table d'annonces) |
+| **Y-3** — onglet + éditeur + aperçu | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-ui.test.ts` (**16 cas**) · `seniority-roles-actions.ts` + `seniority-roles-panel.tsx` + 3ᵉ onglet de `/admin/members` (`?tab=anciennete`) · salon déclaré dans la veille des canaux |
 
 **Ops (côté humain)** :
 - [ ] jouer les migrations `20270107000000_add_seniority_roles_config` **puis**
@@ -173,8 +196,8 @@ le core ne réécrit aucune règle).
       ⚠️ le `%` s'y écrit `\%`, sinon la ligne ne s'exécute **jamais**) ;
 - [ ] vérifier que le **rôle du bot** est au-dessus des rôles de palier (sinon `403` : les rôles ne
       sont pas posés, rien n'est annoncé, et la passe suivante réessaiera) ;
-- [ ] au lot **Y-3** : estamper `seniorityRolesActivatedAt` à l'activation du module (bascule OFF→ON)
-      et ajouter la page de doc vivante du module via `/god/docs` ;
+- [ ] contrôles à l'œil : onglet « Rôles d'ancienneté » visible **seulement** avec la gestion des
+      membres, aperçu fidèle au message enregistré, état qui se met à jour après enregistrement ;
 - [ ] **redémarrer `npm run dev`** après toute régénération Prisma (piège mesuré le 14/10, brief §8).
 
 ---

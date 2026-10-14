@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { PERMISSIONS } from "@/lib/permissions";
+import { PERMISSIONS, roleCanVote } from "@/lib/permissions";
 import { getAppBaseUrl } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -901,6 +901,9 @@ function toHexColor(color: number | null | undefined): string | null {
  *
  * 🔒 SECURITY : session + membre de la guilde + `canViewPolls` exigés (même
  * garde que la fiche d'un sondage) ; `guildId` résolu côté serveur.
+ * 🎯 Seuls les rôles **autorisés à voter** sont renvoyés (`roleCanVote` sur le
+ * mapping RBAC) : un rôle sans accès ne peut pas voter, il n'a rien à faire dans
+ * le filtre.
  * 🔒 Fail-soft : toute erreur Discord ⇒ `{ roles: [], rolesByProfileId: {} }`
  * (le filtre par rôle disparaît, les listes restent complètes — jamais vides
  * parce qu'on n'a pas pu savoir).
@@ -912,7 +915,7 @@ export async function getPollParticipationFilters(guildId: string): Promise<Acti
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, rolesMapping: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
@@ -949,7 +952,13 @@ export async function getPollParticipationFilters(guildId: string): Promise<Acti
                 rolesByProfileId[profile.id] = (member.roles ?? []).filter((roleId) => roleId !== guildId);
             }
 
+            // Seuls les rôles dont les membres **peuvent voter** sont proposés
+            // (mapping RBAC → `community:access` ou admin) : filtrer par « BOTS »
+            // ou par un rôle sans accès ne discrimine rien. RBAC non configuré ⇒
+            // liste complète (on n'invente pas une restriction).
+            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]> | null) ?? null;
             const roles = discordRoles
+                .filter((role) => roleCanVote(rolesMapping, role.id))
                 .slice()
                 .sort((a, b) => (b.position ?? 0) - (a.position ?? 0))
                 .map((role) => ({ id: role.id, name: role.name, color: toHexColor(role.color) }));

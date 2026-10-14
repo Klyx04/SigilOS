@@ -2218,7 +2218,13 @@ export async function updateMemberPseudo(profileId: string, pseudoDofus: string)
     if (!profile) throw new Error("Profile not found");
 
     const actor = await getUserContext(profile.guild.discordGuildId);
-    if (!actor.isAdmin) throw new Error("Forbidden: Admin access required for manual pseudo override");
+    // Le droit de gérer les membres (`staff:member_mgmt`) vaut ici comme partout
+    // ailleurs : l'écran expose l'édition du pseudo dès `canManageMembers`, le
+    // serveur ne peut pas exiger davantage (constat : « ça marche pas même avec
+    // les droits » = un staff voyait le champ et se faisait refuser l'écriture).
+    if (!actor.isAdmin && !actor.canManageMembers) {
+        throw new Error("Forbidden: permission « Ressources Humaines » requise pour modifier un pseudo manuellement");
+    }
 
     const updated = await db.userProfile.update({
         where: { id: profileId },
@@ -2261,7 +2267,11 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
     if (!profile) throw new Error("Profile not found");
 
     const actor = await getUserContext(profile.guild.discordGuildId);
-    if (!actor.isAdmin) throw new Error("Forbidden: Admin access required for manual ID override");
+    // Même règle que le pseudo ci-dessus : la permission de gestion des membres
+    // gouverne l'écriture, pas le seul rôle admin natif.
+    if (!actor.isAdmin && !actor.canManageMembers) {
+        throw new Error("Forbidden: permission « Ressources Humaines » requise pour modifier un ID Dofus manuellement");
+    }
 
     // Validation
     const ankamaIdRegex = /^[a-zA-Z0-9\-]{1,50}#[0-9]{4}$/;

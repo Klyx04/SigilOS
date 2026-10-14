@@ -23,6 +23,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { countFilterableRoles, filterPollMembers, normalizeSearch } from "@/lib/polls/member-filter";
+import { PERMISSIONS, roleCanVote } from "@/lib/permissions";
 
 const DETAIL = "src/components/sondages/poll-detail.tsx";
 const FILTER_UI = "src/components/sondages/poll-participation-filter.tsx";
@@ -191,5 +192,36 @@ describe("sondages — en-têtes harmonisés et modale responsive", () => {
         for (const path of [STAFF_PAGE, STAFF_BOARD, STAFF_FORM, FILTER_UI]) {
             expect(codeOnly(path), path).not.toContain("console.log");
         }
+    });
+});
+
+/**
+ * Filtre de participation — **rôles autorisés à voter** (demande user du 14/10/2026 :
+ * « dans le drop down des rôles filtré des résultats de sondages ne doivent
+ * apparaître que les rôles autorisés à voter »).
+ */
+describe("sondages — seuls les rôles qui peuvent voter sont proposés", () => {
+    it("le droit de voter est porté par le mapping RBAC (`community:access`)", () => {
+        // Voteur simple : la permission est exactement celle de `castVote`.
+        expect(roleCanVote({ "r-membre": [PERMISSIONS.COMMUNITY_ACCESS] }, "r-membre")).toBe(true);
+        // Admin : il vote toujours (`canViewPolls` inclut `isAdminFinal`).
+        expect(roleCanVote({ "r-admin": [PERMISSIONS.SYSTEM_GOD] }, "r-admin")).toBe(true);
+        // Rôle sans permission, ou avec un droit qui ne donne pas accès aux sondages.
+        expect(roleCanVote({ "r-bot": [] }, "r-bot")).toBe(false);
+        expect(roleCanVote({ "r-bot": [PERMISSIONS.STAFF_AUDIT] }, "r-bot")).toBe(false);
+        expect(roleCanVote({ "r-membre": [PERMISSIONS.COMMUNITY_ACCESS] }, "r-inconnu")).toBe(false);
+    });
+
+    it("RBAC non configuré ⇒ aucune restriction inventée (filtre complet)", () => {
+        expect(roleCanVote(null, "r-quelconque")).toBe(true);
+        expect(roleCanVote(undefined, "r-quelconque")).toBe(true);
+        expect(roleCanVote({}, "r-quelconque")).toBe(true);
+    });
+
+    it("l'action ne renvoie que ces rôles (mapping lu côté serveur, jamais du client)", () => {
+        const actions = codeOnly(ACTIONS);
+        expect(actions).toContain("roleCanVote");
+        expect(actions).toContain("rolesMapping: true");
+        expect(actions).toMatch(/\.filter\(\(role\) => roleCanVote\(rolesMapping, role\.id\)\)/);
     });
 });

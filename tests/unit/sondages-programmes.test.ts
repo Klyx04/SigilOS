@@ -340,23 +340,22 @@ describe("placement — module STAFF, dans le Centre de contrôle (jamais dans l
         expect(pilotage).toContain("ModulesClient");
     });
 
-    it("les réglages du module n'apparaissent qu'UNE fois (jamais en double pour un admin)", () => {
+    it("les réglages du module vivent dans Paramètres → Sondages, et nulle part ailleurs", () => {
         const page = codeOnly(ADMIN_STAFF_PAGE);
         expect(page).toContain("canSchedulePolls");
         expect(page).toContain('isModuleEnabled(guildId, "scheduledPolls")');
-        // Un admin lit ses réglages dans Paramètres → Sondages, jamais ici : le seul
-        // rendu de la page staff est **conditionné** à l'absence d'accès à Paramètres.
-        const renders = page.match(/<ScheduledPollSettingsClient guildId=\{guildId\} \/>/g) ?? [];
-        expect(renders).toHaveLength(1);
-        expect(page).toContain("{!user.canViewSettings && <ScheduledPollSettingsClient guildId={guildId} />}");
-        expect(codeOnly("src/app/dashboard/[guildId]/admin/settings/page.tsx")).toContain("<ScheduledPollSettingsClient guildId={guildId} />");
+        // Plus aucun encart de réglages sur la page du module (un seul écran par réglage).
+        expect(page).not.toContain("ScheduledPollSettingsClient");
         // … et le compteur de places reste porté par le tableau (rien n'est perdu).
         expect(codeOnly("src/components/sondages/programmes/scheduled-poll-board.tsx")).toContain("{board.pendingCount}/{board.maxSlots}");
-        // Mesure qui justifie l'exception : `Paramètres` est fermé sans `system:config`,
-        // donc le rôle staff garderait sinon AUCUN accès à ses propres réglages.
-        expect(codeOnly("src/server/actions/user-actions.ts")).toContain(
-            "canViewSettings = permissionSet.has(PERMISSIONS.SYSTEM_CONFIG) || isAdminFinal"
-        );
+
+        // Le rôle staff ouvre l'onglet Sondages SANS `system:config` (mesure : sinon il
+        // n'avait aucun accès à ses propres réglages)…
+        const settings = codeOnly(SETTINGS_PAGE);
+        expect(settings).toContain("const staffOnlySondages = !user.canViewSettings && user.canSchedulePolls;");
+        expect(settings).toContain('item.id === "sondages"');
+        // … et le réglage des sondages CLASSIQUES reste gouverné par `system:config`.
+        expect(settings).toContain("{user.canViewSettings && <PollSettingsClient guildId={guildId} />}");
 
         const actions = codeOnly(ACTIONS);
         // Les réglages restent éditables par le rôle du module, depuis Paramètres.

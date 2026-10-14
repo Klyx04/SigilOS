@@ -39,7 +39,7 @@ docker compose up -d db redis
 
 # 4. Client Prisma + schéma + données de référence
 npx prisma generate
-npx prisma migrate deploy      # ou `npx prisma migrate dev` si tu crées une migration
+npx prisma migrate deploy      # migrations EN ATTENTE sur la base locale (`migrate dev` est inutilisable ici)
 npm run seed                   # données de base
 npm run seed:game-data         # données de jeu (monstres, donjons, items…)
 

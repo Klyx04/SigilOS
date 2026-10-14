@@ -4,28 +4,55 @@ description: How to safely modify the Prisma schema and deploy migrations
 
 # ⚠️ Règle d'Or — Toute modification de `schema.prisma` DOIT avoir une migration
 
+## 0. Ce dépôt n'utilise **pas** `migrate dev` (mesuré le 14/10/2026)
+
+`npx prisma migrate dev` est **inutilisable sur cet historique local** :
+
+- la base locale contient une migration **absente du dépôt** (`20260819000000_add_inter_guild`) —
+  `npx prisma migrate status` la signale (« The migration from the database are not found locally »)
+  et `migrate dev` refuse de tourner sur une base en **drift** ;
+- les migrations de ce dépôt sont **écrites à la main** (additives, `IF NOT EXISTS`), alignées sur le
+  datamodel — c'est la méthode de tous les lots récents.
+
+**Donc** : on écrit le SQL soi-même (§2) et on l'applique avec **`migrate deploy`** (§3), qui joue les
+migrations **en attente** et les enregistre — la ligne orpheline ne le dérange pas.
+
 ## Workflow obligatoire
 
-### 1. Modifier le schema
+### 1. Modifier le schéma
 Fais tes changements dans `prisma/schema.prisma`.
 
-### 2. Générer la migration (OBLIGATOIRE)
+### 2. Écrire la migration à la main
+Crée `prisma/migrations/<AAAAMMJJHHMMSS>_description_courte/migration.sql` (même préfixe de date que
+les lots récents, `20270107000000_…` par exemple) :
+
+- **additif et idempotent** : `ADD COLUMN IF NOT EXISTS`, `CREATE TABLE IF NOT EXISTS`,
+  `CREATE INDEX IF NOT EXISTS`, FK sous `DO $$ … IF NOT EXISTS (SELECT 1 FROM pg_constraint …) $$` ;
+- **aucune donnée réécrite** quand ce n'est pas indispensable — et quand ça l'est, l'écrire dans l'en-tête ;
+- en-tête en français : **pourquoi** la migration existe, **ce qu'elle contient**, et **pourquoi elle est
+  écrite à la main** (cf. §0) ;
+- ⚠️ **ne jamais modifier une migration déjà appliquée** : Prisma vérifie son **checksum**, la retoucher
+  fait échouer `migrate deploy`. On en ajoute une **nouvelle**.
+
+### 3. Appliquer en local, puis régénérer le client
 ```bash
-npx prisma migrate dev --name description_courte_du_changement
+npx prisma migrate deploy   # joue les migrations EN ATTENTE sur la base locale (127.0.0.1:5433)
+npx prisma generate         # régénère le client Prisma
+npx prisma migrate status   # doit finir par « Database schema is up to date! »
 ```
-- Crée le fichier SQL dans `prisma/migrations/`
-- Met à jour la DB locale
-- Régénère le Prisma Client
 
-> ❌ NE PAS faire seulement `npx prisma generate` — ça met à jour le client mais PAS la DB.
+> ⚠️ **PUIS REDÉMARRER `npm run dev`** : un serveur déjà lancé garde l'**ancien** client Prisma en
+> mémoire et lève « The column X does not exist » — piège payé plusieurs fois (cf. `DEVELOPPEMENT.md` §7).
+> 💡 Le réflexe à retenir après un `git pull` qui apporte une migration :
+> **`npx prisma migrate deploy && npx prisma generate`, puis redémarrer le serveur.**
 
-### 3. Vérifier le fichier migration généré
+### 4. Vérifier que la base a vraiment la nouvelle forme
 ```bash
-# Voir la dernière migration créée
-ls prisma/migrations/ | tail -1
+docker exec sigilos-db psql -U user -d sigilos -c "\d \"GuildConfig\""      # colonnes réelles
+docker exec sigilos-db psql -U user -d sigilos -c "\dt"                      # tables réelles
 ```
 
-### 4. Committer schema + migration ensemble
+### 5. Committer schéma + migration ensemble
 ```bash
 git add prisma/schema.prisma prisma/migrations/
 git commit -m "feat(db): description du changement"
@@ -33,9 +60,9 @@ git commit -m "feat(db): description du changement"
 
 > Le pre-commit hook bloquera si `schema.prisma` est staged sans migration.
 
-### 5. Le deploy.sh fait le reste automatiquement
+### 6. Le déploiement joue le reste (bêta puis prod)
 ```bash
-./scripts/deploy.sh beta   # applique les migrations via prisma migrate deploy
+./scripts/deploy-cd.sh beta   # applique les migrations en attente via `prisma migrate deploy`
 ```
 
 ---

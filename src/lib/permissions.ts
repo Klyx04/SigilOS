@@ -236,6 +236,31 @@ export const PERMISSION_LABELS: Record<PermissionId, string> =
         Object.entries(PERMISSION_DETAILS).map(([k, v]) => [k, v.label])
     ) as Record<PermissionId, string>;
 
+/**
+ * Un **rôle Discord** (mapping RBAC) permet-il de **voter** à un sondage ?
+ *
+ * « Voter » = la permission `community:access` (« Participation Sociale » :
+ * « … et aux sondages actifs ») — c'est exactement la garde de `castVote` — ou
+ * la permission d'administration (`system:god`), puisqu'un admin vote toujours
+ * (`canViewPolls` inclut `isAdminFinal`).
+ *
+ * Pourquoi ici : le filtre de participation ne doit proposer que des rôles dont
+ * les membres **peuvent** voter ; offrir « BOTS » ou un rôle sans accès ne filtre
+ * rien d'utile (mesure bêta du 14/10/2026).
+ *
+ * `rolesMapping` **absent ou vide** (RBAC non configuré) ⇒ `true` : on n'invente
+ * pas une restriction que la guilde n'a pas posée, le filtre reste complet.
+ */
+export function roleCanVote(
+    rolesMapping: Record<string, string[] | null | undefined> | null | undefined,
+    roleId: string,
+): boolean {
+    if (!rolesMapping || Object.keys(rolesMapping).length === 0) return true;
+    const perms = rolesMapping[roleId];
+    if (!Array.isArray(perms) || perms.length === 0) return false;
+    return perms.includes(PERMISSIONS.COMMUNITY_ACCESS) || perms.includes(PERMISSIONS.SYSTEM_GOD);
+}
+
 export function getPermissionsByModule(module: PermissionModule): PermissionId[] {
     return (Object.entries(PERMISSION_DETAILS) as [PermissionId, { module: PermissionModule }][])
         .filter(([, details]) => details.module === module)

@@ -131,7 +131,12 @@ export default async function FeatureSettingsPage({
     const activeTab = tab || "annonces";
 
     const user = await getUserContext(guildId);
-    if (!user.canViewSettings) {
+    // ⛔ Un seul écran par réglage : le rôle staff du module « Sondages programmés »
+    // gouverne SES réglages (`staff:scheduled_polls`) sans avoir `system:config` —
+    // il ouvre donc **l'onglet Sondages** de cette page, et rien d'autre (la nav
+    // est filtrée juste en dessous, et l'encart ne vit plus aussi sur la page du module).
+    const staffOnlySondages = !user.canViewSettings && user.canSchedulePolls;
+    if (!user.canViewSettings && !staffOnlySondages) {
         await logAdminAccessDenied(guildId, "/admin/settings");
         return <AccessDenied />;
     }
@@ -146,7 +151,14 @@ export default async function FeatureSettingsPage({
     const { getGuildModules } = await import("@/server/actions/module-actions");
     const { getVisibleSettingsNav, SETTINGS_TAB_MODULES } = await import("@/lib/settings-nav");
     const effectiveModules = await getGuildModules(guildId).catch(() => null) as unknown as Record<string, boolean> | null;
-    const navGroups = getVisibleSettingsNav(buildNavGroups(), effectiveModules);
+    const visibleGroups = getVisibleSettingsNav(buildNavGroups(), effectiveModules);
+    // Le rôle staff ne voit QUE l'onglet de son module : les autres réglages de
+    // guilde restent hors de sa portée (aucun accès « par effet de bord »).
+    const navGroups = staffOnlySondages
+        ? visibleGroups
+            .map((group) => ({ ...group, items: group.items.filter((item) => item.id === "sondages") }))
+            .filter((group) => group.items.length > 0)
+        : visibleGroups;
     const navItems = navGroups.flatMap(g => g.items);
     // Onglet demandé mais module coupé (lien direct/bookmark) : repli premier visible.
     const requestedModule = SETTINGS_TAB_MODULES[activeTab];
@@ -167,8 +179,8 @@ export default async function FeatureSettingsPage({
                 />
             </div>
 
-            {/* Quota & stockage visible par l'admin guilde */}
-            <GuildStorageCard guildId={guildId} />
+            {/* Quota & stockage visible par l'admin guilde (jamais pour le rôle staff). */}
+            {user.canViewSettings && <GuildStorageCard guildId={guildId} />}
 
             <div className="flex flex-col lg:flex-row gap-8 items-start relative">
                 {/* ── SIDEBAR NAVIGATION ── */}
@@ -317,8 +329,9 @@ export default async function FeatureSettingsPage({
                             {resolvedTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
                             {resolvedTab === "sondages" && (
                                 <div className="space-y-8">
-                                    <PollSettingsClient guildId={guildId} />
-                                    <div className="pt-8 border-t border-border">
+                                    {/* Sondages classiques : réglage gouverné par `system:config`. */}
+                                    {user.canViewSettings && <PollSettingsClient guildId={guildId} />}
+                                    <div className={cn("border-t border-border", user.canViewSettings && "pt-8")}>
                                         <ScheduledPollSettingsClient guildId={guildId} />
                                     </div>
                                 </div>

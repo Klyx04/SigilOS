@@ -4,7 +4,6 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { getScheduledPolls } from "@/server/actions/scheduled-poll-actions";
 import { ScheduledPollBoard } from "@/components/sondages/programmes/scheduled-poll-board";
-import { ScheduledPollSettingsClient } from "../_components/scheduled-poll-settings-client";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import AccessDenied from "@/components/access-denied";
@@ -19,11 +18,11 @@ import AccessDenied from "@/components/access-denied";
  *
  * ⛔ **Un seul écran par réglage** (14/10/2026) : le salon de l'embed, les rôles de
  * ping autorisés et la durée de vote par défaut sont des réglages de **guilde** —
- * ils vivent dans `Paramètres → Sondages` (2ᵉ encart) et n'ont **pas** à être
- * répétés ici. Seule exception, mesurée : le rôle staff n'a pas `system:config`,
- * donc `Paramètres` lui est **fermé** (`canViewSettings`) ⇒ l'encart lui reste
- * affiché ici, et lui seul — jamais deux fois le même jour sur le même écran.
- * Le compteur de places, lui, est porté par le tableau.
+ * ils vivent dans `Paramètres → Sondages` (2ᵉ encart) et **n'ont pas** à être
+ * répétés ici. Le rôle staff y a **accès** : la page Paramètres l'autorise quand il
+ * détient `staff:scheduled_polls` (`canSchedulePolls`) et ne lui montre **que**
+ * cet onglet — c'est ce qui remplace l'encart dupliqué. Le compteur de places, lui,
+ * est porté par le tableau.
  *
  * Triple garde, dans cet ordre : `canSchedulePolls` (permission **et** module
  * effectif — verrous God plateforme/guilde compris), entrée du God plateforme,
@@ -62,12 +61,9 @@ export default async function ScheduledPollsPage({ params }: { params: Promise<{
                 }
             />
 
-            {/* Réglages du module : ils vivent dans « Paramètres → Sondages » (un seul
-                écran par réglage), donc **rien** pour un admin. Mais le rôle staff n'a
-                pas `system:config` : mesuré, `Paramètres` lui est fermé
-                (`canViewSettings`) ⇒ on lui garde l'encart ici (même composant partagé,
-                donc aucune règle dupliquée), et l'écran reste unique pour chacun. */}
-            {!user.canViewSettings && <ScheduledPollSettingsClient guildId={guildId} />}
+            {/* ⛔ Pas de bloc de réglages ici : le salon, la whitelist de ping et la durée
+                par défaut se règlent dans « Paramètres → Sondages », où le rôle staff a
+                désormais accès (onglet unique). Le tableau porte le compteur de places. */}
 
             {!result.success || !result.data ? (
                 <div className="p-4 rounded-lg border border-warning/30 bg-warning/10 text-sm text-warning">

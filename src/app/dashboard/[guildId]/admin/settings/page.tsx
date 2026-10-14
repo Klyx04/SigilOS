@@ -39,7 +39,6 @@ import { MarketSettingsClient } from "../_components/market-settings-client";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { GuildStorageCard } from "@/components/admin/guild-storage-card";
-import { GuildAppearanceSettingsClient } from "../_components/guild-appearance-settings-client";
 
 // ============================================================================
 // NAV ITEMS
@@ -70,7 +69,6 @@ function buildNavGroups(): SettingsGroup[] {
             title: "Guilde",
             items: [
                 { id: "dofus", label: "Serveur Dofus", icon: Sword, description: "Configuration du serveur", accent: "emerald", module: null },
-                { id: "apparence", label: "Apparence", icon: Palette, description: "Mode sombre & couleur de guilde", accent: "emerald", module: null },
                 { id: "annuaire", label: "Annuaire", icon: UserCheck, description: "Sollicitations de membres", accent: "emerald", module: "roster" },
             ]
         },
@@ -143,7 +141,7 @@ export default async function FeatureSettingsPage({
 
     const guild = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { dofusServerId: true, accentHue: true }
+        select: { dofusServerId: true }
     });
     const isDofusConfigured = !!guild?.dofusServerId;
 
@@ -342,7 +340,6 @@ export default async function FeatureSettingsPage({
                             { resolvedTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }
                             { resolvedTab === "services" && <ServicesSettingsClient guildId={guildId} /> }
                             { resolvedTab === "marche" && <MarketSettingsClient guildId={guildId} /> }
-                            { resolvedTab === "apparence" && <GuildAppearanceSettingsClient guildId={guildId} initialHue={guild?.accentHue ?? null} /> }
                         </>
                     )}
 

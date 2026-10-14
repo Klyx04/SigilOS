@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 🧹 Session 14/10/2026 (suite 13) — **Déslop : onglet « Apparence » (couleur de guilde) retiré avec son code** — branche `chore/deslop-apparence-guilde`
+> **Demande user (verbatim)** : « H supprime le code et cet onglet c inutile » (mesure faite avant : l'onglet n'était **pas** du code mort — il écrivait `accentHue`, lu par le layout — la fonctionnalité est retirée en connaissance de cause).
+> **Mesure** : `GUILD_HUE_PRESETS` jamais importé · `getGuildAppearance` = 1 seule occurrence (`src/`) · l'onglet promettait un réglage de **mode sombre** qui n'existe pas · la teinte vivait de `layout.tsx:81-96` → `GuildAccentStyle` → `--guild-hue`.
+> **Fait** : écran supprimé + entrée d'onglet/import/rendu retirés · `accentHue` retiré du `select` de la page · actions `getGuildAppearance`/`updateGuildAccentHue` supprimées · lecture retirée du layout · `GUILD_HUE_PRESETS` supprimé · `hue` optionnel ⇒ **l'accent de base reste posé**. Colonne `accentHue` **conservée** (la supprimer = migration destructive, arrêt obligatoire).
+> **Preuves** : `tests/unit/deslop-apparence-guilde.test.ts` (**6 cas**) · `npm run test:run` **381 fichiers / 4 179 tests ✓** · `eslint` **0 erreur** · `tsc` ciblé **0 erreur**.
+> **Reste / ops (humain)** : contrôle à l'œil de l'onglet disparu et de la teinte du dashboard.
+> **Rotation** : bloc inséré en haut ; **aucun bloc sorti** (dette toujours ouverte, §7-6 du brief).
+
 ## 🖥️ Session 14/10/2026 (suite 12) — **Chantier Y, lot Y-3 : onglet « Rôles d'ancienneté » (chantier clos)** — branche `feat/roles-anciennete-y3`
 > **Demande user (verbatim)** : « reprend » · « ca veut dire une rbac non ? moi j'aurai ajouté un onglet dans …/admin/members tout simplement ».
 > **Mesure** : la page Membres est **déjà gardée** et a **déjà** des onglets + un `?tab=` lu ⇒ 3ᵉ onglet, **aucune permission ni entrée de menu** ; `DiscordChannelPicker` / `UnsavedChangesGuard` / `DiscordEmbedPreview` / `getDiscordRolesAction` / `Switch` déjà là ; `getAllCronStatuses()` (`cron-telemetry.ts:300`) fournit la dernière passe ; `PingRolesSelector` est un outil de whitelist de **ping** ⇒ sélecteur de rôles **local** pour les paliers.

@@ -169,6 +169,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Toutes les 1 min",
         logFile: "publish-scheduled-polls.log",
     },
+    seniority_roles: {
+        name: "Rôles automatiques par ancienneté",
+        schedule: "Quotidien 04h30",
+        logFile: "seniority-roles.log",
+    },
 };
 
 const REDIS_PREFIX = "cron:telemetry:";

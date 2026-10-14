@@ -25,6 +25,24 @@ describe("registre membres — date d'arrivée et ancienneté", () => {
         expect(resolveJoinedAt({ guildJoinedAt: null, createdAt: "2026-01-01T00:00:00.000Z" })).toBe("2026-01-01T00:00:00.000Z");
     });
 
+    it("préfère l'arrivée Discord à la création du profil (profil créé bien après l'arrivée)", () => {
+        expect(
+            resolveJoinedAt({
+                guildJoinedAt: null,
+                discordJoinedAt: "2025-01-01T00:00:00.000Z",
+                createdAt: "2026-01-01T00:00:00.000Z",
+            })
+        ).toBe("2025-01-01T00:00:00.000Z");
+        // La saisie manuelle reste prioritaire sur les deux.
+        expect(
+            resolveJoinedAt({
+                guildJoinedAt: "2024-10-04T00:00:00.000Z",
+                discordJoinedAt: "2025-01-01T00:00:00.000Z",
+                createdAt: "2026-01-01T00:00:00.000Z",
+            })
+        ).toBe("2024-10-04T00:00:00.000Z");
+    });
+
     it("calcule l'ancienneté en jours, jamais négative", () => {
         const now = new Date("2026-09-24T12:00:00.000Z");
         expect(computeSeniorityDays("2024-10-04T00:00:00.000Z", now)).toBe(720);

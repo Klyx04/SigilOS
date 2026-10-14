@@ -69,7 +69,7 @@ on ne « corrige » pas une supposition.
 
 ---
 
-## 3. Chantier **Y** — rôles automatiques par ancienneté ⏳ *Y-1 livré, Y-2 / Y-3 à faire*
+## 3. Chantier **Y** — rôles automatiques par ancienneté ⏳ *Y-1 et Y-2 livrés, Y-3 à faire*
 
 > Référence produit : module « Autoroles » de Dyno. Cadré le 14/10/2026. `docs/plans/FILE-EXECUTION.md`
 > §1 « Y » + **étape 59** (« juste après l'étape 24 = chantier B », **livrée**). Plan durable : **créé** —
@@ -171,6 +171,10 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
 - [ ] Jouer **`20270106000000_add_presentation_internal_rules`** en **bêta puis prod** (règlement).
 - [ ] Jouer **`20270107000000_add_seniority_roles_config`** en **bêta puis prod** (chantier **Y**, lot **Y-1** —
       additive : 4 colonnes sur `GuildConfig`, **aucune donnée touchée**).
+- [ ] Jouer **`20270108000000_add_seniority_role_announcements`** en **bêta puis prod** (chantier **Y**,
+      lot **Y-2** — additive : `GuildConfig.seniorityRolesActivatedAt` + table `SeniorityRoleAnnouncement`).
+- [ ] Ajouter la ligne de crontab **`30 4 * * *`** du module (chantier **Y**, lot **Y-2**) : elle est écrite
+      dans `docs/MAINTENANCE.md` § Crontab — ⚠️ le `%` s'y écrit `\%`, sinon la ligne ne s'exécute **jamais**.
 - [ ] **Ouvrir la permission `presentation:view` au rôle Membre** (`/dashboard/<guildId>/admin/permissions`) :
       sans elle, un membre ne voit **ni** l'onglet Présentation **ni** l'onglet Règlement (RBAC fail-closed).
 - [ ] Mettre à jour la page de doc **vivante** `admin-members` dans **`/god/docs`** (`src/lib/docs-catalog.ts`
@@ -183,7 +187,7 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
 
 | # | Question | Bloque |
 |---|---|---|
-| 1 | **Y** : rattrape-t-on les membres **déjà présents** (backfill) ou seulement l'ancienneté à venir ? | lot **Y-2** |
+| 1 | ~~**Y** : rattrape-t-on les membres **déjà présents** (backfill) ou seulement l'ancienneté à venir ?~~ **Tranché le 14/10/2026 : « on marque sans poster »** — les rôles se rattrapent (le diff est un état), mais un palier franchi **avant** l'activation n'est **jamais** annoncé (marqueur `seniorityRolesActivatedAt`) | ✅ clos |
 | 2 | ~~paliers sur une **page dédiée** du module ou dans un **onglet de Réglages** ?~~ **Tranché le 14/10/2026 : onglet « Rôles d'ancienneté » dans `/admin/members`** (ni page dédiée, ni Réglages — la page est **déjà gardée** et a **déjà** des onglets ⇒ aucune permission à créer) | ✅ clos |
 | 3 | **Z** : la synchronisation des commandes sur Discord passe-t-elle par une **action God** explicite (recommandé) ? | lot **Z-3** |
 | 4 | **`/presentation`** : redirection vers le hub, ou retrait du bloc + de l'entrée de menu ? | reste §5.2 |
@@ -228,6 +232,13 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
   **4 colonnes** de config sur `GuildConfig` + migration additive `20270107000000_add_seniority_roles_config`,
   règles pures `src/lib/seniority-roles.ts` (palier cible, diff à ajouter/retirer, périmètre fermé, annonce à
   variables en allowlist) et **26 cas** dans `tests/unit/seniority-roles.test.ts`. Décision **§7-2 close**
-  (onglet dans `/admin/members`, **aucune RBAC nouvelle**) ; décision **§7-1 (backfill)** toujours ouverte avant
-  **Y-2**.
+  (onglet dans `/admin/members`, **aucune RBAC nouvelle**) ; décision **§7-1 (backfill)** alors ouverte avant
+  **Y-2** (close au lot suivant).
+- **14/10/2026 (nuit, suite)** — **chantier Y, lot Y-2 livré** (branche `feat/roles-anciennete-y2`) : décision
+  **§7-1 close** (« **on marque sans poster** ») → **marqueur d'activation** `GuildConfig.seniorityRolesActivatedAt`
+  + table **`SeniorityRoleAnnouncement`** (unicité `(guildId, discordId, tierDays)`, migration additive
+  `20270108000000_add_seniority_role_announcements`), règles pures **`shouldCelebrateSeniorityTier`** /
+  **`resolveSeniorityCrossingIso`**, **`resolveJoinedAt`** qui gagne le repli **`discordJoinedAt`**, core
+  `src/server/seniority-roles-core.ts` + cron `/api/cron/seniority-roles` (télémétrie + ligne `30 4 * * *`
+  dans `docs/MAINTENANCE.md`), **24 cas** dans `tests/unit/seniority-roles-cron.test.ts`. Reste **Y-3**.
 

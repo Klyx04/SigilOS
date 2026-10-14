@@ -165,9 +165,16 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "songes-reminders \%{http_code} $(date -Is)\n" \
   -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
   "$APP_URL/api/cron/songes-reminders" >> "$LOG_DIR/songes-reminders.log" 2>&1
+
+# Rôles automatiques par ancienneté (chantier Y, lot Y-2) — UNE FOIS par jour : la passe
+# réconcilie les rôles des paliers atteints (`jours → rôles`) et n'annonce que les
+# franchissements POSTÉRIEURS à l'activation du module (les paliers déjà atteints sont
+# posés en silence — décision user du 14/10/2026, aucun message rétroactif dans le salon).
+# ⚠️ Sans état : une passe manquée n'est pas perdue, la suivante applique le même diff.
+30 4 * * * curl -s -o /dev/null -w "seniority-roles \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/seniority-roles" >> "$LOG_DIR/seniority-roles.log" 2>&1
 ```
 
-> 📋 **Rappel des 23 tâches lues par God** (`KNOWN_CRON_TASKS`, `src/lib/cron-telemetry.ts`) : chacune
+> 📋 **Rappel des 33 tâches lues par God** (`KNOWN_CRON_TASKS`, `src/lib/cron-telemetry.ts`) : chacune
 > n'apparaît « Succès » que si son **log** est écrit (`$LOG_DIR` **codé** dans
 > `src/app/api/god/cron-status/route.ts` = `/home/sigiladmin/SigilOS/logs`) **et/ou** si le Redis de
 > l'environnement reçoit `recordCronExecution`. `janitor` n'a **pas** de ligne : il est lancé par

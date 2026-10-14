@@ -339,6 +339,45 @@ export function renderSeniorityAnnouncement(input: {
     };
 }
 
+// ── Franchissement d'un palier : à fêter, ou rattrapage ? (lot Y-2) ──────────
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Date de **franchissement** d'un palier : arrivée + seuil. C'est elle qui décide si le
+ * palier est un événement à fêter ou un rattrapage (cf. `shouldCelebrateSeniorityTier`).
+ * `null` si l'arrivée ou le seuil n'est pas exploitable.
+ */
+export function resolveSeniorityCrossingIso(joinedAtIso: string, tierDays: number): string | null {
+    const joined = new Date(joinedAtIso).getTime();
+    if (Number.isNaN(joined) || !Number.isInteger(tierDays) || tierDays < 0) return null;
+    return new Date(joined + tierDays * DAY_MS).toISOString();
+}
+
+/**
+ * Faut-il **fêter** ce palier (embed dans le salon), ou le marquer en silence ?
+ *
+ * Un palier atteint n'est un événement que si sa date de franchissement est **strictement
+ * postérieure** à l'activation du module. Sinon c'est un **rattrapage** : les rôles sont
+ * posés, mais rien n'est posté (décision user du 14/10/2026 — les membres déjà présents
+ * reçoivent leurs rôles en silence, le salon ne fête que les franchissements à venir).
+ *
+ * Sans marqueur d'activation (`null`, `undefined` ou date invalide) : **on ne fête rien**
+ * (fail-closed — jamais des félicitations qu'on ne saurait pas expliquer).
+ */
+export function shouldCelebrateSeniorityTier(input: {
+    joinedAtIso: string;
+    tierDays: number;
+    activatedAtIso: string | null | undefined;
+}): boolean {
+    if (!input.activatedAtIso) return false;
+    const activated = new Date(input.activatedAtIso).getTime();
+    if (Number.isNaN(activated)) return false;
+    const crossing = resolveSeniorityCrossingIso(input.joinedAtIso, input.tierDays);
+    if (!crossing) return false;
+    return new Date(crossing).getTime() > activated;
+}
+
 /**
  * Relit l'annonce depuis la base : tout champ douteux (vide, mal typé, hors bornes)
  * retombe sur le défaut — **fail-safe**, jamais fail-open sur du texte Discord.

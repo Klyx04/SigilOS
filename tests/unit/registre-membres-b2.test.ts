@@ -17,6 +17,7 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 
 const LIFECYCLE = "src/server/actions/member-lifecycle-actions.ts";
+const USER_ACTIONS = "src/server/actions/user-actions.ts";
 const DIALOG = "src/components/admin/members/member-detail-dialog.tsx";
 const SCHEMA = "prisma/schema.prisma";
 const MIGRATION =
@@ -99,5 +100,30 @@ describe("B-2 — le registre accepte un sujet polymorphe (profil XOR membre Dis
         expect(dialog).toContain("canManageMembers && (isDashboard || !!row.discordId)");
         // Les actions de cycle de vie (archivage/exclusion/vacances) restent réservées aux profils.
         expect(dialog).toContain("isDashboard && (row.status === \"ARCHIVED\"");
+    });
+
+    it("reprend la ligne de registre sur le profil à la première connexion (aucune saisie perdue)", () => {
+        const actions = codeOnly(USER_ACTIONS);
+        // La ligne est relue juste avant la création du profil…
+        expect(actions).toContain("db.memberRegistryEntry.findUnique(");
+        expect(actions).toContain("guildId_discordId: { guildId: guildConfig.id, discordId: discordUserId }");
+
+        // …ses champs sont reportés sur le profil…
+        for (const field of [
+            "pseudoDofus",
+            "ankamaId",
+            "guildJoinedAt",
+            "recruitedById",
+            "trialValidated",
+            "trialEndsAt",
+            "altPseudos",
+        ]) {
+            expect(actions, field).toContain(`registryEntry.${field}`);
+        }
+
+        // …les commentaires du staff suivent la fiche, puis la ligne est libérée (jamais deux sources).
+        expect(actions).toContain("db.memberRegistryComment.updateMany(");
+        expect(actions).toContain("data: { profileId: profile.id, discordId: null }");
+        expect(actions).toContain("db.memberRegistryEntry.delete(");
     });
 });

@@ -42,7 +42,7 @@ import {
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import { GameIcon } from "@/components/shared/game-icon";
 import { cn } from "@/lib/utils";
-import type { RosterRow } from "@/lib/member-roster";
+import type { RosterMule, RosterRow } from "@/lib/member-roster";
 import {
     addMemberRegistryComment,
     recordMemberDeparture,
@@ -56,6 +56,8 @@ import {
 import { RelanceModal } from "./relance-modal";
 import { VacationEditDialog } from "./vacation-edit-dialog";
 import { MemberDiscordActivity } from "./member-discord-activity";
+import { RecruiterPicker } from "./recruiter-picker";
+import { MemberMulesEditor } from "./member-mules-editor";
 
 /** Action de suppression branchée par le parent (guilde ou God) — le dialogue ignore la portée. */
 export type DeleteRowAction = (
@@ -146,7 +148,7 @@ export function MemberDetailDialog({
     const [departureCategory, setDepartureCategory] =
         useState<"VOLUNTARY" | "INACTIVITY" | "BEHAVIOR" | "OTHER">("VOLUNTARY");
     const [recruiterId, setRecruiterId] = useState(row?.recruiter?.id ?? "NONE");
-    const [mulesText, setMulesText] = useState((row?.mules ?? []).map((mule) => mule.pseudo).join("\n"));
+    const [mules, setMules] = useState<RosterMule[]>(row?.mules ?? []);
     const [comment, setComment] = useState("");
     /** Onglet de la fiche : la fiche registre, ou l'activité Discord mesurée. */
     const [detailTab, setDetailTab] = useState<"fiche" | "discord">("fiche");
@@ -247,11 +249,6 @@ export function MemberDetailDialog({
 
     function handleSaveMules() {
         if (!row) return;
-        const mules = mulesText
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean)
-            .map((pseudo) => ({ pseudo }));
         run(() => updateMemberAlts(guildId, subject, mules), "Mules mises à jour");
     }
 
@@ -520,19 +517,12 @@ export function MemberDetailDialog({
                                     <div className="flex flex-wrap items-end gap-2">
                                         <div className="min-w-48 flex-1 space-y-1.5">
                                             <Label className="text-xs">Recruteur</Label>
-                                            <Select value={recruiterId} onValueChange={setRecruiterId} disabled={!canEdit}>
-                                                <SelectTrigger className="h-9 text-xs">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="NONE" className="text-xs">Aucun</SelectItem>
-                                                    {recruiterOptions.map((option) => (
-                                                        <SelectItem key={option.id} value={option.id} className="text-xs">
-                                                            {option.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <RecruiterPicker
+                                                options={recruiterOptions}
+                                                value={recruiterId}
+                                                onChange={setRecruiterId}
+                                                disabled={!canEdit}
+                                            />
                                         </div>
                                         {canEdit && (
                                             <Button size="sm" variant="outline" onClick={handleSaveRecruiter} disabled={isPending}>
@@ -541,22 +531,14 @@ export function MemberDetailDialog({
                                         )}
                                     </div>
 
-                                    <div className="space-y-1.5">
-                                        <Label htmlFor="member-mules" className="text-xs">Mules (une par ligne)</Label>
-                                        <Textarea
-                                            id="member-mules"
-                                            value={mulesText}
-                                            onChange={(event) => setMulesText(event.target.value)}
-                                            rows={3}
-                                            className="text-sm"
-                                            disabled={!canEdit}
-                                        />
-                                        {canEdit && (
-                                            <Button size="sm" variant="outline" onClick={handleSaveMules} disabled={isPending}>
-                                                Enregistrer les mules
-                                            </Button>
-                                        )}
-                                    </div>
+                                    <MemberMulesEditor
+                                        guildId={guildId}
+                                        mules={mules}
+                                        onChange={setMules}
+                                        onSave={handleSaveMules}
+                                        canEdit={canEdit}
+                                        isPending={isPending}
+                                    />
 
                                     <div className="space-y-2">
                                         <Label className="text-xs">Journal du staff</Label>
@@ -635,6 +617,10 @@ export function MemberDetailDialog({
                     </div>
                     )}
 
+                    {/* Zone sensible — réservée à une **fiche dashboard** : un membre hors dashboard
+                        n'a ni bouton de suppression ni avertissement à lire, donc pas de bandeau orphelin
+                        (mesure bêta du 14/10 : « Zone sensible » s'affichait sous une fiche sans action). */}
+                    {isDashboard && (
                     <DialogFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div
                             className={cn(
@@ -723,6 +709,7 @@ export function MemberDetailDialog({
                             </p>
                         )}
                     </DialogFooter>
+                    )}
                 </DialogContent>
             </Dialog>
             {relanceTargets && (

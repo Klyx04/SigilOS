@@ -153,6 +153,8 @@ interface MemberRosterListProps {
     guildId: string;
     rows: RosterRow[];
     roles: RosterRoleInput[];
+    /** Ids des rôles **autorisés dashboard** : le filtre de rôles ne propose que ceux-là. */
+    dashboardRoleIds?: string[];
     canManageMembers: boolean;
     canDeleteMembers: boolean;
     currentUserId: string;
@@ -167,6 +169,7 @@ export function MemberRosterList({
     guildId,
     rows,
     roles,
+    dashboardRoleIds,
     canManageMembers,
     canDeleteMembers,
     currentUserId,
@@ -184,7 +187,10 @@ export function MemberRosterList({
     // qu'on obtient en cliquant, jamais un total global trompeur.
     const statusCounts = useMemo(() => rosterStatusCounts(rows, filters), [rows, filters]);
     const dashboardCounts = useMemo(() => rosterDashboardCounts(rows, filters), [rows, filters]);
-    const roleOptions = useMemo(() => rosterRoleOptions(roles, rows), [roles, rows]);
+    const roleOptions = useMemo(
+        () => rosterRoleOptions(roles, rows, dashboardRoleIds),
+        [roles, rows, dashboardRoleIds]
+    );
 
     const { filtered, page: pageData } = useMemo(
         () => queryRoster(rows, filters, sort, page, PAGE_SIZE),

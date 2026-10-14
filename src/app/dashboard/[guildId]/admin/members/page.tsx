@@ -7,6 +7,7 @@ import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { buildMemberRoster, DEFAULT_TRIAL_DURATION_DAYS } from "@/lib/member-roster";
+import { roleHasDashboardAccess } from "@/lib/permissions";
 
 export const metadata = {
     title: "Membres & Recrutement | SigilOS",
@@ -31,7 +32,7 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
         getMemberRegistryDiscordIndex(guildId),
         db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { welcomeBadgeName: true, ownerId: true },
+            select: { welcomeBadgeName: true, ownerId: true, rolesMapping: true },
         }),
     ]);
 
@@ -111,6 +112,16 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
         });
     }
 
+    // Filtre de rôles : seuls les rôles **autorisés dashboard** (mappés dans le RBAC) sont proposés.
+    // Un rôle sans permission n'ouvre aucune page : il ne filtre rien d'utile (mesure bêta du 14/10).
+    // `rolesMapping` vide (RBAC non configuré) ⇒ aucune restriction — on n'invente pas une règle que
+    // la guilde n'a pas posée. Les lignes « hors dashboard » ne sont pas concernées : elles restent
+    // affichées et restent filtrables (statut, inscription, recherche, facette « Hors dashboard »).
+    const rolesMapping = (guildConfig?.rolesMapping as Record<string, string[]> | null | undefined) ?? null;
+    const dashboardRoleIds = (indexData?.roles ?? [])
+        .map((role) => role.id)
+        .filter((roleId) => roleHasDashboardAccess(rolesMapping, roleId));
+
     return (
         <div className="container mx-auto max-w-7xl px-4 py-6 lg:py-10">
             <div className="mb-6 flex items-start justify-between gap-4" data-tour="admin-members-header">
@@ -132,6 +143,7 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
                         guildId={guildId}
                         rows={rows}
                         roles={indexData?.roles ?? []}
+                        dashboardRoleIds={dashboardRoleIds}
                         stats={stats}
                         discordAvailable={indexData?.discordAvailable ?? false}
                         welcomeBadgeName={guildConfig?.welcomeBadgeName || "Nouveau"}

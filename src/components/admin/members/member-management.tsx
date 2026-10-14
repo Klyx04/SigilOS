@@ -17,6 +17,8 @@ interface MemberManagementProps {
     guildId: string;
     rows: RosterRow[];
     roles: RosterRoleInput[];
+    /** Ids des rôles Discord **autorisés dashboard** : borne le filtre de rôles au RBAC réel. */
+    dashboardRoleIds?: string[];
     stats: { active: number; archived: number; banned: number; total: number; maxMembers: number };
     discordAvailable: boolean;
     welcomeBadgeName: string;
@@ -39,6 +41,7 @@ export default function MemberManagement({
     guildId,
     rows,
     roles,
+    dashboardRoleIds,
     stats,
     discordAvailable,
     canManageMembers,
@@ -128,6 +131,7 @@ export default function MemberManagement({
                     guildId={guildId}
                     rows={rows}
                     roles={roles}
+                    dashboardRoleIds={dashboardRoleIds}
                     canManageMembers={canManageMembers}
                     canDeleteMembers={canDeleteMembers}
                     currentUserId={currentUserId}

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
     BarChart3,
@@ -13,7 +12,6 @@ import {
     Clock,
     CheckCircle,
     Mic2,
-    Timer,
     LayoutGrid,
     ListFilter,
     ChevronRight,
@@ -29,10 +27,9 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { PollCard } from "./poll-card";
+import { POLL_CATEGORY_OPTIONS } from "./poll-category-tiles";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { getMicroStatus, acquirePollCreatorRole, releasePollCreatorRole } from "@/server/actions/poll-actions";
@@ -57,13 +54,26 @@ const SORT_OPTIONS: { value: SortKey; label: string; icon: React.ElementType }[]
     { value: "most_votes", label: "Plus votés", icon: TrendingUp },
 ];
 
-const CATEGORY_FILTERS: { value: CategoryFilter; label: string; emoji: string }[] = [
-    { value: "ALL", label: "Tout", emoji: "🗳️" },
-    { value: "SUGGESTION", label: "Suggestions", emoji: "💡" },
-    { value: "AMELIORATION", label: "Améliorations", emoji: "🔧" },
-    { value: "EVENT", label: "Événements", emoji: "🎉" },
-    { value: "MISSION", label: "Missions", emoji: "🎯" },
-    { value: "AUTRE", label: "Autres", emoji: "📋" },
+/**
+ * Filtres de catégorie — les **valeurs** viennent de la source partagée des tuiles
+ * (`PollCategoryTiles` : une catégorie n'existe qu'à un endroit), seuls les
+ * libellés au pluriel sont propres à ce filtre. Plus d'emoji dans un libellé
+ * structurant (doctrine UI du module).
+ */
+const CATEGORY_FILTER_LABELS: Record<string, string> = {
+    SUGGESTION: "Suggestions",
+    AMELIORATION: "Améliorations",
+    EVENT: "Événements",
+    MISSION: "Missions",
+    AUTRE: "Autres",
+};
+
+const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
+    { value: "ALL", label: "Tout" },
+    ...POLL_CATEGORY_OPTIONS.map((option) => ({
+        value: option.value as CategoryFilter,
+        label: CATEGORY_FILTER_LABELS[option.value] ?? option.label,
+    })),
 ];
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
@@ -202,25 +212,25 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
         <div className="space-y-8">
             {/* Micro Status Bar */}
             {/* PERF : fond opaque, pas de backdrop-blur (recalculé à chaque frame de scroll) */}
-            <div className="relative overflow-hidden rounded-3xl bg-surface border border-border p-4 sm:p-6" data-tour="sondages-micro">
+            <div className="relative overflow-hidden rounded-lg bg-surface border border-border p-4 sm:p-6" data-tour="sondages-micro">
                 <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
                     <div className="flex items-center gap-5">
                         <div className="relative flex-shrink-0">
-                            <div className="w-14 h-14 rounded-2xl bg-info/10 flex items-center justify-center border border-info/20 shadow-inner">
+                            <div className="w-14 h-14 rounded-lg bg-info/10 flex items-center justify-center border border-info/20">
                                 <Mic2 className="w-7 h-7 text-info" />
                             </div>
                             {microStatus?.holder && (
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-info border-2 border-border motion-safe:animate-pulse" />
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-info border-2 border-border" />
                             )}
                         </div>
                         <div className="space-y-1">
-                            <h4 className="text-xl font-black uppercase tracking-tighter italic text-foreground flex items-center gap-2">
+                            <h4 className="text-xl font-semibold uppercase tracking-tight text-foreground flex items-center gap-2">
                                 Droit de Parole
                                 {!microStatus?.holder && <Badge variant="outline" className="text-caption bg-success/10 text-success border-success/20">Libre</Badge>}
                             </h4>
                             <p className="text-sm text-muted-foreground font-medium">
                                 {microStatus?.holder
-                                    ? <span>Actuellement tenu par <span className="text-info font-bold underline underline-offset-4 decoration-cyan-500/30">{microStatus.holder.name}</span></span>
+                                    ? <span>Actuellement tenu par <span className="text-info font-bold underline underline-offset-4 decoration-info/30">{microStatus.holder.name}</span></span>
                                     : "Personne n'a le micro. Prenez-le pour lancer un sondage."
                                 }
                             </p>
@@ -229,11 +239,11 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
 
                     <div className="flex items-center gap-4">
                         {microStatus?.expiresAt && (
-                            <div className="flex items-center gap-3 bg-surface px-5 py-3 rounded-2xl border border-border shrink-0">
+                            <div className="flex items-center gap-3 bg-surface px-5 py-3 rounded-lg border border-border shrink-0">
                                 <Clock className="w-4 h-4 text-info" />
                                 <div className="text-right flex items-center gap-4">
                                     <div>
-                                        <p className="text-caption font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">Temps restant</p>
+                                        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground leading-none mb-1">Temps restant</p>
                                         <p className="text-sm font-bold tabular-nums text-foreground leading-none">
                                             <CountdownTimer expiresAt={microStatus.expiresAt} />
                                         </p>
@@ -243,7 +253,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                             onClick={handleReleaseMicro}
                                             variant="ghost"
                                             size="sm"
-                                            className="h-8 px-3 rounded-lg bg-danger/10 hover:bg-danger/20 text-danger text-caption font-black uppercase tracking-tighter border border-danger/20 transition-all"
+                                            className="h-8 px-3 rounded-lg bg-danger/10 hover:bg-danger/20 text-danger text-caption font-semibold uppercase tracking-tight border border-danger/20 transition-all"
                                         >
                                             Relâcher
                                         </Button>
@@ -258,10 +268,10 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                     onClick={() => setShowPimConfirm(true)}
                                     disabled={isPending}
                                     className={cn(
-                                        "h-12 px-8 rounded-xl font-black uppercase tracking-widest text-xs transition-all shrink-0",
+                                        "h-12 px-8 rounded-lg font-semibold uppercase tracking-wide text-xs transition-all shrink-0",
                                         microStatus?.holder
-                                            ? "bg-warning hover:bg-warning text-warning-foreground shadow-xl shadow-amber-500/20"
-                                            : "bg-info hover:bg-info text-info-foreground shadow-xl shadow-cyan-500/20",
+                                            ? "bg-warning hover:bg-warning text-warning-foreground"
+                                            : "bg-info hover:bg-info text-info-foreground",
                                         "active:translate-y-0.5"
                                     )}
                                 >
@@ -281,7 +291,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                             </DialogDescription>
                                         </DialogHeader>
                                         <div className="space-y-4 py-2">
-                                            <div className="flex gap-3 p-3 rounded-xl bg-info/5 border border-info/20">
+                                            <div className="flex gap-3 p-3 rounded-lg bg-info/5 border border-info/20">
                                                 <Info className="w-4 h-4 text-info mt-0.5 shrink-0" />
                                                 <p className="text-sm text-foreground">
                                                     Tu vas acquérir le rôle <span className="font-bold text-info">Créateur de Sondages</span> pendant <span className="font-bold text-foreground">1 heure</span>. Pendant ce temps, toi seul peux créer des sondages.
@@ -301,7 +311,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                                     <span>Le rôle expire <span className="text-foreground font-medium">automatiquement</span> après 1h.</span>
                                                 </li>
                                             </ul>
-                                            <div className="flex gap-3 p-3 rounded-xl bg-warning/5 border border-warning/20">
+                                            <div className="flex gap-3 p-3 rounded-lg bg-warning/5 border border-warning/20">
                                                 <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
                                                 <p className="text-xs text-muted-foreground">
                                                     Les sondages publiés sont <span className="text-warning font-medium">visibles de toute la guilde</span> et peuvent être envoyés sur Discord. Réfléchis bien avant de publier.
@@ -313,7 +323,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                                 Annuler
                                             </Button>
                                             <Button
-                                                className="bg-info hover:bg-info text-info-foreground font-black"
+                                                className="bg-info hover:bg-info text-info-foreground font-semibold"
                                                 disabled={isPending}
                                                 onClick={() => {
                                                     setShowPimConfirm(false);
@@ -337,29 +347,29 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                     <button
                         onClick={() => setStatusFilter("ACTIVE")}
                         className={cn(
-                            "group flex items-center gap-2.5 px-4 py-2 rounded-2xl transition-all duration-300 border",
+                            "group flex items-center gap-2.5 px-4 py-2 rounded-lg transition-all duration-300 border",
                             statusFilter === "ACTIVE"
                                 ? "bg-success/20 border-success/40 "
                                 : "bg-success/5 border-success/10 hover:border-success/30"
                         )}
                     >
-                        <div className={cn("w-2 h-2 rounded-full bg-success ", statusFilter === "ACTIVE" && "motion-safe:animate-pulse")} />
-                        <span className="text-success text-xs font-black uppercase tracking-widest">{activeCount} en cours</span>
+                        <div className="w-2 h-2 rounded-full bg-success" />
+                        <span className="text-success text-xs font-semibold uppercase tracking-wide">{activeCount} en cours</span>
                     </button>
                     <button
                         onClick={() => setStatusFilter("CLOSED")}
                         className={cn(
-                            "flex items-center gap-2.5 px-4 py-2 rounded-2xl transition-all duration-300 border",
+                            "flex items-center gap-2.5 px-4 py-2 rounded-lg transition-all duration-300 border",
                             statusFilter === "CLOSED"
                                 ? "bg-warning/20 border-warning/40  text-warning"
                                 : "bg-surface border-border text-muted-foreground hover:bg-surface hover:text-foreground"
                         )}
                     >
-                        <span className="text-xs font-bold uppercase tracking-widest">{closedCount} terminé{closedCount !== 1 ? "s" : ""}</span>
+                        <span className="text-xs font-bold uppercase tracking-wide">{closedCount} terminé{closedCount !== 1 ? "s" : ""}</span>
                     </button>
-                    <div className="flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-surface border border-border group transition-all">
+                    <div className="flex items-center gap-2.5 px-4 py-2 rounded-lg bg-surface border border-border group transition-all">
                         <TrendingUp className="w-3.5 h-3.5 text-muted-foreground transition-transform group-" />
-                        <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">{totalVotes} vote{totalVotes !== 1 ? "s" : ""}</span>
+                        <span className="text-muted-foreground text-xs font-bold uppercase tracking-wide">{totalVotes} vote{totalVotes !== 1 ? "s" : ""}</span>
                     </div>
                 </div>
 
@@ -369,23 +379,17 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                         <button
                             onClick={() => { setShowSort(!showSort); setShowFilters(false); }}
                             className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
                                 showSort
-                                    ? "bg-violet-500/10 border-violet-500/20 text-violet-400"
+                                    ? "bg-info/10 border-info/40 text-info"
                                     : "bg-surface border-border text-muted-foreground hover:text-foreground hover:border-border"
                             )}
                         >
                             <ArrowUpDown className="w-3 h-3" />
                             {currentSort.label}
                         </button>
-                        <AnimatePresence>
-                            {showSort && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -4, scale: 0.97 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                                    className="absolute right-0 top-full mt-1 z-20 bg-background border border-border rounded-xl shadow-2xl overflow-hidden min-w-[175px]"
-                                >
+                        {showSort && (
+                            <div className="absolute right-0 top-full mt-1 z-20 bg-background border border-border rounded-lg overflow-hidden min-w-[175px]">
                                     {SORT_OPTIONS.map(opt => (
                                         <button
                                             key={opt.value}
@@ -393,7 +397,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                             className={cn(
                                                 "flex items-center gap-2 w-full px-3 py-2 text-xs font-medium text-left transition-all",
                                                 sortKey === opt.value
-                                                    ? "bg-violet-500/10 text-violet-400"
+                                                    ? "bg-info/10 text-info"
                                                     : "text-muted-foreground hover:bg-surface hover:text-foreground"
                                             )}
                                         >
@@ -401,16 +405,15 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                             {opt.label}
                                         </button>
                                     ))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                            </div>
+                        )}
                     </div>
 
                     {/* Filter toggle */}
                     <button
                         onClick={() => { setShowFilters(!showFilters); setShowSort(false); }}
                         className={cn(
-                            "flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all",
+                            "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
                             showFilters
                                 ? "bg-info/10 border-info/20 text-info"
                                 : "bg-surface border-border text-muted-foreground hover:text-foreground hover:border-border"
@@ -423,22 +426,13 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
             </div >
 
             {/* Filter panel */}
-            <AnimatePresence>
-                {
-                    showFilters && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="overflow-hidden"
-                        >
-                            <div className="p-6 rounded-2xl bg-surface border border-border space-y-8">
+            {showFilters && (
+                <div className="p-6 rounded-lg bg-surface border border-border space-y-8">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div>
                                         <div className="flex items-center gap-2 mb-4">
                                             <ListFilter className="w-3.5 h-3.5 text-muted-foreground" />
-                                            <p className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground leading-none">Filtrer par Catégorie</p>
+                                            <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground leading-none">Filtrer par Catégorie</p>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
                                             {CATEGORY_FILTERS.map(f => (
@@ -446,13 +440,12 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                                     key={f.value}
                                                     onClick={() => setCategoryFilter(f.value)}
                                                     className={cn(
-                                                        "flex items-center gap-2 px-4 py-2.5 rounded-xl text-caption font-black uppercase tracking-wider border transition-colors",
+                                                        "flex items-center gap-2 px-4 py-2.5 rounded-lg text-caption font-semibold uppercase tracking-wider border transition-colors",
                                                         categoryFilter === f.value
                                                             ? "bg-info/10 border-info/40 text-info"
                                                             : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-surface hover:border-border"
                                                     )}
                                                 >
-                                                    <span className="text-base">{f.emoji}</span>
                                                     {f.label}
                                                 </button>
                                             ))}
@@ -461,7 +454,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                     <div>
                                         <div className="flex items-center gap-2 mb-4">
                                             <LayoutGrid className="w-3.5 h-3.5 text-muted-foreground" />
-                                            <p className="text-caption font-black uppercase tracking-[0.2em] text-muted-foreground leading-none">Filtrer par Statut</p>
+                                            <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground leading-none">Filtrer par Statut</p>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
                                             {STATUS_FILTERS.map(f => (
@@ -469,9 +462,9 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                                     key={f.value}
                                                     onClick={() => setStatusFilter(f.value)}
                                                     className={cn(
-                                                        "px-4 py-2.5 rounded-xl text-caption font-black uppercase tracking-wider border transition-colors",
+                                                        "px-4 py-2.5 rounded-lg text-caption font-semibold uppercase tracking-wider border transition-colors",
                                                         statusFilter === f.value
-                                                            ? "bg-violet-500/10 border-violet-500/40 text-violet-400"
+                                                            ? "bg-info/10 border-info/40 text-info"
                                                             : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-surface hover:border-border"
                                                     )}
                                                 >
@@ -486,7 +479,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                     <div className="pt-4 border-t border-border flex justify-center">
                                         <button
                                             onClick={() => { setCategoryFilter("ALL"); setStatusFilter("ALL"); }}
-                                            className="group flex items-center gap-2 text-caption font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+                                            className="group flex items-center gap-2 text-caption font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
                                         >
                                             <X className="w-3 h-3 transition-transform group-hover:rotate-90" />
                                             Réinitialiser les filtres
@@ -494,10 +487,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                                     </div>
                                 )}
                             </div>
-                        </motion.div>
-                    )
-                }
-            </AnimatePresence >
+            )}
 
             {/* Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -518,57 +508,22 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
                     {statusFilter === "ACTIVE" ? (
                         <Link
                             href={`/dashboard/${guildId}/sondages/archives`}
-                            className="group flex items-center gap-3 px-6 py-3 rounded-2xl bg-surface border border-border hover:bg-surface hover:border-border transition-all text-muted-foreground hover:text-foreground"
+                            className="group flex items-center gap-3 px-6 py-3 rounded-lg bg-surface border border-border hover:bg-surface hover:border-border transition-all text-muted-foreground hover:text-foreground"
                         >
                             <History className="w-4 h-4" />
-                            <span className="text-xs font-black uppercase tracking-widest">Voir les archives du Sigil</span>
+                            <span className="text-xs font-semibold uppercase tracking-wide">Voir les archives du Sigil</span>
                             <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                         </Link>
                     ) : (
                         <Link
                             href={`/dashboard/${guildId}/sondages`}
-                            className="group flex items-center gap-3 px-6 py-3 rounded-2xl bg-info/10 border border-info/20 hover:bg-info/20 transition-colors text-info"
+                            className="group flex items-center gap-3 px-6 py-3 rounded-lg bg-info/10 border border-info/20 hover:bg-info/20 transition-colors text-info"
                         >
-                            <span className="text-caption font-black uppercase tracking-widest">Retour aux sondages en cours</span>
+                            <span className="text-caption font-semibold uppercase tracking-wide">Retour aux sondages en cours</span>
                         </Link>
                     )}
                 </div>
             )}
-        </div>
-    );
-}
-
-function RemainingTime({ expiresAt }: { expiresAt: Date | string }) {
-    const [timeLeft, setTimeLeft] = useState<string>("");
-
-    useEffect(() => {
-        const calculate = () => {
-            const now = new Date();
-            const end = new Date(expiresAt);
-            const diff = end.getTime() - now.getTime();
-
-            if (diff <= 0) {
-                setTimeLeft("00:00");
-                return;
-            }
-
-            const mins = Math.floor(diff / 1000 / 60);
-            const secs = Math.floor((diff / 1000) % 60);
-            setTimeLeft(`${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`);
-        };
-
-        calculate();
-        const timer = setInterval(calculate, 1000);
-        return () => clearInterval(timer);
-    }, [expiresAt]);
-
-    return (
-        <div className="flex flex-col items-center gap-1.5 px-6 py-3 rounded-2xl bg-background/50 border border-border text-info/90">
-            <span className="text-caption font-black uppercase tracking-widest text-muted-foreground leading-none">Temps restant</span>
-            <div className="flex items-center gap-2">
-                <Timer className="w-4 h-4 text-info" />
-                <span className="text-xl font-black tabular-nums tracking-wider leading-none">{timeLeft}</span>
-            </div>
         </div>
     );
 }

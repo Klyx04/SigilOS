@@ -31,7 +31,7 @@ description: File d'exécution unique — tous les chantiers (A→V), un seul or
 | # | Chantier | État | Plan durable (contenu) | Lots |
 |---|---|---|---|---|
 | **A** | Siphons game-data | ✅ **clos** (28/09, A1→A5) | blocs 28/09 du `docs/ROADMAP.md` | — |
-| **B** | Membres `/admin/members` | **B-1 + B-3 ✅ livrés le 14/10/2026** (refonte : une liste unique + une modale + suppression définitive gardée par RBAC) — **reste B-2** (migration `MemberRegistryEntry`) | `docs/ROADMAP.md` § B | B-1, B-2, B-3 |
+| **B** | Membres `/admin/members` | **B-1, B-2 + B-3 ✅ livrés le 14/10/2026** (refonte : une liste unique, une modale **éditable pour les deux natures de lignes**, suppression définitive gardée par RBAC) | `docs/ROADMAP.md` § B | B-1, B-2, B-3 |
 | **C** | Tickets v2 | en cours | `docs/plans/PLAN-REFONTE-TICKETS-V2.md` | C-1 → C-4 |
 | **D** | UI God (hors refonte O) | en cours (reste D-3) | `docs/ROADMAP.md` § D | D-3 |
 | **E** | Acquisition (SEO / contenu) | ouvert | `docs/plans/SEO_REPRISE.md` + `docs/ROADMAP.md` § E | E-1 → E-3 |
@@ -108,7 +108,7 @@ description: File d'exécution unique — tous les chantiers (A→V), un seul or
 | **21** | **L · L-3** | §22 ladder / planning / worldmap | M | — |
 | **22** | **L · L-4** | §23 passe globale dashboard / admin / landing / modales (+ **G·R9/R10**) | L | — |
 | **23** | **H · H-2** | §2 mini-jeux : déslop + UX (HUD, boutons, settings) | M | — |
-| **24** | **B** | Membres `/admin/members` : **B-1** puis **B-2** (migration) | M | — |
+| **24** | ✅ **B** | Membres `/admin/members` : **B-1** (une liste + une modale + déslop), **B-2** (migration `MemberRegistryEntry` : les hors dashboard deviennent éditables) et **B-3** (permission `staff:member_delete` : suppression définitive, guilde puis God) — **livrés le 14/10/2026** | M | — |
 | **25** | **C** | Tickets v2 : **C-1** → **C-4** | M | — |
 | **26** | **D · D-3** | `/dofus-guides` déslop | S | — |
 | **27** | **Q** | Salons vocaux : reprendre le cahier V2.1 → `PLAN-…` → lots | ? | ⏸ **D4** |

@@ -10,6 +10,7 @@
  */
 
 import {
+    computeSeniorityDays,
     getTrialDecision,
     matchesDiscordRole,
     matchesRegistrySearch,
@@ -114,6 +115,24 @@ export interface RosterDiscordOnlyInput {
     avatar: string | null;
     joinedAt: string | null;
     roles: string[];
+    /**
+     * Ligne de registre du membre (B-2) : `null`/absent tant que le staff n'a rien saisi.
+     * Sa présence rend le membre **éditable** depuis la modale, comme un profil dashboard.
+     */
+    entry?: {
+        pseudoDofus: string | null;
+        ankamaId: string | null;
+        guildJoinedAt: string | null;
+        trialValidated: boolean;
+        trialEndsAt: string | null;
+        mules: RosterMule[];
+        comments: RegistryComment[];
+    } | null;
+    recruiterId?: string | null;
+    recruiterName?: string | null;
+    recruiterAvatar?: string | null;
+    /** Ancienneté calculée côté serveur (date d'arrivée retenue). */
+    seniorityDays?: number | null;
 }
 
 /** Rôle Discord proposé au filtre (id, libellé, couleur, position). */
@@ -191,6 +210,12 @@ export function buildMemberRoster(input: {
     for (const d of discordOnly) {
         if (seenDiscordIds.has(d.discordId)) continue;
         seenDiscordIds.add(d.discordId);
+
+        const entry = d.entry ?? null;
+        // Date d'arrivée retenue : saisie du registre si présente, sinon arrivée Discord.
+        const joinedAt = entry?.guildJoinedAt ?? d.joinedAt ?? null;
+        const seniorityDays = d.seniorityDays ?? (joinedAt ? computeSeniorityDays(joinedAt, now) : null);
+
         rows.push({
             key: `discord:${d.discordId}`,
             profileId: null,
@@ -202,15 +227,32 @@ export function buildMemberRoster(input: {
             status: null,
             dashboard: false,
             roles: Array.isArray(d.roles) ? d.roles : [],
-            joinedAt: d.joinedAt,
-            seniorityDays: null,
-            pseudoDofus: null,
+            joinedAt,
+            seniorityDays,
+            pseudoDofus: entry?.pseudoDofus ?? null,
             discordNickname: null,
-            ankamaId: null,
-            trial: null,
-            recruiter: null,
-            mules: [],
-            comments: [],
+            ankamaId: entry?.ankamaId ?? null,
+            // L'essai n'apparaît que si une ligne de registre a été créée (sinon « — »).
+            trial: entry
+                ? {
+                      validated: entry.trialValidated,
+                      endsAt: entry.trialEndsAt,
+                      remainingDays: null,
+                      decision: getTrialDecision({
+                          trialValidated: entry.trialValidated,
+                          trialEndsAt: entry.trialEndsAt,
+                          joinedAtIso: joinedAt ?? now.toISOString(),
+                          trialDurationDays,
+                          now,
+                      }),
+                  }
+                : null,
+            recruiter:
+                d.recruiterId && d.recruiterName
+                    ? { id: d.recruiterId, name: d.recruiterName, avatar: d.recruiterAvatar ?? null }
+                    : null,
+            mules: entry?.mules ?? [],
+            comments: entry?.comments ?? [],
             vacationStart: null,
             vacationEnd: null,
         });

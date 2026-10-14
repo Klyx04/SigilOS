@@ -89,13 +89,54 @@ describe("buildMemberRoster — une seule liste pour les trois vues", () => {
         expect(onlyRow.discordId).toBe("222");
     });
 
-    it("marque le hors dashboard : ni statut, ni essai, ni recruteur", () => {
+    it("marque le hors dashboard : ni statut, ni essai, ni recruteur (tant que rien n'est saisi)", () => {
         const onlyRow = build().find((r) => !r.dashboard)!;
         expect(onlyRow.dashboard).toBe(false);
         expect(onlyRow.status).toBeNull();
         expect(onlyRow.trial).toBeNull();
         expect(onlyRow.recruiter).toBeNull();
-        expect(onlyRow.seniorityDays).toBeNull();
+        // L'ancienneté est calculable dès que l'arrivée Discord est connue.
+        expect(onlyRow.seniorityDays).toBe(69);
+    });
+
+    it("remonte les données de registre saisies pour un membre hors dashboard (B-2)", () => {
+        const rows = build({
+            discordOnly: [
+                discordOnly({
+                    joinedAt: "2026-02-01T00:00:00.000Z",
+                    entry: {
+                        pseudoDofus: "Zolt",
+                        ankamaId: "Zolt#0001",
+                        guildJoinedAt: "2026-01-15T00:00:00.000Z",
+                        trialValidated: true,
+                        trialEndsAt: null,
+                        mules: [{ pseudo: "Zoltette" }],
+                        comments: [
+                            {
+                                id: "c1",
+                                body: "Recrue motivée",
+                                authorName: "Lyphi",
+                                authorUserId: "u9",
+                                createdAt: "2026-02-02T00:00:00.000Z",
+                            },
+                        ],
+                    },
+                    recruiterId: "p9",
+                    recruiterName: "Lyphi",
+                    recruiterAvatar: null,
+                    seniorityDays: 86,
+                }),
+            ],
+        });
+        const onlyRow = rows.find((r) => !r.dashboard)!;
+        expect(onlyRow.pseudoDofus).toBe("Zolt");
+        expect(onlyRow.ankamaId).toBe("Zolt#0001");
+        expect(onlyRow.joinedAt).toBe("2026-01-15T00:00:00.000Z");
+        expect(onlyRow.seniorityDays).toBe(86);
+        expect(onlyRow.trial?.validated).toBe(true);
+        expect(onlyRow.recruiter).toEqual({ id: "p9", name: "Lyphi", avatar: null });
+        expect(onlyRow.mules).toEqual([{ pseudo: "Zoltette" }]);
+        expect(onlyRow.comments).toHaveLength(1);
     });
 
     it("ne duplique jamais un discordId déjà couvert par un profil", () => {

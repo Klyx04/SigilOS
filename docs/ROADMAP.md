@@ -1276,15 +1276,23 @@ un même `ok` : ce sont deux causes opposées (attente vs échec), la distinctio
 > `src/lib/member-roster.ts`, liste unique `member-roster-list.tsx`, modale unique
 > `member-detail-dialog.tsx`, page serveur fusionnée à 1 seul `h1`, visite 3 → 2 étapes,
 > `member-registry-table.tsx` et `member-registry-comments-dialog.tsx` **supprimés** — plus de doublon).
+> **B-2 livré** : table **`MemberRegistryEntry`** + `MemberRegistryComment.discordId` (migration
+> `20270105000000_add_member_registry_entry`, **additive**), les cinq écritures du registre prennent
+> un **sujet** (`profileId` **xor** `discordId`) et la modale sert la **même UI** aux deux natures de
+> lignes ⇒ les membres **hors dashboard** sont éditables ; le cycle de vie reste réservé aux profils.
 > **B-3 ajouté et livré** (demande user du 14/10) : permission dédiée **`staff:member_delete`** →
 > flag `canDeleteMembers` **fail-closed**, action de guilde `purgeMemberFromGuild` (portée **guilde
 > seule**, **aucun tombstone** ⇒ un retour = nouvel arrivant) et action God
 > `godPurgeMemberFromGuild` (purge de compte **optionnelle**, **sans** trace dans le journal de guilde),
 > bouton de confirmation `AlertDialog` visible **seulement** si la permission est accordée.
-> Gardes : `tests/unit/member-roster.test.ts` · `rbac-suppression-membre.test.ts` · `deslop-membres.test.ts`.
-> **Reste : B-2** (éditeurs des lignes **hors dashboard** + migration `MemberRegistryEntry` +
-> `MemberRegistryComment.discordId` nullable, puis rebascule God/Réglages pour pouvoir supprimer
-> `member-management-table.tsx`) — la migration est un **arrêt + accord** (AGENTS §7.7).
+> **Passage visuel** (même branche) : accent **vert SigilOS** + **assets Dofus réels** (onglets,
+> cartes KPI, statuts), `GameIcon` partagé extrait de l'annuaire, **retrait du bouton « Synchroniser
+> les Membres »** (doublon du cron `/api/cron/sync-members`, présent aussi dans Réglages).
+> Gardes : `tests/unit/member-roster.test.ts`, `registre-membres-b2.test.ts`,
+> `rbac-suppression-membre.test.ts`, `deslop-membres.test.ts`.
+> **Reste** : jouer la migration `20270105000000_add_member_registry_entry` en **bêta puis prod** ·
+> mettre à jour la page de doc **vivante** `admin-members` via `/god/docs` · reprise d'une ligne de
+> registre vers le profil quand un membre hors dashboard s'inscrit.
 > ⚠️ `npm run seed:docs` **n'existe pas** : `src/lib/docs-catalog.ts` est une **référence figée**,
 > la page de doc **vivante** s'édite en base via `/god/docs` (à faire côté humain).
 

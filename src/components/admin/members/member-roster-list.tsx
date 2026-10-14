@@ -8,6 +8,7 @@ import { fr } from "date-fns/locale";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
+import { GameIcon } from "@/components/shared/game-icon";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,13 @@ const STATUS_LABELS: Record<string, string> = {
     BANNED: "Exclu",
 };
 
+/** Asset Dofus par statut (jamais d'emoji dans un libellé structurant). */
+const STATUS_ICONS: Record<string, string> = {
+    ACTIVE: "circle-tick.png",
+    ARCHIVED: "havre-sac.png",
+    BANNED: "lock.png",
+};
+
 function formatDay(iso: string | null): string {
     if (!iso) return "—";
     const date = new Date(iso);
@@ -95,19 +103,24 @@ function trialLabel(row: RosterRow): string {
 function StatusBadge({ row }: { row: RosterRow }) {
     if (!row.dashboard) {
         return (
-            <Badge variant="outline" className="border-border text-caption font-medium text-muted-foreground">
+            <Badge
+                variant="outline"
+                className="gap-1.5 border-border-strong text-caption font-medium text-muted-foreground"
+            >
+                <GameIcon src="info.png" className="h-3 w-3" />
                 Hors dashboard
             </Badge>
         );
     }
     const tone =
         row.status === "ACTIVE"
-            ? "border-border text-success"
+            ? "border-accent-soft-border text-accent"
             : row.status === "ARCHIVED"
-              ? "border-border text-muted-foreground"
-              : "border-border text-danger";
+              ? "border-border-strong text-muted-foreground"
+              : "border-border-strong text-danger";
     return (
-        <Badge variant="outline" className={cn("text-caption font-medium", tone)}>
+        <Badge variant="outline" className={cn("gap-1.5 text-caption font-medium", tone)}>
+            <GameIcon src={STATUS_ICONS[row.status ?? ""] ?? "info.png"} className="h-3 w-3" />
             {STATUS_LABELS[row.status ?? ""] ?? "—"}
         </Badge>
     );
@@ -220,7 +233,7 @@ export function MemberRosterList({
     return (
         <div className="space-y-4">
             {/* Filtres de statut + recherche */}
-            <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface/40 p-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-col gap-3 rounded-lg border border-border-strong bg-surface p-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex flex-wrap items-center gap-1.5">
                     {STATUS_FILTERS.map((option) => {
                         const active = filters.status === option.value;
@@ -232,7 +245,7 @@ export function MemberRosterList({
                                 className={cn(
                                     "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
                                     active
-                                        ? "border-border bg-elevated text-foreground"
+                                        ? "border-accent-soft-border bg-accent-soft text-accent"
                                         : "border-transparent text-muted-foreground hover:text-foreground"
                                 )}
                             >
@@ -319,7 +332,7 @@ export function MemberRosterList({
                             className={cn(
                                 "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
                                 active
-                                    ? "border-border bg-elevated text-foreground"
+                                    ? "border-accent-soft-border bg-accent-soft text-accent"
                                     : "border-transparent text-muted-foreground hover:text-foreground"
                             )}
                         >
@@ -344,7 +357,7 @@ export function MemberRosterList({
                 />
             ) : (
                 <>
-                    <div className="hidden overflow-hidden rounded-lg border border-border md:block">
+                    <div className="hidden overflow-hidden rounded-lg border border-border-strong md:block">
                         <Table>
                             <TableHeader>
                                 <TableRow className="border-border hover:bg-transparent">
@@ -393,7 +406,7 @@ export function MemberRosterList({
                                 key={row.key}
                                 type="button"
                                 onClick={() => setSelectedKey(row.key)}
-                                className="w-full rounded-lg border border-border bg-surface/40 p-3 text-left"
+                                className="w-full rounded-lg border border-border-strong bg-surface p-3 text-left"
                             >
                                 <div className="flex items-center justify-between gap-3">
                                     <MemberIdentity row={row} />

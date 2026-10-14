@@ -1138,7 +1138,6 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
 <ul>
     <li><strong>Synchronisation Globale :</strong> rapproche les comptes et met à jour les fiches depuis Discord.</li>
     <li><strong>Rapport d'audit :</strong> envoie sur Discord la couverture d'inscription et les membres manquants.</li>
-    <li><strong>Analyse Discord :</strong> activité (messages, vocal) par rôle, repliée sous la liste.</li>
     <li><strong>Blacklist de Guilde :</strong> conserve les identifiants Discord des personnes exclues pour alerter le staff en cas de tentative de réinscription.</li>
 </ul>
 

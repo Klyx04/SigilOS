@@ -354,6 +354,8 @@ model GuildConfig {
   presentationFoundedDate          DateTime?
   presentationFounder              String?
   presentationHistory              String?
+  // Règlement intérieur (édition admin, lecture interne seule — jamais public).
+  presentationInternalRules        String?
   presentationMinLevel             Int?
   presentationMinSuccesses         Int?
   presentationMemberCount          Int?
@@ -465,6 +467,7 @@ model GuildConfig {
   serviceRequests                  ServiceRequest[]
   sigilRoles                       SigilRole[]
   profiles                         UserProfile[]
+  memberRegistryEntries            MemberRegistryEntry[]
   vaultEntries                     VaultEntry[]
   allowedPingRoleIds               String[]                @default([])
   calendarPingRoleIds              String[]                @default([])
@@ -829,19 +832,51 @@ model UserProfile {
 
 /// Registre Membres & Recrutement — commentaires du staff : plusieurs par
 /// membre (10 max), horodatés et signés par leur auteur.
+///
+/// Le commentaire vise **soit** un profil dashboard (`profileId`), **soit** un membre
+/// Discord hors dashboard (`discordId`) — jamais les deux, jamais aucun (xor garanti
+/// par Zod côté action, cf. `registryCommentSchema`).
 model MemberRegistryComment {
   id           String      @id @default(cuid())
   guildId      String
-  profileId    String
+  profileId    String?
+  /// Membre Discord hors dashboard (chantier B-2 : les lignes sans profil sont éditables).
+  discordId    String?
   /// Auteur (compte staff) ; null seulement pour la reprise de l'ancienne note unique.
   authorUserId String?
   authorName   String
   body         String
   createdAt    DateTime    @default(now())
-  profile      UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile      UserProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId, createdAt])
+  @@index([discordId, createdAt])
   @@index([guildId])
+}
+
+/// Registre Membres & Recrutement — ligne d'un membre **Discord sans profil dashboard**.
+///
+/// Miroir guilde-scopé de ce que `UserProfile` porte pour les inscrits (identité du
+/// registre, essai, recruteur, mules) : c'est l'étagère qui rend les « hors dashboard »
+/// **éditables** sans leur fabriquer un compte plateforme (décision voie ① du chantier B).
+model MemberRegistryEntry {
+  id             String      @id @default(cuid())
+  guildId        String
+  discordId      String
+  pseudoDofus    String?
+  ankamaId       String?
+  guildJoinedAt  DateTime?
+  recruitedById  String?
+  trialValidated Boolean     @default(false)
+  trialEndsAt    DateTime?
+  altPseudos     Json?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  guild          GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, discordId])
+  @@index([guildId])
+  @@index([discordId])
 }
 
 model LegendaryItem {

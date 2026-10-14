@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { getUserContext, getGuildMemberStats } from "@/server/actions/user-actions";
 import { getGuildLifecycleData, getMemberRegistryDiscordIndex } from "@/server/actions/member-lifecycle-actions";
-import { getMemberReconciliation } from "@/server/actions/member-actions";
 import { redirect } from "next/navigation";
 import MemberManagement from "@/components/admin/members/member-management";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
@@ -25,12 +24,11 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
     const { guildId } = await params;
     const { tab } = await searchParams;
 
-    const [ctx, stats, lifecycle, discordIndex, reconciliation, guildConfig] = await Promise.all([
+    const [ctx, stats, lifecycle, discordIndex, guildConfig] = await Promise.all([
         getUserContext(guildId),
         getGuildMemberStats(guildId),
         getGuildLifecycleData(guildId),
         getMemberRegistryDiscordIndex(guildId),
-        getMemberReconciliation(guildId),
         db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
             select: { welcomeBadgeName: true, ownerId: true },
@@ -79,7 +77,29 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
             vacationStart: member.vacationStart,
             vacationEnd: member.vacationEnd,
         })),
-        discordOnly: indexData?.discordOnly ?? [],
+        discordOnly: (indexData?.discordOnly ?? []).map((member) => ({
+            discordId: member.discordId,
+            displayName: member.displayName,
+            username: member.username,
+            avatar: member.avatar,
+            joinedAt: member.joinedAt,
+            roles: member.roles,
+            entry: member.entry
+                ? {
+                      pseudoDofus: member.entry.pseudoDofus,
+                      ankamaId: member.entry.ankamaId,
+                      guildJoinedAt: member.entry.guildJoinedAt,
+                      trialValidated: member.entry.trialValidated,
+                      trialEndsAt: member.entry.trialEndsAt,
+                      mules: member.entry.mules,
+                      comments: member.entry.comments,
+                  }
+                : null,
+            recruiterId: member.entry?.recruitedById ?? null,
+            recruiterName: member.recruiterName,
+            recruiterAvatar: member.recruiterAvatar,
+            seniorityDays: member.seniorityDays,
+        })),
         rolesByProfileId: indexData?.rolesByProfileId ?? {},
         trialDurationDays: lifecycleData?.config.trialDurationDays ?? DEFAULT_TRIAL_DURATION_DAYS,
     });
@@ -114,11 +134,6 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
                         roles={indexData?.roles ?? []}
                         stats={stats}
                         discordAvailable={indexData?.discordAvailable ?? false}
-                        reconciliation={
-                            reconciliation.success && reconciliation.data
-                                ? { members: reconciliation.data.members, stats: reconciliation.data.stats }
-                                : null
-                        }
                         welcomeBadgeName={guildConfig?.welcomeBadgeName || "Nouveau"}
                         isSuperAdmin={ctx.isSuperAdmin}
                         canManageMembers={!!(ctx.canManageMembers || ctx.isAdmin)}

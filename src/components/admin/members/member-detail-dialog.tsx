@@ -40,6 +40,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
+import { GameIcon } from "@/components/shared/game-icon";
 import { cn } from "@/lib/utils";
 import type { RosterRow } from "@/lib/member-roster";
 import {
@@ -50,6 +51,7 @@ import {
     updateMemberAlts,
     updateMemberRecruiter,
     updateMemberRegistryIdentity,
+    type RegistrySubject,
 } from "@/server/actions/member-lifecycle-actions";
 import { RelanceModal } from "./relance-modal";
 import { VacationEditDialog } from "./vacation-edit-dialog";
@@ -105,6 +107,16 @@ function formatDay(iso: string | null): string {
     return format(date, "dd MMM yyyy", { locale: fr });
 }
 
+/** Titre de section : asset Dofus réel + accent SigilOS (jamais un glyphe générique). */
+function SectionTitle({ icon, children }: { icon: string; children: React.ReactNode }) {
+    return (
+        <h3 className="flex items-center gap-2 text-caption uppercase text-accent">
+            <GameIcon src={icon} className="h-3.5 w-3.5" />
+            {children}
+        </h3>
+    );
+}
+
 export function MemberDetailDialog({
     guildId,
     row,
@@ -143,7 +155,12 @@ export function MemberDetailDialog({
     const isSelf = row.userId !== null && row.userId === currentUserId;
     const isOwner = !!row.discordId && !!ownerId && row.discordId === ownerId;
     const isDashboard = row.dashboard && !!row.profileId;
-    const canEdit = canManageMembers && isDashboard && !isOwner;
+    /** B-2 : les **deux** natures de lignes sont éditables (profil dashboard ou membre Discord). */
+    const canEdit = canManageMembers && (isDashboard || !!row.discordId) && !isOwner;
+    /** Sujet de l'écriture : le profil quand il existe, sinon le membre Discord hors dashboard. */
+    const subject: RegistrySubject = row.profileId
+        ? { profileId: row.profileId }
+        : { discordId: row.discordId ?? "" };
     const roleNames = new Map(roles.map((role) => [role.id, role.name]));
 
     /** Exécute une mutation serveur et rend compte honnêtement (jamais de succès supposé). */
@@ -169,11 +186,10 @@ export function MemberDetailDialog({
     }
 
     function handleSaveIdentity() {
-        if (!row?.profileId) return;
+        if (!row) return;
         run(
             () =>
-                updateMemberRegistryIdentity(guildId, {
-                    profileId: row.profileId as string,
+                updateMemberRegistryIdentity(guildId, subject, {
                     pseudoDofus: pseudoDofus.trim() || null,
                     ankamaId: ankamaId.trim() || null,
                     guildJoinedAt: joinedAt ? new Date(`${joinedAt}T00:00:00.000Z`).toISOString() : null,
@@ -183,10 +199,10 @@ export function MemberDetailDialog({
     }
 
     function handleSaveTrial() {
-        if (!row?.profileId) return;
+        if (!row) return;
         run(
             () =>
-                setMemberTrialState(guildId, row.profileId as string, {
+                setMemberTrialState(guildId, subject, {
                     validated: true,
                     trialEndsAt: trialEndsAt ? new Date(`${trialEndsAt}T00:00:00.000Z`).toISOString() : null,
                 }),
@@ -219,31 +235,31 @@ export function MemberDetailDialog({
     }
 
     function handleSaveRecruiter() {
-        if (!row?.profileId) return;
+        if (!row) return;
         run(
-            () => updateMemberRecruiter(guildId, row.profileId as string, recruiterId === "NONE" ? null : recruiterId),
+            () => updateMemberRecruiter(guildId, subject, recruiterId === "NONE" ? null : recruiterId),
             "Recruteur mis à jour"
         );
     }
 
     function handleSaveMules() {
-        if (!row?.profileId) return;
+        if (!row) return;
         const mules = mulesText
             .split("\n")
             .map((line) => line.trim())
             .filter(Boolean)
             .map((pseudo) => ({ pseudo }));
-        run(() => updateMemberAlts(guildId, row.profileId as string, mules), "Mules mises à jour");
+        run(() => updateMemberAlts(guildId, subject, mules), "Mules mises à jour");
     }
 
     function handleAddComment() {
-        if (!row?.profileId) return;
+        if (!row) return;
         if (!comment.trim()) {
             toast.error("Le commentaire est vide.");
             return;
         }
         run(
-            () => addMemberRegistryComment(guildId, { profileId: row.profileId as string, body: comment.trim() }),
+            () => addMemberRegistryComment(guildId, subject, { body: comment.trim() }),
             "Commentaire ajouté",
             () => setComment("")
         );
@@ -289,7 +305,7 @@ export function MemberDetailDialog({
                     <div className="space-y-6">
                         {/* ── 1. Profil & actions ─────────────────────────────── */}
                         <section className="space-y-3">
-                            <h3 className="text-caption uppercase text-muted-foreground">Profil & actions</h3>
+                            <SectionTitle icon="party.png">Profil &amp; actions</SectionTitle>
                             <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                                 <div>
                                     <dt className="text-caption uppercase text-muted-foreground">Arrivée</dt>
@@ -314,9 +330,10 @@ export function MemberDetailDialog({
                             </dl>
 
                             {!isDashboard && (
-                                <p className="rounded-md border border-border bg-surface/40 p-3 text-xs text-muted-foreground">
-                                    Membre présent sur Discord sans profil dashboard : pas d&apos;essai, de
-                                    recruteur ni de journal au registre.
+                                <p className="rounded-md border border-border-strong bg-surface p-3 text-xs text-muted-foreground">
+                                    Membre présent sur Discord <strong>sans profil dashboard</strong> : son registre
+                                    (identité, essai, recruteur, mules, journal) est éditable ici et conservé pour la
+                                    guilde.
                                 </p>
                             )}
 
@@ -359,7 +376,7 @@ export function MemberDetailDialog({
                             {canEdit && (
                                 <>
                                     <div className="flex flex-wrap gap-2">
-                                        <Button size="sm" variant="outline" onClick={handleSaveIdentity} disabled={isPending}>
+                                        <Button size="sm" onClick={handleSaveIdentity} disabled={isPending}>
                                             {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                                             Enregistrer l&apos;identité
                                         </Button>
@@ -374,14 +391,16 @@ export function MemberDetailDialog({
                                             <RefreshCw className="h-3.5 w-3.5" />
                                             Relancer
                                         </Button>
-                                        {(row.status === "ARCHIVED" || row.status === "BANNED") && (
+                                        {isDashboard && (row.status === "ARCHIVED" || row.status === "BANNED") && (
                                             <Button size="sm" variant="outline" onClick={handleReintegrate} disabled={isPending}>
                                                 Réintégrer
                                             </Button>
                                         )}
-                                        <Button size="sm" variant="ghost" onClick={() => setVacationOpen(true)}>
-                                            Vacances
-                                        </Button>
+                                        {isDashboard && (
+                                            <Button size="sm" variant="ghost" onClick={() => setVacationOpen(true)}>
+                                                Vacances
+                                            </Button>
+                                        )}
                                     </div>
 
                                     <Separator />
@@ -462,7 +481,7 @@ export function MemberDetailDialog({
 
                         {/* ── 2. Registre ────────────────────────────────────── */}
                         <section className="space-y-3">
-                            <h3 className="text-caption uppercase text-muted-foreground">Registre</h3>
+                            <SectionTitle icon="parchment.png">Registre</SectionTitle>
 
                             {isDashboard ? (
                                 <>
@@ -516,7 +535,7 @@ export function MemberDetailDialog({
                                                 {row.comments.map((entry) => (
                                                     <li
                                                         key={entry.id}
-                                                        className="rounded-md border border-border bg-surface/40 p-2.5"
+                                                        className="rounded-md border border-border-strong bg-surface p-2.5"
                                                     >
                                                         <p className="whitespace-pre-wrap text-xs text-foreground">{entry.body}</p>
                                                         <p className="mt-1 text-caption text-muted-foreground">
@@ -551,7 +570,7 @@ export function MemberDetailDialog({
                         </section>
                         {/* ── 3. Discord ─────────────────────────────────────── */}
                         <section className="space-y-3">
-                            <h3 className="text-caption uppercase text-muted-foreground">Discord</h3>
+                            <SectionTitle icon="shield.png">Discord</SectionTitle>
                             <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                                 <div>
                                     <dt className="text-caption uppercase text-muted-foreground">Identifiant Discord</dt>

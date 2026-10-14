@@ -675,6 +675,95 @@ export async function getGuildMembersForGod(guildId: string) {
 }
 
 /**
+ * 🔒 GOD — retire **DÉFINITIVEMENT** un membre d'une guilde (chantier B, lot B-3).
+ *
+ * Différences avec l'action guilde `purgeMemberFromGuild` :
+ * - le God peut, en plus, **purger le compte plateforme** (`deleteAccount: true`) — c'est-à-dire
+ *   retirer l'utilisateur de **toutes** ses guildes (compte `User` + OAuth + sessions) ;
+ * - **aucune trace dans le journal de la guilde** (règle « le God voit tout, mais n'écrit pas dans
+ *   le journal de la guilde » — cf. AMORCE-REFONTE-GOD-GUILDES A4) : la trace est côté God/log.
+ * - gardée par `isSuperAdmin()` (fail-closed).
+ */
+export async function godPurgeMemberFromGuild(
+    guildId: string,
+    profileId: string,
+    options?: { deleteAccount?: boolean }
+): Promise<{ success: boolean; error?: string; accountDeleted?: boolean }> {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: "Super Admin requis" };
+    if (!profileId || typeof profileId !== "string") {
+        return { success: false, error: "Profil invalide" };
+    }
+
+    try {
+        const guild = await db.guildConfig.findFirst({
+            where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+            select: { id: true, discordGuildId: true, ownerId: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const target = await db.userProfile.findFirst({
+            where: { id: profileId, guildId: guild.id },
+            select: {
+                id: true,
+                userId: true,
+                guildId: true,
+                pseudoDofus: true,
+                discordNickname: true,
+                user: {
+                    select: {
+                        name: true,
+                        accounts: { where: { provider: "discord" }, select: { providerAccountId: true } },
+                    },
+                },
+            },
+        });
+        if (!target) return { success: false, error: "Profil introuvable dans cette guilde" };
+
+        const targetDiscordId = target.user.accounts[0]?.providerAccountId;
+        if (guild.ownerId && targetDiscordId && guild.ownerId === targetDiscordId) {
+            return {
+                success: false,
+                error: "Le propriétaire du serveur Discord ne peut pas être supprimé depuis SigilOS.",
+            };
+        }
+
+        const wantAccount = !!options?.deleteAccount;
+        const label = target.pseudoDofus || target.discordNickname || target.user.name || "Un membre";
+
+        // Profil de la guilde (cascade sur les données guilde).
+        await db.userProfile.delete({ where: { id: profileId } });
+
+        // Purge du compte plateforme : seulement si demandée ET s'il ne reste aucun autre profil.
+        let accountDeleted = false;
+        if (wantAccount) {
+            const remaining = await db.userProfile.count({ where: { userId: target.userId } });
+            if (remaining === 0) {
+                await db.user.delete({ where: { id: target.userId } });
+                accountDeleted = true;
+            }
+        }
+
+        // Révocation immédiate : sessions + caches.
+        await db.session.deleteMany({ where: { userId: target.userId } });
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(target.userId, target.guildId, guild.discordGuildId).catch(() => {});
+
+        // Trace côté God uniquement (jamais dans le journal de la guilde).
+        logger.info("[GOD] godPurgeMemberFromGuild", {
+            guild: guild.discordGuildId,
+            scope: accountDeleted ? "ACCOUNT" : "GUILD_ONLY",
+        });
+
+        revalidatePath(`/god/guilds/${guild.id}`);
+        return { success: true, accountDeleted };
+    } catch (e) {
+        logger.error("[GOD] godPurgeMemberFromGuild error:", e);
+        return { success: false, error: "Erreur base de données" };
+    }
+}
+
+/**
  * Transfer full ownership of a guild to another user (Super-admin only)
  * #230 — Durcissement : validation du destinataire (membre ACTIF de la guilde),
  * garde contre le no-op (déjà propriétaire) et résolution robuste de la guilde.

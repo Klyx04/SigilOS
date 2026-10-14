@@ -1,10 +1,13 @@
 import { Suspense } from "react";
-import { getUserContext, getGuildMemberStats, getGuildMembers } from "@/server/actions/user-actions";
+import { getUserContext, getGuildMemberStats } from "@/server/actions/user-actions";
+import { getGuildLifecycleData, getMemberRegistryDiscordIndex } from "@/server/actions/member-lifecycle-actions";
+import { getMemberReconciliation } from "@/server/actions/member-actions";
 import { redirect } from "next/navigation";
 import MemberManagement from "@/components/admin/members/member-management";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { db } from "@/lib/prisma";
-import { fetchGuildChannels, fetchGuildRoles } from "@/server/discord";
+import { logger } from "@/lib/logger";
+import { buildMemberRoster, DEFAULT_TRIAL_DURATION_DAYS } from "@/lib/member-roster";
 
 export const metadata = {
     title: "Membres & Recrutement | SigilOS",
@@ -21,60 +24,107 @@ interface AdminMembersPageProps {
 export default async function AdminMembersPage({ params, searchParams }: AdminMembersPageProps) {
     const { guildId } = await params;
     const { tab } = await searchParams;
-    
-    let ctx, stats, members, guildConfig, channels, roles;
-    
-    try {
-        // Parallel fetching for performance
-        [ctx, stats, members, guildConfig, channels, roles] = await Promise.all([
-            getUserContext(guildId),
-            getGuildMemberStats(guildId),
-            getGuildMembers(guildId),
-            db.guildConfig.findUnique({
-                where: { discordGuildId: guildId },
-                select: { welcomeBadgeName: true }
-            }),
-            fetchGuildChannels(guildId),
-            fetchGuildRoles(guildId)
-        ]);
-    } catch (err) {
-        console.error("[CRITICAL] Members Page Fetch Error:", err);
-        throw err; // Re-throw to trigger boundary
-    }
 
-    const textChannels = (channels || []).filter(c => c.type === 0 || c.type === 5);
+    const [ctx, stats, lifecycle, discordIndex, reconciliation, guildConfig] = await Promise.all([
+        getUserContext(guildId),
+        getGuildMemberStats(guildId),
+        getGuildLifecycleData(guildId),
+        getMemberRegistryDiscordIndex(guildId),
+        getMemberReconciliation(guildId),
+        db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { welcomeBadgeName: true, ownerId: true },
+        }),
+    ]);
 
-    // RBAC: Need Admin, Member Manage, or Relance Manage permission
+    // RBAC : Admin, Gestion des membres ou Relances.
     if (!ctx.isAdmin && !ctx.canManageMembers && !ctx.canManageRelance) {
         redirect(`/dashboard/${guildId}`);
     }
 
+    const lifecycleData = lifecycle.success ? lifecycle.data : null;
+    const indexData = discordIndex.success ? discordIndex.data : null;
+
+    // Fusion des trois vues : une ligne par personne (profil dashboard **ou** hors dashboard).
+    const profileById = new Map<string, NonNullable<typeof lifecycleData>["members"][number]>();
+    for (const member of [
+        ...(lifecycleData?.members ?? []),
+        ...(lifecycleData?.trialMembers ?? []),
+        ...(lifecycleData?.departedMembers ?? []),
+    ]) {
+        profileById.set(member.id, member);
+    }
+
+    const rows = buildMemberRoster({
+        profiles: [...profileById.values()].map((member) => ({
+            profileId: member.id,
+            userId: member.userId,
+            discordId: member.discordId || null,
+            displayName: member.displayName,
+            avatar: member.avatar,
+            status: member.status,
+            pseudoDofus: member.pseudoDofus,
+            discordNickname: member.discordNickname,
+            ankamaId: member.ankamaId,
+            joinedAt: member.joinedAt,
+            seniorityDays: member.seniorityDays,
+            trialValidated: member.trialValidated,
+            trialEndsAt: member.trialEndsAt,
+            trialRemainingDays: member.trialRemainingDays,
+            recruitedById: member.recruitedById,
+            recruiterName: member.recruiterName,
+            recruiterAvatar: member.recruiterAvatar,
+            mules: member.mules,
+            comments: member.comments,
+            vacationStart: member.vacationStart,
+            vacationEnd: member.vacationEnd,
+        })),
+        discordOnly: indexData?.discordOnly ?? [],
+        rolesByProfileId: indexData?.rolesByProfileId ?? {},
+        trialDurationDays: lifecycleData?.config.trialDurationDays ?? DEFAULT_TRIAL_DURATION_DAYS,
+    });
+
+    if (lifecycleData === null || indexData === null) {
+        logger.warn("[admin/members] Données partielles chargées", {
+            lifecycle: lifecycle.success,
+            discord: discordIndex.success,
+        });
+    }
+
     return (
-        <div className="container max-w-7xl mx-auto py-6 lg:py-10 px-4">
-            <div className="flex items-start justify-between gap-4 mb-6" data-tour="admin-members-header">
+        <div className="container mx-auto max-w-7xl px-4 py-6 lg:py-10">
+            <div className="mb-6 flex items-start justify-between gap-4" data-tour="admin-members-header">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight uppercase">Membres & Recrutement</h1>
-                    <p className="text-sm text-muted-foreground mt-1">Audit Discord vs Dashboard, registre du staff, essais, mules, archivage et relances.</p>
+                    <h1 className="text-2xl font-semibold tracking-tight">Membres &amp; Recrutement</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Une seule liste : audit Discord, registre du staff, essais, mules, archivage et relances.
+                    </p>
                 </div>
-                <ModuleHelpActions 
-                    docSlug="admin-members" 
-                    docTitle="Audit & Gestion des Membres" 
-                    tourPhase="adminMembers" 
+                <ModuleHelpActions
+                    docSlug="admin-members"
+                    docTitle="Audit & Gestion des Membres"
+                    tourPhase="adminMembers"
                 />
             </div>
             <Suspense fallback={<AdminMembersSkeleton />}>
                 <div data-tour="admin-members-table">
                     <MemberManagement
                         guildId={guildId}
-                        initialStats={stats}
-                        initialMembers={members}
+                        rows={rows}
+                        roles={indexData?.roles ?? []}
+                        stats={stats}
+                        discordAvailable={indexData?.discordAvailable ?? false}
+                        reconciliation={
+                            reconciliation.success && reconciliation.data
+                                ? { members: reconciliation.data.members, stats: reconciliation.data.stats }
+                                : null
+                        }
                         welcomeBadgeName={guildConfig?.welcomeBadgeName || "Nouveau"}
                         isSuperAdmin={ctx.isSuperAdmin}
-                        channels={textChannels as any}
-                        roles={roles || []}
-                        canManageMembers={ctx.canManageMembers || ctx.isAdmin}
-                        canManageRelance={ctx.canManageRelance}
+                        canManageMembers={!!(ctx.canManageMembers || ctx.isAdmin)}
+                        canDeleteMembers={!!ctx.canDeleteMembers}
                         currentUserId={ctx.id || ""}
+                        ownerId={guildConfig?.ownerId ?? null}
                         initialTab={tab === "registre" ? "registre" : undefined}
                     />
                 </div>
@@ -85,21 +135,10 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
 
 function AdminMembersSkeleton() {
     return (
-        <div className="space-y-8 animate-pulse">
-            <div className="space-y-4">
-                <div className="h-12 w-[400px] bg-surface/50 rounded-2xl" />
-                <div className="h-4 w-[600px] bg-surface/40 rounded-lg" />
-            </div>
-            <div className="h-14 w-[500px] bg-surface/50 rounded-2xl" />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-32 w-full bg-surface/40 rounded-2xl border border-border" />
-                ))}
-            </div>
-            <div className="space-y-4">
-                <div className="h-16 w-full bg-surface/40 rounded-2xl border border-border" />
-                <div className="h-[400px] w-full bg-surface/20 rounded-2xl border border-border" />
-            </div>
+        <div className="space-y-6">
+            <div className="h-10 w-full max-w-md rounded-lg bg-surface/50" />
+            <div className="h-24 w-full rounded-lg border border-border bg-surface/40" />
+            <div className="h-[420px] w-full rounded-lg border border-border bg-surface/20" />
         </div>
     );
 }

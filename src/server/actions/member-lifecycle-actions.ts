@@ -50,6 +50,9 @@ export interface LifecycleMemberSummary {
     comments: RegistryComment[];
     discordMessageCountWeekly: number;
     discordVoiceTimeWeekly: number;
+    /** Vacances déclarées (édition staff depuis la modale membre). */
+    vacationStart: string | null;
+    vacationEnd: string | null;
 }
 
 export interface RecruiterLeaderboardEntry {
@@ -214,6 +217,8 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
                 altPseudos: true,
                 discordMessageCountWeekly: true,
                 discordVoiceTimeWeekly: true,
+                vacationStart: true,
+                vacationEnd: true,
                 user: {
                     select: {
                         name: true,
@@ -302,6 +307,8 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
                 })),
                 discordMessageCountWeekly: p.discordMessageCountWeekly || 0,
                 discordVoiceTimeWeekly: p.discordVoiceTimeWeekly || 0,
+                vacationStart: p.vacationStart ? p.vacationStart.toISOString() : null,
+                vacationEnd: p.vacationEnd ? p.vacationEnd.toISOString() : null,
             };
         });
 

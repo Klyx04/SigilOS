@@ -197,6 +197,8 @@ export type UserContext = {
     canViewCommands: boolean;
     canViewProfile: boolean;
     canManageMembers: boolean;
+    /** Suppression DÉFINITIVE d'un profil de guilde (permission dédiée `staff:member_delete`, B-3). */
+    canDeleteMembers: boolean;
     // Modules
     canViewMissions: boolean;
     canManageMissions: boolean;
@@ -521,6 +523,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewCommands: false,
         canViewProfile: false,
         canManageMembers: false,
+        canDeleteMembers: false,
         canViewMissions: false,
         canManageMissions: false,
         canValidateMissions: false,
@@ -1121,6 +1124,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // Le module toggle (`mod.availability`) reste le verrou principal (applyModule).
     const canViewAvailability = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || permissionSet.has(PERMISSIONS.AVAILABILITY_VIEW) || isAdminFinal;
     const canManageMembers = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
+    // Suppression définitive (B-3) : permission dédiée, **fail-closed** — jamais accordée par défaut.
+    const canDeleteMembers = permissionSet.has(PERMISSIONS.STAFF_MEMBER_DELETE) || isAdminFinal;
     const canManagePoints = permissionSet.has(PERMISSIONS.POINTS_MANAGE) || isAdminFinal;
     const canViewMissions = permissionSet.has(PERMISSIONS.MISSIONS_PLAY) || isAdminFinal;
     const canManageMissions = permissionSet.has(PERMISSIONS.MISSIONS_OFFICER) || isAdminFinal;
@@ -1230,6 +1235,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewResources: !!applyModule(!!mod?.resources, permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal),
         canViewProfile: !!applyModule(!!mod?.profile, true),
         canManageMembers: !!canManageMembers,
+        canDeleteMembers: !!canDeleteMembers,
         canViewMissions: !!applyModule(!!mod?.missions, !!canViewMissions),
         canManageMissions: !!applyModule(!!mod?.missions, !!canManageMissions),
         canValidateMissions: !!applyModule(!!mod?.missions, !!canValidateMissions),
@@ -1315,6 +1321,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewResources = false;
         finalContext.canViewProfile = false;
         finalContext.canManageMembers = false;
+        finalContext.canDeleteMembers = false;
         finalContext.canViewMissions = false;
         finalContext.canManageMissions = false;
         finalContext.canValidateMissions = false;

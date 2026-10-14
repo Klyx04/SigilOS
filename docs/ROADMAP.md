@@ -1272,6 +1272,23 @@ un même `ok` : ce sont deux causes opposées (attente vs échec), la distinctio
 - [x] `npm run test:run` · `npx tsc --noEmit` · `npm run lint` verts · `git status --short` propre · PR → `dev` (fait pour A1, A2/A4 et A3).
 
 ### B. `/dashboard/[guildId]/admin/members` — déslop + 1 liste + 1 modale + **« éditer tout le monde »**
+> **Statut (14/10/2026) — branche `feat/refonte-membres`** : **B-1 livré** (socle pur
+> `src/lib/member-roster.ts`, liste unique `member-roster-list.tsx`, modale unique
+> `member-detail-dialog.tsx`, page serveur fusionnée à 1 seul `h1`, visite 3 → 2 étapes,
+> `member-registry-table.tsx` et `member-registry-comments-dialog.tsx` **supprimés** — plus de doublon).
+> **B-3 ajouté et livré** (demande user du 14/10) : permission dédiée **`staff:member_delete`** →
+> flag `canDeleteMembers` **fail-closed**, action de guilde `purgeMemberFromGuild` (portée **guilde
+> seule**, **aucun tombstone** ⇒ un retour = nouvel arrivant) et action God
+> `godPurgeMemberFromGuild` (purge de compte **optionnelle**, **sans** trace dans le journal de guilde),
+> bouton de confirmation `AlertDialog` visible **seulement** si la permission est accordée.
+> Gardes : `tests/unit/member-roster.test.ts` · `rbac-suppression-membre.test.ts` · `deslop-membres.test.ts`.
+> **Reste : B-2** (éditeurs des lignes **hors dashboard** + migration `MemberRegistryEntry` +
+> `MemberRegistryComment.discordId` nullable, puis rebascule God/Réglages pour pouvoir supprimer
+> `member-management-table.tsx`) — la migration est un **arrêt + accord** (AGENTS §7.7).
+> ⚠️ `npm run seed:docs` **n'existe pas** : `src/lib/docs-catalog.ts` est une **référence figée**,
+> la page de doc **vivante** s'édite en base via `/god/docs` (à faire côté humain).
+
+
 
 **Demande user (verbatim)** : « il faut désloper le titre etc et appliquer notre politique UI » · « Regrouper “Profils & Actions” “Registre Recrutement” “Audit Discord & Sync” dans une seule boîte » · « on conserverait 2 onglets : Membre et Roster / Blacklist guilde » · « chaque personne est cliquable : on retrouve toutes les infos […] dans une modale par membre » · **« 1 autre feature : on doit pouvoir éditer tout le monde, pas de lecture seule ici »** (capture du 28/09 : lignes « Hors dashboard » du registre).
 

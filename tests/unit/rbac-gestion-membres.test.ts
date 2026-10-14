@@ -20,6 +20,8 @@ const MEMBER_LIFECYCLE = "src/server/actions/member-lifecycle-actions.ts";
 const BLACKLIST = "src/server/actions/blacklist-actions.ts";
 const MEMBER_TABLE = "src/components/admin/member-management-table.tsx";
 const MEMBER_MANAGEMENT = "src/components/admin/members/member-management.tsx";
+const MEMBER_ROSTER_LIST = "src/components/admin/members/member-roster-list.tsx";
+const MEMBER_DIALOG = "src/components/admin/members/member-detail-dialog.tsx";
 const MEMBERS_PAGE = "src/app/dashboard/[guildId]/admin/members/page.tsx";
 
 /** Retire les commentaires : un motif interdit ne doit pas se cacher dans la prose. */
@@ -53,8 +55,12 @@ describe("RBAC membres — l'écran et le serveur disent la même chose", () => 
         const table = codeOnly(MEMBER_TABLE);
         expect(table).toContain("updateMemberPseudo(profileId, newPseudo)");
         expect(table).toContain("updateMemberAnkamaId(");
-        // La table reçoit `isAdmin` = `canManageMembers` (c'est l'écran qui ouvre les champs).
-        expect(codeOnly(MEMBER_MANAGEMENT)).toContain("isAdmin={canManageMembers}");
+
+        // La modale membre ouvre l'édition dès `canManageMembers` (c'est l'écran qui décide).
+        expect(codeOnly(MEMBER_DIALOG)).toContain("canManageMembers && isDashboard");
+        // …et la permission traverse page → liste → modale (aucun maillon ne la perd).
+        expect(codeOnly(MEMBER_MANAGEMENT)).toContain("canManageMembers={canManageMembers}");
+        expect(codeOnly(MEMBER_ROSTER_LIST)).toContain("canManageMembers={canManageMembers}");
     });
 
     it("les autres écritures de la gestion des membres suivent le MÊME patron", () => {

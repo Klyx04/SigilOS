@@ -9,6 +9,8 @@ export const PERMISSIONS = {
 
     // Staff & Supervision
     STAFF_MEMBER_MGMT: "staff:member_mgmt",
+    /** Suppression DÉFINITIVE du profil d'un membre pour la guilde (B-3, action destructive). */
+    STAFF_MEMBER_DELETE: "staff:member_delete",
     STAFF_CONTENT: "staff:content",
     STAFF_AUDIT: "staff:audit",
     STAFF_REACTION_ROLES: "staff:reaction_roles",
@@ -90,6 +92,14 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         module: "admin",
         modules: ["Annuaire (Admin)", "Synchronisation", "Relances", "Vacances"]
     },
+    [PERMISSIONS.STAFF_MEMBER_DELETE]: {
+        label: "Supprimer un profil de guilde",
+        description: "Supprime DÉFINITIVEMENT le profil d'un membre pour cette guilde (données de guilde purgées, sans exclusion réversible). S'il revient, il repart comme un nouvel arrivant. Action irréversible.",
+        module: "admin",
+        modules: ["Suppression de profil"],
+        sensitive: true
+    },
+
     [PERMISSIONS.STAFF_CONTENT]: { 
         label: "Communication Interne", 
         description: "Droit d'édition totale sur le contenu de la page de présentation et accès au Wiki Officier.", 
@@ -291,6 +301,7 @@ export const PERMISSION_GUILD_MODULES: Record<string, string[]> = {
     [PERMISSIONS.MARKET_MODERATE]: ["marche"],
     [PERMISSIONS.PRESENTATION_VIEW]: ["presentation"],
     [PERMISSIONS.STAFF_MEMBER_MGMT]: ["roster", "profile"],
+    [PERMISSIONS.STAFF_MEMBER_DELETE]: ["roster", "profile"],
     [PERMISSIONS.STAFF_CONTENT]: ["presentation", "docs"],
     [PERMISSIONS.STAFF_AUDIT]: ["logs"],
     [PERMISSIONS.STAFF_REACTION_ROLES]: ["reactionRoles"],

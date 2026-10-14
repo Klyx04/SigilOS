@@ -1105,30 +1105,43 @@ Seuls les rôles listés dans « Rôles pinguables » peuvent être mentionnés 
         category: 'Administration & Staff',
         accessLevel: 'ADMIN' as any,
         content: `
-<h2>Audit Roster Discord vs Dashboard</h2>
-<p>Ce module technique réconcilie en direct les utilisateurs présents sur votre serveur Discord avec les profils inscrits sur votre instance SigilOS pour éliminer les comptes fantômes.</p>
+<h2>Une seule liste, deux onglets</h2>
+<p>La page réunit désormais <strong>tous les humains de votre serveur Discord</strong> — ceux qui ont un profil sur SigilOS <em>comme</em> ceux qui n'en ont pas — dans <strong>une seule liste</strong>, sous deux onglets : <strong>Membres</strong> et <strong>Blacklist</strong>. Un membre n'apparaît plus jamais deux fois.</p>
 
 <figure class="my-6">
-    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Vue d'audit Roster : couverture d'inscription, relances groupées et synchronisation.</figcaption>
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Liste unifiée : filtres de statut, inscription au dashboard, rôle Discord, recherche et pagination numérotée.</figcaption>
 </figure>
 
-<h2>1. Indicateurs Clés de Couverture</h2>
+<h2>1. Ce que la liste montre et filtre</h2>
 <ul>
-    <li><strong>Membres Discord Détectés :</strong> Nombre total d'utilisateurs possédant le rôle de guilde sur votre serveur Discord.</li>
-    <li><strong>Profils Inscrits sur SigilOS :</strong> Nombre de membres ayant lié leur profil et accédant au Dashboard.</li>
-    <li><strong>Comptes Manquants :</strong> Utilisateurs Discord autorisés mais n'ayant pas encore finalisé leur première connexion.</li>
+    <li><strong>Indicateurs :</strong> comptes actifs (avec la jauge de places), archivés, exclus et total géré.</li>
+    <li><strong>Filtres de statut :</strong> Actifs / Archivés / Exclus / Tous, avec le compteur de chaque catégorie.</li>
+    <li><strong>Inscription :</strong> Les deux / Dashboard / Hors dashboard (membres Discord sans profil SigilOS).</li>
+    <li><strong>Rôle Discord :</strong> ne propose que les rôles réellement portés par au moins un membre.</li>
+    <li><strong>Recherche libre :</strong> pseudo, pseudo Dofus, surnom Discord, tag Ankama ou identifiant Discord. Tri par arrivée, ancienneté ou pseudo, et pagination numérotée.</li>
 </ul>
 
-<h2>2. Actions Disponibles :</h2>
+<h2>2. La modale par membre</h2>
+<p>Cliquer une personne ouvre <strong>une modale unique</strong> qui regroupe les trois volets historiques :</p>
 <ul>
-    <li><strong>Synchronisation Globale :</strong> Rapproche les comptes et archive automatiquement les fiches des membres ayant quitté le serveur Discord.</li>
-    <li><strong>Relances Groupées Discord :</strong> Envoie une mention ciblée dans le salon d'accueil pour inviter les retardataires à rejoindre le Dashboard.</li>
-    <li><strong>Gestion des membres (actifs, archivés, bannis, exclus) :</strong> Cette page porte aussi le statut du profil — l'ancien onglet « Liste Roster &amp; Membres » a été fusionné ici : archivage, désarchivage, bannissement et relances Discord, avec les compteurs de mules.</li>
-    <li><strong>Blacklist de Guilde :</strong> Conserve les identifiants Discord des personnes exclues pour alerter le staff en cas de tentative de réinscription.</li>
+    <li><strong>Profil &amp; actions :</strong> identité du registre (pseudo Dofus, tag Ankama au format Nom#0000, date d'arrivée), essai (validation et fin d'essai), vacances, relance Discord, archivage, exclusion et réintégration.</li>
+    <li><strong>Registre :</strong> recruteur, mules (une par ligne) et journal du staff (commentaires horodatés et signés).</li>
+    <li><strong>Discord :</strong> identifiant, pseudo serveur et rôles Discord connus.</li>
+</ul>
+<p>Les membres <strong>hors dashboard</strong> sont visibles et filtrables ; leur ligne ne porte ni essai, ni recruteur, ni journal (ils n'existent pas au registre).</p>
+
+<h2>3. Suppression définitive d'un profil</h2>
+<p>Une permission dédiée — <strong>« Supprimer un profil de guilde »</strong> — commande l'affichage du bouton de suppression. Elle se règle par rôle Discord dans l'écran RBAC : sans cette permission, le bouton n'apparaît pas et l'action est refusée côté serveur.</p>
+<div class="callout callout-warning"><strong>⚠️ Action irréversible</strong> : la suppression efface définitivement les données SigilOS de la personne <strong>pour cette guilde</strong> (missions, succès, progression, journal) et ne conserve <strong>aucune exclusion</strong>. S'il revient, il repart comme un nouvel arrivant. Un admin de guilde ne touche jamais au compte global ni aux autres guildes ; seul le God peut purger le compte plateforme complet.</div>
+
+<h2>4. Outils et journal de guilde</h2>
+<ul>
+    <li><strong>Synchronisation Globale :</strong> rapproche les comptes et met à jour les fiches depuis Discord.</li>
+    <li><strong>Rapport d'audit :</strong> envoie sur Discord la couverture d'inscription et les membres manquants.</li>
+    <li><strong>Analyse Discord :</strong> activité (messages, vocal) par rôle, repliée sous la liste.</li>
+    <li><strong>Blacklist de Guilde :</strong> conserve les identifiants Discord des personnes exclues pour alerter le staff en cas de tentative de réinscription.</li>
 </ul>
 
-<h2>3. Registre Recrutement (remplace le tableur)</h2>
-<p>L'onglet Registre centralise la gestion humaine : une ligne par membre, avec saisie manuelle (pseudo Dofus, date d'arrivée, tag Ankama au format Nom#0000, recruteur avec recherche, essai validé Oui / Non avec date de reconduction, commentaires multiples — 10 maximum, horodatés et signés) et valeurs automatiques (pseudo serveur rempli et mis à jour seul depuis Discord, ancienneté calculée seule, ID Discord peuplé seul). Les mules combinent le déclaré des profils et la saisie manuelle, et le classement des meilleurs recruteurs est calculé en direct. L'export CSV reprend toutes les colonnes, ID Discord inclus.</p>
 <div class="callout callout-tip"><strong>💡 Depuis Discord</strong> : la commande staff <strong>/valider-recrue</strong> (mention + pseudo Dofus + tag Ankama + recruteur + date d'arrivée) complète directement la ligne d'une recrue, par exemple dans son ticket de candidature. Elle n'apparaît jamais dans le guide des commandes des membres.</div>
         `
     },

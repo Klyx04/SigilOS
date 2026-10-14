@@ -450,15 +450,8 @@ const ADMIN_MEMBERS_STEPS: TourStep[] = [
     },
     {
         target: '[data-tour="admin-members-table"]',
-        title: "Tableau des membres",
-        description: "Consultez les membres, leurs rôles, métiers et activités. Filtres et recherche inclus.",
-        placement: "top",
-        requiresPerm: "canManageMembers"
-    },
-    {
-        target: '[data-tour="admin-members-tools"]',
-        title: "Outils d'administration",
-        description: "Synchronisation des pseudos, archivage et relances d'inactivité.",
+        title: "Liste des membres",
+        description: "Une seule liste : tous les humains Discord, dashboard ou non. Filtres, rôle Discord et pagination. Cliquez un membre pour tout consulter et éditer dans une modale.",
         placement: "top",
         requiresPerm: "canManageMembers"
     }

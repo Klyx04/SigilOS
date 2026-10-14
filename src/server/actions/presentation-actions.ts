@@ -12,6 +12,7 @@ import { ALL_DOFUS_SERVERS, AVAILABLE_ACTIVITIES, getGuildSlug } from "@/lib/pre
 // SANITIZATION UTILITIES
 // ============================================================================
 import { sanitizeHtml, sanitizeDiscordLink, sanitizeName } from "@/lib/security";
+import { PRESENTATION_INTERNAL_RULES_MAX_LENGTH } from "@/lib/presentation-rules";
 import { buildDiscordAvatarUrl } from "@/lib/discord-avatars";
 import { listGuildMembers } from "@/server/discord";
 
@@ -231,6 +232,8 @@ export type GuildPresentation = {
     createdAt: string;
     // Presentation fields
     history: string | null;
+    /** Règlement intérieur (HTML TipTap) — servi en interne seul, `null` au public. */
+    internalRules: string | null;
     activities: string[] | null;
     founder: string | null;
     coLeaders: string[]; // Up to 3 co-leader pseudos
@@ -289,6 +292,7 @@ export async function getGuildPresentation(
             iconUrl: true,
             createdAt: true,
             presentationHistory: true,
+            presentationInternalRules: true,
             presentationActivities: true,
             presentationFounder: true,
             presentationCoLeaders: true,
@@ -324,6 +328,7 @@ export async function getGuildPresentation(
                 iconUrl: true,
                 createdAt: true,
                 presentationHistory: true,
+            presentationInternalRules: true,
                 presentationActivities: true,
                 presentationFounder: true,
                 presentationCoLeaders: true,
@@ -365,6 +370,9 @@ export async function getGuildPresentation(
         iconUrl: g.iconUrl,
         createdAt: (g.createdAt as Date).toISOString(),
         history: g.presentationHistory,
+        // Interne seul : au public (`checkEnabled=true`) on renvoie `null`
+        // pour ne jamais exposer le règlement (ni dans la page, ni dans le payload).
+        internalRules: checkEnabled ? null : (g.presentationInternalRules as string | null),
         activities: g.presentationActivities as string[] | null,
         founder: g.presentationFounder,
         coLeaders: coLeadersPseudos,
@@ -479,6 +487,8 @@ export async function getDiscordMembersForSelection(
 export type PresentationUpdateData = {
     enabled: boolean;
     history: string | null;
+    /** Règlement intérieur (HTML TipTap, interne seul). */
+    internalRules: string | null;
     activities: string[];
     founder: string | null;
     coLeaders: string[]; // Up to 3 co-leader pseudos
@@ -522,6 +532,9 @@ export async function updateGuildPresentation(
         const sanitizedDiscord = sanitizeDiscordLink(data.discord);
         // Use strict mode for presentation history (strips most tags)
         const sanitizedHistory = sanitizeHtml(data.history, 5000, true);
+        // Règlement : HTML riche TipTap → mode non-strict (h2/h3, ul/ol, p, liens…)
+        // assaini par DOMPurify, borné à 20 000 caractères (balises comprises).
+        const sanitizedRules = sanitizeHtml(data.internalRules, PRESENTATION_INTERNAL_RULES_MAX_LENGTH, false);
         const sanitizedReqs = sanitizeHtml(data.recruitmentRequirements, 1000, true);
         const sanitizedFounder = sanitizeName(data.founder);
         const validatedServer = validateServerName(data.server);
@@ -549,6 +562,7 @@ export async function updateGuildPresentation(
             data: {
                 presentationEnabled: data.enabled,
                 presentationHistory: sanitizedHistory,
+                presentationInternalRules: sanitizedRules,
                 presentationActivities: validatedActivities,
                 presentationFounder: sanitizedFounder,
                 presentationCoLeaders: validatedCoLeaders,
@@ -570,6 +584,7 @@ export async function updateGuildPresentation(
 
         revalidatePath(`/guilds/${guildId}`);
         revalidatePath(`/dashboard/${guildId}/presentation`);
+        revalidatePath(`/dashboard/${guildId}/guild-hub`);
 
         return { success: true };
     } catch (error) {
@@ -721,6 +736,7 @@ export async function getAdminPresentationData(guildId: string): Promise<{
         select: {
             presentationEnabled: true,
             presentationHistory: true,
+            presentationInternalRules: true,
             presentationActivities: true,
             presentationFounder: true,
             presentationCoLeaders: true,
@@ -758,6 +774,7 @@ export async function getAdminPresentationData(guildId: string): Promise<{
         data: {
             enabled: d.presentationEnabled,
             history: d.presentationHistory,
+            internalRules: d.presentationInternalRules as string | null,
             activities: (d.presentationActivities as string[]) || [],
             founder: d.presentationFounder,
             coLeaders: (d.presentationCoLeaders as string[]) || [],

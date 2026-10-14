@@ -17,6 +17,7 @@ import {
     withdrawMarketListingsForGuildMember,
     withdrawMarketListingsForProfileCore,
 } from "@/server/market/lifecycle";
+import { rateLimit } from "@/lib/ratelimit";
 
 /**
  * Archive a profile (Self-service or Admin)
@@ -415,6 +416,120 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
     } catch (e) {
         logger.error("Delete error:", e);
         return { success: false, error: "Database error" };
+    }
+}
+
+/**
+ * Suppression **DÉFINITIVE** du profil d'un membre pour la guilde courante (chantier B, lot B-3).
+ *
+ * Différences voulues avec `deleteProfileByAdmin` (exclusion **réversible**, tombstone
+ * `GuildMemberBan`, onglet « Exclus ») :
+ * - **aucun tombstone** : si le membre revient (il garde son rôle Discord), il est ré-provisionné
+ *   comme un **nouvel arrivant** — aucune exclusion ne survit à l'action ;
+ * - portée **strictement guilde** : seul le `UserProfile` de CETTE guilde (+ ses cascades) est
+ *   supprimé. Le compte plateforme (`User`) et les éventuels **autres** profils de guilde sont
+ *   préservés ⇒ un admin de guilde ne peut jamais détruire l'accès d'un membre ailleurs
+ *   (la purge du compte global reste l'apanage du God) ;
+ * - gardée par la permission **dédiée** `staff:member_delete` (fail-closed) + rate-limit.
+ */
+export async function purgeMemberFromGuild(
+    guildId: string,
+    profileId: string
+): Promise<{ success: boolean; error?: string }> {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.canDeleteMembers && !ctx.isAdmin) {
+        return { success: false, error: "Permission 'Supprimer un profil de guilde' requise" };
+    }
+    if (!profileId || typeof profileId !== "string") {
+        return { success: false, error: "Profil invalide" };
+    }
+
+    // Mutation destructive : rate-limit fail-closed (AGENTS §5.8) — 10 / 5 min / acteur.
+    const limit = await rateLimit(`member-purge:${guildId}:${ctx.id ?? "anon"}`, 10, 5 * 60_000);
+    if (!limit.success) {
+        return {
+            success: false,
+            error: limit.error
+                ? "Sécurité momentanément indisponible, réessayez."
+                : "Trop de suppressions en peu de temps, réessayez plus tard.",
+        };
+    }
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, ownerId: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        // 🔒 Isolation de guilde : `guildId` résolu côté serveur, la cible DOIT appartenir à la guilde.
+        const target = await db.userProfile.findFirst({
+            where: { id: profileId, guildId: guild.id },
+            select: {
+                id: true,
+                userId: true,
+                guildId: true,
+                pseudoDofus: true,
+                discordNickname: true,
+                user: {
+                    select: {
+                        name: true,
+                        accounts: {
+                            where: { provider: "discord" },
+                            select: { providerAccountId: true },
+                        },
+                    },
+                },
+            },
+        });
+        if (!target) return { success: false, error: "Profil introuvable dans cette guilde" };
+
+        // 🔒 Pas d'auto-suppression.
+        if (target.userId === ctx.id) {
+            return { success: false, error: "Vous ne pouvez pas supprimer votre propre profil." };
+        }
+
+        // 🔒 Le propriétaire du serveur Discord n'est jamais supprimé depuis SigilOS.
+        const targetDiscordId = target.user.accounts[0]?.providerAccountId;
+        if (guild.ownerId && targetDiscordId && guild.ownerId === targetDiscordId) {
+            return {
+                success: false,
+                error: "Le propriétaire du serveur Discord ne peut pas être supprimé depuis SigilOS.",
+            };
+        }
+
+        const label = target.pseudoDofus || target.discordNickname || target.user.name || "Un membre";
+
+        // Fermer le contenu publié (posts DJ + runs songes) AVANT la cascade du profil.
+        await closeMemberPublishedContent(guildId, profileId, target.userId, "MEMBER_DELETED");
+
+        // Suppression du profil de CETTE guilde (cascade : données guilde, journal du registre…).
+        await db.userProfile.delete({ where: { id: profileId } });
+
+        // Révocation immédiate : sessions + caches (sinon le membre garde un accès résiduel).
+        await db.session.deleteMany({ where: { userId: target.userId } });
+        await invalidateUserContextCache(target.userId, target.guildId, guildId).catch(() => {});
+
+        await createAuditLog({
+            guildId,
+            action: "MEMBER_PURGED" as any,
+            actorUserId: ctx.id as string,
+            actorName: ctx.name ?? "Inconnu",
+            targetType: "PROFILE" as any,
+            targetId: profileId,
+            metadata: {
+                description: `Suppression définitive (guilde uniquement) : ${label}`,
+                reason: "Suppression définitive — réapparition possible comme nouvel arrivant",
+                scope: "GUILD_ONLY",
+            },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/members`);
+        return { success: true };
+    } catch (e) {
+        logger.error("[purgeMemberFromGuild] Error:", e);
+        return { success: false, error: "Erreur base de données" };
     }
 }
 

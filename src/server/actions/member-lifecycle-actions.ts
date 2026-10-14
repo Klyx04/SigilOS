@@ -7,7 +7,7 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { differenceInDays } from "date-fns";
-import { ANKAMA_ID_PATTERN, MAX_REGISTRY_COMMENTS, REGISTRY_COMMENT_MAX_LENGTH, canAddRegistryComment, type RegistryComment } from "@/lib/member-registry";
+import { ANKAMA_ID_PATTERN, MAX_REGISTRY_COMMENTS, REGISTRY_COMMENT_MAX_LENGTH, canAddRegistryComment, computeSeniorityDays, type RegistryComment } from "@/lib/member-registry";
 
 // ==========================================
 // TYPES
@@ -50,6 +50,9 @@ export interface LifecycleMemberSummary {
     comments: RegistryComment[];
     discordMessageCountWeekly: number;
     discordVoiceTimeWeekly: number;
+    /** Vacances déclarées (édition staff depuis la modale membre). */
+    vacationStart: string | null;
+    vacationEnd: string | null;
 }
 
 export interface RecruiterLeaderboardEntry {
@@ -104,7 +107,6 @@ const updateConfigSchema = z.object({
 });
 
 const trialStateSchema = z.object({
-    profileId: z.string().min(1),
     validated: z.boolean(),
     trialEndsAt: z.string().datetime().nullable().optional(),
 });
@@ -117,7 +119,6 @@ const departureSchema = z.object({
 });
 
 const registryIdentitySchema = z.object({
-    profileId: z.string().min(1),
     pseudoDofus: z.string().max(30).nullable().optional(),
     // Pas de pseudo serveur ici : il se remplit et se met à jour seul depuis Discord.
     ankamaId: z
@@ -132,12 +133,10 @@ const registryIdentitySchema = z.object({
 });
 
 const registryCommentSchema = z.object({
-    profileId: z.string().min(1),
     body: z.string().trim().min(1, "Commentaire vide").max(REGISTRY_COMMENT_MAX_LENGTH),
 });
 
 const altsSchema = z.object({
-    profileId: z.string().min(1),
     alts: z.array(
         z.union([
             z.string().min(1).max(30),
@@ -149,6 +148,64 @@ const altsSchema = z.object({
         ])
     ),
 });
+
+// ==========================================
+// SUJET DU REGISTRE — profil dashboard OU membre Discord hors dashboard
+// ==========================================
+
+/**
+ * Sujet d'une écriture du registre : **soit** un profil dashboard (`profileId`), **soit** un
+ * membre Discord sans profil (`discordId`) — jamais les deux, jamais aucun.
+ *
+ * C'est ce qui rend les « hors dashboard » éditables sans leur fabriquer un compte plateforme
+ * (chantier B-2, décision voie ① : table dédiée `MemberRegistryEntry`).
+ */
+export type RegistrySubject =
+    | { profileId: string; discordId?: undefined }
+    | { discordId: string; profileId?: undefined };
+
+const subjectSchema = z.union([
+    z.object({ profileId: z.string().min(1) }),
+    z.object({ discordId: z.string().min(1) }),
+]);
+
+type RegistryTarget = { kind: "profile"; profileId: string } | { kind: "discord"; discordId: string };
+
+/** Normalise un sujet validé en cible d'écriture (profil ou ligne de registre Discord). */
+function resolveRegistryTarget(subject: RegistrySubject): RegistryTarget {
+    if (typeof subject?.profileId === "string" && subject.profileId.length > 0) {
+        return { kind: "profile", profileId: subject.profileId };
+    }
+    return { kind: "discord", discordId: String(subject?.discordId ?? "") };
+}
+
+/** Charge la guilde (id interne) ou renvoie `null`. */
+async function resolveGuildId(discordGuildId: string): Promise<string | null> {
+    const guild = await db.guildConfig.findUnique({
+        where: { discordGuildId },
+        select: { id: true },
+    });
+    return guild?.id ?? null;
+}
+
+/** Normalise le JSON `altPseudos` en mules exploitables (chaîne historique ou objet). */
+function normalizeMules(raw: unknown): MemberAltInfo[] {
+    const list = Array.isArray(raw) ? raw : [];
+    return list
+        .map((alt: unknown): MemberAltInfo | null => {
+            if (typeof alt === "string") return { pseudo: alt };
+            if (alt && typeof alt === "object" && "pseudo" in alt) {
+                const candidate = alt as { pseudo?: unknown; classe?: unknown; level?: unknown };
+                return {
+                    pseudo: String(candidate.pseudo),
+                    classe: candidate.classe ? String(candidate.classe) : undefined,
+                    level: typeof candidate.level === "number" ? candidate.level : undefined,
+                };
+            }
+            return null;
+        })
+        .filter((mule): mule is MemberAltInfo => !!mule && !!mule.pseudo && mule.pseudo !== "Inconnu");
+}
 
 // ==========================================
 // ACTIONS
@@ -214,6 +271,8 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
                 altPseudos: true,
                 discordMessageCountWeekly: true,
                 discordVoiceTimeWeekly: true,
+                vacationStart: true,
+                vacationEnd: true,
                 user: {
                     select: {
                         name: true,
@@ -250,18 +309,7 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
             }
 
             // Normaliser les mules
-            const rawAlts = Array.isArray(p.altPseudos) ? p.altPseudos : [];
-            const mules: MemberAltInfo[] = rawAlts.map((alt: any) => {
-                if (typeof alt === "string") return { pseudo: alt };
-                if (alt && typeof alt === "object" && alt.pseudo) {
-                    return {
-                        pseudo: String(alt.pseudo),
-                        classe: alt.classe ? String(alt.classe) : undefined,
-                        level: typeof alt.level === "number" ? alt.level : undefined
-                    };
-                }
-                return { pseudo: "Inconnu" };
-            }).filter(m => m.pseudo && m.pseudo !== "Inconnu");
+            const mules: MemberAltInfo[] = normalizeMules(p.altPseudos);
 
             const recruiterName = p.recruitedByProfile
                 ? (p.recruitedByProfile.pseudoDofus || p.recruitedByProfile.discordNickname || p.recruitedByProfile.user?.name || null)
@@ -302,6 +350,8 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
                 })),
                 discordMessageCountWeekly: p.discordMessageCountWeekly || 0,
                 discordVoiceTimeWeekly: p.discordVoiceTimeWeekly || 0,
+                vacationStart: p.vacationStart ? p.vacationStart.toISOString() : null,
+                vacationEnd: p.vacationEnd ? p.vacationEnd.toISOString() : null,
             };
         });
 
@@ -390,7 +440,19 @@ export async function getGuildLifecycleData(guildId: string): Promise<ActionResp
         return { success: false, error: "Impossible de charger les données des membres" };
     }
 }
-/** Un membre **Discord sans profil dashboard** — vu par le bot, absent du registre. */
+/** Données du registre saisies pour un membre **sans profil dashboard** (B-2). */
+export interface RegistryDiscordEntry {
+    pseudoDofus: string | null;
+    ankamaId: string | null;
+    guildJoinedAt: string | null;
+    recruitedById: string | null;
+    trialValidated: boolean;
+    trialEndsAt: string | null;
+    mules: MemberAltInfo[];
+    comments: RegistryComment[];
+}
+
+/** Un membre **Discord sans profil dashboard** — vu par le bot, éditable via le registre. */
 export interface RegistryDiscordOnlyMember {
     discordId: string;
     displayName: string;
@@ -398,6 +460,13 @@ export interface RegistryDiscordOnlyMember {
     avatar: string | null;
     joinedAt: string | null;
     roles: string[];
+    /** Date d'arrivée retenue : saisie du registre si présente, sinon arrivée Discord. */
+    joinedAtResolved: string | null;
+    seniorityDays: number;
+    /** Ligne de registre (null tant que le staff n'a rien saisi). */
+    entry: RegistryDiscordEntry | null;
+    recruiterName: string | null;
+    recruiterAvatar: string | null;
 }
 
 /** Rôle Discord de la guilde (id + libellé + couleur + position hiérarchique). */
@@ -460,7 +529,7 @@ export async function getMemberRegistryDiscordIndex(
             import("@/lib/discord-avatars"),
         ]);
 
-        const [discordMembers, discordRoles, profiles] = await Promise.all([
+        const [discordMembers, discordRoles, profiles, entries, entryComments, recruiters] = await Promise.all([
             // Panne Discord ⇒ listes vides, jamais une exception qui casse le registre.
             listGuildMembers(guildId, 1000).catch(() => [] as Awaited<ReturnType<typeof listGuildMembers>>),
             fetchGuildRoles(guildId, { excludeManaged: false }).catch(() => []),
@@ -478,7 +547,51 @@ export async function getMemberRegistryDiscordIndex(
                     },
                 },
             }),
+            // B-2 : lignes de registre des membres **sans profil dashboard**.
+            db.memberRegistryEntry.findMany({ where: { guildId: guild.id } }),
+            db.memberRegistryComment.findMany({
+                where: { guildId: guild.id, discordId: { not: null } },
+                orderBy: { createdAt: "asc" },
+            }),
+            db.userProfile.findMany({
+                where: { guildId: guild.id },
+                select: {
+                    id: true,
+                    pseudoDofus: true,
+                    discordNickname: true,
+                    user: { select: { name: true, image: true } },
+                },
+            }),
         ]);
+
+        const recruiterById = new Map(
+            recruiters.map((recruiter) => [
+                recruiter.id,
+                {
+                    name: recruiter.pseudoDofus || recruiter.discordNickname || recruiter.user?.name || null,
+                    avatar: recruiter.user?.image || null,
+                },
+            ])
+        );
+
+        const commentsByDiscordId = new Map<string, RegistryComment[]>();
+        for (const comment of entryComments) {
+            const key = String(comment.discordId ?? "");
+            if (!key) continue;
+            const list = commentsByDiscordId.get(key) ?? [];
+            if (list.length < MAX_REGISTRY_COMMENTS) {
+                list.push({
+                    id: comment.id,
+                    body: comment.body,
+                    authorName: comment.authorName,
+                    authorUserId: comment.authorUserId,
+                    createdAt: comment.createdAt.toISOString(),
+                });
+                commentsByDiscordId.set(key, list);
+            }
+        }
+
+        const entryByDiscordId = new Map(entries.map((entry) => [entry.discordId, entry]));
 
         const profileIdByDiscordId = new Map<string, string>();
         for (const profile of profiles) {
@@ -502,6 +615,10 @@ export async function getMemberRegistryDiscordIndex(
                 continue;
             }
 
+            const entry = entryByDiscordId.get(discordId);
+            const joinedAtResolved = entry?.guildJoinedAt?.toISOString() ?? (member.joined_at ?? null);
+            const recruiter = entry?.recruitedById ? recruiterById.get(entry.recruitedById) : undefined;
+
             discordOnly.push({
                 discordId,
                 displayName: String(member.nick || member.user.global_name || member.user.username || discordId),
@@ -510,6 +627,22 @@ export async function getMemberRegistryDiscordIndex(
                 avatar: buildGuildAvatarUrl(guildId, discordId, member.avatar || member.user.avatar || null, 128),
                 joinedAt: member.joined_at ?? null,
                 roles,
+                joinedAtResolved,
+                seniorityDays: joinedAtResolved ? computeSeniorityDays(joinedAtResolved) : 0,
+                entry: entry
+                    ? {
+                          pseudoDofus: entry.pseudoDofus,
+                          ankamaId: entry.ankamaId,
+                          guildJoinedAt: entry.guildJoinedAt ? entry.guildJoinedAt.toISOString() : null,
+                          recruitedById: entry.recruitedById,
+                          trialValidated: entry.trialValidated,
+                          trialEndsAt: entry.trialEndsAt ? entry.trialEndsAt.toISOString() : null,
+                          mules: normalizeMules(entry.altPseudos),
+                          comments: commentsByDiscordId.get(discordId) ?? [],
+                      }
+                    : null,
+                recruiterName: recruiter?.name ?? null,
+                recruiterAvatar: recruiter?.avatar ?? null,
             });
         }
 
@@ -543,7 +676,7 @@ export async function getMemberRegistryDiscordIndex(
  */
 export async function setMemberTrialState(
     guildId: string,
-    profileId: string,
+    subject: RegistrySubject,
     input: { validated: boolean; trialEndsAt?: string | null }
 ): Promise<ActionResponse<{ message: string }>> {
     const session = await auth();
@@ -554,7 +687,9 @@ export async function setMemberTrialState(
         return { success: false, error: "Permission 'Gérer les membres' requise" };
     }
 
-    const validated = trialStateSchema.safeParse({ profileId, ...input });
+    if (!subjectSchema.safeParse(subject).success) return { success: false, error: "Sujet invalide" };
+
+    const validated = trialStateSchema.safeParse(input);
     if (!validated.success) {
         return { success: false, error: validated.error.errors[0]?.message || "Données invalides" };
     }
@@ -566,38 +701,56 @@ export async function setMemberTrialState(
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        const profile = await db.userProfile.findFirst({
-            where: { id: validated.data.profileId, guildId: guild.id },
-            select: { id: true, pseudoDofus: true, discordNickname: true, trialValidated: true, trialEndsAt: true }
-        });
-
-        if (!profile) return { success: false, error: "Profil membre introuvable" };
-
+        const target = resolveRegistryTarget(subject);
         const trialEndsAt = validated.data.validated
             ? null
             : validated.data.trialEndsAt
               ? new Date(validated.data.trialEndsAt)
               : null;
+        const data = { trialValidated: validated.data.validated, trialEndsAt };
 
-        await db.userProfile.update({
-            where: { id: profile.id },
-            data: { trialValidated: validated.data.validated, trialEndsAt }
-        });
+        if (target.kind === "profile") {
+            const profile = await db.userProfile.findFirst({
+                where: { id: target.profileId, guildId: guild.id },
+                select: { id: true, pseudoDofus: true, discordNickname: true, trialValidated: true, trialEndsAt: true },
+            });
+            if (!profile) return { success: false, error: "Profil membre introuvable" };
 
-        await createAuditLog({
-            guildId: guild.id,
-            actorUserId: session.user.id,
-            actorName: ctx.name || "Staff",
-            action: "SETTINGS_UPDATED",
-            targetType: "USER_PROFILE",
-            targetId: profile.id,
-            oldValue: { trialValidated: profile.trialValidated, trialEndsAt: profile.trialEndsAt },
-            newValue: { trialValidated: validated.data.validated, trialEndsAt },
-            metadata: {
-                memberName: profile.pseudoDofus || profile.discordNickname || "Membre",
-                source: "registre",
-            }
-        });
+            await db.userProfile.update({ where: { id: profile.id }, data });
+
+            await createAuditLog({
+                guildId: guild.id,
+                actorUserId: session.user.id,
+                actorName: ctx.name || "Staff",
+                action: "SETTINGS_UPDATED",
+                targetType: "USER_PROFILE",
+                targetId: profile.id,
+                oldValue: { trialValidated: profile.trialValidated, trialEndsAt: profile.trialEndsAt },
+                newValue: data,
+                metadata: {
+                    memberName: profile.pseudoDofus || profile.discordNickname || "Membre",
+                    source: "registre",
+                },
+            });
+        } else {
+            const entry = await db.memberRegistryEntry.upsert({
+                where: { guildId_discordId: { guildId: guild.id, discordId: target.discordId } },
+                create: { guildId: guild.id, discordId: target.discordId, ...data },
+                update: data,
+            });
+
+            await createAuditLog({
+                guildId: guild.id,
+                actorUserId: session.user.id,
+                actorName: ctx.name || "Staff",
+                action: "SETTINGS_UPDATED",
+                targetType: "USER_PROFILE",
+                targetId: entry.id,
+                oldValue: {},
+                newValue: data,
+                metadata: { memberName: entry.pseudoDofus || target.discordId, source: "registre", scope: "DISCORD_ONLY" },
+            });
+        }
 
         return {
             success: true,
@@ -612,8 +765,8 @@ export async function setMemberTrialState(
 /**
  * Valide l'essai d'un membre directement (raccourci 1 clic).
  */
-export async function validateMemberTrial(guildId: string, profileId: string): Promise<ActionResponse<{ message: string }>> {
-    return setMemberTrialState(guildId, profileId, { validated: true });
+export async function validateMemberTrial(guildId: string, subject: RegistrySubject): Promise<ActionResponse<{ message: string }>> {
+    return setMemberTrialState(guildId, subject, { validated: true });
 }
 
 /**
@@ -805,7 +958,7 @@ export async function reintegrateMember(guildId: string, profileId: string): Pro
  */
 export async function updateMemberRecruiter(
     guildId: string,
-    profileId: string,
+    subject: RegistrySubject,
     recruiterProfileId: string | null
 ): Promise<ActionResponse<{ message: string }>> {
     const session = await auth();
@@ -816,6 +969,8 @@ export async function updateMemberRecruiter(
         return { success: false, error: "Permission 'Gérer les membres' requise" };
     }
 
+    if (!subjectSchema.safeParse(subject).success) return { success: false, error: "Sujet invalide" };
+
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -823,11 +978,7 @@ export async function updateMemberRecruiter(
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        const target = await db.userProfile.findFirst({
-            where: { id: profileId, guildId: guild.id },
-            select: { id: true }
-        });
-        if (!target) return { success: false, error: "Profil membre introuvable" };
+        const target = resolveRegistryTarget(subject);
 
         if (recruiterProfileId) {
             const recruiter = await db.userProfile.findFirst({
@@ -837,10 +988,23 @@ export async function updateMemberRecruiter(
             if (!recruiter) return { success: false, error: "Recruteur invalide pour cette guilde" };
         }
 
-        await db.userProfile.update({
-            where: { id: target.id },
-            data: { recruitedById: recruiterProfileId }
-        });
+        if (target.kind === "profile") {
+            const profile = await db.userProfile.findFirst({
+                where: { id: target.profileId, guildId: guild.id },
+                select: { id: true },
+            });
+            if (!profile) return { success: false, error: "Profil membre introuvable" };
+            await db.userProfile.update({
+                where: { id: profile.id },
+                data: { recruitedById: recruiterProfileId },
+            });
+        } else {
+            await db.memberRegistryEntry.upsert({
+                where: { guildId_discordId: { guildId: guild.id, discordId: target.discordId } },
+                create: { guildId: guild.id, discordId: target.discordId, recruitedById: recruiterProfileId },
+                update: { recruitedById: recruiterProfileId },
+            });
+        }
 
         return { success: true, data: { message: "Recruteur mis à jour" } };
     } catch (err: any) {
@@ -854,7 +1018,7 @@ export async function updateMemberRecruiter(
  */
 export async function updateMemberAlts(
     guildId: string,
-    profileId: string,
+    subject: RegistrySubject,
     alts: Array<{ pseudo: string; classe?: string; level?: number } | string>
 ): Promise<ActionResponse<{ message: string }>> {
     const session = await auth();
@@ -865,7 +1029,9 @@ export async function updateMemberAlts(
         return { success: false, error: "Permission 'Gérer les membres' requise" };
     }
 
-    const validated = altsSchema.safeParse({ profileId, alts });
+    if (!subjectSchema.safeParse(subject).success) return { success: false, error: "Sujet invalide" };
+
+    const validated = altsSchema.safeParse({ alts });
     if (!validated.success) {
         return { success: false, error: validated.error.errors[0]?.message || "Format des mules invalide" };
     }
@@ -877,10 +1043,25 @@ export async function updateMemberAlts(
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        await db.userProfile.update({
-            where: { id: profileId, guildId: guild.id },
-            data: { altPseudos: alts as any }
-        });
+        const target = resolveRegistryTarget(subject);
+
+        if (target.kind === "profile") {
+            const profile = await db.userProfile.findFirst({
+                where: { id: target.profileId, guildId: guild.id },
+                select: { id: true },
+            });
+            if (!profile) return { success: false, error: "Profil membre introuvable" };
+            await db.userProfile.update({
+                where: { id: profile.id },
+                data: { altPseudos: alts as never },
+            });
+        } else {
+            await db.memberRegistryEntry.upsert({
+                where: { guildId_discordId: { guildId: guild.id, discordId: target.discordId } },
+                create: { guildId: guild.id, discordId: target.discordId, altPseudos: alts as never },
+                update: { altPseudos: alts as never },
+            });
+        }
 
         return { success: true, data: { message: "Mules mises à jour" } };
     } catch (err: any) {
@@ -896,6 +1077,7 @@ export async function updateMemberAlts(
  */
 export async function addMemberRegistryComment(
     guildId: string,
+    subject: RegistrySubject,
     input: z.infer<typeof registryCommentSchema>
 ): Promise<ActionResponse<{ message: string; comment: RegistryComment }>> {
     const session = await auth();
@@ -905,6 +1087,8 @@ export async function addMemberRegistryComment(
     if (!ctx.isAdmin && !ctx.canManageMembers) {
         return { success: false, error: "Permission 'Gérer les membres' requise" };
     }
+
+    if (!subjectSchema.safeParse(subject).success) return { success: false, error: "Sujet invalide" };
 
     const validated = registryCommentSchema.safeParse(input);
     if (!validated.success) {
@@ -918,19 +1102,32 @@ export async function addMemberRegistryComment(
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        const profile = await db.userProfile.findFirst({
-            where: { id: validated.data.profileId, guildId: guild.id },
-            select: { id: true, _count: { select: { registryComments: true } } }
-        });
-        if (!profile) return { success: false, error: "Profil membre introuvable" };
-        if (!canAddRegistryComment(profile._count.registryComments)) {
-            return { success: false, error: `Maximum ${MAX_REGISTRY_COMMENTS} commentaires par membre` };
+        const target = resolveRegistryTarget(subject);
+
+        let commentTarget: { guildId: string; profileId?: string; discordId?: string };
+        if (target.kind === "profile") {
+            const profile = await db.userProfile.findFirst({
+                where: { id: target.profileId, guildId: guild.id },
+                select: { id: true, _count: { select: { registryComments: true } } },
+            });
+            if (!profile) return { success: false, error: "Profil membre introuvable" };
+            if (!canAddRegistryComment(profile._count.registryComments)) {
+                return { success: false, error: `Maximum ${MAX_REGISTRY_COMMENTS} commentaires par membre` };
+            }
+            commentTarget = { guildId: guild.id, profileId: profile.id };
+        } else {
+            const existing = await db.memberRegistryComment.count({
+                where: { guildId: guild.id, discordId: target.discordId },
+            });
+            if (!canAddRegistryComment(existing)) {
+                return { success: false, error: `Maximum ${MAX_REGISTRY_COMMENTS} commentaires par membre` };
+            }
+            commentTarget = { guildId: guild.id, discordId: target.discordId };
         }
 
         const created = await db.memberRegistryComment.create({
             data: {
-                guildId: guild.id,
-                profileId: profile.id,
+                ...commentTarget,
                 authorUserId: session.user.id,
                 authorName: ctx.name || "Staff",
                 body: validated.data.body,
@@ -944,7 +1141,7 @@ export async function addMemberRegistryComment(
             actorName: ctx.name || "Staff",
             action: "SETTINGS_UPDATED",
             targetType: "USER_PROFILE",
-            targetId: profile.id,
+            targetId: created.id,
             metadata: { source: "registre", kind: "registry_comment", commentId: created.id },
         });
 
@@ -968,6 +1165,7 @@ export async function addMemberRegistryComment(
  */
 export async function updateMemberRegistryIdentity(
     guildId: string,
+    subject: RegistrySubject,
     input: z.infer<typeof registryIdentitySchema>
 ): Promise<ActionResponse<{ message: string }>> {
     const session = await auth();
@@ -977,6 +1175,8 @@ export async function updateMemberRegistryIdentity(
     if (!ctx.isAdmin && !ctx.canManageMembers) {
         return { success: false, error: "Permission 'Gérer les membres' requise" };
     }
+
+    if (!subjectSchema.safeParse(subject).success) return { success: false, error: "Sujet invalide" };
 
     const validated = registryIdentitySchema.safeParse(input);
     if (!validated.success) {
@@ -990,11 +1190,7 @@ export async function updateMemberRegistryIdentity(
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        const profile = await db.userProfile.findFirst({
-            where: { id: validated.data.profileId, guildId: guild.id },
-            select: { id: true, pseudoDofus: true, ankamaId: true, guildJoinedAt: true }
-        });
-        if (!profile) return { success: false, error: "Profil membre introuvable" };
+        const target = resolveRegistryTarget(subject);
 
         const data: Record<string, unknown> = {};
         if (validated.data.pseudoDofus !== undefined) {
@@ -1012,23 +1208,58 @@ export async function updateMemberRegistryIdentity(
             return { success: true, data: { message: "Rien à mettre à jour" } };
         }
 
-        await db.userProfile.update({ where: { id: profile.id }, data: data as never });
+        if (target.kind === "profile") {
+            const profile = await db.userProfile.findFirst({
+                where: { id: target.profileId, guildId: guild.id },
+                select: { id: true, pseudoDofus: true, ankamaId: true, guildJoinedAt: true },
+            });
+            if (!profile) return { success: false, error: "Profil membre introuvable" };
 
-        await createAuditLog({
-            guildId: guild.id,
-            actorUserId: session.user.id,
-            actorName: ctx.name || "Staff",
-            action: "SETTINGS_UPDATED",
-            targetType: "USER_PROFILE",
-            targetId: profile.id,
-            oldValue: {
-                pseudoDofus: profile.pseudoDofus,
-                ankamaId: profile.ankamaId,
-                guildJoinedAt: profile.guildJoinedAt,
-            },
-            newValue: data,
-            metadata: { source: "registre" },
-        });
+            await db.userProfile.update({ where: { id: profile.id }, data: data as never });
+
+            await createAuditLog({
+                guildId: guild.id,
+                actorUserId: session.user.id,
+                actorName: ctx.name || "Staff",
+                action: "SETTINGS_UPDATED",
+                targetType: "USER_PROFILE",
+                targetId: profile.id,
+                oldValue: {
+                    pseudoDofus: profile.pseudoDofus,
+                    ankamaId: profile.ankamaId,
+                    guildJoinedAt: profile.guildJoinedAt,
+                },
+                newValue: data,
+                metadata: { source: "registre" },
+            });
+        } else {
+            const previous = await db.memberRegistryEntry.findUnique({
+                where: { guildId_discordId: { guildId: guild.id, discordId: target.discordId } },
+                select: { id: true, pseudoDofus: true, ankamaId: true, guildJoinedAt: true },
+            });
+
+            await db.memberRegistryEntry.upsert({
+                where: { guildId_discordId: { guildId: guild.id, discordId: target.discordId } },
+                create: { guildId: guild.id, discordId: target.discordId, ...data } as never,
+                update: data as never,
+            });
+
+            await createAuditLog({
+                guildId: guild.id,
+                actorUserId: session.user.id,
+                actorName: ctx.name || "Staff",
+                action: "SETTINGS_UPDATED",
+                targetType: "USER_PROFILE",
+                targetId: previous?.id ?? target.discordId,
+                oldValue: {
+                    pseudoDofus: previous?.pseudoDofus ?? null,
+                    ankamaId: previous?.ankamaId ?? null,
+                    guildJoinedAt: previous?.guildJoinedAt ?? null,
+                },
+                newValue: data,
+                metadata: { source: "registre", scope: "DISCORD_ONLY" },
+            });
+        }
 
         return { success: true, data: { message: "Ligne du registre mise à jour" } };
     } catch (err: unknown) {

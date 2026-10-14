@@ -96,7 +96,7 @@ describe("slash commands — périmètre", () => {
     it("les étiquettes de cycle de vie ont disparu du nouveau code", () => {
         for (const file of [
             "src/lib/member-registry.ts",
-            "src/components/admin/members/member-registry-table.tsx",
+            "src/components/admin/members/member-detail-dialog.tsx",
             "src/server/actions/member-lifecycle-actions.ts",
         ]) {
             const content = readFileSync(file, "utf8");

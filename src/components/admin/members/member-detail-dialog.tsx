@@ -55,6 +55,7 @@ import {
 } from "@/server/actions/member-lifecycle-actions";
 import { RelanceModal } from "./relance-modal";
 import { VacationEditDialog } from "./vacation-edit-dialog";
+import { MemberDiscordActivity } from "./member-discord-activity";
 
 /** Action de suppression branchée par le parent (guilde ou God) — le dialogue ignore la portée. */
 export type DeleteRowAction = (
@@ -147,6 +148,8 @@ export function MemberDetailDialog({
     const [recruiterId, setRecruiterId] = useState(row?.recruiter?.id ?? "NONE");
     const [mulesText, setMulesText] = useState((row?.mules ?? []).map((mule) => mule.pseudo).join("\n"));
     const [comment, setComment] = useState("");
+    /** Onglet de la fiche : la fiche registre, ou l'activité Discord mesurée. */
+    const [detailTab, setDetailTab] = useState<"fiche" | "discord">("fiche");
 
     if (!row) {
         return null;
@@ -302,6 +305,35 @@ export function MemberDetailDialog({
                         </div>
                     </DialogHeader>
 
+                    {/* Onglets de la fiche : registre, puis activité Discord mesurée. */}
+                    <div className="flex items-center gap-1 border-b border-border" role="tablist" aria-label="Contenu de la fiche">
+                        {(
+                            [
+                                { id: "fiche" as const, label: "Fiche" },
+                                { id: "discord" as const, label: "Activité Discord" },
+                            ]
+                        ).map((tab) => (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={detailTab === tab.id}
+                                onClick={() => setDetailTab(tab.id)}
+                                className={cn(
+                                    "px-4 py-2.5 text-xs font-semibold transition-colors",
+                                    detailTab === tab.id
+                                        ? "border-b-2 border-foreground text-foreground"
+                                        : "border-b-2 border-transparent text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {detailTab === "discord" ? (
+                        <MemberDiscordActivity guildId={guildId} subject={subject} displayName={row.displayName} />
+                    ) : (
                     <div className="space-y-6">
                         {/* ── 1. Profil & actions ─────────────────────────────── */}
                         <section className="space-y-3">
@@ -601,6 +633,7 @@ export function MemberDetailDialog({
                             </div>
                         </section>
                     </div>
+                    )}
 
                     <DialogFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div

@@ -18,6 +18,9 @@ import { existsSync, readFileSync } from "node:fs";
 
 const LIFECYCLE = "src/server/actions/member-lifecycle-actions.ts";
 const USER_ACTIONS = "src/server/actions/user-actions.ts";
+const INTERACTIONS = "src/app/api/discord/interactions/route.ts";
+const ALERT_DIALOG_UI = "src/components/ui/alert-dialog.tsx";
+const DIALOG_UI = "src/components/ui/dialog.tsx";
 const DIALOG = "src/components/admin/members/member-detail-dialog.tsx";
 const SCHEMA = "prisma/schema.prisma";
 const MIGRATION =
@@ -125,5 +128,37 @@ describe("B-2 — le registre accepte un sujet polymorphe (profil XOR membre Dis
         expect(actions).toContain("db.memberRegistryComment.updateMany(");
         expect(actions).toContain("data: { profileId: profile.id, discordId: null }");
         expect(actions).toContain("db.memberRegistryEntry.delete(");
+    });
+
+    it("/valider-recrue complète aussi un membre hors dashboard (plus de refus)", () => {
+        const route = codeOnly(INTERACTIONS);
+
+        // Le refus « il doit se connecter au dashboard » ne doit plus exister.
+        expect(route).not.toContain("n'a pas encore de profil SigilOS dans cette guilde");
+
+        // La commande écrit sur la bonne étagère selon la nature de la recrue.
+        expect(route).toContain("db.memberRegistryEntry.upsert(");
+        expect(route).toContain("guildId_discordId: { guildId: guildConfig.id, discordId: targetId }");
+
+        // L'état d'essai se lit sur les deux étagères (profil **ou** ligne de registre).
+        expect(route).toContain("profile?.trialValidated ?? registryEntry?.trialValidated");
+        expect(route).toContain("profile?.trialEndsAt ?? registryEntry?.trialEndsAt");
+    });
+
+    it("la confirmation de suppression passe AU-DESSUS de la modale membre (sinon modale figée)", () => {
+        // z-index réel : un `AlertDialog` ouvert depuis un `Dialog` doit être au-dessus de lui,
+        // sinon il s'affiche derrière (clic sans effet) tout en rendant la page inerte.
+        const zIndexAfter = (file: string, slot: string) => {
+            const source = readFileSync(file, "utf8");
+            const index = source.indexOf(slot);
+            expect(index, slot).toBeGreaterThan(-1);
+            const match = source.slice(index).match(/z-\[(\d+)\]/);
+            expect(match, `z-index après ${slot}`).not.toBeNull();
+            return Number(match![1]);
+        };
+
+        const dialogZ = zIndexAfter(DIALOG_UI, 'data-slot="dialog-content"');
+        const alertZ = zIndexAfter(ALERT_DIALOG_UI, 'data-slot="alert-dialog-content"');
+        expect(alertZ).toBeGreaterThan(dialogZ);
     });
 });

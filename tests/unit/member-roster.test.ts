@@ -18,7 +18,9 @@ import {
     paginateRoster,
     queryRoster,
     rosterCounts,
+    rosterDashboardCounts,
     rosterRoleOptions,
+    rosterStatusCounts,
     sortRoster,
     type RosterDiscordOnlyInput,
     type RosterFilters,
@@ -183,6 +185,70 @@ describe("matchesRosterFilters", () => {
         expect(matchesRosterFilters(onlyRow, filters({ status: "ACTIVE" }))).toBe(false);
         expect(matchesRosterFilters(dashboardRow, filters({ status: "ACTIVE" }))).toBe(true);
         expect(matchesRosterFilters(dashboardRow, filters({ status: "ARCHIVED" }))).toBe(false);
+    });
+});
+
+describe("compteurs facetés — la pastille annonce ce qu'on obtient en cliquant", () => {
+    const rows = () =>
+        build({
+            profiles: [
+                profile({ profileId: "p1", userId: "u1", discordId: "111", displayName: "Wylan", status: "ACTIVE" }),
+                profile({
+                    profileId: "p2",
+                    userId: "u2",
+                    discordId: "112",
+                    displayName: "Lyphi",
+                    pseudoDofus: "Lyphi",
+                    discordNickname: "Lyphi",
+                    status: "ARCHIVED",
+                }),
+            ],
+            discordOnly: [discordOnly()],
+            rolesByProfileId: { p1: ["role-membre"], p2: ["role-chef"] },
+        });
+
+    it("les pastilles de statut suivent la recherche et le rôle actifs", () => {
+        expect(rosterStatusCounts(rows(), filters())).toEqual({ ACTIVE: 1, ARCHIVED: 1, BANNED: 0, ALL: 3 });
+        // Recherche ciblée : seules les lignes qui correspondent sont comptées.
+        expect(rosterStatusCounts(rows(), filters({ search: "Lyphi" }))).toEqual({
+            ACTIVE: 0,
+            ARCHIVED: 1,
+            BANNED: 0,
+            ALL: 1,
+        });
+        // Filtre de rôle : idem (le hors dashboard porte aussi ce rôle dans ce jeu de données).
+        expect(rosterStatusCounts(rows(), filters({ roleId: "role-membre" }))).toEqual({
+            ACTIVE: 1,
+            ARCHIVED: 0,
+            BANNED: 0,
+            ALL: 2,
+        });
+    });
+
+    it("les pastilles dashboard / hors dashboard suivent le statut actif", () => {
+        expect(rosterDashboardCounts(rows(), filters())).toEqual({ ALL: 3, DASHBOARD: 2, MISSING: 1 });
+        // Un statut précis ne peut viser qu'un profil : le hors dashboard sort du décompte.
+        expect(rosterDashboardCounts(rows(), filters({ status: "ACTIVE" }))).toEqual({
+            ALL: 1,
+            DASHBOARD: 1,
+            MISSING: 0,
+        });
+    });
+
+    it("chaque compteur égale le total obtenu en appliquant le filtre correspondant", () => {
+        const withRole = filters({ roleId: "role-membre" });
+        for (const status of ["ALL", "ACTIVE", "ARCHIVED", "BANNED"] as const) {
+            const announced = rosterStatusCounts(rows(), withRole)[status];
+            const { page } = queryRoster(rows(), { ...withRole, status }, DEFAULT_ROSTER_SORT, 1, 100);
+            expect(announced, `statut ${status}`).toBe(page.total);
+        }
+
+        const withStatus = filters({ status: "ACTIVE" });
+        for (const dashboard of ["ALL", "DASHBOARD", "MISSING"] as const) {
+            const announced = rosterDashboardCounts(rows(), withStatus)[dashboard];
+            const { page } = queryRoster(rows(), { ...withStatus, dashboard }, DEFAULT_ROSTER_SORT, 1, 100);
+            expect(announced, `inscription ${dashboard}`).toBe(page.total);
+        }
     });
 });
 

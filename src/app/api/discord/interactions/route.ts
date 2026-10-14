@@ -2651,9 +2651,15 @@ export async function POST(request: NextRequest) {
                 };
 
                 const profile = await findGuildProfile(targetId);
-                if (!profile) {
-                    return ephemeralDiscordMessage(`❌ <@${targetId}> n'a pas encore de profil SigilOS dans cette guilde : il doit se connecter au dashboard (ou être synchronisé), puis relance la commande.`);
-                }
+                // B-2 : plus besoin d'un profil dashboard pour compléter une recrue. Un membre
+                // hors dashboard a désormais sa ligne dédiée (`MemberRegistryEntry`, clé guilde +
+                // ID Discord) — on l'écrit au même titre qu'un profil.
+                const registryEntry = profile
+                    ? null
+                    : await db.memberRegistryEntry.findUnique({
+                          where: { guildId_discordId: { guildId: guildConfig.id, discordId: targetId } },
+                          select: { id: true, trialValidated: true, trialEndsAt: true },
+                      });
 
                 // Recruteur : analysé si fourni, sinon l'auteur de l'interaction (le staff)
                 let recruiterProfileId: string | null = null;
@@ -2693,8 +2699,11 @@ export async function POST(request: NextRequest) {
                     recruiterLabel = authorProfile ? authorProfile.pseudoDofus || authorProfile.discordNickname || "Toi" : null;
                 }
 
-                // Mise en essai si la recrue n'est ni validée ni déjà en essai daté.
-                const needsTrial = !profile.trialValidated && !profile.trialEndsAt;
+                // Mise en essai si la recrue n'est ni validée ni déjà en essai daté
+                // (l'état est lu sur le profil **ou** sur la ligne de registre du hors dashboard).
+                const trialValidated = profile?.trialValidated ?? registryEntry?.trialValidated ?? false;
+                const trialAlreadyDated = profile?.trialEndsAt ?? registryEntry?.trialEndsAt ?? null;
+                const needsTrial = !trialValidated && !trialAlreadyDated;
                 const trialBase = arrivalDate ?? new Date();
                 const trialEndsAt = needsTrial
                     ? new Date(trialBase.getTime() + Math.max(1, guildConfig.trialDurationDays) * 86_400_000)
@@ -2710,16 +2719,24 @@ export async function POST(request: NextRequest) {
                 const addRoleId = dashboardRoles.addRoleId;
                 const removeRoleId = dashboardRoles.removeRoleId;
 
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        pseudoDofus: rawPseudo,
-                        ...(rawAnkama ? { ankamaId: rawAnkama } : {}),
-                        guildJoinedAt: arrivalDate,
-                        ...(recruiterProfileId ? { recruitedById: recruiterProfileId } : {}),
-                        ...(needsTrial ? { trialValidated: false, trialEndsAt } : {}),
-                    },
-                });
+                const registryData = {
+                    pseudoDofus: rawPseudo,
+                    ...(rawAnkama ? { ankamaId: rawAnkama } : {}),
+                    guildJoinedAt: arrivalDate,
+                    ...(recruiterProfileId ? { recruitedById: recruiterProfileId } : {}),
+                    ...(needsTrial ? { trialValidated: false, trialEndsAt } : {}),
+                };
+
+                if (profile) {
+                    await db.userProfile.update({ where: { id: profile.id }, data: registryData });
+                } else {
+                    // Recrue hors dashboard : la ligne de registre est créée si besoin, sinon complétée.
+                    await db.memberRegistryEntry.upsert({
+                        where: { guildId_discordId: { guildId: guildConfig.id, discordId: targetId } },
+                        create: { guildId: guildConfig.id, discordId: targetId, ...registryData },
+                        update: registryData,
+                    });
+                }
 
                 // Application des rôles sur Discord
                 const { addGuildMemberRole, removeGuildMemberRole } = await import("@/server/discord");
@@ -2740,7 +2757,7 @@ export async function POST(request: NextRequest) {
                     actorName: "Discord /valider-recrue (modale)",
                     action: "SETTINGS_UPDATED",
                     targetType: "USER_PROFILE",
-                    targetId: profile.id,
+                    targetId: profile?.id ?? registryEntry?.id ?? targetId,
                     newValue: {
                         pseudoDofus: rawPseudo,
                         ankamaId: rawAnkama,
@@ -2767,9 +2784,14 @@ export async function POST(request: NextRequest) {
                         name: "Essai",
                         value: needsTrial
                             ? `démarré (${guildConfig.trialDurationDays} j)`
-                            : profile.trialValidated
+                            : trialValidated
                               ? "déjà validé"
                               : "en cours",
+                        inline: true,
+                    },
+                    {
+                        name: "Fiche",
+                        value: profile ? "Profil dashboard" : "Hors dashboard (registre)",
                         inline: true,
                     },
                     ...(roleOutcomes.length > 0
@@ -2784,7 +2806,7 @@ export async function POST(request: NextRequest) {
                             title: `✅ Ligne registre complétée — <@${targetId}>`,
                             color: 0x22C55E,
                             fields,
-                            url: `${appBaseUrl}/dashboard/${guild_id}/admin/members?tab=registre`,
+                            url: `${appBaseUrl}/dashboard/${guild_id}/admin/members`,
                             footer: { text: "SigilOS • Registre staff" },
                         }],
                         flags: 64,
@@ -3666,15 +3688,24 @@ export async function POST(request: NextRequest) {
                 };
 
                 const profile = await findGuildProfile(targetId);
-                if (!profile) {
-                    return ephemeralDiscordMessage(`❌ <@${targetId}> n'a pas encore de profil SigilOS dans cette guilde : il doit se connecter au dashboard (ou être synchronisé), puis relance la commande.`);
-                }
+                // B-2 : plus besoin d'un profil dashboard pour compléter une recrue. Sans profil,
+                // on préremplit depuis la ligne de registre (hors dashboard) si elle existe.
+                const registryEntry = profile
+                    ? null
+                    : await db.memberRegistryEntry.findUnique({
+                          where: { guildId_discordId: { guildId: guildConfig.id, discordId: targetId } },
+                          select: { pseudoDofus: true, ankamaId: true },
+                      });
 
                 // Date du jour JJ/MM/AAAA (prépopulée avec la date du jour et non la date existante, éditable)
                 const now = new Date();
                 const pad = (n: number) => n.toString().padStart(2, "0");
                 const todayFr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
-                const targetName = profile.pseudoDofus || profile.discordNickname || "Recrue";
+                const targetName =
+                    profile?.pseudoDofus ||
+                    profile?.discordNickname ||
+                    registryEntry?.pseudoDofus ||
+                    "Recrue";
 
                 return NextResponse.json({
                     type: 9, // MODAL
@@ -3694,7 +3725,7 @@ export async function POST(request: NextRequest) {
                                         required: true,
                                         min_length: 2,
                                         max_length: 30,
-                                        value: profile.pseudoDofus || "",
+                                        value: profile?.pseudoDofus || registryEntry?.pseudoDofus || "",
                                     },
                                 ],
                             },
@@ -3709,7 +3740,7 @@ export async function POST(request: NextRequest) {
                                         placeholder: "Ex: Michmich#4777",
                                         required: false,
                                         max_length: 60,
-                                        value: profile.ankamaId || "",
+                                        value: profile?.ankamaId || registryEntry?.ankamaId || "",
                                     },
                                 ],
                             },

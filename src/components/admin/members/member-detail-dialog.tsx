@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Ban, Trash2, RefreshCw, Archive, Loader2 } from "lucide-react";
+import { AlertTriangle, Ban, Trash2, RefreshCw, Archive, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -602,11 +602,29 @@ export function MemberDetailDialog({
                         </section>
                     </div>
 
-                    <DialogFooter className="flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="text-caption text-muted-foreground">
-                            {canDeleteMembers
-                                ? "La suppression définitive efface les données de guilde et ne laisse aucune exclusion."
-                                : "Suppression définitive : permission « Supprimer un profil de guilde » requise."}
+                    <DialogFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div
+                            className={cn(
+                                "rounded-md border p-3 text-xs leading-relaxed",
+                                canDeleteMembers
+                                    ? "border-danger bg-surface text-muted-foreground"
+                                    : "border-border-strong bg-surface text-muted-foreground"
+                            )}
+                        >
+                            <p
+                                className={cn(
+                                    "flex items-center gap-2 font-medium",
+                                    canDeleteMembers ? "text-danger" : "text-foreground"
+                                )}
+                            >
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {canDeleteMembers ? "Zone sensible" : "Suppression définitive désactivée"}
+                            </p>
+                            <p className="mt-1">
+                                {canDeleteMembers
+                                    ? "La suppression définitive efface les données de guilde de ce membre et ne laisse aucune exclusion : s'il revient, il repart comme un nouvel arrivant."
+                                    : "Permission « Supprimer un profil de guilde » absente de votre rôle : la suppression reste hors de portée."}
+                            </p>
                         </div>
                         {onDelete && canDeleteMembers && isDashboard && !isSelf && (
                             <AlertDialog>
@@ -618,11 +636,31 @@ export function MemberDetailDialog({
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>Supprimer définitivement ce profil ?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Le profil de {row.displayName} est supprimé pour cette guilde : ses données SigilOS
-                                            de guilde (missions, succès, progression, journal) sont effacées. Aucune exclusion
-                                            n&apos;est conservée — s&apos;il revient, il repart comme un nouvel arrivant.
+                                        <AlertDialogTitle>
+                                            Supprimer définitivement {row.displayName} ?
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription asChild>
+                                            <div className="space-y-2 text-left text-sm text-muted-foreground">
+                                                <p>
+                                                    Pour cette guilde, l&apos;action est{" "}
+                                                    <strong className="text-danger">irréversible</strong> :
+                                                </p>
+                                                <ul className="list-disc space-y-1 pl-5">
+                                                    <li>
+                                                        le profil et ses données de guilde (missions, succès, progression,
+                                                        journal) sont effacés ;
+                                                    </li>
+                                                    <li>
+                                                        <strong>aucune exclusion n&apos;est conservée</strong> — s&apos;il
+                                                        revient, il repart comme un nouvel arrivant ;
+                                                    </li>
+                                                    <li>
+                                                        {showAccountPurge
+                                                            ? "son compte plateforme n'est touché que si vous cochez la case ci-dessous (toutes ses guildes)."
+                                                            : "son compte plateforme n'est pas touché."}
+                                                    </li>
+                                                </ul>
+                                            </div>
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     {showAccountPurge && (
@@ -639,7 +677,8 @@ export function MemberDetailDialog({
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Annuler</AlertDialogCancel>
                                         <AlertDialogAction onClick={handleDelete} disabled={isPending}>
-                                            Supprimer définitivement
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                            Oui, supprimer définitivement
                                         </AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>

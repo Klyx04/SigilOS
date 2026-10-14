@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ import { AdvancedEditor } from "@/components/editor/advanced-editor";
 import {
     PRESENTATION_INTERNAL_RULES_MAX_LENGTH,
     PRESENTATION_INTERNAL_RULES_TEMPLATE,
+    hubTabAfterSave,
 } from "@/lib/presentation-rules";
 
 type Props = {
@@ -177,10 +179,16 @@ function StepHeading({ eyebrow, title, desc, asset }: { eyebrow: string; title: 
 }
 
 export function PresentationForm({ guildId }: Props) {
+    const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [isLoading, setIsLoading] = useState(true);
     const [members, setMembers] = useState<DiscordMemberOption[]>([]);
     const [stepIndex, setStepIndex] = useState(0);
+    // Destination posée par un enregistrement réussi : l'effet ci-dessous navigue une fois le
+    // render passé (sinon la garde anti-oubli voit encore le formulaire « sale » et bloque).
+    const [returnTo, setReturnTo] = useState<string | null>(null);
+    // Règlement **tel qu'il est en base** au chargement : sert à savoir s'il vient d'être écrit.
+    const rulesInDbRef = useRef<string | null>(null);
 
     // Form state
     const [enabled, setEnabled] = useState(false);
@@ -236,6 +244,8 @@ export function PresentationForm({ guildId }: Props) {
                 // Pré-rempli d'office : un règlement vide s'ouvre sur le modèle
                 // (l'admin l'adapte puis enregistre — rien n'est écrasé en base avant).
                 const loadedRules = d.internalRules || PRESENTATION_INTERNAL_RULES_TEMPLATE;
+                // La valeur **en base** (avant pré-remplissage du modèle) → sert au retour d'enregistrement.
+                rulesInDbRef.current = d.internalRules ?? null;
                 setInternalRules(loadedRules);
                 setActivities(d.activities || []);
                 setFounder(d.founder || "");
@@ -278,6 +288,15 @@ export function PresentationForm({ guildId }: Props) {
 
         loadData();
     }, [guildId]);
+
+    // Enregistrement réussi → on **quitte l'éditeur pour la vue des membres** (le règlement y a
+    // son onglet dédié). La navigation passe par un état + effet : au moment du `setReturnTo`,
+    // le snapshot vient d'être remis à zéro, donc le render suivant voit un formulaire propre et
+    // la garde anti-oubli laisse passer.
+    useEffect(() => {
+        if (!returnTo) return;
+        router.push(returnTo);
+    }, [returnTo, router]);
 
     // Handle form submission
     const handleSubmit = () => {
@@ -345,9 +364,18 @@ export function PresentationForm({ guildId }: Props) {
             const result = await updateGuildPresentation(guildId, data);
 
             if (result.success) {
-                toast.success("Présentation mise à jour");
+                // Le règlement a-t-il bougé ? Si oui, la vue des membres s'ouvre dessus.
+                const tab = hubTabAfterSave(rulesInDbRef.current, data.internalRules);
+                rulesInDbRef.current = data.internalRules ?? null;
+                toast.success(
+                    tab === "reglement"
+                        ? "Règlement enregistré — voici la vue des membres"
+                        : "Présentation mise à jour — voici la vue des membres"
+                );
                 // La sauvegarde devient la nouvelle référence → plus rien de « sale ».
                 setInitialSnapshot(currentState());
+                // L'éditeur rend la main : retour au hub, seule vue où le contenu se lit vraiment.
+                setReturnTo(`/dashboard/${guildId}/guild-hub?tab=${tab}`);
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -1233,15 +1261,15 @@ export function PresentationForm({ guildId }: Props) {
                                 ) : (
                                     <Check className="h-4 w-4" aria-hidden="true" />
                                 )}
-                                Enregistrer la page
+                                Enregistrer et voir la page
                             </button>
                         )}
                     </div>
                 </div>
                 <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
                     <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                    L&apos;enregistrement s&apos;applique à toutes les étapes d&apos;un coup — la garde
-                    anti-oubli surveille la sortie.
+                    L&apos;enregistrement applique les six étapes d&apos;un coup, puis vous ramène à la
+                    vue des membres — le règlement s&apos;y lit dans son onglet dédié.
                 </p>
             </div>
 

@@ -4,6 +4,7 @@ import {
     PRESENTATION_INTERNAL_RULES_MAX_LENGTH,
     PRESENTATION_INTERNAL_RULES_TEMPLATE,
     isInternalRulesEmpty,
+    hubTabAfterSave,
 } from "@/lib/presentation-rules";
 
 /**
@@ -22,6 +23,10 @@ import {
 
 const ACTIONS = "src/server/actions/presentation-actions.ts";
 const FORM = "src/app/dashboard/[guildId]/admin/presentation/_components/presentation-form.tsx";
+// Le règlement a sa **propre destination** dans le hub depuis le 14/10 (`?tab=reglement`) :
+// REGLEMENT porte le rendu interne, INTERNAL (onglet Présentation) ne doit plus
+// toucher au champ (jamais doublé).
+const REGLEMENT = "src/app/dashboard/[guildId]/guild-hub/_components/reglement-content.tsx";
 const INTERNAL = "src/app/dashboard/[guildId]/guild-hub/_components/presentation-content.tsx";
 const LEGACY = "src/app/dashboard/[guildId]/presentation/page.tsx";
 const PUBLIC_VIEW = "src/app/guilds/[guildId]/_components/guild-public-view.tsx";
@@ -100,11 +105,14 @@ describe("règlement intérieur — cloisonnement public", () => {
         expect(read(PUBLIC_VIEW)).not.toContain("internalRules");
     });
 
-    it("rendu interne : guild-hub affiche le règlement assaini + mention interne", () => {
-        const src = read(INTERNAL);
-        expect(src).toContain("guild.internalRules");
-        expect(src).toContain("DocContent");
-        expect(src).toContain("Invisible de l");
+    it("rendu interne : destination unique (onglet règlement, jamais doublé dans Présentation)", () => {
+        // L'onglet dédié rend le HTML assaini ; la fiche Présentation ne touche
+        // plus au champ (découpe de l'agent parallèle — ce verrou suit la structure).
+        const dedicated = read(REGLEMENT);
+        expect(dedicated).toContain("guild.internalRules");
+        expect(dedicated).toContain("DocContent");
+        expect(dedicated).toContain("Invisible de l");
+        expect(read(INTERNAL)).not.toContain("internalRules");
     });
 
     it("rendu interne : la page dashboard affiche aussi le règlement (édition seule si vide)", () => {
@@ -138,5 +146,36 @@ describe("règlement intérieur — édition intuitive", () => {
         const src = read(FORM);
         expect(src).toContain("internalRules: internalRules.trim()");
         expect(src).toContain("history, internalRules, activities");
+    });
+
+    it("formulaire : l'enregistrement rend la main à la vue des membres", () => {
+        const src = read(FORM);
+        // Le bouton annonce la sortie, la destination est le hub — jamais un second écran de lecture.
+        expect(src).toContain("Enregistrer et voir la page");
+        expect(src).toContain("setReturnTo(`/dashboard/${guildId}/guild-hub?tab=");
+        // Navigation différée en effet : au moment du `setReturnTo`, le snapshot vient d'être
+        // remis à zéro — sans ce décalage la garde anti-oubli intercepterait la sortie.
+        expect(src).toMatch(/useEffect\(\(\) => \{\s*if \(!returnTo\) return;\s*router\.push\(returnTo\);/);
+        // Le formulaire compare au règlement **en base**, pas au modèle pré-rempli.
+        expect(src).toContain("rulesInDbRef.current");
+    });
+});
+
+describe("règlement intérieur — retour à la vue des membres", () => {
+    it("règlement retouché → on atterrit sur son onglet dédié", () => {
+        expect(hubTabAfterSave("<p>avant</p>", "<p>après</p>")).toBe("reglement");
+        expect(hubTabAfterSave(null, "<p>écrit pour la première fois</p>")).toBe("reglement");
+        // Cas réel : la guilde n'a jamais rien écrit, l'admin valide le modèle d'office. En base
+        // c'est un passage vide → HTML : les membres voient enfin des règles, on les montre.
+        expect(hubTabAfterSave(null, PRESENTATION_INTERNAL_RULES_TEMPLATE)).toBe("reglement");
+    });
+
+    it("règlement intact (ou absent des deux côtés) → onglet Présentation", () => {
+        const rules = "<h2>Règles</h2><p>Texte</p>";
+        expect(hubTabAfterSave(rules, rules)).toBe("presentation");
+        expect(hubTabAfterSave(null, null)).toBe("presentation");
+        expect(hubTabAfterSave(undefined, "")).toBe("presentation");
+        // Espaces parasites ≠ une réécriture.
+        expect(hubTabAfterSave("<p>x</p>  ", "<p>x</p>")).toBe("presentation");
     });
 });

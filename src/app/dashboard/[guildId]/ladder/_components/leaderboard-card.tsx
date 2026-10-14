@@ -7,6 +7,7 @@ import { discordAvatarErrorFallback, extractUserIdFromAvatarUrl, getDefaultDisco
 import { Crown, ShieldCheck, User, Zap, Ghost, Utensils, Coffee, Plane, Clock, Umbrella } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getClass } from "@/lib/dofus-assets";
+import { DISCORD_PRESENCE_LABELS } from "@/lib/ladder-presence";
 
 type Props = {
     entry: LadderEntry;
@@ -84,6 +85,10 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
     // 0-value "Tourist" / "Bad Student" logic
     // We don't apply it to the General ladder (total XP) because 0 is normal for new characters
     const isTourist = !isGeneral && entry.value === 0;
+    // Onglet Discord : le profil de présence parle à la place du blâme
+    // (« Mauvais Élève » rouge) — intention « voir qui vit ici », pas punir.
+    const presenceProfile = entry.presenceProfile ?? null;
+    const showTourist = isTourist && !presenceProfile;
     const dofusClass = entry.classe ? getClass(entry.classe) : null;
 
     return (
@@ -197,11 +202,20 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                         <div className={cn("text-body font-black tracking-tight uppercase", isTop3 ? "text-foreground" : colors.valueText)}>
                             {valueLabel}
                         </div>
-                        {isTourist ? (
+                        {presenceProfile ? (
+                            <div
+                                className="flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full border border-border bg-surface text-muted-foreground"
+                                title={entry.presenceNote ?? DISCORD_PRESENCE_LABELS[presenceProfile]}
+                            >
+                                <span className="text-caption font-semibold uppercase tracking-widest leading-none">
+                                    {DISCORD_PRESENCE_LABELS[presenceProfile]}
+                                </span>
+                            </div>
+                        ) : showTourist ? (
                             <div className={cn(
                                 "flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full border",
-                                entry.isInVacation 
-                                    ? "bg-info/10 border-info/20 text-info" 
+                                entry.isInVacation
+                                    ? "bg-info/10 border-info/20 text-info"
                                     : "bg-danger/10 border-danger/20 text-danger"
                             )}>
                                 {entry.isInVacation ? (

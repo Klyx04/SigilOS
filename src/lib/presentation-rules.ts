@@ -28,3 +28,25 @@ export function isInternalRulesEmpty(html: string | null | undefined): boolean {
         .trim();
     return text.length === 0;
 }
+
+/**
+ * Destination après un enregistrement de la page de guilde.
+ *
+ * L'éditeur fait son travail puis **rend la main** : on revient à la vue des membres (le hub),
+ * jamais on ne reste sur un formulaire de six étapes. Le règlement y a son onglet dédié
+ * (`?tab=reglement`) : s'il vient d'être posé ou retouché, on atterrit dessus — c'est la seule
+ * raison pour laquelle un admin réécrit ces règles, il veut les relire telles que les membres
+ * les verront.
+ *
+ * Comparaison sur la valeur réellement **en base** avant l'enregistrement (pas sur l'état du
+ * formulaire, pré-rempli du modèle quand la guilde n'a encore rien écrit) : une base vide qui
+ * reçoit le modèle est un vrai changement, et mène donc au règlement.
+ */
+export function hubTabAfterSave(
+    rulesBefore: string | null | undefined,
+    rulesAfter: string | null | undefined,
+): "reglement" | "presentation" {
+    const before = (rulesBefore ?? "").trim();
+    const after = (rulesAfter ?? "").trim();
+    return before === after ? "presentation" : "reglement";
+}

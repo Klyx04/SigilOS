@@ -6,6 +6,16 @@ import { db } from "@/lib/prisma";
 import { z } from "zod";
 import { withCache } from "@/lib/cache";
 import { applyLadderSearch } from "@/lib/ladder-utils";
+import {
+    computeDiscordPresenceStats,
+    describePresenceProfile,
+    matchPresenceFilter,
+    resolveDiscordPresenceProfile,
+    type DiscordPresenceProfile,
+    type DiscordPresenceStats,
+    type PresenceCounters,
+    type PresencePeriod,
+} from "@/lib/ladder-presence";
 
 // ============================================================================
 // TYPES
@@ -35,6 +45,10 @@ export type LadderEntry = {
     averageScore?: number;
     jardinCount?: number;
     gigalodonCount?: number;
+    /** Onglet Discord : profil de présence (badge neutre, jamais un blâme). */
+    presenceProfile?: DiscordPresenceProfile;
+    /** Phrase exacte du badge (transparence : règle + seuil + période). */
+    presenceNote?: string;
 };
 
 export type LadderResponse = {
@@ -60,7 +74,8 @@ export async function getPresenceLadder(
     view: ActivityView = "weekly",
     page: number = 1,
     pageSize: number = 25,
-    search: string = ""
+    search: string = "",
+    presence: string = "all"
 ): Promise<ActionResponse<LadderResponse>> {
     try {
         const session = await auth();
@@ -82,7 +97,9 @@ export async function getPresenceLadder(
             .filter(([_, perms]) => perms.includes("admin:access"))
             .map(([rid, _]) => rid));
 
-        const cacheKey = `ladder:presence:${guildId}:${metric}:${view}`;
+        // v2 : la charge utile porte désormais les compteurs de présence
+        // (l'ancien cache sans profil fausserait le filtre 5 min après déploiement).
+        const cacheKey = `ladder:presence:v2:${guildId}:${metric}:${view}`;
         const allRankedData = await withCache(cacheKey, 300, async () => {
             // Determine field name based on metric and view
             let field: string;
@@ -128,6 +145,19 @@ export async function getPresenceLadder(
                     vacationStart: true,
                     vacationEnd: true,
                     [field]: true,
+                    // Compteurs de présence (profils + filtre) : jeu fixe,
+                    // indépendant de la métrique triée (aucune migration).
+                    discordVoiceTimeWeekly: true,
+                    discordVoiceTimeMonthly: true,
+                    discordVoiceTimeTotal: true,
+                    discordMessageCountTotal: true,
+                    discordCharactersTotal: true,
+                    discordRepliesTotal: true,
+                    discordReactionsReceivedTotal: true,
+                    discordVoiceStreamTimeTotal: true,
+                    lastDiscordMessageAt: true,
+                    lastDiscordVoiceAt: true,
+                    lastDiscordReactionAt: true,
                     user: { select: { image: true } },
                 },
                 orderBy: {
@@ -138,6 +168,20 @@ export async function getPresenceLadder(
             const now = new Date();
             return activeProfiles.map((p: any, idx) => {
                 const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= (p.vacationStart as any) && now <= (p.vacationEnd as any));
+                const period = view as PresencePeriod;
+                const counters: PresenceCounters = {
+                    voiceWeekly: p.discordVoiceTimeWeekly || 0,
+                    voiceMonthly: p.discordVoiceTimeMonthly || 0,
+                    voiceTotal: p.discordVoiceTimeTotal || 0,
+                    messagesTotal: p.discordMessageCountTotal || 0,
+                    charactersTotal: p.discordCharactersTotal || 0,
+                    repliesTotal: p.discordRepliesTotal || 0,
+                    reactionsReceivedTotal: p.discordReactionsReceivedTotal || 0,
+                    streamTotal: p.discordVoiceStreamTimeTotal || 0,
+                    lastMessageAt: p.lastDiscordMessageAt || null,
+                    lastVoiceAt: p.lastDiscordVoiceAt || null,
+                    lastReactionAt: p.lastDiscordReactionAt || null,
+                };
                 return {
                     rank: idx + 1,
                     profileId: p.id,
@@ -148,17 +192,26 @@ export async function getPresenceLadder(
                     classe: p.classe,
                     value: (p as any)[field] || 0,
                     isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
-                    isInVacation
+                    isInVacation,
+                    presenceProfile: resolveDiscordPresenceProfile(counters, period),
+                    presenceNote: describePresenceProfile(resolveDiscordPresenceProfile(counters, period), period),
+                    // Compteurs internes au filtre (retirés avant envoi au client).
+                    presenceCounters: counters,
                 };
             });
         });
 
-        const rankedData = applyLadderSearch(allRankedData, search);
+        const rankedData = applyLadderSearch(allRankedData, search).filter((item: any) =>
+            matchPresenceFilter((item as any).presenceCounters as PresenceCounters, presence, view as PresencePeriod)
+        );
         const totalCount = rankedData.length;
-        const paginatedData = rankedData.slice(skip, skip + pageSize).map((item: any) => ({
-            ...item,
-            isCurrentUser: item.profileId === currentProfile?.id
-        }));
+        const paginatedData = rankedData.slice(skip, skip + pageSize).map((item: any) => {
+            const { presenceCounters: _omit, ...rest } = item;
+            return {
+                ...rest,
+                isCurrentUser: item.profileId === currentProfile?.id
+            };
+        });
 
         return {
             success: true,
@@ -171,6 +224,70 @@ export async function getPresenceLadder(
         };
     } catch (error) {
         logger.error("Presence Ladder Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * Compteurs de présence Discord d'une guilde (bandeau de l'onglet Discord :
+ * « en vocal cette semaine », habitués, jamais en vocal, sans interaction).
+ * Mêmes compteurs que le filtre, même cache court (300 s).
+ */
+export async function getDiscordPresenceStats(
+    guildId: string,
+    view: ActivityView = "weekly"
+): Promise<ActionResponse<DiscordPresenceStats>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const period = view as PresencePeriod;
+        const stats = await withCache(`ladder:presence-stats:v1:${guildId}:${view}`, 300, async () => {
+            const profiles = await db.userProfile.findMany({
+                where: { guildId: guildConfig.id, status: "ACTIVE" },
+                select: {
+                    discordVoiceTimeWeekly: true,
+                    discordVoiceTimeMonthly: true,
+                    discordVoiceTimeTotal: true,
+                    discordMessageCountTotal: true,
+                    discordCharactersTotal: true,
+                    discordRepliesTotal: true,
+                    discordReactionsReceivedTotal: true,
+                    discordVoiceStreamTimeTotal: true,
+                    lastDiscordMessageAt: true,
+                    lastDiscordVoiceAt: true,
+                    lastDiscordReactionAt: true,
+                },
+            });
+            return computeDiscordPresenceStats(
+                profiles.map(
+                    (p): PresenceCounters => ({
+                        voiceWeekly: p.discordVoiceTimeWeekly || 0,
+                        voiceMonthly: p.discordVoiceTimeMonthly || 0,
+                        voiceTotal: p.discordVoiceTimeTotal || 0,
+                        messagesTotal: p.discordMessageCountTotal || 0,
+                        charactersTotal: p.discordCharactersTotal || 0,
+                        repliesTotal: p.discordRepliesTotal || 0,
+                        reactionsReceivedTotal: p.discordReactionsReceivedTotal || 0,
+                        streamTotal: p.discordVoiceStreamTimeTotal || 0,
+                        lastMessageAt: p.lastDiscordMessageAt || null,
+                        lastVoiceAt: p.lastDiscordVoiceAt || null,
+                        lastReactionAt: p.lastDiscordReactionAt || null,
+                    })
+                ),
+                period
+            );
+        });
+
+        return { success: true, data: stats };
+    } catch (error) {
+        logger.error("Presence Stats Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

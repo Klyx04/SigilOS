@@ -5,10 +5,10 @@ import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Sparkles, BookOpen, BarChart3, MessageSquare } from "lucide-react";
+import { Sparkles, MessageSquare } from "lucide-react";
 import { getGuildPresentation } from "@/server/actions/presentation-actions";
-import { db } from "@/lib/prisma";
 import PresentationContent from "./_components/presentation-content";
+import ReglementContent from "./_components/reglement-content";
 import { getWelcomePosts } from "@/server/actions/onboarding-admin-actions";
 import { WelcomeFeedClient } from "../welcome/_components/welcome-feed-client";
 import { GuildHubTabs } from "./_components/guild-hub-tabs";
@@ -52,12 +52,13 @@ export default async function GuildHubPage({ params, searchParams }: Props) {
                     initialTab={initialTab}
                     canViewWelcome={!!user.canViewWelcome}
                     canViewPresentation={!!user.canViewPresentation}
+                    canViewRules={!!user.canViewPresentation}
                 />
 
                 {/* --- Welcome Tab --- */}
                 {user.canViewWelcome && (
-                    <TabsContent value="welcome" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
-                        <Suspense fallback={<div className="h-64 rounded-2xl bg-surface animate-pulse" />}>
+                    <TabsContent value="welcome" className="mt-6 border-none p-0 outline-none">
+                        <Suspense fallback={<div className="h-64 rounded-lg border border-border-strong bg-surface" />}>
                             <WelcomeTabContent guildId={guildId} user={user} />
                         </Suspense>
                     </TabsContent>
@@ -65,9 +66,18 @@ export default async function GuildHubPage({ params, searchParams }: Props) {
 
                 {/* --- Presentation Tab --- */}
                 {user.canViewPresentation && (
-                    <TabsContent value="presentation" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
-                        <Suspense fallback={<div className="h-64 rounded-2xl bg-surface animate-pulse" />}>
+                    <TabsContent value="presentation" className="mt-6 border-none p-0 outline-none">
+                        <Suspense fallback={<div className="h-64 rounded-lg border border-border-strong bg-surface" />}>
                             <PresentationTabContent guildId={guildId} user={user} />
+                        </Suspense>
+                    </TabsContent>
+                )}
+
+                {/* --- Règlement Tab (contenu interne, membres connectés uniquement) --- */}
+                {user.canViewPresentation && (
+                    <TabsContent value="reglement" className="mt-6 border-none p-0 outline-none">
+                        <Suspense fallback={<div className="h-64 rounded-lg border border-border-strong bg-surface" />}>
+                            <ReglementTabContent guildId={guildId} user={user} />
                         </Suspense>
                     </TabsContent>
                 )}
@@ -109,4 +119,13 @@ async function PresentationTabContent({ guildId, user }: { guildId: string, user
     if (!guild) return null;
 
     return <PresentationContent guild={guild} user={user} guildId={guildId} />;
+}
+
+async function ReglementTabContent({ guildId, user }: { guildId: string, user: any }) {
+    // `false` = contexte **interne** : c'est le seul appel qui fait remonter `internalRules`
+    // (le rendu public, lui, reçoit `internalRules: null` par construction).
+    const guild = await getGuildPresentation(guildId, false);
+    if (!guild) return null;
+
+    return <ReglementContent guild={guild} user={user} guildId={guildId} />;
 }

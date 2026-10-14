@@ -16,6 +16,7 @@ import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import { PresenceManager } from "@/lib/presence";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
 import { buildDiscordAvatarUrl, buildGuildAvatarUrl, isDiscordAvatarUrl } from "@/lib/discord-avatars";
+import { resolveIsMember } from "@/lib/guild-membership";
 
 import { redis } from "@/lib/redis";
 import { isCompleteCachedGuildConfig } from "@/lib/guild-config-cache";
@@ -848,6 +849,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // --- NON-MEMBER CHECK (Not on Discord and not already handled) ---
     // RESILIENCE: If fetchGuildMember failed due to Discord API issue (rate-limit, timeout),
     // but the user has an active profile in the DB, we trust the DB and don't block them.
+    // Effectif en projection finale via `resolveIsMember` (le fall-through seul
+    // ne suffisait pas : `isMember` y était recalculé à `false`).
     if (!member && profile && profile.status === "ACTIVE" && memberFetchFailed) {
         // Discord API errored, but DB says user is active — trust DB, fall through to RBAC
         logger.warn(`[UserContext] Discord API error for known active member ${discordUserId} — falling back to DB`);
@@ -1314,7 +1317,15 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         isFirstAdminForGuild,
         isDiscordAdmin: !!(hasDiscordAdmin || isGod),
         isSuperAdmin: !!isGod,
-        isMember: !!member,
+        // Résilience panne Discord : un membre connu et ACTIF en base reste
+        // membre sur erreur API (repli BDD) ; un 404 (kick/départ) bloque
+        // toujours — règle pure `resolveIsMember`, fail-closed préservé.
+        isMember: resolveIsMember({
+            memberPresent: !!member,
+            isGod,
+            memberFetchFailed,
+            hasKnownActiveProfile,
+        }),
         isTimedOut,
         timedOutUntil,
         hasPseudoIssue: !profile?.pseudoDofus || profile.pseudoDofus.startsWith("Voyageur"),
@@ -1401,7 +1412,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // Ne JAMAIS mettre en cache un contexte incomplet (onboarding non terminé) :
     // sinon un "isOnboardingComplete: false" transitoire resterait actif 60s
     // même après que l'admin ait fini la configuration de la guilde.
-    const isDeniedContext = !finalContext.isAuthenticated || !finalContext.canViewDashboard || !finalContext.isOnboardingComplete;
+    // Ni un verdict `isMember: false` : un flake Discord d'une seconde
+    // verrouillerait sinon le membre 60 s (« Accès Restreint » fantôme).
+    const isDeniedContext = !finalContext.isAuthenticated || !finalContext.canViewDashboard || !finalContext.isOnboardingComplete || !finalContext.isMember;
     if (!isDeniedContext) {
         await redis.set(redisKey, JSON.stringify(finalContext), "EX", REDIS_CACHE_TTL_SEC).catch(() => { });
     }

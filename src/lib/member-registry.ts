@@ -75,12 +75,20 @@ export function hasPseudoDiscordMismatch(
 
 const DAY_MS = 86_400_000;
 
-/** Date d'arrivée retenue : la saisie manuelle, sinon la création du profil. */
+/**
+ * Date d'arrivée retenue, dans cet ordre : la saisie manuelle (`guildJoinedAt`), la date
+ * d'arrivée **Discord** (`discordJoinedAt`, mesurée par le bot), la création du profil.
+ *
+ * Pourquoi la date Discord : un profil créé à la première visite du dashboard peut être
+ * **bien plus récent** que l'arrivée réelle dans la guilde ; s'en servir seule ferait perdre
+ * des mois d'ancienneté (rôles par ancienneté, chantier Y).
+ */
 export function resolveJoinedAt(input: {
     guildJoinedAt?: string | null;
+    discordJoinedAt?: string | null;
     createdAt: string;
 }): string {
-    return input.guildJoinedAt ?? input.createdAt;
+    return input.guildJoinedAt ?? input.discordJoinedAt ?? input.createdAt;
 }
 
 /** Ancienneté en jours calendaires, jamais négative. */

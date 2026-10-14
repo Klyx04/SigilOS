@@ -468,6 +468,7 @@ model GuildConfig {
   sigilRoles                       SigilRole[]
   profiles                         UserProfile[]
   memberRegistryEntries            MemberRegistryEntry[]
+  seniorityRoleAnnouncements       SeniorityRoleAnnouncement[]
   vaultEntries                     VaultEntry[]
   allowedPingRoleIds               String[]                @default([])
   calendarPingRoleIds              String[]                @default([])
@@ -515,6 +516,9 @@ model GuildConfig {
   seniorityRolesChannelId          String?
   seniorityRolesTiers              Json                    @default("[]")
   seniorityRolesAnnouncement       Json?
+  /// Instant d'activation du module (lot Y-2) : il sépare un franchissement de palier
+  /// « à venir » (à fêter) d'un rattrapage (marqué sans être posté).
+  seniorityRolesActivatedAt        DateTime?
   // ── Module « Marché » (chantier 2026-09-10) — réglages par guilde (§9.1) ──
   // Toutes les valeurs sont lues côté serveur, jamais depuis un paramètre client.
   marketNotifyChannelId            String?  // salon de publication (texte / annonces / forum)
@@ -886,6 +890,23 @@ model MemberRegistryEntry {
   @@unique([guildId, discordId])
   @@index([guildId])
   @@index([discordId])
+}
+
+/// Chantier Y (lot Y-2) — palier d'ancienneté **déjà fêté** pour un membre : une ligne par
+/// couple (membre, seuil), jamais deux. Le RÔLE n'a pas besoin d'être tracé (le diff compare
+/// aux rôles réellement portés sur Discord) : cette table ne sert qu'à l'annonce.
+model SeniorityRoleAnnouncement {
+  id          String      @id @default(cuid())
+  guildId     String
+  discordId   String
+  /// Seuil du palier, en jours — et **non** l'index du palier : ajouter ou réordonner un
+  /// palier ne rejoue donc aucune ancienne annonce.
+  tierDays    Int
+  announcedAt DateTime    @default(now())
+  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, discordId, tierDays])
+  @@index([guildId])
 }
 
 model LegendaryItem {

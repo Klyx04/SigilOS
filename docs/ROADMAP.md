@@ -1290,9 +1290,13 @@ un même `ok` : ce sont deux causes opposées (attente vs échec), la distinctio
 > les Membres »** (doublon du cron `/api/cron/sync-members`, présent aussi dans Réglages).
 > Gardes : `tests/unit/member-roster.test.ts`, `registre-membres-b2.test.ts`,
 > `rbac-suppression-membre.test.ts`, `deslop-membres.test.ts`.
+> **Reprise livrée** : à la première connexion d'un membre hors dashboard, sa ligne de registre est
+> reportée sur son `UserProfile` (identité, tag Ankama, date d'arrivée, recruteur, essai, mules), ses
+> commentaires basculent sur le profil et la ligne est libérée — aucune saisie du staff ne disparaît.
 > **Reste** : jouer la migration `20270105000000_add_member_registry_entry` en **bêta puis prod** ·
-> mettre à jour la page de doc **vivante** `admin-members` via `/god/docs` · reprise d'une ligne de
-> registre vers le profil quand un membre hors dashboard s'inscrit.
+> mettre à jour la page de doc **vivante** `admin-members` via `/god/docs`.
+> ⚠️ Après une migration + `prisma generate`, **redémarrer `npm run dev`** : un serveur déjà lancé
+> garde l'ancien client Prisma et les `select` sur un champ neuf échouent.
 > ⚠️ `npm run seed:docs` **n'existe pas** : `src/lib/docs-catalog.ts` est une **référence figée**,
 > la page de doc **vivante** s'édite en base via `/god/docs` (à faire côté humain).
 

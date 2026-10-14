@@ -986,6 +986,14 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
         if (!profile) {
             try {
+                // B-2 : le staff a pu remplir une ligne de registre **avant** l'inscription
+                // (pseudo Dofus, tag Ankama, date d'arrivée, recruteur, essai, mules). Sans reprise,
+                // ces informations resteraient invisibles : l'affichage donne la priorité au profil,
+                // qui naîtrait vide. On les reporte donc sur le profil, puis on libère la ligne.
+                const registryEntry = await db.memberRegistryEntry.findUnique({
+                    where: { guildId_discordId: { guildId: guildConfig.id, discordId: discordUserId } },
+                });
+
                 profile = await db.userProfile.create({
                     data: {
                         userId: session.user.id,
@@ -996,8 +1004,34 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         discordJoinedAt: joinedAt,
                         discordCacheUpdatedAt: now,
                         lastActivityAt: now,
+                        ...(registryEntry
+                            ? {
+                                pseudoDofus: registryEntry.pseudoDofus,
+                                ankamaId: registryEntry.ankamaId,
+                                guildJoinedAt: registryEntry.guildJoinedAt,
+                                recruitedById: registryEntry.recruitedById,
+                                trialValidated: registryEntry.trialValidated,
+                                trialEndsAt: registryEntry.trialEndsAt,
+                                altPseudos: registryEntry.altPseudos ?? undefined,
+                            }
+                            : {}),
                     }
                 });
+
+                if (registryEntry) {
+                    // Les commentaires du staff suivent la fiche : ils visent désormais le profil
+                    // (le schéma interdit les deux cibles à la fois — on bascule, on ne duplique pas).
+                    try {
+                        await db.memberRegistryComment.updateMany({
+                            where: { guildId: guildConfig.id, discordId: discordUserId },
+                            data: { profileId: profile.id, discordId: null },
+                        });
+                        await db.memberRegistryEntry.delete({ where: { id: registryEntry.id } });
+                    } catch (e) {
+                        // Non bloquant : le profil est créé et porte déjà les informations reportées.
+                        logger.error("[UserContext] Reprise du registre impossible:", e);
+                    }
+                }
 
                 // Invalidation du cache membre/rôles Discord pour que le rôle
                 // octroyé au membre soit pris en compte immédiatement (évite le

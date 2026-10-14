@@ -9,7 +9,7 @@ description: Chantier Y — rôles automatiques par ancienneté : besoin, état 
 > d'exécution (c'est `docs/plans/FILE-EXECUTION.md`, étape 59) ni le fil des demandes
 > (`docs/plans/BRIEF-REPRISE.md` §3).
 > Référence produit : module « **Autoroles** » de **Dyno**. Cadrage : 14/10/2026.
-> **Statut : chantier ✅ CLOS** — **Y-1, Y-2 et Y-3 livrés** (14/10/2026). Voir §6.
+> **Statut : chantier ✅ CLOS** — **Y-1, Y-2, Y-3 et Y-4 livrés** (14/10/2026). Voir §6.
 
 ---
 
@@ -123,6 +123,24 @@ télémétrie `recordCronExecution("seniority_roles", …)`), déclarée dans `K
 **Invariants tenus** : membre inconnu de Discord ⇒ ignoré ; rôle non déclaré ⇒ jamais touché ;
 échec de pose ⇒ **aucune annonce** ; aucun salon ⇒ rôles seuls ; jeton manquant ⇒ arrêt immédiat.
 
+### Y-4 ✅ — « Prochains paliers » (livré le 14/10/2026)
+
+**Demande user (verbatim)** : « ajoute aussi dans ce module ancienneté un onglet pour voir qui va bientôt
+basculer de rôle pour le staff juste informatif propre responsive etc ».
+
+**Règle pure** (`src/lib/seniority-roles.ts`) : `resolveUpcomingTierChange({ tiers, seniorityDays })` →
+`{ tierIndex, tierDays, daysUntil }` du **prochain palier non franchi**, `null` quand tous le sont ;
+comme les autres règles, elle compare les **seuils** (l'ordre reçu ne change rien). Fenêtre affichée :
+`SENIORITY_UPCOMING_WINDOW_DAYS = 30`.
+
+**Côté serveur** (`getSeniorityRolesSettings`) : la **même** lecture des membres actifs alimente la liste
+(`upcoming`, triée du plus proche au plus lointain puis par pseudo, **plafonnée à 25** avec `upcomingTotal`) —
+aucune requête supplémentaire, aucune écriture, rien d'annoncé : c'est une **vue**.
+
+**Côté écran** : section « Prochains paliers » dans l'onglet Membres → **tableau sur desktop, cartes en
+dessous de `md`** (avatar, ancienneté lisible, palier visé, « dans X j »), badge du nombre, état vide clair,
+et « N affichés sur M » quand la liste est plafonnée. **Aucun bouton, aucun champ** : purement informatif.
+
 ### Y-3 ✅ — onglet, éditeur, aperçu (livré le 14/10/2026)
 
 **Action serveur** — `src/server/actions/seniority-roles-actions.ts` :
@@ -173,6 +191,12 @@ jamais déplacé, jamais posé module éteint), lecture (refus sans permission, 
 requête, télémétrie muette non bloquante) et câblage (aperçu = même rendu, onglet gardé, `?tab=`,
 salon déclaré dans les deux listes du veilleur).
 
+**Verrou de Y-4** — `tests/unit/seniority-roles-upcoming.test.ts`, **11 cas** : règle pure (prochain
+palier non franchi, `null` quand tout est passé, indépendance à l'ordre reçu, ancienneté absurde bornée),
+liste serveur (fenêtre de 30 jours, tri proche→lointain puis pseudo, plafond 25 avec total, liste vide
+sans palier) et écran (section présente, fenêtre lue depuis la règle, tableau desktop + cartes mobile,
+**aucun bouton ni champ** : vue, pas formulaire).
+
 **Acceptation du chantier** (vérifiée au fil des lots) :
 - un membre qui franchit un seuil **reçoit ses rôles** ; l'embed part **une seule fois** (cron relancé = rien de plus) ;
 - un membre **hors** mapping de guilde ne reçoit rien (fail-closed) ;
@@ -188,6 +212,7 @@ salon déclaré dans les deux listes du veilleur).
 | **Y-1** — données + règles pures | ✅ **livré le 14/10/2026** (PR #964) | `tests/unit/seniority-roles.test.ts` (**26 cas**) · `src/lib/seniority-roles.ts` · 4 colonnes `GuildConfig` + migration additive `20270107000000_add_seniority_roles_config` |
 | **Y-2** — cron + embed | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-cron.test.ts` (**24 cas**) · `src/server/seniority-roles-core.ts` + `src/app/api/cron/seniority-roles/route.ts` · `GuildConfig.seniorityRolesActivatedAt` + table `SeniorityRoleAnnouncement` (migration `20270108000000_add_seniority_role_announcements`) · tâche déclarée (`KNOWN_CRON_TASKS`) + ligne de crontab documentée |
 | **Y-3** — onglet + éditeur + aperçu | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-ui.test.ts` (**16 cas**) · `seniority-roles-actions.ts` + `seniority-roles-panel.tsx` + 3ᵉ onglet de `/admin/members` (`?tab=anciennete`) · salon déclaré dans la veille des canaux |
+| **Y-4** — vue « Prochains paliers » | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-upcoming.test.ts` (**11 cas**) · règle pure `resolveUpcomingTierChange` + fenêtre `SENIORITY_UPCOMING_WINDOW_DAYS` · liste serveur (même requête, plafond 25) · section responsive dans l'onglet Membres (tableau desktop / cartes mobile), **aucune action** |
 
 **Ops (côté humain)** :
 - [ ] jouer les migrations `20270107000000_add_seniority_roles_config` **puis**

@@ -19,6 +19,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,11 +41,13 @@ import {
     SENIORITY_ANNOUNCEMENT_VARIABLES,
     SENIORITY_ROLES_MAX_DAYS,
     SENIORITY_ROLES_MIN_DAYS,
+    SENIORITY_UPCOMING_WINDOW_DAYS,
     buildSeniorityAnnouncementValues,
     renderSeniorityAnnouncement,
     type SeniorityThumbnailSource,
 } from "@/lib/seniority-roles";
 import { buildDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/discord-avatars";
+import { formatSeniority } from "@/lib/ladder-utils";
 
 /** Valeurs de démonstration de l'aperçu : aucun membre réel, aucune donnée de guilde inventée. */
 const SAMPLE_DISCORD_ID = "123456789012345678";
@@ -558,6 +561,111 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                     mentionContent={preview.content}
                                 />
                             </div>
+                        </div>
+
+                        {/* ── Prochains paliers (informatif, staff) ─────────────── */}
+                        <div className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                                        Prochains paliers
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Qui change de rôle dans les {SENIORITY_UPCOMING_WINDOW_DAYS} prochains jours —
+                                        informatif, rien n&apos;est déclenché ici.
+                                    </p>
+                                </div>
+                                <Badge variant="secondary" className="font-normal">
+                                    {data?.upcomingTotal ?? 0}
+                                </Badge>
+                            </div>
+
+                            {!data || data.upcoming.length === 0 ? (
+                                <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                                    Personne ne franchit de palier dans les {SENIORITY_UPCOMING_WINDOW_DAYS} prochains
+                                    jours.
+                                </p>
+                            ) : (
+                                <>
+                                    {/* Desktop : tableau sobre */}
+                                    <div className="hidden overflow-hidden rounded-xl border border-border md:block">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-surface text-xs uppercase tracking-wide text-muted-foreground">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left font-medium">Membre</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Ancienneté</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Palier visé</th>
+                                                    <th className="px-3 py-2 text-right font-medium">Dans</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {data.upcoming.map((member) => (
+                                                    <tr
+                                                        key={`${member.displayName}-${member.tierDays}`}
+                                                        className="border-t border-border"
+                                                    >
+                                                        <td className="px-3 py-2">
+                                                            <span className="flex items-center gap-2">
+                                                                <Avatar className="h-6 w-6">
+                                                                    <AvatarImage src={member.avatarUrl ?? undefined} alt="" />
+                                                                    <AvatarFallback>
+                                                                        {member.displayName.slice(0, 1).toUpperCase()}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <span className="truncate">{member.displayName}</span>
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-muted-foreground">
+                                                            {formatSeniority(member.seniorityDays)}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-muted-foreground">
+                                                            {member.tierDays} jours
+                                                        </td>
+                                                        <td className="px-3 py-2 text-right font-medium text-foreground">
+                                                            {member.daysUntil === 0 ? "aujourd'hui" : `${member.daysUntil} j`}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Mobile : cartes */}
+                                    <div className="space-y-2 md:hidden">
+                                        {data.upcoming.map((member) => (
+                                            <div
+                                                key={`${member.displayName}-${member.tierDays}`}
+                                                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3"
+                                            >
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={member.avatarUrl ?? undefined} alt="" />
+                                                    <AvatarFallback>
+                                                        {member.displayName.slice(0, 1).toUpperCase()}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-sm text-foreground">
+                                                        {member.displayName}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        palier {member.tierDays} j ·{" "}
+                                                        {member.daysUntil === 0
+                                                            ? "aujourd'hui"
+                                                            : `dans ${member.daysUntil} j`}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {data.upcomingTotal > data.upcoming.length && (
+                                        <p className="text-xs text-muted-foreground">
+                                            {data.upcoming.length} affichés sur {data.upcomingTotal} (les plus proches
+                                            d&apos;abord).
+                                        </p>
+                                    )}
+                                </>
+                            )}
                         </div>
 
                         {/* ── État réel (lu, jamais recalculé ici) ─────────────── */}

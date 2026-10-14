@@ -155,6 +155,44 @@ export function normalizeSeniorityTiers(raw: unknown): SeniorityTier[] {
     return tiers.slice(0, SENIORITY_ROLES_MAX_TIERS);
 }
 
+// ── Prochain palier (vue informative « Prochains paliers ») ──────────────────
+
+/** Fenêtre, en jours, de la vue « Prochains paliers » (informative, côté staff). */
+export const SENIORITY_UPCOMING_WINDOW_DAYS = 30;
+
+/** Prochain palier d'un membre : lequel, et dans combien de jours. */
+export interface UpcomingTierChange {
+    /** Index du palier visé dans `tiers`. */
+    tierIndex: number;
+    /** Seuil de ce palier, en jours. */
+    tierDays: number;
+    /** Jours restants avant de le franchir (`0` = aujourd'hui). */
+    daysUntil: number;
+}
+
+/**
+ * Prochain palier qu'un membre **n'a pas encore** franchi, `null` s'il les a tous.
+ *
+ * `seniorityDays` est **fourni par l'appelant** : le calcul d'ancienneté reste la règle unique
+ * (`computeSeniorityDays`, `@/lib/member-registry`). Comme les autres règles, celle-ci compare
+ * les **seuils** : elle ne suppose pas le tableau trié.
+ */
+export function resolveUpcomingTierChange(input: {
+    tiers: readonly SeniorityTier[];
+    seniorityDays: number;
+}): UpcomingTierChange | null {
+    const days = Number.isFinite(input.seniorityDays) ? Math.max(0, Math.floor(input.seniorityDays)) : 0;
+    let upcoming: UpcomingTierChange | null = null;
+    for (let index = 0; index < input.tiers.length; index += 1) {
+        const tier = input.tiers[index];
+        if (days >= tier.days) continue;
+        if (!upcoming || tier.days < upcoming.tierDays) {
+            upcoming = { tierIndex: index, tierDays: tier.days, daysUntil: tier.days - days };
+        }
+    }
+    return upcoming;
+}
+
 // ── Palier cible et périmètre ────────────────────────────────────────────────
 
 /**

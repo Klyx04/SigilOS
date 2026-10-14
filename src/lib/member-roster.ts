@@ -351,6 +351,31 @@ export function rosterCounts(rows: readonly RosterRow[]): RosterCounts {
     };
 }
 
+/** Compteurs **facetés** par statut : calculés sur les lignes qui passent **toutes les autres**
+ * facettes (recherche, rôle, inscription) — le nombre annoncé est donc celui qu'on voit après clic. */
+export function rosterStatusCounts(
+    rows: readonly RosterRow[],
+    filters: RosterFilters
+): Record<RosterStatusFilter, number> {
+    const scope = rows.filter((row) => matchesRosterFilters(row, { ...filters, status: "ALL" }));
+    return {
+        ACTIVE: scope.filter((row) => row.status === "ACTIVE").length,
+        ARCHIVED: scope.filter((row) => row.status === "ARCHIVED").length,
+        BANNED: scope.filter((row) => row.status === "BANNED").length,
+        ALL: scope.length,
+    };
+}
+
+/** Compteurs **facetés** dashboard / hors dashboard (mêmes règles que `rosterStatusCounts`). */
+export function rosterDashboardCounts(
+    rows: readonly RosterRow[],
+    filters: RosterFilters
+): Record<RosterDashboardFilter, number> {
+    const scope = rows.filter((row) => matchesRosterFilters(row, { ...filters, dashboard: "ALL" }));
+    const dashboard = scope.filter((row) => row.dashboard).length;
+    return { ALL: scope.length, DASHBOARD: dashboard, MISSING: scope.length - dashboard };
+}
+
 // ─── Tri & pagination ───────────────────────────────────────────────────────────────────────────
 
 export type RosterSortKey = "name" | "joinedAt" | "seniority";

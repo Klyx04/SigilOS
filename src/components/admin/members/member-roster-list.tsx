@@ -25,8 +25,9 @@ import {
     DEFAULT_ROSTER_FILTERS,
     DEFAULT_ROSTER_SORT,
     queryRoster,
-    rosterCounts,
+    rosterDashboardCounts,
     rosterRoleOptions,
+    rosterStatusCounts,
     type RosterDashboardFilter,
     type RosterFilters,
     type RosterRow,
@@ -178,7 +179,11 @@ export function MemberRosterList({
     const [page, setPage] = useState(1);
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-    const counts = useMemo(() => rosterCounts(rows), [rows]);
+    // Compteurs facetés : chaque pastille est calculée sur les lignes qui passent **toutes les
+    // autres** facettes (recherche, rôle, inscription, statut) — le nombre affiché est donc celui
+    // qu'on obtient en cliquant, jamais un total global trompeur.
+    const statusCounts = useMemo(() => rosterStatusCounts(rows, filters), [rows, filters]);
+    const dashboardCounts = useMemo(() => rosterDashboardCounts(rows, filters), [rows, filters]);
     const roleOptions = useMemo(() => rosterRoleOptions(roles, rows), [roles, rows]);
 
     const { filtered, page: pageData } = useMemo(
@@ -217,18 +222,6 @@ export function MemberRosterList({
         setPage(1);
     }
 
-    const statusCounts: Record<RosterStatusFilter, number> = {
-        ACTIVE: counts.active,
-        ARCHIVED: counts.archived,
-        BANNED: counts.banned,
-        ALL: counts.total,
-    };
-
-    const dashboardCounts: Record<RosterDashboardFilter, number> = {
-        ALL: counts.total,
-        DASHBOARD: counts.dashboard,
-        MISSING: counts.discordOnly,
-    };
 
     return (
         <div className="space-y-4">

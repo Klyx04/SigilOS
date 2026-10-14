@@ -8,6 +8,13 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
+## 🧩 Session 14/10/2026 (suite 6) — **Le règlement intérieur a enfin sa place : un onglet dans « La Guilde », et l'enregistrement de la page ramène à la vue des membres** — branche `refonte/guilde-blocs-reglement`
+> **Demandes user (verbatim)** : « je vois tjrrs pas le reglement il est ou pour un user qui veut le consulter » · « le bouton enregistrer dernie "tape reglement doit quitter et revenir sur la vue rendu user » · « je prefere le reglement dans un onglet dédié dans la presentation de la guilde ca evitera un scroll à ralong coté uix ».
+> **Mesure / cause racine** : le règlement était **rendu** (donc pas un défaut de données) mais **sous le manifeste** dans l'onglet Présentation → introuvable sans scroller sur une page de guilde réelle. Côté édition, « Enregistrer la page » laissait l'admin **dans le formulaire** : il ne voyait jamais son rendu. Porte d'accès : RBAC `presentation:view` (∪ admin) — sans elle, ni Présentation ni Règlement.
+> **Fait** : onglet **`?tab=reglement`** (`reglement-content.tsx` neuf, navigation du hub en **barre segmentée**, `page.tsx` à 3 onglets) · le champ **quitte** l'onglet Présentation (une seule source de rendu) · règle pure **`hubTabAfterSave`** : l'enregistrement **quitte l'éditeur** pour la vue des membres, sur l'onglet Règlement si le règlement a bougé (comparaison au **règlement en base**, pas au modèle pré-rempli), sinon Présentation · bouton « Enregistrer et voir la page » · WIP de l'agent parallèle embarqué (`resolveIsMember` résilient, solveur Harebourg, présence Discord du ladder — 2 coquilles de syntaxe de son test neuf cassaient `tsc`).
+> **Preuves** : `tests/unit/guild-hub-reglement.test.ts` (4 cas) + `presentation-reglement-interne.test.ts` (19 cas) · `tsc` **0** · `eslint` **0 erreur** · `npm run test:run` **374 fichiers / 4 077 tests ✓**.
+> **Reste / ops (humain)** : donner **`presentation:view`** au rôle Membre (sinon l'onglet reste invisible pour eux) · trancher l'ancienne page `/dashboard/<guildId>/presentation` qui rend encore le règlement · rotation d'`activeContext.md` en dette.
+
 ## 🧹 Session 14/10/2026 (suite 5) — **Déslop de la liste des sondages (liste + archives) — fin du déslop du module** — branche `fix/sondages-liste-deslop`
 
 > **Demande user (verbatim)** : « poll-list.tsx (liste + archives) reste à déslopper — chantier dédié. hein ? » (le « reste » était une note héritée des sessions précédentes) puis « **oen shot** » → fait d'un seul lot.

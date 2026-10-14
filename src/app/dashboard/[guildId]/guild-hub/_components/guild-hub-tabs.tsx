@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, BookOpen, ChevronRight, LucideIcon } from "lucide-react";
+import { BookOpen, MessageSquare, ScrollText, LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -8,67 +8,30 @@ interface GuildHubTabsProps {
     initialTab: string;
     canViewWelcome: boolean;
     canViewPresentation: boolean;
+    canViewRules: boolean;
 }
 
-interface HubCardProps {
+interface HubEntry {
     id: string;
     label: string;
-    description: string;
     icon: LucideIcon;
-    isActive: boolean;
-    onClick: () => void;
 }
 
-// #83 — Refonte calme : suppression glows/radial-gradients/layoutId spring/blur,
-// actif = trait net + pastille pleine, jamais de fond teinté, 150-200ms.
-function HubCard({ label, description, icon: Icon, isActive, onClick }: HubCardProps) {
-    return (
-        <button
-            onClick={onClick}
-            aria-pressed={isActive}
-            className={cn(
-                "group flex items-center gap-4 p-5 rounded-2xl border text-left outline-none transition-colors duration-200 select-none focus-visible:ring-2 focus-visible:ring-border-strong",
-                isActive
-                    ? "border-border-strong bg-surface"
-                    : "border-border bg-surface hover:bg-surface hover:border-border-strong"
-            )}
-        >
-            <div className={cn(
-                "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border transition-colors duration-200",
-                isActive
-                    ? "bg-surface border-border-strong text-foreground"
-                    : "bg-surface/60 border-border text-muted-foreground group-hover:text-foreground group-hover:border-border"
-            )}>
-                <Icon className="w-5 h-5" />
-            </div>
-
-            <div className="flex-1 min-w-0">
-                <p className={cn(
-                    "font-bold transition-colors duration-200",
-                    isActive ? "text-foreground" : "text-foreground group-hover:text-foreground"
-                )}>
-                    {label}
-                </p>
-                <p className="text-caption font-medium text-muted-foreground mt-0.5">
-                    {description}
-                </p>
-            </div>
-
-            {isActive && (
-                <span className="w-2 h-2 rounded-full bg-foreground shrink-0" aria-hidden />
-            )}
-            <ChevronRight className={cn(
-                "w-4 h-4 shrink-0 transition-colors duration-200",
-                isActive ? "text-foreground" : "text-muted-foreground group-hover:text-muted-foreground"
-            )} />
-        </button>
-    );
-}
-
+/**
+ * Navigation du hub « La Guilde ».
+ *
+ * Refonte (14/10) : les deux grosses cartes empilées (bloc icône 44 px, pastille, chevron) sont
+ * remplacées par une **barre segmentée compacte** — même vocabulaire que les filtres du module
+ * Membres (actif = fond `accent-soft` + texte `accent`, jamais de dégradé ni d'ombre) : une seule
+ * ligne, lisible en mobile comme en desktop.
+ * Le règlement intérieur gagne **sa propre destination** : il était noyé sous le manifeste de la
+ * présentation, donc introuvable côté membre.
+ */
 export function GuildHubTabs({
     initialTab,
     canViewWelcome,
-    canViewPresentation
+    canViewPresentation,
+    canViewRules,
 }: GuildHubTabsProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -79,29 +42,38 @@ export function GuildHubTabs({
         router.push(`?${params.toString()}`);
     }
 
-    return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {canViewWelcome && (
-                <HubCard
-                    id="welcome"
-                    label="Bienvenue"
-                    description="Accueil membres"
-                    icon={MessageSquare}
-                    isActive={initialTab === "welcome"}
-                    onClick={() => setTab("welcome")}
-                />
-            )}
+    const entries = [
+        canViewWelcome ? { id: "welcome", label: "Bienvenue", icon: MessageSquare } : null,
+        canViewPresentation ? { id: "presentation", label: "Présentation", icon: BookOpen } : null,
+        canViewRules ? { id: "reglement", label: "Règlement", icon: ScrollText } : null,
+    ].filter((entry): entry is HubEntry => entry !== null);
 
-            {canViewPresentation && (
-                <HubCard
-                    id="presentation"
-                    label="Présentation"
-                    description="Notre histoire"
-                    icon={BookOpen}
-                    isActive={initialTab === "presentation"}
-                    onClick={() => setTab("presentation")}
-                />
-            )}
-        </div>
+    return (
+        <nav
+            aria-label="Sections de la guilde"
+            className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border-strong bg-surface p-1.5"
+        >
+            {entries.map((entry) => {
+                const isActive = initialTab === entry.id;
+                const Icon = entry.icon;
+                return (
+                    <button
+                        key={entry.id}
+                        type="button"
+                        onClick={() => setTab(entry.id)}
+                        aria-current={isActive ? "page" : undefined}
+                        className={cn(
+                            "inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-border-strong",
+                            isActive
+                                ? "bg-accent-soft text-accent"
+                                : "text-muted-foreground hover:bg-elevated hover:text-foreground"
+                        )}
+                    >
+                        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                        {entry.label}
+                    </button>
+                );
+            })}
+        </nav>
     );
 }

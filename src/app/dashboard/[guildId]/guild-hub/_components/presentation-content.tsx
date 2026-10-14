@@ -12,10 +12,8 @@ import {
 } from "lucide-react";
 import type { GuildPresentation } from "@/server/actions/presentation-actions";
 import { AVAILABLE_ACTIVITIES, ACTIVITY_ASSETS, FOUNDER_CROWN_ASSET } from "@/lib/presentation-constants";
-import { isInternalRulesEmpty } from "@/lib/presentation-rules";
 import { getDofusServerImage } from "@/lib/dofus-assets";
 import { GuildEmblem } from "@/components/guild/guild-emblem";
-import { DocContent } from "@/components/doc/doc-content";
 
 /**
  * Lecture interne de la présentation — registre, pas de cartes génériques.
@@ -233,35 +231,9 @@ export default function PresentationContent({
                         </section>
                     )}
 
-                    {guild.internalRules && !isInternalRulesEmpty(guild.internalRules) ? (
-                        <section aria-labelledby="reglement-titre">
-                            <h3 id="reglement-titre" className="reg-eyebrow">Règlement intérieur</h3>
-                            <p className="mt-2 inline-flex items-center gap-2 text-sm">
-                                <span className="reg-tag">Interne</span>
-                                <span className="text-muted-foreground">Invisible de l&apos;annuaire public.</span>
-                            </p>
-                            <div className="mt-4 border-l-2 border-border-strong pl-5">
-                                <DocContent content={guild.internalRules} />
-                            </div>
-                        </section>
-                    ) : (
-                        <section aria-label="Règlement vide">
-                            <h3 className="reg-eyebrow">Règlement intérieur</h3>
-                            <p className="mt-4 border-l-2 border-border pl-5 text-sm leading-relaxed text-muted-foreground">
-                                Aucune règle écrite pour l&apos;instant. L&apos;état-major peut poser
-                                les bases en cinq minutes depuis l&apos;édition.
-                                {canEdit && (
-                                    <>
-                                        {" "}
-                                        <Link href={`/dashboard/${guildId}/admin/presentation`} className="reg-link">
-                                            Écrire le règlement
-                                        </Link>
-                                    </>
-                                )}
-                            </p>
-                            <p className="mt-2 text-xs text-muted-foreground">Interne — jamais visible du public.</p>
-                        </section>
-                    )}
+                    {/* Le règlement intérieur a sa **propre destination** dans le hub
+                        (`?tab=reglement`, `_components/reglement-content.tsx`) : une seule source,
+                        jamais deux rendus du même texte. */}
 
                     {guild.photoUrl && (
                         <section aria-labelledby="galerie-titre">

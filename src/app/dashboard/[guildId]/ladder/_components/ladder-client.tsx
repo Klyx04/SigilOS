@@ -17,10 +17,17 @@ import {
     getPresenceLadder,
     getRaidLadder,
     getLadderSyncInfo,
+    getDiscordPresenceStats,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
 import { formatSeniority } from "@/lib/ladder-utils";
+import {
+    DISCORD_PRESENCE_FILTER_LABELS,
+    HABITUE_VOICE_MINUTES_WEEKLY,
+    type DiscordPresenceFilter,
+    type DiscordPresenceStats,
+} from "@/lib/ladder-presence";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +45,9 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
         vitrineMode ? "discord" : "activity"
     );
     const [discordMetric, setDiscordMetric] = useState<"messages" | "voice" | "characters" | "reactions" | "stream" | "replies">("messages");
+    // Profil de présence (onglet Discord) : qui vit sur le serveur, jamais un blâme.
+    const [presenceFilter, setPresenceFilter] = useState<DiscordPresenceFilter>("all");
+    const [presenceStats, setPresenceStats] = useState<DiscordPresenceStats | null>(null);
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [raidFilter, setRaidFilter] = useState<"all" | "jardin" | "gigalodon">("all");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
@@ -70,7 +80,19 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     // Reset page when switching tabs or timeframes
     useEffect(() => {
         setCurrentPage(1);
-    }, [activeTab, activityView, discordMetric, raidFilter]);
+    }, [activeTab, activityView, discordMetric, raidFilter, presenceFilter]);
+
+    // Compteurs de présence (onglet Discord uniquement) : qui est en vocal
+    // cette semaine, les habitués, les jamais-vus en vocal, les silencieux.
+    useEffect(() => {
+        if (activeTab !== "discord") {
+            setPresenceStats(null);
+            return;
+        }
+        getDiscordPresenceStats(guildId).then((res) => {
+            if (res.success && res.data) setPresenceStats(res.data);
+        });
+    }, [guildId, activeTab]);
 
     useEffect(() => {
         async function loadLadder() {
@@ -97,7 +119,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                     result = await getGuildatonsLadder(guildId, activityView, currentPage, 25, debouncedSearch);
                     break;
                 case "discord":
-                    result = await getPresenceLadder(guildId, discordMetric, activityView, currentPage, 25, debouncedSearch);
+                    result = await getPresenceLadder(guildId, discordMetric, activityView, currentPage, 25, debouncedSearch, presenceFilter);
                     break;
                 case "raids":
                     result = await getRaidLadder(guildId, raidFilter, currentPage, 25, debouncedSearch);
@@ -118,7 +140,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
         }
 
         loadLadder();
-    }, [guildId, activeTab, activityView, currentPage, discordMetric, raidFilter, debouncedSearch]);
+    }, [guildId, activeTab, activityView, currentPage, discordMetric, raidFilter, debouncedSearch, presenceFilter]);
 
     const getValueLabel = (entry: LadderEntry): React.ReactNode => {
         switch (activeTab) {
@@ -340,6 +362,20 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                         </SelectContent>
                                     </Select>
                                 )}
+                                {activeTab === "discord" && (
+                                    <Select value={presenceFilter} onValueChange={(v) => setPresenceFilter(v as DiscordPresenceFilter)}>
+                                        <SelectTrigger className="w-full sm:w-[180px] h-9 bg-surface border-border text-xs font-medium rounded-xl" aria-label="Filtrer par présence">
+                                            <SelectValue placeholder="Présence" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {(Object.keys(DISCORD_PRESENCE_FILTER_LABELS) as DiscordPresenceFilter[]).map((f) => (
+                                                <SelectItem key={f} value={f}>
+                                                    {DISCORD_PRESENCE_FILTER_LABELS[f]}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                                 <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
                                     <SelectTrigger className="w-full sm:w-[180px] h-9 bg-surface border-border text-xs font-medium rounded-xl">
                                         <SelectValue placeholder="Période" />
@@ -380,6 +416,51 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                         </div>
                     )}
                 </div>
+
+            {activeTab === "discord" && presenceStats && (
+                <div className="rounded-xl border border-border bg-card px-4 py-3">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        Qui vit sur le Discord — pour croiser les voix et inviter les silencieux, jamais pour blâmer.
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                        {(
+                            [
+                                { id: "enVocal" as const, value: presenceStats.enVocal, hint: "Au moins une minute de vocal mesurée" },
+                                { id: "habitue" as const, value: presenceStats.habitues, hint: `Au moins ${HABITUE_VOICE_MINUTES_WEEKLY} min de vocal` },
+                                { id: "jamaisEnVocal" as const, value: presenceStats.jamaisEnVocal, hint: "Aucun vocal jamais mesuré" },
+                                { id: "sansInteraction" as const, value: presenceStats.sansInteraction, hint: "Aucune interaction Discord mesurée" },
+                            ]
+                        ).map((chip) => {
+                            const isActive = presenceFilter === chip.id;
+                            return (
+                                <button
+                                    key={chip.id}
+                                    type="button"
+                                    title={chip.hint}
+                                    onClick={() => setPresenceFilter(isActive ? "all" : chip.id)}
+                                    aria-pressed={isActive}
+                                    className={cn(
+                                        "inline-flex items-baseline gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
+                                        isActive
+                                            ? "border-border-strong bg-surface text-foreground"
+                                            : "border-border bg-transparent text-muted-foreground hover:border-border-strong hover:text-foreground"
+                                    )}
+                                >
+                                    <span className="font-bold tabular-nums">{chip.value}</span>
+                                    <span className="font-medium">{DISCORD_PRESENCE_FILTER_LABELS[chip.id]}</span>
+                                </button>
+                            );
+                        })}
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                            sur {presenceStats.total} membre{presenceStats.total > 1 ? "s" : ""}
+                        </span>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                        Semaine : mardi 07:00 → mardi · Habitué : ≥ {HABITUE_VOICE_MINUTES_WEEKLY} min de vocal/semaine ·
+                        activité mesurée par le bot (un membre jamais connecté au dashboard n&apos;est pas compté).
+                    </p>
+                </div>
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
                 <div className="min-w-0">
@@ -454,7 +535,11 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 ) : ladder.length === 0 ? (
                     <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                         <p className="text-xs font-medium italic">
-                            {search.trim() ? "Aucun membre ne correspond à cette recherche." : "Aucune donnée disponible pour ce classement."}
+                            {search.trim()
+                                ? "Aucun membre ne correspond à cette recherche."
+                                : activeTab === "discord" && presenceFilter !== "all"
+                                    ? `Personne dans « ${DISCORD_PRESENCE_FILTER_LABELS[presenceFilter]} » pour l'instant.`
+                                    : "Aucune donnée disponible pour ce classement."}
                         </p>
                     </div>
                 ) : (

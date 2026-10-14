@@ -52,6 +52,7 @@ docs/
 │
 ├── plans/                         chantiers produit (en cours / à venir)
 │   ├── FILE-EXECUTION.md          ⭐ l'ORDRE d'exécution unique (chantiers A→V, pas à pas) — point d'entrée
+│   ├── BRIEF-REPRISE.md           ⭐ reprise « une passe » : fil des demandes + chantiers prêts (Y, Z) + restes
 │   ├── PLAN-REFONTE-ONBOARDING.md
 │   ├── PLAN-REFONTE-TICKETS-V2.md  module Tickets : état mesuré + ce qui reste pour le boucler
 │   ├── PLAN-REFONTE-GOD-GUILDES.md refonte God « Guildes & Users » : 12 chantiers, 7 lots

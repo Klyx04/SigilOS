@@ -203,7 +203,10 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
                             {valueLabel}
                         </div>
                         {presenceProfile ? (
-                            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full border border-border bg-surface text-muted-foreground">
+                            <div
+                                className="flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full border border-border bg-surface text-muted-foreground"
+                                title={entry.presenceNote ?? DISCORD_PRESENCE_LABELS[presenceProfile]}
+                            >
                                 <span className="text-caption font-semibold uppercase tracking-widest leading-none">
                                     {DISCORD_PRESENCE_LABELS[presenceProfile]}
                                 </span>

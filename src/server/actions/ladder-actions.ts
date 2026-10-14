@@ -8,11 +8,13 @@ import { withCache } from "@/lib/cache";
 import { applyLadderSearch } from "@/lib/ladder-utils";
 import {
     computeDiscordPresenceStats,
+    describePresenceProfile,
     matchPresenceFilter,
     resolveDiscordPresenceProfile,
     type DiscordPresenceProfile,
     type DiscordPresenceStats,
     type PresenceCounters,
+    type PresencePeriod,
 } from "@/lib/ladder-presence";
 
 // ============================================================================
@@ -45,6 +47,8 @@ export type LadderEntry = {
     gigalodonCount?: number;
     /** Onglet Discord : profil de présence (badge neutre, jamais un blâme). */
     presenceProfile?: DiscordPresenceProfile;
+    /** Phrase exacte du badge (transparence : règle + seuil + période). */
+    presenceNote?: string;
 };
 
 export type LadderResponse = {
@@ -144,6 +148,7 @@ export async function getPresenceLadder(
                     // Compteurs de présence (profils + filtre) : jeu fixe,
                     // indépendant de la métrique triée (aucune migration).
                     discordVoiceTimeWeekly: true,
+                    discordVoiceTimeMonthly: true,
                     discordVoiceTimeTotal: true,
                     discordMessageCountTotal: true,
                     discordCharactersTotal: true,
@@ -163,8 +168,10 @@ export async function getPresenceLadder(
             const now = new Date();
             return activeProfiles.map((p: any, idx) => {
                 const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= (p.vacationStart as any) && now <= (p.vacationEnd as any));
+                const period = view as PresencePeriod;
                 const counters: PresenceCounters = {
                     voiceWeekly: p.discordVoiceTimeWeekly || 0,
+                    voiceMonthly: p.discordVoiceTimeMonthly || 0,
                     voiceTotal: p.discordVoiceTimeTotal || 0,
                     messagesTotal: p.discordMessageCountTotal || 0,
                     charactersTotal: p.discordCharactersTotal || 0,
@@ -186,7 +193,8 @@ export async function getPresenceLadder(
                     value: (p as any)[field] || 0,
                     isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
                     isInVacation,
-                    presenceProfile: resolveDiscordPresenceProfile(counters),
+                    presenceProfile: resolveDiscordPresenceProfile(counters, period),
+                    presenceNote: describePresenceProfile(resolveDiscordPresenceProfile(counters, period), period),
                     // Compteurs internes au filtre (retirés avant envoi au client).
                     presenceCounters: counters,
                 };
@@ -194,7 +202,7 @@ export async function getPresenceLadder(
         });
 
         const rankedData = applyLadderSearch(allRankedData, search).filter((item: any) =>
-            matchPresenceFilter((item as any).presenceCounters as PresenceCounters, presence)
+            matchPresenceFilter((item as any).presenceCounters as PresenceCounters, presence, view as PresencePeriod)
         );
         const totalCount = rankedData.length;
         const paginatedData = rankedData.slice(skip, skip + pageSize).map((item: any) => {
@@ -226,7 +234,8 @@ export async function getPresenceLadder(
  * Mêmes compteurs que le filtre, même cache court (300 s).
  */
 export async function getDiscordPresenceStats(
-    guildId: string
+    guildId: string,
+    view: ActivityView = "weekly"
 ): Promise<ActionResponse<DiscordPresenceStats>> {
     try {
         const session = await auth();
@@ -238,11 +247,13 @@ export async function getDiscordPresenceStats(
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        const stats = await withCache(`ladder:presence-stats:v1:${guildId}`, 300, async () => {
+        const period = view as PresencePeriod;
+        const stats = await withCache(`ladder:presence-stats:v1:${guildId}:${view}`, 300, async () => {
             const profiles = await db.userProfile.findMany({
                 where: { guildId: guildConfig.id, status: "ACTIVE" },
                 select: {
                     discordVoiceTimeWeekly: true,
+                    discordVoiceTimeMonthly: true,
                     discordVoiceTimeTotal: true,
                     discordMessageCountTotal: true,
                     discordCharactersTotal: true,
@@ -258,6 +269,7 @@ export async function getDiscordPresenceStats(
                 profiles.map(
                     (p): PresenceCounters => ({
                         voiceWeekly: p.discordVoiceTimeWeekly || 0,
+                        voiceMonthly: p.discordVoiceTimeMonthly || 0,
                         voiceTotal: p.discordVoiceTimeTotal || 0,
                         messagesTotal: p.discordMessageCountTotal || 0,
                         charactersTotal: p.discordCharactersTotal || 0,
@@ -268,7 +280,8 @@ export async function getDiscordPresenceStats(
                         lastVoiceAt: p.lastDiscordVoiceAt || null,
                         lastReactionAt: p.lastDiscordReactionAt || null,
                     })
-                )
+                ),
+                period
             );
         });
 

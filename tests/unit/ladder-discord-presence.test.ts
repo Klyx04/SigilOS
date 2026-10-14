@@ -3,10 +3,16 @@ import { readFileSync } from "node:fs";
 import {
     HABITUE_VOICE_MINUTES_WEEKLY,
     computeDiscordPresenceStats,
+    describePresenceFilter,
+    describePresenceProfile,
+    formatThreshold,
+    habitueThreshold,
     hasNoInteraction,
     matchPresenceFilter,
     neverVoiced,
+    presenceFilterLabels,
     resolveDiscordPresenceProfile,
+    voiceInPeriod,
     type PresenceCounters,
 } from "@/lib/ladder-presence";
 
@@ -31,6 +37,7 @@ const CARD =
 
 const counters = (over: Partial<PresenceCounters> = {}): PresenceCounters => ({
     voiceWeekly: 0,
+    voiceMonthly: 0,
     voiceTotal: 0,
     messagesTotal: 0,
     charactersTotal: 0,
@@ -92,6 +99,47 @@ describe("présence Discord — règle pure", () => {
         expect(matchPresenceFilter(silencieux, undefined)).toBe(true);
     });
 
+    it("période : le même filtre suit semaine / mois / global (seuils adaptés)", () => {
+        // 200 min : habitué en semaine (≥ 60) comme dans le mois (≥ 240) ? non : 200 < 240.
+        const membre = counters({ voiceWeekly: 50, voiceMonthly: 200, voiceTotal: 900, lastVoiceAt: "x" });
+        expect(voiceInPeriod(membre, "weekly")).toBe(50);
+        expect(voiceInPeriod(membre, "monthly")).toBe(200);
+        expect(voiceInPeriod(membre, "alltime")).toBe(900);
+        expect(habitueThreshold("weekly")).toBe(60);
+        expect(habitueThreshold("monthly")).toBe(240);
+        expect(habitueThreshold("alltime")).toBe(480);
+        expect(formatThreshold(60)).toBe("1 h");
+        expect(formatThreshold(240)).toBe("4 h");
+        expect(resolveDiscordPresenceProfile(membre, "weekly")).toBe("present");
+        expect(resolveDiscordPresenceProfile(membre, "monthly")).toBe("present");
+        expect(resolveDiscordPresenceProfile(membre, "alltime")).toBe("habitue");
+        // Silence radio ce mois-ci mais passé vocal : discret sur le mois, pas silencieux.
+        const discretMois = counters({ voiceWeekly: 0, voiceMonthly: 0, voiceTotal: 90, lastVoiceAt: "x" });
+        expect(resolveDiscordPresenceProfile(discretMois, "monthly")).toBe("discret");
+        expect(matchPresenceFilter(discretMois, "sansVocal", "monthly")).toBe(true);
+        expect(matchPresenceFilter(discretMois, "jamaisEnVocal", "monthly")).toBe(false);
+        expect(matchPresenceFilter(membre, "habitue", "monthly")).toBe(false);
+        expect(matchPresenceFilter(membre, "habitue", "alltime")).toBe(true);
+        expect(matchPresenceFilter(membre, "enVocal", "monthly")).toBe(true);
+        const statsMois = computeDiscordPresenceStats([membre, counters()], "monthly");
+        expect(statsMois).toEqual({ total: 2, enVocal: 1, habitues: 0, jamaisEnVocal: 1, sansInteraction: 1 });
+    });
+
+    it("transparence : chaque règle se dit en une phrase (infobulle = source unique)", () => {
+        expect(describePresenceFilter("habitue", "monthly")).toContain("4 h");
+        expect(describePresenceFilter("habitue", "monthly")).toContain("ce mois-ci");
+        expect(describePresenceFilter("enVocal", "weekly")).toContain("cette semaine");
+        expect(describePresenceFilter("jamaisEnVocal", "alltime")).toContain("jamais");
+        expect(describePresenceFilter("sansInteraction", "weekly")).toContain("jamais mesurée");
+        expect(describePresenceFilter("sansInteraction", "weekly")).toContain("horodatage");
+        expect(describePresenceFilter("sansInteraction", "monthly")).toContain("caractère");
+        expect(describePresenceProfile("habitue", "weekly")).toContain("1 h");
+        expect(describePresenceProfile("silencieux", "monthly")).toContain("pas à punir");
+        expect(presenceFilterLabels("monthly").enVocal).toBe("En vocal ce mois-ci");
+        expect(presenceFilterLabels("alltime").sansVocal).toBe("Sans vocal au total");
+        expect(presenceFilterLabels("weekly").habitue).toBe("Habitués du vocal");
+    });
+
     it("stats : agrégation sans hypothèse (zéro = zéro)", () => {
         const stats = computeDiscordPresenceStats([
             counters({ voiceWeekly: 120, voiceTotal: 500, lastVoiceAt: "x" }),
@@ -111,45 +159,60 @@ describe("présence Discord — règle pure", () => {
 });
 
 describe("présence Discord — câblage serveur", () => {
-    it("getPresenceLadder accepte le filtre et projette le profil (compteurs retirés avant envoi)", () => {
+    it("getPresenceLadder accepte le filtre et projette le profil sur la période (compteurs retirés avant envoi)", () => {
         const src = readFileSync(ACTIONS, "utf8");
         expect(src).toContain('presence: string = "all"');
         expect(src).toContain("discordVoiceTimeWeekly: true");
+        expect(src).toContain("discordVoiceTimeMonthly: true");
         expect(src).toContain("lastDiscordVoiceAt: true");
-        expect(src).toContain("presenceProfile: resolveDiscordPresenceProfile(counters)");
+        expect(src).toContain("resolveDiscordPresenceProfile(counters, period)");
+        expect(src).toContain("presenceNote: describePresenceProfile(");
         expect(src).toContain("presenceCounters: counters");
         expect(src).toContain("presenceCounters: _omit");
         expect(src).toContain("matchPresenceFilter(");
+        expect(src).toContain("view as PresencePeriod");
     });
 
     it("cache versionné (l'ancien sans profil ne fausse pas le filtre après déploiement)", () => {
         expect(readFileSync(ACTIONS, "utf8")).toContain("ladder:presence:v2:");
     });
 
-    it("stats dédiées : membres ACTIFS de la guilde, cache propre", () => {
+    it("stats dédiées : membres ACTIFS de la guilde, périodisées, cache propre", () => {
         const src = readFileSync(ACTIONS, "utf8");
         expect(src).toContain("export async function getDiscordPresenceStats");
         expect(src).toContain('status: "ACTIVE"');
-        expect(src).toContain("ladder:presence-stats:v1:");
+        expect(src).toContain("ladder:presence-stats:v1:${guildId}:${view}");
         expect(src).toContain("computeDiscordPresenceStats(");
+        expect(src).toContain("period");
     });
 });
 
 describe("présence Discord — interface (jamais un blâme)", () => {
-    it("client : filtre + stats cliquables branchés sur l'onglet Discord", () => {
+    it("client : filtre + stats cliquables branchés sur l'onglet Discord et la période", () => {
         const src = readFileSync(CLIENT, "utf8");
         expect(src).toContain("presenceFilter");
-        expect(src).toContain("getDiscordPresenceStats");
+        expect(src).toContain("getDiscordPresenceStats(guildId, activityView)");
         expect(src).toContain("Filtrer par présence");
-        expect(src).toContain("DISCORD_PRESENCE_FILTER_LABELS");
-        expect(src).toContain("HABITUE_VOICE_MINUTES_WEEKLY");
+        expect(src).toContain("presenceFilterLabels(activityView)");
+        expect(src).toContain("describePresenceFilter(chip.id, activityView)");
+        expect(src).toContain("habitueThreshold(activityView)");
         expect(src).toContain("jamais pour blâmer");
         expect(src).toContain("debouncedSearch, presenceFilter]");
+    });
+
+    it("client : transparence — encart méthodologie dépliable", () => {
+        const src = readFileSync(CLIENT, "utf8");
+        expect(src).toContain("D&apos;où viennent ces chiffres");
+        expect(src).toContain("mardi 07:00");
+        expect(src).toContain("jamais des blâmes");
+        expect(src).toContain("Sans interaction");
+        expect(src).toContain("Angles morts assumés");
     });
 
     it("carte : badge neutre du profil, blâme « Mauvais Élève » effacé sur l'onglet Discord", () => {
         const src = readFileSync(CARD, "utf8");
         expect(src).toContain("DISCORD_PRESENCE_LABELS[presenceProfile]");
+        expect(src).toContain("entry.presenceNote");
         expect(src).toContain("showTourist");
         expect(src).toContain("border-border bg-surface text-muted-foreground");
     });

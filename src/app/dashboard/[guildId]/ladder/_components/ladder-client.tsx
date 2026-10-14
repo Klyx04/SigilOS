@@ -23,8 +23,10 @@ import {
 } from "@/server/actions/ladder-actions";
 import { formatSeniority } from "@/lib/ladder-utils";
 import {
-    DISCORD_PRESENCE_FILTER_LABELS,
-    HABITUE_VOICE_MINUTES_WEEKLY,
+    describePresenceFilter,
+    formatThreshold,
+    habitueThreshold,
+    presenceFilterLabels,
     type DiscordPresenceFilter,
     type DiscordPresenceStats,
 } from "@/lib/ladder-presence";
@@ -82,17 +84,20 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
         setCurrentPage(1);
     }, [activeTab, activityView, discordMetric, raidFilter, presenceFilter]);
 
-    // Compteurs de présence (onglet Discord uniquement) : qui est en vocal
-    // cette semaine, les habitués, les jamais-vus en vocal, les silencieux.
+    // Compteurs de présence (onglet Discord uniquement) : suivent la période
+    // choisie (semaine / mois en cours / global) comme le tri.
     useEffect(() => {
         if (activeTab !== "discord") {
             setPresenceStats(null);
             return;
         }
-        getDiscordPresenceStats(guildId).then((res) => {
+        getDiscordPresenceStats(guildId, activityView).then((res) => {
             if (res.success && res.data) setPresenceStats(res.data);
         });
-    }, [guildId, activeTab]);
+    }, [guildId, activeTab, activityView]);
+
+    // Libellés du filtre adaptés à la période (« En vocal ce mois-ci », …).
+    const presenceLabels = presenceFilterLabels(activityView);
 
     useEffect(() => {
         async function loadLadder() {
@@ -368,9 +373,9 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                             <SelectValue placeholder="Présence" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {(Object.keys(DISCORD_PRESENCE_FILTER_LABELS) as DiscordPresenceFilter[]).map((f) => (
-                                                <SelectItem key={f} value={f}>
-                                                    {DISCORD_PRESENCE_FILTER_LABELS[f]}
+                                            {(Object.keys(presenceLabels) as DiscordPresenceFilter[]).map((f) => (
+                                                <SelectItem key={f} value={f} title={describePresenceFilter(f, activityView)}>
+                                                    {presenceLabels[f]}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -425,10 +430,10 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                     <div className="mt-2.5 flex flex-wrap items-center gap-2">
                         {(
                             [
-                                { id: "enVocal" as const, value: presenceStats.enVocal, hint: "Au moins une minute de vocal mesurée" },
-                                { id: "habitue" as const, value: presenceStats.habitues, hint: `Au moins ${HABITUE_VOICE_MINUTES_WEEKLY} min de vocal` },
-                                { id: "jamaisEnVocal" as const, value: presenceStats.jamaisEnVocal, hint: "Aucun vocal jamais mesuré" },
-                                { id: "sansInteraction" as const, value: presenceStats.sansInteraction, hint: "Aucune interaction Discord mesurée" },
+                                { id: "enVocal" as const, value: presenceStats.enVocal },
+                                { id: "habitue" as const, value: presenceStats.habitues },
+                                { id: "jamaisEnVocal" as const, value: presenceStats.jamaisEnVocal },
+                                { id: "sansInteraction" as const, value: presenceStats.sansInteraction },
                             ]
                         ).map((chip) => {
                             const isActive = presenceFilter === chip.id;
@@ -436,7 +441,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                 <button
                                     key={chip.id}
                                     type="button"
-                                    title={chip.hint}
+                                    title={describePresenceFilter(chip.id, activityView)}
                                     onClick={() => setPresenceFilter(isActive ? "all" : chip.id)}
                                     aria-pressed={isActive}
                                     className={cn(
@@ -447,7 +452,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                     )}
                                 >
                                     <span className="font-bold tabular-nums">{chip.value}</span>
-                                    <span className="font-medium">{DISCORD_PRESENCE_FILTER_LABELS[chip.id]}</span>
+                                    <span className="font-medium">{presenceLabels[chip.id]}</span>
                                 </button>
                             );
                         })}
@@ -456,9 +461,23 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                         </span>
                     </div>
                     <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                        Semaine : mardi 07:00 → mardi · Habitué : ≥ {HABITUE_VOICE_MINUTES_WEEKLY} min de vocal/semaine ·
-                        activité mesurée par le bot (un membre jamais connecté au dashboard n&apos;est pas compté).
+                        Habitué : ≥ {formatThreshold(habitueThreshold(activityView))} de vocal{" "}
+                        {activityView === "weekly" ? "cette semaine" : activityView === "monthly" ? "ce mois-ci" : "au total"} ·
+                        survolez un chiffre ou un badge pour la règle exacte.
                     </p>
+                    <details className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                        <summary className="cursor-pointer font-semibold hover:text-foreground">
+                            D&apos;où viennent ces chiffres ?
+                        </summary>
+                        <ul className="mt-1.5 list-disc space-y-1 pl-5">
+                            <li>Mesurés par le bot en temps réel : messages, vocal, streams, caractères, réponses, réactions reçues.</li>
+                            <li>Semaine : mardi 07:00 → mardi suivant · Mois : du 1er à aujourd&apos;hui · Global : cumul historique.</li>
+                            <li>Minutes arrondies (moins d&apos;une minute = invisible) · remise à zéro destructive (la période passée est perdue).</li>
+                            <li>Seuls les membres connectés au dashboard au moins une fois sont mesurés — un « 0 » peut aussi dire « jamais vu par le bot ».</li>
+                            <li>« Sans interaction » = rien de mesuré, jamais : aucun message, caractère, réponse, minute de vocal, stream ou réaction reçue, et aucun horodatage d&apos;activité. Angles morts assumés : les réactions <em>émises</em> ne sont pas comptées (seules les reçues le sont), la frappe au clavier n&apos;est pas suivie, et une panne du bot laisse un trou.</li>
+                            <li>Discret et Silencieux sont des invitations à aller vers le membre, jamais des blâmes.</li>
+                        </ul>
+                    </details>
                 </div>
             )}
 
@@ -538,7 +557,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             {search.trim()
                                 ? "Aucun membre ne correspond à cette recherche."
                                 : activeTab === "discord" && presenceFilter !== "all"
-                                    ? `Personne dans « ${DISCORD_PRESENCE_FILTER_LABELS[presenceFilter]} » pour l'instant.`
+                                    ? `Personne dans « ${presenceLabels[presenceFilter]} » pour l'instant.`
                                     : "Aucune donnée disponible pour ce classement."}
                         </p>
                     </div>

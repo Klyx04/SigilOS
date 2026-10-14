@@ -138,7 +138,7 @@ describe("sondages — la fiche porte l'onglet", () => {
     });
 });
 
-describe("déslop de la fiche — le slop ne revient pas", () => {
+describe("déslop des surfaces Sondages — le slop ne revient pas", () => {
     /** Marqueurs mesurés sur la fiche avant reprise (modale des votants comprise). */
     const FORBIDDEN = [
         "rounded-xl", "rounded-2xl", "rounded-3xl", "rounded-[",
@@ -191,5 +191,30 @@ describe("déslop de la fiche — le slop ne revient pas", () => {
         expect(contract).not.toMatch(/rounded-(xl|2xl|3xl)/);
         expect(contract).not.toContain("font-black");
         expect(contract).not.toContain("shadow-");
+    });
+
+    it("la liste et les archives suivent le MÊME contrat (liste + /sondages/archives)", () => {
+        const LIST = "src/components/sondages/poll-list.tsx";
+        const list = codeOnly(LIST);
+        for (const pattern of FORBIDDEN) {
+            expect(list, `${LIST} contient « ${pattern} »`).not.toContain(pattern);
+        }
+        const hits = list.match(PALETTE) ?? [];
+        expect(hits, hits.join(", ")).toEqual([]);
+
+        // Rayons ≤ 8 px (les pastilles restent rondes).
+        const radii = new Set(Array.from(list.matchAll(/rounded-([a-z0-9[\]/.-]+)/g)).map((m) => m[1]));
+        expect([...radii].sort()).toEqual(["full", "lg"]);
+
+        // Plus un seul compteur maison pour la fin d'un vote : la règle unique
+        // (`formatPollEnd`) vit dans la carte **et** la fiche — la liste n'en a pas de copie.
+        expect(list).not.toContain("RemainingTime");
+        expect(list).not.toContain("formatDistanceToNow");
+        expect(list).not.toContain("framer-motion");
+
+        // Les catégories du filtre viennent de la source PARTAGÉE des tuiles, et
+        // aucun libellé structurant ne porte d'emoji.
+        expect(list).toContain("POLL_CATEGORY_OPTIONS");
+        expect(list).not.toContain("emoji");
     });
 });

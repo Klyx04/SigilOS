@@ -16,7 +16,7 @@ description: Brief de reprise — le fil complet des chantiers (demandes user, l
 > **Il remplace** le mémo volatile `src/temp/CHANTIERS-RESTANTS.md` (gitignoré, supprimé le 14/10/2026) :
 > ce qui survivait seulement dans un fichier non versionné vit désormais ici, dans `docs/`.
 >
-> **Mise à jour** : 14/10/2026 (soir) · `dev` = `7b1ce5c7` · journal au §9.
+> **Mise à jour** : 14/10/2026 (nuit) · `dev` = `b3d132e4` (+ **chantier Y, lot Y-1** sur `feat/roles-anciennete-y1`) · journal au §9.
 
 ---
 
@@ -69,12 +69,12 @@ on ne « corrige » pas une supposition.
 
 ---
 
-## 3. Chantier **Y** — rôles automatiques par ancienneté ⏳ *prêt à coder*
+## 3. Chantier **Y** — rôles automatiques par ancienneté ⏳ *Y-1 livré, Y-2 / Y-3 à faire*
 
 > Référence produit : module « Autoroles » de Dyno. Cadré le 14/10/2026. `docs/plans/FILE-EXECUTION.md`
-> §1 « Y » + **étape 59** (« juste après l'étape 24 = chantier B », **livrée**). Plan durable : **à créer**
-> (`docs/plans/PLAN-ROLES-ANCIENNETE.md`) — **le premier geste du lot Y-1 est d'écrire ce plan**, sinon le
-> cadrage ne vit que dans ce brief.
+> §1 « Y » + **étape 59** (« juste après l'étape 24 = chantier B », **livrée**). Plan durable : **créé** —
+> **`docs/plans/PLAN-ROLES-ANCIENNETE.md`** porte désormais le besoin, l'état mesuré, les décisions
+> tranchées, les tests, l'acceptation et la vigilance du chantier ; ce brief n'en garde que le fil.
 
 **Ce que l'utilisateur veut** : une guilde déclare des paliers `seuil de jours → rôles Discord`. Un membre
 qui atteint le palier **reçoit** les rôles (et **perd** ceux d'un palier qu'il n'a plus, si on revient en
@@ -182,7 +182,7 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
 | # | Question | Bloque |
 |---|---|---|
 | 1 | **Y** : rattrape-t-on les membres **déjà présents** (backfill) ou seulement l'ancienneté à venir ? | lot **Y-2** |
-| 2 | **Y-3** : les paliers s'éditent sur une **page dédiée** du module ou dans un **onglet de Réglages** ? | lot **Y-3** |
+| 2 | ~~paliers sur une **page dédiée** du module ou dans un **onglet de Réglages** ?~~ **Tranché le 14/10/2026 : onglet « Rôles d'ancienneté » dans `/admin/members`** (ni page dédiée, ni Réglages — la page est **déjà gardée** et a **déjà** des onglets ⇒ aucune permission à créer) | ✅ clos |
 | 3 | **Z** : la synchronisation des commandes sur Discord passe-t-elle par une **action God** explicite (recommandé) ? | lot **Z-3** |
 | 4 | **`/presentation`** : redirection vers le hub, ou retrait du bloc + de l'entrée de menu ? | reste §5.2 |
 | 5 | **`harebourg-solver.ts`** : brancher (quel écran ?) ou retirer ? | reste §5.3 |
@@ -221,4 +221,11 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
   il était gitignoré) et condense le fil de la journée (#955 → #962), les chantiers Y/Z, les restes, les
   décisions et les pièges. Mesure ajoutée à la création : `member-management-table.tsx` a **2** consommateurs
   (et non 3) et fait **886** lignes.
+- **14/10/2026 (nuit)** — **chantier Y, lot Y-1 livré** (branche `feat/roles-anciennete-y1`) : plan durable créé
+  (`docs/plans/PLAN-ROLES-ANCIENNETE.md` — le cadrage du §3 y est **déplacé**, ce brief n'en garde que le fil),
+  **4 colonnes** de config sur `GuildConfig` + migration additive `20270107000000_add_seniority_roles_config`,
+  règles pures `src/lib/seniority-roles.ts` (palier cible, diff à ajouter/retirer, périmètre fermé, annonce à
+  variables en allowlist) et **26 cas** dans `tests/unit/seniority-roles.test.ts`. Décision **§7-2 close**
+  (onglet dans `/admin/members`, **aucune RBAC nouvelle**) ; décision **§7-1 (backfill)** toujours ouverte avant
+  **Y-2**.
 

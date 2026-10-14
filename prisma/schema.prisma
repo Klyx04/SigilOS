@@ -506,6 +506,15 @@ model GuildConfig {
   trialRoleId                      String?
   confirmedRoleId                  String?
   recruitmentWelcomeTemplate       String?
+  // ── Chantier Y — « Rôles automatiques par ancienneté » (lot Y-1 : données + règles pures) ──
+  // Paliers `seuil en jours → rôles Discord`, salon de l'annonce et message
+  // personnalisable. OFF par défaut : aucune guilde ne reçoit de rôles à son insu.
+  // Relus par `mergeSeniorityRolesConfig` (`src/lib/seniority-roles.ts`) : le JSON
+  // stocké n'est jamais cru sur parole, les valeurs douteuses retombent sur les défauts.
+  seniorityRolesEnabled            Boolean                 @default(false)
+  seniorityRolesChannelId          String?
+  seniorityRolesTiers              Json                    @default("[]")
+  seniorityRolesAnnouncement       Json?
   // ── Module « Marché » (chantier 2026-09-10) — réglages par guilde (§9.1) ──
   // Toutes les valeurs sont lues côté serveur, jamais depuis un paramètre client.
   marketNotifyChannelId            String?  // salon de publication (texte / annonces / forum)

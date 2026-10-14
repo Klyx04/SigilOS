@@ -169,6 +169,8 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
 - [ ] Jouer **`20270105000000_add_member_registry_entry`** en **bêta puis prod** (additive :
       `MemberRegistryComment.profileId` devient nullable + table `MemberRegistryEntry`).
 - [ ] Jouer **`20270106000000_add_presentation_internal_rules`** en **bêta puis prod** (règlement).
+- [ ] Jouer **`20270107000000_add_seniority_roles_config`** en **bêta puis prod** (chantier **Y**, lot **Y-1** —
+      additive : 4 colonnes sur `GuildConfig`, **aucune donnée touchée**).
 - [ ] **Ouvrir la permission `presentation:view` au rôle Membre** (`/dashboard/<guildId>/admin/permissions`) :
       sans elle, un membre ne voit **ni** l'onglet Présentation **ni** l'onglet Règlement (RBAC fail-closed).
 - [ ] Mettre à jour la page de doc **vivante** `admin-members` dans **`/god/docs`** (`src/lib/docs-catalog.ts`

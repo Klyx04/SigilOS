@@ -8,6 +8,12 @@ import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { differenceInDays } from "date-fns";
 import { ANKAMA_ID_PATTERN, MAX_REGISTRY_COMMENTS, REGISTRY_COMMENT_MAX_LENGTH, canAddRegistryComment, computeSeniorityDays, type RegistryComment } from "@/lib/member-registry";
+import {
+    describePresenceProfile,
+    resolveDiscordPresenceProfile,
+    type DiscordPresenceProfile,
+    type PresenceCounters,
+} from "@/lib/ladder-presence";
 
 // ==========================================
 // TYPES
@@ -1308,5 +1314,145 @@ export async function updateGuildLifecycleConfig(
     } catch (err: any) {
         logger.error("[updateGuildLifecycleConfig] Erreur:", err);
         return { success: false, error: "Erreur lors de la sauvegarde des paramètres" };
+    }
+}
+
+// ==========================================
+// PRÉSENCE DISCORD PAR MEMBRE (onglet de la fiche)
+// ==========================================
+
+export type MemberDiscordPresence = {
+    /** `false` = hors dashboard / jamais mesuré : le bot ne suit pas ce membre. */
+    tracked: boolean;
+    voiceWeekly: number;
+    voiceMonthly: number;
+    voiceTotal: number;
+    messagesTotal: number;
+    charactersTotal: number;
+    repliesTotal: number;
+    reactionsReceivedTotal: number;
+    streamTotal: number;
+    lastMessageAt: string | null;
+    lastVoiceAt: string | null;
+    lastReactionAt: string | null;
+    profileWeekly: DiscordPresenceProfile | null;
+    profileMonthly: DiscordPresenceProfile | null;
+    noteWeekly: string | null;
+    noteMonthly: string | null;
+};
+
+const UNTRACKED_PRESENCE: MemberDiscordPresence = {
+    tracked: false,
+    voiceWeekly: 0,
+    voiceMonthly: 0,
+    voiceTotal: 0,
+    messagesTotal: 0,
+    charactersTotal: 0,
+    repliesTotal: 0,
+    reactionsReceivedTotal: 0,
+    streamTotal: 0,
+    lastMessageAt: null,
+    lastVoiceAt: null,
+    lastReactionAt: null,
+    profileWeekly: null,
+    profileMonthly: null,
+    noteWeekly: null,
+    noteMonthly: null,
+};
+
+/**
+ * Activité Discord mesurée d'un membre (onglet « Activité Discord » de la fiche).
+ * Lecture staff (`isAdmin` ou `canManageMembers`), sujet vérifié, guilde
+ * cloisonnée. Un membre hors dashboard n'a pas de `UserProfile` : le bot ne le
+ * mesure pas (`tracked: false`, jamais un zéro accusateur).
+ */
+export async function getMemberDiscordPresence(
+    guildId: string,
+    subject: RegistrySubject
+): Promise<ActionResponse<MemberDiscordPresence>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    if (!guildId) return { success: false, error: "ID de guilde manquant" };
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canManageMembers) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    const parsed = subjectSchema.safeParse(subject);
+    if (!parsed.success) return { success: false, error: "Sujet invalide" };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const target = resolveRegistryTarget(parsed.data as RegistrySubject);
+        if (target.kind !== "profile") return { success: true, data: UNTRACKED_PRESENCE };
+
+        const profile = await db.userProfile.findUnique({
+            where: { id: target.profileId },
+            select: {
+                guildId: true,
+                discordVoiceTimeWeekly: true,
+                discordVoiceTimeMonthly: true,
+                discordVoiceTimeTotal: true,
+                discordMessageCountTotal: true,
+                discordCharactersTotal: true,
+                discordRepliesTotal: true,
+                discordReactionsReceivedTotal: true,
+                discordVoiceStreamTimeTotal: true,
+                lastDiscordMessageAt: true,
+                lastDiscordVoiceAt: true,
+                lastDiscordReactionAt: true,
+            },
+        });
+        if (!profile || profile.guildId !== guild.id) {
+            return { success: false, error: "Cible invalide pour cette guilde" };
+        }
+
+        const counters: PresenceCounters = {
+            voiceWeekly: profile.discordVoiceTimeWeekly || 0,
+            voiceMonthly: profile.discordVoiceTimeMonthly || 0,
+            voiceTotal: profile.discordVoiceTimeTotal || 0,
+            messagesTotal: profile.discordMessageCountTotal || 0,
+            charactersTotal: profile.discordCharactersTotal || 0,
+            repliesTotal: profile.discordRepliesTotal || 0,
+            reactionsReceivedTotal: profile.discordReactionsReceivedTotal || 0,
+            streamTotal: profile.discordVoiceStreamTimeTotal || 0,
+            lastMessageAt: profile.lastDiscordMessageAt || null,
+            lastVoiceAt: profile.lastDiscordVoiceAt || null,
+            lastReactionAt: profile.lastDiscordReactionAt || null,
+        };
+        const profileWeekly = resolveDiscordPresenceProfile(counters, "weekly");
+        const profileMonthly = resolveDiscordPresenceProfile(counters, "monthly");
+        const iso = (d: Date | null) => (d ? d.toISOString() : null);
+
+        return {
+            success: true,
+            data: {
+                tracked: true,
+                voiceWeekly: counters.voiceWeekly,
+                voiceMonthly: counters.voiceMonthly,
+                voiceTotal: counters.voiceTotal,
+                messagesTotal: counters.messagesTotal,
+                charactersTotal: counters.charactersTotal,
+                repliesTotal: counters.repliesTotal,
+                reactionsReceivedTotal: counters.reactionsReceivedTotal,
+                streamTotal: counters.streamTotal,
+                lastMessageAt: iso(profile.lastDiscordMessageAt),
+                lastVoiceAt: iso(profile.lastDiscordVoiceAt),
+                lastReactionAt: iso(profile.lastDiscordReactionAt),
+                profileWeekly,
+                profileMonthly,
+                noteWeekly: describePresenceProfile(profileWeekly, "weekly"),
+                noteMonthly: describePresenceProfile(profileMonthly, "monthly"),
+            },
+        };
+    } catch (err: unknown) {
+        logger.error("[getMemberDiscordPresence] Erreur:", err);
+        return { success: false, error: "Erreur lors de la lecture de l'activité Discord" };
     }
 }

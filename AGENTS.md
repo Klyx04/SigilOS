@@ -90,7 +90,9 @@ plans de module — **seulement si la tâche l'exige**. Ne déverse jamais tout 
 ```bash
 npm install                        # installe aussi le hook pre-commit (husky)
 docker compose up -d db redis      # PostgreSQL (hôte 5433) + Redis
-npx prisma generate                # après tout changement de schéma
+# ⚠️ Base locale : la faire suivre le schéma AVANT de lancer l'app — sinon « The column X does not exist »
+npx prisma migrate deploy          # joue les migrations en attente (5433) — voir docs/agents/prisma-schema-change.md
+npx prisma generate                # après tout changement de schéma — puis REDÉMARRER `npm run dev`
 npm run dev                        # http://localhost:3000
 
 npm run test:run                   # Vitest complet (~1 700 tests) — obligatoire avant PR

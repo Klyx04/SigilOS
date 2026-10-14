@@ -294,10 +294,15 @@ export interface DiscordRoleOption {
  *
  * `members` = les deux natures de lignes du registre (profils dashboard **et** membres Discord
  * seuls) : le filtre doit pouvoir cibler les deux.
+ *
+ * `allowedRoleIds` (facultatif) restreint la liste aux rôles **autorisés dashboard** (ceux mappés
+ * dans le RBAC) : les rôles de jeu ou cosmétiques n'ouvrent aucune page, ils n'ont rien à faire
+ * dans un filtre de gestion. `null`/`undefined` = aucune restriction (vue God, écrans historiques).
  */
 export function registryRoleOptions(
     roles: readonly { id: string; name: string; color?: number | null; position?: number | null }[] | null | undefined,
-    members: readonly { roles: readonly string[] | null | undefined }[] | null | undefined
+    members: readonly { roles: readonly string[] | null | undefined }[] | null | undefined,
+    allowedRoleIds?: readonly string[] | null
 ): DiscordRoleOption[] {
     const counts = new Map<string, number>();
     for (const member of members ?? []) {
@@ -305,7 +310,9 @@ export function registryRoleOptions(
             counts.set(roleId, (counts.get(roleId) ?? 0) + 1);
         }
     }
+    const allowed = allowedRoleIds ? new Set(allowedRoleIds) : null;
     return (roles ?? [])
+        .filter((role) => !allowed || allowed.has(role.id))
         .map((role) => ({
             id: role.id,
             name: role.name,

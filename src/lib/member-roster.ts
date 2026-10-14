@@ -472,7 +472,13 @@ export function queryRoster(
 /** Options du filtre « rôle Discord » : seulement les rôles portés par au moins un membre. */
 export function rosterRoleOptions(
     roles: readonly RosterRoleInput[] | null | undefined,
-    rows: readonly RosterRow[]
+    rows: readonly RosterRow[],
+    /**
+     * Restriction RBAC : seuls les rôles **autorisés dashboard** (mappés) sont proposés — les rôles
+     * de jeu ou cosmétiques n'ouvrent aucune page, ils n'ont rien à faire dans un filtre de gestion.
+     * `null`/`undefined` = aucune restriction (vue God, écrans historiques).
+     */
+    allowedRoleIds?: readonly string[] | null
 ): DiscordRoleOption[] {
-    return registryRoleOptions(roles, rows);
+    return registryRoleOptions(roles, rows, allowedRoleIds);
 }

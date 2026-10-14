@@ -271,6 +271,27 @@ export function roleCanVote(
     return perms.includes(PERMISSIONS.COMMUNITY_ACCESS) || perms.includes(PERMISSIONS.SYSTEM_GOD);
 }
 
+/**
+ * Rôle **autorisé dashboard** — le filtre de rôles du module Membres ne propose que ceux-là.
+ *
+ * Pourquoi ici : la liste proposait **tous** les rôles Discord du serveur (rôles de jeu,
+ * classes, cosmétiques : une vingtaine d'entrées dont la plupart ne filtrent rien d'utile,
+ * mesure bêta du 14/10/2026). Un rôle qui n'est mappé à **aucune** permission n'ouvre aucune
+ * page : il n'a rien à faire dans le filtre. Les lignes « hors dashboard » restent affichées et
+ * filtrables par les autres facettes (statut, inscription, recherche) — ce filtre ne les touche pas.
+ *
+ * `rolesMapping` **absent ou vide** (RBAC non configuré) ⇒ `true` : on n'invente pas une
+ * restriction que la guilde n'a pas posée, le filtre reste complet.
+ */
+export function roleHasDashboardAccess(
+    rolesMapping: Record<string, string[] | null | undefined> | null | undefined,
+    roleId: string,
+): boolean {
+    if (!rolesMapping || Object.keys(rolesMapping).length === 0) return true;
+    const perms = rolesMapping[roleId];
+    return Array.isArray(perms) && perms.length > 0;
+}
+
 export function getPermissionsByModule(module: PermissionModule): PermissionId[] {
     return (Object.entries(PERMISSION_DETAILS) as [PermissionId, { module: PermissionModule }][])
         .filter(([, details]) => details.module === module)

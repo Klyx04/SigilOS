@@ -115,6 +115,17 @@ const formatDateTime = (iso: string | null) =>
           })
         : "jamais";
 
+/** Rôle Discord tel que `getDiscordRolesAction` le renvoie (couleur = entier, 0 = « sans couleur »). */
+interface DiscordRoleOption {
+    id: string;
+    name: string;
+    color: number;
+}
+
+/** Couleur Discord → couleur CSS, ou `null` quand le rôle n'a pas de couleur (0). */
+const roleColorToCss = (color: number): string | null =>
+    color > 0 ? `#${color.toString(16).padStart(6, "0")}` : null;
+
 /**
  * Choix multiple de rôles d'un palier (recherche incluse).
  *
@@ -129,7 +140,7 @@ function TierRolesSelector({
 }: {
     value: string[];
     onChange: (next: string[]) => void;
-    roles: { id: string; name: string; color: string }[];
+    roles: DiscordRoleOption[];
 }) {
     const [open, setOpen] = useState(false);
     const selected = roles.filter((role) => value.includes(role.id));
@@ -149,15 +160,18 @@ function TierRolesSelector({
                         {selected.length === 0 ? (
                             <span className="text-muted-foreground">Choisir les rôles de ce palier…</span>
                         ) : (
-                            selected.map((role) => (
-                                <Badge key={role.id} variant="secondary" className="gap-1.5 font-normal">
-                                    <span
-                                        className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground"
-                                        style={role.color ? { backgroundColor: role.color } : undefined}
-                                    />
-                                    {role.name}
-                                </Badge>
-                            ))
+                            selected.map((role) => {
+                                const cssColor = roleColorToCss(role.color);
+                                return (
+                                    <Badge key={role.id} variant="secondary" className="gap-1.5 font-normal">
+                                        <span
+                                            className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground"
+                                            style={cssColor ? { backgroundColor: cssColor } : undefined}
+                                        />
+                                        {role.name}
+                                    </Badge>
+                                );
+                            })
                         )}
                     </span>
                     <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -192,7 +206,7 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
     const [data, setData] = useState<SeniorityRolesSettingsPayload | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
     const [initial, setInitial] = useState<Draft | null>(null);
-    const [roles, setRoles] = useState<{ id: string; name: string; color: string }[]>([]);
+    const [roles, setRoles] = useState<DiscordRoleOption[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
@@ -201,7 +215,7 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
             getSeniorityRolesSettings(guildId),
             getDiscordRolesAction(guildId, { ignoreWhitelist: true }).catch(() => ({
                 success: false as const,
-                roles: [] as { id: string; name: string; color: string }[],
+                roles: [] as DiscordRoleOption[],
             })),
         ]);
 

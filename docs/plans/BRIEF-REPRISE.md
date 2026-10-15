@@ -69,7 +69,7 @@ on ne « corrige » pas une supposition.
 
 ---
 
-## 3. Chantier **Y** — rôles automatiques par ancienneté ✅ *clos le 14/10/2026 (Y-1 → Y-3 livrés)*
+## 3. Chantier **Y** — rôles automatiques par ancienneté ✅ *clos le 14/10/2026 (Y-1 → Y-4 livrés)*
 
 > Référence produit : module « Autoroles » de Dyno. Cadré le 14/10/2026. `docs/plans/FILE-EXECUTION.md`
 > §1 « Y » + **étape 59** (« juste après l'étape 24 = chantier B », **livrée**). Plan durable : **créé** —
@@ -252,4 +252,10 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
   posé une fois) ; salon déclaré dans les deux listes de la veille ; correction de
   `normalizeSeniorityTiers` (l'arbitrage des doublons se fait **après** le tri). **16 cas**
   (`tests/unit/seniority-roles-ui.test.ts`). ⇒ l'étape **60** de la file (**Z**) est **débloquée**.
+- **14/10/2026 (nuit, suite)** — **chantier Y, lot Y-4 livré** (vue informative **« Prochains paliers »**) :
+  qui va bientôt basculer de rôle, dans les **30 jours**, pour le staff — règle pure
+  `resolveUpcomingTierChange` + fenêtre `SENIORITY_UPCOMING_WINDOW_DAYS`, liste servie par la **même**
+  lecture des membres actifs (tri proche→lointain, plafond 25 + total), section **responsive**
+  (tableau desktop / cartes mobile) **sans aucune action**, verrou `seniority-roles-upcoming.test.ts`
+  (**11 cas**).
 

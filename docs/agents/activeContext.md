@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## ⏳ Session 14/10/2026 (suite 14) — **Chantier Y, lot Y-4 : vue « Prochains paliers » (qui va bientôt basculer)** — branche `feat/roles-anciennete-y4`
+> **Demande user (verbatim)** : « ajoute aussi dans ce module ancienneté un onglet pour voir qui va bientôt basculer de rôle pour le staff juste informatif propre responsive etc ».
+> **Mesure** : la lecture des membres actifs existait déjà (une requête, calcul pur) ⇒ **aucune requête supplémentaire** ; `Avatar`, `formatSeniority` et le motif tableau/cartes mobile existent ⇒ rien d'inventé.
+> **Fait** : règle pure `resolveUpcomingTierChange` + fenêtre `SENIORITY_UPCOMING_WINDOW_DAYS = 30` · liste `upcoming` servie par la même boucle (tri proche→lointain puis pseudo, **plafond 25** + `upcomingTotal`, avatar normalisé) · section « Prochains paliers » **responsable** (tableau desktop / cartes mobile), état vide, « N affichés sur M », **sans aucune action**.
+> **Preuves** : `tests/unit/seniority-roles-upcoming.test.ts` (**11 cas**) · `npm run test:run` **382 fichiers / 4 190 tests ✓** · `eslint` **0 erreur** · `tsc` ciblé **0 erreur**.
+> **Reste / ops (humain)** : contrôle à l'œil · lots ouverts sur ce module : **F** (sélecteurs forum), **G** (salon → Paramètres), **I** (tags de forum choisis).
+> **Rotation** : bloc inséré en haut ; **aucun bloc sorti** (dette toujours ouverte, §7-6 du brief).
+
 ## 🧹 Session 14/10/2026 (suite 13) — **Déslop : onglet « Apparence » (couleur de guilde) retiré avec son code** — branche `chore/deslop-apparence-guilde`
 > **Demande user (verbatim)** : « H supprime le code et cet onglet c inutile » (mesure faite avant : l'onglet n'était **pas** du code mort — il écrivait `accentHue`, lu par le layout — la fonctionnalité est retirée en connaissance de cause).
 > **Mesure** : `GUILD_HUE_PRESETS` jamais importé · `getGuildAppearance` = 1 seule occurrence (`src/`) · l'onglet promettait un réglage de **mode sombre** qui n'existe pas · la teinte vivait de `layout.tsx:81-96` → `GuildAccentStyle` → `--guild-hue`.

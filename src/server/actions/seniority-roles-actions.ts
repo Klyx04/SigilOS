@@ -19,6 +19,7 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { getUserContext } from "@/server/actions/user-actions";
 import { computeSeniorityDays, resolveJoinedAt } from "@/lib/member-registry";
+import { normalizeDiscordAvatarUrl } from "@/lib/discord-avatars";
 import {
     SENIORITY_ANNOUNCEMENT_DESCRIPTION_MAX_LENGTH,
     SENIORITY_ANNOUNCEMENT_MESSAGE_MAX_LENGTH,
@@ -27,12 +28,17 @@ import {
     SENIORITY_ROLES_MAX_ROLES_PER_TIER,
     SENIORITY_ROLES_MAX_TIERS,
     SENIORITY_ROLES_MIN_DAYS,
+    SENIORITY_UPCOMING_WINDOW_DAYS,
     mergeSeniorityRolesConfig,
     normalizeSeniorityTiers,
     resolveSeniorityRoleTier,
+    resolveUpcomingTierChange,
     type SeniorityAnnouncementConfig,
     type SeniorityTier,
 } from "@/lib/seniority-roles";
+
+/** Plafond d'affichage de la liste « Prochains paliers » : l'écran reste lisible. */
+const MAX_UPCOMING = 25;
 
 /** Identifiant Discord (snowflake) — même borne que le reste du dépôt. */
 const SNOWFLAKE = z.string().regex(/^\d{17,20}$/, "Identifiant Discord invalide");
@@ -60,6 +66,17 @@ const SETTINGS_SCHEMA = z
     })
     .strict();
 
+/** Un membre qui franchira bientôt son prochain palier (vue informative, aucune action). */
+export interface UpcomingSeniorityMember {
+    displayName: string;
+    avatarUrl: string | null;
+    seniorityDays: number;
+    /** Seuil du palier visé. */
+    tierDays: number;
+    /** Jours restants avant de le franchir. */
+    daysUntil: number;
+}
+
 export interface SeniorityRolesSettingsPayload {
     enabled: boolean;
     channelId: string | null;
@@ -75,6 +92,10 @@ export interface SeniorityRolesSettingsPayload {
     tierCounts: number[];
     /** Membres actifs sous le premier palier. */
     belowFirstTier: number;
+    /** Membres qui franchiront un palier dans les `SENIORITY_UPCOMING_WINDOW_DAYS` jours, du plus proche au plus lointain. */
+    upcoming: UpcomingSeniorityMember[];
+    /** Nombre total avant plafond d'affichage (pour dire « 25 affichés sur 42 »). */
+    upcomingTotal: number;
     announcements: { total: number; lastAt: string | null };
     /** Dernière passe connue du robot (télémétrie des crons) — `null` si jamais passée. */
     lastRun: { at: string | null; status: string; summary: string | null } | null;
@@ -119,21 +140,50 @@ export async function getSeniorityRolesSettings(guildId: string) {
         // requête par membre). Les paliers relus sont déjà triés par `mergeSeniorityRolesConfig`.
         const profiles = await db.userProfile.findMany({
             where: { guildId: guild.id, status: "ACTIVE" },
-            select: { guildJoinedAt: true, discordJoinedAt: true, createdAt: true },
+            select: {
+                guildJoinedAt: true,
+                discordJoinedAt: true,
+                createdAt: true,
+                pseudoDofus: true,
+                discordNickname: true,
+                user: { select: { name: true, image: true } },
+            },
         });
         const now = new Date();
         const tierCounts = config.tiers.map(() => 0);
         let belowFirstTier = 0;
+        const upcomingCandidates: UpcomingSeniorityMember[] = [];
+
         for (const profile of profiles) {
             const joinedAtIso = resolveJoinedAt({
                 guildJoinedAt: profile.guildJoinedAt ? profile.guildJoinedAt.toISOString() : null,
                 discordJoinedAt: profile.discordJoinedAt ? profile.discordJoinedAt.toISOString() : null,
                 createdAt: profile.createdAt.toISOString(),
             });
-            const tierIndex = resolveSeniorityRoleTier(config.tiers, computeSeniorityDays(joinedAtIso, now));
+            const seniorityDays = computeSeniorityDays(joinedAtIso, now);
+            const tierIndex = resolveSeniorityRoleTier(config.tiers, seniorityDays);
             if (tierIndex < 0) belowFirstTier += 1;
             else tierCounts[tierIndex] += 1;
+
+            // « Prochains paliers » : seulement ceux qui franchiront un palier **bientôt**
+            // (fenêtre de 30 jours). Vue informative : rien n'est écrit, rien n'est annoncé.
+            const upcomingTier = resolveUpcomingTierChange({ tiers: config.tiers, seniorityDays });
+            if (upcomingTier && upcomingTier.daysUntil <= SENIORITY_UPCOMING_WINDOW_DAYS) {
+                upcomingCandidates.push({
+                    displayName: profile.pseudoDofus || profile.discordNickname || profile.user?.name || "Membre",
+                    avatarUrl: normalizeDiscordAvatarUrl(profile.user?.image ?? null, 64),
+                    seniorityDays,
+                    tierDays: upcomingTier.tierDays,
+                    daysUntil: upcomingTier.daysUntil,
+                });
+            }
         }
+
+        // Du plus proche au plus lointain, puis alphabétique — et plafonné pour l'écran.
+        const upcomingTotal = upcomingCandidates.length;
+        const upcoming = upcomingCandidates
+            .sort((a, b) => a.daysUntil - b.daysUntil || a.displayName.localeCompare(b.displayName))
+            .slice(0, MAX_UPCOMING);
 
         const [announcementTotal, lastAnnouncement] = await Promise.all([
             db.seniorityRoleAnnouncement.count({ where: { guildId: guild.id } }),
@@ -162,6 +212,8 @@ export async function getSeniorityRolesSettings(guildId: string) {
             guildIconUrl: guild.iconUrl,
             tierCounts,
             belowFirstTier,
+            upcoming,
+            upcomingTotal,
             announcements: {
                 total: announcementTotal,
                 lastAt: lastAnnouncement?.announcedAt.toISOString() ?? null,

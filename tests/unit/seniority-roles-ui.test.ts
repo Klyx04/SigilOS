@@ -83,7 +83,6 @@ const manager = () => ({
 
 const validInput = () => ({
     enabled: true,
-    channelId: CHANNEL,
     tiers: [
         { days: 30, roleIds: [ROLE_A] },
         { days: 180, roleIds: [ROLE_B] },
@@ -148,15 +147,6 @@ describe("Y-3 — écriture des réglages (fail-closed d'abord)", () => {
         for (const input of invalid) {
             expect((await updateSeniorityRolesSettings(GUILD_ID, input)).success).toBe(false);
         }
-        expect(guildConfigUpdate).not.toHaveBeenCalled();
-    });
-
-    it("refuse un salon qui n'appartient pas à la guilde", async () => {
-        validateChannelBelongsToGuild.mockResolvedValue(false);
-
-        const result = await updateSeniorityRolesSettings(GUILD_ID, validInput());
-
-        expect(result.success).toBe(false);
         expect(guildConfigUpdate).not.toHaveBeenCalled();
     });
 

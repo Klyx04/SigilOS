@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## ⏳ Session 14/10/2026 (suite 15) — **Lot G : le salon de l'ancienneté part dans Paramètres (une porte par réglage)** — branche `feat/roles-anciennete-salon-parametres`
+> **Demande user** : le salon n'a rien à faire dans l'onglet Ancienneté, il va dans **Paramètres** — confirmé (« g est pas fait ? »).
+> **Mesure** : les **16** encarts de salon du dépôt vivent dans Paramètres ; cet onglet était le seul écart. `DiscordChannelPicker` + le motif `scheduledPolls` existaient : rien d'inventé.
+> **Fait** : action **narrow** `updateSeniorityRolesChannel` (RBAC, rate limit, Zod **strict à un champ**, salon vérifié Discord, revalidation des deux écrans) · onglet **Paramètres → Ancienneté** (`?tab=anciennete`, groupe *Notifications & Canaux*) · **l'onglet Membres n'écrit plus** le salon (schéma + payload) et **renvoie** vers Paramètres ⇒ une porte par réglage · **13 imports morts** de `settings/page.tsx` nettoyés (pré-existants, mesurés à `HEAD`).
+> **Preuves** : `roles-anciennete-salon-settings.test.ts` (**9 cas**) · `seniority-roles-ui.test.ts` (**15**, mis à jour) · suite **383 fichiers / 4 198 tests ✓** · `eslint` **0 erreur** · `tsc` ciblé **0 erreur**.
+> **Reste / ops (humain)** : régler le salon dans `Paramètres → Ancienneté` · ouverts : **F** (forums), **I** (tags), **Y-5** (texte par palier).
+> **Rotation** : bloc inséré en haut ; **aucun bloc sorti** (dette toujours ouverte, §7-6 du brief).
+
 ## ⏳ Session 14/10/2026 (suite 14) — **Chantier Y, lot Y-4 : vue « Prochains paliers » (qui va bientôt basculer)** — branche `feat/roles-anciennete-y4`
 > **Demande user (verbatim)** : « ajoute aussi dans ce module ancienneté un onglet pour voir qui va bientôt basculer de rôle pour le staff juste informatif propre responsive etc ».
 > **Mesure** : la lecture des membres actifs existait déjà (une requête, calcul pur) ⇒ **aucune requête supplémentaire** ; `Avatar`, `formatSeniority` et le motif tableau/cartes mobile existent ⇒ rien d'inventé.

@@ -8,6 +8,13 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
+## ⏳ Session 14/10/2026 (suite 15) — **Lot G : le salon de l'annonce d'ancienneté part dans Paramètres (une porte par réglage) + 13 imports morts nettoyés** — branche `feat/roles-anciennete-salon-parametres`
+> **Demande user (verbatim)** : « le salon ne devrait pas être dans l'onglet ancienneté mais dans parametre admin general non ? » (puis) « g est pas fait ? ».
+> **Mesure** : **tous** les salons du dépôt se déclarent dans Paramètres (16 encarts de module) ; cet onglet était le seul écart. Rien à inventer : `DiscordChannelPicker` + le motif `scheduledPolls` (salon dans Paramètres, fonctionnalité ailleurs) existent.
+> **Fait** : **① serveur** : action **narrow** `updateSeniorityRolesChannel(guildId, { channelId })` — RBAC `canManageMembers`, rate limit, Zod **strict à un champ**, salon **vérifié auprès de Discord**, revalidation des deux écrans · **② onglet** `Paramètres → Ancienneté` (groupe *Notifications & Canaux*, `?tab=anciennete`) avec le seul champ du salon · **③ l'onglet Membres n'écrit plus ce champ** (retiré de son schéma + de son payload) et son écran **renvoie** vers Paramètres au lieu dupliquer le sélecteur ⇒ **une porte par réglage**, aucun écran ne peut écraser l'autre · **④ au passage** : les **13 imports morts** de `settings/page.tsx` (pré-existants — mesurés à `HEAD` : 1 seule occurrence) sont supprimés, `eslint` du fichier passe à **0 avertissement**.
+> **Preuves** : `tests/unit/roles-anciennete-salon-settings.test.ts` (**9 cas**) + `seniority-roles-ui.test.ts` mis à jour (**15 cas**) · suite complète **383 fichiers / 4 198 tests ✓** · `eslint` **0 erreur** · `tsc` ciblé **0 erreur**.
+> **Reste / ops (humain)** : ouvrir `Paramètres → Ancienneté` et régler le salon (le lien depuis l'onglet Membres y mène) · lots encore ouverts : **F** (sélecteurs **forum**), **I** (tags de forum choisis), **Y-5** (texte **par palier**, demandé par l'utilisateur).
+
 ## ⏳ Session 14/10/2026 (suite 14) — **Chantier Y, lot Y-4 : la vue « Prochains paliers » (qui va bientôt basculer), informative et responsive** — branche `feat/roles-anciennete-y4`
 > **Demande user (verbatim)** : « ajoute aussi dans ce module ancienneté un onglet pour voir qui va bientôt basculer de rôle pour le staff juste informatif propre responsive etc ».
 > **Mesure (avant d'écrire)** : la lecture des **membres actifs** existait déjà dans `getSeniorityRolesSettings` (une seule requête + calcul pur par membre) ⇒ la liste s'ajoute **sans requête supplémentaire** ; les briques d'affichage existent (`Avatar`, `formatSeniority` de `ladder-utils`, le motif « tableau desktop / cartes mobile » de `member-roster-list`) ⇒ rien d'inventé.

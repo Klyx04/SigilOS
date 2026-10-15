@@ -6,9 +6,9 @@ import AccessDenied from "@/components/access-denied";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/prisma";
 import {
-    Settings, Bell, Key, Moon, Users, Calendar, Sword, Target, BarChart3,
-    HandCoins, ArrowLeft, ChevronRight, Loader2, Save, AlertTriangle, Hash, Megaphone,
-    ShieldAlert, UserCheck, Sparkles, Gem, Layout, Palette,
+    Settings, Bell, Key, Calendar, Sword, Target, BarChart3,
+    HandCoins, ChevronRight, Megaphone,
+    ShieldAlert, UserCheck, Layout, Clock,
     Store
 } from "lucide-react";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
@@ -17,13 +17,10 @@ import { OcreSettingsClient } from "../archimonstres/_components/ocre-settings-c
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
 import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
 import { MissionSettingsClient } from "../_components/mission-settings-client";
-import { MemberSyncButton } from "@/components/admin/member-sync-button";
+import { SeniorityRolesSettingsClient } from "../_components/seniority-roles-settings-client";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
-import { MemberStatsOverview } from "@/components/admin/member-stats-overview";
-import { MemberManagementTable } from "@/components/admin/member-management-table";
-import { getGuildMemberStats, getGuildMembers } from "@/server/actions/user-actions";
 import { PollSettingsClient } from "../_components/poll-settings-client";
 import { ScheduledPollSettingsClient } from "../_components/scheduled-poll-settings-client";
 import { DjSettingsClient } from "../_components/dj-settings-client";
@@ -80,6 +77,7 @@ function buildNavGroups(): SettingsGroup[] {
                 { id: "relance", label: "Relances", icon: Bell, description: "Canal de diffusion des relances", accent: "emerald", module: null },
                 { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "emerald", module: "polls" },
                 { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "emerald", module: null },
+                { id: "anciennete", label: "Ancienneté", icon: Clock, description: "Salon des annonces de palier", accent: "emerald", module: null },
             ]
         },
         {
@@ -335,6 +333,7 @@ export default async function FeatureSettingsPage({
                                 </div>
                             )}
                             { resolvedTab === "blacklist" && <BlacklistSettingsClient guildId={guildId} /> }
+                            { resolvedTab === "anciennete" && <SeniorityRolesSettingsClient guildId={guildId} /> }
                             { resolvedTab === "relance" && <RelanceSettingsClient guildId={guildId} /> }
                             { resolvedTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
                             { resolvedTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }

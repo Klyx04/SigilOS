@@ -14,7 +14,8 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, Clock, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Check, ChevronsUpDown, Clock, ExternalLink, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
-import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { DiscordEmbedPreview } from "@/components/discord/DiscordEmbedPreview";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import {
@@ -67,7 +67,6 @@ interface TierDraft {
 
 interface Draft {
     enabled: boolean;
-    channelId: string;
     tiers: TierDraft[];
     messageTemplate: string;
     embedTitle: string;
@@ -88,7 +87,6 @@ const colorFromHex = (value: string) => {
 
 const draftFrom = (data: SeniorityRolesSettingsPayload): Draft => ({
     enabled: data.enabled,
-    channelId: data.channelId ?? "",
     tiers: data.tiers.map((tier) => ({ days: String(tier.days), roleIds: [...tier.roleIds] })),
     messageTemplate: data.announcement.messageTemplate,
     embedTitle: data.announcement.embedTitle,
@@ -100,7 +98,6 @@ const draftFrom = (data: SeniorityRolesSettingsPayload): Draft => ({
 /** Vue comparable pour le garde « modifications non enregistrées » : l'ordre des rôles ne compte pas. */
 const comparable = (draft: Draft) => ({
     ...draft,
-    channelId: draft.channelId.trim(),
     tiers: draft.tiers.map((tier) => ({ days: tier.days.trim(), roleIds: [...tier.roleIds].sort() })),
 });
 
@@ -284,7 +281,6 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
 
             const result = await updateSeniorityRolesSettings(guildId, {
                 enabled: draft.enabled,
-                channelId: draft.channelId.trim() || null,
                 tiers,
                 announcement: {
                     messageTemplate: draft.messageTemplate.trim() || DEFAULT_SENIORITY_ANNOUNCEMENT.messageTemplate,
@@ -382,12 +378,21 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                             <Label className="text-xs uppercase tracking-wide text-muted-foreground">
                                 Salon de l&apos;annonce
                             </Label>
-                            <DiscordChannelPicker
-                                guildId={guildId}
-                                value={draft.channelId}
-                                onChange={(value) => patch({ channelId: value })}
-                                allowEmptyLabel="Aucune annonce (rôles posés en silence)"
-                            />
+                            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                <span>
+                                    {data?.channelId
+                                        ? "Un salon est réglé pour les annonces de palier."
+                                        : "Aucune annonce (les rôles sont posés en silence)."}
+                                </span>
+                                {/* Le salon vit dans Paramètres, comme tous les autres salons du dépôt. */}
+                                <Link
+                                    href={`/dashboard/${guildId}/admin/settings?tab=anciennete`}
+                                    className="inline-flex items-center gap-1 text-info hover:underline"
+                                >
+                                    Paramètres → Ancienneté
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                </Link>
+                            </p>
                             <p className="text-xs text-muted-foreground">
                                 Les rôles sont posés même sans salon : l&apos;annonce est la seule chose qui en dépend.
                             </p>

@@ -10,6 +10,7 @@ import { publishDofusEvent } from "@/lib/dofus-realtime";
 import { rateLimit } from "@/lib/ratelimit";
 import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
 import { ACHIEVEMENT_KIND, QUEST_KIND } from "@/lib/dofus-quest-tree";
+import { emitGuildActivity } from "@/server/guild-activity-emit";
 import { ALL_KROKILLE_MONSTERS } from "@/components/dofus-quests/DofusDokilleTracker";
 
 export type ActionResponse<T = void> = {
@@ -1016,11 +1017,32 @@ async function refreshDofusCompletionPercent(
         .filter((e: any) => doneIds.has(e.id))
         .reduce((s: number, e: any) => s + (e.weight ?? 1), 0);
     const completionPercent = totalWeight > 0 ? Math.round((doneWeight / totalWeight) * 100) : 0;
+    // Chantier N (lot N-2a) : un Dofus **complété** s'annonce **une seule fois** — on mesure la
+    // transition (avant : < 100 %, après : 100 %) en lisant l'ancien pourcentage avant l'écriture.
+    // L'`entityId` porte le triptyque complet : un même Dofus peut être validé sur 2 personnages.
+    const previous = await (db as any).playerDofusProgress.findUnique({
+        where: { profileId_dofusId_characterName: { profileId, dofusId, characterName } },
+        select: { completionPercent: true },
+    });
     await (db as any).playerDofusProgress.upsert({
         where: { profileId_dofusId_characterName: { profileId, dofusId, characterName } },
         update: { completionPercent },
         create: { profileId, guildId: guildConfigId, dofusId, completionPercent, characterName },
     });
+
+    if (completionPercent === 100 && (previous?.completionPercent ?? 0) < 100) {
+        const dofus = await (db as any).dofusItem.findUnique({
+            where: { id: dofusId },
+            select: { name: true },
+        });
+        await emitGuildActivity({
+            guildId: guildConfigId,
+            profileId,
+            kind: "dofus",
+            entityId: `${dofusId}:${profileId}:${characterName}`,
+            detail: dofus?.name ?? null,
+        });
+    }
 }
 
 // ─── MUTATIONS ───────────────────────────────────────────────────────────────

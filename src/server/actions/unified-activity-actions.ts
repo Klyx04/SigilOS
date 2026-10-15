@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
+import { resolveGuildActivityKind, shouldNotifyGuildActivity } from "@/lib/guild-activity";
 
 export type ActivityType = 
     | "SERVICE" 
@@ -10,7 +11,17 @@ export type ActivityType =
     | "VAULT" 
     | "MISSION_VALIDATED" 
     | "OCRE_TRADE" 
-    | "DONATION_VALIDATED";
+    | "DONATION_VALIDATED"
+    // ── Activité de guilde (chantier N, lot N-2) : modules écrits par `logServiceActivity` ──
+    | "MISSIONS"
+    | "DONJONS"
+    | "SONGES"
+    | "OCRE"
+    | "EVENTS"
+    | "SUCCES"
+    | "DOFUS"
+    | "PALIERS"
+    | "LADDER";
 
 export interface UnifiedLog {
     id: string;
@@ -206,4 +217,34 @@ export async function getUnifiedGuildActivity(guildId: string, limit = 15): Prom
         logger.error("[getUnifiedGuildActivity] Error:", error);
         return [];
     }
+}
+
+/**
+ * Chantier **N**, lot **N-3** — les lignes du flux **visibles pour ce membre**, filtrées par **ses**
+ * préférences d'annonce (`UserProfile.notificationPrefs`, règle pure `shouldNotifyGuildActivity`).
+ *
+ * Pourquoi ici et pas côté navigateur : un filtre client laisserait passer la donnée. Ici, une
+ * activité coupée **ne sort jamais de la base** vers ce membre (fail-closed, `AGENTS.md` §5).
+ *
+ * Les lignes hors activité de guilde (service, prêt, coffre, dons) ne sont **pas** concernées par
+ * ces préférences et traversent toujours : ces modules ont leurs propres réglages.
+ */
+export async function getGuildActivityToasts(guildId: string, limit = 6): Promise<UnifiedLog[]> {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return [];
+
+    const prefs = user.profileId
+        ? (
+              await db.userProfile
+                  .findUnique({ where: { id: user.profileId }, select: { notificationPrefs: true } })
+                  .catch(() => null)
+          )?.notificationPrefs
+        : null;
+
+    const lines = await getUnifiedGuildActivity(guildId, limit);
+    return lines.filter((line) => {
+        const kind = resolveGuildActivityKind(line.type);
+        if (!kind) return true;
+        return shouldNotifyGuildActivity({ kind, prefs });
+    });
 }

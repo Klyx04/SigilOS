@@ -16,6 +16,7 @@ import { HeaderEventChip } from "./header-event-chip";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { FeedBell } from "@/components/notifications/feed-bell";
+import { ActivityToaster } from "@/components/notifications/activity-toaster";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./app-sidebar";
@@ -215,6 +216,10 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise }: Top
                             guildId={sidebarProps.guildId}
                             className="h-8 w-8 bg-transparent hover:bg-foreground/5 text-muted-foreground hover:text-foreground rounded-lg transition-all"
                         />
+                        {/* Chantier N (lot N-3) : les bulles d'activité de guilde, en haut à droite
+                            sous le profil, pour tout le monde (montées ici : c'est l'en-tête qui
+                            porte le profil et les cloches). */}
+                        <ActivityToaster guildId={sidebarProps.guildId} />
                     </div>
 
                     {/* 3. Arcade (Live Games) */}

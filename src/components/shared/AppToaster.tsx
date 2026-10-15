@@ -30,24 +30,41 @@ export function AppToaster() {
   }
 
   return (
-    <Toaster
-      position="bottom-right"
-      richColors
-      expand={false}
-      closeButton
-      toastOptions={{
-        className: "group font-sans border border-border/50 bg-card/90 backdrop-blur-xl text-card-foreground rounded-2xl p-4 shadow-lg",
-        descriptionClassName: "text-muted-foreground font-medium text-body-sm",
-        style: {
-          borderLeft: "3px solid var(--border-strong, rgba(255,255,255,0.1))",
-        },
-        actionButtonStyle: {
-          background: "var(--foreground)",
-          color: "var(--background)",
-          fontWeight: "bold",
-          borderRadius: "0.5rem",
-        },
-      }}
-    />
+    <>
+      {/* Bulles d'**activité de guilde** (chantier N, lot N-3) : **en haut à droite**, sous le
+          profil, pour tout le monde. Elles ne doivent pas se mélanger aux toasts d'action du bas :
+          d'où un Toaster **dédié** (`id`), alimenté uniquement via `toasterId` par `ActivityToaster`. */}
+      <Toaster
+        id="guild-activity"
+        position="top-right"
+        expand={false}
+        closeButton
+        toastOptions={{
+          className:
+            "group font-sans border border-success/25 bg-card/95 backdrop-blur-xl text-card-foreground rounded-xl p-3.5 shadow-lg",
+          descriptionClassName: "text-muted-foreground font-medium text-body-sm",
+          style: { borderLeft: "3px solid var(--success, rgba(52,211,153,0.6))" },
+        }}
+      />
+      <Toaster
+        position="bottom-right"
+        richColors
+        expand={false}
+        closeButton
+        toastOptions={{
+          className: "group font-sans border border-border/50 bg-card/90 backdrop-blur-xl text-card-foreground rounded-2xl p-4 shadow-lg",
+          descriptionClassName: "text-muted-foreground font-medium text-body-sm",
+          style: {
+            borderLeft: "3px solid var(--border-strong, rgba(255,255,255,0.1))",
+          },
+          actionButtonStyle: {
+            background: "var(--foreground)",
+            color: "var(--background)",
+            fontWeight: "bold",
+            borderRadius: "0.5rem",
+          },
+        }}
+      />
+    </>
   );
 }

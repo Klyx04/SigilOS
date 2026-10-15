@@ -32,6 +32,7 @@ Logs: /home/sigiladmin/SigilOS/logs/maintenance.log
 4. Rotation logs application (>10MB)
 5. Alerte Discord si disque >85%
 6. **Nettoyage des notifications** — queue BullMQ `sigilos-cleanup` (`src/workers/metamob-worker.ts`, `0 4 * * *`), non bloquant : **lues > 30 j** (une passe) et **non lues > 90 j** (par lots de 500, 20 000 lignes/jour au maximum, reliquat repris le lendemain). Mesure du 15/10/2026 : la purge ne visait que les lues, or **66 lignes sur 11 722** l'étaient — la table ne décroissait donc jamais.
+7. **Contrôle de la mémoire Redis** — le mot de passe est relu dans la ligne de commande du conteneur (injecté au parse du compose, donc absent de son environnement) et transmis par `REDISCLI_AUTH`, **jamais affiché**. Alerte Discord au-delà de **60 %** du plafond, et alerte explicite si `maxmemory` vaut **0** (le plafond vit dans `docker-compose.prod.yml` : `--maxmemory 512mb --maxmemory-policy noeviction --appendonly yes`, sur **les deux** Redis). Politique `noeviction` = à 100 %, Redis **refuse les écritures** : les files BullMQ s'arrêtent, d'où l'alerte précoce.
 
 ### Crons HTTP (endpoints protégés `x-cron-secret`)
 Appelés depuis le crontab VPS (`crontab -l`) via

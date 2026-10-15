@@ -21,6 +21,7 @@ import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDofusWeek } from "@/lib/date-utils";
 import { getKamaStats } from "./kama-actions";
 import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
+import { missionCategoryImage } from "@/lib/mission-category-images";
 
 
 // --- Types & Schemas ---
@@ -52,7 +53,7 @@ const CreateWeekSchema = z.object({
     notifyMembers: z.boolean().optional(),
 }).strict();
 
-async function notifyValidators(guildId: string, title: string, message: string, link?: string, proofUrl?: string, submissionId?: string): Promise<string | undefined> {
+async function notifyValidators(guildId: string, title: string, message: string, link?: string, proofUrl?: string, submissionId?: string, imageUrl?: string | null): Promise<string | undefined> {
     try {
         const guild = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -131,7 +132,9 @@ async function notifyValidators(guildId: string, title: string, message: string,
                         message,
                         link,
                         guildId,
-                        "ADMIN_ALERT"
+                        "ADMIN_ALERT",
+                        imageUrl ?? null,
+                        "MISSION"
                     )
                 );
 
@@ -957,7 +960,10 @@ export async function submitMissionProof(
             `**${userName}** a posté une preuve pour : **${missionTitle}**`,
             `/dashboard/${mission.guild.discordGuildId}/admin/validation`,
             proofUrl,
-            submission.id  // ← pour les custom_id des boutons Discord
+            submission.id,  // ← pour les custom_id des boutons Discord
+            // Même picto de catégorie que la cloche du membre : les deux faces d'une même
+            // validation disent la même chose.
+            missionCategoryImage(mission.category)
         );
 
         if (discordMessageId) {
@@ -1088,7 +1094,12 @@ export async function validateSubmission(
                 `[Mission] ${submission.mission.title}`,
                 `Votre preuve a été ${resultMsg}`,
                 undefined,
-                truthGuildDiscordId
+                truthGuildDiscordId,
+                undefined,
+                // Picto de la **catégorie** de la mission (donjon, régulation, anomalie…) : la
+                // table `Mission` n'a pas de visuel propre, c'est la catégorie qui informe.
+                missionCategoryImage(submission.mission.category),
+                "MISSION"
             );
         }
 

@@ -323,11 +323,29 @@ services:
     image: redis:7-alpine
     container_name: sigilos-redis
     restart: always
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    # 🔒 Plafond mémoire + persistance (mesure du 15/10/2026 : `maxmemory 0B`, `noeviction`,
+    # `aof_enabled 0`). Redis était le SEUL composant **sans borne** du VPS : 8,3 Mo utilisés sur
+    # 11 Gi, mais en cas de fuite de cache ou de file BullMQ emballée, c'est l'**hôte** qui meurt
+    # par OOM — pas Redis qui refuse. On préfère un mauvais message à une machine morte.
+    #   · `--maxmemory 512mb` : le plafond (4,5 % de la RAM de l'hôte, 60× l'usage mesuré) ;
+    #   · `--maxmemory-policy noeviction` : **volontaire** — Redis héberge les files BullMQ ; on
+    #     refuse une écriture plutôt que de perdre un job (les caches ont déjà leurs TTL) ;
+    #   · `--appendonly yes` : sans journal, un redémarrage perd les dernières minutes (télémétrie
+    #     cron, compteurs de rate-limit, état du planificateur des jobs répétables BullMQ).
+    # ⚠️ Le mot de passe est injecté au **parse du compose** : il n'est donc pas dans
+    # l'environnement du conteneur (le lire via `docker inspect … .Config.Cmd`).
+    command: >-
+      redis-server --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb --maxmemory-policy noeviction --appendonly yes
     volumes:
       - redis_data:/data
     networks:
       - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 640M # marge au-dessus de `maxmemory` (tampons AOF, fragmentation)
     logging: *default-logging
 
   # ===========================================================================
@@ -337,11 +355,20 @@ services:
     image: redis:7-alpine
     container_name: sigilos-redis-beta
     restart: always
-    command: redis-server --requirepass ${REDIS_PASSWORD_BETA}
+    # Mêmes bornes que la prod (cf. le commentaire du service `redis` ci-dessus) : les deux
+    # environnements partagent la RAM de l'hôte, un beta non plafonné peut donc tuer la prod.
+    command: >-
+      redis-server --requirepass ${REDIS_PASSWORD_BETA}
+      --maxmemory 512mb --maxmemory-policy noeviction --appendonly yes
     volumes:
       - redis-beta-data:/data
     networks:
       - beta-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 640M
     logging: *default-logging
 
   # ===========================================================================

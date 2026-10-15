@@ -127,6 +127,37 @@ if [ "$DISK_USAGE" -gt 85 ]; then
     send_alert "Attention ! L'espace disque du VPS est saturé à **$DISK_USAGE%**. Un nettoyage manuel ou un agrandissement du disque est recommandé."
 fi
 
+# 4b. Contrôle de la mémoire Redis — le seul conteneur plafonné depuis le 15/10/2026.
+# Pourquoi : avant le plafond (`--maxmemory 512mb`, `docker-compose.prod.yml`), Redis pouvait
+# grossir jusqu'à tuer l'hôte. **Politique `noeviction`** : au-delà de 100 % du plafond, Redis
+# **refuse les écritures** — donc les files BullMQ s'arrêtent. On veut le savoir à 60 %, pas le
+# découvrir en production.
+# ⚠️ Le mot de passe est injecté au **parse du compose** : il n'est pas dans l'environnement du
+# conteneur, on le relit dans sa ligne de commande — **jamais affiché** (transmis par REDISCLI_AUTH).
+REDIS_CONTAINER="sigilos-redis-beta"
+if [ "$ENV_FILE" = ".env.prod" ]; then
+    REDIS_CONTAINER="sigilos-redis"
+fi
+if docker ps --format '{{.Names}}' | grep -qx "$REDIS_CONTAINER"; then
+    REDIS_PASS="$(docker inspect "$REDIS_CONTAINER" --format '{{range .Config.Cmd}}{{.}} {{end}}' 2>/dev/null | sed -n 's/.*--requirepass \([^ ]*\).*/\1/p')"
+    if [ -n "$REDIS_PASS" ]; then
+        REDIS_INFO="$(docker exec -e REDISCLI_AUTH="$REDIS_PASS" "$REDIS_CONTAINER" redis-cli INFO memory 2>/dev/null || true)"
+        REDIS_USED=$(printf '%s\n' "$REDIS_INFO" | awk -F: '/^used_memory:/{print $2+0}')
+        REDIS_MAX=$(printf '%s\n' "$REDIS_INFO" | awk -F: '/^maxmemory:/{print $2+0}')
+        if [ -n "$REDIS_USED" ] && [ -n "$REDIS_MAX" ] && [ "$REDIS_MAX" -gt 0 ]; then
+            REDIS_PCT=$(( REDIS_USED * 100 / REDIS_MAX ))
+            echo "🧠 Redis ($REDIS_CONTAINER) : $((REDIS_USED / 1048576)) Mo / $((REDIS_MAX / 1048576)) Mo (${REDIS_PCT}%)"
+            if [ "$REDIS_PCT" -gt 60 ]; then
+                send_alert "Redis ($REDIS_CONTAINER) est à **${REDIS_PCT}%** de son plafond mémoire ($((REDIS_USED / 1048576)) Mo sur $((REDIS_MAX / 1048576)) Mo). Politique \`noeviction\` : à 100 %, les écritures sont **refusées** et les files BullMQ s'arrêtent — vérifier la taille des files (jobs en attente) avant qu'elles ne grossissent."
+            fi
+        elif [ "$REDIS_MAX" = "0" ]; then
+            send_alert "Redis ($REDIS_CONTAINER) n'a **aucun plafond mémoire** (\`maxmemory 0\`). Le correctif attendu est dans \`docker-compose.prod.yml\` : \`--maxmemory 512mb --maxmemory-policy noeviction --appendonly yes\`."
+        fi
+    else
+        echo "⚠️  Redis ($REDIS_CONTAINER) : mot de passe illisible, contrôle mémoire sauté."
+    fi
+fi
+
 # 5. Nettoyage de la base de données (Janitor)
 JANITOR_OK=1  # 0 = succès, 1 = échec (défaut échec)
 echo "🧹 Janitor de la base de données (GDPR + Logs)..."

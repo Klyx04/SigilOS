@@ -7,7 +7,11 @@ import { NotificationType, NotificationCategory } from "@prisma/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, MessageSquare, Loader2, Eye, EyeOff, Filter } from "lucide-react";
-import { CategoryIcon } from "@/components/notifications/notification-bell";
+import { CategoryIcon, NotificationThumb } from "@/components/notifications/notification-bell";
+import {
+    buildNotificationFilters,
+    notificationCategoryLabel,
+} from "@/lib/notification-categories";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +38,12 @@ type Notification = {
     read: boolean;
     link: string | null;
     createdAt: Date;
+    /** Avatar Discord de l'émetteur — `null` ⇒ repli sur le picto de catégorie (`NotificationThumb`). */
+    actorImage: string | null;
+    /** Asset de l'objet annoncé (illustration de donjon, icône de Dofus…) — `null` ⇒ picto de catégorie. */
+    imageUrl: string | null;
+    /** Ce que l'asset représente (`NotificationImageKind`). */
+    imageKind: string | null;
 };
 
 export default function NotificationsPage() {
@@ -131,26 +141,6 @@ export default function NotificationsPage() {
         }
     };
 
-    /** Icône de catégorie : vrai asset du jeu (même map que la fenêtre). */
-    const getIcon = (category: NotificationCategory) => (
-        <CategoryIcon category={String(category)} size={22} />
-    );
-
-    const getCategoryLabel = (category: NotificationCategory) => {
-        switch (category) {
-            case "MISSION": return "Missions";
-            case "SUCCESS": return "Succès";
-            case "SONGES": return "Songes";
-            case "EVENT": return "Événements";
-            case "POLL": return "Sondages";
-            case "ADMIN_ALERT": return "Administration";
-            case "DONJONS": return "Donjons";
-            case "OCRE": return "Ocre";
-            case "MARKET": return "Marché";
-            default: return "Système";
-        }
-    };
-
     const unreadCount = notifications.filter(n => !n.read).length;
 
     // First filter by Status (UNREAD / READ / ALL)
@@ -165,18 +155,17 @@ export default function NotificationsPage() {
         activeTab === "ALL" || n.category === activeTab
     );
 
-    const categories: { id: NotificationCategory | "ALL", label: string }[] = [
-        { id: "ALL", label: "Toutes" },
-        { id: "MISSION", label: "Missions" },
-        { id: "SUCCESS", label: "Succès" },
-        { id: "SONGES", label: "Songes" },
-        { id: "DONJONS", label: "Donjons" },
-        { id: "EVENT", label: "Events" },
-        { id: "POLL", label: "Sondages" },
-        { id: "OCRE", label: "Ocre" },
-        { id: "MARKET", label: "Marché" },
-        { id: "ADMIN_ALERT", label: "Admin" },
-    ];
+    // Filtres : **toute** la liste vient de `src/lib/notification-categories.ts` (ordre canonique
+    // + libellés FR + « une catégorie vide ne s'affiche pas »). La page entretenait sa propre
+    // liste de 10 pendant que la cloche en avait 8 dans un autre ordre — deux vérités pour la
+    // même rangée de filtres, dont une illisible.
+    const categories = buildNotificationFilters(
+        statusFiltered.reduce<Partial<Record<NotificationCategory, number>>>((acc, n) => {
+            acc[n.category] = (acc[n.category] ?? 0) + 1;
+            return acc;
+        }, {}),
+        activeTab,
+    );
 
     return (
         <div className="container max-w-4xl mx-auto py-8 px-4">
@@ -235,8 +224,10 @@ export default function NotificationsPage() {
                 ))}
             </div>
 
-            {/* Filtres catégories : retour à la ligne partout (jamais coupés sur mobile) */}
-            <div className="flex flex-wrap items-center gap-1.5 mb-6 p-2 bg-surface/30 border border-border rounded-[4px]">
+            {/* Filtres catégories : **une grille régulière** (fini les rangées bancales) et
+                uniquement les catégories **non vides** — la règle vient de
+                `buildNotificationFilters`, la même que la cloche. */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 mb-6 p-2 bg-surface/30 border border-border rounded-[4px]">
                 {categories.map((cat) => {
                     const count = cat.id === "ALL"
                         ? statusFiltered.length
@@ -247,14 +238,14 @@ export default function NotificationsPage() {
                             key={cat.id}
                             onClick={() => setActiveTab(cat.id)}
                             className={cn(
-                                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-bold transition-colors border cursor-pointer",
+                                "inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[4px] text-xs font-bold transition-colors border cursor-pointer min-w-0",
                                 activeTab === cat.id
                                     ? "bg-info/15 text-info border-info/30"
                                     : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-elevated"
                             )}
                         >
                             <CategoryIcon category={cat.id} size={14} />
-                            <span className="whitespace-nowrap">{cat.label}</span>
+                            <span className="truncate">{cat.label}</span>
                             <span className={cn(
                                 "min-w-[20px] text-center px-1.5 py-0.5 rounded-[4px] text-caption font-black tabular-nums",
                                 activeTab === cat.id ? "bg-info/20 text-info" : "bg-muted/30 text-muted-foreground"
@@ -283,7 +274,7 @@ export default function NotificationsPage() {
                     <p className="text-muted-foreground font-medium">
                         {activeTab === "ALL"
                             ? "Vous êtes à jour !"
-                            : `Aucune notification dans la catégorie ${getCategoryLabel(activeTab as NotificationCategory)}.`}
+                            : `Aucune notification dans la catégorie ${notificationCategoryLabel(activeTab)}.`}
                     </p>
                     {activeTab !== "ALL" && (
                         <Button
@@ -317,16 +308,15 @@ export default function NotificationsPage() {
                                 notif.category === "SYSTEM" && "bg-muted",
                             )} />
 
-                            {/* Icon Box : asset du jeu */}
-                            <div className="shrink-0 h-10 w-10 rounded-[4px] bg-elevated border border-border flex items-center justify-center overflow-hidden">
-                                {getIcon(notif.category)}
-                            </div>
+                            {/* Pastille : asset de l'objet annoncé → avatar de l'émetteur → picto de
+                                catégorie (`NotificationThumb`, source unique avec la cloche). */}
+                            <NotificationThumb notification={notif} size={40} />
 
                             {/* Content */}
                             <div className="flex-1 min-w-0 pt-0.5 pr-8">
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="text-caption font-black uppercase tracking-wider text-muted-foreground group-hover:text-muted-foreground">
-                                        {getCategoryLabel(notif.category)}
+                                        {notificationCategoryLabel(notif.category)}
                                     </span>
                                     <span className="text-caption text-muted-foreground">
                                         • {format(new Date(notif.createdAt), "d MMMM 'à' HH:mm", { locale: fr })}

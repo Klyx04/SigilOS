@@ -15,10 +15,12 @@
 
 import { logServiceActivity } from "@/server/actions/activity-log-actions";
 import { logger } from "@/lib/logger";
+import { NOTIFICATION_CATEGORY_ICONS } from "@/lib/notification-categories";
 import {
     GUILD_ACTIVITY_MODULE_BY_KIND,
     buildGuildActivityCopy,
     resolveHighestSuccessPointsMilestone,
+    resolveLadderTopEntry,
 } from "@/lib/guild-activity";
 
 /**
@@ -50,11 +52,65 @@ export async function emitSuccessPointsMilestone(input: {
             action: "MILESTONE",
             entityId: input.profileId,
             summary: copy.message,
-            metadata: JSON.stringify({ kind: "paliers", points: milestone }),
+            metadata: JSON.stringify({
+                kind: "paliers",
+                points: milestone,
+                // Picto réel du succès : la bulle montre *quoi* on fête, pas un point générique.
+                imageUrl: NOTIFICATION_CATEGORY_ICONS.SUCCESS,
+                imageKind: "SUCCESS",
+            }),
         });
         return milestone;
     } catch (error) {
         logger.warn("[emitSuccessPointsMilestone] annonce non écrite", { error: String(error) });
+        return null;
+    }
+}
+
+/**
+ * Écrit une ligne d'activité si le membre **entre** dans le top du ladder succès de sa guilde.
+ *
+ * Pourquoi ici : le rang ne se lit qu'à la **passe ladder** — c'est le seul endroit qui connaît
+ * le classement de la guilde **avant** et **après** le relevé du membre. La règle pure
+ * `resolveLadderTopEntry` n'annonce que l'**entrée** : y rester, progresser dedans ou en sortir
+ * ne dit rien de nouveau (une seule annonce par entrée, même exigence que les paliers).
+ *
+ * `rankBefore`/`rankAfter` sont fournis par l'appelant (deux comptages) : la fonction reste sans
+ * requête de classement propre, donc testable et sans effet de bord.
+ */
+export async function emitLadderTopEntry(input: {
+    /** Id **interne** de la guilde (`GuildConfig.id`). */
+    guildId: string;
+    profileId: string;
+    displayName: string | null;
+    rankBefore: number | null;
+    rankAfter: number | null;
+}): Promise<number | null> {
+    const rank = resolveLadderTopEntry({
+        previousRank: input.rankBefore,
+        currentRank: input.rankAfter,
+    });
+    if (rank === null) return null;
+
+    try {
+        const copy = buildGuildActivityCopy({ kind: "ladder", memberName: input.displayName });
+        await logServiceActivity({
+            guildId: input.guildId,
+            actorId: input.profileId,
+            module: GUILD_ACTIVITY_MODULE_BY_KIND.ladder,
+            action: "MILESTONE",
+            entityId: `ladder-top:${input.profileId}`,
+            summary: copy.message,
+            metadata: JSON.stringify({
+                kind: "ladder",
+                rank,
+                imageUrl: NOTIFICATION_CATEGORY_ICONS.SUCCESS,
+                imageKind: "SUCCESS",
+            }),
+        });
+        return rank;
+    } catch (error) {
+        logger.warn("[emitLadderTopEntry] annonce non écrite", { error: String(error) });
         return null;
     }
 }

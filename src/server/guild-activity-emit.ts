@@ -42,22 +42,52 @@ export interface EmitGuildActivityInput {
     detail?: string | null;
     /** Pour les paliers de points. */
     points?: unknown;
+    /**
+     * Asset de l'**objet** annoncé (illustration de donjon, icône de Dofus, picto de succès).
+     * Rangé dans `ServiceActivityLog.metadata` — le flux le relit tel quel, donc **aucune
+     * migration** : une ligne de flux porte déjà tout ce dont la bulle a besoin.
+     */
+    imageUrl?: string | null;
+    /** Ce que l'asset représente (`NotificationImageKind`). Ignoré si `imageUrl` est absent. */
+    imageKind?: string | null;
+}
+
+/** Colonnes de l'acteur d'une ligne de flux (jamais plus, jamais moins). */
+const ACTOR_SELECT = { id: true, pseudoDofus: true, discordNickname: true } as const;
+
+/**
+ * Résout le profil de l'acteur. Les modules ne manipulent pas la même clé (`DJ` donne un
+ * `profileId`, `Songes` un `userId`) — et un module qui passe un `User.id` sous le nom
+ * `profileId` ne doit pas **perdre** son annonce en silence : on retente une fois en
+ * `userId`. **Fail-closed** : aucun profil identifié ⇒ `null`, on n'écrit rien (l'acteur est
+ * une FK, une ligne orpheline serait pire qu'une annonce manquée).
+ */
+async function resolveActor(input: EmitGuildActivityInput) {
+    if (input.profileId) {
+        const byId = await db.userProfile.findUnique({
+            where: { id: input.profileId },
+            select: ACTOR_SELECT,
+        });
+        if (byId) return byId;
+        const asUser = await db.userProfile.findFirst({
+            where: { userId: input.profileId, guildId: input.guildId },
+            select: ACTOR_SELECT,
+        });
+        if (asUser) return asUser;
+    }
+    if (input.userId) {
+        return db.userProfile.findFirst({
+            where: { userId: input.userId, guildId: input.guildId },
+            select: ACTOR_SELECT,
+        });
+    }
+    return null;
 }
 
 /** Écrit **une** ligne d'activité de guilde. Ne lève jamais, ne renvoie rien d'exploitable. */
 export async function emitGuildActivity(input: EmitGuildActivityInput): Promise<void> {
     try {
-        const profile = input.profileId
-            ? await db.userProfile.findUnique({
-                  where: { id: input.profileId },
-                  select: { id: true, pseudoDofus: true, discordNickname: true },
-              })
-            : input.userId
-              ? await db.userProfile.findFirst({
-                    where: { userId: input.userId, guildId: input.guildId },
-                    select: { id: true, pseudoDofus: true, discordNickname: true },
-                })
-              : null;
+        const profile = await resolveActor(input);
 
         // Fail-closed : sans profil identifiable, la ligne serait orpheline (l'acteur est une FK).
         if (!profile) return;
@@ -76,7 +106,10 @@ export async function emitGuildActivity(input: EmitGuildActivityInput): Promise<
             action: "VALIDATED",
             entityId: input.entityId,
             summary: copy.message,
-            metadata: JSON.stringify({ kind: input.kind }),
+            metadata: JSON.stringify({
+                kind: input.kind,
+                ...(input.imageUrl ? { imageUrl: input.imageUrl, imageKind: input.imageKind ?? null } : {}),
+            }),
         });
     } catch (error) {
         logger.warn("[emitGuildActivity] annonce non écrite", { error: String(error) });

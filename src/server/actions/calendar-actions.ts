@@ -665,6 +665,20 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
             }
         });
 
+        // Interrupteur « Agenda » (chantier N, lot N-4) : l'événement entre dans le **flux** de vie
+        // de la guilde — un événement qui existe est exactement ce que la préférence annonce
+        // (« Un événement existe ou approche »). Une seule ligne, jamais une par membre.
+        {
+            const { emitGuildActivity } = await import("@/server/guild-activity-emit");
+            await emitGuildActivity({
+                guildId: guildConfig.id,
+                profileId: ctx.id,
+                kind: "events",
+                entityId: event.id,
+                detail: event.title,
+            });
+        }
+
         if (event.type === "RAID_OFFICIAL") {
             // Kamas gate applies to the creator too — consistent with processRegistration
             // Only enforced when the admin toggle is ON (raidRequireKamaDonation = true, default)
@@ -815,6 +829,19 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
                 }
             }
         });
+
+        // Interrupteur « Agenda » (chantier N, lot N-4) : même annonce que pour un événement saisi
+        // à la main — l'import Metamob crée un vrai événement d'agenda, il nourrit le flux.
+        {
+            const { emitGuildActivity } = await import("@/server/guild-activity-emit");
+            await emitGuildActivity({
+                guildId: guildConfig.id,
+                profileId: ctx.id,
+                kind: "events",
+                entityId: event.id,
+                detail: event.title,
+            });
+        }
 
         // Try to fetch participants immediately to populate metadata
         try {

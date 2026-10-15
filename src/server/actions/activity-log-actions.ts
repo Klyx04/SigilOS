@@ -28,7 +28,8 @@ type LogModule =
     | "SUCCES"
     | "DOFUS"
     | "PALIERS"
-    | "LADDER";
+    | "LADDER"
+    | "OBJECTIFS";
 
 type LogAction =
     | "CREATED"

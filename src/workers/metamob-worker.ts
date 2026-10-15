@@ -272,6 +272,46 @@ const cleanupWorker = new Worker(
             logger.error("[Cleanup] Erreur purge notifications:", { error: String(err) });
         }
 
+        // FUNC-02b: purge des notifications **non lues** de plus de 90 jours.
+        //
+        // Pourquoi une seconde passe (mesure du 15/10/2026 sur la bêta) : la purge ci-dessus ne
+        // visait que `read: true` — or **66 lignes sur 11 722** étaient lues. Le filet ne couvrait
+        // donc que 0,56 % de la table, et 11 656 annonces que personne n'ouvrirait jamais
+        // s'accumulaient sans borne. Une annonce non ouverte au bout de trois mois est morte : on
+        // la supprime au lieu de la garder par principe (les deux fan-outs qui les produisaient
+        // sont supprimés au même lot — la table ne se remplira plus de la même façon).
+        //
+        // ⚠️ **Par lots** (500) et par un **nombre de passes borné** : un `deleteMany` global sur
+        // des dizaines de milliers de lignes tient un verrou long, gonfle le WAL et bloque les
+        // lectures de la cloche. Le reliquat est repris à la passe du lendemain — la purge est
+        // idempotente (on ne supprime que ce qui est antérieur au seuil).
+        try {
+            const BATCH_SIZE = 500;
+            const MAX_PASSES = 40; // 40 × 500 = 20 000 lignes/jour au maximum
+            const unreadCutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+            let purgedUnread = 0;
+
+            for (let pass = 0; pass < MAX_PASSES; pass += 1) {
+                const stale = await db.notification.findMany({
+                    where: { read: false, createdAt: { lt: unreadCutoff } },
+                    select: { id: true },
+                    take: BATCH_SIZE,
+                });
+                if (stale.length === 0) break;
+
+                const removed = await db.notification.deleteMany({
+                    where: { id: { in: stale.map((n) => n.id) } },
+                });
+                purgedUnread += removed.count ?? 0;
+
+                if (stale.length < BATCH_SIZE) break;
+            }
+
+            logger.info(`[Cleanup] 🗑️ ${purgedUnread} notifications non lues supprimées (> 90j).`);
+        } catch (err) {
+            logger.error("[Cleanup] Erreur purge notifications non lues:", { error: String(err) });
+        }
+
         // FUNC-03: Expire stale OcreTradeRequests (PENDING > 7 days → CANCELED)
         try {
             const expiredTrades = await db.ocreTradeRequest.updateMany({

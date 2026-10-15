@@ -1946,6 +1946,9 @@ export async function closeDjPost(
             kind: "donjons",
             entityId: postId,
             detail: post.dungeon?.name ?? null,
+            // Asset de l'objet annoncé : l'illustration du donjon bouclé (la bulle montre **où**).
+            imageUrl: post.dungeon?.imageUrl ?? null,
+            imageKind: "DUNGEON",
         });
 
         // #138 — Validation des succès (chemin admin : pas de points, mais succès possibles).
@@ -2057,7 +2060,10 @@ export async function joinDjPost(
                     newStatus === "PENDING" ? "Nouvelle demande en file d'attente" : "Nouvelle candidature DJ",
                     msg,
                     `/dashboard/${guildId}/donjons-et-quetes`,
-                    guildId
+                    guildId,
+                    undefined,
+                    post.dungeon?.imageUrl ?? null,
+                    "DUNGEON"
                 );
             }
         }
@@ -2266,6 +2272,11 @@ export async function internalJoinDjPost(
             include: {
                 guild: { select: { discordGuildId: true } },
                 profile: { select: { userId: true } },
+                // 🐛 Mesure du 15/10/2026 : le `dungeon` n'était **pas** inclus ici alors que le
+                // titre du message le lisait (`(joinPostForEmbed as any).dungeon?.name`) ⇒ la
+                // notification affichait toujours « Groupe ». On l'inclut pour le nom **et** pour
+                // l'illustration du donjon.
+                dungeon: { select: { name: true, imageUrl: true } },
             },
         });
         const joinGuildId = joinPostForEmbed?.guild?.discordGuildId;
@@ -2283,7 +2294,10 @@ export async function internalJoinDjPost(
                 newStatus === "PENDING" ? "Nouvelle demande en file d'attente" : "Nouvelle inscription DJ",
                 notifMsg,
                 `/dashboard/${joinGuildId}/donjons-et-quetes`,
-                joinGuildId || ""
+                joinGuildId || "",
+                undefined,
+                (joinPostForEmbed as any).dungeon?.imageUrl ?? null,
+                "DUNGEON"
             );
         }
 

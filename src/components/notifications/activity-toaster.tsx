@@ -53,7 +53,13 @@ export function ActivityToaster({ guildId }: { guildId: string }) {
                 toast(line.summary, {
                     toasterId: GUILD_ACTIVITY_TOASTER_ID,
                     duration: TOAST_DURATION_MS,
-                    icon: line.actor?.image ? (
+                    // L'**asset de l'objet** annoncé d'abord (illustration de donjon, icône de Dofus,
+                    // picto de succès — déjà borné au chemin interne côté serveur), puis l'**avatar**
+                    // Discord de l'acteur. Un cadeau visible vaut mieux qu'un texte seul.
+                    icon: line.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- chemin interne validé en amont
+                        <img src={line.imageUrl} alt="" className="h-6 w-6 rounded-[4px] object-contain" />
+                    ) : line.actor?.image ? (
                         // eslint-disable-next-line @next/next/no-img-element -- avatar distant (Discord), déjà borné
                         <img src={line.actor.image} alt="" className="h-5 w-5 rounded-full object-cover" />
                     ) : undefined,

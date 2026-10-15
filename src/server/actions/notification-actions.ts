@@ -2,11 +2,12 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
-import { NotificationType, NotificationCategory } from "@prisma/client";
+import { NotificationType, NotificationCategory, type Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
 import { isMarketNotificationEnabled, type MarketNotificationType } from "@/lib/market/notifications";
+import { isNotificationImageKind, sanitizeNotificationImageUrl } from "@/lib/notification-categories";
 import { getUserContext } from "./user-actions";
 
 // --- Types ---
@@ -20,7 +21,42 @@ export type Notification = {
     read: boolean;
     link: string | null;
     createdAt: Date;
+    /** Avatar Discord de l'émetteur (`User.image`) — `null` ⇒ repli sur le picto de catégorie. */
+    actorImage: string | null;
+    /** Asset de l'objet annoncé (illustration de donjon, icône de Dofus…) — `null` ⇒ picto de catégorie. */
+    imageUrl: string | null;
+    /** Ce que l'asset représente (`NotificationImageKind`). */
+    imageKind: string | null;
 };
+
+/** Ligne lue **avec** l'avatar de l'émetteur (une jointure, aucun aller-retour par ligne). */
+type NotificationRow = Prisma.NotificationGetPayload<{
+    include: { user: { select: { image: true } } };
+}>;
+
+/**
+ * Met la ligne à plat pour l'affichage : l'avatar remonte au même niveau que le reste.
+ *
+ * Pourquoi une jointure et pas une colonne : `Notification.userId` existe **déjà** — l'avatar
+ * est à une jointure de distance, aucune migration n'est nécessaire pour l'afficher. Le coût
+ * est nul en pratique : la lecture est mise en cache Redis (10 s) et plafonnée à 50 lignes.
+ */
+function toNotificationView(row: NotificationRow): Notification {
+    const { user, ...rest } = row;
+    return {
+        id: rest.id,
+        title: rest.title,
+        message: rest.message,
+        type: rest.type,
+        category: rest.category,
+        read: rest.read,
+        link: rest.link,
+        createdAt: rest.createdAt,
+        actorImage: user?.image ?? null,
+        imageUrl: rest.imageUrl ?? null,
+        imageKind: rest.imageKind ?? null,
+    };
+}
 
 // --- Helpers ---
 
@@ -103,7 +139,7 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
             internalGuildId = await resolveInternalGuildId(guildId);
         }
 
-        // 3. DB query
+        // 3. DB query — l'avatar de l'émetteur vient avec la ligne (une jointure, pas N+1).
         const notifications = await db.notification.findMany({
             where: {
                 userId: session.user.id,
@@ -112,6 +148,7 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
             },
             orderBy: { createdAt: "desc" },
             take: 50, // PERF: limit results to prevent unbounded accumulation
+            include: { user: { select: { image: true } } },
         });
 
         // 4. SECURITY RBAC: Filtrer les notifications administratives si l'utilisateur n'a pas la RBAC
@@ -123,11 +160,13 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
             return true;
         });
 
+        const views = filtered.map(toNotificationView);
+
         // 5. Cache 10s (aligné sur le polling sidebar 10s => quasi-100% de hits)
-        await redis.set(cacheKey, JSON.stringify(filtered), "EX", 10).catch(() => {});
+        await redis.set(cacheKey, JSON.stringify(views), "EX", 10).catch(() => {});
 
         logger.debug(`[PERF] getUnreadNotifications: DB Fetch ${Date.now() - start}ms (Auth: ${authDone - start}ms, DB: ${Date.now() - authDone}ms)`);
-        return { success: true, data: filtered as Notification[] };
+        return { success: true, data: views };
     } catch (error) {
         logger.error("Get Notifications Error:", error);
         return { success: false, error: "Database error" };
@@ -156,6 +195,7 @@ export async function getAllNotifications(guildId?: string, limit = 100): Promis
             },
             orderBy: { createdAt: "desc" },
             take: limit,
+            include: { user: { select: { image: true } } },
         });
 
         // SECURITY RBAC: Filtrer les notifications administratives si l'utilisateur n'a pas la RBAC
@@ -166,7 +206,7 @@ export async function getAllNotifications(guildId?: string, limit = 100): Promis
             return true;
         });
 
-        return { success: true, data: filtered as Notification[] };
+        return { success: true, data: filtered.map(toNotificationView) };
     } catch (error) {
         logger.error("Get All Notifications Error:", error);
         return { success: false, error: "Database error" };
@@ -286,7 +326,15 @@ export async function createNotification(
     message: string,
     link?: string,
     guildId?: string,
-    category?: NotificationCategory
+    category?: NotificationCategory,
+    /**
+     * Asset de l'objet annoncé (illustration de donjon, icône de Dofus, picto de succès) —
+     * `null`/absent ⇒ repli sur le picto de la catégorie. C'est le **seul** moyen d'afficher
+     * *quoi* est annoncé : le `link` n'est qu'un chemin d'écran, sans identifiant d'entité.
+     */
+    imageUrl?: string | null,
+    /** Ce que l'asset représente (`NotificationImageKind`) — ignoré si le type est inconnu. */
+    imageKind?: string | null
 ) {
     try {
         const finalCategory = category || inferCategory(type, title);
@@ -337,6 +385,10 @@ export async function createNotification(
                 message,
                 link: link || null,
                 guildId: internalGuildId,
+                // Asset de l'objet : borné au chemin servi par l'app, jamais une URL arbitraire
+                // (une notification ne doit pas pouvoir pointer n'importe où).
+                imageUrl: sanitizeNotificationImageUrl(imageUrl),
+                imageKind: isNotificationImageKind(imageKind) ? imageKind : null,
             }
         });
 

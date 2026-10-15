@@ -1033,7 +1033,7 @@ async function refreshDofusCompletionPercent(
     if (completionPercent === 100 && (previous?.completionPercent ?? 0) < 100) {
         const dofus = await (db as any).dofusItem.findUnique({
             where: { id: dofusId },
-            select: { name: true },
+            select: { name: true, localImageUrl: true, imageUrl: true },
         });
         await emitGuildActivity({
             guildId: guildConfigId,
@@ -1041,6 +1041,10 @@ async function refreshDofusCompletionPercent(
             kind: "dofus",
             entityId: `${dofusId}:${profileId}:${characterName}`,
             detail: dofus?.name ?? null,
+            // Asset de l'objet annoncé : l'icône locale du Dofus (repli sur la distante siphonnée
+            // par le proxy) — la bulle montre **quel** Dofus vient d'être validé.
+            imageUrl: dofus?.localImageUrl ?? dofus?.imageUrl ?? null,
+            imageKind: "DOFUS",
         });
     }
 }

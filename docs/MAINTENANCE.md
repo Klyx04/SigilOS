@@ -17,7 +17,7 @@ Logs: /home/sigiladmin/SigilOS/logs/backup.log
 2. Compression gzip
 3. Chiffrement GPG
 4. Upload vers Cloudflare R2
-5. Rotation locale (30 jours)
+5. Rotation locale (**3 jours** — `find … -mtime +3 -delete`, `scripts/backup_db.sh`) : **R2 est l'archive**, pas la copie locale
 
 ### Maintenance (4h00 UTC)
 ```bash
@@ -31,6 +31,7 @@ Logs: /home/sigiladmin/SigilOS/logs/maintenance.log
 3. Rotation logs (journalctl 7j)
 4. Rotation logs application (>10MB)
 5. Alerte Discord si disque >85%
+6. **Nettoyage des notifications** — queue BullMQ `sigilos-cleanup` (`src/workers/metamob-worker.ts`, `0 4 * * *`), non bloquant : **lues > 30 j** (une passe) et **non lues > 90 j** (par lots de 500, 20 000 lignes/jour au maximum, reliquat repris le lendemain). Mesure du 15/10/2026 : la purge ne visait que les lues, or **66 lignes sur 11 722** l'étaient — la table ne décroissait donc jamais.
 
 ### Crons HTTP (endpoints protégés `x-cron-secret`)
 Appelés depuis le crontab VPS (`crontab -l`) via

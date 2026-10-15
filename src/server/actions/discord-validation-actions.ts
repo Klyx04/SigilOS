@@ -314,6 +314,20 @@ export async function internalReviewAchievementSubmission(
                 where: { id: submission.profileId },
                 data: { successPoints: submission.points }
             });
+
+            // Interrupteur « Succès validés » (chantier N, lot N-4) : la préférence existait dans
+            // le profil depuis N-1 mais **rien ne l'émettait** — elle ne filtrait donc rien. Une
+            // seule ligne de flux, le détail porte les points réellement accordés.
+            {
+                const { emitGuildActivity } = await import("@/server/guild-activity-emit");
+                await emitGuildActivity({
+                    guildId: guildConfig.id,
+                    profileId: submission.profileId,
+                    kind: "succes",
+                    entityId: submissionId,
+                    detail: `${submission.points} points`,
+                });
+            }
         }
 
         // Cleanup proof file + image hash

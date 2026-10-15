@@ -61,6 +61,7 @@ interface NotificationPrefs {
     events: boolean;
     ladder: boolean;
     paliers: boolean;
+    objectifs: boolean;
     dofus: boolean;
     polls: boolean;
     admin_validations: boolean;
@@ -120,6 +121,7 @@ export function UserSettings({
         events: notificationPrefs?.events ?? true,
         ladder: notificationPrefs?.ladder ?? true,
         paliers: notificationPrefs?.paliers ?? true,
+        objectifs: notificationPrefs?.objectifs ?? true,
         dofus: notificationPrefs?.dofus ?? true,
         polls: notificationPrefs?.polls ?? true,
         admin_validations: notificationPrefs?.admin_validations ?? true,
@@ -364,6 +366,35 @@ export function UserSettings({
                                     Notifications Songes
                                 </TooltipContent>
                             </Tooltip>
+
+                            {/* OBJECTIFS DE LA SEMAINE (chantier N, lot N-4) — l'annonce du staff passe
+                                désormais par le **flux** : une seule ligne pour toute la guilde, et
+                                cette bulle en découle. Avant, chaque membre recevait sa propre copie
+                                **non filtrable** dans la cloche. Défaut ON, seul un `false` coupe. */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-between p-2.5 border border-border rounded-2xl bg-surface group hover:border-info/30 transition-all cursor-default">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <div className="w-8 h-8 rounded-lg bg-info/10 flex items-center justify-center shrink-0">
+                                                <Target className="w-4 h-4 text-info" />
+                                            </div>
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-caption font-semibold text-foreground truncate">Objectifs de la semaine</p>
+                                                <p className="text-caption text-muted-foreground truncate">Les missions de la semaine sont publiées</p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={prefs.objectifs}
+                                            onCheckedChange={(checked) => handleUpdatePrefs({ objectifs: checked })}
+                                            disabled={loading}
+                                        />
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-surface border-border text-foreground font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
+                                    Annonce de guilde
+                                </TooltipContent>
+                            </Tooltip>
+
 
                             {/* PALIERS DE POINTS DE SUCCÈS (chantier N, lot N-3) — la bulle d'activité
                                 de guilde « X passe la barre des 1 000 points ». Défaut ON, comme le

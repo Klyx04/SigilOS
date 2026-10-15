@@ -3,10 +3,25 @@ import { db } from "@/lib/prisma";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { recordCronExecution } from "@/lib/cron-telemetry";
 import { summarizeLadderSync, buildLadderSyncMessage, buildLadderSyncFields } from "@/lib/ladder-sync-alert";
-import { emitSuccessPointsMilestone } from "@/server/ladder-milestones";
+import { emitSuccessPointsMilestone, emitLadderTopEntry } from "@/server/ladder-milestones";
 
 // Wait function to avoid spamming the worker / Ankama
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+/**
+ * Rang d'un membre dans le ladder succès de sa guilde (`1` = premier), pour un score donné.
+ *
+ * Un score inconnu (`null`) ne produit **aucun** rang : `successPoints` est nullable en base, et
+ * un `null` ne doit jamais devenir « premier du ladder » (fail-closed). Les profils dont le score
+ * est `null` ne sont pas comptés non plus côté `Postgres` (`gt` sur `NULL` est faux).
+ */
+async function resolveLadderRank(guildId: string, points: unknown): Promise<number | null> {
+    if (typeof points !== "number" || !Number.isFinite(points)) return null;
+    const ahead = await db.userProfile.count({
+        where: { guildId, status: "ACTIVE", successPoints: { gt: points } },
+    });
+    return ahead + 1;
+}
 
 export async function GET(req: Request) {
     try {
@@ -101,21 +116,45 @@ export async function GET(req: Request) {
                         if (generalData.classe) updateData.classe = generalData.classe;
                     }
 
+                    // Chantier N (lot N-2) : le **rang** dans le ladder de la guilde ne se lit qu'ici —
+                    // « avant » se compte avant l'écriture (l'ancien score est encore en base),
+                    // « après » juste après (le membre ne se compte pas lui-même : son score n'est
+                    // pas supérieur à lui-même). Deux comptages **seulement** quand les points ont
+                    // bougé, pour ne pas payer un classement à vide.
+                    const pointsAfter = succesData.success && typeof succesData.points === "number"
+                        ? succesData.points
+                        : null;
+                    const rankBefore = pointsAfter === null
+                        ? null
+                        : await resolveLadderRank(profile.guildId, profile.successPoints);
+
                     await db.userProfile.update({
                         where: { id: profile.id },
                         data: updateData
                     });
 
+                    const rankAfter = pointsAfter === null
+                        ? null
+                        : await resolveLadderRank(profile.guildId, pointsAfter);
+
                     // Chantier N (lot N-2) : un palier de points franchi est annoncé **une seule
-                    // fois** dans le flux de vie de la guilde. C'est ici et pas à la validation :
-                    // les points arrivent par cette passe, seul endroit qui connaît l'avant/après.
-                    if (succesData.success && typeof succesData.points === "number") {
+                    // fois** dans le flux de vie de la guilde, et l'**entrée** dans le top du ladder
+                    // avec lui. C'est ici et pas à la validation : les points arrivent par cette
+                    // passe, seul endroit qui connaît l'avant/après.
+                    if (pointsAfter !== null) {
                         await emitSuccessPointsMilestone({
                             guildId: profile.guildId,
                             profileId: profile.id,
                             displayName: pseudo,
                             before: profile.successPoints,
-                            after: succesData.points,
+                            after: pointsAfter,
+                        });
+                        await emitLadderTopEntry({
+                            guildId: profile.guildId,
+                            profileId: profile.id,
+                            displayName: pseudo,
+                            rankBefore,
+                            rankAfter,
                         });
                     }
 

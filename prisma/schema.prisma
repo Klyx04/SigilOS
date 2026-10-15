@@ -1281,6 +1281,12 @@ model Notification {
   link      String?
   createdAt DateTime             @default(now())
   category  NotificationCategory @default(SYSTEM)
+  /// Asset de l'objet annoncé (illustration de donjon, de Dofus, icône d'objet…) —
+  /// `null` = repli sur le picto de la catégorie. Chemin servi par l'app
+  /// (`/api/assets-dofus/...`, auto-siphonné, ou un asset local du jeu).
+  imageUrl  String?
+  /// Ce que l'image **représente** (`NOTIFICATION_IMAGE_KINDS`, `src/lib/notification-categories.ts`).
+  imageKind String?
   user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   guild     GuildConfig?         @relation(fields: [guildId], references: [id], onDelete: Cascade)
 

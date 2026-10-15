@@ -46,6 +46,7 @@ export const GUILD_ACTIVITY_PREF_KEYS = {
     dofus: "dofus",
     paliers: "paliers",
     ladder: "ladder",
+    objectifs: "objectifs",
 } as const;
 
 export type GuildActivityKind = keyof typeof GUILD_ACTIVITY_PREF_KEYS;
@@ -67,6 +68,10 @@ export const GUILD_ACTIVITY_PREF_LABELS: Record<GuildActivityKind, { label: stri
     dofus: { label: "Dofus validés", hint: "Un membre valide un Dofus" },
     paliers: { label: "Paliers de points", hint: "Un membre passe un palier de 1 000 points de succès" },
     ladder: { label: "Ladder succès", hint: "Un membre entre dans le top 3 du ladder succès" },
+    objectifs: {
+        label: "Objectifs de la semaine",
+        hint: "Le staff publie les missions de la semaine",
+    },
 };
 
 /**
@@ -216,7 +221,10 @@ export function buildGuildActivityCopy(input: {
         case "events":
             return { title: "Agenda", message: `${name} a programmé ${detail ? `« ${detail} »` : "un événement"}.` };
         case "succes":
-            return { title: "Succès validé", message: `${name} a validé le succès ${detail ? `« ${detail} »` : "annoncé"}.` };
+            return {
+                title: "Succès validé",
+                message: `${name} a validé un succès${detail ? ` (${detail})` : ""}.`,
+            };
         case "dofus":
             return { title: "Dofus validé", message: `${name} valide ${detail ? `le ${detail}` : "un Dofus"} !` };
         case "paliers":
@@ -228,6 +236,11 @@ export function buildGuildActivityCopy(input: {
             return {
                 title: "Ladder succès",
                 message: `${name} est désormais dans les ${LADDER_TOP_SIZE} premiers du ladder succès de la guilde !`,
+            };
+        case "objectifs":
+            return {
+                title: "Objectifs de la semaine",
+                message: `${name} a publié les objectifs de la semaine${detail ? ` ${detail}` : ""}.`,
             };
         default:
             return { title: "Activité de guilde", message: `${name} a nourri la vie de la guilde.` };
@@ -252,6 +265,7 @@ export const GUILD_ACTIVITY_MODULE_BY_KIND = {
     dofus: "DOFUS",
     paliers: "PALIERS",
     ladder: "LADDER",
+    objectifs: "OBJECTIFS",
 } as const satisfies Record<GuildActivityKind, string>;
 
 /**

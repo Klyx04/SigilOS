@@ -271,43 +271,22 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
         }
     }
 
-    // 2. Global In-App Notification (Small bell for everyone)
-    try {
-        const { createNotification } = await import("@/server/actions/notification-actions");
-
-        const activeMembers = await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "ACTIVE",
-                id: { not: profileId }
-            },
-            select: { userId: true }
-        });
-
-        if (activeMembers.length > 0) {
-            const notificationTitle = "✨ Arrivée d'un nouveau membre";
-            const notificationMessage = `${displayName} vient d'intégrer le Dashboard ! 👋`;
-
-            const notificationPromises = activeMembers.map(m =>
-                createNotification(
-                    m.userId,
-                    "SYSTEM_INFO",
-                    notificationTitle,
-                    notificationMessage,
-                    `/dashboard/${guildConfig.discordGuildId}/guild-hub?tab=welcome`,
-                    guildConfig.discordGuildId,
-                    "SYSTEM"
-                )
-            );
-
-            const CHUNK_SIZE = 50;
-            for (let i = 0; i < notificationPromises.length; i += CHUNK_SIZE) {
-                await Promise.all(notificationPromises.slice(i, i + CHUNK_SIZE));
-            }
-        }
-    } catch (e) {
-        logger.error("[Welcome] Failed to send global notifications", e);
-    }
+    // 2. Annonce d'arrivée : elle vit désormais dans le **flux**, pas dans la cloche.
+    //
+    // 🗑️ Ce qui a été retiré (mesure du 15/10/2026) : une copie en base **par membre actif**
+    // (« ✨ Arrivée d'un nouveau membre » → `Notification`, catégorie `SYSTEM`) à chaque arrivée.
+    // Pour 2 guildes bêta, 9 443 lignes non lues — 81 % de la table `Notification` — pour une
+    // information **déjà affichée deux fois** :
+    //   · la ligne `GuildActivity` `NEW_MEMBER` écrite ci-dessus (l.260-267) est diffusée en
+    //     bulle à tous les membres connectés via le flux live (`guild-activity-stream.tsx`) ;
+    //   · le même message existe en popup côté `MemberWelcome`.
+    // C'est l'anti-patron que `docs/plans/PLAN-ACTIVITE-GUILDE.md:42` interdit (« une ligne par
+    // membre ? **Non** : le flux porte l'événement ») et que `activity-toaster.tsx` documente
+    // déjà (« aucune copie en base par membre »). Aucune préférence ne pouvait le couper :
+    // `SYSTEM` n'est pas une clé d'`notificationPrefs`.
+    //
+    // Rien à ajouter ici : le flux porte déjà l'événement. C'est un **retrait**, pas un
+    // déplacement.
 
     // 3. Discord Welcome Ping
     if (guildConfig.welcomeDiscordEnabled && guildConfig.welcomeNotifyChannelId) {

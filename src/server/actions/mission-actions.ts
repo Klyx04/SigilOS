@@ -195,12 +195,16 @@ export async function createWeekMissions(
         seen.add(signature);
     }
 
+    /** Id interne de la guilde, capturé dans la transaction pour l'annonce d'après-commit. */
+    let internalGuildId: string | null = null;
+
     try {
         await db.$transaction(async (tx) => {
             // DEEP ISOLATION: Ensure we only touch the specific discordGuildId provided
             const guild = await tx.guildConfig.findUniqueOrThrow({
                 where: { discordGuildId: data.guildId }
             });
+            internalGuildId = guild.id;
 
             // 5. DATABASE UNIQUENESS CHECK: Check against existing missions in DB
             const existingMissions = await tx.mission.findMany({
@@ -279,31 +283,27 @@ export async function createWeekMissions(
                 });
             }
 
-            // 4. Global Notification if requested
-            if (data.notifyMembers) {
-                const activeProfiles = await tx.userProfile.findMany({
-                    where: { guildId: guild.id, status: 'ACTIVE' },
-                    select: { userId: true }
-                });
-
-                if (activeProfiles.length > 0) {
-                    // We don't use createMany because we want to check individual preferences via createNotification
-                    // Although createNotification is "use server", we call it here. 
-                    // Note: transactions and async hooks might be tricky but for notifications it's fine to run after or use Promise.all
-                    const notificationPromises = activeProfiles.map(p =>
-                        createNotification(
-                            p.userId,
-                            "SYSTEM_INFO",
-                            "🎯 Nouvel objectif hebdomadaire",
-                            `Les missions de la Semaine ${data.weekNumber} sont disponibles !`,
-                            `/dashboard/${data.guildId}/missions`,
-                            data.guildId
-                        )
-                    );
-                    await Promise.all(notificationPromises);
-                }
-            }
         });
+
+
+        // Annonce **unique** dans le flux de vie de la guilde — jamais une ligne par membre.
+        //
+        // 🗑️ Ce qui a été retiré (mesure du 15/10/2026) : une `Notification` par membre ACTIF
+        // (« 🎯 Nouvel objectif hebdomadaire », **1 324 lignes** en base bêta pour 2 guildes) à
+        // chaque publication de semaine. Le flux porte l'événement, la bulle de **chaque** membre
+        // en découle, et le membre peut enfin le **couper** (interrupteur « Objectifs de la
+        // semaine », catégorie `objectifs`) — ce qu'une copie par membre ne permettait pas.
+        // Émis **après** le commit : une annonce ne doit jamais survivre à un rollback.
+        if (data.notifyMembers && internalGuildId) {
+            const { emitGuildActivity } = await import("@/server/guild-activity-emit");
+            await emitGuildActivity({
+                guildId: internalGuildId,
+                userId: session.user.id,
+                kind: "objectifs",
+                entityId: `${data.year}-W${data.weekNumber}`,
+                detail: String(data.weekNumber),
+            });
+        }
 
         revalidatePath(`/dashboard/${data.guildId}/missions`);
         revalidatePath(`/dashboard/${data.guildId}/missions/manage`);

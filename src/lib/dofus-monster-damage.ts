@@ -172,6 +172,26 @@ export function scaleDamageEffect(effect: any, stats: MonsterDamageStats): any {
 }
 
 /**
+ * Un **jet critique** est-il cohérent avec son jet normal ? (chantier « Raccord DofusDB », lot **R-4**)
+ *
+ * Mesure du 15/10/2026 : certaines fiches publiaient des lignes « EFFETS CRITIQUES » **inférieures**
+ * aux dégâts de base (ex. `Mansoluble` : `322 à 385 vol Eau` en base contre `56 à 65` en critique).
+ * Un coup critique ne peut pas **réduire** les dégâts : c'est une **donnée fausse**, pas un arrondi.
+ *
+ * Règle volontairement minimale (et donc vérifiable) : le **maximum** critique ne peut pas être
+ * inférieur au maximum normal. `false` ⇒ l'appelant **n'affiche pas** de critique pour cette ligne
+ * (jamais une fourchette incohérente publiée) ; il ne « corrige » rien et n'invente aucune valeur.
+ */
+export function isCoherentCritJet(
+    base: { min: number; max: number } | null | undefined,
+    crit: { min: number; max: number } | null | undefined,
+): boolean {
+    if (!base || !crit) return false;
+    if (!Number.isFinite(base.max) || !Number.isFinite(crit.max)) return false;
+    return crit.max >= base.max;
+}
+
+/**
  * Applique le calcul de dégâts à tous les effets de groupes Dofensive
  * (`GroupEffects`, `GroupCriticalEffects`) — copie défensive du tableau.
  */

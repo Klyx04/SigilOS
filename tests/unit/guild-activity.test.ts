@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 import {
     GUILD_ACTIVITY_KINDS,
+    GUILD_ACTIVITY_MODULE_BY_KIND,
     GUILD_ACTIVITY_PREF_COUNT,
     GUILD_ACTIVITY_PREF_KEYS,
     GUILD_ACTIVITY_PREF_LABELS,
@@ -23,6 +24,7 @@ import {
     buildGuildActivityCopy,
     formatSuccessPoints,
     normalizeSuccessPoints,
+    resolveGuildActivityKind,
     resolveHighestSuccessPointsMilestone,
     resolveLadderTopEntry,
     resolveSuccessPointsMilestones,
@@ -123,6 +125,33 @@ describe("préférences du membre", () => {
         for (const existing of ["missions", "songes", "donjons", "events", "ladder", "ocre"] as const) {
             expect(GUILD_ACTIVITY_PREF_KEYS[existing]).toBe(existing);
         }
+    });
+});
+
+describe("lien avec le flux (N-2)", () => {
+    it("chaque type a UN module, et le relire redonne le même type (écriture et lecture ne divergent pas)", () => {
+        for (const kind of GUILD_ACTIVITY_KINDS) {
+            const module = GUILD_ACTIVITY_MODULE_BY_KIND[kind];
+            expect(typeof module).toBe("string");
+            expect(resolveGuildActivityKind(module)).toBe(kind);
+        }
+    });
+
+    it("relit aussi les types historiques du flux (sinon ils échapperaient au filtre de préférences)", () => {
+        expect(resolveGuildActivityKind("MISSION_VALIDATED")).toBe("missions");
+        expect(resolveGuildActivityKind("OCRE_TRADE")).toBe("ocre");
+    });
+
+    it("fail-closed : un module inconnu ne devient pas une activité de guilde", () => {
+        expect(resolveGuildActivityKind("SERVICE")).toBeNull();
+        expect(resolveGuildActivityKind("VAULT")).toBeNull();
+        expect(resolveGuildActivityKind(null)).toBeNull();
+        expect(resolveGuildActivityKind(42)).toBeNull();
+    });
+
+    it("les modules sont uniques (deux types ne peuvent pas se confondre dans le flux)", () => {
+        const modules = GUILD_ACTIVITY_KINDS.map((kind) => GUILD_ACTIVITY_MODULE_BY_KIND[kind]);
+        expect(new Set(modules).size).toBe(modules.length);
     });
 });
 

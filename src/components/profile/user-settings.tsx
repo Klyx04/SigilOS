@@ -61,6 +61,7 @@ interface NotificationPrefs {
     events: boolean;
     ladder: boolean;
     paliers: boolean;
+    dofus: boolean;
     polls: boolean;
     admin_validations: boolean;
     ocre: boolean;
@@ -119,6 +120,7 @@ export function UserSettings({
         events: notificationPrefs?.events ?? true,
         ladder: notificationPrefs?.ladder ?? true,
         paliers: notificationPrefs?.paliers ?? true,
+        dofus: notificationPrefs?.dofus ?? true,
         polls: notificationPrefs?.polls ?? true,
         admin_validations: notificationPrefs?.admin_validations ?? true,
         ocre: notificationPrefs?.ocre ?? true,
@@ -382,6 +384,32 @@ export function UserSettings({
                                         <Switch
                                             checked={prefs.paliers}
                                             onCheckedChange={(checked) => handleUpdatePrefs({ paliers: checked })}
+                                            disabled={loading}
+                                        />
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-surface border-border text-foreground font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
+                                    Bulles d&apos;activité de guilde
+                                </TooltipContent>
+                            </Tooltip>
+
+                            {/* DOFUS VALIDÉS (chantier N, lot N-2a) — « X valide le Dofus Émeraude »,
+                                annoncé **une seule fois** quand la chaîne atteint 100 %. */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-between p-2.5 border border-border rounded-2xl bg-surface group hover:border-success/30 transition-all cursor-default">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
+                                                <Target className="w-4 h-4 text-success" />
+                                            </div>
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-caption font-semibold text-foreground truncate">Dofus validés</p>
+                                                <p className="text-caption text-muted-foreground truncate">Un membre termine un Dofus</p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={prefs.dofus}
+                                            onCheckedChange={(checked) => handleUpdatePrefs({ dofus: checked })}
                                             disabled={loading}
                                         />
                                     </div>

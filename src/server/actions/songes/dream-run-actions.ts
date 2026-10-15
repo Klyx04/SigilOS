@@ -16,6 +16,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { getDisplayName } from "@/lib/display-name";
 import { resolveSongesContributionPoints } from "@/lib/points-config";
 import { syncSongesMirror } from "@/server/agenda-mirror-sync";
+import { emitGuildActivity } from "@/server/guild-activity-emit";
 
 // ============================================
 // CONSTANTS & HELPERS
@@ -678,6 +679,18 @@ export async function completeDreamRun(guildId: string, runId: string, success: 
             completedAt: new Date(),
         },
     });
+
+    // Chantier N (lot N-2a) : **seule** une run terminée s'annonce (un échec n'est pas une histoire
+    // à raconter). L'acteur est le leader — la run porte un `userId`, l'émetteur le résout en profil.
+    if (success) {
+        await emitGuildActivity({
+            guildId: ctx.guildId,
+            userId: run.leaderId,
+            kind: "songes",
+            entityId: runId,
+            detail: run.epreuveCode ?? null,
+        });
+    }
 
     // Remove Discord embed as the run is over
     const { deleteDiscordRunEmbed } = await import("@/server/songes-service");

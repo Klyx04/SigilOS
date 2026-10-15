@@ -10,6 +10,7 @@ import { redis } from "@/lib/redis";
 import { getDisplayName } from "@/lib/display-name";
 import { getAppBaseUrl } from "@/lib/utils";
 import { resolveDjContributionPoints } from "@/lib/points-config";
+import { emitGuildActivity } from "@/server/guild-activity-emit";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
 import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates } from "@/lib/dungeon-finder-utils";
@@ -1906,7 +1907,7 @@ export async function closeDjPost(
     try {
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            select: { profileId: true, guildId: true, discordMessageId: true, discordChannelId: true, dungeonId: true, dungeonsJson: true, defiId: true },
+            select: { profileId: true, guildId: true, discordMessageId: true, discordChannelId: true, dungeonId: true, dungeonsJson: true, defiId: true, dungeon: { select: { name: true } } },
         });
 
         if (!post) return { success: false, error: "Post introuvable" };
@@ -1935,6 +1936,16 @@ export async function closeDjPost(
         await (db as any).djSearchPost.update({
             where: { id: postId },
             data: { status: "CLOSED" },
+        });
+
+        // Chantier N (lot N-2a) : la sortie nourrit le flux de vie de la guilde — **une** ligne par
+        // post (jamais une par participant), avec le nom du donjon quand il est connu.
+        await emitGuildActivity({
+            guildId: post.guildId,
+            profileId: post.profileId,
+            kind: "donjons",
+            entityId: postId,
+            detail: post.dungeon?.name ?? null,
         });
 
         // #138 — Validation des succès (chemin admin : pas de points, mais succès possibles).

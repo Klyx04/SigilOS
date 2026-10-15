@@ -18,6 +18,7 @@ import {
     Eye,
     X,
     FileText,
+    Trash2,
 } from "lucide-react";
 import {
     claimTicketAction,
@@ -25,6 +26,7 @@ import {
     addTicketNoteAction,
     closeTicketAction,
     renameTicketAction,
+    deleteTicketRecordAction,
 } from "@/server/actions/ticket-bot-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,13 +38,15 @@ interface TicketInboxTabProps {
     guildId: string;
     tickets: any[];
     categories: any[];
+    journeys?: any[];
     onRefresh: () => void;
 }
 
-export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: TicketInboxTabProps) {
+export function TicketInboxTab({ guildId, tickets, categories, journeys = [], onRefresh }: TicketInboxTabProps) {
     const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("ALL");
+    const [statusFilter, setStatusFilter] = useState("ACTIVE");
     const [categoryFilter, setCategoryFilter] = useState("ALL");
+    const [currentPage, setCurrentPage] = useState(1);
     const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
     const [noteContent, setNoteContent] = useState("");
     const [closeModalOpen, setCloseModalOpen] = useState(false);
@@ -51,18 +55,29 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
     const [newName, setNewName] = useState("");
     const [isPending, startTransition] = useTransition();
 
+    const ITEMS_PER_PAGE = 20;
+
     const filteredTickets = tickets.filter((t) => {
-        if (statusFilter !== "ALL" && t.status !== statusFilter) return false;
-        if (categoryFilter !== "ALL" && t.categoryId !== categoryFilter) return false;
+        if (statusFilter === "ACTIVE") {
+            if (t.status === "CLOSED") return false;
+        } else if (statusFilter !== "ALL" && t.status !== statusFilter) {
+            return false;
+        }
+        if (categoryFilter !== "ALL") {
+            if (t.categoryId !== categoryFilter && t.journeyId !== categoryFilter) return false;
+        }
         if (search) {
             const s = search.toLowerCase();
-            const matchName = t.creatorDiscordName.toLowerCase().includes(s);
+            const matchName = t.creatorDiscordName?.toLowerCase().includes(s);
             const matchNum = String(t.ticketNumber).includes(s);
-            const matchCategory = t.category?.name?.toLowerCase().includes(s);
+            const matchCategory = (t.category?.name || t.journey?.name)?.toLowerCase().includes(s);
             if (!matchName && !matchNum && !matchCategory) return false;
         }
         return true;
     });
+
+    const totalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
+    const paginatedTickets = filteredTickets.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const handleClaim = (ticketId: string) => {
         startTransition(async () => {
@@ -140,7 +155,21 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                 setNewName("");
                 onRefresh();
             } else {
-                toast.error(res.error || "Erreur renommage");
+                toast.error(res.error || "Erreur renommage ticket");
+            }
+        });
+    };
+
+    const handleDeleteTicket = (ticketId: string) => {
+        if (!confirm("Supprimer définitivement ce ticket de la boîte ? L'opération est irréversible.")) return;
+        startTransition(async () => {
+            const res = await deleteTicketRecordAction(guildId, ticketId);
+            if (res.success) {
+                toast.success("Ticket supprimé !");
+                setSelectedTicket(null);
+                onRefresh();
+            } else {
+                toast.error(res.error || "Erreur suppression ticket");
             }
         });
     };
@@ -164,9 +193,13 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                     <div className="flex gap-2">
                         <select
                             value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
+                            onChange={(e) => {
+                                setStatusFilter(e.target.value);
+                                setCurrentPage(1);
+                            }}
                             className="w-1/2 h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
                         >
+                            <option value="ACTIVE">🟢 En cours (actifs)</option>
                             <option value="ALL">Tous les statuts</option>
                             <option value="OPEN">🟡 Non assignés</option>
                             <option value="CLAIMED">🟢 Pris en charge</option>
@@ -175,13 +208,21 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
 
                         <select
                             value={categoryFilter}
-                            onChange={(e) => setCategoryFilter(e.target.value)}
+                            onChange={(e) => {
+                                setCategoryFilter(e.target.value);
+                                setCurrentPage(1);
+                            }}
                             className="w-1/2 h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
                         >
-                            <option value="ALL">Toutes les catégories</option>
+                            <option value="ALL">Tous les types</option>
+                            {journeys.map((j) => (
+                                <option key={j.id} value={j.id}>
+                                    {j.emoji || "🎫"} {j.name}
+                                </option>
+                            ))}
                             {categories.map((c) => (
                                 <option key={c.id} value={c.id}>
-                                    {c.emoji} {c.name}
+                                    {c.emoji || "📁"} {c.name} (ancien)
                                 </option>
                             ))}
                         </select>
@@ -197,7 +238,7 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                             <p className="text-xs text-muted-foreground">Modifiez vos filtres de recherche.</p>
                         </div>
                     ) : (
-                        filteredTickets.map((ticket) => {
+                        paginatedTickets.map((ticket) => {
                             const isSelected = selectedTicket?.id === ticket.id;
                             const isClaimed = ticket.status === "CLAIMED";
                             const isClosed = ticket.status === "CLOSED";
@@ -208,13 +249,13 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                                     onClick={() => setSelectedTicket(ticket)}
                                     className={`p-4 rounded-xl border transition-all cursor-pointer text-left ${
                                         isSelected
-                                            ? "border-amber-500 bg-amber-500/5 shadow-md shadow-amber-500/5"
+                                            ? "border-emerald-500 bg-emerald-500/5 shadow-md shadow-emerald-500/5"
                                             : "border-border/60 bg-card hover:border-border hover:bg-surface/50"
                                     }`}
                                 >
                                     <div className="flex items-start justify-between gap-2 mb-2">
                                         <div className="flex items-center gap-2">
-                                            <span className="font-mono font-bold text-xs text-amber-400">
+                                            <span className="font-mono font-bold text-xs text-emerald-400">
                                                 #{ticket.ticketNumber}
                                             </span>
                                             <span className="font-medium text-sm text-foreground truncate max-w-[160px]">
@@ -222,7 +263,16 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                                             </span>
                                         </div>
 
-                                        <div>
+                                        <div className="flex items-center gap-1.5">
+                                            {!ticket.discordChannelId && (
+                                                <Badge
+                                                    variant="outline"
+                                                    title="Le salon Discord de ce ticket a été supprimé. L'entrée reste pour l'historique et les archives."
+                                                    className="text-[10px] text-muted-foreground border-dashed"
+                                                >
+                                                    Salon supprimé
+                                                </Badge>
+                                            )}
                                             {isClosed ? (
                                                 <Badge variant="outline" className="text-[10px] text-muted-foreground">
                                                     Fermé
@@ -256,6 +306,35 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                         })
                     )}
                 </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-2 px-1 text-xs text-muted-foreground border-t border-border/40">
+                        <span>
+                            Page <strong className="text-foreground">{currentPage}</strong> sur {totalPages} ({filteredTickets.length} tickets)
+                        </span>
+                        <div className="flex items-center gap-1">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2.5 text-xs"
+                                disabled={currentPage <= 1}
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            >
+                                Précédent
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2.5 text-xs"
+                                disabled={currentPage >= totalPages}
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            >
+                                Suivant
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Right: Detailed Ticket View */}
@@ -269,8 +348,8 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                                     <h2 className="text-xl font-bold text-foreground">
                                         Ticket #{selectedTicket.ticketNumber}
                                     </h2>
-                                    <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-xs">
-                                        {selectedTicket.category?.name}
+                                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-xs">
+                                        {selectedTicket.category?.name || selectedTicket.journey?.name || "Support"}
                                     </Badge>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
@@ -318,6 +397,17 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                                         </Button>
                                     </>
                                 )}
+
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleDeleteTicket(selectedTicket.id)}
+                                    disabled={isPending}
+                                    className="text-xs h-8 border-destructive/30 text-destructive hover:bg-destructive/10"
+                                    title="Purger définitivement ce ticket de la boîte"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Purger
+                                </Button>
                             </div>
                         </div>
 
@@ -326,7 +416,7 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                             Object.keys(selectedTicket.intakeAnswersJson).length > 0 && (
                                 <div className="p-4 rounded-xl bg-surface/50 border border-border/60 space-y-2">
                                     <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                                        <FileText className="h-3.5 w-3.5 text-amber-400" /> Réponses au formulaire d'ouverture
+                                        <FileText className="h-3.5 w-3.5 text-emerald-400" /> Réponses au formulaire d'ouverture
                                     </h3>
                                     <div className="grid grid-cols-1 gap-2 text-xs">
                                         {Object.entries(selectedTicket.intakeAnswersJson).map(([k, v]) => (
@@ -342,7 +432,7 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                         {/* Internal Notes Section */}
                         <div className="space-y-3">
                             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                                <Lock className="h-3.5 w-3.5 text-amber-400" /> Notes Internes Staff (Masquées au membre)
+                                <Lock className="h-3.5 w-3.5 text-emerald-400" /> Notes Internes Staff (Masquées au membre)
                             </h3>
 
                             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -350,10 +440,10 @@ export function TicketInboxTab({ guildId, tickets, categories, onRefresh }: Tick
                                     selectedTicket.notes.map((note: any) => (
                                         <div
                                             key={note.id}
-                                            className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs space-y-1"
+                                            className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1"
                                         >
                                             <div className="flex items-center justify-between text-muted-foreground font-medium">
-                                                <span className="text-amber-400 font-semibold">{note.authorName}</span>
+                                                <span className="text-emerald-400 font-semibold">{note.authorName}</span>
                                                 <span>{new Date(note.createdAt).toLocaleString("fr-FR")}</span>
                                             </div>
                                             <p className="text-foreground whitespace-pre-wrap">{note.content}</p>

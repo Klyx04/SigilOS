@@ -10,6 +10,7 @@
 import { z } from "zod";
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { rateLimit } from "@/lib/ratelimit";
 import { isSuperAdmin, isDiscordSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { createGodAuditLog } from "@/server/actions/audit-actions";
 import { logger } from "@/lib/logger";
@@ -71,6 +72,16 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
     if (!parsed.success) return { success: false, error: "Données invalides" };
 
     const data = parsed.data;
+
+    // Anti-spam : 3 créations / minute par auteur Discord (le flux Discord légitime
+    // n'atteint jamais ce plafond ; aucun auth requis — appelé depuis la route
+    // Discord vérifiée par signature Ed25519).
+    try {
+        const rl = await rateLimit(`ticket:create:${data.creatorDiscordId}`, 3, 60_000);
+        if (!rl.success) return { success: false, error: "Trop de tickets — réessaie dans une minute." };
+    } catch {
+        return { success: false, error: "Service momentanément indisponible." };
+    }
 
     try {
         // 1. Double check for duplicate (except CLOSED)
@@ -225,9 +236,32 @@ export async function closeSupportTicket(
     reason?: string
 ) {
     // Note: Can be called from Discord button (no session) or Dashboard (session)
-    // We trust the discord interaction payload security for the button.
+    // La route Discord vérifie la signature Ed25519 en amont ; un appel direct
+    // server-action avec un closedByDiscordId usurpé reste possible → on borne
+    // en fréquence et, quand une session web est présente, on exige qu'elle
+    // corresponde au closedByDiscordId déclaré (sauf équipe).
 
     try {
+        const rl = await rateLimit(`ticket:close:${closedByDiscordId}:${ticketId}`, 5, 60_000);
+        if (!rl.success) return { success: false, error: "Trop de tentatives — réessaie dans une minute." };
+
+        // Anti-usurpation web : si une session existe et que l'appelant se déclare
+        // créateur, la session doit porter le même compte Discord.
+        const session = await auth();
+        if (session?.user?.id && /^\d{15,}$/.test(closedByDiscordId)) {
+            const ticketAdmin = await requireTicketAdmin().catch(() => false);
+            const discordDev = await isDiscordSuperAdmin(closedByDiscordId).catch(() => false);
+            if (!ticketAdmin && !discordDev) {
+                const account = await db.account.findFirst({
+                    where: { userId: session.user.id, provider: "discord" },
+                    select: { providerAccountId: true },
+                });
+                if (!account || account.providerAccountId !== closedByDiscordId) {
+                    return { success: false, error: "Identité du fermeur non vérifiée." };
+                }
+            }
+        }
+
         const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
         if (!ticket) return { success: false, error: "Ticket introuvable." };
         if (ticket.status === "CLOSED") return { success: false, error: "Ticket déjà fermé." };

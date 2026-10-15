@@ -62,22 +62,23 @@ describe("tickets complets — libellés FR/EN vulgarisés", () => {
         "confirmDelete",
     ] as const;
 
-    it("chaque texte est bilingue, chaque bouton tient dans la limite Discord", () => {
-        for (const [key, label] of Object.entries(ticketTexts)) {
-            expect(label, `pas bilingue : ${key}`).toContain("/");
-        }
-        for (const key of buttonKeys) {
-            const label = ticketLabel(key);
-            expect(label.length, `trop long pour Discord : ${key}`).toBeLessThanOrEqual(
-                TICKET_BUTTON_LABEL_MAX
-            );
-            expect(label, `pas bilingue : ${key}`).toContain("/");
+    it("chaque texte est disponible en FR et EN, chaque bouton tient dans la limite Discord", () => {
+        for (const lang of ["fr", "en"] as const) {
+            for (const [key, label] of Object.entries(ticketTexts[lang])) {
+                expect(label.length, `texte vide : ${key} (${lang})`).toBeGreaterThan(0);
+            }
+            for (const key of buttonKeys) {
+                const label = ticketLabel(key, lang);
+                expect(label.length, `trop long pour Discord : ${key} (${lang})`).toBeLessThanOrEqual(
+                    TICKET_BUTTON_LABEL_MAX
+                );
+            }
         }
     });
 
     it("le côté FR des boutons bannit le jargon (claim/transcript)", () => {
         for (const key of buttonKeys) {
-            const frSide = ticketLabel(key).split("/")[0].toLowerCase();
+            const frSide = ticketLabel(key, "fr").toLowerCase();
             expect(frSide, `jargon dans ${key}`).not.toContain("claim");
             expect(frSide, `jargon dans ${key}`).not.toContain("transcript");
         }

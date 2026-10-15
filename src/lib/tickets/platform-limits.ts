@@ -13,7 +13,9 @@
  */
 
 export const TICKET_PLATFORM_LIMIT_DEFAULTS = {
-    transcriptsEnabled: true,
+    // Désactivé par défaut (revue 14/10) : le staff l'active en connaissance
+    // de cause (copies stockées sur le VPS, rétention branchée sur le janitor).
+    transcriptsEnabled: false,
     retentionArchivesDays: 90,
     retentionNotesDays: 90,
     retentionAuditDays: 180,
@@ -29,6 +31,22 @@ export type TicketPlatformLimits = {
     maxPerUserCap: number;
     maxGuildCap: number;
 };
+
+/**
+ * Statuts qui comptent comme « ticket ouvert » (boîte de réception, compteur
+ * du motif, garde de suppression, quotas). Tout le reste (`CLOSED`, `REFUSED`)
+ * est de l'historique : il n'empêche jamais de supprimer un motif.
+ */
+export const TICKET_OPEN_STATUSES = [
+    "REQUESTED",
+    "OPEN",
+    "CLAIMED",
+    "PENDING_USER",
+    "RESOLVED",
+    "ARCHIVE_FAILED",
+] as const;
+
+export type TicketOpenStatus = (typeof TICKET_OPEN_STATUSES)[number];
 
 /** Bornes du panneau God (une guilde ne peut pas remplir le VPS). */
 export const TICKET_PLATFORM_LIMIT_BOUNDS = {
@@ -52,7 +70,7 @@ export function readTicketPlatformLimits(raw: unknown): TicketPlatformLimits {
             ? (raw as Record<string, unknown>)
             : null;
     return {
-        transcriptsEnabled: input?.ticketTranscriptsEnabled !== false,
+        transcriptsEnabled: input?.ticketTranscriptsEnabled === true,
         retentionArchivesDays: clampInt(
             input?.ticketRetentionArchivesDays,
             TICKET_PLATFORM_LIMIT_BOUNDS.retentionArchivesDays.min,

@@ -34,6 +34,7 @@ import {
     buildCsatRows,
     buildDeleteConfirmRows,
     buildModerationRows,
+    buildTicketAnswersEmbed,
     buildTicketWelcomeEmbed,
     formatTicketChannelName,
     neutralizeMentions,
@@ -286,7 +287,9 @@ describe("tickets v2 — messages Discord", () => {
             viewerIsCreator: true,
             closePolicy: "STAFF_ONLY",
         });
-        expect(asCreator).toEqual([]);
+        // Le demandeur voit « Je m'en occupe » (soumis au gate staff au clic), mais AUCUN outil staff (note, ajout, transcript, suppression)
+        expect(asCreator).toHaveLength(1);
+        expect(asCreator[0].components.map((c) => c.custom_id)).toEqual(["tb:claim:t1"]);
 
         const creatorWhoMayClose = buildActionRows({
             ticketId: "t1",
@@ -296,8 +299,7 @@ describe("tickets v2 — messages Discord", () => {
             closePolicy: "STAFF_OR_CREATOR",
         });
         expect(creatorWhoMayClose).toHaveLength(1);
-        expect(creatorWhoMayClose[0].components).toHaveLength(1);
-        expect(creatorWhoMayClose[0].components[0].custom_id).toBe("tb:close:t1");
+        expect(creatorWhoMayClose[0].components.map((c) => c.custom_id)).toEqual(["tb:claim:t1", "tb:close:t1"]);
 
         const asStaff = buildActionRows({
             ticketId: "t1",
@@ -327,13 +329,23 @@ describe("tickets v2 — messages Discord", () => {
         });
         expect(asClaimer[0].components[0].custom_id).toBe("tb:release:t1");
 
-        // Libellés bilingues FR/EN, jamais plus de 80 caractères (limite Discord).
+        // Libellés monolingues (FR par défaut), jamais plus de 80 caractères (limite Discord), aucun slash de doublage.
         for (const row of [...asStaff, ...creatorWhoMayClose]) {
             for (const component of row.components) {
                 expect(String(component.label).length).toBeLessThanOrEqual(80);
-                expect(String(component.label)).toContain("/");
+                expect(String(component.label)).not.toContain("/");
             }
         }
+
+        // En anglais explicite, le libellé bascule sans doubler
+        const asStaffEn = buildActionRows({
+            ticketId: "t1",
+            status: "OPEN",
+            viewerIsStaff: true,
+            viewerIsCreator: false,
+            lang: "en",
+        });
+        expect(asStaffEn[0].components[0].label).toBe("Take it");
 
         expect(buildCloseConfirmRows("t1")[0].components.map((c) => c.custom_id)).toEqual([
             "tb:close_confirm:t1",
@@ -371,7 +383,7 @@ describe("tickets v2 — messages Discord", () => {
         ]);
     });
 
-    it("reprend les réponses du formulaire dans l'embed d'accueil, mentions neutralisées", () => {
+    it("sépare l'accueil (photo du créateur) des réponses (2ᵉ embed, mentions neutralisées)", () => {
         const parsed = parseTicketForm({
             schemaVersion: TICKET_FORM_SCHEMA_VERSION,
             fields: [
@@ -381,17 +393,23 @@ describe("tickets v2 — messages Discord", () => {
         });
         if (!parsed.ok) throw new Error("formulaire invalide");
 
-        const embed = buildTicketWelcomeEmbed({
+        const welcome = buildTicketWelcomeEmbed({
             ticketNumber: 42,
             journeyName: "Candidature",
             creatorDiscordId: "123",
+            creatorAvatarUrl: "https://cdn.discordapp.com/avatars/123/abc.png",
             statusLabel: "En attente",
+        });
+        expect(welcome.title).toContain("Ticket #42");
+        expect(welcome.thumbnail).toEqual({ url: "https://cdn.discordapp.com/avatars/123/abc.png" });
+
+        const answers = buildTicketAnswersEmbed({
+            ticketNumber: 42,
             form: parsed.form,
             answers: { pseudo: "@everyone <@123456789012345678>", reglement: ["no"] },
         });
-
-        const fields = embed.fields as Array<{ name: string; value: string }>;
-        expect(embed.title).toContain("Ticket #42");
+        const fields = (answers?.fields ?? []) as Array<{ name: string; value: string }>;
+        expect(answers?.title).toContain("Réponses");
         expect(fields.map((field) => field.name)).toContain("📋 Pseudo");
         expect(fields.find((field) => field.name === "📋 Pseudo")?.value).not.toContain("@everyone");
         expect(fields.find((field) => field.name === "📋 Règlement accepté ?")?.value).toBe("Non");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
     Search, ExternalLink, Loader2, PackageOpen, Copy, Check,
     Zap, Heart, Brain, Droplet, Wind, Target, Eye, Footprints, Flame, Star, Shield, ShieldCheck, Sparkles, Plus
@@ -15,6 +15,13 @@ import {
 } from "@/lib/market/effects";
 import { resolveDofusStatTheme, getDofusStatNumberColor } from "@/lib/dofus-stats-theme";
 import { iconVersionOf } from "@/lib/market/item-image";
+import {
+    ENCYCLOPEDIA_CATEGORIES,
+    ENCYCLOPEDIA_CATEGORY_LABELS,
+    resolveEncyclopediaBlocks,
+    resolveEncyclopediaMetaChips,
+    type EncyclopediaCategory,
+} from "@/lib/ressources/encyclopedia-display";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -41,12 +48,26 @@ interface DofusRecipe {
     quantities: number[];
 }
 
+/** Icône neutre quand le proxy ne résout rien (jamais de case verte vide). */
+const ITEM_ICON_FALLBACK = "/assets/dofus/game-icons/dofus.png";
+
+function handleItemImageError(e: React.SyntheticEvent<HTMLImageElement>) {
+    const target = e.currentTarget;
+    if (!target.dataset.fbk) {
+        target.dataset.fbk = "1";
+        target.src = ITEM_ICON_FALLBACK;
+    }
+}
+
 interface DofusItem {
     id: number;
     name: { fr: string };
     level: number;
     type: { name: { fr: string } };
     description?: { fr: string };
+    /** Métas siphonnées (poids, panoplie). */
+    realWeight?: number | null;
+    itemSetName?: string | null;
     imgset?: { sd?: string; icon?: string }[];
     img?: string;
     /** 10/10/2026 — resiphon : `?v=` d'invalidation d'icône (DofusDB `updatedAt` ou local). */
@@ -189,6 +210,8 @@ function StatIcon({ characteristicId, effectId, charCode }: { characteristicId?:
 export function ItemSearchPanel() {
     // States
     const [searchQuery, setSearchQuery] = useState("");
+    // Filtre souverain par type (catégorie locale `GameItem.category`).
+    const [typeFilter, setTypeFilter] = useState<EncyclopediaCategory>("all");
     const [searchResults, setSearchResults] = useState<DofusItem[]>([]);
     const [searching, setSearching] = useState(false);
 
@@ -198,14 +221,15 @@ export function ItemSearchPanel() {
     const [loadingRecipe, setLoadingRecipe] = useState(false);
     const [copiedIngredient, setCopiedIngredient] = useState<string | null>(null);
 
-    const performSearch = useCallback(async (q: string) => {
+    const performSearch = useCallback(async (q: string, cat: EncyclopediaCategory) => {
         if (!q.trim() || q.trim().length < 2) {
             setSearchResults([]);
             return;
         }
         setSearching(true);
         try {
-            const res = await fetch(`/api/dofusdb/search?q=${encodeURIComponent(q.trim())}&limit=20`);
+            const catParam = cat !== "all" ? `&category=${encodeURIComponent(cat)}` : "";
+            const res = await fetch(`/api/dofusdb/search?q=${encodeURIComponent(q.trim())}&limit=20${catParam}`);
             if (res.ok) {
                 const data = await res.json();
                 setSearchResults(Array.isArray(data.data) ? data.data : []);
@@ -221,11 +245,11 @@ export function ItemSearchPanel() {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (searchQuery.trim().length >= 2) performSearch(searchQuery);
+            if (searchQuery.trim().length >= 2) performSearch(searchQuery, typeFilter);
             else if (searchQuery.trim().length === 0) setSearchResults([]);
         }, 250);
         return () => clearTimeout(timer);
-    }, [searchQuery, performSearch]);
+    }, [searchQuery, typeFilter, performSearch]);
 
     const handleSelectItem = async (item: DofusItem) => {
         // 1. Affichage immédiat (0ms) — l'item et ses statistiques s'affichent sans aucun délai
@@ -277,6 +301,26 @@ export function ItemSearchPanel() {
 
     const currentJobIcon = recipe?.job?.name?.fr ? getJobIcon(recipe.job.name.fr) : null;
 
+    // Blocs vides masqués : un objet sans effet ni recette n'affiche que son
+    // en-tête (nom, niveau, description + lien DofusDB), jamais deux cartes vides.
+    const detailEffectsList = selectedItem
+        ? (selectedItem.effects || selectedItem.possibleEffects || [])
+        : [];
+    const detailBlocks = resolveEncyclopediaBlocks({
+        effectsCount: detailEffectsList.length,
+        hasRecipeFlag: (selectedItem?.hasRecipe as boolean | null | undefined) ?? null,
+        hasRecipeData: recipe != null,
+        loadingRecipe,
+    });
+    // Métas siphonnées (poids, panoplie) — jamais de prix : « PNJ : 1 kamas »
+    // est du bruit, pas de l'info.
+    const detailMetaChips = selectedItem
+        ? resolveEncyclopediaMetaChips({
+              realWeight: selectedItem.realWeight,
+              itemSetName: selectedItem.itemSetName,
+          })
+        : [];
+
     return (
         <div className="w-full flex flex-col min-h-[600px] relative">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
@@ -302,7 +346,7 @@ export function ItemSearchPanel() {
                             </div>
                         </div>
 
-                        <div className="relative mb-6">
+                        <div className="relative mb-4">
                             <input
                                 type="text"
                                 value={searchQuery}
@@ -311,6 +355,28 @@ export function ItemSearchPanel() {
                                 className="w-full bg-background/60 border border-border rounded-2xl pl-12 pr-4 py-4 text-sm text-foreground outline-none focus:border-border-strong focus:bg-background/80 transition-colors placeholder:text-muted-foreground"
                             />
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 mb-6" role="group" aria-label="Filtrer par type">
+                            {ENCYCLOPEDIA_CATEGORIES.map((cat) => {
+                                const active = typeFilter === cat;
+                                return (
+                                    <button
+                                        key={cat}
+                                        type="button"
+                                        onClick={() => setTypeFilter(cat)}
+                                        aria-pressed={active}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors",
+                                            active
+                                                ? "bg-elevated text-foreground border-border-strong"
+                                                : "bg-background/60 text-muted-foreground border-border hover:text-foreground hover:border-border-strong"
+                                        )}
+                                    >
+                                        {ENCYCLOPEDIA_CATEGORY_LABELS[cat]}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
@@ -327,7 +393,7 @@ export function ItemSearchPanel() {
                                     )}
                                 >
                                     <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center border border-border shrink-0">
-                                        <Image src={getItemImageUrl(item.id, item.imgset?.[0]?.icon || item.img, iconVersionOf(item.updatedAt))} alt={item.name.fr} width={32} height={32} className="object-contain" unoptimized />
+                                        <Image src={getItemImageUrl(item.id, item.imgset?.[0]?.icon || item.img, iconVersionOf(item.updatedAt))} alt={item.name.fr} width={32} height={32} className="object-contain" unoptimized onError={handleItemImageError} />
                                     </div>
                                     <div className="min-w-0 text-left">
                                         <div className="text-body-sm font-bold text-foreground truncate">{item.name.fr}</div>
@@ -435,6 +501,7 @@ export function ItemSearchPanel() {
                                                 height={120}
                                                 className="object-contain"
                                                 unoptimized
+                                                onError={handleItemImageError}
                                             />
                                         </div>
                                     </div>
@@ -460,6 +527,19 @@ export function ItemSearchPanel() {
                                             <p className="text-muted-foreground text-body-sm leading-relaxed italic border-l-2 border-border pl-4">{selectedItem.description.fr}</p>
                                         )}
 
+                                        {detailMetaChips.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mt-4">
+                                                {detailMetaChips.map((chip) => (
+                                                    <span
+                                                        key={chip.key}
+                                                        className="px-3 py-1 rounded-lg text-caption font-semibold bg-surface text-muted-foreground border border-border"
+                                                    >
+                                                        {chip.label}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         <div className="flex items-center gap-4 mt-8">
                                             <a
                                                 href={`https://www.dofusdb.fr/fr/database/item/${selectedItem.id}`}
@@ -476,9 +556,11 @@ export function ItemSearchPanel() {
                                     </div>
                                 </div>
 
+                                {(detailBlocks.showEffects || detailBlocks.showRecipe) ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto custom-scrollbar pr-4 pb-6">
-                                    {/* Stats Card */}
+                                    {detailBlocks.showEffects && (
                                     <div className="space-y-6">
+                                    {/* Stats Card */}
                                         <div className="p-8 rounded-2xl bg-surface border border-border h-fit">
                                             <div className="flex items-center gap-3 mb-8">
                                                 {/* Asset officiel Dofus crossed-swords */}
@@ -518,18 +600,15 @@ export function ItemSearchPanel() {
                                                             </div>
                                                         );
                                                     })
-                                                ) : (
-                                                    <div className="py-10 text-center opacity-20">
-                                                        <Zap className="h-8 w-8 mx-auto mb-2" />
-                                                        <p className="text-caption font-semibold">Aucun effet</p>
-                                                    </div>
-                                                )}
+                                                ) : null}
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Recipe Card */}
+                                    )}
+                                    {detailBlocks.showRecipe && (
                                     <div className="space-y-6">
+                                    {/* Recipe Card */}
                                         <div className="p-8 rounded-2xl bg-surface border border-border">
                                             <div className="flex items-center justify-between gap-3 mb-8">
                                                 <div className="flex items-center gap-3">
@@ -559,59 +638,49 @@ export function ItemSearchPanel() {
                                                             const qty = recipe.quantities?.[i] || 1;
                                                             const isCopied = copiedIngredient === ing.name.fr;
                                                             return (
-                                                                <div
+                                                                <button
                                                                     key={i}
+                                                                    type="button"
                                                                     onClick={(e) => handleCopyIngredient(ing.name.fr, e)}
+                                                                    aria-label={`Copier ${ing.name.fr}`}
                                                                     className={cn(
-                                                                        "group/ing flex items-center justify-between gap-4 p-3 rounded-2xl bg-surface border transition-colors cursor-pointer select-none",
+                                                                        "w-full flex items-center justify-between gap-4 p-3 rounded-2xl bg-surface border transition-colors select-none text-left",
                                                                         isCopied
                                                                             ? "border-success/40 bg-success/10"
                                                                             : "border-border hover:border-border-strong hover:bg-elevated"
                                                                     )}
-                                                                    title="Cliquer pour copier le nom de la ressource"
                                                                 >
-                                                                    <div className="flex items-center gap-3 min-w-0">
-                                                                        <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center shrink-0 border border-border/50">
+                                                                    <span className="flex items-center gap-3 min-w-0">
+                                                                        <span className="w-10 h-10 rounded-xl bg-background flex items-center justify-center shrink-0 border border-border/50">
                                                                             <Image
                                                                                 src={getItemImageUrl(ing.id, ing.img)}
-                                                                                alt={ing.name.fr}
+                                                                                alt=""
                                                                                 width={28}
                                                                                 height={28}
                                                                                 unoptimized
+                                                                                onError={handleItemImageError}
                                                                             />
-                                                                        </div>
-                                                                        <div className="min-w-0">
-                                                                            <div className="text-label font-bold text-foreground truncate">
+                                                                        </span>
+                                                                        <span className="min-w-0">
+                                                                            <span className="text-label font-bold text-foreground line-clamp-2 leading-snug block">
                                                                                 {ing.name.fr}
-                                                                            </div>
-                                                                            <span className="text-[10px] text-muted-foreground/80 font-medium block">
-                                                                                Cliquer pour copier
                                                                             </span>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2 shrink-0">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(e) => handleCopyIngredient(ing.name.fr, e)}
-                                                                            className={cn(
-                                                                                "p-1.5 rounded-lg border transition-colors",
-                                                                                isCopied
-                                                                                    ? "bg-success/20 text-success border-success/30"
-                                                                                    : "bg-background/80 text-muted-foreground border-border hover:text-foreground hover:border-border-strong"
-                                                                            )}
-                                                                            aria-label={`Copier ${ing.name.fr}`}
-                                                                        >
-                                                                            {isCopied ? (
-                                                                                <Check className="w-3.5 h-3.5 text-success" />
-                                                                            ) : (
-                                                                                <Copy className="w-3.5 h-3.5" />
-                                                                            )}
-                                                                        </button>
+                                                                            <span className="text-[10px] text-muted-foreground/80 font-medium block">
+                                                                                {isCopied ? "Copié !" : "Cliquer pour copier"}
+                                                                            </span>
+                                                                        </span>
+                                                                    </span>
+                                                                    <span className="flex items-center gap-2 shrink-0">
+                                                                        {isCopied ? (
+                                                                            <Check className="w-3.5 h-3.5 text-success" />
+                                                                        ) : (
+                                                                            <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                                                                        )}
                                                                         <span className="text-caption font-black text-gold bg-gold/10 px-2.5 py-1 rounded-lg border border-gold/30">
                                                                             x{qty}
                                                                         </span>
-                                                                    </div>
-                                                                </div>
+                                                                    </span>
+                                                                </button>
                                                             );
                                                         })}
                                                     </div>
@@ -629,7 +698,11 @@ export function ItemSearchPanel() {
                                             )}
                                         </div>
                                     </div>
+                                    )}
                                 </div>
+                                ) : (
+                                <p className="text-xs text-muted-foreground">Objet simple — sans effet ni recette. Voir la fiche DofusDB pour l&apos;obtention.</p>
+                                )}
                             </div>
                         )}
                     </div>

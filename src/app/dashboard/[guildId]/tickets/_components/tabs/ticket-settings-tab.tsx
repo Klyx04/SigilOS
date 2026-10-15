@@ -16,7 +16,7 @@ import {
 import { updateTicketGuildConfigAction, saveTicketGuildPermissionsAction } from "@/server/actions/ticket-bot-actions";
 import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { TicketRolesPicker } from "../ticket-discord-pickers";
-import { readTicketPermissionSettings } from "@/lib/tickets/category-permissions";
+import { readTicketPermissionSettings, readTicketMessagingSettings, type TicketCsatDestination } from "@/lib/tickets/category-permissions";
 import {
     TICKET_CHANNEL_GROUPS,
     TICKET_CHANNEL_GROUP_LABELS,
@@ -54,6 +54,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
         config?.maxTicketsTotalGuild ?? 50
     );
     const [enableCsat, setEnableCsat] = useState<boolean>(config?.enableCsat ?? true);
+    const [enableTranscripts, setEnableTranscripts] = useState<boolean>(config?.enableTranscripts ?? false);
     const [enableDmNotifications, setEnableDmNotifications] = useState<boolean>(
         config?.enableDmNotifications ?? true
     );
@@ -71,6 +72,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
 
     // 🆕 Permissions globales (sans migration : `settingsJson`).
     const initialPermissions = readTicketPermissionSettings(config?.settingsJson);
+    const initialMessaging = readTicketMessagingSettings(config?.settingsJson);
     const [allowUserClose, setAllowUserClose] = useState<boolean>(initialPermissions.allowUserClose);
     const [requireCloseConfirm, setRequireCloseConfirm] = useState<boolean>(
         initialPermissions.requireCloseConfirm
@@ -78,6 +80,9 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
     const [blacklistRoleIds, setBlacklistRoleIds] = useState<string[]>(
         initialPermissions.blacklistRoleIds
     );
+    const [csatDestination, setCsatDestination] = useState<TicketCsatDestination>(initialMessaging.csatDestination);
+    const [ticketLanguage, setTicketLanguage] = useState<"fr" | "en">(initialMessaging.ticketLanguage);
+
     // 🆕 Matrice Ouvert/Fermé (4 groupes × 2 états × 8 permissions, sans migration).
     const [matrix, setMatrix] = useState<TicketChannelMatrix>(() =>
         readChannelPermissions(config?.settingsJson)
@@ -101,11 +106,9 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 transcriptsChannelId: transcriptsChannelId.trim() || undefined,
                 staffRoleIds,
                 maxActiveTicketsPerUser,
-                maxTicketsTotalGuild,
+                maxTicketsTotalGuild: 50,
                 enableCsat,
-                // `enableDmNotifications` n'est **plus exposé** : aucun code ne consomme ce
-                // réglage (il n'existe pas d'envoi de MP « réponse du staff »). La colonne
-                // reste en base, sa valeur est simplement conservée telle quelle.
+                enableTranscripts,
                 enableDmNotifications: config?.enableDmNotifications ?? true,
             });
 
@@ -119,6 +122,8 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 requireCloseConfirm,
                 blacklistRoleIds,
                 channelPermissions: matrix,
+                csatDestination,
+                ticketLanguage,
             });
 
             if (!permRes.success) {
@@ -126,7 +131,11 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 return;
             }
 
-            toast.success("Paramètres enregistrés !");
+            if (res.data?.clamped) {
+                toast.warning("Paramètres enregistrés (certaines valeurs ont été plafonnées par les limites globales de la plateforme).");
+            } else {
+                toast.success("Paramètres enregistrés !");
+            }
             onRefresh();
         });
     };
@@ -136,14 +145,14 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <Sliders className="h-5 w-5 text-amber-400" /> Paramètres du Système de Support
+                        <Sliders className="h-5 w-5 text-emerald-400" /> Paramètres du Système de Support
                     </h2>
                     <p className="text-xs text-muted-foreground">
                         Règles globales de modération, quotas par membre et alertes automatisées.
                     </p>
                 </div>
 
-                <Button onClick={handleSave} disabled={isPending} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs">
+                <Button onClick={handleSave} disabled={isPending} size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">
                     <Save className="h-3.5 w-3.5 mr-1" /> Sauvegarder
                 </Button>
             </div>
@@ -152,7 +161,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 {/* General Toggles */}
                 <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
                     <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-amber-400" /> Options & Notifications
+                        <Shield className="h-4 w-4 text-emerald-400" /> Options & Notifications
                     </h3>
 
                     <div className="space-y-3 divide-y divide-border/40 text-xs">
@@ -164,12 +173,49 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             <Switch checked={isEnabled} onCheckedChange={setIsEnabled} />
                         </div>
 
+                        <div className="pt-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-semibold text-foreground">Avis & Satisfaction des membres</div>
+                                    <div className="text-muted-foreground">Propose une note de 1 à 5 étoiles après clôture (vote réservé au demandeur).</div>
+                                </div>
+                                <Switch checked={enableCsat} onCheckedChange={setEnableCsat} />
+                            </div>
+
+                            {enableCsat && (
+                                <div className="space-y-1.5 pl-3 border-l-2 border-emerald-500/30 pt-1">
+                                    <label className="font-semibold text-foreground text-[11px]">Envoi de l&apos;enquête</label>
+                                    <select
+                                        value={csatDestination}
+                                        onChange={(e) => setCsatDestination(e.target.value as TicketCsatDestination)}
+                                        className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                    >
+                                        <option value="TICKET">Dans le salon du ticket fermé (recommandé)</option>
+                                        <option value="DM">En message privé Discord (DM)</option>
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex items-center justify-between pt-3">
                             <div>
-                                <div className="font-semibold text-foreground">Enquête de Satisfaction CSAT</div>
-                                <div className="text-muted-foreground">Envoie un sondage 1-5 étoiles en DM Discord à la fermeture.</div>
+                                <div className="font-semibold text-foreground">Archivage des transcripts</div>
+                                <div className="text-muted-foreground">Enregistre l&apos;historique complet des messages à la clôture (désactivé par défaut).</div>
                             </div>
-                            <Switch checked={enableCsat} onCheckedChange={setEnableCsat} />
+                            <Switch checked={enableTranscripts} onCheckedChange={setEnableTranscripts} />
+                        </div>
+
+                        <div className="pt-3 space-y-1.5">
+                            <label className="font-semibold text-foreground text-xs">Langue des interactions Discord</label>
+                            <select
+                                value={ticketLanguage}
+                                onChange={(e) => setTicketLanguage(e.target.value as "fr" | "en")}
+                                className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                            >
+                                <option value="fr">🇫🇷 Français (boutons & messages en français)</option>
+                                <option value="en">🇬🇧 English (buttons & messages in English)</option>
+                            </select>
+                            <p className="text-[11px] text-muted-foreground">Une seule langue active : aucun doublage de texte bilingue.</p>
                         </div>
 
                         <div className="pt-3 text-[11px] text-muted-foreground">
@@ -183,7 +229,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 {/* Quotas & Roles */}
                 <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
                     <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Layers className="h-4 w-4 text-amber-400" /> Quotas & Canaux Discord
+                        <Layers className="h-4 w-4 text-emerald-400" /> Quotas & Canaux Discord
                     </h3>
                     <div className="space-y-3">
                         <div className="space-y-1">
@@ -199,32 +245,32 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
                                 <label className="font-semibold text-foreground">Max tickets par membre</label>
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    max={platformLimits?.maxPerUserCap ?? 5}
+                                <select
                                     value={maxActiveTicketsPerUser}
                                     onChange={(e) => setMaxActiveTicketsPerUser(Number(e.target.value))}
-                                    className="text-xs h-8"
-                                />
+                                    className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                >
+                                    {[1, 2, 3, 4, 5].map((num) => (
+                                        <option key={num} value={num}>
+                                            {num} ticket{num > 1 ? "s" : ""} simultané{num > 1 ? "s" : ""}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="space-y-1">
-                                <label className="font-semibold text-foreground">Quota max simultané guilde</label>
+                                <label className="font-semibold text-foreground">Quota guilde (fixe)</label>
                                 <Input
                                     type="number"
-                                    min={5}
-                                    max={platformLimits?.maxGuildCap ?? 100}
-                                    value={maxTicketsTotalGuild}
-                                    onChange={(e) => setMaxTicketsTotalGuild(Number(e.target.value))}
-                                    className="text-xs h-8"
+                                    value={50}
+                                    disabled
+                                    className="text-xs h-8 opacity-70 cursor-not-allowed bg-surface"
                                 />
                             </div>
                         </div>
 
                         <p className="text-[11px] text-muted-foreground">
-                            Plafonds plateforme : {platformLimits?.maxPerUserCap ?? 5} par membre,{" "}
-                            {platformLimits?.maxGuildCap ?? 100} au total — le serveur plafonne automatiquement.
+                            Plafonds de protection : maximum 5 par membre, capé à 50 tickets ouverts en simultané par guilde.
                         </p>
                     </div>
                 </div>
@@ -233,7 +279,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
             {/* 🆕 Permissions globales : qui ferme, confirmation, blacklist. */}
             <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-amber-400" /> Permissions des tickets
+                    <Shield className="h-4 w-4 text-emerald-400" /> Permissions des tickets
                 </h3>
 
                 <div className="space-y-3 divide-y divide-border/40">
@@ -241,7 +287,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                         <div>
                             <div className="font-semibold text-foreground">Les demandeurs peuvent fermer</div>
                             <div className="text-muted-foreground">
-                                Sinon, seule l'équipe ferme. Réglable par motif dans l'onglet Motifs.
+                                Sinon, seule l'équipe ferme. Réglable individuellement dans l'onglet Types de Demande.
                             </div>
                         </div>
                         <Switch checked={allowUserClose} onCheckedChange={setAllowUserClose} />
@@ -272,11 +318,10 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
             {/* 🆕 Matrice des permissions de salon : 4 groupes × Ouvert/Fermé. */}
             <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-amber-400" /> Permissions des salons de ticket
+                    <Shield className="h-4 w-4 text-emerald-400" /> Permissions des salons de ticket
                 </h3>
                 <p className="text-[11px] text-muted-foreground">
-                    Qui peut quoi dans le salon, quand il est ouvert puis après fermeture.
-                    Les rôles invités se choisissent par motif, dans l'onglet Motifs.
+                    Qui peut voir et agir dans le salon (ouvert puis fermé). Les <strong>rôles invités</strong> (ex: observateurs, experts métier ou référents ponctuels) sont assignés individuellement par type de demande dans l'onglet <strong>Types de Demande</strong>.
                 </p>
 
                 {matrix.everyone.open.view && (

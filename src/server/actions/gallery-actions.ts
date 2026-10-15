@@ -301,7 +301,7 @@ export async function refreshBuildMetadata(
     if (!guildId || !profileId || !buildUrl) return { success: false, error: "Paramètres manquants" };
 
     const user = await getUserContext(guildId);
-    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!user.isAuthenticated || !user.isMember) return { success: false, error: "Non autorisé" };
 
     try {
         const galleryGuild = await db.guildConfig.findUnique({
@@ -327,10 +327,12 @@ export async function refreshBuildMetadata(
         // 2. Update user profile dofusBookLinks
         const profile = await db.userProfile.findFirst({
             where: { id: profileId, guildId: galleryGuild.id },
-            select: { id: true, dofusBookLinks: true }
+            select: { id: true, userId: true, dofusBookLinks: true }
         });
 
         if (!profile) return { success: false, error: "Profil introuvable" };
+        // Fail-closed : on ne rafraîchit que son propre build ou en tant qu'admin.
+        if (!user.isAdmin && profile.userId !== user.id) return { success: false, error: "Non autorisé" };
 
         const links = (profile.dofusBookLinks as any[]) || [];
         const updatedLinks = links.map(link => {
@@ -376,7 +378,7 @@ export async function storeClientDofusbookPreview(
     if (!guildId || !buildUrl) return { success: false, error: "Paramètres manquants" };
 
     const user = await getUserContext(guildId);
-    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!user.isAuthenticated || !user.isMember) return { success: false, error: "Non autorisé" };
 
     const limited = await rateLimit(`dofusbook-client-bake:${user.id ?? "anon"}`, 30, 60_000);
     if (!limited.success) return { success: false, error: "Trop de rafraîchissements — réessaie dans une minute." };
@@ -402,13 +404,17 @@ export async function storeClientDofusbookPreview(
         // profil archivé/inactif conserve ses builds et doit pouvoir être rafraîchi).
         const profiles = await db.userProfile.findMany({
             where: { guildId: guildConfig.id },
-            select: { id: true, dofusBookLinks: true },
+            select: { id: true, userId: true, dofusBookLinks: true },
         });
         const owner = profiles.find((p) =>
             ((p.dofusBookLinks as any[]) || []).some((l) => l?.url === buildUrl)
         );
 
         if (!owner) return { success: true, data: { data, persisted: false } };
+        // Fail-closed : seul le propriétaire du build ou un admin persiste.
+        if (!user.isAdmin && owner.userId !== user.id) {
+            return { success: true, data: { data, persisted: false } };
+        }
 
         const now = new Date().toISOString();
         const updatedLinks = ((owner.dofusBookLinks as any[]) || []).map((link) =>

@@ -78,7 +78,7 @@ export function TicketBotManager({
         },
         {
             id: "motifs",
-            label: "Motifs & Formulaires",
+            label: "Types de Demande",
             icon: Tags,
             badge: journeys.length > 0 ? journeys.length : undefined,
         },
@@ -90,12 +90,12 @@ export function TicketBotManager({
         },
         {
             id: "transcripts",
-            label: "Archives Transcripts",
+            label: "Archives & Transcripts",
             icon: FileText,
         },
         {
             id: "analytics",
-            label: "Satisfaction CSAT",
+            label: "Avis & Satisfaction",
             icon: BarChart3,
         },
         {
@@ -110,18 +110,18 @@ export function TicketBotManager({
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm">
                         <Ticket className="h-6 w-6" />
                     </div>
                     <div>
                         <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
                             Bot Tickets & Support Discord
-                            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px] px-2 py-0.5">
+                            <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px] px-2 py-0.5 font-semibold">
                                 Pro 100% Gratuit
                             </Badge>
                         </h1>
                         <p className="text-xs text-muted-foreground">
-                            Gérez les formulaires d'intake, réclamations staff, notes privées et transcripts de votre guilde.
+                            Gérez les formulaires d'accueil, réclamations staff, notes privées et transcripts de votre guilde.
                         </p>
                     </div>
                 </div>
@@ -143,7 +143,7 @@ export function TicketBotManager({
                             onClick={() => setActiveTab(tab.id as any)}
                             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                                 isActive
-                                    ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-sm"
+                                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm"
                                     : "text-muted-foreground hover:text-foreground hover:bg-surface/50 border border-transparent"
                             }`}
                         >
@@ -153,7 +153,7 @@ export function TicketBotManager({
                                 <span
                                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                                         isActive
-                                            ? "bg-amber-500/30 text-amber-300"
+                                            ? "bg-emerald-500/30 text-emerald-300"
                                             : "bg-surface text-muted-foreground"
                                     }`}
                                 >
@@ -172,6 +172,7 @@ export function TicketBotManager({
                         guildId={guildId}
                         tickets={tickets}
                         categories={categories}
+                        journeys={journeys}
                         onRefresh={onRefresh}
                     />
                 )}

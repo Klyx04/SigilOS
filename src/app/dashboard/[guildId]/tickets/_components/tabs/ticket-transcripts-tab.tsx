@@ -39,11 +39,10 @@ export function TicketTranscriptsTab({ guildId, tickets }: TicketTranscriptsTabP
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-amber-400" /> Archives des tickets
+                        <FileText className="h-5 w-5 text-emerald-400" /> Archives & Transcripts HTML
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                        Deux documents par ticket : une archive <strong>partageable</strong> (conversation seule) et une{" "}
-                        <strong>annexe interne</strong> (notes du staff), jamais exposée par un lien public.
+                        Chaque ticket fermé dispose d'une archive partageable (conversation) et d'une annexe interne (notes staff).
                     </p>
                 </div>
 
@@ -58,6 +57,18 @@ export function TicketTranscriptsTab({ guildId, tickets }: TicketTranscriptsTabP
                 </div>
             </div>
 
+            {/* 90-day retention educational banner */}
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                    <div className="font-semibold text-emerald-300 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Rétention souveraine de 90 jours
+                    </div>
+                    <p className="text-muted-foreground text-[11px]">
+                        Les archives de conversation sont conservées pendant 90 jours avant purge automatique. Vous pouvez télécharger les pages HTML autonomes à tout moment pour un archivage permanent hors-ligne.
+                    </p>
+                </div>
+            </div>
+
             <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
@@ -65,7 +76,7 @@ export function TicketTranscriptsTab({ guildId, tickets }: TicketTranscriptsTabP
                             <tr>
                                 <th className="py-3.5 px-4 font-semibold">Ticket</th>
                                 <th className="py-3.5 px-4 font-semibold">Demandeur</th>
-                                <th className="py-3.5 px-4 font-semibold">Catégorie</th>
+                                <th className="py-3.5 px-4 font-semibold">Type de demande</th>
                                 <th className="py-3.5 px-4 font-semibold">Fermé le</th>
                                 <th className="py-3.5 px-4 font-semibold">Messages</th>
                                 <th className="py-3.5 px-4 text-right font-semibold">Actions</th>
@@ -85,7 +96,7 @@ export function TicketTranscriptsTab({ guildId, tickets }: TicketTranscriptsTabP
                                     const reference = shareable || internal;
                                     return (
                                         <tr key={t.id} className="hover:bg-surface/30 transition-colors">
-                                            <td className="py-3.5 px-4 font-bold text-amber-400 font-mono">
+                                            <td className="py-3.5 px-4 font-bold text-emerald-400 font-mono">
                                                 #{t.ticketNumber}
                                             </td>
 

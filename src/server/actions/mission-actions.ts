@@ -117,28 +117,31 @@ async function notifyValidators(guildId: string, title: string, message: string,
 
         // 1. Find all users in this guild with "MISSIONS_VALIDATE" permission
         // We first get the guild's roles mapping to see which roles have this perm
-        const { getGuildAdminsWithPermission } = await import("@/server/actions/admin-actions");
-        const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_OFFICER);
+        try {
+            const { getGuildAdminsWithPermission } = await import("@/server/actions/admin-actions");
+            const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_OFFICER);
 
-        if (validators.length === 0) {
-            logger.warn(`[Notification] No validators found for guild ${guildId}`);
-            return;
+            if (validators.length > 0) {
+                // 2. Notify all of them (granular prefs will be checked in createNotification)
+                const notificationPromises = validators.map(v =>
+                    createNotification(
+                        v.userId,
+                        "NEW_SUBMISSION_PENDING",
+                        title,
+                        message,
+                        link,
+                        guildId,
+                        "ADMIN_ALERT"
+                    )
+                );
+
+                await Promise.allSettled(notificationPromises);
+            } else {
+                logger.warn(`[Notification] No validators found for guild ${guildId}`);
+            }
+        } catch (inAppError) {
+            logger.warn("[NotifyValidators] In-app notification error", { error: inAppError });
         }
-
-        // 2. Notify all of them (granular prefs will be checked in createNotification)
-        const notificationPromises = validators.map(v =>
-            createNotification(
-                v.userId,
-                "NEW_SUBMISSION_PENDING",
-                title,
-                message,
-                link,
-                guildId,
-                "ADMIN_ALERT"
-            )
-        );
-
-        await Promise.all(notificationPromises);
 
         return resultDiscordId;
     } catch (e) {
@@ -1132,6 +1135,13 @@ export async function validateSubmission(
  * Calculate the sum of guildatons earned this week by a profile (missions + kamas)
  */
 export async function getWeeklyGuildatons(profileId: string, week: number, year: number): Promise<number> {
+    // Fail-closed : lecture exposée via "use server" — session requise (les appelants
+    // internes tournent déjà avec une session admin ; page serveur aussi).
+    const session = await auth();
+    if (!session?.user?.id) return 0;
+    if (typeof profileId !== "string" || !profileId) return 0;
+    if (!Number.isInteger(week) || week < 1 || week > 53) return 0;
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) return 0;
     const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
 
     const [missions, kamas] = await Promise.all([
@@ -1164,7 +1174,20 @@ export async function getWeeklyGuildatons(profileId: string, week: number, year:
 }
 
 export async function grantRewards(profileId: string, xp: number, guildatons: number = 0, week?: number, year?: number) {
+    // Fail-closed : action exposée via "use server" — session requise. Les 4 appelants
+    // internes (validation mission, dons, Discord) tournent avec une session admin.
+    const session = await auth();
+    if (!session?.user?.id) return;
+    if (typeof profileId !== "string" || !profileId) return;
+    // Bornes anti-mint : montants finis, plafonnés (le plafond hebdo reste appliqué dessous).
+    if (!Number.isFinite(xp) || !Number.isFinite(guildatons)) return;
     if (xp <= 0 && guildatons <= 0) return;
+    if (xp < 0 || xp > 100_000 || guildatons < 0 || guildatons > 10_000) return;
+    if (week !== undefined && (!Number.isInteger(week) || week < 1 || week > 53)) return;
+    if (year !== undefined && (!Number.isInteger(year) || year < 2000 || year > 2100)) return;
+    // La cible doit exister (évite les écritures aveugles sur ID deviné).
+    const target = await db.userProfile.findUnique({ where: { id: profileId }, select: { id: true } });
+    if (!target) return;
 
     try {
         let finalGuildatons = guildatons;

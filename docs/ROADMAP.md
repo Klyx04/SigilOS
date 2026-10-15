@@ -8,7 +8,7 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
-## 📝 Session 15/10/2026 (suite 7) — **Notifications : audit de cloisonnement + fermeture de la seule porte inter-guilde** — PR à ouvrir (branche `fix/notifs-cloisonnement-guilde`)
+## 📝 Session 15/10/2026 (suite 7) — **Notifications : audit de cloisonnement + fermeture de la seule porte inter-guilde** — PR #990
 > **Demande user (verbatim)** : « ET TOUT LE SYSTÈME DE NOTIF DU DASHBOARD (sans exception) est bien cloisonné par guilde sans fuite ? il y a des notif inter guilde ? » puis « go la dernière pr puis mets à jour tous les contextes ».
 > **Verdict de l'audit (code + données)** : le **chemin normal est cloisonné sans exception** (6 appelants de lecture/mutation passent la guilde, scope `userId` + guilde résolue, membre requis fail-closed, flux et popups SSE filtrés, changelog/RSS sans donnée de guilde, God en super-admin) et **aucune notification n'est émise d'une guilde vers une autre**. **Une seule** porte existait : `Notification.guildId IS NULL` — lisible dans **toutes** les guildes du destinataire, avec le garde RBAC des `ADMIN_ALERT` évalué sur la guilde **consultée** (franchissement de privilège possible).
 > **Mesure qui a borné le risque** : **7 340 lignes sans guilde sur 11 722 (63 %)**, mais **toutes antérieures au 03/08/2026** (commit `0b1c592d` = l'isolation ; **0** en septembre et octobre) et **0 destinataire multi-guilde sur 81** ⇒ **aucune fuite effective** : la porte était **héritée**, pas active. Le déclencheur du risque était le premier membre multi-guilde (chantier `feat/inter-guilde`).

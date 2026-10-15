@@ -10,9 +10,11 @@ import { getUpcomingAlmanax } from "@/server/actions/resources-actions";
 import { getUnifiedActiveGroups } from "@/server/actions/unified-groups-actions";
 import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
 import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
+import { resolveEventDungeonImage } from "@/server/event-dungeon-image";
 import { getPolls } from "@/server/actions/poll-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { hasFilledAvailability } from "@/lib/dofus-assets";
+import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
 import { getISOWeek, getYear } from "date-fns";
 import NextImage from "next/image";
 import Link from "next/link";
@@ -137,22 +139,41 @@ export default async function DashboardPage({
 
     // Contextual greeting (direction 2026 : header contextuel, plus de watermark ghost)
     const nextEvent = upcomingEvents[0] as any;
+    // Illustration réelle du donjon quand le titre en nomme un (« [DJ] Crypte de Kardorim ») :
+    // le module DJ ne crée pas d'événement, l'agenda ne porte donc aucun id de donjon.
+    const nextEventDungeonImage = await resolveEventDungeonImage(nextEvent?.title);
     const contextLine = nextEvent?.title
         ? `Prochain rendez-vous : ${nextEvent.title}`
         : "Rien de prévu — la guilde est au calme";
     const todayLine = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
     // "À faire maintenant" (direction 2026 §9.3) — actions compactes, jamais de vide pur
-    const todoItems: { href: string; label: string; action: string; image?: string | null; imageQty?: number }[] = [];
+    // Ligne « Aujourd'hui » : une icône d'**identité** (Dolmanax, donjon), un titre, un
+    // sous-titre qui décrit l'action, et la **ressource** à part quand il y en a une
+    // (l'offrande du jour) — jamais deux visuels collés sans hiérarchie.
+    type DashboardTodoItem = {
+        href: string;
+        label: string;
+        detail?: string;
+        action: string;
+        image?: string | null;
+        resourceImage?: string | null;
+        resourceQty?: number;
+    };
+    const todoItems: DashboardTodoItem[] = [];
     const activePolls = (polls as any[]).filter((p: any) => p?.status === "ACTIVE");
     if (activePolls.length > 0) todoItems.push({ href: `/dashboard/${guildId}/sondages`, label: `${activePolls.length} sondage${activePolls.length > 1 ? "s" : ""} en cours`, action: "Voter" });
-    if (nextEvent?.title) todoItems.push({ href: `/dashboard/${guildId}/calendar`, label: `Prochain : ${nextEvent.title}`, action: "Voir" });
+    if (nextEvent?.title) todoItems.push({ href: `/dashboard/${guildId}/calendar`, label: nextEvent.title, detail: "Prochain rendez-vous", action: "Voir", image: nextEventDungeonImage });
     const todayAlmanax = almanaxItems?.[0];
     if (todayAlmanax) todoItems.push({
         href: `/dashboard/${guildId}/ressources?tab=almanax`,
-        label: todayAlmanax.tribute.item.name,
+        // L'almanax **se nomme** (icône Dolmanax, asset local via `resolveDofusLocalImage`)
+        // puis **se décrit** : l'offrande du jour et sa quantité restent la ressource, à part.
+        label: "Almanax du jour",
+        detail: `Offrir : ${todayAlmanax.tribute.item.name}`,
         action: "Offrande",
-        image: todayAlmanax.tribute.item.image_urls.icon,
-        imageQty: todayAlmanax.tribute.quantity,
+        image: resolveDofusLocalImage("Dolmanax"),
+        resourceImage: todayAlmanax.tribute.item.image_urls.icon,
+        resourceQty: todayAlmanax.tribute.quantity,
     });
 
 
@@ -229,22 +250,39 @@ export default async function DashboardPage({
                                             <div className="relative h-9 w-9 rounded-lg border border-border bg-background flex items-center justify-center overflow-hidden shrink-0">
                                                 <NextImage
                                                     src={item.image}
-                                                    alt={item.label}
+                                                    alt=""
+                                                    aria-hidden="true"
                                                     fill
                                                     className="object-contain p-1"
                                                     unoptimized
                                                 />
-                                                {item.imageQty != null && (
-                                                    <span className="absolute -bottom-0.5 -right-0.5 bg-warning text-warning-foreground text-[10px] font-bold px-1 rounded-sm leading-tight">
-                                                        x{item.imageQty}
-                                                    </span>
-                                                )}
                                             </div>
                                         ) : (
                                             <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
                                         )}
-                                        <span className="text-body-sm truncate">{item.label}</span>
-                                        <span className="ml-auto text-label font-medium text-success/80 shrink-0">{item.action}</span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block text-body-sm text-foreground truncate">{item.label}</span>
+                                            {item.detail && (
+                                                <span className="block text-caption text-muted-foreground truncate">{item.detail}</span>
+                                            )}
+                                        </span>
+                                        {item.resourceImage && (
+                                            <span className="flex shrink-0 items-center gap-1 rounded-md border border-border bg-background px-1.5 py-1">
+                                                <NextImage
+                                                    src={item.resourceImage}
+                                                    alt=""
+                                                    aria-hidden="true"
+                                                    width={16}
+                                                    height={16}
+                                                    className="object-contain"
+                                                    unoptimized
+                                                />
+                                                {item.resourceQty != null && (
+                                                    <span className="text-caption font-bold tabular-nums text-warning">×{item.resourceQty}</span>
+                                                )}
+                                            </span>
+                                        )}
+                                        <span className="text-label font-medium text-success/80 shrink-0">{item.action}</span>
                                     </Link>
                                 ))}
                             </div>
@@ -268,7 +306,7 @@ export default async function DashboardPage({
 
                 {/* ── 4. AGENDA DE GUILDE (pleine largeur) ─────────────── */}
                 {user.canViewCalendar && (
-                    <section data-tour="dash-events" className="min-h-[340px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <section data-tour="dash-events" className="animate-in fade-in slide-in-from-bottom-2 duration-150">
                         <UpcomingEventsWidget
                             guildId={guildId}
                             events={upcomingEvents as any}
@@ -277,7 +315,7 @@ export default async function DashboardPage({
                 )}
 
                 {/* ── 5. GROUPES ACTIFS (pleine largeur) ─────────────────── */}
-                <section data-tour="dash-groups" className="min-h-[360px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                <section data-tour="dash-groups" className="animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <RecentDjPosts guildId={guildId} groups={activeGroups} />
                 </section>
 

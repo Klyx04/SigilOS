@@ -36,6 +36,7 @@ import {
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { getBountyFiche } from "@/server/actions/bounty-actions";
 import { cn } from "@/lib/utils";
+import { readGradeResists } from "@/lib/dofus-monster-grades";
 import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import { useI18n } from "@/lib/i18n/client";
 import { SpellData, SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
@@ -602,7 +603,7 @@ export function BossOverlayClient({
   }, [catalog, catalogFilter, search, monsterResults]);
 
   const currentGrade = stats?.grades?.[activeGradeIndex] ?? stats?.grades?.[0] ?? null;
-  const resists = currentGrade?.resists;
+  const resists = readGradeResists(currentGrade);
 
   const handleSelectEntry = useCallback((d: BestiaireEntry) => {
     setSelected(d);

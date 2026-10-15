@@ -23,6 +23,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EMPTY_GRADE_RESISTS, readGradeResists } from "@/lib/dofus-monster-grades";
 import { useI18n } from "@/lib/i18n/client";
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
 import { BountyRewardCard } from "@/components/succes/BountyRewardCard";
@@ -480,7 +481,7 @@ export function PublicBossDetailClient({
     locale: locale === "en" ? "en" : "fr",
   });
 
-  const resists = activeGrade?.resists || {};
+  const resists = readGradeResists(activeGrade) ?? EMPTY_GRADE_RESISTS;
   const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
   const travelCmd = coords ? `/travel ${coords.x} ${coords.y}` : null;
   /* Encart « Localisation » : la zone de l'avis (subareaIds) ou du donjon (mapId),

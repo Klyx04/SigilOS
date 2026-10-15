@@ -31,6 +31,7 @@ import { getDofensiveDungeonForBoss } from "@/lib/dofensive-api";
 import { getUnityMonster, findUnityMonsterBySlug, type UnityMonsterData } from "@/lib/unity-bestiary";
 import { extractDamageFromLabel, formatInvocationLabel, type SpellElementKey } from "@/lib/dofus-spells";
 import { NO_DAMAGE_BONUS, type MonsterDamageStats } from "@/lib/dofus-monster-damage";
+import { deriveGradeCombatStats } from "@/lib/dofus-monster-grades";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -991,6 +992,11 @@ export async function getMonsterStats(
                     damage: g.damage ?? g.Damage ?? g.SecondaryCharacteristics?.Damage ?? 0,
                     healBonus: g.healBonus ?? g.HealBonus ?? g.SecondaryCharacteristics?.HealBonus ?? g.SecondaryCharacteristics?.Heals ?? 0,
                     criticalHit: g.criticalHit ?? g.CriticalHit ?? g.SecondaryCharacteristics?.CriticalHit ?? 0,
+                    // Lot R-3 (chantier Raccord DofusDB) : ce producteur omettait les caractéristiques de
+                    // combat que le premier écrit déjà (`:287-293`) — les fiches issues de ce chemin
+                    // affichaient « Tacle — » / « Fuite — » (`tackle` mesuré 0/283 en base). Valeur publiée
+                    // d'abord, tacle/fuite dérivés de l'agilité seulement si absents (`floor(agi/10) + bonus`).
+                    ...deriveGradeCombatStats(g, carac),
                 };
             }),
             drops: monster.drops?.map((d: any) => {

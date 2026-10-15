@@ -32,7 +32,7 @@ import type {
     DofensiveZoneShape,
 } from "@/lib/dofensive-spells";
 import { dofensiveFetch, norm, toSafeId } from "@/lib/dofensive-fetch";
-import { damageRangeOfEffect, pickMonsterDamageStats, pushDistanceOfEffect, scaleDamageInEffectGroups } from "@/lib/dofus-monster-damage";
+import { damageRangeOfEffect, isCoherentCritJet, pickMonsterDamageStats, pushDistanceOfEffect, scaleDamageInEffectGroups } from "@/lib/dofus-monster-damage";
 import { pickMonsterGrade, pickSpellLevelForMonster } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName, pickDofensiveMonsterId, pickDofensiveMonsterIdStrict } from "@/lib/dofensive-boss";
 import {
@@ -591,7 +591,13 @@ function attachCriticalDamage(
         const idx = used.get(element) ?? 0;
         const crit = queue[idx];
         if (!crit) return d;
+        // La file est **positionnelle** (premier critique de l'élément → premier normal) : on avance
+        // même quand on refuse le rattachement, sinon les lignes suivantes prendraient le mauvais jet.
         used.set(element, idx + 1);
+        // Lot R-4 (chantier Raccord DofusDB) : un critique **inférieur** au jet normal est une donnée
+        // fausse — on ne le publie pas (la ligne reste sans `critMin`/`critMax`, ce qui est le repli
+        // documenté : « jamais une fourchette inventée »).
+        if (!isCoherentCritJet({ min: dmg.min, max: dmg.max }, crit)) return d;
         return { ...d, damage: { ...dmg, critMin: crit.min, critMax: crit.max } };
     });
 }

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { Swords, Skull, Zap, Clock, Infinity as InfinityIcon, Sparkles, Check, Loader2 } from "lucide-react";
 import { getMissionsForCalendar } from "@/server/actions/mission-actions";
+import { MISSION_CATEGORY_IMAGES } from "@/lib/mission-category-images";
 
 interface MissionPickerProps {
     guildId: string;
@@ -19,7 +20,7 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
         color: "text-danger",
         bgColor: "bg-danger/10",
         borderColor: "border-danger/20",
-        fallbackImage: "/banners/donjon.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.DONJON,
         label: "Donjon"
     },
     REGULATION: {
@@ -27,7 +28,7 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
         color: "text-success",
         bgColor: "bg-success/10",
         borderColor: "border-success/20",
-        fallbackImage: "/banners/regulation.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.REGULATION,
         label: "Régulation"
     },
     ANOMALIE: {
@@ -35,7 +36,7 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
         color: "text-fuchsia-400",
         bgColor: "bg-fuchsia-500/10",
         borderColor: "border-fuchsia-500/20",
-        fallbackImage: "/assets/missions/ano1.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.ANOMALIE,
         label: "Anomalie"
     },
     SONGES: {
@@ -43,7 +44,7 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
         color: "text-info",
         bgColor: "bg-info/10",
         borderColor: "border-info/20",
-        fallbackImage: "/assets/missions/songes.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.SONGES,
         label: "Songes"
     },
     EXPEDITION: {
@@ -51,7 +52,7 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
         color: "text-warning",
         bgColor: "bg-warning/10",
         borderColor: "border-warning/20",
-        fallbackImage: "/banners/expedition.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.EXPEDITION,
         label: "Expédition"
     },
     EVENT: {
@@ -59,7 +60,7 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; bgColor: strin
         color: "text-warning",
         bgColor: "bg-warning/10",
         borderColor: "border-warning/20",
-        fallbackImage: "/assets/missions/event.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.EVENT,
         label: "Événement"
     },
 };

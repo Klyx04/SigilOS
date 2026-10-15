@@ -4,6 +4,7 @@
  * EventDetailModal V3 - 4 Types + Native ClassIcon
  */
 
+import { MISSION_CATEGORY_IMAGES } from "@/lib/mission-category-images";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -116,37 +117,37 @@ const MISSION_CATEGORY_CONFIG: Record<string, { picto: DofusUiIconName; color: s
     DONJON: {
         picto: "dungeon",
         color: "text-danger",
-        fallbackImage: "/banners/donjon.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.DONJON,
         label: "Donjon"
     },
     REGULATION: {
         picto: "skull",
         color: "text-success",
-        fallbackImage: "/banners/regulation.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.REGULATION,
         label: "Régulation"
     },
     ANOMALIE: {
         picto: "monster",
         color: "text-warning",
-        fallbackImage: "/assets/missions/ano1.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.ANOMALIE,
         label: "Anomalie"
     },
     SONGES: {
         picto: "hourglass",
         color: "text-info",
-        fallbackImage: "/assets/missions/songes.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.SONGES,
         label: "Songes"
     },
     EXPEDITION: {
         picto: "treasure",
         color: "text-success",
-        fallbackImage: "/banners/expedition.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.EXPEDITION,
         label: "Expédition"
     },
     EVENT: {
         picto: "trophy",
         color: "text-warning",
-        fallbackImage: "/assets/missions/event.png",
+        fallbackImage: MISSION_CATEGORY_IMAGES.EVENT,
         label: "Événement"
     },
 };

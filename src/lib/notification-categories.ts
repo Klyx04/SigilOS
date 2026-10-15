@@ -123,6 +123,7 @@ export const NOTIFICATION_IMAGE_KINDS = [
     "MONSTER",
     "SUCCESS",
     "MARKET",
+    "MISSION",
 ] as const;
 
 export type NotificationImageKind = (typeof NOTIFICATION_IMAGE_KINDS)[number];

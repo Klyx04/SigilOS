@@ -5,6 +5,12 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 14/10/2026 (suite 18) — **Validation des lots livrés + plans « S » et « Z » : la reprise est prête** — docs seuls
+> **Demande user** : « valide les chantiers déjà fait et prépare le prochain prompt » (pour finir **S** — rôles par points de succès — **et** améliorer **Z** — commandes slash perso).
+> **Validation mesurée sur `dev` = `23b55b80`** : suite **384 fichiers / 4 211 tests ✓** · `tsc` complet **0 erreur** · `lint` **0 erreur** (avertissements pré-existants uniquement, mes fichiers à 0) · `prisma migrate status` **à jour (274)** · preuves ciblées OK (client Apparence supprimé, onglet `anciennete` présent, 5 filets `seniority-roles*`).
+> **Plan « Z »** (`docs/plans/PLAN-COMMANDES-SLASH.md`) : module **à moitié bâti** (catalogue figé, RBAC, une action de rôles, guide, God) et **payloads Discord dupliqués** ⇒ lots Z-1 → Z-4, décisions tranchées (modèle `GuildCustomCommand`, payloads dérivés, portée guilde, réponse statique sans `eval`, fail-closed).
+> **Reste / ops (humain)** : accorder les **2 migrations** (S et Z) — seul point bloquant avant la reprise.
+
 ## 📝 Session 14/10/2026 (suite 17) — **Nouveau chantier « S » (rôles par points de succès ladder) : plan écrit, EN ATTENTE DU GO** — pas de branche (plan seul)
 > **Demande user** : « Bonus en + pour attribuer rôle conditionné aux point de succès ladder du joueur ! ».
 > **Mesure** : `UserProfile.successPoints` existe déjà ; il est écrit par **4 chemins** (cron `ladder-sync`, worker BullMQ, `refreshUserSuccessPoints`, onboarding) ⇒ **réconciliation** plutôt que 4 accroches. La mécanique de Y est ≥ 90 % agnostique à l'axe ; **piège** : l'unicité `(guildId, discordId, tierDays)` de la table d'annonces ferait **collisionner** un seuil en jours et un seuil en points.

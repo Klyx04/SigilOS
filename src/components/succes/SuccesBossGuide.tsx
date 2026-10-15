@@ -18,6 +18,7 @@ import {
 } from "@/server/actions/dofensive-actions";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 import { cn } from "@/lib/utils";
+import { EMPTY_GRADE_RESISTS, readGradeResists } from "@/lib/dofus-monster-grades";
 import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import { toast } from "sonner";
 import { getWorldName } from "@/lib/dofus-assets";
@@ -671,7 +672,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                         const grades: any[] = currentStats?.grades ?? [];
                         const gradeIdx = activeGradeIndex ?? (grades.length > 0 ? grades.length - 1 : 0);
                         const activeGrade = grades.length > 0 ? grades[Math.min(gradeIdx, grades.length - 1)] : null;
-                        const resists = activeGrade?.resists || {};
+                        const resists = readGradeResists(activeGrade) ?? EMPTY_GRADE_RESISTS;
                         const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
                         const travelCmd = coords ? `/travel ${coords.x} ${coords.y}` : null;
                         const hasZoneLocation = !!(coords || selected.mapId);

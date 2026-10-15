@@ -279,4 +279,12 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
   l'unicité `(guildId, discordId, tierDays)` de la table d'annonces ferait collisionner un seuil en jours et
   un seuil en points. ⇒ **en attente du go** : nouvelles colonnes `GuildConfig.successRoles*` (**migration** =
   arrêt obligatoire) et voie « extraction de règles neutres d'axe » au lieu d'une duplication.
+- **14/10/2026 (nuit, suite)** — **validation** des lots livrés sur `dev` = `23b55b80` : suite **384
+  fichiers / 4 211 tests ✓**, `tsc` complet **0 erreur**, `lint` **0 erreur**, `prisma migrate status` à
+  jour (**274**), preuves ciblées OK (client Apparence supprimé, onglet `anciennete` présent, **5** filets
+  `seniority-roles*`) — et **plan « Z »** écrit (`docs/plans/PLAN-COMMANDES-SLASH.md`) : le module des
+  commandes slash **existe déjà à moitié** (catalogue **figé en code**, RBAC par guilde, **une** action de
+  rôles, guide, God) et `discord-commands-sync.ts` **duplique** la liste des commandes ⇒ lots **Z-1 → Z-4**
+  (modèle `GuildCustomCommand`, payloads **dérivés**, portée **guilde**, réponse **statique** sans `eval`,
+  fail-closed si Discord refuse). ⇒ **prochaine session** : S-1 (après accord de migration) puis Z-1.
 

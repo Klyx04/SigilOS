@@ -95,13 +95,22 @@ async function resolveInternalGuildId(guildId?: string): Promise<string | undefi
 
 /**
  * Construit le filtre `where` de scope multi-tenant.
- * - Si internalGuildId est fourni : on ne garde que les notifs de CETTE guilde
- *   + celles sans guilde (système global, rétrocompatibilité).
- * - Sinon : toutes les notifs (mode non scopé).
+ *
+ * 🛡️ **Strictement par guilde depuis le 15/10/2026** : la branche `guildId: null`
+ * (« notifications système globales », rétrocompatibilité) a été **retirée**. C'était le **seul**
+ * chemin par lequel une notification pouvait s'afficher dans une guilde alors qu'elle appartenait
+ * à une autre — et sur ce chemin, le garde RBAC des `ADMIN_ALERT` était évalué avec le contexte de
+ * la guilde **consultée** (franchissement de privilège).
+ *
+ * Mesure qui a tranché (base bêta, 15/10/2026) : **7 340 lignes sans guilde sur 11 722 (63 %)**,
+ * mais **toutes antérieures au 03/08/2026** — le commit `0b1c592d` qui a introduit l'isolation
+ * (`0` depuis septembre) — et **0 destinataire multi-guilde sur 81** ⇒ **aucune fuite effective**.
+ * Le trou n'était donc pas actif : il était **hérité**. On le ferme quand même, parce que le
+ * premier membre à rejoindre une 2ᵉ guilde (chantier `feat/inter-guilde`) l'aurait réveillé.
  */
 function buildGuildScopeFilter(internalGuildId?: string) {
     if (!internalGuildId) return {};
-    return { OR: [{ guildId: internalGuildId }, { guildId: null }] };
+    return { guildId: internalGuildId };
 }
 
 // --- Actions ---
@@ -113,9 +122,15 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
 
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const cacheKey = guildId
-        ? `notifs:unread:${session.user.id}:${guildId}`
-        : `notifs:unread:${session.user.id}`;
+    // 🛡️ Fail-closed (15/10/2026) : sans guilde, la lecture n'était **pas scopée** (toutes les
+    // guildes de la personne). Aucun appelant ne l'omet aujourd'hui — le garde rend la règle
+    // explicite au lieu de dépendre d'un appel correct.
+    if (!guildId) {
+        logger.warn("[Notification] lecture refusée : guilde absente");
+        return { success: false, error: "Guild required" };
+    }
+
+    const cacheKey = `notifs:unread:${session.user.id}:${guildId}`;
 
     try {
         // 1. Cache FIRST — évite le getUserContext lourd (~5s) à chaque poll (sidebar 10s).
@@ -177,6 +192,12 @@ export async function getAllNotifications(guildId?: string, limit = 100): Promis
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
+    // 🛡️ Fail-closed (15/10/2026) — même règle que `getUnreadNotifications`.
+    if (!guildId) {
+        logger.warn("[Notification] lecture refusée : guilde absente");
+        return { success: false, error: "Guild required" };
+    }
+
     let internalGuildId: string | undefined;
     let ctx: any = null;
     if (guildId) {
@@ -218,6 +239,14 @@ export async function markAsRead(notificationId: string, guildId?: string) {
     const session = await auth();
     if (!session?.user?.id) return;
 
+    // 🛡️ Fail-closed (15/10/2026) : sans guilde, le `updateMany` n'était pas scopé (il ne pouvait
+    // toucher qu'un id, donc une ligne appartenant déjà à l'appelant — mais la règle est la même
+    // partout, on ne dépend pas de cette nuance).
+    if (!guildId) {
+        logger.warn("[Notification] markAsRead refusé : guilde absente");
+        return;
+    }
+
     // SECURITY: verrouillage par guilde si fournie (cohérence multi-tenant)
     if (guildId) {
         const ctx = await getUserContext(guildId);
@@ -257,6 +286,12 @@ export async function deleteNotification(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
+    // 🛡️ Fail-closed (15/10/2026) — une suppression sans guilde n'était pas scopée.
+    if (!guildId) {
+        logger.warn("[Notification] suppression refusée : guilde absente");
+        return { success: false, error: "Guild required" };
+    }
+
     if (guildId) {
         const ctx = await getUserContext(guildId);
         if (!ctx.isMember) {
@@ -287,6 +322,13 @@ export async function deleteNotification(
 export async function markAllAsRead(guildId?: string) {
     const session = await auth();
     if (!session?.user?.id) return;
+
+    // 🛡️ Fail-closed (15/10/2026) : sans guilde, ce `updateMany` marquait comme lues **toutes** les
+    // notifications de la personne, toutes guildes confondues.
+    if (!guildId) {
+        logger.warn("[Notification] markAllAsRead refusé : guilde absente");
+        return;
+    }
 
     // SECURITY: guild isolation en écriture
     if (guildId) {
@@ -339,40 +381,64 @@ export async function createNotification(
     try {
         const finalCategory = category || inferCategory(type, title);
 
-        // Résolution de l'ID interne de guilde (discordId → internalId) en dehors
-        // du bloc de préférences afin de pouvoir le réutiliser dans le `data` ci-dessous.
+        // Résolution de l'ID interne de guilde (snowflake Discord → id interne) avant toute écriture.
         let internalGuildId: string | null = null;
         if (guildId) {
-            internalGuildId = (await resolveInternalGuildId(guildId)) ?? null;
+            const resolved = await resolveInternalGuildId(guildId);
+            // ⚠️ `resolveInternalGuildId` rend l'entrée **telle quelle** quand la recherche par
+            // snowflake échoue : un identifiant Discord long **inchangé** n'est donc pas un id
+            // interne (il n'existe pas dans `GuildConfig`). On le traite comme « non résolu » ici,
+            // plutôt que de laisser Prisma rejeter une clé étrangère (l'erreur ne disait pas
+            // pourquoi, et l'annonce disparaissait dans un `logger.error` générique).
+            internalGuildId = resolved && !(guildId.length > 15 && resolved === guildId) ? resolved : null;
+        }
 
-            // Narrowing : internalGuildId est `string` ici (guilde résolue). Si la guilde
-            // n'a pas pu être résolue (null), on saute le contrôle de préférences.
-            if (internalGuildId) {
-                const profile = await db.userProfile.findUnique({
-                    where: { userId_guildId: { userId, guildId: internalGuildId } },
-                    select: { notificationPrefs: true }
-                });
+        // 🛡️ **FAIL-CLOSED (15/10/2026) — aucune notification sans guilde.**
+        //
+        // Avant, une guilde non résolue (`guildId` absent, ou snowflake Discord inconnu de
+        // `GuildConfig` : fenêtre d'onboarding, identifiant passé sous une autre forme) produisait
+        // une ligne `guildId: null`, et **sautait au passage le contrôle de préférences** (il était
+        // niché dans le `if (internalGuildId)`). Deux défauts pour un : une annonce que le membre
+        // ne pouvait **pas couper**, et qu'il voyait dans **toutes** ses guildes.
+        //
+        // Conséquence assumée : une annonce dont la guilde ne peut pas être identifiée est
+        // **perdue** (journalisée) au lieu d'être mal rangée. Les émetteurs qui passaient un
+        // identifiant non résolu (`geoguesser-multi-actions`, `metamob-worker`, DJ, feedback) ont
+        // été corrigés dans le même lot : soit ils passent la guilde, soit ils n'écrivent rien.
+        if (!internalGuildId) {
+            logger.warn("[Notification] annonce non écrite : guilde non résolue", {
+                type,
+                guildId: guildId ?? null,
+                userId,
+            });
+            return;
+        }
 
-                if (profile?.notificationPrefs) {
-                    const prefs = profile.notificationPrefs as any;
+        // Contrôle des préférences du membre — **toujours atteint** désormais (la guilde est
+        // résolue), donc plus aucun interrupteur ne peut être contourné.
+        const profile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId, guildId: internalGuildId } },
+            select: { notificationPrefs: true }
+        });
 
-                    // Stop if preference is explicitly false
-                    if (finalCategory === "MISSION" && prefs.missions === false) return;
-                    if (finalCategory === "SUCCESS" && prefs.ladder === false) return;
-                    if (finalCategory === "SONGES" && prefs.songes === false) return;
-                    if (finalCategory === "EVENT" && prefs.events === false) return;
-                    if (finalCategory === "POLL" && prefs.polls === false) return;
-                    if (finalCategory === "OCRE" && prefs.ocre === false) return;
-                    if (finalCategory === "DONJONS" && prefs.donjons === false) return;
-                    if (finalCategory === "ADMIN_ALERT" && prefs.admin_validations === false) return;
-                    // §11.9 — Marché : un booléen **par type** (`market.<clé>`),
-                    // défaut activé ; seul un `false` explicite coupe la notif.
-                    if (
-                        finalCategory === "MARKET"
-                        && !isMarketNotificationEnabled(prefs, type as MarketNotificationType)
-                    ) return;
-                }
-            }
+        if (profile?.notificationPrefs) {
+            const prefs = profile.notificationPrefs as any;
+
+            // Stop if preference is explicitly false
+            if (finalCategory === "MISSION" && prefs.missions === false) return;
+            if (finalCategory === "SUCCESS" && prefs.ladder === false) return;
+            if (finalCategory === "SONGES" && prefs.songes === false) return;
+            if (finalCategory === "EVENT" && prefs.events === false) return;
+            if (finalCategory === "POLL" && prefs.polls === false) return;
+            if (finalCategory === "OCRE" && prefs.ocre === false) return;
+            if (finalCategory === "DONJONS" && prefs.donjons === false) return;
+            if (finalCategory === "ADMIN_ALERT" && prefs.admin_validations === false) return;
+            // §11.9 — Marché : un booléen **par type** (`market.<clé>`),
+            // défaut activé ; seul un `false` explicite coupe la notif.
+            if (
+                finalCategory === "MARKET"
+                && !isMarketNotificationEnabled(prefs, type as MarketNotificationType)
+            ) return;
         }
 
         // 2. Create Notification

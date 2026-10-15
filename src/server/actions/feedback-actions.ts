@@ -236,6 +236,9 @@ export async function notifyMemberFeedbackAction(input: {
     }
 
     const { createNotification } = await import("./notification-actions");
+    // Si aucune guilde n'est identifiable (`issue.guildId` absent ⇒ un feedback plateforme), la
+    // variable reste `undefined` : `createNotification` est **fail-closed** et n'écrit rien. C'est
+    // assumé — sans guilde, le lien `/dashboard/{guildId}/tracker` serait de toute façon mort.
     const guildIdForNotif = discordGuildId || issue.guildId || undefined;
 
     // — Créer la notification Dashboard (scopée par guilde du membre)

@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { normalizeChallengeIconUrl } from "@/lib/dofus-image-url";
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -309,7 +310,7 @@ export function DjPostDetailModal({
                                         .map((a) => (
                                              <div key={a.id} className="flex items-center gap-2 bg-surface/50 border border-border/70 rounded-lg px-2.5 py-1.5 hover:border-emerald-500/30 transition-colors">
                                                 {a.challenge.iconUrl && (
-                                                    <img src={a.challenge.iconUrl} alt="" className="w-4 h-4 object-contain" />
+                                                    <img src={normalizeChallengeIconUrl(a.challenge.iconUrl) ?? a.challenge.iconUrl} alt="" className="w-4 h-4 object-contain" />
                                                 )}
                                                 <span className="text-xs text-foreground font-semibold">{a.challenge.name}</span>
                                             </div>

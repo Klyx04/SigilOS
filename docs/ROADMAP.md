@@ -8,6 +8,13 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
+## 📝 Session 14/10/2026 (suite 17) — **Nouveau chantier « S » : rôles conditionnés aux POINTS DE SUCCÈS LADDER — plan écrit, en attente du go (migration)** — pas de branche (plan seul)
+> **Demande user (verbatim)** : « Bonus en + pour attribuer rôle conditionné aux point de succès ladder du joueur ! ».
+> **Mesure (avant tout code)** : `UserProfile.successPoints` **existe déjà** (`prisma/schema.prisma:724`) et est alimenté par **4 chemins** (cron `ladder-sync` `:89-103`, worker BullMQ `:297`, `refreshUserSuccessPoints`, onboarding) ⇒ on ne s'accroche à aucun : on **réconcilie** (leçon du chantier Y). La mécanique de pose de Y est **≥ 90 % agnostique à l'axe** (diff cumulatif, périmètre fermé, annonce, texte par palier).
+> **Piège mesuré** : la table d'idempotence `SeniorityRoleAnnouncement` a une unicité `(guildId, discordId, tierDays)` ⇒ un seuil **30 jours** et un seuil **30 points** y **collisionneraient** (une annonce avalée en silence) : chaque axe doit tracer ses seuils.
+> **Livré** : `docs/plans/PLAN-ROLES-SUCCES.md` — état mesuré, **3 décisions à trancher** (colonnes dédiées · extraction de règles neutres d'axe plutôt que duplication · table d'annonces par axe), lots **S-1 → S-3**, tests (dont l'idempotence **par axe**) et vigilance (points nullable = 0, fail-closed).
+> **Rien d'autre n'a été écrit** : les nouvelles colonnes sont une **migration** ⇒ arrêt obligatoire avant le SQL, conformément à la règle maison.
+
 ## ⏳ Session 14/10/2026 (suite 16) — **Chantier Y, lot Y-5 : le texte devient réglable PALIER PAR PALIER (héritage champ par champ), avec l'aperçu du seuil choisi** — branche `feat/roles-anciennete-y5-texte-par-palier`
 > **Demande user (verbatim)** : « j'aimerai pouvoir éditer aussi … dans l'ancienneté chaque palier créé et son texte » (puis, en réponse à ma question) « et oui un texte par palier ».
 > **Mesure (avant d'écrire)** : les paliers sont déjà un **JSON** (`seniorityRolesTiers`) ⇒ ajouter un texte par palier **ne demande aucune migration** ; le rendu est déjà une fonction pure (`renderSeniorityAnnouncement`) consommée par l'aperçu **et** par l'envoi ⇒ un seul point d'insertion.

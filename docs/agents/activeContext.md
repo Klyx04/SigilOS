@@ -5,6 +5,12 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 14/10/2026 (suite 17) — **Nouveau chantier « S » (rôles par points de succès ladder) : plan écrit, EN ATTENTE DU GO** — pas de branche (plan seul)
+> **Demande user** : « Bonus en + pour attribuer rôle conditionné aux point de succès ladder du joueur ! ».
+> **Mesure** : `UserProfile.successPoints` existe déjà ; il est écrit par **4 chemins** (cron `ladder-sync`, worker BullMQ, `refreshUserSuccessPoints`, onboarding) ⇒ **réconciliation** plutôt que 4 accroches. La mécanique de Y est ≥ 90 % agnostique à l'axe ; **piège** : l'unicité `(guildId, discordId, tierDays)` de la table d'annonces ferait **collisionner** un seuil en jours et un seuil en points.
+> **Livré** : `docs/plans/PLAN-ROLES-SUCCES.md` (état mesuré, 3 décisions, lots S-1 → S-3, tests, vigilance). **Aucun code, aucune migration** : nouvelles colonnes ⇒ arrêt obligatoire.
+> **Reste / ops (humain)** : **valider** la migration (colonnes `GuildConfig.successRoles*`) et la voie « extraction de règles neutres d'axe » avant que S-1 démarre.
+
 ## ⏳ Session 14/10/2026 (suite 16) — **Chantier Y, lot Y-5 : texte réglable PALIER PAR PALIER (héritage champ par champ) + aperçu du seuil choisi** — branche `feat/roles-anciennete-y5-texte-par-palier`
 > **Demande user** : « éditer chaque palier créé et son texte » → confirmé (« et oui un texte par palier »).
 > **Mesure** : les paliers sont un **JSON** en base ⇒ **aucune migration** ; le rendu est déjà une fonction pure partagée par l'aperçu **et** l'envoi ⇒ un seul point d'insertion.

@@ -271,4 +271,12 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
   migration** (le texte vit dans le JSON `seniorityRolesTiers`) · verrous `seniority-roles-tier-text.test.ts`
   (**9 cas**) + le cas **bout en bout** dans `seniority-roles-cron.test.ts` (**25**). ⇒ reste sur ce module :
   **F** (sélecteurs **forum** pour Services/DJ/Galerie/Calendrier) et **I** (tags de forum choisis en dashboard).
+- **14/10/2026 (nuit, suite)** — **nouveau chantier « S » ouvert par la demande user** (« Bonus en + pour
+  attribuer rôle conditionné aux point de succès ladder du joueur ! ») : **plan écrit**
+  (`docs/plans/PLAN-ROLES-SUCCES.md`), **aucun code**. Mesure : `UserProfile.successPoints` existe déjà mais
+  est écrit par **4 chemins** (cron `ladder-sync`, worker BullMQ, `refreshUserSuccessPoints`, onboarding) ⇒
+  **réconciliation** plutôt que 4 accroches ; la mécanique de Y est ≥ 90 % agnostique à l'axe ; **piège** :
+  l'unicité `(guildId, discordId, tierDays)` de la table d'annonces ferait collisionner un seuil en jours et
+  un seuil en points. ⇒ **en attente du go** : nouvelles colonnes `GuildConfig.successRoles*` (**migration** =
+  arrêt obligatoire) et voie « extraction de règles neutres d'axe » au lieu d'une duplication.
 

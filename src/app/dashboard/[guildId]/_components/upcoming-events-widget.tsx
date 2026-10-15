@@ -97,20 +97,25 @@ export function UpcomingEventsWidget({
     }, [events]);
 
     return (
-        <div className="rounded-xl border border-border bg-card px-4 py-3.5">
+        <div className="rounded-xl border border-border-strong bg-surface/60 px-4 py-3.5">
             <div className="flex items-center justify-between gap-3 mb-3">
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                    <Image
-                        src="/assets/dofus/modules/calendar.png"
-                        alt="Agenda"
-                        width={18}
-                        height={18}
-                        className="object-contain shrink-0"
-                        unoptimized
-                    />
+                    {/* Pastille verte : l'agenda est une section de premier rang du dashboard,
+                        il ne doit pas se lire comme un bloc gris de plus (retour user du 15/10). */}
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md border border-success/25 bg-success/10 shrink-0">
+                        <Image
+                            src="/assets/dofus/modules/calendar.png"
+                            alt=""
+                            aria-hidden="true"
+                            width={14}
+                            height={14}
+                            className="object-contain"
+                            unoptimized
+                        />
+                    </span>
                     Agenda
                     {activeEvents.length > 0 && (
-                        <span className="ml-1 text-xs font-medium text-muted-foreground tabular-nums">{activeEvents.length}</span>
+                        <span className="ml-1 text-xs font-semibold text-success tabular-nums">{activeEvents.length}</span>
                     )}
                 </h2>
                 <div className="flex items-center gap-3">
@@ -131,7 +136,7 @@ export function UpcomingEventsWidget({
             </div>
 
             {/* Semaine (max 2xl pour rester dense) */}
-            <div className="rounded-xl bg-surface/40 border border-border/40 p-1.5 max-w-2xl mb-3">
+            <div className="rounded-xl bg-background/50 border border-border p-1.5 max-w-2xl mb-3">
                 <div className="grid grid-cols-7 gap-1 w-full">
                     {weekDays.map((day) => {
                         const isCurrentDay = isSameDay(day, new Date());
@@ -183,7 +188,7 @@ export function UpcomingEventsWidget({
                             <Link
                                 key={event.id}
                                 href={`/dashboard/${guildId}/calendar?event=${event.id}`}
-                                className="rounded-xl border border-border hover:border-success/30 hover:bg-success/5 p-3 transition-colors"
+                                className="rounded-xl border border-border bg-surface/40 hover:border-success/40 hover:bg-success/5 p-3 transition-colors"
                             >
                                 <div className="flex items-center gap-2 mb-1.5">
                                     <Image

@@ -13,6 +13,7 @@ import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-acti
 import { getPolls } from "@/server/actions/poll-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { hasFilledAvailability } from "@/lib/dofus-assets";
+import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
 import { getISOWeek, getYear } from "date-fns";
 import NextImage from "next/image";
 import Link from "next/link";
@@ -151,7 +152,11 @@ export default async function DashboardPage({
         href: `/dashboard/${guildId}/ressources?tab=almanax`,
         label: todayAlmanax.tribute.item.name,
         action: "Offrande",
-        image: todayAlmanax.tribute.item.image_urls.icon,
+        // Icône **Dolmanax locale** (`resolveDofusLocalImage`, l'allowlist des Dofus
+        // canoniques) : l'ancienne valeur était l'URL **hotlinkée** de DofusDude
+        // (`tribute.item.image_urls.icon`) — visuel externe, dépendance à une API
+        // tierce, et indiscernable d'une ressource ordinaire à l'écran.
+        image: resolveDofusLocalImage("Dolmanax"),
         imageQty: todayAlmanax.tribute.quantity,
     });
 
@@ -268,7 +273,7 @@ export default async function DashboardPage({
 
                 {/* ── 4. AGENDA DE GUILDE (pleine largeur) ─────────────── */}
                 {user.canViewCalendar && (
-                    <section data-tour="dash-events" className="min-h-[340px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <section data-tour="dash-events" className="animate-in fade-in slide-in-from-bottom-2 duration-150">
                         <UpcomingEventsWidget
                             guildId={guildId}
                             events={upcomingEvents as any}
@@ -277,7 +282,7 @@ export default async function DashboardPage({
                 )}
 
                 {/* ── 5. GROUPES ACTIFS (pleine largeur) ─────────────────── */}
-                <section data-tour="dash-groups" className="min-h-[360px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                <section data-tour="dash-groups" className="animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <RecentDjPosts guildId={guildId} groups={activeGroups} />
                 </section>
 

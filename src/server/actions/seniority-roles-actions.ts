@@ -47,7 +47,6 @@ const SNOWFLAKE = z.string().regex(/^\d{17,20}$/, "Identifiant Discord invalide"
 const SETTINGS_SCHEMA = z
     .object({
         enabled: z.boolean(),
-        channelId: SNOWFLAKE.nullable(),
         tiers: z
             .array(
                 z.object({
@@ -253,14 +252,6 @@ export async function updateSeniorityRolesSettings(guildId: string, input: unkno
         });
         if (!guild) return { success: false as const, error: "Guilde introuvable" };
 
-        if (parsed.data.channelId) {
-            // 🔒 Isolation : un salon d'une autre guilde (ou inexistant) est refusé ici,
-            // pas seulement masqué à l'écran.
-            const { validateChannelBelongsToGuild } = await import("@/server/discord");
-            const valid = await validateChannelBelongsToGuild(parsed.data.channelId, guildId);
-            if (!valid) return { success: false as const, error: "Ce salon n'appartient pas à votre serveur Discord" };
-        }
-
         // Marqueur d'activation : posé **à la première mise en service**, jamais déplacé.
         // Il sépare un franchissement à fêter d'un rattrapage (lot Y-2) : le déplacer ferait
         // refêter des paliers déjà passés.
@@ -270,7 +261,6 @@ export async function updateSeniorityRolesSettings(guildId: string, input: unkno
             where: { id: guild.id },
             data: {
                 seniorityRolesEnabled: parsed.data.enabled,
-                seniorityRolesChannelId: parsed.data.channelId,
                 // On stocke **normalisé** (trié, dédoublonné, borné) : la base ne contient
                 // jamais une config que la règle devrait ensuite rattraper.
                 seniorityRolesTiers: normalizeSeniorityTiers(parsed.data.tiers) as unknown as Prisma.InputJsonValue,
@@ -283,6 +273,61 @@ export async function updateSeniorityRolesSettings(guildId: string, input: unkno
         return { success: true as const };
     } catch (e) {
         logger.error("[updateSeniorityRolesSettings] error:", e);
+        return { success: false as const, error: "Erreur serveur" };
+    }
+}
+
+const CHANNEL_SCHEMA = z
+    .object({
+        channelId: SNOWFLAKE.nullable(),
+    })
+    .strict();
+
+/**
+ * Réglage du **salon de l'annonce** — écrit par l'onglet `Paramètres → Ancienneté`, là où tous les
+ * salons du dépôt se déclarent.
+ *
+ * Pourquoi une action à part : **une porte par réglage**. L'onglet Membres n'écrit plus ce champ (il
+ * n'en a plus l'éditeur) et cette action n'écrit que celui-là — aucun des deux écrans ne peut donc
+ * écraser les réglages de l'autre.
+ */
+export async function updateSeniorityRolesChannel(guildId: string, input: unknown) {
+    const access = await requireMemberManager(guildId);
+    if (!access.allowed) return { success: false as const, error: access.error };
+
+    const limit = await rateLimit(`seniority-roles-channel:${access.ctx?.id ?? "anon"}`, 10, 60_000);
+    if (!limit.success) {
+        return { success: false as const, error: "Trop de modifications d'affilée : réessaie dans une minute" };
+    }
+
+    const parsed = CHANNEL_SCHEMA.safeParse(input);
+    if (!parsed.success) return { success: false as const, error: "Salon invalide" };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guild) return { success: false as const, error: "Guilde introuvable" };
+
+        if (parsed.data.channelId) {
+            // 🔒 Isolation : un salon d'une autre guilde (ou inexistant) est refusé ici, pas
+            // seulement masqué à l'écran.
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const valid = await validateChannelBelongsToGuild(parsed.data.channelId, guildId);
+            if (!valid) return { success: false as const, error: "Ce salon n'appartient pas à votre serveur Discord" };
+        }
+
+        await db.guildConfig.update({
+            where: { id: guild.id },
+            data: { seniorityRolesChannelId: parsed.data.channelId },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        revalidatePath(`/dashboard/${guildId}/admin/members`);
+        return { success: true as const };
+    } catch (e) {
+        logger.error("[updateSeniorityRolesChannel] error:", e);
         return { success: false as const, error: "Erreur serveur" };
     }
 }

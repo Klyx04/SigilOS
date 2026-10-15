@@ -258,4 +258,10 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
   lecture des membres actifs (tri proche→lointain, plafond 25 + total), section **responsive**
   (tableau desktop / cartes mobile) **sans aucune action**, verrou `seniority-roles-upcoming.test.ts`
   (**11 cas**).
+- **14/10/2026 (nuit, suite)** — **lot G livré** (le salon de l'annonce **quitte l'onglet Ancienneté pour
+  Paramètres** → nouvel onglet `Paramètres → Ancienneté`) : action **narrow**
+  `updateSeniorityRolesChannel` (une porte par réglage : l'onglet Membres n'écrit plus ce champ et
+  renvoie vers Paramètres) + **13 imports morts** nettoyés dans `settings/page.tsx`, verrou
+  `roles-anciennete-salon-settings.test.ts` (**9 cas**). ⇒ **Y-5 (texte par palier)** demandé par
+  l'utilisateur, ensuite restent **F** (sélecteurs forum) et **I** (tags de forum choisis).
 

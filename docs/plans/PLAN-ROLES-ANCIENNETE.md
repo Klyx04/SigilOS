@@ -56,7 +56,7 @@ historique (migration pré-existante cassée `20261010000000_add_component_stats
 | 1 | Sémantique d'un palier | **Cumulative** : un membre porte les rôles de **tous** les paliers atteints. Monter n'enlève rien ; le retrait n'existe que pour un palier **qu'il n'a plus** | lecture littérale du brief ; `resolveSeniorityRoleTier` isole le choix (une fonction à changer si on passe au « grade unique ») |
 | 2 | Périmètre des retraits | **Fermé** : seuls les rôles **déclarés dans les paliers** sont touchés ; tout autre rôle du membre est hors périmètre | fail-closed : on ne retire jamais un rôle que la guilde n'a pas déclaré |
 | 3 | Stockage | 4 **colonnes** sur `GuildConfig` (`seniorityRolesEnabled`, `seniorityRolesChannelId`, `seniorityRolesTiers`, `seniorityRolesAnnouncement`) | pattern maison (`scheduledPolls*`, `marketAllowedPingRoleIds`) ; le salon reste **visible de la veille des canaux**, contrairement à un bloc unique |
-| 4 | Emplacement de l'écran (§7-2 du brief) | **Onglet « Rôles d'ancienneté » dans `/admin/members`** — ni page dédiée du Centre de contrôle, ni onglet de Réglages | la page est **déjà gardée** (`isAdmin \| canManageMembers \| canManageRelance`) et **a déjà** des onglets + `?tab=` ⇒ **aucune permission, aucune carte, aucune entrée de menu** à inventer |
+| 4 | Emplacement de l'écran (§7-2 du brief) | **Onglet « Rôles d'ancienneté » dans `/admin/members`** — ni page dédiée du Centre de contrôle, ni onglet de Réglages | la page est **déjà gardée** (`isAdmin \| canManageMembers \| canManageRelance`) et **a déjà** des onglets + `?tab=` ⇒ **aucune permission, aucune carte, aucune entrée de menu** à inventer — **révision du 14/10 (lot G)** : le **salon**, et lui seul, part dans **Paramètres → Ancienneté** (les 16 salons du dépôt s'y déclarent) ; paliers, message, aperçu et vues restent dans l'onglet Membres |
 | 5 | Message de l'annonce | **Personnalisable** (ping, titre, description à variables, couleur, miniature) | demande explicite du 14/10 ; les variables sont une **allowlist fermée** (`{membre}`, `{pseudo}`, `{anciennete}`, `{roles}`, `{guilde}`), aucun `eval` |
 | 6 | Rattrapage des membres déjà présents (**backfill**) | **✅ tranché le 14/10/2026 — « on marque sans poster »** : les **rôles** se rattrapent (le diff est un état), mais **un palier franchi avant l'activation n'est jamais annoncé**. La règle est portée par un **marqueur d'activation** (`seniorityRolesActivatedAt`), pas par une heuristique de « première passe » | évite un salon inondé le jour de l'activation ; le marqueur rend la règle **pure et testable** (`shouldCelebrateSeniorityTier`) |
 | 7 | Idempotence de l'annonce (embed une seule fois) | ✅ **livré (Y-2)** : table `SeniorityRoleAnnouncement`, unicité `(guildId, discordId, tierDays)`, **revendication atomique avant l'envoi**, relâchée si l'envoi échoue | ajouter ou réordonner un palier ne rejoue rien : on trace le **seuil**, pas l'index |
@@ -122,6 +122,23 @@ télémétrie `recordCronExecution("seniority_roles", …)`), déclarée dans `K
 
 **Invariants tenus** : membre inconnu de Discord ⇒ ignoré ; rôle non déclaré ⇒ jamais touché ;
 échec de pose ⇒ **aucune annonce** ; aucun salon ⇒ rôles seuls ; jeton manquant ⇒ arrêt immédiat.
+
+### G ✅ — le salon de l'annonce vit dans **Paramètres** (livré le 14/10/2026)
+
+**Mesure** : dans ce dépôt, **tous** les salons se déclarent dans Paramètres (16 encarts de modules) ;
+l'onglet Membres était le seul écran de salon hors convention. Constat de l'utilisateur, confirmé.
+
+**Fait** : réglage **narrow** `updateSeniorityRolesChannel(guildId, { channelId })` (RBAC
+`canManageMembers`, rate limit, Zod strict à **un** champ, salon **vérifié auprès de Discord**, revalidation
+des deux écrans) · onglet **Paramètres → Ancienneté** (groupe *Notifications & Canaux*) avec le seul champ
+du salon · l'action de l'onglet Membres **n'écrit plus** ce champ (retiré de son schéma) et son écran n'a
+plus de sélecteur : il **renvoie** vers Paramètres.
+
+**Pourquoi une action à part** : **une porte par réglage** — l'écran du salon n'écrit que le salon,
+l'écran des paliers n'écrit que les paliers ; aucun des deux ne peut écraser les réglages de l'autre.
+
+**Au passage** : les **13 imports morts** de `settings/page.tsx` (mesurés **avant** le lot : une seule
+occurrence à `HEAD`) sont nettoyés — c'est le fichier que le lot modifie.
 
 ### Y-4 ✅ — « Prochains paliers » (livré le 14/10/2026)
 
@@ -197,6 +214,12 @@ liste serveur (fenêtre de 30 jours, tri proche→lointain puis pseudo, plafond 
 sans palier) et écran (section présente, fenêtre lue depuis la règle, tableau desktop + cartes mobile,
 **aucun bouton ni champ** : vue, pas formulaire).
 
+**Verrou de G** — `tests/unit/roles-anciennete-salon-settings.test.ts`, **9 cas** : garde RBAC fail-closed,
+rate limit, Zod (salon invalide, **champ surnuméraire**), isolation (salon d'une autre guilde refusé **sans
+écriture**), écriture **du seul** salon + revalidation des deux écrans, « aucun salon » sans requête
+Discord, et les invariants d'architecture d'**une porte par réglage** (l'action des paliers ne touche plus
+au salon, l'écran des paliers n'a plus de sélecteur, l'onglet est déclaré **et** rendu dans Paramètres).
+
 **Acceptation du chantier** (vérifiée au fil des lots) :
 - un membre qui franchit un seuil **reçoit ses rôles** ; l'embed part **une seule fois** (cron relancé = rien de plus) ;
 - un membre **hors** mapping de guilde ne reçoit rien (fail-closed) ;
@@ -213,6 +236,7 @@ sans palier) et écran (section présente, fenêtre lue depuis la règle, tablea
 | **Y-2** — cron + embed | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-cron.test.ts` (**24 cas**) · `src/server/seniority-roles-core.ts` + `src/app/api/cron/seniority-roles/route.ts` · `GuildConfig.seniorityRolesActivatedAt` + table `SeniorityRoleAnnouncement` (migration `20270108000000_add_seniority_role_announcements`) · tâche déclarée (`KNOWN_CRON_TASKS`) + ligne de crontab documentée |
 | **Y-3** — onglet + éditeur + aperçu | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-ui.test.ts` (**16 cas**) · `seniority-roles-actions.ts` + `seniority-roles-panel.tsx` + 3ᵉ onglet de `/admin/members` (`?tab=anciennete`) · salon déclaré dans la veille des canaux |
 | **Y-4** — vue « Prochains paliers » | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-upcoming.test.ts` (**11 cas**) · règle pure `resolveUpcomingTierChange` + fenêtre `SENIORITY_UPCOMING_WINDOW_DAYS` · liste serveur (même requête, plafond 25) · section responsive dans l'onglet Membres (tableau desktop / cartes mobile), **aucune action** |
+| **G** — salon → Paramètres | ✅ **livré le 14/10/2026** | `tests/unit/roles-anciennete-salon-settings.test.ts` (**9 cas**) · `updateSeniorityRolesChannel` (**une porte par réglage**) · onglet `Paramètres → Ancienneté` (`?tab=anciennete`) · renvoi depuis l'onglet Membres (plus de sélecteur) |
 
 **Ops (côté humain)** :
 - [ ] jouer les migrations `20270107000000_add_seniority_roles_config` **puis**

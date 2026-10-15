@@ -8,7 +8,7 @@ import { Loader2, Save, Hash, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { getServiceSettings, updateServiceSettings } from "@/server/actions/service-actions";
-import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
+import { DiscordChannelPicker, DISCORD_FORUM_CHANNEL_TYPES } from "@/components/shared/DiscordChannelPicker";
 
 interface ServicesSettingsClientProps {
     guildId: string;
@@ -89,6 +89,7 @@ export function ServicesSettingsClient({ guildId }: ServicesSettingsClientProps)
                                         guildId={guildId}
                                         value={channelId}
                                         onChange={setChannelId}
+                                        allowedTypes={DISCORD_FORUM_CHANNEL_TYPES}
                                     />
                                 </div>
                                 <Button onClick={handleSaveChannel} disabled={isPending} className="min-w-[120px] bg-info hover:bg-info text-info-foreground font-black uppercase tracking-wider text-xs rounded-xl shadow-lg shadow-cyan-900/20">

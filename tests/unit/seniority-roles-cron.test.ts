@@ -242,6 +242,37 @@ describe("Y-2 — annonces : une fois, et seulement pour un vrai franchissement"
     /** Membre arrivé il y a 35 jours : le palier 30 j vient d'être franchi (après activation). */
     const celebrating = () => profileRow({ discordJoinedAt: new Date("2026-09-10T00:00:00.000Z") });
 
+    it("Y-5 — l'annonce part avec le texte **du palier** franchi, pas le message global", async () => {
+        guildConfigFindMany.mockResolvedValue([
+            guildRow({
+                seniorityRolesTiers: [
+                    {
+                        days: 30,
+                        roleIds: [ROLE_A],
+                        announcement: { embedTitle: "Un mois déjà !", messageTemplate: "🎉 {membre}, un mois !" },
+                    },
+                    { days: 180, roleIds: [ROLE_B], announcement: { embedTitle: "Six mois !" } },
+                ],
+            }),
+        ]);
+        userProfileFindMany.mockResolvedValue([celebrating()]);
+        fetchGuildMember.mockResolvedValue({
+            roles: [],
+            user: { id: DISCORD_ID, username: "klyx", avatar: "a_hash" },
+        });
+
+        const result = await syncSeniorityRolesCore({ now: NOW });
+
+        expect(result.announcementsSent).toBe(1);
+        const [, , options] = sendChannelMessage.mock.calls[0];
+        expect(options.embedTitle).toBe("Un mois déjà !");
+        expect(options.mentionContent).toContain("un mois !");
+        // Le texte du palier 180 n'a rien à faire dans l'annonce du palier 30…
+        expect(options.embedTitle).not.toBe("Six mois !");
+        // …et le champ non surchargé garde bien le texte global (ici la description par défaut).
+        expect(options.embedDescription).toContain(`<@&${ROLE_A}>`);
+    });
+
     it("fête un franchissement postérieur à l'activation, avec la mention et la PP du membre", async () => {
         guildConfigFindMany.mockResolvedValue([guildRow()]);
         userProfileFindMany.mockResolvedValue([celebrating()]);

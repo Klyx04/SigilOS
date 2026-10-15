@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## ⏳ Session 14/10/2026 (suite 16) — **Chantier Y, lot Y-5 : texte réglable PALIER PAR PALIER (héritage champ par champ) + aperçu du seuil choisi** — branche `feat/roles-anciennete-y5-texte-par-palier`
+> **Demande user** : « éditer chaque palier créé et son texte » → confirmé (« et oui un texte par palier »).
+> **Mesure** : les paliers sont un **JSON** en base ⇒ **aucune migration** ; le rendu est déjà une fonction pure partagée par l'aperçu **et** l'envoi ⇒ un seul point d'insertion.
+> **Décision** : surcharge **partielle** (message, titre, description) ; champ vide = **héritage** du global ; **couleur et miniature communes**.
+> **Fait** : `SeniorityTierAnnouncementOverride` + `normalizeTierAnnouncement` + `resolveTierAnnouncement` (règle pure) · le cron annonce le texte **du palier franchi** · écran : bloc replié par palier + **aperçu « Palier relu dans l'aperçu »** (même rendu pur) · Zod borné **strict**, champs vides omis.
+> **Preuves** : `seniority-roles-tier-text.test.ts` (**9 cas**) · `seniority-roles-cron.test.ts` (**25**, cas bout en bout) · suite **384 fichiers / 4 208 tests ✓** · `eslint` **0 erreur** · `tsc` ciblé **0 erreur**.
+> **Reste / ops (humain)** : contrôler à l'œil un palier personnalisé (et le retour au global quand on vide un champ) · reste sur ce module : **F** (sélecteurs **forum**), **I** (tags de forum choisis).
+> **Rotation** : bloc inséré en haut ; **aucun bloc sorti** (dette toujours ouverte, §7-6 du brief).
+
 ## ⏳ Session 14/10/2026 (suite 15) — **Lot G : le salon de l'ancienneté part dans Paramètres (une porte par réglage)** — branche `feat/roles-anciennete-salon-parametres`
 > **Demande user** : le salon n'a rien à faire dans l'onglet Ancienneté, il va dans **Paramètres** — confirmé (« g est pas fait ? »).
 > **Mesure** : les **16** encarts de salon du dépôt vivent dans Paramètres ; cet onglet était le seul écart. `DiscordChannelPicker` + le motif `scheduledPolls` existaient : rien d'inventé.

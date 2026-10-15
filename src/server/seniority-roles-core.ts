@@ -30,6 +30,7 @@ import {
     computeSeniorityRoleDiff,
     mergeSeniorityRolesConfig,
     renderSeniorityAnnouncement,
+    resolveTierAnnouncement,
     shouldCelebrateSeniorityTier,
     type GuildSeniorityRolesConfig,
     type SeniorityAnnouncementConfig,
@@ -314,7 +315,11 @@ async function sendSeniorityAnnouncement(input: {
         seniorityDays: input.seniorityDays,
         awardedRoleIds: input.tier.roleIds,
     });
-    const rendered = renderSeniorityAnnouncement({ announcement: input.config.announcement, values });
+    const rendered = renderSeniorityAnnouncement({
+        // Le texte du **palier** s'il est personnalisé, sinon le message global de la guilde.
+        announcement: resolveTierAnnouncement({ announcement: input.config.announcement, tier: input.tier }),
+        values,
+    });
 
     const messageId = await sendChannelMessage(channelId, "", {
         // La ligne de ping part en `mentionContent` : c'est elle qui notifie, jamais l'embed.

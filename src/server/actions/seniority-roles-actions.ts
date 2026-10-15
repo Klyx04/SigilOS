@@ -52,6 +52,31 @@ const SETTINGS_SCHEMA = z
                 z.object({
                     days: z.number().int().min(SENIORITY_ROLES_MIN_DAYS).max(SENIORITY_ROLES_MAX_DAYS),
                     roleIds: z.array(SNOWFLAKE).min(1).max(SENIORITY_ROLES_MAX_ROLES_PER_TIER),
+                    // Texte propre au palier (facultatif) : mêmes bornes que le message global.
+                    // Un champ absent ou vide n'est pas une surcharge : c'est un héritage.
+                    announcement: z
+                        .object({
+                            messageTemplate: z
+                                .string()
+                                .trim()
+                                .min(1)
+                                .max(SENIORITY_ANNOUNCEMENT_MESSAGE_MAX_LENGTH)
+                                .optional(),
+                            embedTitle: z
+                                .string()
+                                .trim()
+                                .min(1)
+                                .max(SENIORITY_ANNOUNCEMENT_TITLE_MAX_LENGTH)
+                                .optional(),
+                            embedDescription: z
+                                .string()
+                                .trim()
+                                .min(1)
+                                .max(SENIORITY_ANNOUNCEMENT_DESCRIPTION_MAX_LENGTH)
+                                .optional(),
+                        })
+                        .strict()
+                        .optional(),
                 }),
             )
             .max(SENIORITY_ROLES_MAX_TIERS),

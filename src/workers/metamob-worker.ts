@@ -353,17 +353,25 @@ const cleanupWorker = new Worker(
                         select: { id: true },
                     });
 
-                    // Notify user directly via DB
-                    await db.notification.create({
-                        data: {
-                            userId: req.userId,
-                            guildId: guild?.id || null,
-                            type: "SYSTEM_INFO",
-                            title: "Candidature expirée",
-                            message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 24 heures).`,
-                            link: `/dashboard/${req.run.guildId}/songes`,
-                        },
-                    });
+                    // 🛡️ Fail-closed (15/10/2026) : sans guilde interne résolue, on n'écrit **rien**
+                    // (une ligne sans guilde s'affichait dans **toutes** les guildes du destinataire).
+                    if (!guild?.id) {
+                        logger.warn("[Cleanup] annonce non écrite : guilde non résolue", {
+                            discordGuildId: req.run.guildId,
+                        });
+                    } else {
+                        // Notify user directly via DB
+                        await db.notification.create({
+                            data: {
+                                userId: req.userId,
+                                guildId: guild.id,
+                                type: "SYSTEM_INFO",
+                                title: "Candidature expirée",
+                                message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 24 heures).`,
+                                link: `/dashboard/${req.run.guildId}/songes`,
+                            },
+                        });
+                    }
                 }
                 logger.info(`[Cleanup] ⏳ ${expiredRequests.length} candidatures Songes expirées auto-rejetées.`);
             }

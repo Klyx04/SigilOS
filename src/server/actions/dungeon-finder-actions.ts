@@ -2294,7 +2294,9 @@ export async function internalJoinDjPost(
                 newStatus === "PENDING" ? "Nouvelle demande en file d'attente" : "Nouvelle inscription DJ",
                 notifMsg,
                 `/dashboard/${joinGuildId}/donjons-et-quetes`,
-                joinGuildId || "",
+                // 🛡️ `undefined` (et non `""`) quand la guilde est introuvable : `createNotification`
+                // est fail-closed, une chaîne vide serait résolue en « pas de guilde » par accident.
+                joinGuildId,
                 undefined,
                 (joinPostForEmbed as any).dungeon?.imageUrl ?? null,
                 "DUNGEON"

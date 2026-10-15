@@ -168,17 +168,26 @@ export async function joinGeoguesserSession(sessionId: string, isSpectator: bool
                         where: { discordGuildId: room.guildId },
                         select: { id: true }
                     });
-                    await (client as any).notification.create({
-                        data: {
-                            userId: room.hostId,
-                            guildId: guildConfig?.id || null,
-                            title: "SigilGuesser",
-                            message: `${ctx.name} a rejoint votre salon !`,
-                            type: "SYSTEM_INFO",
-                            category: "SYSTEM",
-                            link: `/dashboard/${room.guildId}/mini-jeux`
-                        }
-                    });
+                    // 🛡️ Fail-closed (15/10/2026) : sans guilde interne résolue, on n'écrit **rien**.
+                    // Une ligne sans guilde s'affichait dans **toutes** les guildes de son
+                    // destinataire (le filtre de lecture acceptait `guildId: null`).
+                    if (!guildConfig?.id) {
+                        logger.warn("[SigilGuesser] annonce non écrite : guilde non résolue", {
+                            discordGuildId: room.guildId,
+                        });
+                    } else {
+                        await (client as any).notification.create({
+                            data: {
+                                userId: room.hostId,
+                                guildId: guildConfig.id,
+                                title: "SigilGuesser",
+                                message: `${ctx.name} a rejoint votre salon !`,
+                                type: "SYSTEM_INFO",
+                                category: "SYSTEM",
+                                link: `/dashboard/${room.guildId}/mini-jeux`
+                            }
+                        });
+                    }
                 } catch (e) {
                     logger.error("Failed to send notification:", e);
                 }

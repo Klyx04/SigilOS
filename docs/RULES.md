@@ -10,6 +10,7 @@
 |------|----------------|
 | **Auth on every action** | `await auth()` or `getUserContext(guildId)` at start |
 | **Guild isolation** | All DB queries MUST filter by `guildId` |
+| **Notifications : guilde obligatoire** | Toute lecture/écriture de `Notification` est scopée par `userId` **et** guilde résolue ; **fail-closed** si la guilde n'est pas identifiable (`createNotification` **n'écrit rien**). Une notification sans guilde s'affichait dans **toutes** les guildes de son destinataire — voir le commentaire de `buildGuildScopeFilter` (`src/server/actions/notification-actions.ts`) |
 | **Admin check for mutations** | `if (!user.isAdmin) return 403` |
 | **Super-admin for GOD actions** | `await isSuperAdmin()` on lifecycle operations |
 | **Input validation** | Zod schemas on all user input |

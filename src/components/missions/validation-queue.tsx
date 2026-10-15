@@ -76,6 +76,12 @@ export function ValidationQueue({ submissions: initialSubmissions, guildId }: { 
             if (result.success) {
                 toast.success(status === "VALIDATED" ? "Validé avec succès" : "Refusé");
                 setSubmissions(prev => prev.filter(s => s.id !== id));
+                if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("sigilos:pending-validations-changed"));
+                    try {
+                        localStorage.setItem("sigilos:last-validation", Date.now().toString());
+                    } catch (_) {}
+                }
                 router.refresh(); // Ensure server state is synced
             } else {
                 toast.error(result.error || "Erreur action");

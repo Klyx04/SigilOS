@@ -375,7 +375,7 @@ export const GUILD_MODULE_LABELS: Record<string, string> = {
     scheduledPolls: "Sondages programmés",
     reactionRoles: "Reaction Roles",
     tickets: "Tickets",
-    quests: "Quêtes Dofus",
+    quests: "Objectif Dofus",
     worldmap: "Carte du Monde",
     resources: "Ressources",
     commandes: "Commandes Bot",

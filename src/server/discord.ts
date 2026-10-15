@@ -639,12 +639,22 @@ export async function fetchChannel(channelId: string) {
     };
 }
 
+export type DiscordGuildChannelRaw = {
+    id: string;
+    name: string | null;
+    type: number;
+    position: number;
+    flags?: number;
+    parent_id?: string | null;
+    permission_overwrites?: Array<{ id: string; type: number; allow: string; deny: string }>;
+};
+
 /**
  * Fetch all channels for a guild (text, voice, categories, etc.)
  */
-export async function fetchGuildChannels(guildId: string): Promise<{ id: string; name: string | null; type: number; position: number; flags?: number }[]> {
+export async function fetchGuildChannels(guildId: string): Promise<DiscordGuildChannelRaw[]> {
     const cacheKey = `guild_channels:${guildId}`;
-    const cached = getCached<{ id: string; name: string | null; type: number; position: number; flags?: number }[]>(cacheKey);
+    const cached = getCached<DiscordGuildChannelRaw[]>(cacheKey);
     if (cached) return cached;
 
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -657,7 +667,7 @@ export async function fetchGuildChannels(guildId: string): Promise<{ id: string;
 
     if (!res.ok) throw new Error(`Failed to fetch guild channels: ${res.statusText}`);
 
-    const channels = (await res.json()) as { id: string; name: string | null; type: number; position: number; flags?: number }[];
+    const channels = (await res.json()) as DiscordGuildChannelRaw[];
     // #223 — obfuscation des salons (16/11/2026) : un salon sans VIEW_CHANNEL est soit omis
     // par l'API HTTP, soit renvoyé obfusqué (`name: "___hidden___"` + flag 1<<17). On nullifie
     // le nom pour ne JAMAIS exposer `___hidden___` à l'UI/base, et on le journalise.
@@ -1418,8 +1428,29 @@ export async function deleteChannelMessage(channelId: string, messageId: string,
             },
         });
 
-        // 204 No Content = success
-        return res.status === 204 || res.ok;
+        if (res.status === 204 || res.ok) {
+            // Si le salon cible était un fil/thread (forum post), supprimer le message ne suffit pas :
+            // on supprime également le fil pour ne pas laisser un post forum fantôme.
+            try {
+                const ch = await fetchChannel(channelId).catch(() => null);
+                if (ch && (ch.type === 10 || ch.type === 11 || ch.type === 12)) {
+                    await deleteChannel(channelId);
+                }
+            } catch { /* best effort */ }
+            return true;
+        }
+
+        // Si la suppression du message échoue (400 Bad Request sur starter message de forum post)
+        if (res.status === 400 || res.status === 404) {
+            try {
+                const ch = await fetchChannel(channelId).catch(() => null);
+                if (ch && (ch.type === 10 || ch.type === 11 || ch.type === 12)) {
+                    return await deleteChannel(channelId);
+                }
+            } catch { /* best effort */ }
+        }
+
+        return false;
     } catch (error) {
         console.error("[Discord] Error deleting message:", error);
         return false;

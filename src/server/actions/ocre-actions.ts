@@ -225,7 +225,7 @@ export async function linkOcreAccount(
         }
 
         // Rate limit
-        const rateCheck = await rateLimit(`ocre:link:${session.user.id}`, 5, 60);
+        const rateCheck = await rateLimit(`ocre:link:${session.user.id}`, 5, 60_000);
         if (!rateCheck.success) {
             return { success: false, error: "Trop de tentatives. Réessayez dans quelques minutes." };
         }
@@ -546,7 +546,7 @@ export async function getMyOcreProgress(
 
     try {
         // [RateLimit]
-        const rateCheck = await rateLimit(`ocre:progress:${userId}`, 30, 60);
+        const rateCheck = await rateLimit(`ocre:progress:${userId}`, 30, 60_000);
         if (!rateCheck.success) return { success: false, error: "Trop de requêtes." };
 
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
@@ -792,7 +792,7 @@ export async function findOcreExchangePartners(
         const { guildId } = parsed.data;
 
         // Rate limit
-        const rateCheck = await rateLimit(`ocre:match:${session.user.id}`, 20, 60);
+        const rateCheck = await rateLimit(`ocre:match:${session.user.id}`, 20, 60_000);
         if (!rateCheck.success) {
             return { success: false, error: "Trop de requêtes. Réessayez plus tard." };
         }
@@ -1373,7 +1373,7 @@ export async function refreshOcreCache(
         }
 
         // Rate limit refresh
-        const rateCheck = await rateLimit(`ocre:refresh:${session.user.id}`, 3, 60);
+        const rateCheck = await rateLimit(`ocre:refresh:${session.user.id}`, 3, 60_000);
         if (!rateCheck.success) {
             return { success: false, error: "Trop de rafraîchissements. Patientez une minute." };
         }
@@ -1509,7 +1509,7 @@ export async function forceRefreshOcre(
         }
 
         // [RateLimit] Prevent abuse (1 refresh per minute)
-        const rateCheck = await rateLimit(`ocre:refresh:${user.id!}`, 1, 60);
+        const rateCheck = await rateLimit(`ocre:refresh:${user.id!}`, 1, 60_000);
         if (!rateCheck.success) {
             return { success: false, error: "Veuillez attendre une minute avant de rafraîchir à nouveau." };
         }
@@ -1808,7 +1808,7 @@ export async function createTradeRequest(
             sendDiscordPing
         } = parsed.data;
 
-        const rateCheck = await rateLimit(`ocre:trade:create:${session.user.id}`, 10, 60);
+        const rateCheck = await rateLimit(`ocre:trade:create:${session.user.id}`, 10, 60_000);
         if (!rateCheck.success) return { success: false, error: "Veuillez patienter avant de faire une nouvelle demande." };
 
         const guildConfig = await (db.guildConfig as any).findUnique({
@@ -2203,7 +2203,7 @@ export async function updateUserMonsterQuantityAction(rawData: {
         // annonce le délai restant, pour que le client mette sa file en pause au lieu de
         // réessayer en boucle (un spam de clics ne peut pas transformer SigilOS en
         // amplificateur de requêtes vers Metamob).
-        const rateCheck = await rateLimit(`ocre:quantity:${session.user.id}`, 60, 60);
+        const rateCheck = await rateLimit(`ocre:quantity:${session.user.id}`, 60, 60_000);
         if (!rateCheck.success) {
             return {
                 success: false,
@@ -2847,7 +2847,7 @@ export async function getTradeThreads(rawData: z.infer<typeof GetTradeThreadsSch
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-        const rateCheck = await rateLimit(`ocre:threads:${session.user.id}`, 20, 60);
+        const rateCheck = await rateLimit(`ocre:threads:${session.user.id}`, 20, 60_000);
         if (!rateCheck.success) return { success: false, error: "Trop de requêtes. Réessayez dans quelques secondes." };
 
         const parsed = GetTradeThreadsSchema.safeParse(rawData);

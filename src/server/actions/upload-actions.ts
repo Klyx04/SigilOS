@@ -4,6 +4,8 @@ import path from "path";
 import sharp from "sharp";
 import { logger } from "@/lib/logger";
 import { auth } from "@/auth";
+import { db } from "@/lib/prisma";
+import { getUserContext } from "@/server/actions/user-actions";
 import { rateLimit } from "@/lib/ratelimit";
 import {
     validateMagicBytes,
@@ -39,6 +41,20 @@ export async function uploadGuildImage(
 ): Promise<UploadResult> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // Fail-closed : le flux présentation vérifie déjà l'admin en amont ; on revérifie
+    // l'appartenance ici (défense en profondeur, guildId = CUID interne ou snowflake).
+    try {
+        const guild = await db.guildConfig.findFirst({
+            where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+            select: { discordGuildId: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+        const ctx = await getUserContext(guild.discordGuildId);
+        if (!ctx.isAuthenticated || !ctx.isMember) return { success: false, error: "Non autorisé" };
+    } catch {
+        return { success: false, error: "Non autorisé" };
+    }
 
     // 🛡️ RATE LIMITING: 15 uploads per minute max
     const { success: rateSuccess } = await rateLimit(`upload_action_${session.user.id}`, 15, 60_000);
@@ -119,7 +135,18 @@ export async function deleteGuildImage(
     guildId: string,
     imageUrl: string
 ): Promise<{ success: boolean; error?: string }> {
+    // Fail-closed : suppression exposée via "use server" — membre de la guilde requis.
+    // guildId peut être le CUID interne (flux présentation) ou le snowflake Discord.
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
     try {
+        const guild = await db.guildConfig.findFirst({
+            where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+            select: { id: true, discordGuildId: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+        const ctx = await getUserContext(guild.discordGuildId);
+        if (!ctx.isAuthenticated || !ctx.isMember) return { success: false, error: "Non autorisé" };
         // Extract filename from URL
         const expectedPrefix = `/api/storage/guilds/${guildId}/`;
         if (!imageUrl.startsWith(expectedPrefix)) {
@@ -204,6 +231,19 @@ export async function uploadProofImage(
 ): Promise<UploadResult> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // Fail-closed : preuve liée à une guilde — membre requis (CUID interne ou snowflake).
+    try {
+        const guild = await db.guildConfig.findFirst({
+            where: { OR: [{ id: internalGuildId }, { discordGuildId: internalGuildId }] },
+            select: { discordGuildId: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+        const ctx = await getUserContext(guild.discordGuildId);
+        if (!ctx.isAuthenticated || !ctx.isMember) return { success: false, error: "Non autorisé" };
+    } catch {
+        return { success: false, error: "Non autorisé" };
+    }
 
     // 🛡️ RATE LIMITING: 20 proofs per minute max
     const { success: rateSuccess } = await rateLimit(`upload_proof_${session.user.id}`, 20, 60_000);

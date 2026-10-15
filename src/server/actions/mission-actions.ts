@@ -117,28 +117,31 @@ async function notifyValidators(guildId: string, title: string, message: string,
 
         // 1. Find all users in this guild with "MISSIONS_VALIDATE" permission
         // We first get the guild's roles mapping to see which roles have this perm
-        const { getGuildAdminsWithPermission } = await import("@/server/actions/admin-actions");
-        const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_OFFICER);
+        try {
+            const { getGuildAdminsWithPermission } = await import("@/server/actions/admin-actions");
+            const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_OFFICER);
 
-        if (validators.length === 0) {
-            logger.warn(`[Notification] No validators found for guild ${guildId}`);
-            return;
+            if (validators.length > 0) {
+                // 2. Notify all of them (granular prefs will be checked in createNotification)
+                const notificationPromises = validators.map(v =>
+                    createNotification(
+                        v.userId,
+                        "NEW_SUBMISSION_PENDING",
+                        title,
+                        message,
+                        link,
+                        guildId,
+                        "ADMIN_ALERT"
+                    )
+                );
+
+                await Promise.allSettled(notificationPromises);
+            } else {
+                logger.warn(`[Notification] No validators found for guild ${guildId}`);
+            }
+        } catch (inAppError) {
+            logger.warn("[NotifyValidators] In-app notification error", { error: inAppError });
         }
-
-        // 2. Notify all of them (granular prefs will be checked in createNotification)
-        const notificationPromises = validators.map(v =>
-            createNotification(
-                v.userId,
-                "NEW_SUBMISSION_PENDING",
-                title,
-                message,
-                link,
-                guildId,
-                "ADMIN_ALERT"
-            )
-        );
-
-        await Promise.all(notificationPromises);
 
         return resultDiscordId;
     } catch (e) {
@@ -1132,6 +1135,13 @@ export async function validateSubmission(
  * Calculate the sum of guildatons earned this week by a profile (missions + kamas)
  */
 export async function getWeeklyGuildatons(profileId: string, week: number, year: number): Promise<number> {
+    // Fail-closed : lecture exposée via "use server" — session requise (les appelants
+    // internes tournent déjà avec une session admin ; page serveur aussi).
+    const session = await auth();
+    if (!session?.user?.id) return 0;
+    if (typeof profileId !== "string" || !profileId) return 0;
+    if (!Number.isInteger(week) || week < 1 || week > 53) return 0;
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) return 0;
     const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
 
     const [missions, kamas] = await Promise.all([
@@ -1164,7 +1174,20 @@ export async function getWeeklyGuildatons(profileId: string, week: number, year:
 }
 
 export async function grantRewards(profileId: string, xp: number, guildatons: number = 0, week?: number, year?: number) {
+    // Fail-closed : action exposée via "use server" — session requise. Les 4 appelants
+    // internes (validation mission, dons, Discord) tournent avec une session admin.
+    const session = await auth();
+    if (!session?.user?.id) return;
+    if (typeof profileId !== "string" || !profileId) return;
+    // Bornes anti-mint : montants finis, plafonnés (le plafond hebdo reste appliqué dessous).
+    if (!Number.isFinite(xp) || !Number.isFinite(guildatons)) return;
     if (xp <= 0 && guildatons <= 0) return;
+    if (xp < 0 || xp > 100_000 || guildatons < 0 || guildatons > 10_000) return;
+    if (week !== undefined && (!Number.isInteger(week) || week < 1 || week > 53)) return;
+    if (year !== undefined && (!Number.isInteger(year) || year < 2000 || year > 2100)) return;
+    // La cible doit exister (évite les écritures aveugles sur ID deviné).
+    const target = await db.userProfile.findUnique({ where: { id: profileId }, select: { id: true } });
+    if (!target) return;
 
     try {
         let finalGuildatons = guildatons;
@@ -1662,7 +1685,9 @@ export async function publishMissionsToDiscord(
                 pingType, 
                 messageId, 
                 channelId: guild.missionNotifyChannelId,
-                actorId: session?.user?.id || "system"
+                actorId: session?.user?.id || "system",
+                weekNumber: week,
+                year
             }
         });
 
@@ -1915,3 +1940,108 @@ export async function getMissionsByIds(ids: string[]) {
         return [];
     }
 }
+
+export async function isWeekPublished(
+    guildId: string,
+    weekNumber: number,
+    year: number
+): Promise<ActionResponse<{ isPublished: boolean; channelId: string | null; notifyRoleId: string | null; vitrineMode: boolean }>> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                id: true,
+                missionNotifyChannelId: true,
+                missionNotifyRoleId: true,
+                missionVitrineMode: true,
+            }
+        });
+
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        // 1. Any member submission on this week's missions confirms it was already published
+        const submissionsCount = await db.submission.count({
+            where: {
+                mission: {
+                    guildId: guild.id,
+                    weekNumber,
+                    year
+                }
+            }
+        });
+
+        if (submissionsCount > 0) {
+            return {
+                success: true,
+                data: {
+                    isPublished: true,
+                    channelId: guild.missionNotifyChannelId,
+                    notifyRoleId: guild.missionNotifyRoleId,
+                    vitrineMode: !!guild.missionVitrineMode
+                }
+            };
+        }
+
+        // 2. Check AuditLog for prior publish actions for this week
+        const recentPublishLogs = await db.auditLog.findMany({
+            where: {
+                guildId: guild.id,
+                action: { in: ["MISSION_PUBLISH_DISCORD", "MISSION_PUBLISHED"] as any },
+                createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) }
+            },
+            orderBy: { createdAt: "desc" },
+            take: 20
+        });
+
+        const isPublished = recentPublishLogs.some(log => {
+            const meta = log.metadata as Record<string, any> | null;
+            return meta && Number(meta.weekNumber) === weekNumber && Number(meta.year) === year;
+        });
+
+        return {
+            success: true,
+            data: {
+                isPublished,
+                channelId: guild.missionNotifyChannelId,
+                notifyRoleId: guild.missionNotifyRoleId,
+                vitrineMode: !!guild.missionVitrineMode
+            }
+        };
+    } catch (error) {
+        logger.error("isWeekPublished Error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function finalizeSilentPublish(
+    guildId: string,
+    weekNumber: number,
+    year: number
+): Promise<ActionResponse> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        await logAction({
+            guildId,
+            action: "MISSION_PUBLISHED",
+            targetType: "MISSION",
+            metadata: {
+                silent: true,
+                weekNumber,
+                year,
+                actorId: session?.user?.id || "system"
+            }
+        });
+        return { success: true };
+    } catch (error) {
+        logger.error("finalizeSilentPublish error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+

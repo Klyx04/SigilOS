@@ -186,7 +186,7 @@ const DASHBOARD_STEPS: TourStep[] = [
         // L'étape « Missions de guilde » a été retirée (redondante avec la vue globale).
         target: '[data-tour="sidebar-root"]',
         title: "Tous vos modules",
-        description: "Missions, Ladder, Quêtes Dofus, Songes, Services, Calendrier, Sondages… Tous les modules de votre guilde sont accessibles depuis cette barre latérale. Parcourez-la pour tout découvrir.",
+        description: "Missions, Ladder, Objectif Dofus, Songes, Services, Calendrier, Sondages… Tous les modules de votre guilde sont accessibles depuis cette barre latérale. Parcourez-la pour tout découvrir.",
         placement: "right"
     }
 ];
@@ -963,7 +963,7 @@ const ANNUAIRE_STEPS: TourStep[] = [
 const QUETESDOFUS_STEPS: TourStep[] = [
     {
         target: '[data-tour="quetes-header"]',
-        title: "Quêtes Dofus",
+        title: "Objectif Dofus",
         description: "Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde.",
         placement: "bottom",
         module: "quests",
@@ -992,7 +992,7 @@ const QUETESDOFUS_STEPS: TourStep[] = [
     {
         target: '[data-tour="sidebar-quetes"]',
         title: "Accès rapide",
-        description: "Retrouvez le module Quêtes Dofus dans la barre latérale.",
+        description: "Retrouvez le module Objectif Dofus dans la barre latérale.",
         placement: "right",
         module: "quests",
     },
@@ -1013,7 +1013,7 @@ const GUIDE_STEPS: TourStep[] = [
     {
         target: '[data-tour="guide-hud-exit"]',
         title: "Quitter le guide",
-        description: "Ce bouton rouge te ramène au module Quêtes Dofus. Ta progression est conservée et tu reprends où tu en étais.",
+        description: "Ce bouton rouge te ramène au module Objectif Dofus. Ta progression est conservée et tu reprends où tu en étais.",
         placement: "bottom",
     },
     {

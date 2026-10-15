@@ -199,7 +199,7 @@ export function AppSidebar({
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, imgSrc: "/assets/nav/quests.png", color: "amber", tourKey: "missions", visible: user.canViewMissions && modules.missions },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, imgSrc: "/assets/nav/trophy.png", color: "amber", tourKey: "ladder", visible: user.canViewLadder && modules.ladder },
         { name: "Succès/Fiches BOSS", href: `/dashboard/${guildId}/succes`, icon: Award, imgSrc: "/assets/nav/achievement.png", color: "amber", tourKey: "succes", visible: user.canViewSucces && modules.succes },
-        { name: "Les guides", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/assets/nav/sylvestre-white.png", color: "amber", tourKey: "quetes", visible: user.canViewQuests && modules.quests },
+        { name: "Objectif Dofus", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/assets/nav/sylvestre-white.png", color: "amber", tourKey: "quetes", visible: user.canViewQuests && modules.quests },
         { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/assets/nav/archimonster.png", color: "amber", tourKey: "ocre", visible: user.canViewOcre && modules.ocre },
     ];
 
@@ -209,7 +209,7 @@ export function AppSidebar({
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, imgSrc: "/assets/nav/infinite.png", color: "indigo", tourKey: "songes", visible: user.canViewSonges && modules.songes },
         { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, imgSrc: "/assets/nav/panoplie.png", color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
         { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, imgSrc: "/assets/nav/exchange.png", color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
-        { name: "Marché", href: `/dashboard/${guildId}/marche`, icon: Store, imgSrc: "/assets/nav/exchange.png", color: "indigo", tourKey: "marche", visible: user.canViewMarket && modules.marche },
+        { name: "Marché", href: `/dashboard/${guildId}/marche`, icon: Store, imgSrc: "/assets/dofus/modules/auctionHouseEquipments.png", color: "indigo", tourKey: "marche", visible: user.canViewMarket && modules.marche },
         { name: "Planning", href: `/dashboard/${guildId}/planning`, icon: CalendarClock, imgSrc: "/assets/nav/hourglass.png", color: "indigo", tourKey: "availability", visible: user.canViewAvailability && modules.availability },
     ];
 

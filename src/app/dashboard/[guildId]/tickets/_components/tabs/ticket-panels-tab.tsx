@@ -56,6 +56,7 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
     const [embedFooter, setEmbedFooter] = useState("SigilOS Tickets");
     const [style, setStyle] = useState<"BUTTONS" | "SELECT_MENU">("BUTTONS");
     const [selectedJourneyIds, setSelectedJourneyIds] = useState<string[]>([]);
+    const [deployAfterSave, setDeployAfterSave] = useState(true);
 
     /** Les motifs activés et publiés : ce qu'un panneau peut réellement exposer. */
     const exposableJourneys = journeys.filter((journey) => journey.isPublished && journey.isEnabled);
@@ -66,11 +67,12 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
         setChannelId("");
         setEmbedTitle("Centre de Support & Assistance");
         setEmbedDescription("Cliquez sur l'un des boutons ci-dessous pour ouvrir un ticket auprès de notre équipe.");
-        setEmbedColor("#6366f1");
+        setEmbedColor("#10b981");
         setEmbedThumbnail("");
         setEmbedImage("");
         setEmbedFooter("SigilOS Tickets");
         setStyle("BUTTONS");
+        setDeployAfterSave(true);
         // Par défaut : tous les motifs exposables (un panneau vide n'afficherait rien).
         setSelectedJourneyIds(exposableJourneys.map((journey) => journey.id));
         setModalOpen(true);
@@ -82,12 +84,13 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
         setChannelId(panel.channelId);
         setEmbedTitle(panel.embedTitle);
         setEmbedDescription(panel.embedDescription);
-        setEmbedColor(panel.embedColor || "#6366f1");
+        setEmbedColor(panel.embedColor || "#10b981");
         setEmbedThumbnail(panel.embedThumbnail || "");
         setEmbedImage(panel.embedImage || "");
         setEmbedFooter(panel.embedFooter || "SigilOS Tickets");
         setStyle(panel.style || "BUTTONS");
         setSelectedJourneyIds(panel.journeyIds || []);
+        setDeployAfterSave(true);
         setModalOpen(true);
     };
 
@@ -95,7 +98,7 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
         if (!name.trim()) return toast.error("Nom du panneau requis");
         if (!channelId.trim()) return toast.error("ID de salon Discord requis");
         if (selectedJourneyIds.length === 0) {
-            return toast.error("Sélectionne au moins un motif");
+            return toast.error("Sélectionnez au moins un type de demande");
         }
 
         startTransition(async () => {
@@ -110,14 +113,18 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
                 embedImage: embedImage.trim() || undefined,
                 embedFooter: embedFooter.trim() || undefined,
                 style,
-                // Anciennes catégories conservées telles quelles (messages déjà déployés).
                 categoryIds: editingPanel?.categoryIds || [],
                 journeyIds: selectedJourneyIds,
                 isActive: true,
+                deployAfterSave,
             });
 
             if (res.success) {
-                toast.success("Panneau enregistré !");
+                toast.success(
+                    deployAfterSave
+                        ? "Panneau enregistré et synchronisé sur Discord !"
+                        : "Panneau enregistré !"
+                );
                 setModalOpen(false);
                 onRefresh();
             } else {
@@ -163,14 +170,14 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <Layers className="h-5 w-5 text-amber-400" /> Panneaux de Tickets Discord
+                        <Layers className="h-5 w-5 text-emerald-400" /> Panneaux de Tickets Discord
                     </h2>
                     <p className="text-xs text-muted-foreground">
                         Créez des panneaux interactifs (Multi-Panels) et déployez-les dans vos salons Discord.
                     </p>
                 </div>
 
-                <Button onClick={openCreateModal} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs">
+                <Button onClick={openCreateModal} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
                     <Plus className="h-4 w-4 mr-1" /> Créer un Panneau
                 </Button>
             </div>
@@ -221,14 +228,14 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
                                         <span className="font-semibold text-foreground">
                                             {(panel.journeyIds || []).length}
                                         </span>{" "}
-                                        motif(s) affiché(s)
+                                        type(s) de demande affiché(s)
                                     </div>
                                     {(panel.categoryIds || []).length > 0 && (
                                         <div>
                                             <span className="font-semibold text-foreground">
                                                 {(panel.categoryIds || []).length}
                                             </span>{" "}
-                                            ancien(s) motif(s) (convertis automatiquement à la migration)
+                                            ancienne(s) catégorie(s)
                                         </div>
                                     )}
                                 </div>
@@ -258,7 +265,7 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
                                     size="sm"
                                     onClick={() => handleDeploy(panel.id)}
                                     disabled={isPending}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-8"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
                                 >
                                     <Send className="h-3.5 w-3.5 mr-1" /> Déployer sur Discord
                                 </Button>
@@ -354,120 +361,133 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
 
                             <div className="space-y-2 pt-2">
                                 <label className="font-semibold text-foreground">
-                                    Motifs affichés sur ce panneau :
+                                    Types de demande affichés sur ce panneau :
                                 </label>
                                 {legacyCategoryCount > 0 && (
-                                    <p className="text-[11px] text-amber-200 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
-                                        {legacyCategoryCount} ancien(s) motif(s) à convertir dans l'onglet « Motifs »
-                                        (« Tout passer en Motifs ») pour les exposer ici.
+                                    <p className="text-[11px] text-emerald-200 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2">
+                                        {legacyCategoryCount} ancienne(s) catégorie(s) à convertir dans l'onglet « Types de Demande »
+                                        pour pouvoir les enrichir.
                                     </p>
                                 )}
                                 <div className="space-y-1.5 max-h-44 overflow-y-auto border border-border rounded-lg p-2 bg-surface/30">
                                     {journeys.length === 0 ? (
                                         <p className="text-[11px] text-muted-foreground p-1">
-                                            Aucun motif pour l'instant : crée-en un dans l'onglet « Motifs »,
+                                            Aucun type de demande pour l'instant : créez-en un dans l'onglet « Types de Demande »,
                                             il apparaîtra ici.
                                         </p>
                                     ) : (
                                         journeys.map((journey) => {
-                                            const isChecked = selectedJourneyIds.includes(journey.id);
-                                            const exposable = journey.isPublished && journey.isEnabled;
-                                            return (
-                                                <div
-                                                    key={journey.id}
-                                                    onClick={() => exposable && toggleJourney(journey.id)}
-                                                    className={`flex items-center justify-between p-2 rounded-md text-xs border ${
-                                                        exposable ? "cursor-pointer" : "cursor-not-allowed opacity-60"
-                                                    } ${
-                                                        isChecked
-                                                            ? "border-amber-500/50 bg-amber-500/10 text-foreground"
-                                                            : "border-transparent text-muted-foreground hover:bg-surface/50"
-                                                    }`}
-                                                >
-                                                    <span className="flex items-center gap-2">
-                                                        <span>{journey.emoji || "🎫"}</span>
-                                                        <span>{journey.name}</span>
-                                                        {!journey.isEnabled && (
-                                                            <span className="text-[10px] text-muted-foreground">
-                                                                (désactivé)
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                    {isChecked && <Check className="h-3.5 w-3.5 text-amber-400" />}
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+                                             const isChecked = selectedJourneyIds.includes(journey.id);
+                                             const exposable = journey.isPublished && journey.isEnabled;
+                                             return (
+                                                 <div
+                                                     key={journey.id}
+                                                     onClick={() => exposable && toggleJourney(journey.id)}
+                                                     className={`flex items-center justify-between p-2 rounded-md text-xs border ${
+                                                         exposable ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+                                                     } ${
+                                                         isChecked
+                                                             ? "border-emerald-500/50 bg-emerald-500/10 text-foreground font-medium"
+                                                             : "border-transparent text-muted-foreground hover:bg-surface/50"
+                                                     }`}
+                                                 >
+                                                     <span className="flex items-center gap-2">
+                                                         <span>{journey.emoji || "🎫"}</span>
+                                                         <span>{journey.name}</span>
+                                                         {!journey.isEnabled && (
+                                                             <span className="text-[10px] text-muted-foreground">
+                                                                 (désactivé)
+                                                             </span>
+                                                         )}
+                                                     </span>
+                                                     {isChecked && <Check className="h-3.5 w-3.5 text-emerald-400" />}
+                                                 </div>
+                                             );
+                                         })
+                                     )}
+                                 </div>
+                             </div>
 
-                        {/* Right: Live Discord Embed Simulator */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                                <Sparkles className="h-3.5 w-3.5 text-amber-400" /> Simulateur Live Discord
-                            </label>
+                             {/* Auto deploy toggle */}
+                             <div className="pt-2 border-t border-border/50">
+                                 <label className="flex items-center gap-2 cursor-pointer text-xs text-foreground font-medium">
+                                     <input
+                                         type="checkbox"
+                                         checked={deployAfterSave}
+                                         onChange={(e) => setDeployAfterSave(e.target.checked)}
+                                         className="rounded border-border text-emerald-600 focus:ring-emerald-500"
+                                     />
+                                     <span>Mettre à jour directement sur Discord à l'enregistrement (temps réel)</span>
+                                 </label>
+                             </div>
+                         </div>
 
-                            <div className="rounded-xl bg-[#2b2d31] p-4 text-[#dbdee1] font-sans border border-[#3f4147] shadow-inner space-y-3">
-                                {/* Bot name header */}
-                                <div className="flex items-center gap-2">
-                                    <div className="h-6 w-6 rounded-full bg-[#5865f2] flex items-center justify-center text-[10px] text-white font-bold">
-                                        S
-                                    </div>
-                                    <span className="font-bold text-xs text-white">SigilOS Tickets</span>
-                                    <span className="bg-[#5865f2] text-white text-[9px] font-bold px-1 rounded">BOT</span>
-                                </div>
+                         {/* Right: Live Discord Embed Simulator */}
+                         <div className="space-y-2">
+                             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                 <Sparkles className="h-3.5 w-3.5 text-emerald-400" /> Simulateur Live Discord
+                             </label>
 
-                                {/* Embed Card */}
-                                <div
-                                    className="rounded bg-[#1e1f22] p-3 text-xs border-l-4 space-y-2"
-                                    style={{ borderLeftColor: embedColor }}
-                                >
-                                    <div className="font-bold text-sm text-white">{embedTitle || "Titre de l'embed"}</div>
-                                    <div className="text-[#dbdee1] whitespace-pre-wrap">
-                                        {embedDescription || "Description..."}
-                                    </div>
-                                    <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147]">
-                                        {embedFooter}
-                                    </div>
-                                </div>
+                             <div className="rounded-xl bg-[#2b2d31] p-4 text-[#dbdee1] font-sans border border-[#3f4147] shadow-inner space-y-3">
+                                 {/* Bot name header */}
+                                 <div className="flex items-center gap-2">
+                                     <div className="h-6 w-6 rounded-full bg-[#5865f2] flex items-center justify-center text-[10px] text-white font-bold">
+                                         S
+                                     </div>
+                                     <span className="font-bold text-xs text-white">SigilOS Tickets</span>
+                                     <span className="bg-[#5865f2] text-white text-[9px] font-bold px-1 rounded">BOT</span>
+                                 </div>
 
-                                {/* Components Preview */}
-                                {style === "SELECT_MENU" ? (
-                                    <div className="rounded bg-[#1e1f22] border border-[#3f4147] p-2 text-xs text-[#949ba4] flex items-center justify-between">
-                                        <span>Sélectionnez le motif de votre ticket...</span>
-                                        <span>▼</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-wrap gap-2 pt-1">
-                                        {selectedJourneyIds.map((jId) => {
-                                            const journey = journeys.find((candidate) => candidate.id === jId);
-                                            if (!journey) return null;
-                                            return (
-                                                <button
-                                                    key={journey.id}
-                                                    type="button"
-                                                    className="px-3 py-1.5 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
-                                                >
-                                                    <span>{journey.emoji || "🎫"}</span>
-                                                    <span>{journey.name}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                                 {/* Embed Card */}
+                                 <div
+                                     className="rounded bg-[#1e1f22] p-3 text-xs border-l-4 space-y-2"
+                                     style={{ borderLeftColor: embedColor }}
+                                 >
+                                     <div className="font-bold text-sm text-white">{embedTitle || "Titre de l'embed"}</div>
+                                     <div className="text-[#dbdee1] whitespace-pre-wrap">
+                                         {embedDescription || "Description..."}
+                                     </div>
+                                     <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147]">
+                                         {embedFooter}
+                                     </div>
+                                 </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" size="sm" onClick={() => setModalOpen(false)}>
-                            Annuler
-                        </Button>
-                        <Button size="sm" onClick={handleSave} disabled={isPending} className="bg-amber-600 hover:bg-amber-700 text-white">
-                            Enregistrer le panneau
-                        </Button>
-                    </DialogFooter>
+                                 {/* Components Preview */}
+                                 {style === "SELECT_MENU" ? (
+                                     <div className="rounded bg-[#1e1f22] border border-[#3f4147] p-2 text-xs text-[#949ba4] flex items-center justify-between">
+                                         <span>Sélectionnez votre type de demande...</span>
+                                         <span>▼</span>
+                                     </div>
+                                 ) : (
+                                     <div className="flex flex-wrap gap-2 pt-1">
+                                         {selectedJourneyIds.map((jId) => {
+                                             const journey = journeys.find((candidate) => candidate.id === jId);
+                                             if (!journey) return null;
+                                             return (
+                                                 <button
+                                                     key={journey.id}
+                                                     type="button"
+                                                     className="px-3 py-1.5 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                                 >
+                                                     <span>{journey.emoji || "🎫"}</span>
+                                                     <span>{journey.name}</span>
+                                                 </button>
+                                             );
+                                         })}
+                                     </div>
+                                 )}
+                             </div>
+                         </div>
+                     </div>
+
+                     <DialogFooter>
+                         <Button variant="outline" size="sm" onClick={() => setModalOpen(false)}>
+                             Annuler
+                         </Button>
+                         <Button size="sm" onClick={handleSave} disabled={isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                             Enregistrer le panneau
+                         </Button>
+                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

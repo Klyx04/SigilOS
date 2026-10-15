@@ -227,7 +227,7 @@ interface EventDetailModalProps {
     discordChannels?: DiscordChannels;
     donationsEnabled?: boolean;
     /** Kamas eligibility for RAID_OFFICIAL events. Null = loading or not a raid. */
-    raidEligibility?: { isEligible: boolean; totalDonated: number } | null;
+    raidEligibility?: { isEligible: boolean; totalDonated: number; raidRequireKamaDonation?: boolean } | null;
     /** Personnages Dofus du membre (« Mes personnages » des modales d'inscription). */
     myCharacters?: { main: string | null; secondaries: string[] };
     /** Change MA classe sur cet événement (même règle serveur que le menu classe Discord). */
@@ -1359,9 +1359,9 @@ export function EventDetailModal({
                                 <>
                                     {canRegister && (
                                         (() => {
-                                            // Kamas gate: only for RAID_OFFICIAL events
+                                            // Kamas gate: only for RAID_OFFICIAL events when donation requirement is active
                                             const isRaidOfficial = event.type === "RAID_OFFICIAL";
-                                            const isBlocked = isRaidOfficial && raidEligibility !== null && raidEligibility !== undefined && !raidEligibility.isEligible;
+                                            const isBlocked = isRaidOfficial && raidEligibility?.raidRequireKamaDonation !== false && raidEligibility !== null && raidEligibility !== undefined && !raidEligibility.isEligible;
 
                                             if (isBlocked) {
                                                 const donated = raidEligibility!.totalDonated.toLocaleString("fr-FR");
@@ -1563,7 +1563,7 @@ export function EventDetailModal({
                                     className="mt-0.5 h-4 w-4 shrink-0 rounded border-border bg-elevated text-danger focus:ring-danger/50"
                                 />
                                 <label htmlFor="confirm-raid-complete" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                                    <span className="font-bold text-danger">J'atteste</span> avoir coordonné la clôture avec mon équipe. Les <strong>{presentParticipants.size} participant{ presentParticipants.size > 1 ? "s" : "" } présent{ presentParticipants.size > 1 ? "s" : "" }</strong> sélectionné{ presentParticipants.size > 1 ? "s" : "" } verront leurs Kamas Violets déduits.
+                                    <span className="font-bold text-danger">J'atteste</span> avoir coordonné la clôture avec mon équipe. Les <strong>{presentParticipants.size} participant{ presentParticipants.size > 1 ? "s" : "" } présent{ presentParticipants.size > 1 ? "s" : "" }</strong> sélectionné{ presentParticipants.size > 1 ? "s" : "" } {raidEligibility?.raidRequireKamaDonation === false ? "seront validés pour ce raid." : "verront leurs Kamas Violets déduits."}
                                 </label>
                             </div>
 

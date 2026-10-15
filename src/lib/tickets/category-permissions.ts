@@ -30,6 +30,8 @@ export type TicketCategoryPermissionOverride = {
     requireConfirm?: boolean;
     /** Rôles invités du motif (observateurs) : overwrites « additional » de la matrice. */
     additionalRoleIds?: string[];
+    /** Message d'accueil personnalisé dans le salon ticket (markdown, mentions autorisées). */
+    welcomeMessage?: string;
 };
 
 export type TicketGuildPermissionSettings = {
@@ -69,10 +71,14 @@ export function readTicketPermissionSettings(raw: unknown): TicketGuildPermissio
                 const roles = (entry.additionalRoleIds as unknown[]).filter(isSnowflake).slice(0, 25);
                 if (roles.length > 0) clean.additionalRoleIds = roles;
             }
+            if (typeof entry.welcomeMessage === "string" && entry.welcomeMessage.trim()) {
+                clean.welcomeMessage = entry.welcomeMessage.trim().slice(0, 2000);
+            }
             if (
                 clean.closePolicy !== undefined ||
                 clean.requireConfirm !== undefined ||
-                clean.additionalRoleIds !== undefined
+                clean.additionalRoleIds !== undefined ||
+                clean.welcomeMessage !== undefined
             ) {
                 categories[String(categoryId).slice(0, 40)] = clean;
             }
@@ -119,6 +125,32 @@ export function isBlacklisted(
     return actorRoleIds.some((roleId) => blocked.has(roleId));
 }
 
+/**
+ * 📩 **Messagerie des avis + langue du serveur** (sans migration, même tiroir
+ * `settingsJson`) : où part l'enquête de satisfaction (`DM` = message privé,
+ * `TICKET` = boutons dans le salon fermé non supprimé) et dans quelle langue
+ * le bot parle sur Discord (`fr` / `en`, jamais les deux à la fois).
+ */
+export const TICKET_CSAT_DESTINATIONS = ["DM", "TICKET"] as const;
+export type TicketCsatDestination = (typeof TICKET_CSAT_DESTINATIONS)[number];
+
+export type TicketMessagingSettings = {
+    csatDestination: TicketCsatDestination;
+    ticketLanguage: "fr" | "en";
+};
+
+/** Valeurs sûres : en privé, en français (le créateur vote même salon fermé). */
+export function readTicketMessagingSettings(raw: unknown): TicketMessagingSettings {
+    const input =
+        raw && typeof raw === "object" && !Array.isArray(raw)
+            ? (raw as Record<string, unknown>)
+            : {};
+    return {
+        csatDestination: input.csatDestination === "TICKET" ? "TICKET" : "DM",
+        ticketLanguage: input.ticketLanguage === "en" ? "en" : "fr",
+    };
+}
+
 /** Fusionne un réglage dans `settingsJson` (ce que le dashboard enregistre). */
 export function writeTicketPermissionSettings(
     current: unknown,
@@ -127,6 +159,8 @@ export function writeTicketPermissionSettings(
         requireCloseConfirm: boolean;
         blacklistRoleIds: string[];
         category: { id: string; override: TicketCategoryPermissionOverride };
+        csatDestination: TicketCsatDestination;
+        ticketLanguage: "fr" | "en";
     }>
 ): Record<string, unknown> {
     const base = (current && typeof current === "object" && !Array.isArray(current)
@@ -136,6 +170,12 @@ export function writeTicketPermissionSettings(
     if (patch.requireCloseConfirm !== undefined) base.requireCloseConfirm = patch.requireCloseConfirm;
     if (patch.blacklistRoleIds !== undefined) {
         base.blacklistRoleIds = patch.blacklistRoleIds.filter(isSnowflake).slice(0, 25);
+    }
+    if (patch.csatDestination === "DM" || patch.csatDestination === "TICKET") {
+        base.csatDestination = patch.csatDestination;
+    }
+    if (patch.ticketLanguage === "fr" || patch.ticketLanguage === "en") {
+        base.ticketLanguage = patch.ticketLanguage;
     }
     if (patch.category) {
         const categories =

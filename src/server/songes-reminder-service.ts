@@ -52,6 +52,7 @@ export async function sendSongesReminders(
             scheduledAt: true,
             discordChannelId: true,
             lastReminderAt: true,
+            leaderId: true,
             members: { select: { userId: true } },
         },
         orderBy: { scheduledAt: "asc" },
@@ -97,8 +98,9 @@ export async function sendSongesReminders(
                 continue;
             }
 
+            const targetUserIds = Array.from(new Set([...run.members.map((m: any) => m.userId), run.leaderId].filter(Boolean)));
             const accounts = await db.account.findMany({
-                where: { userId: { in: run.members.map((m: any) => m.userId) }, provider: "discord" },
+                where: { userId: { in: targetUserIds }, provider: "discord" },
                 select: { providerAccountId: true },
             });
             const mentions = buildRaidReminderMentions(accounts.map((a) => a.providerAccountId));

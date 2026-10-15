@@ -63,6 +63,7 @@ type RaidEventRow = {
     discordChannelId: string | null;
     metadata: unknown;
     lastRemindedAt: Date | null;
+    creatorId: string;
     participants: { userId: string }[];
 };
 
@@ -105,10 +106,11 @@ async function deliverRaidReminder(args: {
         return { sent: false, reason: decision.reason, pinged: 0, leadMinutes: decision.leadMinutes };
     }
 
-    // Inscrits = REGISTERED + CONFIRMED (les « inscrits » de l'embed) — la file
-    // d'attente n'est pas pingée : elle n'est pas inscrite.
+    // Inscrits = REGISTERED + CONFIRMED + organisateur (créateur du raid).
+    // La file d'attente n'est pas pingée : elle n'est pas inscrite.
+    const targetUserIds = Array.from(new Set([...event.participants.map((p) => p.userId), event.creatorId].filter(Boolean)));
     const accounts = await db.account.findMany({
-        where: { userId: { in: event.participants.map((p) => p.userId) }, provider: "discord" },
+        where: { userId: { in: targetUserIds }, provider: "discord" },
         select: { providerAccountId: true },
     });
     const mentions = buildRaidReminderMentions(accounts.map((a) => a.providerAccountId));
@@ -132,7 +134,7 @@ async function deliverRaidReminder(args: {
             embedTitle: `🔔 ${event.title} — dans ${leadLabel}`,
             embedColor: 0xff6b35,
             embedUrl: dashboardUrl,
-            embedFooter: `SigilOS • ${guildConfig.name ?? "Guilde"} • Seuls les inscrits sont notifiés`,
+            embedFooter: `SigilOS • ${guildConfig.name ?? "Guilde"} • Inscrits & créateur notifiés`,
             fields: [
                 { name: "⏰ Départ", value: `<t:${startTs}:t> (<t:${startTs}:R>)`, inline: true },
                 {
@@ -227,6 +229,7 @@ export async function sendRaidReminderForEvent(
             discordChannelId: true,
             metadata: true,
             lastRemindedAt: true,
+            creatorId: true,
             participants: {
                 where: { status: { in: ["REGISTERED", "CONFIRMED"] } },
                 select: { userId: true },
@@ -277,6 +280,7 @@ export async function sendRaidReminders(
             discordChannelId: true,
             metadata: true,
             lastRemindedAt: true,
+            creatorId: true,
             participants: {
                 where: { status: { in: ["REGISTERED", "CONFIRMED"] } },
                 select: { userId: true },

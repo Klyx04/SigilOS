@@ -239,6 +239,13 @@ export function ProofUploadDialog({
 
             toast.success("Preuve soumise ! En attente de validation par un modérateur.");
 
+            if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("sigilos:pending-validations-changed"));
+                try {
+                    localStorage.setItem("sigilos:last-validation", Date.now().toString());
+                } catch (_) {}
+            }
+
             startTransition(() => {
                 router.refresh();
             });

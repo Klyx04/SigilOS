@@ -314,14 +314,14 @@ export function MissionCard({
             <div className="relative z-10 flex min-h-[120px] sm:min-h-[130px] overflow-hidden bg-surface">
 
                 {/* Left Column: Real Colorful Illustration */}
-                <div className="w-24 sm:w-28 md:w-32 shrink-0 relative flex items-center justify-center border-r border-border p-2.5 sm:p-3 bg-elevated/20">
+                <div className="w-24 sm:w-28 md:w-32 shrink-0 relative flex items-center justify-center p-2.5 sm:p-3">
                     {imageUrl ? (
                         <div className="relative w-full aspect-square max-h-[100px] flex items-center justify-center">
                             <Image
                                 src={imageUrl}
                                 alt={mission.title || "Illustration mission"}
                                 fill
-                                className="object-contain drop-shadow-sm"
+                                className="object-contain"
                                 unoptimized={true}
                             />
 

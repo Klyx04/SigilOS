@@ -8,15 +8,14 @@
 import { useState, useEffect, useTransition, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, AlertTriangle, Hash, Calendar, Users, Clock, Swords, Coins } from "lucide-react";
+import { Loader2, Save, AlertTriangle, Hash, Calendar, Users, Clock, Swords } from "lucide-react";
 import { toast } from "sonner";
-import { getCalendarConfig, updateCalendarChannel, updateRaidChannel, updateRaidGigalodonChannel, updateRaidSanctuaireChannel, updateRaidKamaDonationRequired, updateRaidKamaDonationThreshold, updateRaidAllowedSignUpRolesAction } from "@/server/actions/admin-actions";
+import { getCalendarConfig, updateCalendarChannel, updateRaidGigalodonChannel, updateRaidSanctuaireChannel, updateRaidAllowedSignUpRolesAction } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
-import { ChannelPreview } from "@/components/shared/ChannelPreview";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 interface CalendarSettingsClientProps {
@@ -25,13 +24,11 @@ interface CalendarSettingsClientProps {
 
 export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps) {
     const [channelId, setChannelId] = useState<string>("");
-    const [raidChannelId, setRaidChannelId] = useState<string>("");
     const [raidGigalodonChannelId, setRaidGigalodonChannelId] = useState<string>("");
     const [raidSanctuaireChannelId, setRaidSanctuaireChannelId] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
-    const [isRaidConfigured, setIsRaidConfigured] = useState(false);
     const [isGigalodonConfigured, setIsGigalodonConfigured] = useState(false);
     const [isSanctuaireConfigured, setIsSanctuaireConfigured] = useState(false);
     
@@ -39,37 +36,28 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
     const [raidPingRoleIds, setRaidPingRoleIds] = useState<string[]>([]);
     const [raidAllowedSignUpRoleIds, setRaidAllowedSignUpRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
-    const [raidRequireKamaDonation, setRaidRequireKamaDonation] = useState(true);
-    const [raidKamaDonationThreshold, setRaidKamaDonationThreshold] = useState(3);
 
     // — Détection « modifications non sauvegardées »
     type CalendarConfigSnapshot = {
         channelId: string;
-        raidChannelId: string;
         raidGigalodonChannelId: string;
         raidSanctuaireChannelId: string;
         calendarPingRoleIds: string[];
         raidPingRoleIds: string[];
         raidAllowedSignUpRoleIds: string[];
-        raidRequireKamaDonation: boolean;
-        raidKamaDonationThreshold: number;
     };
     const [initialConfig, setInitialConfig] = useState<CalendarConfigSnapshot | null>(null);
 
     const currentConfig: CalendarConfigSnapshot = useMemo(() => ({
         channelId,
-        raidChannelId,
         raidGigalodonChannelId,
         raidSanctuaireChannelId,
         calendarPingRoleIds: [...calendarPingRoleIds],
         raidPingRoleIds: [...raidPingRoleIds],
         raidAllowedSignUpRoleIds: [...raidAllowedSignUpRoleIds],
-        raidRequireKamaDonation,
-        raidKamaDonationThreshold,
     }), [
-        channelId, raidChannelId, raidGigalodonChannelId, raidSanctuaireChannelId,
+        channelId, raidGigalodonChannelId, raidSanctuaireChannelId,
         calendarPingRoleIds, raidPingRoleIds, raidAllowedSignUpRoleIds,
-        raidRequireKamaDonation, raidKamaDonationThreshold,
     ]);
 
     const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
@@ -83,27 +71,20 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
             if (result.success && result.data) {
                 const loaded: CalendarConfigSnapshot = {
                     channelId: result.data.calendarChannelId || "",
-                    raidChannelId: result.data.raidChannelId || "",
                     raidGigalodonChannelId: result.data.raidGigalodonChannelId || "",
                     raidSanctuaireChannelId: result.data.raidSanctuaireChannelId || "",
                     calendarPingRoleIds: result.data.calendarPingRoleIds || [],
                     raidPingRoleIds: result.data.raidPingRoleIds || [],
                     raidAllowedSignUpRoleIds: result.data.raidAllowedSignUpRoleIds || [],
-                    raidRequireKamaDonation: result.data.raidRequireKamaDonation ?? true,
-                    raidKamaDonationThreshold: result.data.raidKamaDonationThreshold ?? 3,
                 };
                 setChannelId(loaded.channelId);
                 setIsConfigured(!!loaded.channelId);
                 setCalendarPingRoleIds(loaded.calendarPingRoleIds);
-                setRaidChannelId(loaded.raidChannelId);
-                setIsRaidConfigured(!!loaded.raidChannelId);
                 setRaidPingRoleIds(loaded.raidPingRoleIds);
                 setRaidGigalodonChannelId(loaded.raidGigalodonChannelId);
                 setIsGigalodonConfigured(!!loaded.raidGigalodonChannelId);
                 setRaidSanctuaireChannelId(loaded.raidSanctuaireChannelId);
                 setIsSanctuaireConfigured(!!loaded.raidSanctuaireChannelId);
-                setRaidRequireKamaDonation(loaded.raidRequireKamaDonation);
-                setRaidKamaDonationThreshold(loaded.raidKamaDonationThreshold);
                 setRaidAllowedSignUpRoleIds(loaded.raidAllowedSignUpRoleIds);
                 setInitialConfig(loaded);
             }
@@ -130,48 +111,6 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
         });
     };
 
-    const handleSaveRaid = () => {
-        startTransition(async () => {
-            const result = await updateRaidChannel(guildId, raidChannelId.trim() || null);
-            const pingRolesResult = await updateAllowedPingRolesAction(guildId, raidPingRoleIds, "raid");
-            const signUpRolesResult = await updateRaidAllowedSignUpRolesAction(guildId, raidAllowedSignUpRoleIds);
-
-            if (result.success && pingRolesResult.success && signUpRolesResult.success) {
-                setInitialConfig(currentConfig);
-                toast.success("Configuration Raids sauvegardée !");
-                setIsRaidConfigured(!!raidChannelId.trim());
-            } else {
-                toast.error(result.error || pingRolesResult.error || signUpRolesResult.error || "Erreur lors de la sauvegarde");
-            }
-        });
-    };
-
-    const handleSaveRaidGigalodon = () => {
-        startTransition(async () => {
-            const result = await updateRaidGigalodonChannel(guildId, raidGigalodonChannelId.trim() || null);
-            if (result.success) {
-                setInitialConfig(currentConfig);
-                toast.success("Configuration Raid Gigalodon sauvegardée !");
-                setIsGigalodonConfigured(!!raidGigalodonChannelId.trim());
-            } else {
-                toast.error(result.error || "Erreur lors de la sauvegarde");
-            }
-        });
-    };
-
-    const handleSaveRaidSanctuaire = () => {
-        startTransition(async () => {
-            const result = await updateRaidSanctuaireChannel(guildId, raidSanctuaireChannelId.trim() || null);
-            if (result.success) {
-                setInitialConfig(currentConfig);
-                toast.success("Configuration Raid Sanctuaire sauvegardée !");
-                setIsSanctuaireConfigured(!!raidSanctuaireChannelId.trim());
-            } else {
-                toast.error(result.error || "Erreur lors de la sauvegarde");
-            }
-        });
-    };
-
     const handleClearCalendar = () => {
         startTransition(async () => {
             const result = await updateCalendarChannel(guildId, null);
@@ -186,16 +125,15 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
         });
     };
 
-    const handleClearRaid = () => {
+    const handleSaveRaidGigalodon = () => {
         startTransition(async () => {
-            const result = await updateRaidChannel(guildId, null);
+            const result = await updateRaidGigalodonChannel(guildId, raidGigalodonChannelId.trim() || null);
             if (result.success) {
-                setRaidChannelId("");
-                setIsRaidConfigured(false);
-                setInitialConfig((prev) => prev ? { ...prev, raidChannelId: "" } : prev);
-                toast.success("Notifications Raids désactivées");
+                setInitialConfig(currentConfig);
+                toast.success("Configuration Raid Gigalodon sauvegardée !");
+                setIsGigalodonConfigured(!!raidGigalodonChannelId.trim());
             } else {
-                toast.error(result.error || "Erreur lors de la désactivation");
+                toast.error(result.error || "Erreur lors de la sauvegarde");
             }
         });
     };
@@ -214,6 +152,19 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
         });
     };
 
+    const handleSaveRaidSanctuaire = () => {
+        startTransition(async () => {
+            const result = await updateRaidSanctuaireChannel(guildId, raidSanctuaireChannelId.trim() || null);
+            if (result.success) {
+                setInitialConfig(currentConfig);
+                toast.success("Configuration Raid Sanctuaire sauvegardée !");
+                setIsSanctuaireConfigured(!!raidSanctuaireChannelId.trim());
+            } else {
+                toast.error(result.error || "Erreur lors de la sauvegarde");
+            }
+        });
+    };
+
     const handleClearRaidSanctuaire = () => {
         startTransition(async () => {
             const result = await updateRaidSanctuaireChannel(guildId, null);
@@ -228,18 +179,18 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
         });
     };
 
-    const handleToggleKamaDonation = (enabled: boolean) => {
+    const handleSaveRaidRoles = () => {
         startTransition(async () => {
-            const result = await updateRaidKamaDonationRequired(guildId, enabled);
-            if (result.success) {
-                setRaidRequireKamaDonation(enabled);
-                setInitialConfig((prev) => prev ? { ...prev, raidRequireKamaDonation: enabled } : prev);
-                toast.success(enabled
-                    ? "Don de kamas requis activé pour les Raids ✅"
-                    : "Don de kamas désactivé — Accès Raids libre ⚠️"
-                );
+            const [pingRolesResult, signUpRolesResult] = await Promise.all([
+                updateAllowedPingRolesAction(guildId, raidPingRoleIds, "raid"),
+                updateRaidAllowedSignUpRolesAction(guildId, raidAllowedSignUpRoleIds),
+            ]);
+
+            if (pingRolesResult.success && signUpRolesResult.success) {
+                setInitialConfig(currentConfig);
+                toast.success("Rôles et autorisations Raids sauvegardés !");
             } else {
-                toast.error(result.error || "Erreur lors de la mise à jour");
+                toast.error(pingRolesResult.error || signUpRolesResult.error || "Erreur lors de la sauvegarde");
             }
         });
     };
@@ -292,42 +243,47 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                         </CardHeader>
 
                         <CardContent className="space-y-6">
-                            <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-muted" />
-                                </div>
-                                <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
-                                <p className="text-xs text-muted-foreground mb-3">
-                                    Activez le mode développeur Discord, puis faites <span className="text-foreground">Clic Droit</span> sur le salon voulu {'>'} <span className="text-foreground">Copier l'identifiant</span>.
-                                </p>
-                            </div>
-
-                            <div className="relative pl-6 border-l-2 border-warning/50 pb-6">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-warning border-2 border-border " />
-                                <h3 className="text-sm font-medium text-foreground mb-4">2. Coller l'identifiant</h3>
-
-                                <div className="space-y-4">
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={channelId}
-                                            onChange={(e) => setChannelId(e.target.value)}
-                                            placeholder="Ex: 123456789012345678"
-                                            className="font-mono bg-muted/20 border-border text-foreground"
-                                        />
-                                        <Button onClick={handleSaveCalendar} disabled={isPending} className="min-w-[120px] bg-warning hover:bg-warning text-warning-foreground">
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-foreground mb-1">
+                                        Salon des événements généraux
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground mb-3">
+                                        Sélectionnez le salon Discord où les sorties, donjons et événements du calendrier seront partagés.
+                                    </p>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <div className="flex-1">
+                                            <DiscordChannelPicker
+                                                guildId={guildId}
+                                                value={channelId}
+                                                onChange={setChannelId}
+                                                placeholder="Sélectionner un salon..."
+                                                allowEmptyLabel="Aucun salon (désactivé)"
+                                            />
+                                        </div>
+                                        <Button
+                                            onClick={handleSaveCalendar}
+                                            disabled={isPending}
+                                            className="min-w-[120px] bg-warning hover:bg-warning text-warning-foreground font-bold"
+                                        >
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                             Sauvegarder
                                         </Button>
                                     </div>
-                                    <ChannelPreview guildId={guildId} channelId={channelId} color="amber" />
-                                    {isConfigured && (
-                                        <div className="flex justify-end">
-                                            <Button variant="ghost" size="sm" onClick={handleClearCalendar} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
-                                                Désactiver l'intégration
-                                            </Button>
-                                        </div>
-                                    )}
                                 </div>
+                                {isConfigured && (
+                                    <div className="flex justify-end">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={handleClearCalendar}
+                                            disabled={isPending}
+                                            className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs"
+                                        >
+                                            Désactiver l&apos;intégration
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
@@ -430,7 +386,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     </span>
                                     Salon Discord (Raids)
                                 </CardTitle>
-                                {isRaidConfigured ? (
+                                {(isGigalodonConfigured || isSanctuaireConfigured) ? (
                                     <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20">
                                         Actif
                                     </Badge>
@@ -446,220 +402,106 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                         </CardHeader>
 
                         <CardContent className="space-y-6">
-                            <div className="relative pl-6 border-l-2 border-border pb-6 last:pb-0">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-muted" />
-                                </div>
-                                <h3 className="text-sm font-medium text-foreground mb-2">1. Récupérer l'ID du salon</h3>
-                                <p className="text-xs text-muted-foreground mb-3">
-                                    Faites <span className="text-foreground">Clic Droit</span> sur le salon de Raid voulu {'>'} <span className="text-foreground">Copier l'identifiant</span>.
-                                </p>
-                            </div>
-
-                            <div className="relative pl-6 border-l-2 border-danger/50 space-y-8 pb-6">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-danger border-2 border-border " />
-                                
-                                <div className="space-y-4">
+                            <div className="space-y-6">
+                                <div className="space-y-3 p-4 rounded-xl border border-border bg-surface/40">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-medium text-foreground">2.1 Salon Raid Gigalodon</h3>
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-foreground">
+                                                Salon Raid Gigalodon
+                                            </h4>
+                                            <p className="text-xs text-muted-foreground">
+                                                Salon spécifique pour les annonces du raid Gigalodon (si vide, le salon calendrier général est utilisé).
+                                            </p>
+                                        </div>
                                         {isGigalodonConfigured ? (
                                             <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20 h-5 text-caption">Configuré</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-muted-foreground h-5 text-caption">Repli actif</Badge>
+                                            <Badge variant="outline" className="text-muted-foreground h-5 text-caption">Repli calendrier</Badge>
                                         )}
                                     </div>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={raidGigalodonChannelId}
-                                            onChange={(e) => setRaidGigalodonChannelId(e.target.value)}
-                                            placeholder="Ex: 123456789012345678 (Spécifique Gigalodon)"
-                                            className="font-mono bg-muted/20 border-border text-foreground"
-                                        />
-                                        <Button onClick={handleSaveRaidGigalodon} disabled={isPending} className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground">
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <div className="flex-1">
+                                            <DiscordChannelPicker
+                                                guildId={guildId}
+                                                value={raidGigalodonChannelId}
+                                                onChange={setRaidGigalodonChannelId}
+                                                placeholder="Sélectionner le salon Gigalodon..."
+                                                allowEmptyLabel="Repli sur le Calendrier général"
+                                            />
+                                        </div>
+                                        <Button
+                                            onClick={handleSaveRaidGigalodon}
+                                            disabled={isPending}
+                                            className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground font-bold"
+                                        >
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                             Sauvegarder
                                         </Button>
                                     </div>
-                                    <ChannelPreview guildId={guildId} channelId={raidGigalodonChannelId} color="rose" />
                                     {isGigalodonConfigured && (
-                                        <div className="flex justify-end">
-                                            <Button variant="ghost" size="sm" onClick={handleClearRaidGigalodon} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
+                                        <div className="flex justify-end pt-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={handleClearRaidGigalodon}
+                                                disabled={isPending}
+                                                className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs"
+                                            >
                                                 Désactiver ce salon
                                             </Button>
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className="space-y-3 p-4 rounded-xl border border-border bg-surface/40">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-medium text-foreground">2.2 Salon Raid Sanctuaire des Jardins Éternels</h3>
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-foreground">
+                                                Salon Raid Sanctuaire des Jardins Éternels
+                                            </h4>
+                                            <p className="text-xs text-muted-foreground">
+                                                Salon spécifique pour les annonces du raid Sanctuaire (si vide, le salon calendrier général est utilisé).
+                                            </p>
+                                        </div>
                                         {isSanctuaireConfigured ? (
                                             <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20 h-5 text-caption">Configuré</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-muted-foreground h-5 text-caption">Repli actif</Badge>
+                                            <Badge variant="outline" className="text-muted-foreground h-5 text-caption">Repli calendrier</Badge>
                                         )}
                                     </div>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={raidSanctuaireChannelId}
-                                            onChange={(e) => setRaidSanctuaireChannelId(e.target.value)}
-                                            placeholder="Ex: 123456789012345678 (Spécifique Sanctuaire)"
-                                            className="font-mono bg-muted/20 border-border text-foreground"
-                                        />
-                                        <Button onClick={handleSaveRaidSanctuaire} disabled={isPending} className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground">
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <div className="flex-1">
+                                            <DiscordChannelPicker
+                                                guildId={guildId}
+                                                value={raidSanctuaireChannelId}
+                                                onChange={setRaidSanctuaireChannelId}
+                                                placeholder="Sélectionner le salon Sanctuaire..."
+                                                allowEmptyLabel="Repli sur le Calendrier général"
+                                            />
+                                        </div>
+                                        <Button
+                                            onClick={handleSaveRaidSanctuaire}
+                                            disabled={isPending}
+                                            className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground font-bold"
+                                        >
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                             Sauvegarder
                                         </Button>
                                     </div>
-                                    <ChannelPreview guildId={guildId} channelId={raidSanctuaireChannelId} color="rose" />
                                     {isSanctuaireConfigured && (
-                                        <div className="flex justify-end">
-                                            <Button variant="ghost" size="sm" onClick={handleClearRaidSanctuaire} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
+                                        <div className="flex justify-end pt-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={handleClearRaidSanctuaire}
+                                                disabled={isPending}
+                                                className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs"
+                                            >
                                                 Désactiver ce salon
                                             </Button>
                                         </div>
                                     )}
                                 </div>
-
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-medium text-foreground">2.3 Salon Raid Général (Repli par défaut)</h3>
-                                        {isRaidConfigured ? (
-                                            <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/20 h-5 text-caption">Actif</Badge>
-                                        ) : (
-                                            <Badge variant="outline" className="text-muted-foreground h-5 text-caption">Calendrier général</Badge>
-                                        )}
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={raidChannelId}
-                                            onChange={(e) => setRaidChannelId(e.target.value)}
-                                            placeholder="Ex: 123456789012345678 (optionnel)"
-                                            className="font-mono bg-muted/20 border-border text-foreground"
-                                        />
-                                        <Button onClick={handleSaveRaid} disabled={isPending} className="min-w-[120px] bg-danger hover:bg-danger text-danger-foreground">
-                                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                                            Sauvegarder
-                                        </Button>
-                                    </div>
-                                    <ChannelPreview guildId={guildId} channelId={raidChannelId} color="rose" />
-                                    {isRaidConfigured && (
-                                        <div className="flex justify-end">
-                                            <Button variant="ghost" size="sm" onClick={handleClearRaid} disabled={isPending} className="text-danger hover:text-danger hover:bg-danger/20 h-auto py-1 px-3 text-xs">
-                                                Désactiver le salon de Raid Général
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="relative pl-6 border-l-2 border-transparent">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-elevated border-2 border-border flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-muted" />
-                                </div>
-                                <h3 className="text-sm font-medium text-foreground mb-2">3. Don de Kamas</h3>
-                                <p className="text-xs text-muted-foreground mb-4">
-                                    Quand activé, les membres doivent avoir fait un <strong className="text-warning">don de 30 000 kamas validé</strong> dans la semaine Dofus de l'événement pour s'inscrire aux Raids, et le <strong className="text-warning">widget d'upload de don</strong> apparaît sur la page Missions.
-                                </p>
-
-                                {/* Toggle Card */}
-                                <div className={`rounded-xl border p-4 flex items-center justify-between gap-4 transition-all duration-200 ${
-                                    raidRequireKamaDonation
-                                        ? "bg-warning/5 border-warning/20"
-                                        : "bg-elevated/60 border-border"
-                                }`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-2.5 rounded-lg transition-colors ${
-                                            raidRequireKamaDonation ? "bg-warning/20" : "bg-muted"
-                                        }`}>
-                                            <Coins className={`w-5 h-5 transition-colors ${
-                                                raidRequireKamaDonation ? "text-warning" : "text-muted-foreground"
-                                            }`} />
-                                        </div>
-                                        <div>
-                                            <p className={`text-sm font-semibold transition-colors ${
-                                                raidRequireKamaDonation ? "text-warning" : "text-foreground"
-                                            }`}>
-                                                {raidRequireKamaDonation ? "Don requis activé" : "Don requis désactivé"}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">
-                                                {raidRequireKamaDonation
-                                                    ? "Don obligatoire pour les raids • Widget d'upload visible sur Missions"
-                                                    : "Tous les membres avec le rôle Raid peuvent s'inscrire librement • Widget d'upload masqué sur Missions"
-                                                }
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => handleToggleKamaDonation(!raidRequireKamaDonation)}
-                                        disabled={isPending}
-                                        aria-label="Activer/désactiver don kamas requis"
-                                        className={`relative w-12 h-6 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-warning/50 disabled:opacity-50 ${
-                                            raidRequireKamaDonation ? "bg-warning" : "bg-muted"
-                                        }`}
-                                    >
-                                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-background rounded-full shadow-sm transition-transform duration-200 ${
-                                            raidRequireKamaDonation ? "translate-x-6" : "translate-x-0"
-                                        }`} />
-                                    </button>
-                                </div>
-
-                                {/* Threshold selector — visible when donation is enabled */}
-                                {raidRequireKamaDonation && (
-                                    <div className="mt-3 p-3 rounded-xl bg-elevated/40 border border-border">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <div className="flex items-center gap-2.5">
-                                                <div className="p-1.5 rounded-lg bg-violet-500/15">
-                                                    <img src="/assets/icons/kamas-violet.png" alt="🟣" className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs font-semibold text-foreground">
-                                                        Seuil de don requis
-                                                    </p>
-                                                    <p className="text-caption text-muted-foreground mt-0.5">
-                                                        1 🟣 = 1 000 k • Actuellement {raidKamaDonationThreshold * 10} 🟣 ({raidKamaDonationThreshold * 10_000} k)
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                {[1, 2, 3, 4, 5].map(t => (
-                                                    <button
-                                                        key={t}
-                                                        onClick={() => {
-                                                            startTransition(async () => {
-                                                                const res = await updateRaidKamaDonationThreshold(guildId, t);
-                                                                if (res.success) {
-                                                                    setRaidKamaDonationThreshold(t);
-                                                                    setInitialConfig((prev) => prev ? { ...prev, raidKamaDonationThreshold: t } : prev);
-                                                                    toast.success(`Seuil défini à ${t * 10} 🟣 (${t * 10_000} k)`);
-                                                                } else {
-                                                                    toast.error(res.error || "Erreur");
-                                                                }
-                                                            });
-                                                        }}
-                                                        disabled={isPending}
-                                                        className={`w-9 h-9 rounded-lg text-xs font-bold transition-all ${
-                                                            raidKamaDonationThreshold === t
-                                                                ? "bg-violet-500/30 text-violet-300 border border-violet-500/40 shadow-sm"
-                                                                : "bg-elevated text-muted-foreground border border-border/50 hover:bg-muted"
-                                                        }`}
-                                                    >
-                                                        {t * 10}🟣
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {!raidRequireKamaDonation && (
-                                    <div className="mt-3 flex items-start gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg">
-                                        <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-                                        <p className="text-xs text-warning/80 leading-relaxed">
-                                            Le don de kamas est <strong>fortement recommandé</strong> pour financer les raids et faire progresser la guilde. Pensez à réactiver ce toggle pour que le widget d'upload de don réapparaisse sur la page Missions.
-                                        </p>
-                                    </div>
-                                )}
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">
@@ -669,7 +511,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-medium text-foreground">3. Rôles de Ping Autorisés (Raids)</h3>
                                     <Button 
-                                        onClick={handleSaveRaid} 
+                                        onClick={handleSaveRaidRoles} 
                                         disabled={isPending} 
                                         size="sm"
                                         className="bg-danger hover:bg-danger text-danger-foreground font-bold"
@@ -694,7 +536,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-medium text-foreground">4. Whitelist des Rôles d'Inscription (Raid Guilde)</h3>
                                     <Button 
-                                        onClick={handleSaveRaid} 
+                                        onClick={handleSaveRaidRoles} 
                                         disabled={isPending} 
                                         size="sm"
                                         className="bg-danger hover:bg-danger text-danger-foreground font-bold"

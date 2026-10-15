@@ -9,7 +9,7 @@ import {
     Settings, Bell, Key, Calendar, Sword, Target, BarChart3,
     HandCoins, ChevronRight, Megaphone,
     ShieldAlert, UserCheck, Layout, Clock,
-    Store
+    Store, HardDrive
 } from "lucide-react";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobUnlocker } from "../archimonstres/_components/metamob-unlocker";
@@ -33,9 +33,10 @@ import { GallerySettingsClient } from "../_components/gallery-settings-client";
 import { DirectorySettingsClient } from "../_components/directory-settings-client";
 import { ServicesSettingsClient } from "../_components/services-settings-client";
 import { MarketSettingsClient } from "../_components/market-settings-client";
+import { KamaSettingsClient } from "../_components/kama-settings-client";
+import { GuildStorageSettingsClient } from "../_components/guild-storage-settings-client";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
-import { GuildStorageCard } from "@/components/admin/guild-storage-card";
 
 // ============================================================================
 // NAV ITEMS
@@ -47,6 +48,7 @@ type SettingsSection = {
     icon: React.ElementType;
     description: string;
     accent: string;
+    dofusAsset?: string;
     /**
      * Refonte settings — module de guilde requis pour afficher la section.
      * Absent = structurel (toujours affiché). État effectif = toggle guilde +
@@ -65,41 +67,37 @@ function buildNavGroups(): SettingsGroup[] {
         {
             title: "Guilde",
             items: [
-                { id: "dofus", label: "Serveur Dofus", icon: Sword, description: "Configuration du serveur", accent: "emerald", module: null },
-                { id: "annuaire", label: "Annuaire", icon: UserCheck, description: "Sollicitations de membres", accent: "emerald", module: "roster" },
+                { id: "dofus", label: "Serveur Dofus", icon: Sword, description: "Configuration du serveur", accent: "emerald", module: null, dofusAsset: "/assets/dofus/modules/dofus.png" },
+                { id: "annuaire", label: "Annuaire", icon: UserCheck, description: "Sollicitations de membres", accent: "emerald", module: "roster", dofusAsset: "/assets/dofus/modules/character.png" },
+                { id: "stockage", label: "Stockage Guilde", icon: HardDrive, description: "Quotas, captures & transcripts", accent: "emerald", module: null, dofusAsset: "/assets/dofus/modules/chest.png" },
             ]
         },
         {
             title: "Notifications & Canaux",
             items: [
-                { id: "annonces", label: "Annonces Plateforme", icon: Megaphone, description: "Infos & Maintenances", accent: "emerald", module: null },
-                { id: "absences", label: "Absences", icon: Bell, description: "Salon de notifications", accent: "emerald", module: null },
-                { id: "relance", label: "Relances", icon: Bell, description: "Canal de diffusion des relances", accent: "emerald", module: null },
-                { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "emerald", module: "polls" },
-                { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "emerald", module: null },
-                { id: "anciennete", label: "Ancienneté", icon: Clock, description: "Salon des annonces de palier", accent: "emerald", module: null },
+                { id: "annonces", label: "Annonces Plateforme", icon: Megaphone, description: "Infos & Maintenances", accent: "emerald", module: null, dofusAsset: "/assets/dofus/modules/bot_command.png" },
+                { id: "absences", label: "Absences & Relances", icon: Bell, description: "Départs vacances & relances", accent: "emerald", module: null, dofusAsset: "/assets/dofus/modules/hourglass.png" },
+                { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "emerald", module: "polls", dofusAsset: "/assets/dofus/modules/dice.png" },
+                { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "emerald", module: null, dofusAsset: "/assets/dofus/modules/starShield.png" },
+                { id: "anciennete", label: "Ancienneté", icon: Clock, description: "Salon des annonces de palier", accent: "emerald", module: null, dofusAsset: "/assets/dofus/modules/ladder.png" },
             ]
         },
         {
             title: "Par Module",
             items: [
-                { id: "calendrier", label: "Calendrier", icon: Calendar, description: "Événements guilde", accent: "emerald", module: "calendar" },
-                { id: "donjons", label: "Donjons & Songes", icon: Sword, description: "DJ Finder & Songes Infinis", accent: "emerald", module: "donjons" },
-                { id: "missions", label: "Missions & Bonus", icon: Target, description: "Notifications, uploads & oracles", accent: "emerald", module: "missions" },
-                { id: "prets", label: "Prêts & Coffre", icon: HandCoins, description: "Notifications internes", accent: "emerald", module: null },
-                { id: "metamob", label: "Quête Ocre", icon: Key, description: "Suivi & Échanges d'Archis", accent: "emerald", module: "ocre" },
-                { id: "gallery", label: "Galerie", icon: Layout, description: "Salons Stuffs & Skins", accent: "emerald", module: "gallery" },
-                { id: "services", label: "Services Guilde", icon: Trophy, description: "Salon de mention des passeurs", accent: "emerald", module: "services" },
-                { id: "marche", label: "Marché", icon: Store, description: "Salon, rôles & cycle de vie des annonces", accent: "emerald", module: "marche" },
+                { id: "calendrier", label: "Calendrier & Raids", icon: Calendar, description: "Salons événements & raids", accent: "emerald", module: "calendar", dofusAsset: "/assets/dofus/modules/calendar.png" },
+                { id: "donjons", label: "Donjons & Songes", icon: Sword, description: "DJ Finder & Songes Infinis", accent: "emerald", module: "donjons", dofusAsset: "/assets/dofus/modules/breach.png" },
+                { id: "missions", label: "Missions & Bonus", icon: Target, description: "Notifications & oracles", accent: "emerald", module: "missions", dofusAsset: "/assets/dofus/modules/quest.png" },
+                { id: "kamas", label: "Don de Kamas", icon: HandCoins, description: "Seuil, règle raid & preuves", accent: "emerald", module: null, dofusAsset: "/assets/dofus/modules/kamas.png" },
+                { id: "prets", label: "Prêts & Coffre", icon: HandCoins, description: "Notifications internes", accent: "emerald", module: null, dofusAsset: "/assets/dofus/modules/chest.png" },
+                { id: "metamob", label: "Quête Ocre", icon: Key, description: "Suivi & Échanges d'Archis", accent: "emerald", module: "ocre", dofusAsset: "/assets/dofus/modules/dofus_ocre.png" },
+                { id: "gallery", label: "Galerie", icon: Layout, description: "Salons Stuffs & Skins", accent: "emerald", module: "gallery", dofusAsset: "/assets/dofus/modules/cosmetics.png" },
+                { id: "services", label: "Services Guilde", icon: Trophy, description: "Salon mention des passeurs", accent: "emerald", module: "services", dofusAsset: "/assets/dofus/modules/guildExperience.png" },
+                { id: "marche", label: "Marché", icon: Store, description: "Salon, rôles & annonces", accent: "emerald", module: "marche", dofusAsset: "/assets/dofus/modules/auctionHouseEquipments.png" },
             ]
         }
     ];
 }
-
-const ACCENT: Record<string, { border: string; text: string; bg: string; pill: string }> = {
-    emerald: { border: "border-success/30", text: "text-success", bg: "bg-success/10", pill: "bg-success/20 text-success" },
-    slate: { border: "border-border/30", text: "text-muted-foreground", bg: "bg-muted/10", pill: "bg-muted/20 text-muted-foreground" },
-};
 
 // ============================================================================
 // PAGE
@@ -123,6 +121,7 @@ export default async function FeatureSettingsPage({
     if (tab === "bonus") redirect(`/dashboard/${guildId}/admin/settings?tab=missions`);
     if (tab === "discord") redirect(`/dashboard/${guildId}/admin/settings?tab=annonces`);
     if (tab === "onboarding") redirect(`/dashboard/${guildId}/admin/settings?tab=annonces`);
+    if (tab === "relance") redirect(`/dashboard/${guildId}/admin/settings?tab=absences`);
     
     const activeTab = tab || "annonces";
 
@@ -161,7 +160,6 @@ export default async function FeatureSettingsPage({
     const requestedOff = requestedModule && effectiveModules && !effectiveModules[requestedModule];
     const activeItem = (!requestedOff ? navItems.find(n => n.id === activeTab) : undefined) ?? navItems[0];
     const resolvedTab = activeItem.id;
-    const a = ACCENT[activeItem.accent] ?? ACCENT.slate;
 
     return (
         <div className="space-y-6 pb-12 w-full max-w-[1600px] mx-auto">
@@ -175,58 +173,69 @@ export default async function FeatureSettingsPage({
                 />
             </div>
 
-            {/* Quota & stockage visible par l'admin guilde (jamais pour le rôle staff). */}
-            {user.canViewSettings && <GuildStorageCard guildId={guildId} />}
-
             <div className="flex flex-col lg:flex-row gap-8 items-start relative">
                 {/* ── SIDEBAR NAVIGATION ── */}
                 <nav data-tour="admin-settings-nav" className={cn(
-                    "w-full lg:w-72 shrink-0 lg:sticky lg:top-4 z-20 space-y-1 lg:space-y-1.5 p-2 rounded-2xl border border-white/8 bg-surface/40 backdrop-blur-xl",
+                    "w-full lg:w-80 shrink-0 lg:sticky lg:top-4 z-20 space-y-2 p-2.5 rounded-2xl border border-white/10 bg-surface/60 backdrop-blur-xl shadow-xl",
                     "flex lg:flex-col items-center lg:items-stretch overflow-x-auto lg:overflow-visible no-scrollbar hide-scrollbar"
                 )}>
                     {/* Shadow indicators for mobile horizontal scroll (Standard 2026) */}
                     <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background/50 to-transparent pointer-events-none lg:hidden z-30" />
                     
                     {navGroups.map((group, idx) => (
-                        <div key={idx} className="flex flex-row lg:flex-col items-center lg:items-stretch mb-0 lg:mb-4 lg:last:mb-0 shrink-0">
-                            <h3 className="hidden lg:block text-caption font-black uppercase tracking-widest text-muted-foreground px-4 mb-2 mt-1">{group.title}</h3>
-                            {group.items.map((item) => {
-                                const isActive = item.id === resolvedTab;
-                                const ac = ACCENT[item.accent] ?? ACCENT.slate;
-                                const Icon = item.icon;
-                                return (
-                                    <Link
-                                        key={item.id}
-                                        href={`/dashboard/${guildId}/admin/settings?tab=${item.id}`}
-                                        className={cn(
-                                            "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 whitespace-nowrap lg:whitespace-normal shrink-0",
-                                            isActive
-                                                ? `${ac.bg} ${ac.border} border `
-                                                : "border border-transparent hover:bg-surface hover:border-white/8 text-muted-foreground hover:text-foreground"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300",
-                                            isActive ? ac.bg : "bg-surface group-hover:bg-surface group-"
-                                        )}>
-                                            <Icon className={cn("w-4 h-4", isActive ? ac.text : "text-muted-foreground group-hover:text-foreground")} />
-                                        </div>
-                                        <div className="min-w-0 flex-1 hidden lg:block">
-                                            <p className={cn("text-xs font-black uppercase tracking-widest leading-none mb-1", isActive ? ac.text : "text-muted-foreground group-hover:text-foreground")}>
+                        <div key={idx} className="flex flex-row lg:flex-col items-center lg:items-stretch mb-0 lg:mb-3 lg:last:mb-0 shrink-0">
+                            <h3 className="hidden lg:block text-caption font-bold uppercase tracking-wider text-muted-foreground/80 px-3 mb-1.5 mt-1">{group.title}</h3>
+                            <div className="space-y-1 w-full flex flex-row lg:flex-col">
+                                {group.items.map((item) => {
+                                    const isActive = item.id === resolvedTab;
+                                    const Icon = item.icon;
+                                    return (
+                                        <Link
+                                            key={item.id}
+                                            href={`/dashboard/${guildId}/admin/settings?tab=${item.id}`}
+                                            className={cn(
+                                                "group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 whitespace-nowrap lg:whitespace-normal shrink-0",
+                                                isActive
+                                                    ? "bg-amber-500/10 border border-amber-500/30 shadow-md shadow-amber-500/5 text-foreground"
+                                                    : "border border-transparent hover:bg-surface/80 hover:border-white/5 text-muted-foreground hover:text-foreground"
+                                            )}
+                                        >
+                                            <div className={cn(
+                                                "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 p-1.5",
+                                                isActive
+                                                    ? "bg-amber-500/20 border border-amber-500/40 shadow-sm"
+                                                    : "bg-surface/90 border border-border/50 group-hover:border-border"
+                                            )}>
+                                                {item.dofusAsset ? (
+                                                    <img
+                                                        src={item.dofusAsset}
+                                                        alt=""
+                                                        className={cn(
+                                                            "w-6 h-6 object-contain transition-transform group-hover:scale-105",
+                                                            isActive ? "drop-shadow" : "opacity-80 group-hover:opacity-100"
+                                                        )}
+                                                    />
+                                                ) : (
+                                                    <Icon className={cn("w-4 h-4", isActive ? "text-amber-400" : "text-muted-foreground group-hover:text-foreground")} />
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1 hidden lg:block">
+                                                <p className={cn("text-xs font-bold leading-tight mb-0.5", isActive ? "text-foreground font-extrabold" : "text-foreground/80 group-hover:text-foreground")}>
+                                                    {item.label}
+                                                </p>
+                                                <p className="text-caption text-muted-foreground truncate font-medium">
+                                                    {item.description}
+                                                </p>
+                                            </div>
+                                            {/* Mobile display: only label */}
+                                            <span className={cn("text-xs font-bold lg:hidden", isActive ? "text-amber-400" : "")}>
                                                 {item.label}
-                                            </p>
-                                            <p className="text-caption text-muted-foreground truncate font-medium group-hover:text-muted-foreground transition-colors">
-                                                {item.description}
-                                            </p>
-                                        </div>
-                                        {/* Mobile display: only label */}
-                                        <span className={cn("text-xs font-black uppercase tracking-widest lg:hidden", isActive ? ac.text : "")}>
-                                            {item.label}
-                                        </span>
-                                        {isActive && <ChevronRight className={cn("w-4 h-4 shrink-0 hidden lg:block", ac.text)} />}
-                                    </Link>
-                                );
-                            })}
+                                            </span>
+                                            {isActive && <ChevronRight className="w-4 h-4 shrink-0 hidden lg:block text-amber-400/80" />}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
                         </div>
                     ))}
                 </nav>
@@ -234,26 +243,26 @@ export default async function FeatureSettingsPage({
                 {/* ── CONTENT AREA ── */}
                 <div data-tour="admin-settings-pane" className="flex-1 w-full min-w-0 animate-in fade-in slide-in-from-bottom-4 duration-300 delay-150">
                     {/* Section visual header */}
-                    <div className={cn(
-                        "relative flex flex-col sm:flex-row sm:items-center gap-5 mb-8 p-6 rounded-3xl border overflow-hidden",
-                        a.border, a.bg
-                    )}>
-                        <div className={cn(
-                            "relative w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-colors duration-200",
-                            a.bg, a.border
-                        )}>
-                            {(() => { const Icon = activeItem.icon; return <Icon className={cn("w-7 h-7", a.text)} />; })()}
-                        </div>
-                        <div className="space-y-1">
-                            <div className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-caption font-semibold uppercase tracking-widest mb-1", a.pill)}>
-                                Section Configuration
+                    <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 p-5 rounded-2xl border border-border/60 bg-gradient-to-r from-surface/80 via-surface/50 to-surface/80 backdrop-blur-md overflow-hidden shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 p-2 shadow-inner">
+                                {activeItem.dofusAsset ? (
+                                    <img src={activeItem.dofusAsset} alt="" className="w-8 h-8 object-contain drop-shadow" />
+                                ) : (
+                                    (() => { const Icon = activeItem.icon; return <Icon className="w-6 h-6 text-amber-400" />; })()
+                                )}
                             </div>
-                            <h2 className={cn("text-title font-bold leading-tight", a.text)}>
-                                {activeItem.label}
-                            </h2>
-                            <p className="text-sm text-muted-foreground font-medium max-w-xl opacity-80">
-                                {activeItem.description} — Gérez les paramètres de ce module pour votre guilde.
-                            </p>
+                            <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-caption font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                                        Configuration
+                                    </span>
+                                    <span className="text-caption text-muted-foreground hidden sm:inline">• {activeItem.description}</span>
+                                </div>
+                                <h2 className="text-lg font-bold text-foreground">
+                                    {activeItem.label}
+                                </h2>
+                            </div>
                         </div>
                     </div>
 
@@ -290,7 +299,14 @@ export default async function FeatureSettingsPage({
                     ) : (
                         <>
                             {resolvedTab === "annonces" && <SystemSettingsClient guildId={guildId} />}
-                            {resolvedTab === "absences" && <AbsenceSettingsClient guildId={guildId} />}
+                            {resolvedTab === "absences" && (
+                                <div className="space-y-8">
+                                    <AbsenceSettingsClient guildId={guildId} />
+                                    <div className="pt-8 border-t border-border">
+                                        <RelanceSettingsClient guildId={guildId} />
+                                    </div>
+                                </div>
+                            )}
                             {resolvedTab === "calendrier" && <CalendarSettingsClient guildId={guildId} />}
                             {resolvedTab === "donjons" && (
                                 <div className="space-y-8">
@@ -308,6 +324,7 @@ export default async function FeatureSettingsPage({
                                     </div>
                                 </div>
                             )}
+                            {resolvedTab === "kamas" && <KamaSettingsClient guildId={guildId} />}
                             {resolvedTab === "prets" && <LoansSettingsClient guildId={guildId} />}
                             {resolvedTab === "metamob" && (
                                 <div className="space-y-8">
@@ -334,11 +351,11 @@ export default async function FeatureSettingsPage({
                             )}
                             { resolvedTab === "blacklist" && <BlacklistSettingsClient guildId={guildId} /> }
                             { resolvedTab === "anciennete" && <SeniorityRolesSettingsClient guildId={guildId} /> }
-                            { resolvedTab === "relance" && <RelanceSettingsClient guildId={guildId} /> }
                             { resolvedTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
                             { resolvedTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }
                             { resolvedTab === "services" && <ServicesSettingsClient guildId={guildId} /> }
                             { resolvedTab === "marche" && <MarketSettingsClient guildId={guildId} /> }
+                            { resolvedTab === "stockage" && <GuildStorageSettingsClient guildId={guildId} /> }
                         </>
                     )}
 

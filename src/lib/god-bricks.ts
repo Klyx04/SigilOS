@@ -36,7 +36,6 @@ export const GOD_BRICKS = [
     // L'ancienne brique `security` (même écran, même `AuditLog`) est **fusionnée ici**.
     { id: "logs",           label: "Journaux & audit",        scope: null, group: "admin",       subGodAccess: false },
     { id: "delegates",      label: "Sous-Gods (accès)",     scope: null, group: "admin",       subGodAccess: false },
-    { id: "api-keys",       label: "Clés d'API & Dev",      scope: null, group: "admin",       subGodAccess: false },
     { id: "slash-commands", label: "Commandes Slash",       scope: null, group: "admin",       subGodAccess: false },
 
     // ─── Guildes (sous-god partiel : whitelist + roster, SANS actions destructives) ──
@@ -49,7 +48,7 @@ export const GOD_BRICKS = [
     // ─── Game-Data (ouvrable aux sous-gods) ────────────────────────────────
     { id: "game-data",           label: "Données de Jeu",    scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-quests",    label: "Base Monstres",     scope: "game-data", group: "game-data", subGodAccess: true },
-    { id: "game-data-quetes",    label: "Quêtes Dofus",      scope: "game-data", group: "game-data", subGodAccess: true },
+    { id: "game-data-quetes",    label: "Objectif Dofus",    scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-guides",    label: "Guides Optim.",     scope: "game-data", group: "game-data", subGodAccess: true },
     { id: "game-data-rush",      label: "Rush Sylvestre",    scope: "game-data", group: "game-data", subGodAccess: true },
 

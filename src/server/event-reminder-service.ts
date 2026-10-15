@@ -79,6 +79,7 @@ type EventRow = {
     maxParticipants: number | null;
     notifyBefore: number | null;
     discordChannelId: string | null;
+    creatorId: string;
     metadata: unknown;
     lastRemindedAt: Date | null;
     participants: { userId: string }[];
@@ -152,9 +153,10 @@ async function deliverEventReminder(args: {
         return { sent: false, reason: decision.reason, pinged: 0, leadMinutes: decision.leadMinutes };
     }
 
-    // Discord IDs des inscrits
+    // Discord IDs des inscrits + organisateur (créateur de l'événement)
+    const targetUserIds = Array.from(new Set([...event.participants.map((p) => p.userId), event.creatorId].filter(Boolean)));
     const accounts = await db.account.findMany({
-        where: { userId: { in: event.participants.map((p) => p.userId) }, provider: "discord" },
+        where: { userId: { in: targetUserIds }, provider: "discord" },
         select: { providerAccountId: true },
     });
     const mentions = buildRaidReminderMentions(accounts.map((a) => a.providerAccountId));
@@ -177,7 +179,7 @@ async function deliverEventReminder(args: {
             embedTitle: `${typeMeta.emoji} ${event.title} — dans ${leadLabel}`,
             embedColor: 0xff6b35,
             embedUrl: dashboardUrl,
-            embedFooter: `SigilOS • ${guildConfig.name ?? "Guilde"} • Seuls les inscrits sont notifiés`,
+            embedFooter: `SigilOS • ${guildConfig.name ?? "Guilde"} • Inscrits & créateur notifiés`,
             fields: [
                 { name: "⏰ Début", value: `<t:${startTs}:t> (<t:${startTs}:R>)`, inline: true },
                 {
@@ -257,6 +259,7 @@ export async function sendEventReminders(
         select: {
             id: true,
             guildId: true,
+            creatorId: true,
             title: true,
             type: true,
             status: true,

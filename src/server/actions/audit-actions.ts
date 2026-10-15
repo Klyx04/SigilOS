@@ -36,6 +36,7 @@ export type AuditAction =
     | "MISSION_VALIDATED"     // Admin validated a member submission
     | "MISSION_REJECTED"      // Admin rejected a member submission
     | "MISSION_PUBLISH_DISCORD" // Admin published weekly mission notification to Discord
+    | "MISSION_PUBLISHED"     // Admin finalized weekly mission publication (silent or general)
     | "BONUS_PURCHASED"       // Member purchased a guild bonus
     | "BONUS_CANCELLED"       // Member cancelled a pending bonus
     | "POLL_CREATED"          // Poll created

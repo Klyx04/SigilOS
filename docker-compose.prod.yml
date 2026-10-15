@@ -433,6 +433,12 @@ services:
     container_name: sigilos-cadvisor
     restart: always
     # 🔒 E-INF-05 : plus de privileged (escalade). cAdvisor fonctionne sans, avec devices en ro.
+    # ⚡ Optimisé 15/10 : polling 30s + docker_only (était 23% CPU sans flags).
+    command:
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--disable_metrics=percpu,sched,tcp,udp,disk,diskIO,hugetlb,referenced_memory,resctrl,process"
+      - "--store_container_labels=false"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -443,6 +449,11 @@ services:
     networks:
       - prod-net
       - beta-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
     logging: *default-logging
 
   # ===========================================================================
@@ -459,6 +470,11 @@ services:
       - db-prod
     networks:
       - prod-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 128M
     logging: *default-logging
   # ===========================================================================
   # 🧠 AI SERVICE - REMOVED (Now using Gemini API)

@@ -2371,7 +2371,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             fetchGuildRoles(guildId, { excludeManaged: true }),
             db.guildConfig.findUnique({
                 where: { discordGuildId: guildId },
-                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true, pollsPingRoleIds: true, missionPingRoleIds: true, scheduledPollsPingRoleIds: true }
+                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true, pollsPingRoleIds: true, missionPingRoleIds: true, missionNotifyRoleId: true, scheduledPollsPingRoleIds: true }
             })
         ]);
 
@@ -2390,7 +2390,15 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             else if (options?.context === "songes") allowedIds = guildConfig?.songesPingRoleIds || [];
             else if (options?.context === "polls") allowedIds = guildConfig?.pollsPingRoleIds || [];
             else if (options?.context === "scheduledPolls") allowedIds = guildConfig?.scheduledPollsPingRoleIds || [];
-            else if (options?.context === "missions") allowedIds = guildConfig?.missionPingRoleIds || [];
+            else if (options?.context === "missions") {
+                const baseAllowed = guildConfig?.missionPingRoleIds || [];
+                const notifyRole = (guildConfig as any)?.missionNotifyRoleId;
+                if (notifyRole && !baseAllowed.includes(notifyRole)) {
+                    allowedIds = [...baseAllowed, notifyRole];
+                } else {
+                    allowedIds = baseAllowed;
+                }
+            }
             else allowedIds = guildConfig?.allowedPingRoleIds || [];
 
             filteredRoles = roles.filter(r => allowedIds.includes(r.id));

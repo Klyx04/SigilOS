@@ -65,7 +65,7 @@ export const MODULE_DOFUS_ASSETS: Partial<Record<ModuleKey, string>> = {
     ladderSync: "ladder.png",
     manualLadderSync: "ladder.png",
     services: "key.png",
-    marche: "kama.png",
+    marche: "auctionHouseEquipments.png",
     donjons: "dofus.png",
     docs: "encyclopedia_2x.png",
     polls: "guild.png",
@@ -290,7 +290,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
             },
             {
                 key: "quests",
-                label: "Quêtes Dofus",
+                label: "Objectif Dofus",
                 description: "Optimisation des quêtes de Dofus. Suivi de progression, quêtes en commun et matchmaking entre membres.",
                 icon: BookMarked,
                 color: "text-warning",

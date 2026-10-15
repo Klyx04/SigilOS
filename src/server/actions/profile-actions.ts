@@ -260,8 +260,8 @@ export async function verifyDofusPseudo(pseudo: string, guildId: string) {
 
     // Use a strict rate limit for this potentially expensive worker call
     const rateLimitKey = `rate-limit:verify-pseudo:${session.user.id}`;
-    const isRateLimited = await rateLimit(rateLimitKey, 10, 60); // 10 checks per minute
-    if (!isRateLimited) return { success: false, error: "Trop de tentatives. Veuillez patienter." };
+    const isRateLimited = await rateLimit(rateLimitKey, 10, 60_000); // 10 checks per minute
+    if (!isRateLimited.success) return { success: false, error: "Trop de tentatives. Veuillez patienter." };
 
     const WORKER_URL = process.env.DOFUS_LADDER_WORKER_URL;
     const WORKER_SECRET = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;

@@ -111,7 +111,7 @@ function hasPublishedEmbed(event: { discordMessageId: string | null; discordChan
 // ré-ancre le VRAI snowflake dans Redis quand on lui passe `storeMessageIdKey`.
 
 /** Clé Redis où le worker ré-ancre le vrai ID du message de l'événement. */
-function eventMessageKey(eventId: string): string {
+export function eventMessageKey(eventId: string): string {
     return `calendar:msg:${eventId}`;
 }
 
@@ -282,9 +282,11 @@ export async function processRegistration(guildId: string, eventId: string, user
             }
         }
 
+        const isReserve = maxParticipants !== null && counts.registeredCount >= maxParticipants;
+
         // Kamas gate: user must have at least 30 Purple Kamas in their balance (10 000 k = 10 Purple Kamas)
-        // Only enforced when the admin toggle is ON (raidRequireKamaDonation = true, default)
-        if (guildConfig.raidRequireKamaDonation) {
+        // Ne s'applique qu'aux titulaires (pas aux réserves/file d'attente) et si le don de kamas est actif
+        if (!isReserve && guildConfig.raidRequireKamaDonation) {
             const threshold = (guildConfig.raidKamaDonationThreshold ?? 3) * 10_000;
             const userProfile = await db.userProfile.findFirst({
                 where: { userId, guildId: guildConfig.id },
@@ -324,13 +326,13 @@ export async function processRegistration(guildId: string, eventId: string, user
         };
     }
 
-    const isReserve = maxParticipants !== null && counts.registeredCount >= maxParticipants;
+    const isReserveFinal = maxParticipants !== null && counts.registeredCount >= maxParticipants;
 
     await db.eventParticipant.create({
         data: {
             eventId,
             userId: userId,
-            status: isReserve ? "RESERVE" : "REGISTERED",
+            status: isReserveFinal ? "RESERVE" : "REGISTERED",
             // Position unique : elle est recomputée à chaque désinscription.
             position: event.participants.length + 1,
             // Borne dure (RULES §4) : la classe part dans l'embed Discord, une valeur
@@ -352,10 +354,14 @@ export async function processRegistration(guildId: string, eventId: string, user
     revalidatePath(`/dashboard/${guildId}`, "layout");
     return {
         success: true,
-        isReserve,
-        reserveMessage: isReserve ? "Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid." : undefined,
-        registeredCount: counts.registeredCount + (isReserve ? 0 : 1),
-        reserveCount: counts.reserveCount + (isReserve ? 1 : 0),
+        isReserve: isReserveFinal,
+        reserveMessage: isReserveFinal
+            ? (guildConfig.raidRequireKamaDonation
+                ? "Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid."
+                : "Tu seras automatiquement prévenu si une place se libère.")
+            : undefined,
+        registeredCount: counts.registeredCount + (isReserveFinal ? 0 : 1),
+        reserveCount: counts.reserveCount + (isReserveFinal ? 1 : 0),
         maxParticipants,
         // Confirmée au cliqueur : la classe retenue (vide = « Sans classe »).
         classe: data?.classe?.trim() || undefined,
@@ -495,6 +501,7 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
             where: { discordGuildId: guildId },
             select: { 
                 id: true, 
+                raidRequireKamaDonation: true,
                 calendarNotifyChannelId: true, 
                 raidNotifyChannelId: true,
                 raidGigalodonNotifyChannelId: true,
@@ -616,25 +623,6 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
             return `• ${name}${classe ? ` (${classe})` : ""}`;
         };
 
-        // Dispatch par classe : UN field inline PAR classe représentée (grille 3 colonnes).
-        const dispatchEntries: DispatchEntry[] = registered.map((p: any) => {
-            const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
-            return { line: `• ${name}`, classe: effectiveClass(p) };
-        });
-        const inscritsFields = buildClassDispatchFields(dispatchEntries, {
-            emptyField: { name: `✅ Inscrits (${registered.length})`, value: "*Aucun inscrit*" },
-            maxGroups: 14,
-            emoji: emo,
-        });
-
-        const reserveList = reserve.length > 0
-            ? reserve.map(formatParticipant).join("\n")
-            : "*Personne en file d'attente*";
-
-        const reserveNote = reserve.length > 0 && isRaid
-            ? "\n💡 *Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid.*"
-            : "";
-
         const fields = [
             { name: "📅 Date", value: `<t:${startTs}:d> (<t:${startTs}:D>)`, inline: true },
             { name: "⏰ Horaire", value: `<t:${startTs}:t> - <t:${endTs}:t> (<t:${startTs}:R>)`, inline: true },
@@ -667,6 +655,27 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
             }).join("\n");
             fields.push({ name: "🎯 Objectifs de la session", value: missionText, inline: false });
         }
+
+        // Dispatch par classe : UN field inline PAR classe représentée (grille 3 colonnes).
+        // maxGroups dynamiquement calculé pour garantir fields.length <= 25 (limite stricte Discord)
+        const dispatchEntries: DispatchEntry[] = registered.map((p: any) => {
+            const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
+            return { line: `• ${name}`, classe: effectiveClass(p) };
+        });
+        const maxDispatchGroups = Math.max(1, 24 - fields.length);
+        const inscritsFields = buildClassDispatchFields(dispatchEntries, {
+            emptyField: { name: `✅ Inscrits (${registered.length})`, value: "*Aucun inscrit*" },
+            maxGroups: maxDispatchGroups,
+            emoji: emo,
+        });
+
+        const reserveList = reserve.length > 0
+            ? reserve.map(formatParticipant).join("\n")
+            : "*Personne en file d'attente*";
+
+        const reserveNote = reserve.length > 0 && isRaid && guildConfig.raidRequireKamaDonation
+            ? "\n💡 *Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid.*"
+            : "";
 
         fields.push(
             ...inscritsFields,
@@ -775,6 +784,7 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
             where: { discordGuildId: guildId },
             select: {
                 id: true,
+                raidRequireKamaDonation: true,
                 calendarNotifyChannelId: true,
                 raidNotifyChannelId: true,
                 raidGigalodonNotifyChannelId: true,
@@ -872,30 +882,11 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
             return `• ${name}${classe ? ` (${classe})` : ""}`;
         };
 
-        // Dispatch par classe : UN field inline PAR classe représentée (grille 3 colonnes).
-        const dispatchEntries: DispatchEntry[] = registered.map((p: any) => {
-            const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
-            return { line: `• ${name}`, classe: effectiveClass(p) };
-        });
-        const inscritsFields = buildClassDispatchFields(dispatchEntries, {
-            emptyField: { name: `✅ Inscrits (${registered.length})`, value: "*Aucun inscrit*" },
-            maxGroups: 14,
-            emoji: emo,
-        });
-
-        const reserveList = reserve.length > 0
-            ? reserve.map(formatParticipant).join("\n")
-            : "*Personne en file d'attente*";
-
         const startTs = Math.floor(new Date(event.startDate).getTime() / 1000);
         const endTs = Math.floor(new Date(event.endDate).getTime() / 1000);
 
         const isRaid = event.type === "RAID_OFFICIAL";
         const raidMeta = isRaid ? (event.metadata as any) : null;
-
-        const reserveNote = reserve.length > 0 && isRaid
-            ? "\n💡 *Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid.*"
-            : "";
 
         const fields = [
             { name: "📅 Date", value: `<t:${startTs}:d> (<t:${startTs}:D>)`, inline: true },
@@ -929,6 +920,27 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
             }).join("\n");
             fields.push({ name: "🎯 Objectifs de la session", value: missionText, inline: false });
         }
+
+        // Dispatch par classe : UN field inline PAR classe représentée (grille 3 colonnes).
+        // maxGroups dynamiquement calculé pour garantir fields.length <= 25 (limite stricte Discord)
+        const dispatchEntries: DispatchEntry[] = registered.map((p: any) => {
+            const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
+            return { line: `• ${name}`, classe: effectiveClass(p) };
+        });
+        const maxDispatchGroups = Math.max(1, 24 - fields.length);
+        const inscritsFields = buildClassDispatchFields(dispatchEntries, {
+            emptyField: { name: `✅ Inscrits (${registered.length})`, value: "*Aucun inscrit*" },
+            maxGroups: maxDispatchGroups,
+            emoji: emo,
+        });
+
+        const reserveList = reserve.length > 0
+            ? reserve.map(formatParticipant).join("\n")
+            : "*Personne en file d'attente*";
+
+        const reserveNote = reserve.length > 0 && isRaid && guildConfig.raidRequireKamaDonation
+            ? "\n💡 *Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid.*"
+            : "";
 
         fields.push(
             ...inscritsFields,

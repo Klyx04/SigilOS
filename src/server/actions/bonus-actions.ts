@@ -509,7 +509,8 @@ export async function cancelBonus(
 
 /**
  * Expire a bonus (internal use / cron only)
- * NOT exposed to client — requires bonusId known only server-side
+ * Exposée via "use server" → session + appartenance à la guilde du bonus requises.
+ * L'opération reste idempotente et bornée aux bonus déjà expirés.
  */
 export async function expireBonus(bonusId: string): Promise<ActionResponse> {
     try {
@@ -517,13 +518,23 @@ export async function expireBonus(bonusId: string): Promise<ActionResponse> {
             return { success: false, error: "bonusId invalide" };
         }
 
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
         const bonus = await db.guildBonus.findUnique({
             where: { id: bonusId },
+            select: { id: true, status: true, expiresAt: true, guild: { select: { discordGuildId: true } } },
         });
 
         if (!bonus) {
             return { success: false, error: "Bonus introuvable" };
         }
+
+        // La cible doit appartenir à une guilde dont l'appelant est membre.
+        const discordGuildId = bonus.guild?.discordGuildId;
+        if (!discordGuildId) return { success: false, error: "Bonus introuvable" };
+        const ctx = await getUserContext(discordGuildId);
+        if (!ctx.isAuthenticated || !ctx.isMember) return { success: false, error: "Non autorisé" };
 
         if (bonus.status !== BonusStatus.ACTIVE) {
             return { success: false, error: "Le bonus n'est pas actif" };

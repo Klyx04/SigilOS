@@ -13,6 +13,7 @@ import {
     cancelBonus,
 } from "@/server/actions/bonus-actions";
 import { Loader2, AlertCircle, XCircle } from "lucide-react";
+import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 
 interface BonusManagerClientProps {
     guildId: string;
@@ -223,15 +224,15 @@ export function BonusManagerClient({ guildId }: BonusManagerClientProps) {
                         <div className="space-y-4">
                             {/* Channel ID */}
                             <div>
-                                <Label className="text-foreground">Canal Discord (ID)</Label>
-                                <input
-                                    type="text"
+                                <Label className="text-foreground mb-1 block">Canal Discord</Label>
+                                <DiscordChannelPicker
+                                    guildId={guildId}
                                     value={channelId}
-                                    onChange={(e) => setChannelId(e.target.value)}
-                                    placeholder="1234567890"
-                                    className="w-full mt-2 px-4 py-2 bg-elevated border border-border rounded-md text-foreground focus:ring-2 focus:ring-ring outline-none"
+                                    onChange={setChannelId}
+                                    placeholder="Choisir un salon pour la notification..."
+                                    allowEmptyLabel="Aucun (pas de notification)"
                                 />
-                                <p className="text-xs text-muted-foreground mt-1">Optionnel - Canal où envoyer la notification</p>
+                                <p className="text-xs text-muted-foreground mt-1">Optionnel - Salon où envoyer l&apos;annonce du bonus</p>
                             </div>
 
                             {/* Mention Type */}

@@ -159,7 +159,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                 isRestricted={isRestricted}
                 availableAt={availableAt}
                 vitrineMode={vitrineMode}
-                hideUpload={!!user.isSuperAdmin}
+                hideUpload={!user.isMember}
             />
         </div>
     );

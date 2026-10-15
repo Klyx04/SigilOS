@@ -5,6 +5,12 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 15/10/2026 — **Module DJ : favicon SigilOS, responsive message, limite 200 chars, doc HTML import** — branche `feat/tickets-refonte-complete`
+> **Demande user** : (1) messages post non responsive (overflow sur chaînes sans espace) · (2) icône Fiche SigilOS = favicon produit · (3) limite message à 200 chars dans le détail · (4) générer une doc HTML complète prête à importer.
+> **Fait** : `DjPostCard` + `DjPostDetailModal` → `break-words [overflow-wrap:anywhere] break-all` sur `post.message` et messages participants · `<Shield>` et `🛡️` remplacés par `<img src="/assets/ui/logo-v2.png">` · `DjPostCreateModal`, `DjEditModal`, `DjPostDetailModal` + `joinDjPost` action : `maxLength={200}` + compteur `x/200` partout + slicing côté serveur · `docs/imports/donjons-et-quetes-doc.html` (guide complet 6 sections, 2 SVG mockups réalistes, callouts, prêt à importer) · assets `public/assets/docs/donjons-card-mockup.svg` et `donjons-discord-embed.svg`.
+> **Preuves** : suite **389 fichiers / 4 257 tests ✓** · `tsc` **0** · `eslint` **0 erreur** · hook pre-commit vert · commit `8fa75877`.
+> **Reste / ops** : push vers `feat/tickets-refonte-complete` puis PR → `dev`.
+
 ## 📝 Session 14/10/2026 (suite 18) — **Validation des lots livrés + plans « S » et « Z » : la reprise est prête** — docs seuls
 > **Demande user** : « valide les chantiers déjà fait et prépare le prochain prompt » (pour finir **S** — rôles par points de succès — **et** améliorer **Z** — commandes slash perso).
 > **Validation mesurée sur `dev` = `23b55b80`** : suite **384 fichiers / 4 211 tests ✓** · `tsc` complet **0 erreur** · `lint` **0 erreur** (avertissements pré-existants uniquement, mes fichiers à 0) · `prisma migrate status` **à jour (274)** · preuves ciblées OK (client Apparence supprimé, onglet `anciennete` présent, 5 filets `seniority-roles*`).

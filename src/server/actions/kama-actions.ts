@@ -876,6 +876,7 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
     success: boolean;
     totalDonated?: number;
     isEligible?: boolean;
+    raidRequireKamaDonation?: boolean;
     weekNumber?: number;
     yearNumber?: number;
     error?: string;
@@ -897,6 +898,7 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
                 success: true,
                 totalDonated: 0,
                 isEligible: true,
+                raidRequireKamaDonation: false,
                 weekNumber: week,
                 yearNumber: year,
             };
@@ -928,6 +930,7 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
             success: true,
             totalDonated,
             isEligible: purpleKamasBalance >= requiredPurpleKamas,
+            raidRequireKamaDonation: true,
             weekNumber: week,
             yearNumber: year,
         };

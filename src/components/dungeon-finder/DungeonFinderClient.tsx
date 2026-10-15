@@ -155,7 +155,7 @@ export function DungeonFinderClient({
         <div className="space-y-8">
             <div className="space-y-5">
                 {/* Toolbar — sticky sous la navbar : dissociée du scroll des résultats */}
-                <div className="flex flex-col xl:flex-row xl:items-start gap-4 sticky top-14 z-20 bg-background/95 backdrop-blur-md pb-3">
+                <div className="flex flex-col xl:flex-row xl:items-start gap-3 sticky top-14 z-20 bg-background/85 backdrop-blur-md pb-3 border-b border-border/40">
                     <div className="flex-1">
                         <DjFiltersBar
                             filters={filters}
@@ -168,31 +168,32 @@ export function DungeonFinderClient({
 
                     <div className="flex items-center gap-2 shrink-0">
                         <Button
-                            variant="outline" size="icon"
+                            variant="outline"
+                            size="icon"
                             onClick={handleRefresh}
                             disabled={isRefreshing}
-                            className="w-10 h-10 border-border text-muted-foreground hover:text-foreground"
+                            className="w-10 h-10 rounded-xl border border-border/70 bg-surface/40 hover:bg-surface/80 text-muted-foreground hover:text-foreground transition-all"
                             title="Rafraîchir"
                         >
-                            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-emerald-400" : ""}`} />
                         </Button>
                         <Button
                             onClick={() => setIsCreateOpen(true)}
                             disabled={!canCreate}
                             title={canCreate ? "Créer un post" : "Tu as atteint la limite de 3 posts actifs"}
-                            className={`font-black h-10 gap-2 ${canCreate
-                                ? "bg-info text-info-foreground hover:bg-info/90 border border-info/40 shadow-lg shadow-info/20"
-                                : "bg-elevated/50 text-muted-foreground border border-border-strong cursor-not-allowed opacity-70"
+                            className={`font-bold h-10 px-4 rounded-xl gap-2 transition-all cursor-pointer ${canCreate
+                                ? "bg-emerald-500 hover:bg-emerald-400 text-black shadow-md shadow-emerald-950/20 border border-emerald-400/40"
+                                : "bg-surface/40 text-muted-foreground border border-border/60 cursor-not-allowed opacity-60"
                                 }`}
                         >
                             {canCreate ? (
-                                <Plus className="w-4 h-4" />
+                                <Plus className="w-4 h-4 text-black stroke-[2.5]" />
                             ) : (
-                                <AlertTriangle className="w-4 h-4" />
+                                <AlertTriangle className="w-4 h-4 text-amber-400" />
                             )}
                             Nouveau post
                             {!canCreate && (
-                                <span className="ml-1 text-xs font-bold bg-warning/20 text-warning-foreground px-1.5 py-0.5 rounded">
+                                <span className="ml-1 font-mono text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-md">
                                     {myActivePosts.length}/3
                                 </span>
                             )}
@@ -200,28 +201,29 @@ export function DungeonFinderClient({
                     </div>
                 </div>
 
-                {/* Anti-spam hint */}
+                {/* Anti-spam hint — sobre et anti-slop */}
                 {!canCreate && (
-                    <div className="flex items-center gap-3 text-sm text-warning bg-warning/8 border border-warning/20 rounded-xl px-4 py-3">
-                        <AlertTriangle className="w-4 h-4 shrink-0" />
-                        <span>
-                            Tu as <strong>{myActivePosts.length}/3</strong> posts actifs.{" "}
-                            <button
-                                onClick={() => setFilters({ ...DEFAULT_FILTERS, search: "" })}
-                                className="underline underline-offset-2 hover:text-warning transition-colors"
-                            >
-                                Ferme ou expire un post existant
-                            </button>{" "}
-                            pour en créer un nouveau.
-                        </span>
+                    <div className="flex items-center justify-between gap-3 text-xs bg-surface/40 border border-border/70 rounded-xl px-4 py-2.5 text-muted-foreground backdrop-blur-sm">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+                            <span className="truncate">
+                                Limite atteinte : <strong className="text-foreground">{myActivePosts.length}/3 posts actifs</strong>. Termine un post pour en ouvrir un nouveau.
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => setFilters({ ...DEFAULT_FILTERS, search: "" })}
+                            className="text-emerald-400 hover:text-emerald-300 font-semibold underline underline-offset-2 shrink-0 transition-colors"
+                        >
+                            Mes posts
+                        </button>
                     </div>
                 )}
 
                 {/* Posts grid */}
                 {filteredPosts.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center min-h-[320px] border border-dashed border-border rounded-2xl bg-background/50">
-                        <div className="w-14 h-14 rounded-2xl bg-surface border border-border flex items-center justify-center mb-4">
-                            <Search className="w-6 h-6 text-muted-foreground" />
+                    <div className="flex flex-col items-center justify-center min-h-[340px] border border-dashed border-border/70 rounded-2xl bg-surface/20 backdrop-blur-sm p-8">
+                        <div className="w-14 h-14 rounded-2xl bg-surface/80 border border-border/80 flex items-center justify-center mb-4 shadow-inner">
+                            <Search className="w-6 h-6 text-muted-foreground/60" />
                         </div>
                         <h3 className="text-base font-bold text-foreground mb-1">Aucun post actif</h3>
                         <p className="text-sm text-muted-foreground text-center max-w-xs">
@@ -232,16 +234,16 @@ export function DungeonFinderClient({
                         {canCreate && (
                             <Button
                                 data-tour="donjons-create"
-                                className="mt-5 bg-background hover:bg-surface text-foreground font-bold"
+                                className="mt-5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold h-10 px-5 rounded-xl shadow-md shadow-emerald-950/20"
                                 onClick={() => setIsCreateOpen(true)}
                             >
-                                <Plus className="w-4 h-4 mr-2" /> Créer un post
+                                <Plus className="w-4 h-4 mr-2 stroke-[2.5]" /> Créer un post
                             </Button>
                         )}
                     </div>
                 ) : (
                     <div
-                        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 min-h-[420px] content-start" data-tour="donjons-list"
+                        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4.5 min-h-[420px] content-start" data-tour="donjons-list"
                     >
                         {filteredPosts.map((post) => (
                             <DjPostCard

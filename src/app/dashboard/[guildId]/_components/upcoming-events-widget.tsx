@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Calendar, Users, MapPin, Clock, ChevronRight, Plus } from "lucide-react";
+import { Users, MapPin, Clock, ChevronRight, Plus } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { format, isToday, isTomorrow, isThisWeek, startOfWeek, addDays, eachDayOfInterval, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -34,6 +35,22 @@ const EVENT_LABELS: Record<string, string> = {
     OTHERS: "Autre",
 };
 
+/** Asset par type d'événement. */
+const EVENT_ASSETS: Record<string, string> = {
+    RAID_OFFICIAL: "/assets/dofus/game-icons/crossed-swords.png",
+    EVENT_GUILD: "/assets/dofus/modules/party.png",
+    SESSION_MISSIONS: "/assets/dofus/modules/guildatons.png",
+    SORTIE_FARM: "/assets/dofus/game-icons/kamas.png",
+    SONGES_RUN: "/assets/dofus/modules/songes_run.png",
+    DUNGEON_FARM: "/assets/dofus/game-icons/crossed-swords.png",
+    SOCIAL: "/assets/dofus/game-icons/party.png",
+    GUILD_MISSION: "/assets/dofus/modules/guildatons.png",
+    ALMANAX_BONUS: "/assets/dofus/game-icons/almanax.png",
+    OFFICIAL_RESET: "/assets/dofus/modules/calendar.png",
+    KRALAMOURE: "/assets/calendar/kralamoure-head.png",
+    OTHERS: "/assets/dofus/modules/calendar.png",
+};
+
 function formatEventDate(date: Date): string {
     const d = new Date(date);
     if (isToday(d)) return "Aujourd'hui";
@@ -42,6 +59,11 @@ function formatEventDate(date: Date): string {
         return format(d, "EEEE", { locale: fr });
     }
     return format(d, "d MMM", { locale: fr });
+}
+
+function isRelativeLabel(date: Date): boolean {
+    const d = new Date(date);
+    return isToday(d) || isTomorrow(d);
 }
 
 export function UpcomingEventsWidget({
@@ -77,10 +99,18 @@ export function UpcomingEventsWidget({
     return (
         <div className="rounded-xl border border-border bg-card px-4 py-3.5">
             <div className="flex items-center justify-between gap-3 mb-3">
-                <h2 className="text-sm font-semibold text-foreground">
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <Image
+                        src="/assets/dofus/modules/calendar.png"
+                        alt="Agenda"
+                        width={18}
+                        height={18}
+                        className="object-contain shrink-0"
+                        unoptimized
+                    />
                     Agenda
                     {activeEvents.length > 0 && (
-                        <span className="ml-2 text-xs font-medium text-muted-foreground tabular-nums">{activeEvents.length}</span>
+                        <span className="ml-1 text-xs font-medium text-muted-foreground tabular-nums">{activeEvents.length}</span>
                     )}
                 </h2>
                 <div className="flex items-center gap-3">
@@ -115,7 +145,7 @@ export function UpcomingEventsWidget({
                                 className={cn(
                                     "flex flex-col items-center py-1.5 px-1 rounded-lg transition-colors text-center border",
                                     isCurrentDay
-                                        ? "bg-surface text-foreground font-bold border-border-strong"
+                                        ? "bg-success/10 text-success font-bold border-success/30"
                                         : "text-muted-foreground hover:text-foreground hover:bg-surface/80 border-transparent"
                                 )}
                             >
@@ -139,31 +169,47 @@ export function UpcomingEventsWidget({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
                     {activeEvents.slice(0, 6).map((event) => {
                         const label = EVENT_LABELS[event.type] ?? EVENT_LABELS.OTHERS;
+                        const assetSrc = EVENT_ASSETS[event.type] ?? EVENT_ASSETS.OTHERS;
                         const startTs = new Date(event.startDate).getTime();
                         const endTs = new Date(event.endDate).getTime();
                         const isOngoing = startTs <= nowTs && endTs >= nowTs;
                         const participants = event._count?.participants ?? 0;
                         const maxParts = event.maxParticipants;
                         const isFull = maxParts ? participants >= maxParts : false;
+                        const dateLabel = isOngoing ? "En cours" : formatEventDate(new Date(event.startDate));
+                        const isDateHighlighted = isOngoing || isRelativeLabel(new Date(event.startDate));
 
                         return (
                             <Link
                                 key={event.id}
                                 href={`/dashboard/${guildId}/calendar?event=${event.id}`}
-                                className="rounded-xl border border-border hover:border-border-strong hover:bg-surface p-3 transition-colors"
+                                className="rounded-xl border border-border hover:border-success/30 hover:bg-success/5 p-3 transition-colors"
                             >
                                 <div className="flex items-center gap-2 mb-1.5">
-                                    {event.type === "KRALAMOURE" && (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img src="/assets/calendar/kralamoure-head.png" alt="Kralamoure" className="w-4 h-4 object-contain shrink-0" />
-                                    )}
+                                    <Image
+                                        src={assetSrc}
+                                        alt={label}
+                                        width={24}
+                                        height={24}
+                                        className="object-contain shrink-0"
+                                        unoptimized
+                                    />
                                     <span className="text-xs text-muted-foreground">{label}</span>
-                                    <span className={cn(
-                                        "text-xs tabular-nums",
-                                        isOngoing ? "text-success font-semibold" : "text-muted-foreground"
-                                    )}>
-                                        {isOngoing ? "En cours" : formatEventDate(new Date(event.startDate))}
-                                    </span>
+                                    <div className="flex items-center gap-1 ml-auto">
+                                        {isOngoing && (
+                                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-success animate-pulse shrink-0" />
+                                        )}
+                                        <span className={cn(
+                                            "text-xs tabular-nums",
+                                            isOngoing
+                                                ? "text-success font-bold"
+                                                : isDateHighlighted
+                                                    ? "text-success font-semibold"
+                                                    : "text-muted-foreground"
+                                        )}>
+                                            {dateLabel}
+                                        </span>
+                                    </div>
                                 </div>
                                 <h4 className="text-xs font-semibold text-foreground line-clamp-1 mb-2">
                                     {event.title}
@@ -193,9 +239,16 @@ export function UpcomingEventsWidget({
                     })}
                 </div>
             ) : (
-                <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-surface/40 border border-border/40">
+                <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-success/5 border border-success/15">
                     <div className="flex items-center gap-3 min-w-0">
-                        <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <Image
+                            src="/assets/dofus/modules/calendar.png"
+                            alt="Agenda"
+                            width={24}
+                            height={24}
+                            className="object-contain shrink-0 opacity-70"
+                            unoptimized
+                        />
                         <div className="min-w-0">
                             <p className="text-xs font-semibold text-foreground">
                                 Aucune sortie programmée cette semaine
@@ -207,7 +260,7 @@ export function UpcomingEventsWidget({
                     </div>
                     <Link
                         href={`/dashboard/${guildId}/calendar`}
-                        className="text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0"
+                        className="text-xs font-semibold text-success hover:text-success/80 flex items-center gap-1 shrink-0 transition-colors"
                     >
                         <Plus className="w-3.5 h-3.5" />
                         Proposer

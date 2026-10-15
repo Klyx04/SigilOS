@@ -102,6 +102,7 @@ export function TicketMotifsTab({
     const [namingPattern, setNamingPattern] = useState("ticket-{num}");
     const [closePolicy, setClosePolicy] = useState<TicketCategoryClosePolicy>("STAFF_OR_CREATOR");
     const [requireConfirm, setRequireConfirm] = useState(true);
+    const [welcomeMessage, setWelcomeMessage] = useState("");
     const [isEnabled, setIsEnabled] = useState(true);
     const [questions, setQuestions] = useState<MotifQuestion[]>([]);
 
@@ -133,6 +134,7 @@ export function TicketMotifsTab({
         setNamingPattern("ticket-{num}");
         setClosePolicy("STAFF_OR_CREATOR");
         setRequireConfirm(true);
+        setWelcomeMessage("");
         setIsEnabled(true);
         setQuestions([]);
     };
@@ -160,6 +162,7 @@ export function TicketMotifsTab({
         const override = settings.categories[journey.id];
         setRequireConfirm(override?.requireConfirm ?? settings.requireCloseConfirm);
         setAdditionalRoleIds(override?.additionalRoleIds ?? []);
+        setWelcomeMessage(override?.welcomeMessage || journey.welcomeMessage || "");
         const form = forms.find((candidate) => candidate.id === journey.formId);
         setQuestions(form ? definitionToMotifQuestions(readTicketForm(form.draftSchemaJson)) : []);
         setModalOpen(true);
@@ -199,6 +202,7 @@ export function TicketMotifsTab({
                 name: name.trim(),
                 slug: cleanSlug,
                 description: description.trim() || undefined,
+                welcomeMessage: welcomeMessage.trim() || undefined,
                 emoji: normalizeTicketIcon(emoji.trim() || "🎫"),
                 buttonStyle,
                 channelParentId: channelParentId.trim() || undefined,
@@ -217,7 +221,7 @@ export function TicketMotifsTab({
                 toast.error(res.error || "Erreur enregistrement");
                 return;
             }
-            toast.success("Motif enregistré et visible sur Discord !");
+            toast.success("Type de demande enregistré et synchronisé avec Discord !");
             setModalOpen(false);
             onRefresh();
         });
@@ -230,22 +234,26 @@ export function TicketMotifsTab({
                 toast.error(res.error || "Erreur mise à jour");
                 return;
             }
-            toast.success(journey.isEnabled ? "Motif désactivé." : "Motif activé.");
+            toast.success(journey.isEnabled ? "Type de demande désactivé." : "Type de demande activé.");
             onRefresh();
         });
     };
 
     const handleDelete = (journey: any) => {
-        if (!confirm(`Supprimer le motif « ${journey.name} » ? Les tickets déjà ouverts ne sont pas touchés.`)) {
+        const hasTickets = (journey.openTickets ?? journey._count?.tickets ?? 0) > 0;
+        const confirmMsg = hasTickets
+            ? `Ce type de demande a des tickets associés. Voulez-vous détacher ces tickets (l'historique et les archives seront préservés) et supprimer ce type de demande ?`
+            : `Supprimer le type de demande « ${journey.name} » ? Les tickets déjà ouverts ne sont pas touchés.`;
+        if (!confirm(confirmMsg)) {
             return;
         }
         startTransition(async () => {
-            const res = await deleteTicketJourneyAction(guildId, journey.id);
+            const res = await deleteTicketJourneyAction(guildId, journey.id, hasTickets);
             if (!res.success) {
                 toast.error(res.error || "Erreur suppression");
                 return;
             }
-            toast.success("Motif supprimé.");
+            toast.success("Type de demande supprimé.");
             onRefresh();
         });
     };
@@ -275,31 +283,30 @@ export function TicketMotifsTab({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <Tags className="h-5 w-5 text-amber-400" /> Motifs & Formulaires
+                        <Tags className="h-5 w-5 text-emerald-400" /> Types de Demande & Formulaires
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                        Un motif = un bouton sur un panneau Discord (« Candidature », « Support »).
-                        Enregistrer = visible immédiatement, questionnaire compris.
+                        Un type de demande = un bouton sur un panneau Discord (« Candidature », « Support »).
+                        Enregistrer = visible immédiatement sur Discord, avec son questionnaire et son salon dédié.
                     </p>
                 </div>
 
                 <div className="flex items-center gap-2">
                     {legacyCategories.length > 0 && (
-                        <Button onClick={handleMigrate} disabled={isPending} size="sm" variant="outline" className="text-xs">
-                            <ArrowRight className="h-4 w-4 mr-1" /> Tout passer en Motifs ({legacyCategories.length})
+                        <Button onClick={handleMigrate} disabled={isPending} size="sm" variant="outline" className="text-xs border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+                            <ArrowRight className="h-4 w-4 mr-1" /> Tout convertir en types de demande ({legacyCategories.length})
                         </Button>
                     )}
-                    <Button onClick={openCreateModal} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs">
-                        <Plus className="h-4 w-4 mr-1" /> Nouveau motif
+                    <Button onClick={openCreateModal} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+                        <Plus className="h-4 w-4 mr-1" /> Nouveau type de demande
                     </Button>
                 </div>
             </div>
 
             {legacyCategories.length > 0 && (
-                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200">
-                    {legacyCategories.length} ancien(s) motif(s) (avant la refonte) ne sont pas encore convertis :
-                    leurs boutons continuent de fonctionner, mais seul le bouton « Tout passer en Motifs »
-                    leur donne le questionnaire 20 questions et les nouvelles règles de fermeture.
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-200">
+                    {legacyCategories.length} ancienne(s) catégorie(s) ne sont pas encore converties en types de demande complets :
+                    leurs boutons continuent de fonctionner, mais les convertir leur donne le formulaire enrichi et le message d'accueil personnalisé.
                 </div>
             )}
 
@@ -307,12 +314,12 @@ export function TicketMotifsTab({
                 {journeys.length === 0 ? (
                     <div className="col-span-full text-center py-12 border border-dashed border-border rounded-2xl bg-surface/30">
                         <Tags className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                        <h3 className="text-base font-semibold text-foreground mb-1">Aucun motif</h3>
+                        <h3 className="text-base font-semibold text-foreground mb-1">Aucun type de demande</h3>
                         <p className="text-xs text-muted-foreground mb-4">
-                            Crée ton premier motif : il apparaîtra sur tes panneaux Discord.
+                            Créez votre premier type de demande : il sera associable à vos panneaux Discord.
                         </p>
                         <Button onClick={openCreateModal} size="sm" variant="outline" className="text-xs">
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Nouveau motif
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Nouveau type de demande
                         </Button>
                     </div>
                 ) : (
@@ -331,7 +338,14 @@ export function TicketMotifsTab({
                                         </div>
                                     </div>
 
-                                    <Badge variant="outline" className="text-[10px]">
+                                    <Badge
+                                        variant="outline"
+                                        className={`text-[10px] ${
+                                            journey.isEnabled
+                                                ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                                                : "text-muted-foreground"
+                                        }`}
+                                    >
                                         {journey.isEnabled ? "Visible" : "Désactivé"}
                                     </Badge>
                                 </div>
@@ -346,13 +360,21 @@ export function TicketMotifsTab({
                                         <span className="text-foreground font-semibold">{questionCountLabel(journey)}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
+                                        <span>Salon / Catégorie :</span>
+                                        <span className="text-foreground font-semibold font-mono text-[11px]">
+                                            {journey.channelParentId ? `#${journey.channelParentId}` : "Par défaut"}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
                                         <span>Tickets ouverts :</span>
-                                        <span className="text-foreground font-semibold">{journey._count?.tickets ?? 0}</span>
+                                        <span className="text-foreground font-semibold">
+                                            {journey.openTickets ?? journey._count?.tickets ?? 0}
+                                        </span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span>Fermeture :</span>
                                         <span className="text-foreground font-semibold">
-                                            {journey.closePolicy === "STAFF_ONLY" ? "Équipe uniquement" : "Équipe + demandeur"}
+                                            {journey.closePolicy === "STAFF_ONLY" ? "Staff uniquement" : "Staff + demandeur"}
                                         </span>
                                     </div>
                                 </div>
@@ -395,7 +417,7 @@ export function TicketMotifsTab({
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
                 <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>{editingId ? "Modifier le motif" : "Nouveau motif"}</DialogTitle>
+                        <DialogTitle>{editingId ? "Modifier le type de demande" : "Nouveau type de demande"}</DialogTitle>
                     </DialogHeader>
 
                     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 py-2 text-xs">
@@ -434,7 +456,7 @@ export function TicketMotifsTab({
                                         title={`Icône ${preset}`}
                                         className={`h-8 w-8 rounded-lg border text-base transition-colors ${
                                             emoji === preset
-                                                ? "border-amber-500/60 bg-amber-500/15"
+                                                ? "border-emerald-500/60 bg-emerald-500/15"
                                                 : "border-border bg-surface/50 hover:bg-surface"
                                         }`}
                                     >
@@ -458,21 +480,34 @@ export function TicketMotifsTab({
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="font-semibold text-foreground">Dossier Discord des tickets</label>
+                                    <label className="font-semibold text-foreground">Dossier / Catégorie Discord</label>
                                     <p className="text-[11px] text-muted-foreground">
-                                        Là où les salons de ce motif sont créés.
+                                        Catégorie où seront créés les salons de ce type.
                                     </p>
                                 </div>
                             </div>
                             <TicketCategoryPicker guildId={guildId} value={channelParentId} onChange={setChannelParentId} />
 
                             <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">Message d'accueil du salon</label>
+                                <label className="font-semibold text-foreground">Courte description (affichée sur les listes)</label>
                                 <Input
-                                    placeholder="ex : Présente ta candidature, on te répond vite."
+                                    placeholder="ex : Présente ta candidature pour rejoindre la guilde."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     className="text-xs h-8"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                    <label className="font-semibold text-foreground">Message d'accueil personnalisé dans le salon</label>
+                                    <span className="text-[10px] text-muted-foreground">Markdown Discord supporté</span>
+                                </div>
+                                <Textarea
+                                    placeholder="ex : Bienvenue ! Merci de nous transmettre tes disponibilités et ton avancée de jeu..."
+                                    value={welcomeMessage}
+                                    onChange={(e) => setWelcomeMessage(e.target.value)}
+                                    className="text-xs min-h-[75px]"
                                 />
                             </div>
 
@@ -583,7 +618,7 @@ export function TicketMotifsTab({
                                     questions.map((question, index) => (
                                         <div key={question.key} className="p-3 rounded-xl bg-surface/60 border border-border/80 space-y-2">
                                             <div className="flex items-center justify-between">
-                                                <span className="font-bold text-amber-400 text-xs">
+                                                <span className="font-bold text-emerald-400 text-xs">
                                                     Question #{index + 1} — {MOTIF_QUESTION_KIND_LABELS[question.kind]}
                                                 </span>
                                                 <button type="button" onClick={() => removeQuestion(question.key)} className="text-muted-foreground hover:text-destructive">
@@ -798,64 +833,64 @@ export function TicketMotifsTab({
                                     {normalizeTicketIcon(emoji.trim() || "🎫")} Ticket #0042 — {name.trim() || "Nom du motif"}
                                 </div>
                                 <div className="text-[#dbdee1] whitespace-pre-wrap">
-                                    {description.trim() || "Bienvenue ! Un membre de l'équipe prendra en charge ta demande."}
+                                    {welcomeMessage.trim() || description.trim() || "Bienvenue ! Un membre de l'équipe prendra en charge ta demande sous peu."}
                                 </div>
                                 {questions.length > 0 && (
                                     <div className="space-y-1.5 pt-1">
                                         {questions.slice(0, 3).map((question, index) => (
-                                            <div key={question.key} className="rounded bg-[#2b2d31] px-2 py-1.5">
-                                                <div className="text-[10px] font-semibold text-[#949ba4]">
-                                                    📋 {question.label.trim() || `Question ${index + 1}`}
-                                                </div>
-                                                <div className="text-[#dbdee1]">
-                                                    {question.kind === "yes_no"
-                                                        ? `${question.yesLabel.trim() || "Oui"} / ${question.noLabel.trim() || "Non"}`
-                                                        : question.kind === "select"
-                                                          ? question.options.slice(0, 3).map((option) => option.label.trim() || "Option").join(" · ") || "Choix…"
-                                                          : "Réponse libre…"}
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {questions.length > 3 && (
-                                            <div className="text-[10px] text-[#949ba4]">+ {questions.length - 3} autre(s) question(s)…</div>
-                                        )}
-                                    </div>
-                                )}
-                                <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147]">
-                                    SigilOS Ticket System
-                                </div>
-                            </div>
+                                             <div key={question.key} className="rounded bg-[#2b2d31] px-2 py-1.5">
+                                                 <div className="text-[10px] font-semibold text-[#949ba4]">
+                                                     📋 {question.label.trim() || `Question ${index + 1}`}
+                                                 </div>
+                                                 <div className="text-[#dbdee1]">
+                                                     {question.kind === "yes_no"
+                                                         ? `${question.yesLabel.trim() || "Oui"} / ${question.noLabel.trim() || "Non"}`
+                                                         : question.kind === "select"
+                                                           ? question.options.slice(0, 3).map((option) => option.label.trim() || "Option").join(" · ") || "Choix…"
+                                                           : "Réponse libre…"}
+                                                 </div>
+                                             </div>
+                                         ))}
+                                         {questions.length > 3 && (
+                                             <div className="text-[10px] text-[#949ba4]">+ {questions.length - 3} autre(s) question(s)…</div>
+                                         )}
+                                     </div>
+                                 )}
+                                 <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147]">
+                                     SigilOS Ticket System
+                                 </div>
+                             </div>
 
-                            <div className="text-[11px] text-[#949ba4]">Boutons dans le salon (staff) :</div>
-                            <div className="flex flex-wrap gap-1.5">
-                                {[ticketLabel("claim"), ticketLabel("add"), ticketLabel("note"), ticketLabel("rename")].map((label) => (
-                                    <span key={label} className="px-2 py-1 rounded bg-[#4e5058] text-white text-[10px] font-semibold">
-                                        {label}
-                                    </span>
-                                ))}
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                                {[ticketLabel("close"), ticketLabel("transcript"), ticketLabel("delete")].map((label, index) => (
-                                    <span
-                                        key={label}
-                                        className={`px-2 py-1 rounded text-white text-[10px] font-semibold ${index === 1 ? "bg-[#4e5058]" : "bg-[#ed4245]"}`}
-                                    >
-                                        {label}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                    </div>
+                             <div className="text-[11px] text-[#949ba4]">Boutons dans le salon (staff) :</div>
+                             <div className="flex flex-wrap gap-1.5">
+                                 {[ticketLabel("claim"), ticketLabel("add"), ticketLabel("note"), ticketLabel("rename")].map((label) => (
+                                     <span key={label} className="px-2 py-1 rounded bg-[#4e5058] text-white text-[10px] font-semibold">
+                                         {label}
+                                     </span>
+                                 ))}
+                             </div>
+                             <div className="flex flex-wrap gap-1.5">
+                                 {[ticketLabel("close"), ticketLabel("transcript"), ticketLabel("delete")].map((label, index) => (
+                                     <span
+                                         key={label}
+                                         className={`px-2 py-1 rounded text-white text-[10px] font-semibold ${index === 1 ? "bg-[#4e5058]" : "bg-[#ed4245]"}`}
+                                     >
+                                         {label}
+                                     </span>
+                                 ))}
+                             </div>
+                         </div>
+                     </div>
+                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" size="sm" onClick={() => setModalOpen(false)}>
-                            Annuler
-                        </Button>
-                        <Button size="sm" onClick={handleSave} disabled={isPending} className="bg-amber-600 hover:bg-amber-700 text-white">
-                            Enregistrer et publier
-                        </Button>
-                    </DialogFooter>
+                     <DialogFooter>
+                         <Button variant="outline" size="sm" onClick={() => setModalOpen(false)}>
+                             Annuler
+                         </Button>
+                         <Button size="sm" onClick={handleSave} disabled={isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                             Enregistrer et publier
+                         </Button>
+                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

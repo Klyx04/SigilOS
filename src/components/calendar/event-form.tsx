@@ -223,7 +223,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
     const [submitting, setSubmitting] = useState(false);
     
     // Raid eligibility (kamas gate) for the creator
-    const [creatorRaidEligibility, setCreatorRaidEligibility] = useState<{ isEligible: boolean; totalDonated: number } | null>(null);
+    const [creatorRaidEligibility, setCreatorRaidEligibility] = useState<{ isEligible: boolean; totalDonated: number; raidRequireKamaDonation?: boolean } | null>(null);
     
     // Helper to normalize discord role colors
     const normalizeRoles = (roles: any[]) => roles.map(r => ({
@@ -252,6 +252,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
     const [whitelistedRoleIds, setWhitelistedRoleIds] = useState<string[]>([]);
 
     const isRaid = selectedType === "RAID_OFFICIAL";
+    const isCreatorKamasBlocked = isRaid && creatorRaidEligibility !== null && creatorRaidEligibility.raidRequireKamaDonation !== false && !creatorRaidEligibility.isEligible;
 
     const [configChannels, setConfigChannels] = useState<{ 
         calendarNotifyChannelId?: string | null; 
@@ -366,7 +367,8 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
             if (res.success) {
                 setCreatorRaidEligibility({
                     isEligible: res.isEligible ?? false,
-                    totalDonated: res.totalDonated ?? 0
+                    totalDonated: res.totalDonated ?? 0,
+                    raidRequireKamaDonation: res.raidRequireKamaDonation
                 });
             }
         });
@@ -501,7 +503,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
     };
 
     const handleNextStep = async () => {
-        if (isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible) {
+        if (isCreatorKamasBlocked) {
             return;
         }
         // Trigger validation for step 1 fields before proceeding
@@ -785,7 +787,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                             )}
 
                             {/* Creator eligibility warning box */}
-                            {creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible && (
+                            {isCreatorKamasBlocked && (
                                 <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-danger/30 bg-danger/30 text-danger animate-in fade-in slide-in-from-top-1 duration-200">
                                     <div className="flex items-start gap-2.5">
                                         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-danger" />
@@ -991,15 +993,15 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                 <Button
                     type="button"
                     onClick={handleNextStep}
-                    disabled={isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible}
+                    disabled={isCreatorKamasBlocked}
                     className={cn(
                         "w-full h-12 font-bold text-base transition-all mt-4",
-                        isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
+                        isCreatorKamasBlocked
                             ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed"
                             : "bg-warning hover:bg-warning text-warning-foreground"
                     )}
                 >
-                    {isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible ? (
+                    {isCreatorKamasBlocked ? (
                         <>
                             <Lock className="mr-2 h-5 w-5" />
                             Suivant (Don de Kamas requis)
@@ -1209,10 +1211,10 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                 <div className="flex items-center gap-3 mt-4">
                     <Button
                         type="submit"
-                        disabled={submitting || (isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible)}
+                        disabled={submitting || isCreatorKamasBlocked}
                         className={cn(
                             "w-full h-12 font-bold text-base transition-all",
-                            isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
+                            isCreatorKamasBlocked
                                 ? "bg-elevated border border-border text-muted-foreground cursor-not-allowed"
                                 : "bg-warning hover:bg-warning text-warning-foreground"
                         )}
@@ -1222,7 +1224,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                 Création...
                             </>
-                        ) : isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible ? (
+                        ) : isCreatorKamasBlocked ? (
                             <>
                                 <Lock className="mr-2 h-5 w-5" />
                                 Création bloquée

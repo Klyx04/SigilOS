@@ -2,14 +2,11 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
-import { cn } from "@/lib/utils";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { db } from "@/lib/prisma";
-import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import Link from "next/link";
 import {
-    LayoutDashboard,
     Shield,
     Settings,
     FileText,
@@ -19,29 +16,25 @@ import {
     Users,
     BookOpen,
     ArrowRight,
-    Bell,
-    Activity,
-    ShieldAlert,
     Coins,
     Ticket,
-    Key,
     Terminal,
     CalendarClock,
+    ChevronLeft,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
-import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type AdminCard = {
+type AdminCardDef = {
     href: string;
     icon: React.ElementType;
     title: string;
     description: string;
-    accent: string; // Tailwind color token (e.g. "violet")
+    accent: string; // Conservé pour compatibilité — rendu unique (norme registre).
     permission?: keyof typeof PERMISSIONS | ((user: any) => boolean);
     /**
      * Refonte onboarding §9 — module(s) de guilde requis pour afficher la carte.
@@ -57,8 +50,9 @@ type AdminCard = {
 
 type AdminSection = {
     label: string;
+    hint: string;
     icon: React.ElementType;
-    cards: AdminCard[];
+    cards: AdminCardDef[];
 };
 
 // ============================================================================
@@ -68,13 +62,14 @@ type AdminSection = {
 function buildSections(guildId: string): AdminSection[] {
     return [
         {
-            label: "Structure & Configuration",
+            label: "Structure & configuration",
+            hint: "Accès, salons, identité — les fondations avant tout le reste.",
             icon: Settings,
             cards: [
                 {
                     href: `/dashboard/${guildId}/admin/settings`,
                     icon: Settings,
-                    title: "Paramètres Généraux",
+                    title: "Paramètres généraux",
                     description: "Intégrations Discord, Metamob, Dofus et configuration globale de la plateforme.",
                     accent: "amber",
                     permission: (u) => u.canViewSettings,
@@ -84,7 +79,7 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/admin/permissions`,
                     icon: Shield,
-                    title: "Rôles & Permissions",
+                    title: "Rôles & permissions",
                     description: "Gestion fine des accès. Définissez qui peut valider, modérer ou administrer.",
                     accent: "blue",
                     permission: (u) => u.canManageRBAC,
@@ -94,7 +89,7 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/reaction-roles`,
                     icon: Sparkles,
-                    title: "Rôles par Réaction (Reaction Roles)",
+                    title: "Rôles par réaction",
                     description: "Panneaux de sélection de rôles interactifs avec boutons, menus déroulants et icônes pour Discord.",
                     accent: "violet",
                     modules: "reactionRoles",
@@ -119,7 +114,7 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/tickets`,
                     icon: Ticket,
-                    title: "Bot Tickets & Support Discord",
+                    title: "Tickets & support Discord",
                     description: "Gestion des formulaires d'intake, réclamations staff, notes internes et transcripts.",
                     accent: "amber",
                     modules: "tickets",
@@ -130,7 +125,7 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/admin/commandes`,
                     icon: Terminal,
-                    title: "Commandes Slash Discord",
+                    title: "Commandes slash Discord",
                     description: "Gestion des commandes bot : restrictions par salon Discord, rôles autorisés et activation.",
                     accent: "emerald",
                     permission: (u) => u.canManageRBAC || u.isAdmin,
@@ -140,7 +135,7 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/admin/presentation`,
                     icon: BookOpen,
-                    title: "Identité de Guilde",
+                    title: "Identité de guilde",
                     description: "Édition de la page publique, recrutement et présentation des objectifs.",
                     accent: "indigo",
                     modules: "presentation",
@@ -151,13 +146,14 @@ function buildSections(guildId: string): AdminSection[] {
             ],
         },
         {
-            label: "Opérations & Gestion",
+            label: "Opérations & gestion",
+            hint: "Le quotidien du staff : missions, validation, membres, points.",
             icon: Swords,
             cards: [
                 {
                     href: `/dashboard/${guildId}/missions/manage`,
                     icon: Swords,
-                    title: "Gestion des Missions",
+                    title: "Gestion des missions",
                     description: "Préparation du reset hebdomadaire, création des missions et bonus de guilde.",
                     accent: "emerald",
                     modules: "missions",
@@ -179,7 +175,7 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/admin/members`,
                     icon: Users,
-                    title: "Membres & Recrutement",
+                    title: "Membres & recrutement",
                     description: "Audit Discord vs Dashboard, registre du staff, essais, mules, archivage et relances Discord.",
                     accent: "cyan",
                     modules: "roster",
@@ -190,7 +186,7 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/admin/points`,
                     icon: Coins,
-                    title: "Points de Contribution",
+                    title: "Points de contribution",
                     description: "Personnalisez les points de la clôture des posts DJ / quêtes et des runs Songes.",
                     accent: "amber",
                     modules: ["missions", "donjons"],
@@ -201,47 +197,24 @@ function buildSections(guildId: string): AdminSection[] {
             ],
         },
         {
-            label: "Supervision & Sécurité",
+            label: "Supervision & sécurité",
+            hint: "Traçabilité et accès programmatiques — le strict nécessaire.",
             icon: Shield,
             cards: [
                 {
                     href: `/dashboard/${guildId}/admin/logs`,
                     icon: FileText,
-                    title: "Audit Logs",
+                    title: "Audit logs",
                     description: "Traçabilité totale des actions du staff pour une sécurité maximale.",
                     accent: "slate",
                     permission: (u) => u.canViewAuditLogs,
                     tourId: "admin-overview-card-logs",
                     dofusAsset: "/assets/dofus/modules/hourglass.png",
                 },
-                {
-                    href: `/dashboard/${guildId}/admin/api-keys`,
-                    icon: Key,
-                    title: "Clés d'API & Dev",
-                    description: "Générez des jetons d'accès programmatiques sécurisés (Bearer Token) pour vos applications tierces.",
-                    accent: "amber",
-                    permission: (u) => u.isAdmin,
-                    tourId: "admin-overview-card-api-keys",
-                    dofusAsset: "/assets/dofus/modules/key.png",
-                },
             ],
         },
     ];
 }
-
-// Accent color map → Tailwind classes (static strings for purge safety)
-// #5 — Accent unique emerald (fini l'arc-en-ciel par carte admin)
-const ACCENT: Record<string, { border: string; hover: string; text: string; bg: string }> = {
-    violet: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
-    blue: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
-    slate: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
-    indigo: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
-    green: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
-    emerald: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
-    amber: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
-    rose: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
-    cyan: { border: "hover:border-success/40", hover: "hover:bg-success/5", text: "text-success", bg: "bg-success/10" },
-};
 
 // ============================================================================
 // PAGE
@@ -286,7 +259,7 @@ export default async function AdminPage({
     // désactivés (toggle guilde OFF ou verrou God) disparaît du panel.
     const { getGuildModules } = await import("@/server/actions/module-actions");
     const effectiveModules = await getGuildModules(guildId).catch(() => null) as unknown as Record<string, boolean> | null;
-    const cardVisibleFor = (card: AdminCard): boolean => {
+    const cardVisibleFor = (card: AdminCardDef): boolean => {
         if (!user.isSuperAdmin) {
             if (typeof card.permission === 'function') {
                 if (!card.permission(user)) return false;
@@ -316,58 +289,110 @@ export default async function AdminPage({
         return <AccessDenied />;
     }
 
+    const visibleSections = sections
+        .map((section) => ({
+            ...section,
+            visibleCards: section.cards.filter((card) => cardVisibleFor(card)),
+        }))
+        .filter((section) => section.visibleCards.length > 0);
+
+    const totalVisible = visibleSections.reduce((n, s) => n + s.visibleCards.length, 0);
+    const pendingSetup: { title: string; href: string }[] = [];
+    if (!isDofusConfigured) {
+        const settingsCard = visibleSections.flatMap((s) => s.visibleCards).find((c) => c.title === "Paramètres généraux");
+        if (settingsCard) pendingSetup.push({ title: "Serveur Dofus à renseigner", href: settingsCard.href });
+    }
+    if (!rbacConfigured) {
+        const rbacCard = visibleSections.flatMap((s) => s.visibleCards).find((c) => c.title === "Rôles & permissions");
+        if (rbacCard) pendingSetup.push({ title: "Rôles staff à mapper", href: rbacCard.href });
+    }
 
     return (
-        <div className="space-y-16 pb-32 max-w-[1600px] mx-auto pt-10 px-6">
+        <div className="reg-shell py-10 lg:py-14 space-y-10">
+            {/* 1. Fil d'Ariane + en-tête sobre (norme registre) */}
             <div data-tour="admin-overview-header">
-                <UnifiedModuleHeader
-                    title="Staff"
-                    description="Vos modules et outils de modération — filtrés par vos droits et les modules activés."
-                    icon={Shield}
-                    iconColor="#f43f5e"
-                    backHref={`/dashboard/${guildId}`}
-                    actions={<ModuleHelpActions docSlug="admin-getting-started" docTitle="Guide de Démarrage Admin" tourPhase="adminOverview" />}
-                />
+                <Link
+                    href={`/dashboard/${guildId}`}
+                    className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <span className="h-7 w-7 rounded-lg border border-border bg-surface/60 flex items-center justify-center">
+                        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    Dashboard
+                </Link>
+
+                <div className="mt-4 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+                    <div className="min-w-0">
+                        <p className="reg-eyebrow">Centre de contrôle · Staff</p>
+                        <h1 className="mt-2 text-[clamp(1.6rem,3.4vw,2.4rem)] font-bold leading-tight tracking-tight text-foreground">
+                            Outils de modération
+                        </h1>
+                        <p className="mt-2 max-w-[42rem] text-sm text-muted-foreground leading-relaxed">
+                            {totalVisible} panneau{totalVisible > 1 ? "x" : ""} accessible{totalVisible > 1 ? "s" : ""} — filtrés par vos droits et les modules activés.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <ModuleHelpActions docSlug="admin-getting-started" docTitle="Guide de Démarrage Admin" tourPhase="adminOverview" />
+                    </div>
+                </div>
             </div>
 
-            <div className="space-y-24">
-                {sections.map((section) => {
-                    const visibleCards = section.cards.filter(card => cardVisibleFor(card));
+            {/* 2. À configurer — factuel, pas de badge dispersé */}
+            {pendingSetup.length > 0 && (
+                <div className="reg-panel p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                    <p className="text-sm text-foreground">
+                        <span className="reg-mono text-xs font-semibold text-accent uppercase">À configurer · {pendingSetup.length}</span>
+                        <span className="block mt-1 text-muted-foreground text-xs leading-relaxed">
+                            {pendingSetup.map((s) => s.title).join(" — ")}. Sans cela, certains panneaux restent limités.
+                        </span>
+                    </p>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                        {pendingSetup.map((s) => (
+                            <Link
+                                key={s.href}
+                                href={s.href}
+                                className="reg-btn reg-btn-secondary !min-h-0 !py-1.5 !px-3 !text-xs"
+                            >
+                                {s.title}
+                                <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            )}
 
-                    if (visibleCards.length === 0) return null;
-
-                    const SectionIcon = section.icon;
-                    const sectionTourId = section.label === "Structure & Configuration"
-                        ? "admin-overview-structure"
-                        : section.label === "Opérations & Gestion"
-                            ? "admin-overview-operations"
-                            : "admin-overview-supervision";
+            {/* 3. Sections — eyebrow + compteur mono + filet, grille sobre */}
+            <div className="space-y-10">
+                {visibleSections.map((section) => {
+                    const sectionTourId =
+                        section.label === "Structure & configuration"
+                            ? "admin-overview-structure"
+                            : section.label === "Opérations & gestion"
+                                ? "admin-overview-operations"
+                                : "admin-overview-supervision";
 
                     return (
-                        <div key={section.label} data-tour={sectionTourId} className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-300">
-                            {/* Section header: Industrial Tech Style */}
-                            <div className="flex items-center gap-6">
-                                <div className="p-2.5 rounded-2xl bg-danger/10 border border-danger/20 ">
-                                    <SectionIcon className="w-5 h-5 text-danger" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h2 className="text-caption font-black uppercase tracking-widest text-danger/80">
+                        <section key={section.label} data-tour={sectionTourId} aria-labelledby={`admin-${sectionTourId}`}>
+                            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 pb-3 border-b border-border">
+                                <div>
+                                    <h2 id={`admin-${sectionTourId}`} className="reg-eyebrow">
                                         {section.label}
                                     </h2>
-                                    <div className="h-0.5 w-24 bg-gradient-to-r from-danger to-transparent" />
+                                    <p className="mt-1 text-xs text-muted-foreground">{section.hint}</p>
                                 </div>
-                                <div className="h-px flex-1 bg-gradient-to-r from-white/5 to-transparent" />
+                                <p className="reg-mono text-[11px] text-muted-foreground shrink-0">
+                                    {section.visibleCards.length} panneau{section.visibleCards.length > 1 ? "x" : ""}
+                                </p>
                             </div>
 
-                            {/* Cards grid: High-End HUD Slots */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {visibleCards.map((card) => {
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+                                {section.visibleCards.map((card) => {
                                     let warningBadge: string | undefined;
-                                    if (card.title === "Paramètres Généraux" && !isDofusConfigured) {
-                                        warningBadge = "Config. Requise";
+                                    if (card.title === "Paramètres généraux" && !isDofusConfigured) {
+                                        warningBadge = "Config. requise";
                                     }
-                                    if (card.title === "Rôles & Permissions" && !rbacConfigured) {
-                                        warningBadge = "Rôle Requis";
+                                    if (card.title === "Rôles & permissions" && !rbacConfigured) {
+                                        warningBadge = "Rôle requis";
                                     }
 
                                     return (
@@ -383,27 +408,25 @@ export default async function AdminPage({
                                             warningBadge={warningBadge}
                                             tourId={card.tourId}
                                             dofusAsset={card.dofusAsset}
+                                            tag={section.label.split(" ")[0]}
                                         />
                                     );
                                 })}
                             </div>
-                        </div>
+                        </section>
                     );
                 })}
             </div>
 
-            {/* Platform Terminal Status */}
-            <div className="max-w-2xl mx-auto pt-20">
-                <div className="p-8 rounded-[2rem] border border-border bg-surface backdrop-blur-sm relative overflow-hidden group">
-                    <div className="flex flex-col items-center gap-6 text-center relative z-10">
-                        <div className="h-1 w-12 bg-danger/40 rounded-full" />
-                        <div className="space-y-2">
-                             <h4 className="text-caption font-black text-muted-foreground uppercase tracking-widest">SigilOS Command Center</h4>
-                             <p className="text-xs text-muted-foreground font-bold uppercase tracking-tight italic">Toutes les actions administratives sont tracées dans l'Audit Log.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {/* 4. Traçabilité — une ligne factuelle + lien, pas un panneau marketing */}
+            <p className="reg-mono pt-2 border-t border-border/60 text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>Toutes les actions administratives sont tracées.</span>
+                {visibleSections.flatMap((s) => s.visibleCards).some((c) => c.title === "Audit logs") ? (
+                    <Link href={`/dashboard/${guildId}/admin/logs`} className="reg-link-quiet !text-accent hover:!text-foreground">
+                        Voir l&apos;audit log
+                    </Link>
+                ) : null}
+            </p>
         </div>
     );
 }

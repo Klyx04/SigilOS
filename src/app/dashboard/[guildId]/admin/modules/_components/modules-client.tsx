@@ -47,7 +47,7 @@ const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]
         { label: "Profil (Planning)", href: "/dashboard/{guildId}/profile?tab=planning" },
     ],
     minigames: [{ label: "Mini-Jeux", href: "/dashboard/{guildId}/mini-jeux" }],
-    quests: [{ label: "Quêtes Dofus", href: "/dashboard/{guildId}/quetes-dofus" }],
+    quests: [{ label: "Objectif Dofus", href: "/dashboard/{guildId}/quetes-dofus" }],
     worldmap: [{ label: "Carte du Monde", href: "/dashboard/{guildId}/worldmap" }],
     resources: [{ label: "Ressources Dofus", href: "/dashboard/{guildId}/ressources" }],
     profile: [

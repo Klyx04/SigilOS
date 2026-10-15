@@ -62,22 +62,23 @@ describe("tickets complets — libellés FR/EN vulgarisés", () => {
         "confirmDelete",
     ] as const;
 
-    it("chaque texte est bilingue, chaque bouton tient dans la limite Discord", () => {
-        for (const [key, label] of Object.entries(ticketTexts)) {
-            expect(label, `pas bilingue : ${key}`).toContain("/");
-        }
-        for (const key of buttonKeys) {
-            const label = ticketLabel(key);
-            expect(label.length, `trop long pour Discord : ${key}`).toBeLessThanOrEqual(
-                TICKET_BUTTON_LABEL_MAX
-            );
-            expect(label, `pas bilingue : ${key}`).toContain("/");
+    it("chaque texte est disponible en FR et EN, chaque bouton tient dans la limite Discord", () => {
+        for (const lang of ["fr", "en"] as const) {
+            for (const [key, label] of Object.entries(ticketTexts[lang])) {
+                expect(label.length, `texte vide : ${key} (${lang})`).toBeGreaterThan(0);
+            }
+            for (const key of buttonKeys) {
+                const label = ticketLabel(key, lang);
+                expect(label.length, `trop long pour Discord : ${key} (${lang})`).toBeLessThanOrEqual(
+                    TICKET_BUTTON_LABEL_MAX
+                );
+            }
         }
     });
 
     it("le côté FR des boutons bannit le jargon (claim/transcript)", () => {
         for (const key of buttonKeys) {
-            const frSide = ticketLabel(key).split("/")[0].toLowerCase();
+            const frSide = ticketLabel(key, "fr").toLowerCase();
             expect(frSide, `jargon dans ${key}`).not.toContain("claim");
             expect(frSide, `jargon dans ${key}`).not.toContain("transcript");
         }
@@ -328,7 +329,7 @@ describe("tickets complets — constructeur de questionnaire du motif", () => {
 describe("tickets complets — plafonds plateforme (God)", () => {
     it("défauts sûrs quand la ligne plateforme est absente ou en panne", () => {
         expect(readTicketPlatformLimits(null)).toEqual({ ...TICKET_PLATFORM_LIMIT_DEFAULTS });
-        expect(readTicketPlatformLimits("panne").retentionArchivesDays).toBe(90);
+        expect(readTicketPlatformLimits("panne").retentionArchivesDays).toBe(7);
     });
 
     it("borne chaque valeur (jamais de stockage illimité ni de quota absurde)", () => {
@@ -342,7 +343,7 @@ describe("tickets complets — plafonds plateforme (God)", () => {
         });
         expect(limits.transcriptsEnabled).toBe(false);
         expect(limits.retentionArchivesDays).toBe(365);
-        expect(limits.retentionNotesDays).toBe(7);
+        expect(limits.retentionNotesDays).toBe(3);
         expect(limits.retentionAuditDays).toBe(200);
         expect(limits.maxPerUserCap).toBe(10);
         expect(limits.maxGuildCap).toBe(5);

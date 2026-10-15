@@ -146,8 +146,8 @@ export function ChannelPreview({
 
     return (
         <div className={`flex items-center gap-1.5 text-caption font-bold ${textColor} ${className}`}>
-            <Hash className="w-3 h-3" />
-            <span>#{state.name ?? "Salon masqué"}</span>
+            <Hash className="w-3 h-3 shrink-0" />
+            <span>{state.name ? state.name.replace(/^#+/, "") : "Salon masqué"}</span>
         </div>
     );
 }

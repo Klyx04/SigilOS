@@ -1003,6 +1003,18 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Réponse éphémère à l'admin (l'embed a été supprimé par internalValidate*)
+                // Garantie fail-safe : suppression explicite du message cliqué si présent
+                const interactionChannelId = payload.channel_id || payload.message?.channel_id;
+                const interactionMessageId = payload.message?.id;
+                if (interactionChannelId && interactionMessageId) {
+                    try {
+                        const { deleteChannelMessage } = await import("@/server/discord");
+                        await deleteChannelMessage(interactionChannelId, interactionMessageId);
+                    } catch (_) {
+                        // Best-effort (peut avoir déjà été supprimé par internalValidate*)
+                    }
+                }
+
                 return NextResponse.json({
                     type: 4, // CHANNEL_MESSAGE_WITH_SOURCE (éphémère)
                     data: {
@@ -1582,11 +1594,32 @@ export async function POST(request: NextRequest) {
                     // (`requireConfirm: false` dans `settingsJson`). Le motif est demandé
                     // à l'étape suivante (`close_confirm` → modale `modal_close`).
                     const ticketId = entityId;
+                    const { db: closeDb } = await import("@/lib/prisma");
+                    const {
+                        readTicketPermissionSettings,
+                        requireCloseConfirm,
+                        readTicketMessagingSettings,
+                    } = await import("@/lib/tickets/category-permissions");
+                    const { resolveTicketLang, ticketLabel } = await import("@/lib/tickets/ticket-texts");
+                    const ticketForClose = await closeDb.ticketRecord.findFirst({
+                        where: { id: ticketId, discordGuildId: guild_id },
+                        select: {
+                            categoryId: true,
+                            journeyId: true,
+                            guild: { select: { ticketConfig: { select: { settingsJson: true } } } },
+                        },
+                    });
+                    const ticketForCloseSettingsJson =
+                        (ticketForClose?.guild?.ticketConfig as { settingsJson?: unknown } | null)
+                            ?.settingsJson;
+                    const closeLang = resolveTicketLang(
+                        readTicketMessagingSettings(ticketForCloseSettingsJson).ticketLanguage
+                    );
                     const closeModal = {
                         type: 9, // MODAL
                         data: {
                             custom_id: `tb:modal_close:${ticketId}`,
-                            title: "Fermer / Close",
+                            title: ticketLabel("close", closeLang),
                             components: [
                                 {
                                     type: 1,
@@ -1594,9 +1627,12 @@ export async function POST(request: NextRequest) {
                                         {
                                             type: 4,
                                             custom_id: "close_reason",
-                                            label: "Motif (optionnel) / Reason (optional)",
+                                            label: ticketLabel("closeNeedsReason", closeLang),
                                             style: 2,
-                                            placeholder: "Problème résolu, inactivité, doublon... / Solved, inactive, duplicate...",
+                                            placeholder:
+                                                closeLang === "en"
+                                                    ? "Solved, inactive, duplicate..."
+                                                    : "Problème résolu, inactivité, doublon...",
                                             required: false,
                                             max_length: 500,
                                         },
@@ -1606,21 +1642,7 @@ export async function POST(request: NextRequest) {
                         },
                     } as const;
                     {
-                        const { db: closeDb } = await import("@/lib/prisma");
-                        const { readTicketPermissionSettings, requireCloseConfirm } = await import(
-                            "@/lib/tickets/category-permissions"
-                        );
-                        const ticketForClose = await closeDb.ticketRecord.findFirst({
-                            where: { id: ticketId, discordGuildId: guild_id },
-                            select: {
-                                categoryId: true,
-                                journeyId: true,
-                                guild: { select: { ticketConfig: { select: { settingsJson: true } } } },
-                            },
-                        });
-                        const closeSettings = readTicketPermissionSettings(
-                            (ticketForClose?.guild?.ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
-                        );
+                        const closeSettings = readTicketPermissionSettings(ticketForCloseSettingsJson);
                         if (!requireCloseConfirm(closeSettings, ticketForClose?.categoryId ?? ticketForClose?.journeyId)) {
                             return NextResponse.json(closeModal);
                         }
@@ -1629,18 +1651,39 @@ export async function POST(request: NextRequest) {
                         type: 4,
                         data: {
                             content:
-                                "Fermer ce ticket ? / Close this ticket?\nLe salon restera visible par l'équipe. / The channel stays visible to the staff.",
+                                closeLang === "en"
+                                    ? `${ticketLabel("closeConfirmTitle", closeLang)}\nThe channel stays visible to the staff.`
+                                    : `${ticketLabel("closeConfirmTitle", closeLang)}\nLe salon restera visible par l'équipe.`,
                             flags: 64,
-                            components: buildCloseConfirmRows(ticketId),
+                            components: buildCloseConfirmRows(ticketId, closeLang),
                         },
                     });
                 } else if (action === "close_confirm") {
                     const ticketId = entityId;
+                    const { db: confirmDb } = await import("@/lib/prisma");
+                    const { readTicketMessagingSettings: readConfirmMessaging } = await import(
+                        "@/lib/tickets/category-permissions"
+                    );
+                    const { resolveTicketLang: resolveConfirmLang, ticketLabel: confirmLabel } = await import(
+                        "@/lib/tickets/ticket-texts"
+                    );
+                    const ticketForConfirm = await confirmDb.ticketRecord.findFirst({
+                        where: { id: ticketId, discordGuildId: guild_id },
+                        select: {
+                            guild: { select: { ticketConfig: { select: { settingsJson: true } } } },
+                        },
+                    });
+                    const confirmLang = resolveConfirmLang(
+                        readConfirmMessaging(
+                            (ticketForConfirm?.guild?.ticketConfig as { settingsJson?: unknown } | null)
+                                ?.settingsJson
+                        ).ticketLanguage
+                    );
                     return NextResponse.json({
                         type: 9, // MODAL
                         data: {
                             custom_id: `tb:modal_close:${ticketId}`,
-                            title: "Fermer / Close",
+                            title: confirmLabel("close", confirmLang),
                             components: [
                                 {
                                     type: 1,
@@ -1648,9 +1691,12 @@ export async function POST(request: NextRequest) {
                                         {
                                             type: 4,
                                             custom_id: "close_reason",
-                                            label: "Motif (optionnel) / Reason (optional)",
+                                            label: confirmLabel("closeNeedsReason", confirmLang),
                                             style: 2,
-                                            placeholder: "Problème résolu, inactivité, doublon... / Solved, inactive, duplicate...",
+                                            placeholder:
+                                                confirmLang === "en"
+                                                    ? "Solved, inactive, duplicate..."
+                                                    : "Problème résolu, inactivité, doublon...",
                                             required: false,
                                             max_length: 500,
                                         },
@@ -1662,18 +1708,39 @@ export async function POST(request: NextRequest) {
                 } else if (action === "cancel_close" || action === "cancel_delete") {
                     return NextResponse.json({
                         type: 4,
-                        data: { content: "Annulé. / Cancelled.", flags: 64 },
+                        data: { content: "Annulé.", flags: 64 },
                     });
                 } else if (action === "delete") {
                     // 🆕 La suppression est un geste explicite avec confirmation.
                     const ticketId = entityId;
+                    const { db: deleteDb } = await import("@/lib/prisma");
+                    const { readTicketMessagingSettings: readDeleteMessaging } = await import(
+                        "@/lib/tickets/category-permissions"
+                    );
+                    const { resolveTicketLang: resolveDeleteLang, ticketLabel: deleteLabel } = await import(
+                        "@/lib/tickets/ticket-texts"
+                    );
+                    const ticketForDelete = await deleteDb.ticketRecord.findFirst({
+                        where: { id: ticketId, discordGuildId: guild_id },
+                        select: {
+                            guild: { select: { ticketConfig: { select: { settingsJson: true } } } },
+                        },
+                    });
+                    const deleteLang = resolveDeleteLang(
+                        readDeleteMessaging(
+                            (ticketForDelete?.guild?.ticketConfig as { settingsJson?: unknown } | null)
+                                ?.settingsJson
+                        ).ticketLanguage
+                    );
                     return NextResponse.json({
                         type: 4,
                         data: {
                             content:
-                                "Supprimer ce salon ? / Delete this channel?\nSuppression définitive. La copie reste dans les archives si activée. / Permanently deletes the channel.",
+                                deleteLang === "en"
+                                    ? `${deleteLabel("deleteConfirmTitle", deleteLang)}\nPermanently deletes the channel.`
+                                    : `${deleteLabel("deleteConfirmTitle", deleteLang)}\nSuppression définitive. La copie reste dans les archives si activée.`,
                             flags: 64,
-                            components: buildDeleteConfirmRows(ticketId),
+                            components: buildDeleteConfirmRows(ticketId, deleteLang),
                         },
                     });
                 } else if (action === "delete_confirm") {

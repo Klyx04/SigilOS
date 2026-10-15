@@ -415,10 +415,10 @@ Sur Next 16, le proxy de routage doit être **`src/proxy.ts`** (pas `src/middlew
 ### Pattern recommandé (Server Action)
 
 ```typescript
-import { checkRateLimit } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/ratelimit";
 
-const allowed = await checkRateLimit(userId, "quest:toggle", { max: 10, windowMs: 60_000 });
-if (!allowed) {
+const rl = await rateLimit(`quest:toggle:${userId}`, 10, 60_000);
+if (!rl.success) {
   return { success: false, error: "Trop de requêtes, réessaie dans quelques secondes" };
 }
 ```

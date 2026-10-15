@@ -33,7 +33,7 @@ export const MODULE_ROUTES: Record<string, ModuleRoute> = {
     "quete-ocre":                      { label: "Quête Ocre",                  href: "/quete-ocre" },
     "ladder":                          { label: "Ladder de Guilde",            href: "/ladder" },
     "succes":                          { label: "Succès & Donjons",            href: "/succes" },
-    "quetes-dofus":                    { label: "Les Quêtes Dofus",            href: "/quetes-dofus" },
+    "quetes-dofus":                    { label: "Objectif Dofus",              href: "/quetes-dofus" },
     "donjons-et-quetes":               { label: "Donjons & Quêtes (LFG)",      href: "/donjons-et-quetes" },
     "songes":                          { label: "Songes Infinis",              href: "/songes" },
     "galerie-stuff":                   { label: "Galerie de Stuff",            href: "/galerie-stuff" },
@@ -61,7 +61,6 @@ export const MODULE_ROUTES: Record<string, ModuleRoute> = {
     "module-recrutement-cycle-de-vie": { label: "Recrutement & Cycle de Vie", href: "/admin/members" },
     "admin-points":                    { label: "Points & Économie Guilde",    href: "/admin/points" },
     "admin-logs":                      { label: "Logs d'Audit Staff",          href: "/admin/logs" },
-    "admin-api-keys":                  { label: "Clés d'API Rest",             href: "/admin/api-keys" },
 };
 
 export function getModuleRoute(slug: string): ModuleRoute | null {

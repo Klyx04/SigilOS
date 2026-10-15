@@ -1008,8 +1008,12 @@ export async function sendDjCustomReminder(guildId: string, postId: string, cust
         }
 
         const discordIds: string[] = [];
-        for (const p of post.participants) {
-            const discordId = await getDiscordId(p.profile.userId);
+        const targetUserIds = Array.from(new Set([
+            ...post.participants.map((p: any) => p.profile.userId),
+            post.profile.userId,
+        ].filter(Boolean)));
+        for (const uid of targetUserIds) {
+            const discordId = await getDiscordId(uid);
             if (discordId) discordIds.push(discordId);
         }
 
@@ -2004,7 +2008,7 @@ export async function joinDjPost(
                 profileId: user.profileId,
                 userId: user.id!,
                 classe: options?.classe || null,
-                message: options?.message || null,
+                message: options?.message ? options.message.trim().slice(0, 200) : null,
                 status: newStatus,
             },
         });

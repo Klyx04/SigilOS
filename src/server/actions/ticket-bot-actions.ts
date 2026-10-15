@@ -1181,7 +1181,7 @@ export async function toggleGodTicketBotModuleAction(
 
 /**
  * 🆕 Plafonds plateforme (God) : rétention, transcripts, quotas max.
- * Ligne absente ou panne ⇒ **défauts sûrs** (90/90/180 j, caps 5/100) : un ticket
+ * Ligne absente ou panne ⇒ **défauts sûrs** (7/7/90 j, caps 5/100) : un ticket
  * continue de s'ouvrir, avec des archives courtes — jamais de stockage illimité.
  */
 export async function getTicketPlatformLimits(): Promise<TicketPlatformLimits> {

@@ -88,6 +88,10 @@ export type StorageGuildEntry = {
     achievementCount: number;
     achievementBytes: number;
     achievementFiles: DiskFile[];
+    // transcripts tickets
+    transcriptsCount: number;
+    transcriptsBytes: number;
+    transcriptsFiles: DiskFile[];
     // seuil & utilisation
     totalBytes: number;
     limitBytes: number;
@@ -100,6 +104,26 @@ export type StorageOverview = {
     totalBytes: number;
     totalFiles: number;
     orphanFiles: DiskFile[];
+    totalTranscriptsCount: number;
+    totalTranscriptsBytes: number;
+};
+
+export type GodTranscriptEntry = {
+    id: string;
+    ticketId: string;
+    ticketNumber: number;
+    creatorDiscordName: string;
+    categoryName: string;
+    guildId: string;
+    discordGuildId: string;
+    guildName: string;
+    kind: "SHAREABLE" | "INTERNAL";
+    sizeBytes: number;
+    messageCount: number;
+    secretToken: string;
+    createdAt: Date;
+    expiresAt: Date | null;
+    partial: boolean;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -248,13 +272,33 @@ export async function getStorageOverview(force = false): Promise<{ success: bool
                 const presentationUrlBase = `/api/storage/guilds/${g.id}`;
                 const achievementUrlBase = `/api/storage/guilds/${g.id}/achievements`;
 
-                const [missionsList, kamaList, presentationList, achievementList, pendingFiles] = await Promise.all([
+                const [missionsList, kamaList, presentationList, achievementList, pendingFiles, transcriptsRows] = await Promise.all([
                     dirList(missionsDir, missionsUrlBase),
                     dirList(kamaDir, kamaUrlBase),
                     dirList(presentationDir, presentationUrlBase),
                     dirList(achievementDir, achievementUrlBase),
                     getPendingFilesForGuild(g.id, g.discordGuildId, cwd),
+                    db.ticketTranscript.findMany({
+                        where: { guildId: g.id },
+                        include: { ticket: { select: { ticketNumber: true } } },
+                        orderBy: { createdAt: "desc" },
+                    }),
                 ]);
+
+                // Transcripts stats
+                let transcriptsBytes = 0;
+                const transcriptsFiles: DiskFile[] = transcriptsRows.map((t) => {
+                    const bytes = t.sizeBytes || 0;
+                    transcriptsBytes += bytes;
+                    return {
+                        filename: `Transcript #${t.ticket?.ticketNumber ?? "N/A"} (${t.kind})`,
+                        url: `/api/tickets/transcript/${t.secretToken}`,
+                        sizeBytes: bytes,
+                        modifiedAt: t.createdAt,
+                        expiresAt: t.expiresAt || undefined,
+                    };
+                });
+                const transcriptsCount = transcriptsRows.length;
 
                 // Enrich disk files with pending status and expiry info
                 const enrich = (files: DiskFile[]) => {
@@ -280,8 +324,13 @@ export async function getStorageOverview(force = false): Promise<{ success: bool
                         : Promise.resolve(0),
                 ]);
 
-                // Seuil & utilisation (défaut global si non surchargé par guilde)
-                const totalBytes = missionsList.bytes + kamaList.bytes + achievementList.bytes + presentationList.bytes;
+                // Seuil & utilisation (défaut global si non surchargé par guilde, inclut les transcripts)
+                const totalBytes =
+                    missionsList.bytes +
+                    kamaList.bytes +
+                    achievementList.bytes +
+                    presentationList.bytes +
+                    transcriptsBytes;
                 const limitBytes = g.storageLimitBytes != null ? Number(g.storageLimitBytes) : DEFAULT_GUILD_STORAGE_LIMIT;
                 const usagePercent = limitBytes > 0 ? Math.round((totalBytes / limitBytes) * 100) : 0;
                 const overLimit = totalBytes > limitBytes;
@@ -335,6 +384,9 @@ export async function getStorageOverview(force = false): Promise<{ success: bool
                     pendingKamas,
                     pendingFiles: pendingFiles || [],
                     assets,
+                    transcriptsCount,
+                    transcriptsBytes,
+                    transcriptsFiles,
                     totalBytes,
                     limitBytes,
                     usagePercent,
@@ -382,9 +434,11 @@ export async function getStorageOverview(force = false): Promise<{ success: bool
             }
         });
 
-        // Totaux globaux : inclure aussi présentation + succès (pas seulement missions/kamas).
-        const totalBytes = entries.reduce((s, e) => s + e.missionsBytes + e.kamaBytes + e.presentationBytes + e.achievementBytes, 0);
-        const totalFiles = entries.reduce((s, e) => s + e.missionsCount + e.kamaCount + e.presentationCount + e.achievementCount, 0);
+        // Totaux globaux : inclure aussi présentation + succès + transcripts (pas seulement missions/kamas).
+        const totalBytes = entries.reduce((s, e) => s + e.missionsBytes + e.kamaBytes + e.presentationBytes + e.achievementBytes + e.transcriptsBytes, 0);
+        const totalFiles = entries.reduce((s, e) => s + e.missionsCount + e.kamaCount + e.presentationCount + e.achievementCount + e.transcriptsCount, 0);
+        const totalTranscriptsCount = entries.reduce((s, e) => s + e.transcriptsCount, 0);
+        const totalTranscriptsBytes = entries.reduce((s, e) => s + e.transcriptsBytes, 0);
         
         const orphanFiles: DiskFile[] = [];
         const now = Date.now();
@@ -443,7 +497,17 @@ export async function getStorageOverview(force = false): Promise<{ success: bool
             }
         }
 
-        const result = { success: true as const, data: { guilds: entries, totalBytes, totalFiles, orphanFiles } };
+        const result = {
+            success: true as const,
+            data: {
+                guilds: entries,
+                totalBytes,
+                totalFiles,
+                orphanFiles,
+                totalTranscriptsCount,
+                totalTranscriptsBytes,
+            },
+        };
         storageScanCache = { at: Date.now(), data: result.data };
         return result;
     } catch (error) {
@@ -750,4 +814,117 @@ export async function getGuildLogsStats(): Promise<{
     );
 
     return { success: true, data: { rows, totals } };
+}
+
+/**
+ * 🎫 Liste complète des transcripts tickets pour la gestion God du stockage.
+ * Inclut métadonnées du ticket, guilde, taille, messageCount, et date d'expiration pour compte à rebours.
+ * Réservé super-admin.
+ */
+export async function getGodTranscriptsList(): Promise<{
+    success: boolean;
+    data?: {
+        transcripts: GodTranscriptEntry[];
+        totalBytes: number;
+        totalCount: number;
+    };
+    error?: string;
+}> {
+    if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
+
+    try {
+        const rows = await db.ticketTranscript.findMany({
+            include: {
+                ticket: {
+                    select: {
+                        ticketNumber: true,
+                        creatorDiscordName: true,
+                        category: { select: { name: true } },
+                        journey: { select: { name: true } },
+                    },
+                },
+                guild: {
+                    select: {
+                        id: true,
+                        discordGuildId: true,
+                        name: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        let totalBytes = 0;
+        const transcripts: GodTranscriptEntry[] = rows.map((r) => {
+            const size = r.sizeBytes || 0;
+            totalBytes += size;
+            return {
+                id: r.id,
+                ticketId: r.ticketId,
+                ticketNumber: r.ticket?.ticketNumber ?? 0,
+                creatorDiscordName: r.ticket?.creatorDiscordName || "Membre",
+                categoryName: r.ticket?.journey?.name || r.ticket?.category?.name || "Support",
+                guildId: r.guild.id,
+                discordGuildId: r.guild.discordGuildId,
+                guildName: r.guild.name,
+                kind: r.kind as "SHAREABLE" | "INTERNAL",
+                sizeBytes: size,
+                messageCount: r.messageCount,
+                secretToken: r.secretToken,
+                createdAt: r.createdAt,
+                expiresAt: r.expiresAt,
+                partial: r.partial,
+            };
+        });
+
+        return {
+            success: true,
+            data: {
+                transcripts,
+                totalBytes,
+                totalCount: transcripts.length,
+            },
+        };
+    } catch (error) {
+        logger.error("[getGodTranscriptsList]", { error: String(error) });
+        return { success: false, error: "Erreur serveur lors de la récupération des transcripts" };
+    }
+}
+
+/**
+ * 🗑 Suppression manuelle et définitive d'un transcript ticket par le God.
+ * Réservé super-admin.
+ */
+export async function godDeleteTicketTranscript(
+    transcriptId: string
+): Promise<{ success: boolean; error?: string }> {
+    if (!(await isSuperAdmin())) return { success: false, error: "Super admin requis" };
+
+    const rl = await rateLimit("god:storage:delete-transcript", 30, 60_000);
+    if (!rl.success) return { success: false, error: "Trop de suppressions. Réessayez dans une minute." };
+
+    try {
+        const transcript = await db.ticketTranscript.findUnique({
+            where: { id: transcriptId },
+            select: { id: true, ticketId: true, kind: true, guild: { select: { name: true } } },
+        });
+
+        if (!transcript) {
+            return { success: false, error: "Transcript introuvable ou déjà supprimé" };
+        }
+
+        await db.ticketTranscript.delete({
+            where: { id: transcriptId },
+        });
+
+        logger.info(`[God] Superadmin a supprimé le transcript ${transcriptId} (${transcript.kind}) pour la guilde ${transcript.guild?.name}`);
+
+        // Invalide le cache de stockage pour rafraîchir les jauges instantanément
+        storageScanCache = null;
+
+        return { success: true };
+    } catch (error) {
+        logger.error("[godDeleteTicketTranscript]", { error: String(error), transcriptId });
+        return { success: false, error: "Erreur lors de la suppression du transcript" };
+    }
 }

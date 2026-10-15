@@ -57,14 +57,14 @@ export function TicketTranscriptsTab({ guildId, tickets }: TicketTranscriptsTabP
                 </div>
             </div>
 
-            {/* 90-day retention educational banner */}
+            {/* 7-day retention educational banner */}
             <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="space-y-1">
                     <div className="font-semibold text-emerald-300 flex items-center gap-1.5">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Rétention souveraine de 90 jours
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Rétention souveraine de 7 jours
                     </div>
                     <p className="text-muted-foreground text-[11px]">
-                        Les archives de conversation sont conservées pendant 90 jours avant purge automatique. Vous pouvez télécharger les pages HTML autonomes à tout moment pour un archivage permanent hors-ligne.
+                        Les archives de conversation sont conservées pendant 7 jours avant purge automatique. Vous pouvez télécharger les pages HTML autonomes à tout moment pour un archivage permanent hors-ligne.
                     </p>
                 </div>
             </div>

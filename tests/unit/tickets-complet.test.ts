@@ -329,7 +329,7 @@ describe("tickets complets — constructeur de questionnaire du motif", () => {
 describe("tickets complets — plafonds plateforme (God)", () => {
     it("défauts sûrs quand la ligne plateforme est absente ou en panne", () => {
         expect(readTicketPlatformLimits(null)).toEqual({ ...TICKET_PLATFORM_LIMIT_DEFAULTS });
-        expect(readTicketPlatformLimits("panne").retentionArchivesDays).toBe(90);
+        expect(readTicketPlatformLimits("panne").retentionArchivesDays).toBe(7);
     });
 
     it("borne chaque valeur (jamais de stockage illimité ni de quota absurde)", () => {
@@ -343,7 +343,7 @@ describe("tickets complets — plafonds plateforme (God)", () => {
         });
         expect(limits.transcriptsEnabled).toBe(false);
         expect(limits.retentionArchivesDays).toBe(365);
-        expect(limits.retentionNotesDays).toBe(7);
+        expect(limits.retentionNotesDays).toBe(3);
         expect(limits.retentionAuditDays).toBe(200);
         expect(limits.maxPerUserCap).toBe(10);
         expect(limits.maxGuildCap).toBe(5);

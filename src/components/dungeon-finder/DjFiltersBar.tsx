@@ -47,7 +47,7 @@ const MODE_SEGMENTS: Array<{ value: string; label: string; asset: DofusUiIconNam
     { value: "", label: "Tout", asset: null },
     { value: "DONJON", label: "Donjons", asset: "dungeon" },
     { value: "QUETE", label: "Quêtes", asset: "quest" },
-    { value: "DEFI", label: "Défi", asset: "challenge" },
+    { value: "DEFI", label: "Défis", asset: "challenge" },
     { value: "TITAN", label: "Titans", asset: "titan" },
 ];
 
@@ -84,12 +84,12 @@ export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = 
     return (
         <div className="space-y-3" data-tour="donjons-filters">
             {/* Row 1: Essential Search + Mode + Filter Toggle */}
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+            <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
                 {/* Recherche — « / » fait gagner un clic quand le champ est vide */}
                 <div className="relative group flex-1 min-w-0">
                     <Search className={cn(
                         "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors",
-                        filters.search ? "text-foreground" : "text-muted-foreground group-focus-within:text-foreground"
+                        filters.search ? "text-emerald-400" : "text-muted-foreground group-focus-within:text-foreground"
                     )} />
                     <input
                         ref={searchRef}
@@ -98,7 +98,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = 
                         onChange={(e) => onChange({ ...filters, search: e.target.value })}
                         placeholder="Rechercher un donjon, boss, quête…"
                         aria-label="Rechercher un donjon, un boss ou une quête"
-                        className="h-11 w-full rounded-xl border border-border bg-surface/60 pl-10 pr-10 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-border-strong focus:bg-surface"
+                        className="h-10 w-full rounded-xl border border-border/70 bg-surface/40 hover:bg-surface/60 pl-9 pr-9 text-sm text-foreground transition-all placeholder:text-muted-foreground/60 focus:border-emerald-500/40 focus:bg-surface/80 focus:ring-1 focus:ring-emerald-500/20"
                     />
                     {filters.search ? (
                         <button
@@ -110,16 +110,16 @@ export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = 
                             <X className="w-4 h-4" />
                         </button>
                     ) : (
-                        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-muted-foreground md:block">
+                        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-border/60 bg-background/80 px-1.5 py-0.5 font-mono text-[10px] font-bold text-muted-foreground md:block">
                             /
                         </kbd>
                     )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                    {/* Segments de mode — état actif neutre : l'accent reste réservé aux statuts */}
+                    {/* Segments de mode — sans scrollbar disgracieuse */}
                     <div
-                        className="flex items-center gap-1 p-1 h-11 rounded-xl border border-border bg-surface/50 shrink-0 overflow-x-auto custom-scrollbar"
+                        className="flex items-center gap-1 p-1 h-10 rounded-xl border border-border/70 bg-surface/40 backdrop-blur-sm shrink-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                         role="group"
                         aria-label="Type de post"
                     >
@@ -132,10 +132,10 @@ export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = 
                                     onClick={() => onChange({ ...filters, mode: value })}
                                     aria-pressed={isActive}
                                     className={cn(
-                                        "flex items-center gap-1.5 px-3 h-9 rounded-lg border text-caption font-bold whitespace-nowrap transition-colors",
+                                        "flex items-center gap-1.5 px-3 h-8 rounded-lg border text-caption font-bold whitespace-nowrap transition-all",
                                         isActive
                                             ? "bg-elevated border-border-strong text-foreground shadow-sm"
-                                            : "border-transparent text-muted-foreground hover:bg-elevated/60 hover:text-foreground"
+                                            : "border-transparent text-muted-foreground hover:bg-surface/60 hover:text-foreground"
                                     )}
                                 >
                                     {asset
@@ -144,8 +144,8 @@ export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = 
                                     <span>{label}</span>
                                     {count > 0 && (
                                         <span className={cn(
-                                            "font-mono text-[10px] tabular-nums",
-                                            isActive ? "text-muted-foreground" : "text-muted-foreground/60"
+                                            "font-mono text-[10px] tabular-nums px-1.5 py-0.2 rounded",
+                                            isActive ? "text-emerald-400 bg-emerald-500/10 font-bold" : "text-muted-foreground/60"
                                         )}>
                                             {count}
                                         </span>
@@ -155,21 +155,21 @@ export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = 
                         })}
                     </div>
 
-                    {/* Filtres avancés — icône de réglages (l'ancienne était « membres ») */}
+                    {/* Filtres avancés — icône de réglages */}
                     <button
                         onClick={() => setShowAdvanced(!showAdvanced)}
                         aria-expanded={showAdvanced}
                         className={cn(
-                            "flex items-center justify-center gap-2 px-4 h-11 min-w-[132px] rounded-xl border text-caption font-black transition-colors",
+                            "flex items-center justify-center gap-2 px-3.5 h-10 min-w-[120px] rounded-xl border text-caption font-bold transition-all",
                             showAdvanced || hasActiveAdvancedFilters
-                                ? "bg-elevated border-border-strong text-foreground"
-                                : "bg-surface/50 border-border text-muted-foreground hover:bg-surface hover:text-foreground"
+                                ? "bg-elevated border-emerald-500/40 text-foreground ring-1 ring-emerald-500/20"
+                                : "bg-surface/40 border-border/70 text-muted-foreground hover:bg-surface/70 hover:text-foreground"
                         )}
                     >
-                        <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+                        <SlidersHorizontal className="w-3.5 h-3.5 shrink-0 text-emerald-400/80" />
                         Filtres
                         {hasActiveFilters && (
-                            <span className="font-mono tabular-nums text-[10px] opacity-80">{filtered}/{total}</span>
+                            <span className="font-mono tabular-nums text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold">{filtered}/{total}</span>
                         )}
                     </button>
 
@@ -177,7 +177,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = 
                     <button
                         onClick={() => onChange({ ...DEFAULT_FILTERS })}
                         disabled={!hasActiveFilters}
-                        className="flex items-center justify-center w-11 h-11 rounded-xl border border-border bg-surface/50 text-muted-foreground shrink-0 transition-colors enabled:hover:text-danger enabled:hover:border-danger/40 enabled:hover:bg-danger/10 disabled:opacity-30 disabled:cursor-default"
+                        className="flex items-center justify-center w-10 h-10 rounded-xl border border-border/70 bg-surface/40 text-muted-foreground shrink-0 transition-all enabled:hover:text-danger enabled:hover:border-danger/40 enabled:hover:bg-danger/10 disabled:opacity-25 disabled:cursor-default"
                         title="Effacer les filtres"
                         aria-label="Effacer les filtres"
                     >
@@ -194,9 +194,9 @@ export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = 
                 )}
             >
                 <div className="overflow-hidden">
-                    <div className="flex flex-wrap items-center gap-2 mb-2 p-3 rounded-2xl border border-border bg-surface/30">
+                    <div className="flex flex-wrap items-center gap-2 mb-2 p-2.5 rounded-xl border border-border/60 bg-surface/30 backdrop-blur-sm">
                         {/* Paliers de niveau */}
-                        <span className="mr-1 text-caption font-black text-muted-foreground uppercase tracking-widest">Niveau</span>
+                        <span className="mr-1 text-caption font-bold text-muted-foreground/80 uppercase tracking-widest text-[10px]">Niveau</span>
                         {LEVEL_PRESETS.map((preset) => {
                             const isActive = activePreset?.label === preset.label;
                             return (
@@ -205,10 +205,10 @@ export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = 
                                     onClick={() => onChange({ ...filters, minLevel: preset.min, maxLevel: preset.max })}
                                     aria-pressed={isActive}
                                     className={cn(
-                                        "px-3 py-1.5 rounded-lg border text-caption font-bold transition-colors",
+                                        "px-2.5 py-1 rounded-lg border text-caption font-bold transition-all",
                                         isActive
-                                            ? "bg-elevated border-border-strong text-foreground"
-                                            : "border-transparent text-muted-foreground hover:bg-elevated/60 hover:text-foreground"
+                                            ? "bg-elevated border-border-strong text-foreground shadow-sm"
+                                            : "border-transparent text-muted-foreground hover:bg-surface/60 hover:text-foreground"
                                     )}
                                 >
                                     {preset.label}
@@ -216,7 +216,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered, modeCounts = 
                             );
                         })}
 
-                        <div className="mx-1 h-4 w-px bg-border" />
+                        <div className="mx-1 h-4 w-px bg-border/60" />
 
                         {/* Filtres rapides — pictos Dofus (joueur / succès / cadenas) */}
                         <ToggleChip
@@ -265,10 +265,10 @@ function ToggleChip({
             onClick={onToggle}
             aria-pressed={active}
             className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-caption font-bold transition-colors",
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-caption font-bold transition-all",
                 active
-                    ? "border-border-strong bg-elevated text-foreground"
-                    : "border-transparent bg-surface/40 text-muted-foreground hover:bg-elevated hover:text-foreground"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                    : "border-transparent bg-surface/40 text-muted-foreground hover:bg-surface/70 hover:text-foreground"
             )}
         >
             <DofusUiIcon name={asset} size={13} className={active ? undefined : "opacity-60"} />

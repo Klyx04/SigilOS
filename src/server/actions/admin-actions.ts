@@ -1145,6 +1145,7 @@ export async function updateRaidKamaDonationThreshold(
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
         logger.error("Update Raid Kama Donation Threshold Error:", error);
@@ -1181,6 +1182,7 @@ export async function updateRaidKamaDonationRequired(
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
         logger.error("Update Raid Kama Donation Required Error:", error);
@@ -1516,8 +1518,8 @@ export async function getMissionConfig(guildId: string): Promise<{
 export async function updateMissionNotifySettings(
     guildId: string,
     data: {
-        channelId: string | null;
-        roleId: string | null;
+        channelId?: string | null;
+        roleId?: string | null;
         validationChannelId?: string | null;
         validationRoleId?: string | null;
         kamaNotifyChannelId?: string | null;

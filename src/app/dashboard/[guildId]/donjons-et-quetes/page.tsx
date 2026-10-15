@@ -52,8 +52,7 @@ export default async function FinderPage({
                 <UnifiedModuleHeader
                     title="Donjons & Quêtes"
                     description="Cherchez des coéquipiers pour vos donjons et quêtes, ou créez un post."
-                    icon={Swords}
-                    iconColor="#ffffff"
+                    imageSrc="/assets/dofus/modules/dofus.png"
                     backHref={`/dashboard/${guildId}`}
                     actions={<ModuleTourReplayButton phase="donjons" />}
                 />

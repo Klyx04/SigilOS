@@ -157,8 +157,8 @@ export async function getScheduledPollSettings(guildId: string): Promise<Schedul
 }
 
 const UpdateScheduledPollSettingsSchema = z.object({
-    scheduledPollsChannelId: z.string().regex(/^\d{17,20}$/, "Salon Discord invalide").nullable(),
-    scheduledPollsDurationH: z.number().int().min(MIN_DURATION_HOURS).max(MAX_DURATION_HOURS).nullable(),
+    scheduledPollsChannelId: z.string().regex(/^\d{17,20}$/, "Salon Discord invalide").nullable().optional(),
+    scheduledPollsDurationH: z.number().int().min(MIN_DURATION_HOURS).max(MAX_DURATION_HOURS).nullable().optional(),
 }).strict();
 
 export async function updateScheduledPollSettings(
@@ -181,12 +181,17 @@ export async function updateScheduledPollSettings(
             if (!valid) return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
         }
 
+        const updateData: { scheduledPollsChannelId?: string | null; scheduledPollsDurationH?: number | null } = {};
+        if (parsed.data.scheduledPollsChannelId !== undefined) {
+            updateData.scheduledPollsChannelId = parsed.data.scheduledPollsChannelId;
+        }
+        if (parsed.data.scheduledPollsDurationH !== undefined) {
+            updateData.scheduledPollsDurationH = parsed.data.scheduledPollsDurationH;
+        }
+
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
-            data: {
-                scheduledPollsChannelId: parsed.data.scheduledPollsChannelId,
-                scheduledPollsDurationH: parsed.data.scheduledPollsDurationH,
-            },
+            data: updateData,
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/settings`);

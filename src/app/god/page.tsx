@@ -335,14 +335,6 @@ export default async function SuperAdminPage(props: {
                         </Suspense>
                     )}
 
-                    {tab === "api-keys" && (
-                        <div className="space-y-8">
-                            <Suspense fallback={<div className="animate-pulse bg-surface h-96 rounded-3xl border border-border" />}>
-                                <GodApiKeysServer />
-                            </Suspense>
-                        </div>
-                    )}
-
                     {tab === "slash-commands" && (
                         <div className="space-y-8">
                             <GodSlashCommandsPanel />
@@ -612,17 +604,6 @@ async function TelemetryServer() {
         const { logger } = await import("@/lib/logger");
         logger.error("[Telemetry ERROR]", { error: String(err) });
         return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading telemetry data</div>;
-    }
-}
-
-async function GodApiKeysServer() {
-    try {
-        const { getPlatformApiKeysOverviewAction } = await import("@/server/actions/api-key-actions");
-        const { GodApiKeysPanel } = await import("./components/god-api-keys-panel");
-        const res = await getPlatformApiKeysOverviewAction();
-        return <GodApiKeysPanel initialKeys={res.success ? res.data || [] : []} />;
-    } catch {
-        return <div className="p-8 text-center text-red-500 text-xs font-mono">Erreur chargement clés API</div>;
     }
 }
 

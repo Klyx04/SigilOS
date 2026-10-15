@@ -106,8 +106,8 @@ describe("Cartes de post Donjons — fin des pastilles vert/ambre/bleu", () => {
         expect(CARD_CODE).toMatch(/<DofusUiIcon name="date" size=\{14\}/);
     });
 
-    it("garde UN seul accent bleu : le CTA d'inscription", () => {
-        expect(CARD_CODE).toMatch(/"bg-info\/15 text-info border border-info\/30/);
+    it("aligné sur la landing : CTA en accent SigilOS (vert)", () => {
+        expect(CARD_CODE).toMatch(/bg-accent hover:bg-accent\/90 text-accent-foreground/);
         expect(CARD_CODE).toMatch(/line-clamp-2"\s*title=\{title \|\| ""\}/);
     });
 

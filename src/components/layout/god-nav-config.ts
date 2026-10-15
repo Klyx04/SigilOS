@@ -56,7 +56,6 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     // Administration
     { id: "guilds", name: "Guildes & Users", icon: Settings2, color: "text-success", group: "administration", scope: "guilds", scopeLabel: "Guildes", brickId: "guilds" },
     { id: "delegates", name: "Sous-Gods", sub: "delegates", icon: Shield, color: "text-violet-400", group: "administration", scope: "users", scopeLabel: "Users", brickId: "delegates" },
-    { id: "api-keys", name: "Clés d'API & Dev", icon: Key, color: "text-amber-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "api-keys" },
     { id: "slash-commands", name: "Commandes Slash", icon: Terminal, color: "text-accent", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "slash-commands" },
     { id: "logs", name: "Journaux", sub: "logs", icon: History, color: "text-violet-400", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "logs" },
     { id: "tickets", name: "Tickets Support", icon: Ticket, color: "text-info", group: "administration", scope: "all", scopeLabel: "Toutes", brickId: "tickets" },
@@ -75,7 +74,7 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     // Données de Jeu (sous-god friendly)
     { id: "game-data", name: "Données de Jeu", icon: Database, color: "text-info", group: "game-data", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data" },
     { id: "resources", name: "Ressources & Créateurs", icon: Library, color: "text-purple-400", group: "game-data", sub: "resources", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data-resources" },
-    { id: "quetes-dofus", name: "Quêtes Dofus", icon: Sparkles, color: "text-info", group: "game-data", sub: "quetes-dofus", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data-quetes" },
+    { id: "quetes-dofus", name: "Objectif Dofus", icon: Sparkles, color: "text-info", group: "game-data", sub: "quetes-dofus", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data-quetes" },
     { id: "dofus-guides", name: "Guides Optim.", icon: Navigation, color: "text-success", group: "game-data", sub: "dofus-guides", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data-guides" },
     { id: "rush-sylvestre", name: "Rush Sylvestre", icon: Zap, color: "text-success", group: "game-data", sub: "rush-sylvestre", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data-rush" },
     { id: "bugs", name: "Bugs & Suggs", icon: Bug, color: "text-danger", group: "game-data", sub: "bugs", scope: "all", scopeLabel: "Toutes", brickId: "bugs" },

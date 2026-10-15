@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { createWeekMissions, resetMission, resetWeek, getWeekMissions, updateWeekTier } from "@/server/actions/mission-actions";
+import { createWeekMissions, resetMission, resetWeek, getWeekMissions, updateWeekTier, isWeekPublished } from "@/server/actions/mission-actions";
 import { getDofusConfig, updateGuildHallConfig } from "@/server/actions/admin-actions";
 import { toast } from "sonner";
 import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send, Swords, Sparkles, Home, ChevronDown, MapPin, X } from "lucide-react";
@@ -100,13 +100,22 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 setHallWorldId(configRes.data.guildHallWorldId ?? 1);
             }
 
-            const res = await getWeekMissions(guildId, weekNumber, year);
+            const [res, pubRes] = await Promise.all([
+                getWeekMissions(guildId, weekNumber, year),
+                isWeekPublished(guildId, weekNumber, year)
+            ]);
+
+            if (pubRes.success && pubRes.data) {
+                setPublishedState({
+                    classiques: pubRes.data.isPublished,
+                    speciales: pubRes.data.isPublished
+                });
+            } else {
+                setPublishedState({ classiques: false, speciales: false });
+            }
+
             if (res.success && res.data) {
                 const fetched = res.data;
-                // Détecte si les pools sont déjà publiés en base (pour éviter les double-notifications)
-                const classicCount = fetched.filter((m: any) => m.title && m.slotIndex < 12).length;
-                const specialCount = fetched.filter((m: any) => m.title && m.slotIndex >= 12).length;
-                setPublishedState({ classiques: classicCount >= 12, speciales: specialCount >= 1 });
 
                 // Build 20 slots: 0-11 classic, 12-19 special
                 const newMissions = Array.from({ length: 20 }).map((_, i) => {

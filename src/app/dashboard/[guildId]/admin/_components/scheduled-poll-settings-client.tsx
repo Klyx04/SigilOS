@@ -17,7 +17,6 @@ import { toast } from "sonner";
 import { CalendarClock, ExternalLink, Loader2, Save, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
@@ -28,7 +27,6 @@ import {
     getScheduledPolls,
     updateScheduledPollSettings,
 } from "@/server/actions/scheduled-poll-actions";
-import { MAX_DURATION_HOURS, MIN_DURATION_HOURS } from "@/lib/polls/scheduling";
 import { POLL_SLOT_COUNTER } from "@/lib/polls/ui";
 
 interface ScheduledPollSettingsClientProps {
@@ -37,18 +35,17 @@ interface ScheduledPollSettingsClientProps {
 
 export function ScheduledPollSettingsClient({ guildId }: ScheduledPollSettingsClientProps) {
     const [channelId, setChannelId] = useState("");
-    const [durationHours, setDurationHours] = useState("");
     const [pingRoleIds, setPingRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string; name: string; color: string }[]>([]);
     const [slots, setSlots] = useState<{ used: number; max: number } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
-    const [initial, setInitial] = useState<{ channelId: string; durationHours: string; pingRoleIds: string[] } | null>(null);
+    const [initial, setInitial] = useState<{ channelId: string; pingRoleIds: string[] } | null>(null);
 
     const hasUnsavedChanges = isDirty(
-        { channelId, durationHours, pingRoleIds: [...pingRoleIds].sort() },
+        { channelId, pingRoleIds: [...pingRoleIds].sort() },
         initial
-            ? { channelId: initial.channelId, durationHours: initial.durationHours, pingRoleIds: [...initial.pingRoleIds].sort() }
+            ? { channelId: initial.channelId, pingRoleIds: [...initial.pingRoleIds].sort() }
             : null,
     );
 
@@ -64,13 +61,10 @@ export function ScheduledPollSettingsClient({ guildId }: ScheduledPollSettingsCl
 
             if (settings.success && settings.data) {
                 const loadedChannel = settings.data.scheduledPollsChannelId || "";
-                const loadedDuration = settings.data.scheduledPollsDurationH ? String(settings.data.scheduledPollsDurationH) : "";
                 setChannelId(loadedChannel);
-                setDurationHours(loadedDuration);
                 setPingRoleIds(settings.data.scheduledPollsPingRoleIds || []);
                 setInitial({
                     channelId: loadedChannel,
-                    durationHours: loadedDuration,
                     pingRoleIds: settings.data.scheduledPollsPingRoleIds || [],
                 });
             }
@@ -87,18 +81,16 @@ export function ScheduledPollSettingsClient({ guildId }: ScheduledPollSettingsCl
 
     const handleSave = () => {
         startTransition(async () => {
-            const parsedDuration = durationHours.trim() ? Number(durationHours) : null;
             const [result, rolesResult] = await Promise.all([
                 updateScheduledPollSettings(guildId, {
                     scheduledPollsChannelId: channelId.trim() || null,
-                    scheduledPollsDurationH: parsedDuration,
                 }),
                 updateAllowedPingRolesAction(guildId, pingRoleIds, "scheduledPolls"),
             ]);
 
             if (result.success && rolesResult.success) {
                 toast.success("Sondages programmés : configuration sauvegardée");
-                setInitial({ channelId: channelId.trim(), durationHours: durationHours.trim(), pingRoleIds: [...pingRoleIds] });
+                setInitial({ channelId: channelId.trim(), pingRoleIds: [...pingRoleIds] });
             } else {
                 toast.error(result.error || rolesResult.error || "Erreur lors de la sauvegarde");
             }
@@ -115,7 +107,7 @@ export function ScheduledPollSettingsClient({ guildId }: ScheduledPollSettingsCl
                 </CardTitle>
                 <CardDescription>
                     Publication automatique d&apos;un sondage à une date, une heure et une minute choisies :
-                    salon par défaut de l&apos;embed, rôles de ping autorisés et durée de vote proposée.
+                    salon par défaut de l&apos;embed et rôles de ping autorisés.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -166,19 +158,6 @@ export function ScheduledPollSettingsClient({ guildId }: ScheduledPollSettingsCl
                                 onChange={setPingRoleIds}
                                 roles={discordRoles}
                                 description="Liste vide = aucune mention possible depuis un créneau (les administrateurs du serveur ne peuvent pas contourner cette règle)."
-                            />
-                        </div>
-
-                        <div className="space-y-2 pt-2 border-t border-border">
-                            <Label className="text-muted-foreground">Durée de vote par défaut (heures)</Label>
-                            <Input
-                                type="number"
-                                min={MIN_DURATION_HOURS}
-                                max={MAX_DURATION_HOURS}
-                                value={durationHours}
-                                onChange={(e) => setDurationHours(e.target.value)}
-                                placeholder="Vide = sondage sans date de fin (clôturé après 30 jours)"
-                                className="max-w-xs"
                             />
                         </div>
 

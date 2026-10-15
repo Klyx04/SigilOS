@@ -11,7 +11,7 @@ export function ActivitiesNav({ guildId }: { guildId: string }) {
     const tabs = [
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "emerald" },
         { name: "Songes Infinis", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "indigo" },
-        { name: "Les Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: Gem, color: "cyan" },
+        { name: "Objectif Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: Gem, color: "cyan" },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "rose" },
     ];
 

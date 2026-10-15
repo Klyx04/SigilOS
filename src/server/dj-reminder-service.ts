@@ -72,6 +72,7 @@ export async function sendDjReminders(
                 where: { status: "ACCEPTED" },
                 select: { userId: true },
             },
+            profile: { select: { userId: true } },
             guild: { select: { discordGuildId: true, name: true, djNotifyChannelId: true } },
         },
         orderBy: { targetDate: "asc" },
@@ -102,8 +103,9 @@ export async function sendDjReminders(
         }
 
         try {
+            const targetUserIds = Array.from(new Set([...post.participants.map((p: any) => p.userId), post.profile?.userId].filter(Boolean)));
             const accounts = await db.account.findMany({
-                where: { userId: { in: post.participants.map((p: any) => p.userId) }, provider: "discord" },
+                where: { userId: { in: targetUserIds }, provider: "discord" },
                 select: { providerAccountId: true },
             });
             const mentions = buildRaidReminderMentions(accounts.map((a) => a.providerAccountId));
@@ -124,7 +126,7 @@ export async function sendDjReminders(
                     embedTitle: `🔔 ${title} — dans ${raidReminderLeadLabel(decision.leadMinutes)}`,
                     embedColor: 0xff6b35,
                     embedUrl: dashboardUrl,
-                    embedFooter: `SigilOS • ${post.guild?.name ?? "Guilde"} • Seuls les acceptés sont notifiés`,
+                    embedFooter: `SigilOS • ${post.guild?.name ?? "Guilde"} • Acceptés & leader notifiés`,
                     fields: [
                         { name: "⏰ Début", value: `<t:${startTs}:t> (<t:${startTs}:R>)`, inline: true },
                         { name: "👥 Acceptés", value: `${post.participants.length}`, inline: true },

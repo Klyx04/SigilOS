@@ -1,9 +1,10 @@
 "use server";
 
-import { fetchChannel, fetchGuildChannels } from "@/server/discord";
+import { fetchChannel, fetchGuildChannels, fetchGuildRoles } from "@/server/discord";
 import { getUserContext } from "./user-actions";
 import { rateLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
+import { canUserViewChannel } from "@/lib/discord-channel-permissions";
 
 export async function getDiscordChannelInfo(guildId: string, channelId: string) {
     const ctx = await getUserContext(guildId);
@@ -48,7 +49,36 @@ export async function getGuildChannelsAction(guildId: string) {
 
     try {
         const channels = await fetchGuildChannels(guildId);
-        return { success: true, data: channels };
+
+        // 🔒 Sécurité & Confidentialité : un utilisateur ne doit voir dans le sélecteur
+        // QUE les salons auxquels son compte Discord a réellement accès (VIEW_CHANNEL).
+        // Seuls les administrateurs Discord ou SuperAdmins voient tous les salons.
+        if (ctx.isDiscordAdmin || ctx.isSuperAdmin) {
+            return {
+                success: true,
+                data: channels.map(c => ({ id: c.id, name: c.name, type: c.type }))
+            };
+        }
+
+        const roles = await fetchGuildRoles(guildId, { excludeManaged: false });
+        const channelsById = new Map(channels.map(c => [c.id, c]));
+
+        const visibleChannels = channels.filter(channel => {
+            const parent = channel.parent_id ? channelsById.get(channel.parent_id) : null;
+            return canUserViewChannel({
+                guildId,
+                channel,
+                userRoleIds: ctx.roles || [],
+                userId: ctx.id,
+                guildRoles: roles,
+                parentChannel: parent,
+            });
+        });
+
+        return {
+            success: true,
+            data: visibleChannels.map(c => ({ id: c.id, name: c.name, type: c.type }))
+        };
     } catch (error) {
         logger.error("[getGuildChannelsAction]", { error: (error as Error).message, guildId });
         return { success: false, error: "Failed to fetch guild channels" };

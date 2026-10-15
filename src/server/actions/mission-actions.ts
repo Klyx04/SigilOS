@@ -1685,7 +1685,9 @@ export async function publishMissionsToDiscord(
                 pingType, 
                 messageId, 
                 channelId: guild.missionNotifyChannelId,
-                actorId: session?.user?.id || "system"
+                actorId: session?.user?.id || "system",
+                weekNumber: week,
+                year
             }
         });
 
@@ -1938,3 +1940,108 @@ export async function getMissionsByIds(ids: string[]) {
         return [];
     }
 }
+
+export async function isWeekPublished(
+    guildId: string,
+    weekNumber: number,
+    year: number
+): Promise<ActionResponse<{ isPublished: boolean; channelId: string | null; notifyRoleId: string | null; vitrineMode: boolean }>> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                id: true,
+                missionNotifyChannelId: true,
+                missionNotifyRoleId: true,
+                missionVitrineMode: true,
+            }
+        });
+
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        // 1. Any member submission on this week's missions confirms it was already published
+        const submissionsCount = await db.submission.count({
+            where: {
+                mission: {
+                    guildId: guild.id,
+                    weekNumber,
+                    year
+                }
+            }
+        });
+
+        if (submissionsCount > 0) {
+            return {
+                success: true,
+                data: {
+                    isPublished: true,
+                    channelId: guild.missionNotifyChannelId,
+                    notifyRoleId: guild.missionNotifyRoleId,
+                    vitrineMode: !!guild.missionVitrineMode
+                }
+            };
+        }
+
+        // 2. Check AuditLog for prior publish actions for this week
+        const recentPublishLogs = await db.auditLog.findMany({
+            where: {
+                guildId: guild.id,
+                action: { in: ["MISSION_PUBLISH_DISCORD", "MISSION_PUBLISHED"] as any },
+                createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) }
+            },
+            orderBy: { createdAt: "desc" },
+            take: 20
+        });
+
+        const isPublished = recentPublishLogs.some(log => {
+            const meta = log.metadata as Record<string, any> | null;
+            return meta && Number(meta.weekNumber) === weekNumber && Number(meta.year) === year;
+        });
+
+        return {
+            success: true,
+            data: {
+                isPublished,
+                channelId: guild.missionNotifyChannelId,
+                notifyRoleId: guild.missionNotifyRoleId,
+                vitrineMode: !!guild.missionVitrineMode
+            }
+        };
+    } catch (error) {
+        logger.error("isWeekPublished Error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function finalizeSilentPublish(
+    guildId: string,
+    weekNumber: number,
+    year: number
+): Promise<ActionResponse> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        await logAction({
+            guildId,
+            action: "MISSION_PUBLISHED",
+            targetType: "MISSION",
+            metadata: {
+                silent: true,
+                weekNumber,
+                year,
+                actorId: session?.user?.id || "system"
+            }
+        });
+        return { success: true };
+    } catch (error) {
+        logger.error("finalizeSilentPublish error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+

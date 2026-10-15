@@ -16,9 +16,9 @@ export const TICKET_PLATFORM_LIMIT_DEFAULTS = {
     // Désactivé par défaut (revue 14/10) : le staff l'active en connaissance
     // de cause (copies stockées sur le VPS, rétention branchée sur le janitor).
     transcriptsEnabled: false,
-    retentionArchivesDays: 90,
-    retentionNotesDays: 90,
-    retentionAuditDays: 180,
+    retentionArchivesDays: 7,
+    retentionNotesDays: 7,
+    retentionAuditDays: 90,
     maxPerUserCap: 5,
     maxGuildCap: 100,
 } as const;
@@ -50,9 +50,9 @@ export type TicketOpenStatus = (typeof TICKET_OPEN_STATUSES)[number];
 
 /** Bornes du panneau God (une guilde ne peut pas remplir le VPS). */
 export const TICKET_PLATFORM_LIMIT_BOUNDS = {
-    retentionArchivesDays: { min: 7, max: 365 },
-    retentionNotesDays: { min: 7, max: 365 },
-    retentionAuditDays: { min: 30, max: 730 },
+    retentionArchivesDays: { min: 3, max: 365 },
+    retentionNotesDays: { min: 3, max: 365 },
+    retentionAuditDays: { min: 14, max: 730 },
     maxPerUserCap: { min: 1, max: 10 },
     maxGuildCap: { min: 5, max: 500 },
 } as const;

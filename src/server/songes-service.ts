@@ -433,8 +433,12 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
         if (!run.discordChannelId) return { success: false, error: "Run ou canal introuvable" };
 
         const discordIds: string[] = [];
-        for (const member of run.members) {
-            const discordId = await getDiscordId(member.userId);
+        const targetUserIds = Array.from(new Set([
+            ...run.members.map((m: any) => m.userId),
+            run.leaderId,
+        ].filter(Boolean)));
+        for (const uid of targetUserIds) {
+            const discordId = await getDiscordId(uid);
             if (discordId) discordIds.push(discordId);
         }
 

@@ -3,6 +3,7 @@ import { db } from "@/lib/prisma";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { recordCronExecution } from "@/lib/cron-telemetry";
 import { summarizeLadderSync, buildLadderSyncMessage, buildLadderSyncFields } from "@/lib/ladder-sync-alert";
+import { emitSuccessPointsMilestone } from "@/server/ladder-milestones";
 
 // Wait function to avoid spamming the worker / Ankama
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -44,6 +45,9 @@ export async function GET(req: Request) {
                 id: true, 
                 pseudoDofus: true, 
                 guildId: true,
+                // Chantier N (lot N-2) : l'ancien score est nécessaire pour détecter un **palier**
+                // franchi — un franchissement se constate entre deux relevés, pas dans l'absolu.
+                successPoints: true,
                 guild: {
                     select: { dofusServerId: true }
                 }
@@ -101,6 +105,19 @@ export async function GET(req: Request) {
                         where: { id: profile.id },
                         data: updateData
                     });
+
+                    // Chantier N (lot N-2) : un palier de points franchi est annoncé **une seule
+                    // fois** dans le flux de vie de la guilde. C'est ici et pas à la validation :
+                    // les points arrivent par cette passe, seul endroit qui connaît l'avant/après.
+                    if (succesData.success && typeof succesData.points === "number") {
+                        await emitSuccessPointsMilestone({
+                            guildId: profile.guildId,
+                            profileId: profile.id,
+                            displayName: pseudo,
+                            before: profile.successPoints,
+                            after: succesData.points,
+                        });
+                    }
 
                     results.push({ pseudo, success: true, points: succesData.points, level: generalData.level || succesData.level });
                 } else {

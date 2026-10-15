@@ -9,8 +9,38 @@ import { db } from "@/lib/prisma";
  * Visible to involved parties for dispute resolution.
  */
 
-type LogModule = "SERVICE" | "LOAN" | "VAULT";
-type LogAction = "CREATED" | "UPDATED" | "DELETED" | "STATUS_CHANGE" | "RETURNED" | "CANCELLED" | "PARTIAL_RETURN";
+/**
+ * Modules tracés par ce journal. Les valeurs **SERVICE / LOAN / VAULT** sont celles du module
+ * Services (historique) ; les suivantes sont l'**activité de guilde** (chantier **N**, lot **N-2**) :
+ * elles alimentent le flux de vie de la guilde (`unified-activity-actions.ts`) et, depuis là, les
+ * annonces affichées en haut à droite. La correspondance type ↔ module vit dans
+ * `GUILD_ACTIVITY_MODULE_BY_KIND` (`src/lib/guild-activity.ts`) — une seule source.
+ */
+type LogModule =
+    | "SERVICE"
+    | "LOAN"
+    | "VAULT"
+    | "MISSIONS"
+    | "DONJONS"
+    | "SONGES"
+    | "OCRE"
+    | "EVENTS"
+    | "SUCCES"
+    | "DOFUS"
+    | "PALIERS"
+    | "LADDER";
+
+type LogAction =
+    | "CREATED"
+    | "UPDATED"
+    | "DELETED"
+    | "STATUS_CHANGE"
+    | "RETURNED"
+    | "CANCELLED"
+    | "PARTIAL_RETURN"
+    /** Activité de guilde (chantier N) : une validation, ou un palier franchi. */
+    | "VALIDATED"
+    | "MILESTONE";
 
 interface LogEntry {
     guildId: string;     // Internal Prisma guild ID

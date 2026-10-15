@@ -60,6 +60,7 @@ interface NotificationPrefs {
     donjons: boolean;
     events: boolean;
     ladder: boolean;
+    paliers: boolean;
     polls: boolean;
     admin_validations: boolean;
     ocre: boolean;
@@ -117,6 +118,7 @@ export function UserSettings({
         donjons: notificationPrefs?.donjons ?? true,
         events: notificationPrefs?.events ?? true,
         ladder: notificationPrefs?.ladder ?? true,
+        paliers: notificationPrefs?.paliers ?? true,
         polls: notificationPrefs?.polls ?? true,
         admin_validations: notificationPrefs?.admin_validations ?? true,
         ocre: notificationPrefs?.ocre ?? true,
@@ -358,6 +360,34 @@ export function UserSettings({
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="bg-surface border-border text-foreground font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
                                     Notifications Songes
+                                </TooltipContent>
+                            </Tooltip>
+
+                            {/* PALIERS DE POINTS DE SUCCÈS (chantier N, lot N-3) — la bulle d'activité
+                                de guilde « X passe la barre des 1 000 points ». Défaut ON, comme le
+                                reste : seul un membre qui décoche cesse de la recevoir (et la ligne ne
+                                quitte alors même plus le serveur). */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-between p-2.5 border border-border rounded-2xl bg-surface group hover:border-success/30 transition-all cursor-default">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
+                                                <Trophy className="w-4 h-4 text-success" />
+                                            </div>
+                                            <div className="min-w-0 pr-2">
+                                                <p className="text-caption font-semibold text-foreground truncate">Paliers de points</p>
+                                                <p className="text-caption text-muted-foreground truncate">Tous les 1 000 points de succès</p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={prefs.paliers}
+                                            onCheckedChange={(checked) => handleUpdatePrefs({ paliers: checked })}
+                                            disabled={loading}
+                                        />
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-surface border-border text-foreground font-bold uppercase tracking-wider text-caption px-3 py-1.5 shadow-xl">
+                                    Bulles d&apos;activité de guilde
                                 </TooltipContent>
                             </Tooltip>
 

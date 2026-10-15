@@ -234,3 +234,49 @@ export function buildGuildActivityCopy(input: {
     }
 }
 
+// ── Lien avec le flux (lot N-2) ──────────────────────────────────────────────
+
+/**
+ * Le **module** écrit dans `ServiceActivityLog.module` pour chaque type d'activité — c'est la
+ * colonne que le flux lit (`src/server/actions/unified-activity-actions.ts:143`) et sur laquelle
+ * le filtre de préférences se recale. Une **seule** table de correspondance, donc : écrire avec
+ * `GUILD_ACTIVITY_MODULE_BY_KIND` et relire avec `resolveGuildActivityKind` ne peuvent pas diverger.
+ */
+export const GUILD_ACTIVITY_MODULE_BY_KIND = {
+    missions: "MISSIONS",
+    donjons: "DONJONS",
+    songes: "SONGES",
+    ocre: "OCRE",
+    events: "EVENTS",
+    succes: "SUCCES",
+    dofus: "DOFUS",
+    paliers: "PALIERS",
+    ladder: "LADDER",
+} as const satisfies Record<GuildActivityKind, string>;
+
+/**
+ * Type d'activité d'une ligne du flux, depuis le `module` stocké. `null` pour tout ce qui n'est pas
+ * une activité de guilde connue (service, prêt, coffre…) : **fail-closed**, on n'invente pas un
+ * type, et l'appelant décide (ces lignes-là ne sont pas filtrées par les préférences de ce module).
+ */
+export function resolveGuildActivityKind(module: unknown): GuildActivityKind | null {
+    if (typeof module !== "string") return null;
+    const legacy = LEGACY_FEED_TYPE_TO_KIND[module];
+    if (legacy) return legacy;
+    const entry = (Object.entries(GUILD_ACTIVITY_MODULE_BY_KIND) as [GuildActivityKind, string][]).find(
+        ([, value]) => value === module,
+    );
+    return entry ? entry[0] : null;
+}
+
+/**
+ * Types **déjà** produits par le flux historiquement (`unified-activity-actions.ts`) : ils ne portent
+ * pas un `module` de `ServiceActivityLog` mais un type dédié. Sans cette table, leurs lignes
+ * échapperaient au filtre de préférences (donc : impossibles à couper par un membre).
+ */
+const LEGACY_FEED_TYPE_TO_KIND: Record<string, GuildActivityKind> = {
+    MISSION_VALIDATED: "missions",
+    OCRE_TRADE: "ocre",
+};
+
+

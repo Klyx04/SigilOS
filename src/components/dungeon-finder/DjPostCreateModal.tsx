@@ -1110,10 +1110,14 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                 {/* Message */}
                                 {!multiDungeons && (
                                 <div className="space-y-3">
-                                    <p className="text-caption font-black text-muted-foreground uppercase tracking-widest ml-1">Note pour la guilde</p>
+                                    <div className="flex items-center justify-between ml-1">
+                                        <p className="text-caption font-black text-muted-foreground uppercase tracking-widest">Note pour la guilde</p>
+                                        <span className="text-[11px] font-mono text-muted-foreground">{message.length}/200</span>
+                                    </div>
                                     <textarea
                                         value={message}
-                                        onChange={(e) => setMessage(e.target.value)}
+                                        maxLength={200}
+                                        onChange={(e) => setMessage(e.target.value.slice(0, 200))}
                                         rows={3}
                                         placeholder="Ex: On cherche un tank pour clean les succès du premier coup..."
                                         className="w-full bg-surface/60 hover:bg-surface/80 border border-border focus:border-warning/50 focus:ring-2 focus:ring-warning/10 rounded-2xl px-5 py-4 text-sm text-foreground focus:outline-none transition-all resize-none shadow-xl placeholder:text-muted-foreground"

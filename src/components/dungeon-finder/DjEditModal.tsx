@@ -341,13 +341,13 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                         </label>
                         <textarea
                             value={message}
-                            onChange={(e) => setMessage(e.target.value)}
+                            onChange={(e) => setMessage(e.target.value.slice(0, 200))}
                             rows={2}
-                            maxLength={500}
+                            maxLength={200}
                             placeholder="Ex : Je cherche des gens stuffs pour clean vite…"
                             className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring/50 shadow-inner resize-none transition-all"
                         />
-                        <p className="text-caption text-muted-foreground text-right font-medium">{message.length}/500</p>
+                        <p className="text-caption text-muted-foreground text-right font-medium">{message.length}/200</p>
                     </div>
                 </div>
 

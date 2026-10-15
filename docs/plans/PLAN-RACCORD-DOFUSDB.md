@@ -39,7 +39,31 @@ défi doivent avoir **leur couleur d'origine**, partout (pas seulement dans God)
 - les **8 selects** qui alimentent les modales/cartes DJ :
   `src/server/actions/dungeon-finder-actions.ts:748/865/967/1354/1435/2514/2956/3218`.
 
-## 3. Décisions à trancher
+### 2.b — Verdict de la mesure **R-1** (jouée le 15/10/2026 sur la base locale)
+
+Requête : `MonsterStat` (`283` lignes, `lastSyncedAt` = **2026-09-09** ⇒ **périmé de plus d'un mois**),
+témoin `Shin Larve` (`Donjon des Larves`).
+
+| Fait mesuré | Valeur | Lecture |
+|---|---|---|
+| Clés **de premier niveau** de `Shin Larve` | `coordinates, drops, dungeonName, familyId, grades, id, imageUrl, name, spells` | **`tackle` et `evade` n'existent pas** (ni au premier niveau, ni ailleurs) |
+| `stats ? 'tackle'` / `stats ? 'evade'` sur les **283** lignes | **0 / 0** | **le tacle et la fuite ne sont JAMAIS siphonnés** — alors que `scripts/siphon-unity-bestiary.py:371/390` les **calcule** (`tackle = agi/10 + bonus`, `evade`) : deux siphons, une seule des deux règles appliquée |
+| Résistances | **présentes** : `grades[].resists = { neutral: 54, fire: 34, earth: 34, water: -26, air: -26 }` (+ `lifePoints`, `actionPoints`, `movementPoints` par grade) | **la donnée est en base** ⇒ l'écran qui affiche « RÉSISTANCES » **sans valeurs** a un **bug de lecture** (clé/grade attendu), pas un trou de données |
+| `stats::text ILIKE '%resistance%'` | **135 / 283** | la moitié seulement des monstres portent le bloc de résistances (siphon partiel ou publication DofusDB incomplète) |
+| Probabilités d'effets (`%probability%`) | **127 / 283** | **partielles** — la mention « dans 25.0 % des cas » manque là où la clé n'est pas écrite |
+| `spells` | **283 / 283** | les sorts sont là ; c'est leur **contenu** (probabilité, critiques) qui est incomplet |
+
+**Conclusion (les deux causes sont réelles, à des endroits différents)** :
+1. **Tacle / fuite : bug de siphon.** La règle existe déjà dans `scripts/siphon-unity-bestiary.py` (agi/10 + bonus) — il faut l'appliquer au siphon qui alimente `MonsterStat` (ou brancher les deux sur la **même** règle).
+2. **Résistances : bug d'affichage.** Les valeurs sont en base dans `grades[].resists` ; les écrans qui les rendent vides sont
+   `src/components/succes/MonsterFicheView.tsx`, `SuccesBossEncyclo.tsx`, `SuccesBossGuide.tsx`, `SuccesTitanTab.tsx`,
+   `src/app/boss/[dungeonId]/_components/PublicBossDetailClient.tsx`, `src/components/boss-overlay/BossOverlayClient.tsx`.
+3. **Probabilités / critiques : siphon partiel + donnée fausse** (crit < base) ⇒ verrou « crit ≥ base » au siphon.
+
+**Ce que R-1 change dans les lots** : R-2 devient **« lire la bonne clé »** (`grades[].resists`) — pas un re-siphon — et un
+**re-siphon** (R-3) reste nécessaire pour tacle/fuite + probabilités, avec la donnée **périmée depuis le 09/09** comme
+argument supplémentaire.
+
 
 | # | Question | Recommandation |
 |---|---|---|

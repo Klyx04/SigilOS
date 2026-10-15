@@ -264,4 +264,11 @@ déjà cette configuration — Z-1 ne doit **pas** créer un doublon de ce modè
   renvoie vers Paramètres) + **13 imports morts** nettoyés dans `settings/page.tsx`, verrou
   `roles-anciennete-salon-settings.test.ts` (**9 cas**). ⇒ **Y-5 (texte par palier)** demandé par
   l'utilisateur, ensuite restent **F** (sélecteurs forum) et **I** (tags de forum choisis).
+- **14/10/2026 (nuit, suite)** — **chantier Y, lot Y-5 livré** (texte **par palier**) : `SeniorityTierAnnouncementOverride`
+  + `normalizeTierAnnouncement` + `resolveTierAnnouncement` (surcharge **partielle** : un champ vide hérite du
+  message global, couleur et miniature restent communes) · le cron annonce le texte **du palier franchi** ·
+  écran : bloc replié par palier + **aperçu du palier choisi** (même rendu pur que l'envoi) · **aucune
+  migration** (le texte vit dans le JSON `seniorityRolesTiers`) · verrous `seniority-roles-tier-text.test.ts`
+  (**9 cas**) + le cas **bout en bout** dans `seniority-roles-cron.test.ts` (**25**). ⇒ reste sur ce module :
+  **F** (sélecteurs **forum** pour Services/DJ/Galerie/Calendrier) et **I** (tags de forum choisis en dashboard).
 

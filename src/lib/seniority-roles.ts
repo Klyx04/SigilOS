@@ -47,10 +47,19 @@ export const SENIORITY_ANNOUNCEMENT_DESCRIPTION_MAX_LENGTH = 4096;
 
 // ── Forme des réglages ───────────────────────────────────────────────────────
 
-/** Un palier : « à partir de `days` jours, ces rôles-là ». */
+/** Surcharge **du texte** d'un palier : un champ absent hérite du message global. */
+export interface SeniorityTierAnnouncementOverride {
+    messageTemplate?: string;
+    embedTitle?: string;
+    embedDescription?: string;
+}
+
+/** Un palier : « à partir de `days` jours, ces rôles-là », avec son texte s'il est personnalisé. */
 export interface SeniorityTier {
     days: number;
     roleIds: string[];
+    /** Texte propre à ce palier (facultatif) — la couleur et la miniature restent communes. */
+    announcement?: SeniorityTierAnnouncementOverride;
 }
 
 /** Source de la miniature de l'embed de félicitation. */
@@ -99,6 +108,27 @@ export const DEFAULT_SENIORITY_ROLES_CONFIG: GuildSeniorityRolesConfig = {
 // ── Paliers : normalisation (un JSON stocké ne vaut rien tant qu'il n'est pas relu) ──
 
 /**
+ * Relit la **surcharge de texte** d'un palier : champ par champ, borné comme le message global ;
+ * une chaîne vide (ou blanche) n'est **pas** une surcharge — c'est un héritage du global.
+ */
+export function normalizeTierAnnouncement(raw: unknown): SeniorityTierAnnouncementOverride | undefined {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+    const source = raw as { messageTemplate?: unknown; embedTitle?: unknown; embedDescription?: unknown };
+    const bounded = (value: unknown, max: number) =>
+        typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined;
+
+    const out: SeniorityTierAnnouncementOverride = {};
+    const messageTemplate = bounded(source.messageTemplate, SENIORITY_ANNOUNCEMENT_MESSAGE_MAX_LENGTH);
+    const embedTitle = bounded(source.embedTitle, SENIORITY_ANNOUNCEMENT_TITLE_MAX_LENGTH);
+    const embedDescription = bounded(source.embedDescription, SENIORITY_ANNOUNCEMENT_DESCRIPTION_MAX_LENGTH);
+    if (messageTemplate) out.messageTemplate = messageTemplate;
+    if (embedTitle) out.embedTitle = embedTitle;
+    if (embedDescription) out.embedDescription = embedDescription;
+
+    return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
  * Relit les paliers depuis une valeur brute (JSON de la base) et les rend **toujours**
  * exploitables :
  * - palier non conforme (seuil non entier, hors bornes, sans rôle) → écarté ;
@@ -117,7 +147,7 @@ export function normalizeSeniorityTiers(raw: unknown): SeniorityTier[] {
     //    sinon c'est l'ordre reçu du formulaire qui décide — pas la règle.
     for (const entry of source) {
         if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
-        const candidate = entry as { days?: unknown; roleIds?: unknown };
+        const candidate = entry as { days?: unknown; roleIds?: unknown; announcement?: unknown };
         const days = candidate.days;
         if (typeof days !== "number" || !Number.isInteger(days)) continue;
         if (days < SENIORITY_ROLES_MIN_DAYS || days > SENIORITY_ROLES_MAX_DAYS) continue;
@@ -131,7 +161,9 @@ export function normalizeSeniorityTiers(raw: unknown): SeniorityTier[] {
         }
         if (roleIds.length === 0) continue;
 
-        candidates.push({ days, roleIds });
+        // Surcharge de texte : nettoyée ici, elle est portée par le **seuil** jusqu'à l'annonce.
+        const announcement = normalizeTierAnnouncement(candidate.announcement);
+        candidates.push(announcement ? { days, roleIds, announcement } : { days, roleIds });
     }
 
     // ② Tri par seuil : l'ordre de lecture redevient l'ordre logique de la règle.
@@ -149,7 +181,12 @@ export function normalizeSeniorityTiers(raw: unknown): SeniorityTier[] {
             roleIds.push(roleId);
         }
         if (roleIds.length === 0) continue;
-        tiers.push({ days: candidate.days, roleIds });
+        // Le texte du palier survit au dédoublonnage des rôles : il appartient au **seuil**.
+        tiers.push(
+            candidate.announcement
+                ? { days: candidate.days, roleIds, announcement: candidate.announcement }
+                : { days: candidate.days, roleIds },
+        );
     }
 
     return tiers.slice(0, SENIORITY_ROLES_MAX_TIERS);
@@ -239,6 +276,26 @@ export function resolveSeniorityTargetRoleIds(tiers: readonly SeniorityTier[], t
         for (const roleId of tier.roleIds) if (!out.includes(roleId)) out.push(roleId);
     }
     return out;
+}
+
+/**
+ * Annonce **effective** d'un palier : ses surcharges de texte, champ par champ, sinon le message
+ * global. Couleur et miniature restent **communes** (l'identité visuelle de la guilde) — un palier
+ * ne personnalise que ce qui se lit.
+ */
+export function resolveTierAnnouncement(input: {
+    announcement: SeniorityAnnouncementConfig;
+    tier: Pick<SeniorityTier, "announcement">;
+}): SeniorityAnnouncementConfig {
+    const override = input.tier.announcement;
+    if (!override) return input.announcement;
+    return {
+        messageTemplate: override.messageTemplate ?? input.announcement.messageTemplate,
+        embedTitle: override.embedTitle ?? input.announcement.embedTitle,
+        embedDescription: override.embedDescription ?? input.announcement.embedDescription,
+        color: input.announcement.color,
+        thumbnail: input.announcement.thumbnail,
+    };
 }
 
 // ── Diff à appliquer ─────────────────────────────────────────────────────────

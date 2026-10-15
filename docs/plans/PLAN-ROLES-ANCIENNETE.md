@@ -60,6 +60,7 @@ historique (migration pré-existante cassée `20261010000000_add_component_stats
 | 5 | Message de l'annonce | **Personnalisable** (ping, titre, description à variables, couleur, miniature) | demande explicite du 14/10 ; les variables sont une **allowlist fermée** (`{membre}`, `{pseudo}`, `{anciennete}`, `{roles}`, `{guilde}`), aucun `eval` |
 | 6 | Rattrapage des membres déjà présents (**backfill**) | **✅ tranché le 14/10/2026 — « on marque sans poster »** : les **rôles** se rattrapent (le diff est un état), mais **un palier franchi avant l'activation n'est jamais annoncé**. La règle est portée par un **marqueur d'activation** (`seniorityRolesActivatedAt`), pas par une heuristique de « première passe » | évite un salon inondé le jour de l'activation ; le marqueur rend la règle **pure et testable** (`shouldCelebrateSeniorityTier`) |
 | 7 | Idempotence de l'annonce (embed une seule fois) | ✅ **livré (Y-2)** : table `SeniorityRoleAnnouncement`, unicité `(guildId, discordId, tierDays)`, **revendication atomique avant l'envoi**, relâchée si l'envoi échoue | ajouter ou réordonner un palier ne rejoue rien : on trace le **seuil**, pas l'index |
+| 8 | Texte par palier (**Y-5**) | **Surcharge partielle** : un palier peut redéfinir le message, le titre et/ou la description ; un champ vide **hérite** du global. **Couleur et miniature restent communes** | demande user du 14/10 ; l'héritage champ par champ évite de recopier le global sur chaque palier, et l'identité visuelle reste stable. Aucune migration : c'est le JSON `seniorityRolesTiers` |
 
 ---
 
@@ -122,6 +123,26 @@ télémétrie `recordCronExecution("seniority_roles", …)`), déclarée dans `K
 
 **Invariants tenus** : membre inconnu de Discord ⇒ ignoré ; rôle non déclaré ⇒ jamais touché ;
 échec de pose ⇒ **aucune annonce** ; aucun salon ⇒ rôles seuls ; jeton manquant ⇒ arrêt immédiat.
+
+### Y-5 ✅ — texte **par palier** (livré le 14/10/2026)
+
+**Demande user (verbatim)** : « j'aimerai pouvoir éditer … chaque palier créé et son texte ».
+
+**Règle pure** (`src/lib/seniority-roles.ts`) : un palier porte une **surcharge partielle** de texte
+(`SeniorityTierAnnouncementOverride` : message, titre, description). `resolveTierAnnouncement({ announcement,
+tier })` recompose l'annonce **effective** : les champs fournis remplacent, **les autres héritent** du message
+global — **couleur et miniature restent communes** (l'identité visuelle ne se règle pas palier par palier).
+`normalizeTierAnnouncement` nettoie la surcharge relue (bornes identiques au message global, chaîne vide =
+héritage, objet vide = pas de surcharge) et elle **survit** au dédoublonnage des rôles (le texte appartient
+au **seuil**, pas à l'ordre reçu).
+
+**Cron** (`seniority-roles-core.ts`) : l'embed part avec `resolveTierAnnouncement` — donc le texte du palier
+**franchi**, jamais celui d'un autre seuil.
+
+**Écran** : chaque palier a un bloc **replié** « Texte de ce palier — personnalisé / hérite du message
+global » (3 champs, le message global en `placeholder`, un champ vidé reprend l'héritage), et l'aperçu gagne
+un sélecteur **« Palier relu dans l'aperçu »** qui rejoue le **même rendu pur** que l'envoi pour le seuil
+choisi. Aucune migration : le texte vit dans le JSON `seniorityRolesTiers` déjà en base.
 
 ### G ✅ — le salon de l'annonce vit dans **Paramètres** (livré le 14/10/2026)
 
@@ -220,6 +241,14 @@ rate limit, Zod (salon invalide, **champ surnuméraire**), isolation (salon d'un
 Discord, et les invariants d'architecture d'**une porte par réglage** (l'action des paliers ne touche plus
 au salon, l'écran des paliers n'a plus de sélecteur, l'onglet est déclaré **et** rendu dans Paramètres).
 
+**Verrou de Y-5** — `tests/unit/seniority-roles-tier-text.test.ts` (**9 cas**) : relecture de la surcharge
+(champs fournis gardés, champs vides ignorés, palier sans surcharge **sans** objet vide, bornes, survie au
+dédoublonnage des rôles), héritage `resolveTierAnnouncement` (même référence sans surcharge, remplacement
+champ par champ, couleur/miniature communes), contrat serveur (accepté tel quel, refusé hors bornes **et** sur
+clé inconnue **sans écriture**) et écran (bloc par palier, aperçu du palier choisi) — plus, dans
+`seniority-roles-cron.test.ts`, le cas **bout en bout** : l'embed part avec le texte **du palier franchi** et
+garde le global là où il n'y a pas de surcharge.
+
 **Acceptation du chantier** (vérifiée au fil des lots) :
 - un membre qui franchit un seuil **reçoit ses rôles** ; l'embed part **une seule fois** (cron relancé = rien de plus) ;
 - un membre **hors** mapping de guilde ne reçoit rien (fail-closed) ;
@@ -237,6 +266,7 @@ au salon, l'écran des paliers n'a plus de sélecteur, l'onglet est déclaré **
 | **Y-3** — onglet + éditeur + aperçu | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-ui.test.ts` (**16 cas**) · `seniority-roles-actions.ts` + `seniority-roles-panel.tsx` + 3ᵉ onglet de `/admin/members` (`?tab=anciennete`) · salon déclaré dans la veille des canaux |
 | **Y-4** — vue « Prochains paliers » | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-upcoming.test.ts` (**11 cas**) · règle pure `resolveUpcomingTierChange` + fenêtre `SENIORITY_UPCOMING_WINDOW_DAYS` · liste serveur (même requête, plafond 25) · section responsive dans l'onglet Membres (tableau desktop / cartes mobile), **aucune action** |
 | **G** — salon → Paramètres | ✅ **livré le 14/10/2026** | `tests/unit/roles-anciennete-salon-settings.test.ts` (**9 cas**) · `updateSeniorityRolesChannel` (**une porte par réglage**) · onglet `Paramètres → Ancienneté` (`?tab=anciennete`) · renvoi depuis l'onglet Membres (plus de sélecteur) |
+| **Y-5** — texte par palier | ✅ **livré le 14/10/2026** | `tests/unit/seniority-roles-tier-text.test.ts` (**9 cas**) + `seniority-roles-cron.test.ts` (**25**, dont le cas bout en bout) · `SeniorityTierAnnouncementOverride` + `resolveTierAnnouncement` (héritage champ par champ) · cron : l'embed part avec le texte du seuil franchi · écran : bloc de texte par palier + aperçu du palier choisi · **aucune migration** |
 
 **Ops (côté humain)** :
 - [ ] jouer les migrations `20270107000000_add_seniority_roles_config` **puis**

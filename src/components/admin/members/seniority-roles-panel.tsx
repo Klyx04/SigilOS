@@ -44,6 +44,7 @@ import {
     SENIORITY_UPCOMING_WINDOW_DAYS,
     buildSeniorityAnnouncementValues,
     renderSeniorityAnnouncement,
+    resolveTierAnnouncement,
     type SeniorityThumbnailSource,
 } from "@/lib/seniority-roles";
 import { buildDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/discord-avatars";
@@ -60,10 +61,33 @@ const THUMBNAIL_LABELS: Record<SeniorityThumbnailSource, string> = {
     none: "Aucune",
 };
 
+/** Texte propre à un palier dans le brouillon : **vide = hérite** du message global. */
+interface TierAnnouncementDraft {
+    messageTemplate: string;
+    embedTitle: string;
+    embedDescription: string;
+}
+
 interface TierDraft {
     days: string;
     roleIds: string[];
+    announcement: TierAnnouncementDraft;
 }
+
+const emptyTierAnnouncement = (): TierAnnouncementDraft => ({
+    messageTemplate: "",
+    embedTitle: "",
+    embedDescription: "",
+});
+
+/** Ce qui partira au serveur pour un palier : ses champs non vides, ou `undefined` (héritage). */
+const compactTierAnnouncement = (draft: TierAnnouncementDraft) => {
+    const out: { messageTemplate?: string; embedTitle?: string; embedDescription?: string } = {};
+    if (draft.messageTemplate.trim()) out.messageTemplate = draft.messageTemplate.trim();
+    if (draft.embedTitle.trim()) out.embedTitle = draft.embedTitle.trim();
+    if (draft.embedDescription.trim()) out.embedDescription = draft.embedDescription.trim();
+    return Object.keys(out).length > 0 ? out : undefined;
+};
 
 interface Draft {
     enabled: boolean;
@@ -87,7 +111,15 @@ const colorFromHex = (value: string) => {
 
 const draftFrom = (data: SeniorityRolesSettingsPayload): Draft => ({
     enabled: data.enabled,
-    tiers: data.tiers.map((tier) => ({ days: String(tier.days), roleIds: [...tier.roleIds] })),
+    tiers: data.tiers.map((tier) => ({
+        days: String(tier.days),
+        roleIds: [...tier.roleIds],
+        announcement: {
+            messageTemplate: tier.announcement?.messageTemplate ?? "",
+            embedTitle: tier.announcement?.embedTitle ?? "",
+            embedDescription: tier.announcement?.embedDescription ?? "",
+        },
+    })),
     messageTemplate: data.announcement.messageTemplate,
     embedTitle: data.announcement.embedTitle,
     embedDescription: data.announcement.embedDescription,
@@ -98,7 +130,12 @@ const draftFrom = (data: SeniorityRolesSettingsPayload): Draft => ({
 /** Vue comparable pour le garde « modifications non enregistrées » : l'ordre des rôles ne compte pas. */
 const comparable = (draft: Draft) => ({
     ...draft,
-    tiers: draft.tiers.map((tier) => ({ days: tier.days.trim(), roleIds: [...tier.roleIds].sort() })),
+    tiers: draft.tiers.map((tier) => ({
+        days: tier.days.trim(),
+        roleIds: [...tier.roleIds].sort(),
+        // On compare **ce qui partira** : un champ vidé n'est pas une surcharge.
+        announcement: compactTierAnnouncement(tier.announcement),
+    })),
 });
 
 const formatDate = (iso: string | null) =>
@@ -207,6 +244,8 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
     const [draft, setDraft] = useState<Draft | null>(null);
     const [initial, setInitial] = useState<Draft | null>(null);
     const [roles, setRoles] = useState<DiscordRoleOption[]>([]);
+    /** Palier relu dans l'aperçu (`null` = message global). */
+    const [previewTierIndex, setPreviewTierIndex] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
@@ -256,7 +295,15 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
 
     const addTier = () =>
         setDraft((current) =>
-            current ? { ...current, tiers: [...current.tiers, { days: "", roleIds: [] }] } : current,
+            current
+                ? {
+                      ...current,
+                      tiers: [
+                          ...current.tiers,
+                          { days: "", roleIds: [], announcement: emptyTierAnnouncement() },
+                      ],
+                  }
+                : current,
         );
 
     const removeTier = (index: number) =>
@@ -270,7 +317,12 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
             // Un palier sans seuil valide ou sans rôle est ignoré : la règle pure ferait le
             // même tri, autant ne pas l'envoyer.
             const tiers = draft.tiers
-                .map((tier) => ({ days: Number.parseInt(tier.days, 10), roleIds: tier.roleIds }))
+                .map((tier) => ({
+                    days: Number.parseInt(tier.days, 10),
+                    roleIds: tier.roleIds,
+                    // Le texte du palier, s'il en a un : sinon il hérite du message global.
+                    announcement: compactTierAnnouncement(tier.announcement),
+                }))
                 .filter(
                     (tier) =>
                         Number.isInteger(tier.days) &&
@@ -303,25 +355,32 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
     };
 
     // Aperçu : **le même rendu pur** que l'envoi (valeurs de démonstration, jamais un vrai membre).
+    // Le palier choisi fait relire **son** texte et **ses** rôles : c'est ce qui partira pour ce seuil.
+    const previewTier = draft && previewTierIndex !== null ? draft.tiers[previewTierIndex] ?? null : null;
     const previewValues = draft
         ? buildSeniorityAnnouncementValues({
               member: { discordId: SAMPLE_DISCORD_ID, displayName: SAMPLE_DISPLAY_NAME },
               guildName: data?.guildName ?? "La guilde",
               seniorityDays: SAMPLE_SENIORITY_DAYS,
-              awardedRoleIds: draft.tiers[0]?.roleIds ?? [],
+              awardedRoleIds: (previewTier ?? draft.tiers[0])?.roleIds ?? [],
           })
         : null;
 
     const preview =
         draft && previewValues
             ? renderSeniorityAnnouncement({
-                  announcement: {
-                      messageTemplate: draft.messageTemplate,
-                      embedTitle: draft.embedTitle,
-                      embedDescription: draft.embedDescription,
-                      color: colorFromHex(draft.color),
-                      thumbnail: draft.thumbnail,
-                  },
+                  announcement: resolveTierAnnouncement({
+                      announcement: {
+                          messageTemplate: draft.messageTemplate,
+                          embedTitle: draft.embedTitle,
+                          embedDescription: draft.embedDescription,
+                          color: colorFromHex(draft.color),
+                          thumbnail: draft.thumbnail,
+                      },
+                      tier: {
+                          announcement: previewTier ? compactTierAnnouncement(previewTier.announcement) : undefined,
+                      },
+                  }),
                   values: previewValues,
               })
             : null;
@@ -459,6 +518,87 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                             onChange={(value) => patchTier(index, { roleIds: value })}
                                             roles={roles}
                                         />
+
+                                        {/* Texte **propre au palier** (facultatif) : replié par défaut,
+                                            un champ vide reprend le message global. */}
+                                        <details className="rounded-lg border border-border/60 px-3 py-2">
+                                            <summary className="cursor-pointer text-xs text-muted-foreground">
+                                                Texte de ce palier —{" "}
+                                                {compactTierAnnouncement(tier.announcement)
+                                                    ? "personnalisé"
+                                                    : "hérite du message global"}
+                                            </summary>
+                                            <div className="mt-3 space-y-3">
+                                                <div className="space-y-2">
+                                                    <Label
+                                                        htmlFor={`tier-message-${index}`}
+                                                        className="text-xs text-muted-foreground"
+                                                    >
+                                                        Ligne de message
+                                                    </Label>
+                                                    <Input
+                                                        id={`tier-message-${index}`}
+                                                        value={tier.announcement.messageTemplate}
+                                                        placeholder={draft.messageTemplate}
+                                                        onChange={(event) =>
+                                                            patchTier(index, {
+                                                                announcement: {
+                                                                    ...tier.announcement,
+                                                                    messageTemplate: event.target.value,
+                                                                },
+                                                            })
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label
+                                                        htmlFor={`tier-title-${index}`}
+                                                        className="text-xs text-muted-foreground"
+                                                    >
+                                                        Titre de l&apos;embed
+                                                    </Label>
+                                                    <Input
+                                                        id={`tier-title-${index}`}
+                                                        value={tier.announcement.embedTitle}
+                                                        placeholder={draft.embedTitle}
+                                                        onChange={(event) =>
+                                                            patchTier(index, {
+                                                                announcement: {
+                                                                    ...tier.announcement,
+                                                                    embedTitle: event.target.value,
+                                                                },
+                                                            })
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label
+                                                        htmlFor={`tier-description-${index}`}
+                                                        className="text-xs text-muted-foreground"
+                                                    >
+                                                        Description de l&apos;embed
+                                                    </Label>
+                                                    <Textarea
+                                                        id={`tier-description-${index}`}
+                                                        value={tier.announcement.embedDescription}
+                                                        placeholder={draft.embedDescription}
+                                                        rows={3}
+                                                        onChange={(event) =>
+                                                            patchTier(index, {
+                                                                announcement: {
+                                                                    ...tier.announcement,
+                                                                    embedDescription: event.target.value,
+                                                                },
+                                                            })
+                                                        }
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Un champ laissé vide reprend le message global. La couleur et la
+                                                    miniature restent communes à tous les paliers.
+                                                </p>
+                                            </div>
+                                        </details>
                                     </div>
                                 ))
                             )}
@@ -557,7 +697,35 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Aperçu</Label>
+                                <div className="flex flex-wrap items-end justify-between gap-3">
+                                    <Label>Aperçu</Label>
+                                    {/* Relire le texte **par palier** : c&apos;est ce qui partira pour ce seuil. */}
+                                    <div className="w-52">
+                                        <Select
+                                            value={previewTierIndex === null ? "global" : String(previewTierIndex)}
+                                            onValueChange={(value) =>
+                                                setPreviewTierIndex(
+                                                    value === "global" ? null : Number.parseInt(value, 10),
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger
+                                                className="h-9"
+                                                aria-label="Palier relu dans l'aperçu"
+                                            >
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="global">Message global</SelectItem>
+                                                {draft?.tiers.map((tier, index) => (
+                                                    <SelectItem key={index} value={String(index)}>
+                                                        Palier {tier.days || "?"} j
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
                                 <DiscordEmbedPreview
                                     title={preview.embedTitle}
                                     description={preview.embedDescription}

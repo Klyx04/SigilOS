@@ -123,6 +123,33 @@ export function resolveDofusImageUrl(
 export type DofusAssetType = "spells" | "items" | "monsters" | "challenges" | "achievements";
 
 /**
+ * Icône d'un **défi** (`challenges`, le type 15 des « succès » de donjon) telle qu'elle doit être
+ * **servie** : la **forme canonique du proxy interne** (`/api/assets-dofus/challenges/{id}`), jamais
+ * l'URL stockée brute.
+ *
+ * 🐛 Mesure du 15/10/2026 : les modales du module Donjons & Quêtes affichaient `challenge.iconUrl`
+ * **brut** — d'où des icônes **assombries** (cache legacy / variante non canonique) alors que la page
+ * God `?tab=game-data` servait la bonne. Un visuel **stocké** ne se rend jamais tel quel : il passe par
+ * ici (même règle que `normalizeDofusAssetStoredUrl`).
+ *
+ * Fail-closed : entrée vide ⇒ `null` (aucune URL inventée, l'appelant garde son repli).
+ */
+export function normalizeChallengeIconUrl(stored: string | null | undefined): string | null {
+    if (typeof stored !== "string" || stored.trim().length === 0) return null;
+
+    const canonical = normalizeDofusAssetStoredUrl("challenges", stored);
+    // ⚠️ Mesuré le 15/10/2026 : `normalizeDofusAssetStoredUrl` ne réécrit PAS le chemin **legacy**
+    // (`/uploads/assets-dofus/challenges/977.webp`) pour ce type — seul `spells` a son cas particulier.
+    // La valeur stockée ressort donc inchangée, et c'est **elle** qui servait le visuel assombri.
+    // On force donc la forme canonique du proxy depuis l'id (le proxy re-siphonne et sert l'icône
+    // vérifiée) : `/api/assets-dofus/challenges/{id}`, idempotent sur une URL déjà canonique.
+    const id = canonical?.match(/\/assets-dofus\/challenges\/(\d+)/)?.[1];
+    if (id) return resolveDofusAssetImageUrl("challenges", id) ?? canonical;
+
+    return canonical;
+}
+
+/**
  * Hôtes acceptés pour le paramètre `?url=` du proxy (allowlist SSRF du route handler).
  * Une URL d'un autre hôte n'est PAS transmise : le proxy retombe alors sur son schéma
  * `/{type}/{id}.png` — on ne sert jamais un `?url=` qui serait rejeté.

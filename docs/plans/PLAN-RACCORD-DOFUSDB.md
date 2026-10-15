@@ -75,7 +75,9 @@ argument supplémentaire.
 
 | Lot | Contenu | Taille |
 |---|---|---|
-| **R-1** | **Mesure** : 3 fiches témoins (dont `Shin Larve`) — quels champs sont **en base** vs côté DofusDB, et quels champs ne sont **pas rendus**. Livrable : le tableau de mesure dans ce fichier (remplace le §2) | S |
-| **R-2** | **Visuels** : normaliser les icônes de défi **dans les selects** (`challenges`) ⇒ le même rendu que God, **souverain** (proxy interne), et un filet | S |
-| **R-3** | **Données manquantes** : résistances, tacle/fuite, initiative, probabilités d'effets — compléter le siphon et/ou le rendu **selon la mesure de R-1** | L |
-| **R-4** | **Garde-fous** : test pur « dégâts critiques ≥ dégâts de base » sur le siphon, et une fiche témoin en non-régression | M |
+| **R-1** ✅ | **Mesure** : verdict écrit en **§2.b** (résistances **en base**, `tackle`/`evade` **0/283**, probabilités 127/283, données **périmées au 09/09**) · *livré le 15/10/2026, PR #983* | S |
+| **R-2** ✅ | **Lecture des résistances** : la clé n'était pas fausse — la donnée arrive sous **3 formes** et le `\|\| {}` local faisait disparaître les valeurs **sans erreur** ⇒ `readGradeResists` (pur, fail-closed) + `EMPTY_GRADE_RESISTS`, une seule lecture pour les 3 écrans · *livré le 15/10/2026, PR #984* | S |
+| **R-3** ✅ | **Données manquantes** : `monster-stats-core.ts` a **deux** producteurs de grades et le **second** omettait les caractéristiques de combat (`tackle` 0/283) ⇒ `deriveGradeCombatStats` (valeur publiée **d'abord**, tacle/fuite **dérivés** de l'agilité en dernier recours avec la règle du jeu `floor(agi/10) + bonus`, celle de `scripts/siphon-unity-bestiary.py:371`) · *livré le 15/10/2026, PR #986* · **opérations** : relancer `/api/cron/sync-monster-stats` pour que les fiches déjà en base reçoivent les clés (la base ne se met pas à jour toute seule) | L |
+| **R-4** ✅ | **Garde-fou** : `isCoherentCritJet` (pur) — un jet **critique inférieur** au jet normal n'est plus publié (`attachCriticalDamage`, `dofensive-api.ts:687`), la **file positionnelle** par élément avance quand même · *livré le 15/10/2026, PR #985* | M |
+
+**Reste de ce chantier** : la **complétude** (~4 875 monstres sur ≈5 135 n'ont **aucune** fiche riche — arbitrage produit : boss de donjon seuls, ou toutes les fiches ?) et la **relance du siphon** (opérations, cf. R-3).

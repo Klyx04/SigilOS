@@ -75,3 +75,66 @@ export function readGradeResists(grade: unknown): GradeResists | null {
     const hasAny = Object.values(resists).some((value) => value !== null);
     return hasAny ? resists : null;
 }
+
+
+/**
+ * Tacle / fuite d'un grade, **règle du jeu** : `floor(agilité / 10) + bonus`.
+ *
+ * C'est **la** règle déjà appliquée par `scripts/siphon-unity-bestiary.py:371` (`tackle = int(agi/10)
+ * + bonus.get("tackleBonus")`) : on ne l'invente pas, on la porte au même endroit pour les fiches qui
+ * n'ont jamais reçu la valeur. `null` si l'agilité est absente (fail-closed : aucune valeur inventée).
+ */
+export function resolveTackleEvade(agility: unknown, bonus: unknown): number | null {
+    const agi = toInteger(agility);
+    if (agi === null) return null;
+    return Math.floor(agi / 10) + (toInteger(bonus) ?? 0);
+}
+
+/** Entier exploitable (nombre fini, ou chaîne d'entiers) ; `null` sinon. */
+export function toInteger(value: unknown): number | null {
+    const numeric =
+        typeof value === "number"
+            ? value
+            : typeof value === "string" && /^-?\d+$/.test(value.trim())
+              ? Number(value.trim())
+              : Number.NaN;
+    return Number.isFinite(numeric) ? Math.trunc(numeric) : null;
+}
+
+/**
+ * Caractéristiques de combat **à plat** d'un grade (chantier « Raccord DofusDB », lot **R-3**).
+ *
+ * Mesure du 15/10/2026 : **deux** producteurs de grades existent dans `monster-stats-core.ts`. Le
+ * premier (`:287-293`) écrit `tackle`/`evade`/`apDodge`/`mpDodge`/`apRemoval`/`mpRemoval`/`initiative` ;
+ * le second (`:966-994`) **ne les écrit pas** — d'où des écrans qui affichent « Tacle — » / « Fuite — »
+ * sur les fiches issues de ce chemin (`MonsterStat.stats.grades[]` mesuré : `tackle` **0/283**).
+ *
+ * Ici : on **préfère toujours la valeur publiée** (source ou `carac`), et on ne **dérive** tacle/fuite
+ * de l'agilité que lorsqu'elle manque — jamais l'inverse, jamais une valeur inventée.
+ */
+export interface GradeCombatStats {
+    tackle: number | null;
+    evade: number | null;
+    apDodge: number | null;
+    mpDodge: number | null;
+    apRemoval: number | null;
+    mpRemoval: number | null;
+    initiative: number | null;
+}
+
+export function deriveGradeCombatStats(grade: unknown, carac?: unknown): GradeCombatStats {
+    const g = (grade && typeof grade === "object" ? grade : {}) as Record<string, any>;
+    const c = (carac && typeof carac === "object" ? carac : {}) as Record<string, any>;
+
+    const agility = toInteger(g.agility ?? c.agility);
+
+    return {
+        tackle: toInteger(g.tackle) ?? resolveTackleEvade(agility, g.tackleBonus ?? c.tackleBonus),
+        evade: toInteger(g.evade) ?? resolveTackleEvade(agility, g.evadeBonus ?? c.evadeBonus),
+        apDodge: toInteger(g.apDodge ?? c.paDodge),
+        mpDodge: toInteger(g.mpDodge ?? c.pmDodge),
+        apRemoval: toInteger(g.apRemoval),
+        mpRemoval: toInteger(g.mpRemoval),
+        initiative: toInteger(g.initiative),
+    };
+}

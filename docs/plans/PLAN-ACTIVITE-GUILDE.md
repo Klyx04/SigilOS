@@ -49,10 +49,10 @@ sous le profil, désactivable par chaque membre.
 
 | Lot | Contenu | Taille |
 |---|---|---|
-| **N-1** | **Règles pures + préférences** : `resolveSuccessPointsMilestone(before, after)` (paliers de 1000, `successPoints` **null ⇒ 0**, jamais rétroactif, les points peuvent **baisser**), `resolveLadderRankChange`, `shouldNotifyGuildActivity({ kind, prefs })`, normalisation des préférences (`activite`, `ladder`, `dofus` — défaut ON). **Zéro I/O.** | M |
-| **N-2** | **Émission** : les événements manquants entrent dans le **flux** (DJ/donjons, songes, Dofus validés) et les paliers de points sont détectés **dans la passe ladder** (un seul endroit, pas 4 accroches) ; plafond anti-bruit ; `logger`. | M |
-| **N-3** | **Notif visible** : toast haut-droite sous le profil, alimenté par le **polling existant** de la cloche (10 s) ; interrupteurs dans l'onglet Notifications du profil. | M |
-| **N-4** | **Feed enrichi** : `unified-activity-actions.ts` gagne les nouvelles sources, **sans** élargir ce que le RBAC cachait ; lien profond par ligne. | S |
+| **N-1** ✅ | **Règles pures + préférences** — `src/lib/guild-activity.ts` : `resolveSuccessPointsMilestones` (paliers **fixes** de 1000, jamais une baisse, rattrapage borné, `successPoints` **null ⇒ 0**), `resolveLadderTopEntry` (entrée dans le top 3, **une fois**), `shouldNotifyGuildActivity` (défaut ON, **seul un `false` explicite** coupe), `buildGuildActivityCopy` (texte borné). **Zéro I/O.** *Livré le 15/10/2026 — PR **#978**, 23 cas.* | M |
+| **N-2** ⏳ | **Émission** — les **paliers de points** sont détectés dans la **passe ladder** et écrits **une fois** (`src/server/ladder-milestones.ts`, appelé par `/api/cron/ladder-sync`, l'ancien score est désormais sélectionné). **Reste** : brancher les **4 autres sources** (Dofus validés, succès validés, donjons/DJ, songes) sur `logServiceActivity` + `GUILD_ACTIVITY_MODULE_BY_KIND` — le **point d'entrée est déjà posé**, il ne reste qu'un appel par module, **avec son interrupteur** (pas de switch mort). *Livré le 15/10/2026 pour les paliers — PR **#979**.* | M |
+| **N-3** ⏳ | **Notif visible** — `src/components/notifications/activity-toaster.tsx` : une bulle pour chaque **nouvelle** ligne du flux, pour **tout le monde**, montée dans `top-nav.tsx` (haut droite sous le profil), **Toaster dédié** (`id="guild-activity"`) ; premier chargement **muet** ; polling 30 s. Interrupteur **« Paliers de points »** dans Profil → Notifications. **Reste** : les interrupteurs des 4 sources ci-dessus. *Livré le 15/10/2026 — PR **#979**.* | M |
+| **N-4** ✅ | **Flux enrichi** — `ActivityType` élargi aux modules d'activité de guilde, `getGuildActivityToasts` filtre les lignes **par les préférences du membre, côté serveur** (une annonce coupée ne quitte jamais la base). *Livré le 15/10/2026 — PR **#979**.* | S |
 
 ## 5. Tests et acceptation
 

@@ -1404,9 +1404,8 @@ export async function POST(request: NextRequest) {
                     // 🆕 Blacklist : un rôle bloqué ne peut pas ouvrir de ticket.
                     {
                         const { db: blacklistDb } = await import("@/lib/prisma");
-                        const { readTicketPermissionSettings, isBlacklisted } = await import(
-                            "@/lib/tickets/category-permissions"
-                        );
+                        const { readTicketPermissionSettings, isBlacklisted, isTicketOpenAllowedByRoles } =
+                            await import("@/lib/tickets/category-permissions");
                         const guildForBlacklist = await blacklistDb.guildConfig.findUnique({
                             where: { discordGuildId: guild_id },
                             select: {
@@ -1422,6 +1421,27 @@ export async function POST(request: NextRequest) {
                                 type: 4,
                                 data: {
                                     content: "🚫 Tu ne peux pas ouvrir de ticket sur ce serveur. / You cannot open a ticket on this server.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // 🆕 RBAC d'ouverture (16/10/2026) : seuls les rôles choisis pour CE motif
+                        // peuvent l'ouvrir. Liste vide = tout le monde (comportement historique) ;
+                        // un administrateur Discord passe toujours. Refus **motivé**, jamais muet.
+                        if (
+                            !isTicketOpenAllowedByRoles({
+                                settings: blacklistSettings,
+                                motifKey: categoryId,
+                                actorRoleIds: ticketActorContext.discordUserRoleIds,
+                                actorIsAdmin: ticketActorContext.discordUserIsAdmin,
+                            })
+                        ) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content:
+                                        "🚫 Ton rôle ne permet pas d'ouvrir ce type de demande. / Your role cannot open this request type.",
                                     flags: 64,
                                 },
                             });

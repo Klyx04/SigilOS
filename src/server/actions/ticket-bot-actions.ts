@@ -69,7 +69,8 @@ import {
     type TicketChannelState,
 } from "@/lib/tickets/channel-permissions";
 import {
-    buildTicketNotifyContent,
+    buildTicketCreatorContent,
+    buildTicketNotifyContentWithTemplate,
     resolveTicketNotifyRoleIds,
 } from "@/lib/tickets/notifications";
 import {
@@ -1914,6 +1915,17 @@ const TicketMotifSaveSchema = z.object({
     requireConfirm: z.boolean().default(true),
     additionalRoleIds: z.array(z.string().regex(/^\d{5,}$/)).max(25).default([]),
     welcomeMessage: z.string().max(2000).nullable().optional(),
+    /**
+     * 🆕 **Qui peut ouvrir** ce motif (RBAC). Vide = tout le monde ; sinon, seuls ces rôles
+     * (l'admin Discord passe toujours). Vérifié au clic du panneau, refus motivé.
+     */
+    allowedRoleIds: z.array(z.string().regex(/^\d{5,}$/)).max(25).default([]),
+    /** 🆕 Interrupteur « prévenir l'équipe à l'ouverture » (défaut : oui). */
+    notifyEnabled: z.boolean().default(true),
+    /** 🆕 Message personnalisé envoyé avec le ping des rôles (`{membre}`, `{motif}`, `{numero}`). */
+    notifyMessage: z.string().max(900).nullable().optional(),
+    /** 🆕 Message personnalisé envoyé au demandeur (`{membre}` = sa mention). */
+    creatorMessage: z.string().max(900).nullable().optional(),
     isEnabled: z.boolean().default(true),
     order: z.number().int().min(0).max(999).default(0),
     /** Questionnaire (4 natures, 20 au plus) : validé par le contrat v2. */
@@ -2071,11 +2083,21 @@ export async function saveTicketMotifAction(guildId: string, data: unknown): Pro
                 override: {
                     closePolicy: payload.closePolicy,
                     requireConfirm: payload.requireConfirm,
+                    // 🆕 RBAC d'ouverture : la liste est écrite **même vide** (elle porte le
+                    // choix explicite « tout le monde »), l'interrupteur est toujours écrit.
+                    allowedRoleIds: payload.allowedRoleIds,
+                    notifyEnabled: payload.notifyEnabled,
                     ...(payload.additionalRoleIds.length > 0
                         ? { additionalRoleIds: payload.additionalRoleIds }
                         : {}),
                     ...(payload.welcomeMessage?.trim()
                         ? { welcomeMessage: payload.welcomeMessage.trim() }
+                        : {}),
+                    ...(payload.notifyMessage?.trim()
+                        ? { notifyMessage: payload.notifyMessage.trim() }
+                        : {}),
+                    ...(payload.creatorMessage?.trim()
+                        ? { creatorMessage: payload.creatorMessage.trim() }
                         : {}),
                 },
             },
@@ -2640,6 +2662,13 @@ async function createTicketFromJourney(input: {
             buttons: readTicketButtonSettings(input.settingsJson),
         }),
         creatorDiscordId: params.discordUserId,
+        creatorName: params.discordUserName,
+        motifName: journey.name,
+        ticketNumber: record.ticketNumber,
+        // 🆕 Messages personnalisés du motif + interrupteur de notification (settingsJson).
+        notifyMessage: categoryOverride?.notifyMessage ?? null,
+        creatorMessage: categoryOverride?.creatorMessage ?? null,
+        notifyEnabled: categoryOverride?.notifyEnabled,
         notifyRoleIds,
     });
 
@@ -2670,9 +2699,19 @@ async function postTicketWelcomeMessage(input: {
     /** Embed n°2 (réponses) : posté en second message, sans boutons. */
     secondEmbed?: Record<string, unknown> | null;
     components: DiscordActionRow[];
-    /** Le créateur est toujours pingé à l'ouverture. */
-    creatorDiscordId?: string;
+    /** Le créateur est pingé à l'ouverture (mention **garantie**, message personnalisable). */
+    creatorDiscordId?: string | null;
+    creatorName?: string | null;
+    /** Motif et numéro alimentent `{motif}` / `{numero}` des messages personnalisés. */
+    motifName?: string | null;
+    ticketNumber?: number | null;
     notifyRoleIds: string[];
+    /** Message personnalisé de l'équipe (`{membre}` = pseudo, aucun ping sur le membre). */
+    notifyMessage?: string | null;
+    /** Message personnalisé du demandeur (`{membre}` = sa mention). */
+    creatorMessage?: string | null;
+    /** `false` = l'admin a coupé la notification de l'équipe. */
+    notifyEnabled?: boolean;
 }): Promise<string | null> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) {
@@ -2681,10 +2720,19 @@ async function postTicketWelcomeMessage(input: {
     }
 
     const { fetchWithRetry, DISCORD_USER_AGENT } = await import("@/server/discord");
-    const rolesContent = buildTicketNotifyContent(input.notifyRoleIds);
-    const content = [input.creatorDiscordId ? `<@${input.creatorDiscordId}>` : null, rolesContent]
-        .filter(Boolean)
-        .join(" ");
+    const vars = { motif: input.motifName ?? null, numero: input.ticketNumber ?? null };
+    const rolesContent = buildTicketNotifyContentWithTemplate({
+        roleIds: input.notifyRoleIds,
+        template: input.notifyMessage,
+        enabled: input.notifyEnabled,
+        vars: { ...vars, membre: input.creatorName ? `@${input.creatorName}` : "" },
+    });
+    const creatorContent = buildTicketCreatorContent({
+        creatorDiscordId: input.creatorDiscordId,
+        template: input.creatorMessage,
+        vars,
+    });
+    const content = [creatorContent, rolesContent].filter(Boolean).join(" ");
     const mentionedUsers = input.creatorDiscordId ? [input.creatorDiscordId] : [];
 
     const post = (payload: Record<string, unknown>) =>

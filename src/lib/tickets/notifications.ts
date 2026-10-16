@@ -69,3 +69,71 @@ export const TICKET_NOTIFY_SOURCE_LABELS: Record<TicketNotifyRoleSource, string>
     team: "Rôles de l'équipe (le parcours n'en définit pas)",
     none: "Personne n'est mentionné à l'ouverture",
 };
+
+/** Longueur maximale d'un message personnalisé (Discord plafonne un contenu à 2 000). */
+export const TICKET_MESSAGE_MAX = 900;
+
+/** Variables disponibles dans les messages personnalisés du motif. */
+export type TicketMessageVars = {
+    /** Pour l'équipe : `@Pseudo` (aucun ping). Pour le demandeur : sa **mention**. */
+    membre?: string | null;
+    motif?: string | null;
+    numero?: number | string | null;
+};
+
+/**
+ * Rend un message personnalisé : remplace `{membre}`, `{motif}`, `{numero}` puis borne le
+ * résultat. Rend `null` si le texte est vide — un gabarit vide ne produit **rien**, jamais
+ * une chaîne de ponctuation orpheline.
+ */
+export function renderTicketMessage(
+    template: string | null | undefined,
+    vars: TicketMessageVars = {}
+): string | null {
+    const raw = String(template ?? "").trim();
+    if (!raw) return null;
+    const rendered = raw
+        .replace(/\{membre\}/gi, vars.membre ? String(vars.membre) : "")
+        .replace(/\{motif\}/gi, vars.motif ? String(vars.motif) : "")
+        .replace(/\{numero\}/gi, vars.numero === null || vars.numero === undefined ? "" : String(vars.numero))
+        .replace(/[ \t]{2,}/g, " ")
+        .trim();
+    return rendered ? rendered.slice(0, TICKET_MESSAGE_MAX) : null;
+}
+
+/**
+ * Contenu **de l'équipe** : message personnalisé (puis la mention des rôles), sinon le
+ * libellé par défaut. `enabled: false` coupe tout — c'est le choix explicite de l'admin.
+ */
+export function buildTicketNotifyContentWithTemplate(input: {
+    roleIds?: Array<string | null | undefined> | null;
+    template?: string | null;
+    vars?: TicketMessageVars;
+    enabled?: boolean;
+}): string | null {
+    if (input.enabled === false) return null;
+    const safe = sanitizeTicketNotifyRoleIds(input.roleIds);
+    if (safe.length === 0) return null;
+    const mentions = safe.map((roleId) => `<@&${roleId}>`).join(" ");
+    const custom = renderTicketMessage(input.template, input.vars);
+    // Sans message personnalisé, on garde **le** libellé par défaut du module (source unique).
+    return custom ? `${custom} ${mentions}` : buildTicketNotifyContent(input.roleIds);
+}
+
+/**
+ * Contenu **du demandeur** : son message personnalisé (il y place `{membre}`), sinon sa
+ * simple mention. La mention est **garantie** : un gabarit qui l'oublie ne prive jamais le
+ * demandeur de sa notification (on l'ajoute devant).
+ */
+export function buildTicketCreatorContent(input: {
+    creatorDiscordId?: string | null;
+    template?: string | null;
+    vars?: TicketMessageVars;
+}): string | null {
+    const creator = String(input.creatorDiscordId ?? "").trim();
+    if (!SNOWFLAKE.test(creator)) return null;
+    const mention = `<@${creator}>`;
+    const custom = renderTicketMessage(input.template, { membre: mention, ...(input.vars ?? {}) });
+    if (!custom) return mention;
+    return custom.includes(mention) ? custom : `${mention} ${custom}`;
+}

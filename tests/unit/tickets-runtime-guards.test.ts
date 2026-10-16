@@ -194,7 +194,8 @@ describe("tickets v2 — le branchement Discord de l'ouverture (parcours réels)
         expect(create).toContain("metadataJson: { welcomeMessageId }");
         // Ping : seuls les rôles choisis, jamais `@everyone`, et un `allowed_mentions` explicite.
         expect(create).toContain("resolveTicketNotifyRoleIds(");
-        expect(actions).toContain("buildTicketNotifyContent(");
+        expect(actions).toContain("buildTicketNotifyContentWithTemplate(");
+        expect(actions).toContain("buildTicketCreatorContent(");
         expect(actions).toContain("allowed_mentions:");
     });
 

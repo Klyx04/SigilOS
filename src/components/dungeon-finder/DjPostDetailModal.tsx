@@ -27,7 +27,7 @@ import { fr } from "date-fns/locale";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
-import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel, getDjDungeonStats, summarizeDjDungeons } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel, getDjDungeonStats, summarizeDjDungeons, getMultiMessageIds } from "@/lib/dungeon-finder-utils";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
@@ -83,6 +83,13 @@ export function DjPostDetailModal({
      */
     const stats = getDjDungeonStats(post);
     const summary = summarizeDjDungeons(stats);
+    /**
+     * Le post est-il **déjà** au format « un message par donjon » (un id par donjon) ?
+     * Sert à n'afficher le bouton de republication que lorsqu'il a quelque chose à faire
+     * (post hérité, ou message de donjon manquant) — jamais comme un réglage permanent.
+     */
+    const hasPerDungeonLayout = isMulti
+        && getMultiMessageIds(post.dungeonsJson).length === multiDungeons.length;
     /** Mes inscriptions — **plusieurs** possibles sur un post multi (une par donjon). */
     const myParticipations = currentProfileId
         ? post.participants.filter((p) => p.profile.id === currentProfileId)
@@ -786,21 +793,6 @@ export function DjPostDetailModal({
                                                 Relancer
                                             </Button>
                                         )}
-                                        {/* Posts publiés AVANT le 16/10/2026 : un seul message
-                                            (N embeds + N rangées). Ce bouton les fait passer au
-                                            format « un message par donjon », sans migration. */}
-                                        {isMulti && post.isDiscordPublished && post.discordMessageId && (
-                                            <Button
-                                                variant="outline"
-                                                className="border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/20 font-bold h-11 transition-all px-4 rounded-xl"
-                                                onClick={handleRepublishLayout}
-                                                disabled={isPending}
-                                                title="Republier le post Discord : un message par donjon (le message d'ouverture devient le chapeau)"
-                                            >
-                                                <Layers className="w-4 h-4 mr-2" />
-                                                Republier en 1 msg/donjon
-                                            </Button>
-                                        )}
                                         <Button
                                             variant="outline"
                                             className="flex-1 min-w-[180px] border-border/70 bg-surface/60 text-foreground hover:text-foreground hover:bg-surface font-bold h-11 transition-all rounded-xl"
@@ -811,6 +803,23 @@ export function DjPostDetailModal({
                                             Modifier le groupe
                                         </Button>
                                     </>
+                                )}
+                                {/* Posts dont le message d'ouverture porte **encore tout** (ancien
+                                    format : N embeds + N rangées) ou dont un message de donjon
+                                    manque : on republie en « un message par donjon ». Visible
+                                    créateur **et** admin — c'est un outil de reprise, jamais un
+                                    réglage (disparaît dès que le format est bon). */}
+                                {isMulti && post.isDiscordPublished && post.discordMessageId && !hasPerDungeonLayout && (
+                                    <Button
+                                        variant="outline"
+                                        className="border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/20 font-bold h-11 transition-all px-4 rounded-xl"
+                                        onClick={handleRepublishLayout}
+                                        disabled={isPending}
+                                        title="Réparer le post Discord : un message par donjon (le message d'ouverture devient le chapeau, les anciens messages de donjon sont remplacés)"
+                                    >
+                                        <Layers className="w-4 h-4 mr-2" />
+                                        Republier en 1 msg/donjon
+                                    </Button>
                                 )}
                                 <Button
                                     className="flex-1 min-w-[180px] bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-500/30 font-bold h-11 transition-all rounded-xl cursor-pointer"

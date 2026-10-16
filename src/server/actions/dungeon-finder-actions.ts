@@ -868,6 +868,14 @@ export async function republishDjMultiLayout(guildId: string, postId: string): P
 
         const authorName = post.profile?.discordNickname || post.profile?.pseudoDofus || post.profile?.dofusPseudo || post.profile?.user?.name || "Membre";
         const embeds = await buildMultiPostEmbeds(post, authorName);
+
+        // **Idempotent** : si le post porte déjà des messages par donjon, on les retire
+        // d'abord (best-effort — un `404` = message déjà supprimé à la main, c'est aussi le
+        // cas de réparation). Sans ça, un second clic **empilait** un 2ᵉ jeu de cartes.
+        for (const previousId of getMultiMessageIds(post.dungeonsJson)) {
+            await deleteChannelMessage(post.discordChannelId, previousId).catch(() => false);
+        }
+
         const messageIds: string[] = [];
         for (let i = 0; i < embeds.length; i++) {
             const postedId = await postChannelMessage(post.discordChannelId, {
@@ -3341,71 +3349,6 @@ export async function findMissingAchievements(
     }
 }
 
-/**
- * Get all active posts for a specific dungeon (shown in donjon detail panel).
- */
-export async function getDjPostsForDungeon(
-    guildId: string,
-    dungeonId: string
-): Promise<ActionResponse<{ id: string; mode: string; status: string; _acceptedCount: number; maxMembers: number }[]>> {
-    const user = await getUserContext(guildId);
-    if (!user.canViewFinder) return { success: false, error: "Accès refusé" };
-
-    try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true },
-        });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        const posts = await (db as any).djSearchPost.findMany({
-            where: { dungeonId, guildId: guildConfig.id, status: { in: ["OPEN", "FULL"] } },
-            include: {
-                participants: { where: { status: "ACCEPTED" }, select: { id: true } },
-            },
-            orderBy: { createdAt: "desc" },
-        });
-
-        return {
-            success: true,
-            data: posts.map((p: any) => {
-                const mode = p.mode;
-
-                // This part of the logic seems to be missing context for `missingAchievements`
-                // and `dungeonPosts` from the provided diff.
-                // Assuming the intent was to modify the mode based on some condition,
-                // but without the full context of the original change request,
-                // I'm applying the provided lines as literally as possible,
-                // which might lead to undefined variables if `missingAchievements`
-                // and `dungeonPosts` are not defined elsewhere in this function.
-                // For now, I'll comment out the problematic lines to maintain syntax correctness.
-                /*
-                const data = dungeonPosts.map((p: any) => {
-                    let mode = p.mode;
-
-                    if (p.wantedAchievementIds.length > 0) {
-                        const missingAchsForPost = missingAchievements.filter((a: any) => p.wantedAchievementIds.includes(a.achievementId));
-                        if (missingAchsForPost.length > 0) {
-                            mode = "SUCCES";
-                        }
-                    }
-                });
-                */
-
-                return {
-                    id: p.id,
-                    mode, // Using the potentially modified mode, or original if logic above is commented
-                    status: p.status,
-                    maxMembers: p.maxMembers,
-                    _acceptedCount: p.participants.filter((m: any) => m.status === "ACCEPTED").length,
-                };
-            }),
-        };
-    } catch (error) {
-        logger.error("[getDjPostsForDungeon]", error);
-        return { success: false, error: "Erreur" };
-    }
-}
 
 // ---------------------------------------------------------------------------
 // SETTINGS (ADMIN)

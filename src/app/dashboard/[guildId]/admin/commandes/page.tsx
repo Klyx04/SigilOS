@@ -29,8 +29,8 @@ export default async function AdminCommandesPage({ params }: Props) {
     }
 
     const user = await getUserContext(guildId);
-    // Pilotage natif uniquement (owner/0x8) — voir page Pilotage, onglet Commandes.
-    if (!user.isAuthenticated || !user.isDiscordAdmin) {
+    // Admin SigilOS (rôle configuré dans Pilotage OU Discord Admin / Owner / God).
+    if (!user.isAuthenticated || !user.isAdmin) {
         return <AccessDenied />;
     }
 

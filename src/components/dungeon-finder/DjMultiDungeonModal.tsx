@@ -7,6 +7,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { toast } from "sonner";
 import { Plus, Search, X, CheckCircle2, Trophy, CalendarClock, Swords, Users } from "lucide-react";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
+import { getAchievementIconUrl } from "@/lib/achievement-icon";
 
 type Dungeon = {
     id: string;
@@ -249,7 +250,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                                                     }`}
                                                                 >
                                                                     {a.challenge.iconUrl && (
-                                                                        <img src={a.challenge.iconUrl} alt="" className="w-3.5 h-3.5 object-contain rounded" />
+                                                                        <img src={getAchievementIconUrl(null, a.challenge.iconUrl) ?? undefined} alt="" className="w-3.5 h-3.5 object-contain rounded" />
                                                                     )}
                                                                     {a.challenge.name}
                                                                 </button>

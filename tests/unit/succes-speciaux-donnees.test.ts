@@ -591,3 +591,39 @@ describe("« Donjon validé » — plus créé, plus rendu", () => {
     });
 });
 
+
+/**
+ * Le module Donjons & Quêtes doit passer par **la même règle** que la page GOD `?tab=game-data`.
+ *
+ * 🐛 Récidive mesurée le 16/10/2026 : les modales DJ affichaient des icônes **assombries**
+ * (champ brut / repli `?? iconUrl`) et parfois **aucune icône** — soit parce que le chemin
+ * accentué (`spécial.png`) partait brut dans le `<img>`, soit parce que la liste de clôture
+ * testait `Array.isArray(post.dungeonsJson)`, faux dès que le post porte l'enveloppe
+ * `{ _items }` (rappels, ids de messages) ⇒ **toutes** les icônes remplacées par Trophy.
+ */
+describe("module Donjons & Quêtes — l'icône passe par LA règle, jamais le champ brut", () => {
+    const FILES = [
+        "src/components/dungeon-finder/DjPostCard.tsx",
+        "src/components/dungeon-finder/DjPostDetailModal.tsx",
+        "src/components/dungeon-finder/DjEditModal.tsx",
+        "src/components/dungeon-finder/DjCloseModal.tsx",
+        "src/components/dungeon-finder/DjMultiDungeonModal.tsx",
+        "src/components/dungeon-finder/DjPostCreateModal.tsx",
+    ];
+
+    it("aucun écran DJ ne rend l'URL stockée brute", () => {
+        for (const file of FILES) {
+            const src = readFileSync(file, "utf8");
+            expect(src, `${file} : doit résoudre l'icône par getAchievementIconUrl`).toContain("getAchievementIconUrl(");
+            expect(src, `${file} : plus de normalizeChallengeIconUrl`).not.toContain("normalizeChallengeIconUrl");
+            expect(src, `${file} : l'URL stockée ne part jamais dans un src`).not.toMatch(/src=\{a\.challenge\.iconUrl\}/);
+        }
+    });
+
+    it("la liste de clôture tolère l'enveloppe `{ _items }` (sinon zéro icône)", () => {
+        const src = readFileSync("src/components/dungeon-finder/DjCloseModal.tsx", "utf8");
+        expect(src).toContain("getMultiDungeons(post.dungeonsJson)");
+        expect(src).not.toContain("Array.isArray(post.dungeonsJson)");
+    });
+});
+

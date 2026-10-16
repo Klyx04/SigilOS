@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
+import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { getMultiDungeons } from "@/lib/dungeon-finder-utils";
 
 interface DjCloseModalProps {
     isOpen: boolean;
@@ -50,15 +52,19 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
     // ── #138 Succès concernés par ce post (simple OU multi-donjons) ──────────
     const successItems = useMemo(() => {
         const items: { dungeonId: string; achievementId: string; dungeonName: string; label: string }[] = [];
-        if (Array.isArray(post.dungeonsJson) && post.dungeonsJson.length > 0) {
-            for (const d of post.dungeonsJson) {
-                const names = new Map((d.achievements ?? []).map((a: any) => [a.id, a.name]));
+        // `getMultiDungeons` et non `Array.isArray` : l'enveloppe `{ _items }` (écrite par les
+        // rappels d'inactivité comme par les ids de messages) n'est pas un tableau — la liste
+        // des succès sortait alors **vide** (constat du 16/10/2026, même piège que les icônes).
+        const multiEntries = getMultiDungeons(post.dungeonsJson);
+        if (multiEntries.length > 0) {
+            for (const d of multiEntries) {
+                const names = new Map((d.achievements ?? []).map((a) => [a.id, a.name]));
                 for (const aid of d.wantedAchievementIds ?? []) {
                     items.push({ dungeonId: d.dungeonId, achievementId: aid, dungeonName: d.name, label: names.get(aid) ?? "Succès" });
                 }
             }
         } else if ((post.wantedAchievementIds?.length ?? 0) > 0 && post.dungeon) {
-            const names = new Map((post.dungeon.achievements ?? []).map((a: any) => [a.id, a.challenge.name]));
+            const names = new Map((post.dungeon.achievements ?? []).map((a) => [a.id, a.challenge.name]));
             for (const aid of post.wantedAchievementIds) {
                 items.push({ dungeonId: post.dungeon.id, achievementId: aid, dungeonName: post.dungeon.name, label: names.get(aid) ?? "Succès" });
             }
@@ -440,17 +446,19 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
                                     <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                                         {successItems.map((s) => {
                                             const isOk = validatedSuccesses.has(s.achievementId);
-                                            // Chercher l'iconUrl dans les achievements du post
+                                            // Icône du succès : **la** règle du dépôt (asset local `game-data`
+                                            // encodé — le « spécial » accentué —, sinon proxy DofusDB). Jamais le
+                                            // champ brut, et plus jamais `Array.isArray(dungeonsJson)` : un post
+                                            // portant l'enveloppe `{ _items }` (rappels / ids de messages) laissait
+                                            // la liste **sans aucune icône** (constat du 16/10/2026).
                                             const iconUrl = (() => {
                                                 if (post.dungeon) {
                                                     const ach = post.dungeon.achievements.find(a => a.id === s.achievementId);
-                                                    return ach?.challenge?.iconUrl ?? null;
+                                                    return getAchievementIconUrl(null, ach?.challenge?.iconUrl ?? null);
                                                 }
-                                                if (Array.isArray(post.dungeonsJson)) {
-                                                    for (const d of post.dungeonsJson) {
-                                                        const ach = (d.achievements ?? []).find((a: any) => a.id === s.achievementId);
-                                                        if (ach?.iconUrl) return ach.iconUrl as string;
-                                                    }
+                                                for (const d of getMultiDungeons(post.dungeonsJson)) {
+                                                    const ach = (d.achievements ?? []).find((a) => a.id === s.achievementId);
+                                                    if (ach?.iconUrl) return getAchievementIconUrl(null, ach.iconUrl);
                                                 }
                                                 return null;
                                             })();

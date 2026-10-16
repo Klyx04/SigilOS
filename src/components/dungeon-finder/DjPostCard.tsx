@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ClassIcon } from "@/components/shared/class-icon";
-import { normalizeChallengeIconUrl } from "@/lib/dofus-image-url";
+import { getAchievementIconUrl } from "@/lib/achievement-icon";
 import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
@@ -288,7 +288,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                     className="w-6 h-6 rounded-md bg-surface border border-border p-0.5 shrink-0 hover:border-emerald-500/40 transition-colors"
                                 >
                                     {a.challenge.iconUrl && (
-                                        <img src={normalizeChallengeIconUrl(a.challenge.iconUrl) ?? a.challenge.iconUrl} alt={a.challenge.name} className="w-full h-full object-contain" />
+                                        <img src={getAchievementIconUrl(null, a.challenge.iconUrl) ?? undefined} alt={a.challenge.name} className="w-full h-full object-contain" />
                                     )}
                                 </div>
                             ))}

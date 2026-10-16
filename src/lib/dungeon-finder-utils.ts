@@ -97,6 +97,142 @@ export function getMultiDungeons(dungeonsJson: unknown): MultiDungeonItem[] {
     return [];
 }
 
+/** Participant minimal lu par les stats de donjon (carte, modale, filtre). */
+export interface DjStatParticipant {
+    status: string;
+    /** #26 — index du donjon rejoint ; `null` = inscrit « global » (post simple, ou inscrit avant #26). */
+    dungeonIndex?: number | null;
+}
+
+/**
+ * Statistiques d'**un** groupe : places, roster et file d'attente.
+ * `index = -1` ⇒ post simple (un seul groupe, pas de `dungeonsJson`).
+ */
+export interface DjDungeonStats<P extends DjStatParticipant = DjStatParticipant> {
+    index: number;
+    dungeon: MultiDungeonItem | null;
+    maxMembers: number;
+    accepted: P[];
+    pending: P[];
+    /** Inscrits **+ créateur** : le créateur compte dans chaque donjon (règle #203). */
+    acceptedCount: number;
+    spotsLeft: number;
+    isFull: boolean;
+}
+
+/**
+ * **La** règle de comptage des places d'un post DJ — valable pour un post simple
+ * comme pour un post multi-donjons (#26).
+ *
+ * Chantier #203 : chaque donjon d'une session a **sa** taille de groupe
+ * (`dungeonsJson[i].maxMembers`) et **ses** inscrits. La même règle est appliquée :
+ *  - par l'embed Discord (`buildMultiPostEmbeds`) et les boutons qui portent l'index ;
+ *  - par la capacité serveur (`internalJoinDjPost`, `acceptDjParticipant`) ;
+ *  - par l'interface du site (carte, modale, filtre « places dispos »).
+ *
+ * Avant cette fonction, le calcul était **dupliqué** et divergent : la carte et la
+ * modale affichaient un ratio **global** (`1/4 — 3 dispos`) sur un post de 5 donjons,
+ * alors que Discord affichait 1/4 **par donjon** — constat du 16/10/2026.
+ *
+ * Un inscrit `dungeonIndex == null` (créé par le site avant la reprise, ou post simple)
+ * est compté dans **chaque** donjon : c'est la tolérance historique de #203, jamais un
+ * doublon silencieux (il reste visible dans « Sans donjon » côté interface).
+ */
+export function getDjDungeonStats<P extends DjStatParticipant>(
+    post: { dungeonsJson?: unknown; maxMembers: number; participants?: P[] | null }
+): DjDungeonStats<P>[] {
+    const participants = post.participants ?? [];
+    const entries = getMultiDungeons(post.dungeonsJson);
+
+    const build = (index: number, dungeon: MultiDungeonItem | null, maxMembers: number): DjDungeonStats<P> => {
+        const belongs = (p: P) => index < 0 || p.dungeonIndex === index || p.dungeonIndex == null;
+        const accepted = participants.filter((p) => p.status === "ACCEPTED" && belongs(p));
+        const pending = participants.filter((p) => p.status === "PENDING" && belongs(p));
+        const acceptedCount = accepted.length + 1; // +1 créateur
+        const size = maxMembers > 0 ? maxMembers : 1;
+        return {
+            index,
+            dungeon,
+            maxMembers: size,
+            accepted,
+            pending,
+            acceptedCount,
+            spotsLeft: Math.max(0, size - acceptedCount),
+            isFull: acceptedCount >= size,
+        };
+    };
+
+    // Post simple : un seul groupe, borné par `post.maxMembers`.
+    if (entries.length === 0) return [build(-1, null, post.maxMembers)];
+
+    return entries.map((entry, index) => build(index, entry, entry.maxMembers ?? post.maxMembers));
+}
+
+/** Synthèse affichable des places d'un post (jamais un ratio global trompeur). */
+export interface DjDungeonsSummary {
+    total: number;
+    full: number;
+    /** Somme des places restantes sur tous les groupes. */
+    openSpots: number;
+    minSpots: number;
+    maxSpots: number;
+    allFull: boolean;
+    /** Libellé court, prêt à afficher (carte, en-tête de modale). */
+    label: string;
+    perDungeon: {
+        index: number;
+        name: string;
+        acceptedCount: number;
+        maxMembers: number;
+        spotsLeft: number;
+        isFull: boolean;
+    }[];
+}
+
+/** Résume `getDjDungeonStats` en un libellé + des nombres (une seule formulation pour l'UI). */
+export function summarizeDjDungeons(stats: DjDungeonStats<any>[]): DjDungeonsSummary {
+    if (stats.length === 0) {
+        return { total: 0, full: 0, openSpots: 0, minSpots: 0, maxSpots: 0, allFull: false, label: "", perDungeon: [] };
+    }
+    const spots = stats.map((s) => s.spotsLeft);
+    const minSpots = Math.min(...spots);
+    const maxSpots = Math.max(...spots);
+    const full = stats.filter((s) => s.isFull).length;
+    const openSpots = spots.reduce((acc, n) => acc + n, 0);
+    const allFull = full === stats.length;
+    const plural = (n: number) => (n > 1 ? "s" : "");
+
+    let label: string;
+    if (stats.length === 1) {
+        // Post simple : le ratio exact du groupe, comme avant (aucun changement de wording).
+        label = `${stats[0].acceptedCount}/${stats[0].maxMembers}`;
+    } else if (allFull) {
+        label = "Complet partout";
+    } else if (minSpots === maxSpots) {
+        label = `${minSpots} place${plural(minSpots)} sur ${stats.length} donjons`;
+    } else {
+        label = `${minSpots} à ${maxSpots} places selon le donjon`;
+    }
+
+    return {
+        total: stats.length,
+        full,
+        openSpots,
+        minSpots,
+        maxSpots,
+        allFull,
+        label,
+        perDungeon: stats.map((s) => ({
+            index: s.index,
+            name: s.dungeon?.name ?? "",
+            acceptedCount: s.acceptedCount,
+            maxMembers: s.maxMembers,
+            spotsLeft: s.spotsLeft,
+            isFull: s.isFull,
+        })),
+    };
+}
+
 /**
  * URL d'illustration d'un embed Discord.
  *

@@ -26,7 +26,7 @@ import { fr } from "date-fns/locale";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
-import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel, getDjDungeonStats, summarizeDjDungeons } from "@/lib/dungeon-finder-utils";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
@@ -54,6 +54,12 @@ export function DjPostDetailModal({
 }: DjPostDetailModalProps) {
     const [classe, setClasse] = useState("");
     const [message, setMessage] = useState("");
+    /**
+     * #26 — donjons **visés** par la candidature (cases à cocher). Vide par défaut : on ne
+     * devine jamais la sélection à la place du joueur (l'ancien formulaire inscrivait
+     * « global », donc dans **tous** les donjons — constat du 16/10/2026).
+     */
+    const [targets, setTargets] = useState<number[]>([]);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
     // Clôture (bilan des succès/points + fermeture Discord) : action principale du
@@ -62,15 +68,31 @@ export function DjPostDetailModal({
     const [isPending, startTransition] = useTransition();
 
     const isOwner = post.profileId === currentProfileId;
-    const myParticipation = currentProfileId
-        ? post.participants.find((p) => p.profile.id === currentProfileId)
-        : null;
 
     // Multi-donjons
     const multiDungeons = getMultiDungeons(post.dungeonsJson);
     const isMulti = multiDungeons.length > 0;
     const postTitle = getDjPostTitle(post);
     const postSubtitle = getDjPostSubtitle(post);
+
+    /**
+     * **Une seule** règle de comptage des places (#203) : par donjon en multi, globale sur
+     * un post simple. Avant, cet écran affichait un ratio global sur un post de 5 donjons
+     * alors que Discord comptait donjon par donjon.
+     */
+    const stats = getDjDungeonStats(post);
+    const summary = summarizeDjDungeons(stats);
+    /** Mes inscriptions — **plusieurs** possibles sur un post multi (une par donjon). */
+    const myParticipations = currentProfileId
+        ? post.participants.filter((p) => p.profile.id === currentProfileId)
+        : [];
+    const myIndexes = myParticipations.map((p) => p.dungeonIndex ?? -1);
+    /** Inscriptions « sans donjon » (créées avant la reprise) : elles ne visent aucun donjon. */
+    const myLegacy = myParticipations.filter((p) => p.dungeonIndex == null);
+    const isJoinablePost = post.status === "OPEN" || post.status === "FULL";
+    /** Donjons que je peux encore rejoindre (jamais deux fois le même). */
+    const joinable = stats.filter((s) => !myIndexes.includes(s.index));
+    const canJoin = isJoinablePost && !isOwner && (isMulti ? joinable.length > 0 : myParticipations.length === 0);
     const coverImage = !isMulti
         ? (post.mode === "DONJON"
             ? (post.dungeon?.imageUrl || "/assets/dofus/modules/dofus.png")
@@ -83,23 +105,40 @@ export function DjPostDetailModal({
             : null)
         : null;
 
-    // Creator counts as 1 slot, ACCEPTED participants fill remaining slots
     const acceptedParticipants = post.participants.filter((p) => p.status === "ACCEPTED");
     const pendingParticipants = post.participants.filter((p) => p.status === "PENDING");
-    const acceptedCount = acceptedParticipants.length + 1; // +1 for creator
-    const spotsLeft = post.maxMembers - acceptedCount;
+
+    /** Places restantes du groupe d'un inscrit (par donjon en multi, #203). */
+    const spotsLeftFor = (dungeonIndex?: number | null): number =>
+        (stats.find((s) => s.index === (dungeonIndex ?? -1)) ?? stats[0])?.spotsLeft ?? 0;
+
+    /** Coche / décoche un donjon dans la candidature (jamais une inscription immédiate). */
+    const toggleTarget = (index: number) =>
+        setTargets((prev) => (prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index].sort((a, b) => a - b)));
+
+    /** Les groupes visés sont-ils **tous** complets (⇒ file d'attente) ? */
+    const targetsAllFull = isMulti
+        ? targets.length > 0 && targets.every((i) => stats.find((s) => s.index === i)?.isFull)
+        : (stats[0]?.spotsLeft ?? 0) <= 0;
 
     // #179 — la copie des pseudos est UNITAIRE (voir `PseudoChip`) : plus de bouton
     // global qui collait toute la liste `\n/w Pseudo`.
 
     function handleJoin() {
         startTransition(async () => {
-            const res = await joinDjPost(guildId, post.id, { classe: classe || null, message: message || null });
+            const res = await joinDjPost(guildId, post.id, {
+                classe: classe || null,
+                message: message || null,
+                // Post multi : les donjons cochés. Post simple : aucun index (un seul groupe).
+                dungeonIndexes: isMulti ? targets : null,
+            });
             if (res.success) {
-                const wasWaitlisted = (res as any).data?.waitlisted;
-                toast.success(wasWaitlisted
-                    ? "Tu as été placé en file d'attente !"
-                    : "Candidature envoyée !"
+                const data = (res as { data?: { joined?: number; waitlistedCount?: number } }).data;
+                const joinedCount = data?.joined ?? 0;
+                const waiting = data?.waitlistedCount ?? 0;
+                toast.success(joinedCount > 0
+                    ? `Candidature envoyée${joinedCount > 1 ? ` — ${joinedCount} donjons` : ""} !`
+                    : `Place en file d'attente${waiting > 1 ? ` (${waiting} donjons)` : ""} !`
                 );
                 onRefresh();
                 onClose();
@@ -109,10 +148,11 @@ export function DjPostDetailModal({
         });
     }
 
-    function handleLeave() {
+    /** Quitter **un** groupe précis — jamais « la première participation » du post. */
+    function handleLeave(dungeonIndex: number | null) {
         startTransition(async () => {
-            const res = await leaveDjPost(guildId, post.id);
-            if (res.success) { toast.success("Parti du post."); onRefresh(); onClose(); }
+            const res = await leaveDjPost(guildId, post.id, dungeonIndex);
+            if (res.success) { toast.success("Inscription retirée."); onRefresh(); }
             else toast.error(res.error);
         });
     }
@@ -204,9 +244,17 @@ export function DjPostDetailModal({
                                 <p className="font-bold text-foreground text-sm">{MODE_LABELS[post.mode] ?? post.mode}</p>
                             </div>
                             <div className="bg-surface/50 rounded-xl p-3.5 border border-border/70">
-                                <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1 flex items-center gap-1.5"><DofusUiIcon name="player" size={13} /> Places</p>
+                                <p className="text-muted-foreground text-caption uppercase tracking-widest font-bold mb-1 flex items-center gap-1.5"><DofusUiIcon name="player" size={13} /> {isMulti ? "Places (par donjon)" : "Places"}</p>
                                 <p className="font-bold text-foreground text-sm">
-                                    {acceptedCount}/{post.maxMembers} — {spotsLeft > 0 ? <span className="text-emerald-400 font-mono font-medium">{`${spotsLeft} dispo${spotsLeft > 1 ? "s" : ""}`}</span> : <span className="text-amber-400 font-mono">Complet</span>}
+                                    {isMulti ? (
+                                        summary.allFull
+                                            ? <span className="text-amber-400 font-mono">Complet partout</span>
+                                            : <span className="text-emerald-400 font-mono font-medium">{summary.label}</span>
+                                    ) : (
+                                        <>
+                                            {summary.label} — {stats[0].spotsLeft > 0 ? <span className="text-emerald-400 font-mono font-medium">{`${stats[0].spotsLeft} dispo${stats[0].spotsLeft > 1 ? "s" : ""}`}</span> : <span className="text-amber-400 font-mono">Complet</span>}
+                                        </>
+                                    )}
                                 </p>
                             </div>
                             {post.targetDate && (
@@ -268,26 +316,103 @@ export function DjPostDetailModal({
                         {isMulti && (
                             <div className="space-y-2">
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> Donjons de la session</p>
-                                {multiDungeons.map((d, idx) => (
-                                    <div key={d.dungeonId ?? idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-surface/50 border border-border/70">
-                                        {d.imageUrl ? (
-                                            <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-background border border-border/70 shrink-0 p-0.5" />
-                                        ) : (
-                                            <span className="w-9 h-9 rounded-lg bg-background border border-border/70 shrink-0 flex items-center justify-center text-muted-foreground">
-                                                <Swords className="w-4 h-4" />
+                                {stats.map((s) => {
+                                    const d = multiDungeons[s.index];
+                                    const myRow = myParticipations.find((p) => (p.dungeonIndex ?? -1) === s.index);
+                                    const ticked = targets.includes(s.index);
+                                    return (
+                                    <div key={d?.dungeonId ?? s.index} className="p-2.5 rounded-xl bg-surface/50 border border-border/70 space-y-2">
+                                        <div className="flex items-center gap-2.5">
+                                            {d?.imageUrl ? (
+                                                <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-background border border-border/70 shrink-0 p-0.5" />
+                                            ) : (
+                                                <span className="w-9 h-9 rounded-lg bg-background border border-border/70 shrink-0 flex items-center justify-center text-muted-foreground">
+                                                    <Swords className="w-4 h-4" />
+                                                </span>
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs font-bold text-foreground truncate">{d?.name}</p>
+                                                <p className="text-caption text-muted-foreground font-mono">
+                                                    Lvl {d?.level}
+                                                    {(d?.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d!.wantedAchievementIds!.length} succès`}
+                                                    {d?.targetDate ? ` · ${formatDjDateLabel(d.targetDate, { shortMonth: true }) ?? ""}` : ""}
+                                                </p>
+                                            </div>
+                                            <span className={cn(
+                                                "text-caption font-mono font-bold shrink-0 px-2 py-1 rounded-lg border",
+                                                s.isFull
+                                                    ? "text-amber-400 border-amber-500/30 bg-amber-950/30"
+                                                    : "text-emerald-400 border-emerald-500/30 bg-emerald-950/30"
+                                            )}>
+                                                {s.acceptedCount}/{s.maxMembers}
                                             </span>
-                                        )}
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-xs font-bold text-foreground truncate">{d.name}</p>
-                                            <p className="text-caption text-muted-foreground font-mono">
-                                                Lvl {d.level}
-                                                {(d.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d.wantedAchievementIds!.length} succès`}
-                                                {d.targetDate ? ` · ${formatDjDateLabel(d.targetDate, { shortMonth: true }) ?? ""}` : ""}
-                                            </p>
+                                            <span className="text-caption font-mono font-bold text-muted-foreground uppercase tracking-wider shrink-0">#{s.index + 1}</span>
                                         </div>
-                                        <span className="text-caption font-mono font-bold text-muted-foreground uppercase tracking-wider shrink-0">#{idx + 1}</span>
+                                        {/* Roster de CE donjon : créateur + inscrits, puis la file d'attente. */}
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                            <span className="text-caption font-semibold text-foreground">{displayName(post.profile)}</span>
+                                            <span className="text-caption text-muted-foreground">créateur</span>
+                                            {s.accepted.map((p) => (
+                                                <PseudoChip key={p.id} pseudo={displayName(p.profile)} classe={p.classe} className="text-caption font-semibold text-foreground" />
+                                            ))}
+                                            {s.accepted.length === 0 && (
+                                                <span className="text-caption text-muted-foreground italic">personne d&apos;autre pour l&apos;instant</span>
+                                            )}
+                                            {s.pending.length > 0 && (
+                                                <span className="text-caption font-mono text-amber-400 flex items-center gap-1">
+                                                    <AlarmClock className="w-3 h-3" /> {s.pending.length} en attente
+                                                </span>
+                                            )}
+                                        </div>
+                                        {!isOwner && isJoinablePost && (
+                                            myRow ? (
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className={cn(
+                                                        "px-2 py-0.5 rounded-full text-caption font-mono font-semibold border",
+                                                        myRow.status === "ACCEPTED"
+                                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                                                            : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                                                    )}>
+                                                        {myRow.status === "ACCEPTED" ? "Inscrit" : "En file d'attente"}
+                                                    </span>
+                                                    <Button size="sm" variant="outline"
+                                                        className="h-8 px-2.5 text-xs font-bold rounded-lg border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:text-danger"
+                                                        onClick={() => handleLeave(s.index)} disabled={isPending}>
+                                                        <LogOut className="w-3.5 h-3.5 mr-1" /> Se désinscrire
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <Button size="sm" variant="outline"
+                                                    className={cn(
+                                                        "h-8 px-2.5 text-xs font-bold rounded-lg",
+                                                        ticked
+                                                            ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                                                            : "border-border/70 bg-surface/80 text-foreground hover:bg-surface"
+                                                    )}
+                                                    onClick={() => toggleTarget(s.index)} disabled={isPending}>
+                                                    {ticked ? <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> : <LogIn className="w-3.5 h-3.5 mr-1" />}
+                                                    {ticked ? "Donjon visé" : "Rejoindre ce donjon"}
+                                                </Button>
+                                            )
+                                        )}
                                     </div>
-                                ))}
+                                    );
+                                })}
+
+                                {/* Inscriptions « sans donjon » (antérieures à la reprise #26) :
+                                    visibles et résiliables, jamais silencieuses. */}
+                                {myLegacy.length > 0 && (
+                                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5">
+                                        <span className="text-caption text-amber-400 font-semibold">
+                                            {`Ton inscription « sans donjon » (${myLegacy.length}) n'est rattachée à aucun donjon précis.`}
+                                        </span>
+                                        <Button size="sm" variant="outline"
+                                            className="h-8 px-2.5 text-xs font-bold rounded-lg border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:text-danger"
+                                            onClick={() => handleLeave(null)} disabled={isPending}>
+                                            <LogOut className="w-3.5 h-3.5 mr-1" /> Se désinscrire
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -343,7 +468,7 @@ export function DjPostDetailModal({
                         <div>
                             <div className="flex items-center justify-between gap-3 mb-2.5">
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-2">
-                                    <Users className="w-3.5 h-3.5" /> Participants ({acceptedCount}/{post.maxMembers})
+                                    <Users className="w-3.5 h-3.5" /> Participants {isMulti ? "· par donjon" : `(${summary.label})`}
                                 </p>
                             </div>
                             <div className="space-y-2">
@@ -378,11 +503,15 @@ export function DjPostDetailModal({
                                                         classe={p.classe}
                                                         className="text-sm font-bold text-foreground"
                                                     />
-                                                    {(post.dungeonsJson as any[])?.length > 0 && p.dungeonIndex != null && (post.dungeonsJson as any[])[p.dungeonIndex]?.name && (
+                                                    {isMulti && (p.dungeonIndex != null && multiDungeons[p.dungeonIndex]?.name ? (
                                                         <Badge variant="outline" className="text-caption h-4 border-border/60 text-muted-foreground px-1.5 max-w-[120px] truncate">
-                                                            {(post.dungeonsJson as any[])[p.dungeonIndex]?.name}
+                                                            {multiDungeons[p.dungeonIndex].name}
                                                         </Badge>
-                                                    )}
+                                                    ) : (
+                                                        <Badge variant="outline" className="text-caption h-4 border-amber-500/40 text-amber-400 px-1.5">
+                                                            Sans donjon
+                                                        </Badge>
+                                                    ))}
                                                 </div>
                                                 <p className="text-caption text-muted-foreground mt-0.5">
                                                     Inscrit {format(new Date(p.createdAt), "d MMM à HH:mm", { locale: fr })}
@@ -398,7 +527,7 @@ export function DjPostDetailModal({
                                             {p.profile.id === currentProfileId && post.status === "OPEN" && (
                                                 <Button size="sm" variant="outline"
                                                     className="border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:text-danger h-8 px-2.5 text-xs font-bold rounded-lg"
-                                                    onClick={handleLeave} disabled={isPending}
+                                                    onClick={() => handleLeave(p.dungeonIndex ?? null)} disabled={isPending}
                                                     title="Se désinscrire">
                                                     <LogOut className="w-3.5 h-3.5 mr-1" />
                                                     Quitter
@@ -458,7 +587,7 @@ export function DjPostDetailModal({
                                                     {/* Owner actions */}
                                                     {(isOwner || isAdmin) && post.status === "OPEN" && (
                                                         <div className="flex gap-1 shrink-0 bg-surface/80 rounded-lg border border-border/70 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5">
-                                                            {spotsLeft > 0 && (
+                                                            {spotsLeftFor(p.dungeonIndex) > 0 && (
                                                                 <Button size="icon" variant="ghost"
                                                                     className="w-8 h-8 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-md"
                                                                     onClick={() => handleAccept(p.id)} disabled={isPending}
@@ -482,17 +611,52 @@ export function DjPostDetailModal({
                             )}
                         </div>
 
-                        {/* Join form — visible si OPEN ou FULL (file d'attente) */}
-                        {!isOwner && !myParticipation && (post.status === "OPEN" || post.status === "FULL") && (
+                        {/* Candidature — post multi : on **coche les donjons visés** (jamais un
+                            « global » invisible) ; post simple : un seul groupe, comme avant. */}
+                        {canJoin && (
                             <div className="border-t border-border/70 pt-6 space-y-4">
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">
-                                    {spotsLeft > 0 ? "Candidature" : "Rejoindre la file d'attente"}
+                                    {isMulti
+                                        ? `Candidature${targets.length > 0 ? ` — ${targets.length} donjon${targets.length > 1 ? "s" : ""} visé${targets.length > 1 ? "s" : ""}` : ""}`
+                                        : stats[0].spotsLeft > 0 ? "Candidature" : "Rejoindre la file d'attente"}
                                 </p>
-                                {spotsLeft <= 0 && (
+                                {isMulti && (
+                                    <div className="bg-surface/50 rounded-xl p-3.5 border border-border/70 space-y-2">
+                                        <label className="text-caption text-muted-foreground font-bold uppercase tracking-widest block">Donjons visés</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {joinable.map((s) => {
+                                                const isTicked = targets.includes(s.index);
+                                                return (
+                                                    <button key={s.index} type="button" onClick={() => toggleTarget(s.index)}
+                                                        className={cn(
+                                                            "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all",
+                                                            isTicked
+                                                                ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                                                                : "border-border/60 bg-surface/70 text-muted-foreground hover:border-border hover:text-foreground"
+                                                        )}>
+                                                        {isTicked ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded border border-border/70" />}
+                                                        <span className="max-w-[150px] truncate">#{s.index + 1} {s.dungeon?.name}</span>
+                                                        <span className={cn("font-mono", s.isFull ? "text-amber-400" : "text-emerald-400")}>
+                                                            {s.isFull ? "file" : `${s.spotsLeft} dispo${s.spotsLeft > 1 ? "s" : ""}`}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        {joinable.some((s) => s.isFull) && (
+                                            <p className="text-caption text-amber-400">
+                                                Un donjon complet t&apos;inscrit en file d&apos;attente de ce donjon précis.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                                {targetsAllFull && (
                                     <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3.5 py-3">
                                         <AlarmClock className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
                                         <p className="text-xs text-foreground leading-relaxed">
-                                            Le groupe est <strong>complet</strong>. Tu peux rejoindre la file d'attente — si une place se libère, le créateur pourra t'accepter.
+                                            {isMulti
+                                                ? <>Les donjons visés sont <strong>complets</strong>. Tu rejoindras leur file d&apos;attente — si une place se libère, le créateur pourra t&apos;accepter.</>
+                                                : <>Le groupe est <strong>complet</strong>. Tu peux rejoindre la file d&apos;attente — si une place se libère, le créateur pourra t&apos;accepter.</>}
                                         </p>
                                     </div>
                                 )}
@@ -544,42 +708,50 @@ export function DjPostDetailModal({
                                 <Button
                                     className={cn(
                                         "w-full font-bold h-11 rounded-xl shadow-md transition-all cursor-pointer",
-                                        spotsLeft > 0
-                                            ? "bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-950/20 border border-emerald-400/40"
-                                            : "bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500 hover:text-black"
+                                        isMulti && targets.length === 0
+                                            ? "bg-surface/60 text-muted-foreground border border-border/70"
+                                            : targetsAllFull
+                                                ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500 hover:text-black"
+                                                : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-950/20 border border-emerald-400/40"
                                     )}
                                     onClick={handleJoin}
-                                    disabled={isPending}
+                                    disabled={isPending || (isMulti && targets.length === 0)}
                                 >
                                     <LogIn className="w-4 h-4 mr-2" />
-                                    {spotsLeft > 0 ? "Envoyer ma candidature" : "Rejoindre la file d'attente"}
+                                    {isMulti
+                                        ? targets.length > 0
+                                            ? `Envoyer ma candidature — ${targets.length} donjon${targets.length > 1 ? "s" : ""}`
+                                            : "Choisis au moins un donjon"
+                                        : targetsAllFull ? "Rejoindre la file d'attente" : "Envoyer ma candidature"}
                                 </Button>
                             </div>
                         )}
 
-                        {/* My pending / waitlist status */}
-                        {myParticipation?.status === "PENDING" && (
-                            <div className="border-t border-border/70 pt-5 flex items-center justify-between">
-                                <p className="text-sm font-semibold text-amber-400 flex items-center gap-2">
-                                    <AlarmClock className="w-4 h-4" /> En file d'attente — le créateur peut t'accepter si une place se libère
-                                </p>
-                                <Button size="sm" variant="outline" onClick={handleLeave} disabled={isPending}
-                                    className="border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:text-danger rounded-lg">
-                                    <LogOut className="w-4 h-4 mr-1.5" /> Se retirer
-                                </Button>
-                            </div>
-                        )}
-
-                        {/* My accepted status — se désinscrire */}
-                        {myParticipation?.status === "ACCEPTED" && !isOwner && post.status === "OPEN" && (
-                            <div className="border-t border-border/70 pt-5 flex items-center justify-between gap-4">
-                                <p className="text-sm font-semibold text-emerald-400 flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4" /> Tu es inscrit à ce post
-                                </p>
-                                <Button size="sm" variant="outline" onClick={handleLeave} disabled={isPending}
-                                    className="shrink-0 border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:text-danger rounded-lg">
-                                    <LogOut className="w-4 h-4 mr-1.5" /> Se désinscrire
-                                </Button>
+                        {/* Mes inscriptions — **une par donjon** en multi (#26). Avant, un seul
+                            état global : impossible de voir (ni de retirer) un donjon précis. */}
+                        {!isOwner && myParticipations.length > 0 && (
+                            <div className="border-t border-border/70 pt-5 space-y-2">
+                                <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Mes inscriptions</p>
+                                {myParticipations.map((p) => {
+                                    const dungeonName = p.dungeonIndex != null ? multiDungeons[p.dungeonIndex]?.name : null;
+                                    return (
+                                        <div key={p.id} className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className={cn("text-sm font-semibold flex items-center gap-2 shrink-0", p.status === "ACCEPTED" ? "text-emerald-400" : "text-amber-400")}>
+                                                    {p.status === "ACCEPTED" ? <CheckCircle2 className="w-4 h-4" /> : <AlarmClock className="w-4 h-4" />}
+                                                    {p.status === "ACCEPTED" ? "Inscrit" : "En file d'attente"}
+                                                </span>
+                                                <span className={cn("text-xs truncate", dungeonName ? "text-muted-foreground" : "text-amber-400")}>
+                                                    {dungeonName ? `· ${dungeonName}` : isMulti ? "· sans donjon" : ""}
+                                                </span>
+                                            </div>
+                                            <Button size="sm" variant="outline" onClick={() => handleLeave(p.dungeonIndex ?? null)} disabled={isPending}
+                                                className="shrink-0 border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 hover:text-danger rounded-lg">
+                                                <LogOut className="w-4 h-4 mr-1.5" /> Se désinscrire
+                                            </Button>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
 
@@ -588,7 +760,7 @@ export function DjPostDetailModal({
                             <div className="border-t border-border/70 pt-5 flex flex-wrap gap-3">
                                 {isOwner && (
                                     <>
-                                        {post.isDiscordPublished && post.discordMessageId && acceptedCount > 1 && (
+                                        {post.isDiscordPublished && post.discordMessageId && acceptedParticipants.length > 0 && (
                                             <Button
                                                 variant="outline"
                                                 className="border-amber-500/30 bg-amber-500/10 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 font-bold h-11 transition-all px-4 rounded-xl"

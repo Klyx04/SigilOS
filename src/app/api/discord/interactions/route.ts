@@ -733,7 +733,10 @@ export async function POST(request: NextRequest) {
                     });
                 } else if (action === "leave") {
                     const { internalLeaveDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                    result = await internalLeaveDjPost(entityId, profile.id);
+                    // #26 — l'index du donjon est **transmis** (avant, `dj:leave:{postId}:{idx}`
+                    // l'ignorait : « Se désinscrire » sous le donjon 4 pouvait retirer la place
+                    // du donjon 2).
+                    result = await internalLeaveDjPost(entityId, profile.id, dungeonIndex);
 
                     if (result?.success) {
                         return NextResponse.json({

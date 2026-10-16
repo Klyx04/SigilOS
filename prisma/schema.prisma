@@ -1965,7 +1965,12 @@ model DjSearchParticipant {
   post        DjSearchPost        @relation(fields: [postId], references: [id], onDelete: Cascade)
   profile     UserProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  @@unique([postId, profileId])
+  // Multi-donjons (#26) — l'unicité est **par donjon** : un joueur peut rejoindre
+  // plusieurs donjons d'une même session (la carte Discord et la modale du site
+  // l'exposent donjon par donjon). Postgres traitant les `NULL` comme distincts,
+  // la base ne garantit plus « un seul donjon » pour les posts simples : c'est la
+  // garde applicative qui la porte (`internalJoinDjPost` / `joinDjPost`).
+  @@unique([postId, profileId, dungeonIndex])
   @@index([postId, status])
   @@index([profileId])
 }

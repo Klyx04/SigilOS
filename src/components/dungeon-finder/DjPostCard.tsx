@@ -22,7 +22,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { getClass } from "@/lib/dofus-assets";
-import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel, getDjDungeonStats, summarizeDjDungeons } from "@/lib/dungeon-finder-utils";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
@@ -65,8 +65,11 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
         ? post.participants.find((p) => p.profile.id === currentProfileId)
         : null;
 
-    const acceptedCount = post._acceptedCount + 1; // +1 creator
-    const spotsLeft = post.maxMembers - acceptedCount;
+    // Une seule règle de comptage (#203) : en multi, les places sont **par donjon**.
+    // Le ratio global (`1/4`) annonçait 3 places alors que les 5 groupes pouvaient être pleins.
+    const stats = getDjDungeonStats(post);
+    const summary = summarizeDjDungeons(stats);
+    const spotsLeft = summary.maxSpots;
 
     const modeMeta = MODE_META[post.mode] ?? MODE_META.DONJON;
     const statusMeta = STATUS_META[post.status] ?? STATUS_META.OPEN;
@@ -183,13 +186,16 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         <span>{modeMeta.label}</span>
                     </span>
 
-                    <span className="inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground bg-surface/70 border border-border/60 px-2.5 py-1 rounded-lg">
+                    <span
+                        className="inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground bg-surface/70 border border-border/60 px-2.5 py-1 rounded-lg"
+                        title={isMulti ? summary.label : undefined}
+                    >
                         <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                        <strong className="text-foreground">{acceptedCount} / {post.maxMembers}</strong>
-                        {spotsLeft > 0 ? (
-                            <span className="text-emerald-400 font-semibold font-mono">+{spotsLeft}</span>
+                        <strong className="text-foreground">{isMulti ? `${stats.length} donjons` : summary.label}</strong>
+                        {summary.allFull ? (
+                            <span className="text-amber-400 font-semibold font-mono">Plein{isMulti ? " partout" : ""}</span>
                         ) : (
-                            <span className="text-amber-400 font-semibold font-mono">Plein</span>
+                            <span className="text-emerald-400 font-semibold font-mono">+{spotsLeft}{isMulti ? " max" : ""}</span>
                         )}
                     </span>
                 </div>

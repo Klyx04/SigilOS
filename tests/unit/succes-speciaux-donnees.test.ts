@@ -609,6 +609,12 @@ describe("« Donjon validé » — plus créé, plus rendu", () => {
  * accentué (`spécial.png`) partait brut dans le `<img>`, soit parce que la liste de clôture
  * testait `Array.isArray(post.dungeonsJson)`, faux dès que le post porte l'enveloppe
  * `{ _items }` (rappels, ids de messages) ⇒ **toutes** les icônes remplacées par Trophy.
+ *
+ * 🐛 Même date, cause suivante (même famille) : trois succès portaient un chemin **mort**
+ * (`…/econome.webp`, `…/intouchable.webp`, `…/temps-qui-court.webp` — en base, absents du dépôt)
+ * et les écrans DJ rendaient `<img>` **sans repli** ⇒ glyphe « image cassée » du navigateur.
+ * D'où le composant **unique** `<AchievementIcon>` (résolution + repli sur `onError`) : plus
+ * aucun écran ne décide seul comment rendre une icône de succès.
  */
 describe("module Donjons & Quêtes — l'icône passe par LA règle, jamais le champ brut", () => {
     const FILES = [
@@ -618,15 +624,28 @@ describe("module Donjons & Quêtes — l'icône passe par LA règle, jamais le c
         "src/components/dungeon-finder/DjCloseModal.tsx",
         "src/components/dungeon-finder/DjMultiDungeonModal.tsx",
         "src/components/dungeon-finder/DjPostCreateModal.tsx",
+        "src/components/admin/ChallengeManager.tsx",
     ];
 
     it("aucun écran DJ ne rend l'URL stockée brute", () => {
         for (const file of FILES) {
             const src = readFileSync(file, "utf8");
-            expect(src, `${file} : doit résoudre l'icône par getAchievementIconUrl`).toContain("getAchievementIconUrl(");
+            expect(src, `${file} : doit rendre l'icône par <AchievementIcon>`).toContain("<AchievementIcon");
             expect(src, `${file} : plus de normalizeChallengeIconUrl`).not.toContain("normalizeChallengeIconUrl");
-            expect(src, `${file} : l'URL stockée ne part jamais dans un src`).not.toMatch(/src=\{a\.challenge\.iconUrl\}/);
+            expect(src, `${file} : l'URL stockée ne part jamais dans un src`).not.toMatch(/src=\{[^}]*\.iconUrl\}/);
+            // Ni la règle appelée à la main (une seule source : le composant).
+            expect(src, `${file} : la résolution passe par le composant, pas par un appel local`)
+                .not.toContain("getAchievementIconUrl(");
         }
+    });
+
+    it("le composant partagé résout la règle ET replie sur le glyphe (jamais d'image cassée)", () => {
+        const src = readFileSync("src/components/ui/achievement-icon.tsx", "utf8");
+        expect(src).toContain("getAchievementIconUrl(");
+        expect(src).toContain("onError");
+        expect(src).toContain("<Trophy");
+        // Le repli est rendu quand il n'y a rien à charger OU que l'image a échoué.
+        expect(src).toMatch(/if \(!src \|\| broken\)/);
     });
 
     it("la liste de clôture tolère l'enveloppe `{ _items }` (sinon zéro icône)", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { AchievementIcon } from "@/components/ui/achievement-icon";
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -421,9 +421,7 @@ export function DjPostDetailModal({
                                                             .filter((a) => d!.wantedAchievementIds!.includes(a.id))
                                                             .map((a) => (
                                                                 <span key={a.id} className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-lg bg-surface/70 border border-border/70 text-caption font-semibold text-foreground">
-                                                                    {a.iconUrl && (
-                                                                        <img src={getAchievementIconUrl(null, a.iconUrl) ?? undefined} alt="" className="w-4 h-4 object-contain" />
-                                                                    )}
+                                                                    <AchievementIcon iconUrl={a.iconUrl} size={16} />
                                                                     {a.name}
                                                                 </span>
                                                             ))}
@@ -549,9 +547,7 @@ export function DjPostDetailModal({
                                         .filter((a) => post.wantedAchievementIds.includes(a.id))
                                         .map((a) => (
                                              <div key={a.id} className="flex items-center gap-2 bg-surface/50 border border-border/70 rounded-lg px-2.5 py-1.5 hover:border-emerald-500/30 transition-colors">
-                                                {a.challenge.iconUrl && (
-                                                    <img src={getAchievementIconUrl(null, a.challenge.iconUrl) ?? undefined} alt="" className="w-4 h-4 object-contain" />
-                                                )}
+                                                <AchievementIcon iconUrl={a.challenge.iconUrl} size={16} />
                                                 <span className="text-xs text-foreground font-semibold">{a.challenge.name}</span>
                                             </div>
                                         ))}

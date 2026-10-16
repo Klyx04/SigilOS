@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
-import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { AchievementIcon } from "@/components/ui/achievement-icon";
 import { getMultiDungeons } from "@/lib/dungeon-finder-utils";
 
 interface DjCloseModalProps {
@@ -451,26 +451,26 @@ export function DjCloseModal({ isOpen, post, guildId, onClose, onClosed, adminMo
                                             // champ brut, et plus jamais `Array.isArray(dungeonsJson)` : un post
                                             // portant l'enveloppe `{ _items }` (rappels / ids de messages) laissait
                                             // la liste **sans aucune icône** (constat du 16/10/2026).
-                                            const iconUrl = (() => {
+                                            /* Valeurs STOCKÉES (jamais une URL déjà résolue : `AchievementIcon`
+                                               applique la règle UNE fois — une URL `…/api/assets-dofus/…`
+                                               re-résolue serait perdue, la règle ne reconnaît que
+                                               `/game-data/…` et les URLs DofusDB). */
+                                            const iconSource = (() => {
                                                 if (post.dungeon) {
                                                     const ach = post.dungeon.achievements.find(a => a.id === s.achievementId);
-                                                    return getAchievementIconUrl(null, ach?.challenge?.iconUrl ?? null);
+                                                    return { iconUrl: ach?.challenge?.iconUrl ?? null, slug: null };
                                                 }
                                                 for (const d of getMultiDungeons(post.dungeonsJson)) {
                                                     const ach = (d.achievements ?? []).find((a) => a.id === s.achievementId);
-                                                    if (ach?.iconUrl) return getAchievementIconUrl(null, ach.iconUrl);
+                                                    if (ach?.iconUrl) return { iconUrl: ach.iconUrl, slug: null };
                                                 }
-                                                return null;
+                                                return { iconUrl: null, slug: null };
                                             })();
                                             return (
                                                 <div key={s.achievementId} className="flex items-center gap-3 bg-surface/50 border border-border rounded-xl px-3 py-2.5">
                                                     {/* Icône du succès */}
                                                     <div className="w-8 h-8 rounded-lg bg-warning/10 border border-warning/20 shrink-0 flex items-center justify-center p-1">
-                                                        {iconUrl ? (
-                                                            <img src={iconUrl} alt="" className="w-full h-full object-contain" />
-                                                        ) : (
-                                                            <Trophy className="w-4 h-4 text-warning/60" />
-                                                        )}
+                                                        <AchievementIcon {...iconSource} size={24} fallbackClassName="text-warning/60" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm font-bold text-foreground truncate">{s.label}</p>

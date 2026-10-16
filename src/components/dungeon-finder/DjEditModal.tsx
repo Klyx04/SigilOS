@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Pencil, CheckCircle2, CalendarClock, MessageSquare, Users, Swords, ScrollText, Link2, Layers } from "lucide-react";
 import { updateDjPost } from "@/server/actions/dungeon-finder-actions";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
-import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { AchievementIcon } from "@/components/ui/achievement-icon";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { getMultiDungeons, formatDjDateLabel } from "@/lib/dungeon-finder-utils";
@@ -294,9 +294,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                                 : "border-border bg-surface/50 hover:bg-elevated text-muted-foreground hover:text-foreground"
                                                 }`}
                                         >
-                                            {a.challenge.iconUrl && (
-                                                <img src={getAchievementIconUrl(null, a.challenge.iconUrl) ?? undefined} alt="" className="w-4 h-4 object-contain" />
-                                            )}
+                                            <AchievementIcon iconUrl={a.challenge.iconUrl} size={16} />
                                             {a.challenge.name}
                                             {selected && <CheckCircle2 className="w-3.5 h-3.5 text-warning ml-1" />}
                                         </button>

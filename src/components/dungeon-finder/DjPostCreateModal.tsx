@@ -10,12 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
     Plus, Search, Swords, Map, Zap, Crown,
-    Users, CheckCircle2, X, Trophy, ChevronsUpDown, Check, ChevronRight, ScrollText, Hash, AlertTriangle, Layers
+    Users, CheckCircle2, X, ChevronsUpDown, Check, ChevronRight, ScrollText, Hash, AlertTriangle, Layers
 } from "lucide-react";
 import { createDjPost, createDjPosts } from "@/server/actions/dungeon-finder-actions";
 import { DjMultiDungeonModal, type MultiDungeonSelection } from "./DjMultiDungeonModal";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
-import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { AchievementIcon } from "@/components/ui/achievement-icon";
 import { getDefis } from "@/server/actions/defi-admin-actions";
 import { getTitans } from "@/server/actions/titan-admin-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
@@ -108,6 +108,24 @@ interface DjPostCreateModalProps {
     isDiscordConfigured?: boolean;
     onClose: () => void;
     onCreated: () => void;
+}
+
+/**
+ * Source d'un résultat de recherche de quête : la route `/api/dofusdb/quests` cherche **d'abord
+ * dans NOTRE base** (`GameQuest` : 1 976 quêtes siphonnées) et ne sollicite DofusDB qu'en repli.
+ * Le libellé « DofusDB » du champ était donc trompeur (constat user du 16/10/2026) : on montre la
+ * provenance réelle de chaque ligne au lieu de la supposer.
+ */
+function QuestSourceChip({ isLocal }: { isLocal?: boolean }) {
+    return (
+        <span
+            className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                isLocal ? "bg-emerald-500/10 text-emerald-400" : "bg-surface text-muted-foreground"
+            }`}
+        >
+            {isLocal ? "base locale" : "DofusDB"}
+        </span>
+    );
 }
 
 export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQuestName, isDiscordConfigured, onClose, onCreated }: DjPostCreateModalProps) {
@@ -813,7 +831,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                         {isSearchingQuests && <div className="p-4 text-sm text-muted-foreground flex items-center gap-2"><div className="w-4 h-4 border-2 border-border border-t-indigo-500 rounded-full animate-spin" /> Recherche Base de Données...</div>}
 
                                                                         {!isSearchingQuests && questSearchResults.length === 0 && (
-                                                                            <div className="p-4 text-sm text-muted-foreground">Aucune quête officielle trouvée sur DofusDB.</div>
+                                                                            <div className="p-4 text-sm text-muted-foreground">Aucune quête trouvée dans la base.</div>
                                                                         )}
 
                                                                         {!isSearchingQuests && questSearchResults.map(q => (
@@ -836,6 +854,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                                     />
                                                                                 </span>
                                                                                 <span className="truncate block font-medium min-w-0">{q.name?.fr}</span>
+                                                                                <QuestSourceChip isLocal={q.isLocal} />
                                                                             </button>
                                                                         ))}
                                                                     </>
@@ -964,7 +983,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                             }`}
                                                     >
                                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${selected ? "bg-warning/20 border-warning/20" : "bg-background border-border"}`}>
-                                                            {a.challenge.iconUrl ? <img src={getAchievementIconUrl(null, a.challenge.iconUrl) ?? undefined} alt="" className="w-5 h-5 object-contain" /> : <Trophy className="w-4 h-4" />}
+                                                            <AchievementIcon iconUrl={a.challenge.iconUrl} size={20} />
                                                         </div>
                                                         <span className="flex-1 text-left truncate">{a.challenge.name}</span>
                                                         {selected && <CheckCircle2 className="w-3.5 h-3.5 text-warning" />}
@@ -1016,7 +1035,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                             type="text"
                                                             value={linkedQuestSearch}
                                                             onChange={e => setLinkedQuestSearch(e.target.value)}
-                                                            placeholder="Rechercher une quête sur DofusDB..."
+                                                            placeholder="Rechercher une quête..."
                                                             className="w-full bg-surface/60 hover:bg-surface/80 border border-border focus:border-info/50 rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-info/10 transition-all placeholder:text-muted-foreground shadow-xl"
                                                         />
                                                         {isSearchingLinkedQuest && <p className="text-xs text-muted-foreground">Recherche...</p>}
@@ -1029,6 +1048,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                     >
                                                                         {q.name?.fr}
                                                                         {q.levelMin && <span className="text-xs text-muted-foreground ml-2">Niv. {q.levelMin}</span>}
+                                                                        <QuestSourceChip isLocal={q.isLocal} />
                                                                     </button>
                                                                 ))}
                                                             </div>

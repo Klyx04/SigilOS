@@ -1088,7 +1088,7 @@
         "name": "Spécial",
         "slug": "sp-cial",
         "description": "Vaincre tel boss dans son donjon en validant le challenge dédié.",
-        "iconUrl": "/game-data/achievements/spécial.png",
+        "iconUrl": "/game-data/achievements/special.png",
         "conditions": null,
         "createdAt": "2026-04-30T09:39:33.422Z",
         "updatedAt": "2026-06-03T18:10:55.781Z"

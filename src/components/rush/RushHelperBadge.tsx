@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import { getSequenceHelpers } from "@/server/actions/optimized-guide-actions";
 import { getRequiredMetiers, getRequiredDungeons } from "@/lib/rush-helpers";
 import type { RushSequence } from "@/types/rush-guide-types";
@@ -119,14 +120,12 @@ export function RushHelperBadge({
         ) : (
           helpers.map((h) => (
             <div key={h.profile.profileId} className="flex items-start gap-2 px-3 py-2 hover:bg-elevated">
-              {h.profile.avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={h.profile.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
-              ) : (
-                <span className="w-6 h-6 rounded-full bg-elevated flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
-                  {(h.profile.name || "?").charAt(0).toUpperCase()}
-                </span>
-              )}
+              <MemberAvatar
+                src={h.profile.avatar}
+                name={h.profile.name}
+                className="w-6 h-6 rounded-full"
+                fallbackClassName="bg-elevated text-[10px] font-bold text-muted-foreground"
+              />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-foreground truncate">
                   {h.profile.name || "Membre"}

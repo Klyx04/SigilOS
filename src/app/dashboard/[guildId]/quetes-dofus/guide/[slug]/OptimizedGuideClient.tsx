@@ -31,6 +31,7 @@ import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-ques
 import GuideParticles from "@/components/dofus-quests/GuideParticles";
 import AlignmentModal from "@/components/dofus-quests/AlignmentModal";
 import { useTour } from "@/components/tour/tour-provider";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import "./guide-styles.css";
 
 const getNoobsDungeonSlug = (name: string) => {
@@ -588,7 +589,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onInteractiveClick, def
             <span className="sgc-step-presence-avatars">
               {presenceMembers.slice(0, 3).map((m) => (
                 <span key={m.profileId} className="sgc-step-presence-avatar">
-                  {m.userAvatar ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer"/> : m.userName.slice(0, 1).toUpperCase()}
+                  <MemberAvatar src={m.userAvatar} name={m.userName} alt={m.userName} />
                 </span>
               ))}
               {presenceCount > 3 && <span className="sgc-step-presence-more">+{presenceCount - 3}</span>}
@@ -909,13 +910,12 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                           className="ms-member-avatar"
                           title={m.userName}
                         >
-                          {m.userAvatar ? (
-                            <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
-                          ) : (
-                            <span className="text-caption font-bold text-zinc-400">
-                              {m.userName.slice(0, 1).toUpperCase()}
-                            </span>
-                          )}
+                          <MemberAvatar
+                            src={m.userAvatar}
+                            name={m.userName}
+                            alt={m.userName}
+                            fallbackClassName="text-caption font-bold text-zinc-400"
+                          />
                         </div>
                       ))}
                       {here.length > 3 && (
@@ -2704,7 +2704,7 @@ export default function OptimizedGuideClient({
                         <span className="guide-live-count">{livePresenceMembers.length} en ligne</span>
                         {livePresenceMembers.slice(0, 3).map((m) => (
                           <span key={m.profileId} className="guide-live-chip">
-                            {m.userAvatar ? <img src={m.userAvatar} alt="" referrerPolicy="no-referrer"/> : null}
+                            <MemberAvatar src={m.userAvatar} name={m.userName} />
                             <span>{m.userName}</span>
                             {isLiveMe(m) && <span className="guide-live-me">(toi)</span>}
                           </span>
@@ -3050,13 +3050,12 @@ export default function OptimizedGuideClient({
                             key={m.profileId}
                             className="inline-block h-7 w-7 rounded-full ring-2 ring-zinc-950 bg-zinc-900 overflow-hidden"
                           >
-                            {m.userAvatar ? (
-                              <img src={m.userAvatar} alt={m.userName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <span className="flex h-full w-full items-center justify-center text-xs font-bold text-zinc-400 bg-zinc-800">
-                                {m.userName.slice(0, 1).toUpperCase()}
-                              </span>
-                            )}
+                            <MemberAvatar
+                              src={m.userAvatar}
+                              name={m.userName}
+                              alt={m.userName}
+                              fallbackClassName="text-xs font-bold text-zinc-400 bg-zinc-800"
+                            />
                           </div>
                         ))}
                         {membersHere.length > 5 && (
@@ -3903,9 +3902,11 @@ export default function OptimizedGuideClient({
                           <div className="flex -space-x-1.5">
                             {here.slice(0, 2).map((member) => (
                               <div key={member.profileId} className="w-4 h-4 rounded-full border border-black/40 overflow-hidden bg-zinc-800" title={member.userName}>
-                                {member.userAvatar
-                                  ? <img src={member.userAvatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                  : <span className="flex w-full h-full items-center justify-center text-caption font-bold text-zinc-400">{member.userName.charAt(0).toUpperCase()}</span>}
+                                <MemberAvatar
+                                  src={member.userAvatar}
+                                  name={member.userName}
+                                  fallbackClassName="text-caption font-bold text-zinc-400"
+                                />
                               </div>
                             ))}
                             {here.length > 2 && (
@@ -4003,9 +4004,11 @@ export default function OptimizedGuideClient({
                                 <div className="flex -space-x-1 shrink-0" title={`${here.length} membre${here.length > 1 ? "s" : ""} ici`}>
                                   {here.slice(0, 2).map((member) => (
                                     <div key={member.profileId} className="w-4 h-4 rounded-full border border-black/40 overflow-hidden bg-zinc-800">
-                                      {member.userAvatar
-                                        ? <img src={member.userAvatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                        : <span className="flex w-full h-full items-center justify-center text-caption font-bold text-zinc-400">{member.userName.charAt(0).toUpperCase()}</span>}
+                                      <MemberAvatar
+                                        src={member.userAvatar}
+                                        name={member.userName}
+                                        fallbackClassName="text-caption font-bold text-zinc-400"
+                                      />
                                     </div>
                                   ))}
                                   {here.length > 2 && (
@@ -4072,13 +4075,13 @@ export default function OptimizedGuideClient({
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-zinc-800 border border-amber-500/20 overflow-hidden flex items-center justify-center shrink-0">
-                              {m.userAvatar ? (
-                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-300" referrerPolicy="no-referrer" />
-                              ) : (
-                                <span className="text-sm font-bold text-zinc-400">
-                                  {m.userName.charAt(0).toUpperCase()}
-                                </span>
-                              )}
+                              <MemberAvatar
+                                src={m.userAvatar}
+                                name={m.userName}
+                                alt={m.userName}
+                                imgClassName="animate-in fade-in duration-300"
+                                fallbackClassName="text-sm font-bold text-zinc-400"
+                              />
                             </div>
                             <div className="flex flex-col">
                               <span className="text-xs font-bold text-zinc-200 group-hover:text-amber-400 transition-colors">
@@ -4118,13 +4121,13 @@ export default function OptimizedGuideClient({
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-                              {m.userAvatar ? (
-                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-300" referrerPolicy="no-referrer" />
-                              ) : (
-                                <span className="text-sm font-bold text-zinc-400">
-                                  {m.userName.charAt(0).toUpperCase()}
-                                </span>
-                              )}
+                              <MemberAvatar
+                                src={m.userAvatar}
+                                name={m.userName}
+                                alt={m.userName}
+                                imgClassName="animate-in fade-in duration-300"
+                                fallbackClassName="text-sm font-bold text-zinc-400"
+                              />
                             </div>
                             <div className="flex flex-col">
                               <span className="text-xs font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors">
@@ -4218,13 +4221,12 @@ export default function OptimizedGuideClient({
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-                          {m.userAvatar ? (
-                            <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <span className="text-sm font-bold text-zinc-400">
-                              {m.userName.charAt(0).toUpperCase()}
-                            </span>
-                          )}
+                          <MemberAvatar
+                            src={m.userAvatar}
+                            name={m.userName}
+                            alt={m.userName}
+                            fallbackClassName="text-sm font-bold text-zinc-400"
+                          />
                         </div>
                         <div className="flex flex-col">
                           <span className="text-xs font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors">
@@ -4279,13 +4281,12 @@ export default function OptimizedGuideClient({
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-                          {m.userAvatar ? (
-                            <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <span className="text-sm font-bold text-zinc-400">
-                              {m.userName.charAt(0).toUpperCase()}
-                            </span>
-                          )}
+                          <MemberAvatar
+                            src={m.userAvatar}
+                            name={m.userName}
+                            alt={m.userName}
+                            fallbackClassName="text-sm font-bold text-zinc-400"
+                          />
                         </div>
                         <div className="flex flex-col min-w-0">
                           <span className="text-xs font-bold text-zinc-200 group-hover:text-blue-400 transition-colors truncate">

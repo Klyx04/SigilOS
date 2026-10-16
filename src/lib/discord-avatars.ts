@@ -143,3 +143,38 @@ export function discordAvatarErrorFallback(url: string | null | undefined): stri
     parsed.searchParams.set("height", "256");
     return parsed.toString();
 }
+
+/** Étages de la cascade de secours d'un avatar (voir `nextDiscordAvatarFallback`). */
+export type DiscordAvatarStage = 0 | 1 | 2;
+
+/**
+ * #23 + #134 — **Règle pure** de la cascade de secours d'un avatar de membre :
+ * un échec de chargement (`onError`) fait passer à l'étage suivant, jamais l'inverse.
+ *
+ *  0 → 1 : miroir `media.discordapp.net` (échec/429 du CDN principal) ;
+ *  1 → 2 : avatar par défaut **officiel** de Discord (`embed/avatars/{n}.png`,
+ *          jamais 404 — c'est le cas d'un hash périmé, cf. #134) ;
+ *  2     : `null` — l'appelant affiche ses initiales.
+ *
+ * Fail-closed : sans identifiant exploitable (URL non-Discord, source absente) on va
+ * directement à `null` ; aucune entrée ne peut faire boucler la cascade.
+ *
+ * Elle vit ici, dans `src/lib/**` (règle pure, testée unitairement), et **une seule**
+ * mécanique l'applique à l'écran : `useResilientAvatarSrc` (`src/hooks/`), consommé
+ * par `AvatarImage` (`ui/avatar.tsx`) et `MemberAvatar` (composant partagé).
+ */
+export function nextDiscordAvatarFallback(
+    currentSrc: string | null | undefined,
+    stage: DiscordAvatarStage
+): { src: string | null; stage: DiscordAvatarStage } {
+    if (!currentSrc) return { src: null, stage: 2 };
+    if (stage === 0) {
+        const mirror = discordAvatarErrorFallback(currentSrc);
+        if (mirror && mirror !== currentSrc) return { src: mirror, stage: 1 };
+    }
+    if (stage <= 1) {
+        const defaultAvatar = getDefaultDiscordAvatar(extractUserIdFromAvatarUrl(currentSrc));
+        if (defaultAvatar) return { src: defaultAvatar, stage: 2 };
+    }
+    return { src: null, stage: 2 };
+}

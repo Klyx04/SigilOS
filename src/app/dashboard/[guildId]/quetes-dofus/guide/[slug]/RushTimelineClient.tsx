@@ -55,6 +55,7 @@ import {
   resetRushAlignment,
 } from "@/server/actions/optimized-guide-actions";
 import { GuildStatusPanel } from "./GuildStatusPanel";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import { QuestGroupRenderer, useQuestGroups } from "./QuestGroup";
 import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
 // Sidebar « Chapitres / ce qu'il faut prévoir » — composant PARTAGÉ (dashboard
@@ -127,7 +128,7 @@ const MemberAvatars = memo(function MemberAvatars({ members, max = 5 }: { member
       <div className="flex -space-x-1">
         {s.map(m => (
           <div key={m.profileId} className="w-5 h-5 rounded-full border-2 border-background overflow-hidden bg-info/20 flex items-center justify-center flex-shrink-0 ring-1 ring-info/30" title={m.userName}>
-            {m.userAvatar ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover"/> : <span className="text-caption font-semibold text-info">{m.userName[0]?.toUpperCase()}</span>}
+            <MemberAvatar src={m.userAvatar} name={m.userName} fallbackClassName="text-caption font-semibold text-info" />
           </div>
         ))}
       </div>
@@ -511,10 +512,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               <div className="flex -space-x-1">
                 {seqMembers.slice(0, 5).map(m => (
                   <div key={m.profileId} className="w-4 h-4 rounded-full overflow-hidden bg-surface border border-background ring-1 ring-warning/30 flex-shrink-0" title={m.userName}>
-                    {m.userAvatar
-                      ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                      // eslint-disable-next-line @next/next/no-img-element
-                      : <span className="text-[7px] font-semibold text-warning flex items-center justify-center h-full">{m.userName[0]?.toUpperCase()}</span>}
+                    <MemberAvatar src={m.userAvatar} name={m.userName} fallbackClassName="text-[7px] font-semibold text-warning" />
                   </div>
                 ))}
               </div>
@@ -553,10 +551,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               {seqMembers.map(m => (
                 <div key={m.profileId} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-elevated transition-colors">
                   <div className="w-7 h-7 rounded-full overflow-hidden bg-info/20 flex items-center justify-center flex-shrink-0">
-                    {m.userAvatar
-                      ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                      // eslint-disable-next-line @next/next/no-img-element
-                      : <span className="text-caption font-semibold text-info">{m.userName[0]?.toUpperCase()}</span>}
+                    <MemberAvatar src={m.userAvatar} name={m.userName} fallbackClassName="text-caption font-semibold text-info" />
                   </div>
                   <span className="text-xs font-bold text-foreground">{m.userName}</span>
                 </div>
@@ -616,11 +611,11 @@ function RushLiveMemberRow({
   return (
     <div className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-elevated transition-colors">
       <span className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-success/20">
-        {member.userAvatar ? (
-          <img src={member.userAvatar} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-caption font-semibold text-success">{String(member.userName || "?")[0]?.toUpperCase()}</span>
-        )}
+        <MemberAvatar
+          src={member.userAvatar}
+          name={member.userName}
+          fallbackClassName="text-caption font-semibold text-success"
+        />
         {online && (
           <span aria-hidden="true" className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-success" />
         )}
@@ -2051,11 +2046,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                   <span className="flex -space-x-1.5 ml-1">
                     {liveMembers.slice(0, 4).map((m) => (
                       <span key={m.profileId || m.userName} className="w-5 h-5 rounded-full overflow-hidden bg-success/20 flex items-center justify-center border border-background flex-shrink-0" title={m.userName}>
-                        {m.userAvatar ? (
-                          <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-caption font-semibold text-success">{String(m.userName || "?")[0]?.toUpperCase()}</span>
-                        )}
+                        <MemberAvatar src={m.userAvatar} name={m.userName} fallbackClassName="text-caption font-semibold text-success" />
                       </span>
                     ))}
                   </span>

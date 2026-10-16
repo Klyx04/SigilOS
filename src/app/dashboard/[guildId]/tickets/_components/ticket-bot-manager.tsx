@@ -183,6 +183,7 @@ export function TicketBotManager({
                         forms={forms}
                         legacyCategories={categories}
                         permissionSettings={config?.settingsJson}
+                        enableTranscripts={config?.enableTranscripts ?? true}
                         onRefresh={onRefresh}
                     />
                 )}

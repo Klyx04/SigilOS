@@ -74,6 +74,7 @@ import {
 import {
     buildTicketCreatorContent,
     buildTicketNotifyContentWithTemplate,
+    buildTicketOpeningContent,
     resolveTicketNotifyRoleIds,
 } from "@/lib/tickets/notifications";
 import {
@@ -216,7 +217,26 @@ export async function updateTicketGuildConfigAction(
             },
         });
 
+        // 🔗 Synchronisation bidirectionnelle avec Pilotage -> Modules (GuildModules.tickets)
+        if (parsed.data.isEnabled !== undefined) {
+            await db.guildModules.upsert({
+                where: { guildId: guildConfig.id },
+                create: {
+                    guildId: guildConfig.id,
+                    tickets: parsed.data.isEnabled,
+                },
+                update: {
+                    tickets: parsed.data.isEnabled,
+                },
+            }).catch((err) => {
+                logger.warn("[updateTicketGuildConfigAction] échec sync GuildModules.tickets", { err });
+            });
+            const { invalidateModuleCache } = await import("@/server/actions/module-actions");
+            await invalidateModuleCache(guildId).catch(() => {});
+        }
+
         revalidatePath(`/dashboard/${guildId}/tickets`);
+        revalidatePath(`/dashboard/${guildId}/admin/pilotage`);
         // Le clamp God est silencieux en base : on le dit au dashboard pour
         // qu'il affiche un avertissement au lieu de laisser croire que « 10 » est sauvé.
         const clamped =
@@ -921,9 +941,10 @@ export async function closeTicketAction(
         // pagination réelle, document partageable sans notes internes, annexe staff
         // séparée, double verrou plateforme + guilde, échéance issue des **plafonds
         // plateforme** (God, jamais la guilde).
+        const archiveConfig = await ticketArchiveConfig(guildConfig.id);
         const archive = await captureTicketArchives({
             ticket,
-            config: await ticketArchiveConfig(guildConfig.id),
+            config: archiveConfig,
             closedByName: user.name || "Staff",
             closedReason: reason ?? null,
         });
@@ -1013,6 +1034,7 @@ export async function closeTicketAction(
                         (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
                         ticket
                     ),
+                    enableTranscripts: archiveConfig.enableTranscripts,
                 }),
             });
             await sendChannelMessage(
@@ -2850,21 +2872,18 @@ async function postTicketWelcomeMessage(input: {
         return null;
     }
 
-    const { fetchWithRetry, DISCORD_USER_AGENT } = await import("@/server/discord");
-    const vars = { motif: input.motifName ?? null, numero: input.ticketNumber ?? null };
-    const rolesContent = buildTicketNotifyContentWithTemplate({
-        roleIds: input.notifyRoleIds,
-        template: input.notifyMessage,
-        enabled: input.notifyEnabled,
-        vars: { ...vars, membre: input.creatorName ? `@${input.creatorName}` : "" },
-    });
-    const creatorContent = buildTicketCreatorContent({
+    const content = buildTicketOpeningContent({
         creatorDiscordId: input.creatorDiscordId,
-        template: input.creatorMessage,
-        vars,
+        creatorName: input.creatorName,
+        roleIds: input.notifyRoleIds,
+        notifyEnabled: input.notifyEnabled,
+        notifyMessage: input.notifyMessage,
+        creatorMessage: input.creatorMessage,
+        motif: input.motifName,
+        numero: input.ticketNumber,
     });
-    const content = [creatorContent, rolesContent].filter(Boolean).join(" ");
     const mentionedUsers = input.creatorDiscordId ? [input.creatorDiscordId] : [];
+    const { fetchWithRetry, DISCORD_USER_AGENT } = await import("@/server/discord");
 
     const post = (payload: Record<string, unknown>) =>
         fetchWithRetry(`/api/v10/channels/${input.channelId}/messages`, {
@@ -3244,9 +3263,10 @@ export async function internalHandleTicketClose(params: {
         // Archives : même service que la fermeture depuis le dashboard (une seule
         // source de vérité — pagination réelle, partageable / annexe distinctes,
         // double verrou plateforme + guilde, échéance issue des **plafonds plateforme**).
+        const archiveConfig = await ticketArchiveConfig(ticket.guildId);
         const archive = await captureTicketArchives({
             ticket,
-            config: await ticketArchiveConfig(ticket.guildId),
+            config: archiveConfig,
             closedByName: params.discordUserName,
             closedReason: params.reason ?? null,
         });
@@ -3354,6 +3374,7 @@ export async function internalHandleTicketClose(params: {
                         (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
                         ticket
                     ),
+                    enableTranscripts: archiveConfig.enableTranscripts,
                 }),
             });
             await sendChannelMessage(
@@ -3465,6 +3486,22 @@ export async function internalHandleTicketRelease(params: {
                     (releaseConfig as { settingsJson?: unknown } | null)?.settingsJson
                 ).ticketLanguage
             );
+            await patchTicketWelcomeMessage({
+                ticketId: ticket.id,
+                channelId: ticket.discordChannelId,
+                metadataJson: ticket.metadataJson,
+                embed: ticketWelcomeEmbedFrom(
+                    { ...ticket, claimedByDiscordId: null },
+                    { status: "OPEN", settingsJson: releaseConfig?.settingsJson, lang: releaseLang }
+                ),
+                components: buildActionRows({
+                    ticketId: ticket.id,
+                    status: "OPEN",
+                    lang: releaseLang,
+                    buttons: readTicketButtonSettings(releaseConfig?.settingsJson),
+                    motifButtons: motifButtonsOf(releaseConfig?.settingsJson, ticket),
+                }),
+            }).catch(() => {});
             await sendChannelMessage(
                 ticket.discordChannelId,
                 releaseLang === "en"

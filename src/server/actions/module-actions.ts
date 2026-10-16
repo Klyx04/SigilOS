@@ -297,6 +297,22 @@ export async function updateGuildModules(
             },
         });
 
+        // 🔗 Synchronisation bidirectionnelle avec le module Ticket (TicketGuildConfig.isEnabled)
+        if (parsed.data.tickets !== undefined) {
+            await db.ticketGuildConfig.upsert({
+                where: { guildId: guildConfig.id },
+                create: {
+                    guildId: guildConfig.id,
+                    isEnabled: parsed.data.tickets,
+                },
+                update: {
+                    isEnabled: parsed.data.tickets,
+                },
+            }).catch((err) => {
+                logger.warn("[updateGuildModules] échec sync TicketGuildConfig.isEnabled", { err });
+            });
+        }
+
         // 🛡️ CRITICAL: Invalidate Server-side memory caches
         await invalidateModuleCache(discordGuildId);
         const { invalidateGuildCache, flushGuildUserContextCache } = await import("./user-actions");

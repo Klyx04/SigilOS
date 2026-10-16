@@ -280,13 +280,14 @@ export function resolveTicketButtonForMotif(
     key: TicketButtonKey,
     motifButtons: TicketMotifButtonOverrides | null | undefined,
     globalSettings: TicketButtonSettings | null | undefined,
-    lang: TicketLang = "fr"
+    lang: TicketLang = "fr",
+    status?: string
 ): ResolvedTicketButton {
-    const base = resolveTicketButton(key, globalSettings, lang);
+    const base = resolveTicketButton(key, globalSettings, lang, status);
     const override = motifButtons?.[key];
     if (!override) return base;
     if (override.disabled === true) return { ...base, access: "disabled" };
-    if (override.label) return { ...base, label: override.label.slice(0, 80) };
+    if (override.label && (key !== "claim" || status !== "CLAIMED")) return { ...base, label: override.label.slice(0, 80) };
     return base;
 }
 
@@ -299,13 +300,16 @@ export function ticketButtonLayoutForMotif(
     status: string,
     motifButtons: TicketMotifButtonOverrides | null | undefined,
     globalSettings: TicketButtonSettings | null | undefined,
-    lang: TicketLang = "fr"
+    lang: TicketLang = "fr",
+    options?: { enableTranscripts?: boolean }
 ): ResolvedTicketButton[] {
-    return ticketButtonLayout(status, globalSettings, lang).map((button) => {
+    return ticketButtonLayout(status, globalSettings, lang, options).map((button) => {
         const override = motifButtons?.[button.key];
         if (!override) return button;
         if (override.disabled === true) return null;
-        if (override.label) return { ...button, label: override.label.slice(0, 80) };
+        if (override.label && (button.key !== "claim" || status !== "CLAIMED")) {
+            return { ...button, label: override.label.slice(0, 80) };
+        }
         return button;
     }).filter((button): button is ResolvedTicketButton => button !== null);
 }

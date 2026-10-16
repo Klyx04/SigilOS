@@ -21,6 +21,7 @@ export function resolveTicketLang(raw: unknown): TicketLang {
 
 const FR = {
     claim: "Je m'en occupe",
+    inProgress: "En traitement",
     release: "Remettre en file",
     add: "Ajouter",
     remove: "Retirer",
@@ -56,6 +57,7 @@ const FR = {
 
 const EN = {
     claim: "Take it",
+    inProgress: "In progress",
     release: "Unclaim",
     add: "Add",
     remove: "Remove",

@@ -17,6 +17,10 @@ vi.mock("@/lib/prisma", () => ({
         platformConfig: { upsert: vi.fn(), findUnique: vi.fn() },
         guildModules: { findFirst: vi.fn(), findUnique: vi.fn(), upsert: vi.fn(), updateMany: vi.fn() },
         guildConfig: { findUnique: vi.fn(), findFirst: vi.fn() },
+        // 16/10/2026 — `updateGuildModules` synchronise le module « tickets » avec
+        // `TicketGuildConfig.isEnabled` : sans cette table mockée, l'appel levait
+        // (`undefined.upsert`) et faisait échouer TOUT le toggle, pas seulement la sync.
+        ticketGuildConfig: { upsert: vi.fn().mockResolvedValue({}) },
         userProfile: { findFirst: vi.fn() },
         guildRecoveryClaim: {
             findFirst: vi.fn(),
@@ -148,6 +152,7 @@ describe("updateGuildModules — gate native + verrou God", () => {
         mockDb.guildConfig.findUnique.mockResolvedValue({ id: "guild-uuid-1", modules: null });
         mockDb.guildModules.findFirst.mockResolvedValue({ disabledByGod: [] });
         mockDb.guildModules.upsert.mockResolvedValue({});
+        mockDb.ticketGuildConfig.upsert.mockResolvedValue({});
     });
 
     const payload = allOn();

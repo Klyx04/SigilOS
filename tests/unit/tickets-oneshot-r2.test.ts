@@ -216,7 +216,10 @@ describe("one-shot R2 — fini les textes « à convertir » côté UI", () => {
         expect(code).toContain("4 · Fermeture et boutons du salon");
         expect(code).toContain("5 · Questionnaire d'ouverture");
         expect(code).toContain("Équipe qui traite ce motif");
-        expect(code).toContain("Résumé affiché sur les listes");
+        // 16/10/2026 — le champ s'appelle « Description interne (mémo staff) » ;
+        // l'ancien vocabulaire ne doit pas revenir.
+        expect(code).toContain("Description interne (mémo staff)");
+        expect(code).not.toContain("Résumé affiché sur les listes");
         expect(code).not.toContain("Rôles staff de ce motif");
         expect(code).not.toContain("Courte description (affichée sur les listes)");
     });

@@ -297,20 +297,26 @@ export async function updateGuildModules(
             },
         });
 
-        // 🔗 Synchronisation bidirectionnelle avec le module Ticket (TicketGuildConfig.isEnabled)
+        // 🔗 Synchronisation bidirectionnelle avec le module Ticket
+        // (`TicketGuildConfig.isEnabled`). La sync est **annexe** : un échec (table
+        // indisponible, environnement sans la ligne) est journalisé, jamais une raison
+        // d'annuler le toggle déjà appliqué — un `.catch()` posé sur la promesse ne
+        // protégeait pas la construction de l'appel lui-même.
         if (parsed.data.tickets !== undefined) {
-            await db.ticketGuildConfig.upsert({
-                where: { guildId: guildConfig.id },
-                create: {
-                    guildId: guildConfig.id,
-                    isEnabled: parsed.data.tickets,
-                },
-                update: {
-                    isEnabled: parsed.data.tickets,
-                },
-            }).catch((err) => {
+            try {
+                await db.ticketGuildConfig.upsert({
+                    where: { guildId: guildConfig.id },
+                    create: {
+                        guildId: guildConfig.id,
+                        isEnabled: parsed.data.tickets,
+                    },
+                    update: {
+                        isEnabled: parsed.data.tickets,
+                    },
+                });
+            } catch (err) {
                 logger.warn("[updateGuildModules] échec sync TicketGuildConfig.isEnabled", { err });
-            });
+            }
         }
 
         // 🛡️ CRITICAL: Invalidate Server-side memory caches

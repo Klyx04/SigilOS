@@ -13,7 +13,7 @@ import { resolveDjContributionPoints } from "@/lib/points-config";
 import { emitGuildActivity } from "@/server/guild-activity-emit";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
-import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates, getDjDungeonStats, getMultiMessageIds, withMultiMessageIds } from "@/lib/dungeon-finder-utils";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 import { syncDjMirror } from "@/server/agenda-mirror-sync";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
@@ -517,9 +517,11 @@ async function sendDiscordNotification(
 }
 
 /**
- * Mode multi-donjons (chantier #26) : UN SEUL message Discord avec UN embed
- * PAR donjon + UN SEUL ping (créateur + rôles autorisés). UNE seule rangée de
- * boutons (S'inscrire / Se désinscrire / Voir le site) pour le post unique.
+ * Mode multi-donjons (chantier #26) : **un post, un message par donjon**.
+ *
+ * Le fil s'ouvre sur un **chapeau** (ping + résumé des places), puis chaque donjon reçoit
+ * sa propre carte, **ses** boutons et son menu de classe. En salon textuel (pas de fil),
+ * on garde un message unique portant les N embeds + les N rangées.
  */
 
 /** Rangée de boutons PAR donjon (max 5 rangées, ≤5 donjons) — bouton « S'inscrire »
@@ -538,12 +540,65 @@ function buildMultiButtonRows(post: any, guildId: string) {
     }));
 }
 
+/**
+ * Rangées de boutons d'**un** donjon d'un post multi (#26) : ses 3 actions + le menu
+ * « Choisir ma classe… » **du donjon** (`dj:class:{postId}:{idx}`).
+ *
+ * Le menu de classe était impossible tant que les 5 donjons tenaient dans un seul
+ * message (5 rangées = plafond Discord). Avec un message par donjon, il revient.
+ */
+function buildMultiDungeonRows(post: any, guildId: string, idx: number) {
+    const rows = buildMultiButtonRows(post, guildId);
+    const row = rows[idx];
+    if (!row) return rows;
+    return [row, buildClassSelectRow(`dj:class:${post.id}:${idx}`, "Choisir ma classe pour ce groupe…")];
+}
+
+/** Rangée du message d'ouverture (chapeau du lot) : un seul lien, pas cinq. */
+function buildMultiChapeauRow(guildId: string) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    return [{
+        type: 1,
+        components: [
+            { type: 2, style: 5, label: "Voir la sortie sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+        ],
+    }];
+}
+
+/**
+ * **Chapeau** du post multi : le message d'ouverture du fil (ping + résumé des donjons
+ * avec leurs places). Chaque donjon a ensuite **son** message — le lien vers le site
+ * n'est plus répété cinq fois.
+ */
+async function buildMultiChapeauEmbed(post: any, authorName: string): Promise<any> {
+    const entries: any[] = getMultiDungeons(post.dungeonsJson);
+    const stats = getDjDungeonStats(post);
+    const emo = await loadEmojiResolver();
+    const lines = entries.map((entry: any, i: number) => {
+        const s = stats[i];
+        const places = s
+            ? s.isFull
+                ? `**complet**${s.pending.length > 0 ? ` · ${s.pending.length} en attente` : ""}`
+                : `${s.acceptedCount}/${s.maxMembers} · ${s.spotsLeft} place${s.spotsLeft > 1 ? "s" : ""}`
+            : "";
+        return `**#${i + 1}** ${entry.name} — ${places}`;
+    });
+    return {
+        title: `${emo("dofus_dungeon")} SORTIE MULTI-DONJON — ${entries.length} donjons`,
+        description: [`Organisée par **${authorName}**`, "", ...lines].join("\n"),
+        color: 0x818cf8,
+        footer: { text: `SigilOS — sortie multi-donjon (${entries.length} donjons)` },
+        timestamp: new Date().toISOString(),
+    };
+}
+
 async function sendMultiDiscordNotification(
     guildId: string,
     post: any,
     embeds: any[],
     mentionRoleId?: string | null,
-    creatorDiscordId?: string | null
+    creatorDiscordId?: string | null,
+    authorName: string = "Membre"
 ) {
     try {
         const guildConfig = await (db as any).guildConfig.findUnique({
@@ -587,14 +642,45 @@ async function sendMultiDiscordNotification(
             const threadTitle = `⚔️ ${firstName}${extra}`.substring(0, 100);
             const availableTags: { id: string; name: string; moderated?: boolean }[] = channelData.available_tags || [];
             const firstUsableTag = availableTags.find((t: { moderated?: boolean }) => !t.moderated);
+            // 🧺 **Un message PAR donjon** (constat user du 16/10/2026) : le fil s'ouvre sur un
+            // **chapeau** (ping + résumé des places), puis chaque donjon reçoit son message
+            // (sa carte + **ses** boutons + son menu de classe) — fini les 5 rangées collées
+            // en bas d'un seul message.
             const forumBody: Record<string, unknown> = {
                 name: threadTitle,
-                message: { content: mentions || undefined, embeds, components: rows },
+                message: {
+                    content: mentions || undefined,
+                    embeds: [await buildMultiChapeauEmbed(post, authorName)],
+                    components: buildMultiChapeauRow(guildId),
+                },
                 auto_archive_duration: 1440,
             };
             if (firstUsableTag) forumBody.applied_tags = [firstUsableTag.id];
             const thread = await createForumThread(channelId, forumBody);
-            if (thread) { discordChannelId = thread.id; discordMessageId = thread.message?.id ?? null; }
+            if (thread) {
+                discordChannelId = thread.id;
+                discordMessageId = thread.message?.id ?? null;
+                // Les messages par donjon suivent l'ouverture du fil ; leurs ids sont
+                // mémorisés dans l'enveloppe `dungeonsJson` (aucune migration).
+                const messageIds: string[] = [];
+                for (let i = 0; i < embeds.length; i++) {
+                    const postedId = await postChannelMessage(thread.id, {
+                        embeds: [embeds[i]],
+                        components: buildMultiDungeonRows(post, guildId, i),
+                    }).catch(() => null);
+                    if (postedId) messageIds.push(postedId);
+                }
+                if (messageIds.length === embeds.length) {
+                    await (db as any).djSearchPost.update({
+                        where: { id: post.id },
+                        data: { dungeonsJson: withMultiMessageIds(post.dungeonsJson, messageIds) as any },
+                    });
+                } else {
+                    // Refus partiel : le fil reste lisible (chapeau + messages obtenus) et
+                    // l'écart est **dit** dans les logs — jamais un échec silencieux (§4).
+                    logger.error(`[DJ Multi Embed] ${embeds.length - messageIds.length} message(s) de donjon non publié(s)`);
+                }
+            }
             else { logger.error("[DJ Multi Embed] Forum thread error"); }
         } else {
             try {
@@ -738,6 +824,86 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
 }
 
 /**
+ * Publie (ou répare) le format **« un message par donjon »** d'un post multi déjà en ligne.
+ *
+ * Les posts créés avant le 16/10/2026 vivent dans **un seul message** (N embeds + N rangées
+ * collées en bas) : rien n'est cassé, mais c'est exactement ce que l'utilisateur ne veut
+ * plus. L'action (créateur ou admin) publie les messages de chaque donjon dans le fil
+ * existant et mémorise leurs ids dans l'enveloppe `dungeonsJson` — le message d'ouverture
+ * devient le **chapeau** (ping + résumé des places).
+ */
+export async function republishDjMultiLayout(guildId: string, postId: string): Promise<ActionResponse> {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.profileId) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, djNotifyChannelId: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            include: {
+                profile: { select: { discordNickname: true, pseudoDofus: true, dofusPseudo: true, user: { select: { name: true } } } },
+                participants: {
+                    where: { status: { in: ["ACCEPTED", "PENDING"] } },
+                    include: { profile: { select: { discordNickname: true, pseudoDofus: true, dofusPseudo: true, user: { select: { name: true } } } } },
+                },
+            },
+        });
+        if (!post) return { success: false, error: "Post introuvable" };
+        // #149 — Isolement tenant strict.
+        if (post.guildId !== guildConfig.id) return { success: false, error: "Accès refusé" };
+        if (post.profileId !== user.profileId && !user.isAdmin) {
+            return { success: false, error: "Seul le créateur peut republier ce post" };
+        }
+
+        const entries = getMultiDungeons(post.dungeonsJson);
+        if (entries.length === 0) return { success: false, error: "Ce post n'est pas un multi-donjon" };
+        if (!post.discordChannelId || post.discordChannelId === guildConfig.djNotifyChannelId) {
+            return { success: false, error: "Publication impossible : ce post doit vivre dans un fil de forum" };
+        }
+
+        const authorName = post.profile?.discordNickname || post.profile?.pseudoDofus || post.profile?.dofusPseudo || post.profile?.user?.name || "Membre";
+        const embeds = await buildMultiPostEmbeds(post, authorName);
+        const messageIds: string[] = [];
+        for (let i = 0; i < embeds.length; i++) {
+            const postedId = await postChannelMessage(post.discordChannelId, {
+                embeds: [embeds[i]],
+                components: buildMultiDungeonRows(post, guildId, i),
+            }).catch(() => null);
+            if (!postedId) {
+                logger.error(`[republishDjMultiLayout] message du donjon ${i + 1} refusé`, { postId });
+                return { success: false, error: `Discord a refusé le message du donjon ${i + 1}` };
+            }
+            messageIds.push(postedId);
+        }
+
+        await (db as any).djSearchPost.update({
+            where: { id: postId },
+            data: { dungeonsJson: withMultiMessageIds(post.dungeonsJson, messageIds) as any },
+        });
+
+        // Le message d'ouverture **devient** le chapeau : l'ancien contenu (N embeds +
+        // N rangées dans un seul message) disparaît au profit des messages par donjon.
+        if (post.discordMessageId) {
+            await patchChannelMessage(post.discordChannelId, post.discordMessageId, {
+                embeds: [await buildMultiChapeauEmbed(post, authorName)],
+                components: buildMultiChapeauRow(guildId),
+            }).catch(() => false);
+        }
+
+        revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        return { success: true, data: { messages: messageIds.length } as any };
+    } catch (error) {
+        logger.error("[republishDjMultiLayout]", error);
+        return { success: false, error: "Erreur lors de la republication" };
+    }
+}
+
+/**
  * Met à jour l'embed Discord existant (PATCH) quand les participants changent.
  */
 export async function updateDjDiscordEmbed(guildId: string, postId: string) {
@@ -764,8 +930,27 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
 
         let patchBody: Record<string, unknown>;
         if (isMulti) {
-            // #26 multi : rafraîchit UN embed PAR donjon + boutons par donjon
             const embeds = await buildMultiPostEmbeds(post, authorName);
+            const messageIds = getMultiMessageIds(post.dungeonsJson);
+            if (messageIds.length === embeds.length && post.discordChannelId) {
+                // 🧺 Format « un message par donjon » : patchs **ciblés** (le mouvement d'un
+                // joueur n'écrase plus les autres donjons) + le chapeau qui suit les places.
+                for (let i = 0; i < embeds.length; i++) {
+                    await patchChannelMessage(post.discordChannelId, messageIds[i], {
+                        embeds: [embeds[i]],
+                        components: buildMultiDungeonRows(post, guildId, i),
+                    }).catch(() => false);
+                }
+                if (post.discordMessageId) {
+                    await patchChannelMessage(post.discordChannelId, post.discordMessageId, {
+                        embeds: [await buildMultiChapeauEmbed(post, authorName)],
+                        components: buildMultiChapeauRow(guildId),
+                    }).catch(() => false);
+                }
+                return;
+            }
+            // Format historique (un seul message, N embeds + N rangées) : PATCH global.
+            // `republishDjMultiLayout` fait passer le post au format par donjon.
             const components = buildMultiButtonRows(post, guildId);
             patchBody = { embeds, components };
         } else {
@@ -1489,7 +1674,7 @@ export async function createDjPosts(
             const embeds = await buildMultiPostEmbeds(post, authorName);
             logger.debug(`[createDjPosts] ${embeds.length} embed(s) Discord multi-donjons`);
             const creatorDiscordId = await getDiscordId(user.id || "");
-            await sendMultiDiscordNotification(guildId, post, embeds, mentionRoleId, creatorDiscordId);
+            await sendMultiDiscordNotification(guildId, post, embeds, mentionRoleId, creatorDiscordId, authorName);
         }
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);

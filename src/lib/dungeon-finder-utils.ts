@@ -462,3 +462,36 @@ export function mergeMultiDungeonTargetDates(
     }
     return next;
 }
+
+/**
+ * Identifiants des **messages Discord par donjon** d'un post multi (#26), lus dans
+ * l'enveloppe `dungeonsJson` (`{ _items: [...], _messageIds: [...] }`).
+ *
+ * Pourquoi une enveloppe et pas une colonne : le format « un message par donjon » doit
+ * pouvoir être **adopté sans migration** — `mergeMultiDungeonTargetDates` et les rappels
+ * d'inactivité se servent déjà de cette enveloppe, la clé est donc additive et tolérée.
+ * `[]` = post encore au format historique (un seul message, N embeds).
+ */
+export function getMultiMessageIds(dungeonsJson: unknown): string[] {
+    if (!dungeonsJson || typeof dungeonsJson !== "object" || Array.isArray(dungeonsJson)) return [];
+    const ids = (dungeonsJson as { _messageIds?: unknown })._messageIds;
+    if (!Array.isArray(ids)) return [];
+    return ids.filter((id): id is string => typeof id === "string" && id.length > 0);
+}
+
+/**
+ * Réécrit l'enveloppe avec les identifiants de messages (`_items` normalisés, autres
+ * clés — `_autoReminderCount` — **préservées**). Jamais de perte de données : c'est la
+ * même règle que `mergeMultiDungeonTargetDates`.
+ */
+export function withMultiMessageIds(dungeonsJson: unknown, ids: string[]): {
+    _items: MultiDungeonItem[];
+    _messageIds: string[];
+    [key: string]: unknown;
+} {
+    const env = dungeonsJson && typeof dungeonsJson === "object" && !Array.isArray(dungeonsJson)
+        ? { ...(dungeonsJson as Record<string, unknown>) }
+        : {};
+    return { ...env, _items: getMultiDungeons(dungeonsJson), _messageIds: ids };
+}
+

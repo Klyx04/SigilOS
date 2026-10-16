@@ -16,6 +16,7 @@ import {
     rejectDjParticipant,
     joinDjPost,
     leaveDjPost,
+    republishDjMultiLayout,
 } from "@/server/actions/dungeon-finder-actions";
 import { DjEditModal } from "./DjEditModal";
 import { DjCloseModal } from "./DjCloseModal";
@@ -154,6 +155,19 @@ export function DjPostDetailModal({
             const res = await leaveDjPost(guildId, post.id, dungeonIndex);
             if (res.success) { toast.success("Inscription retirée."); onRefresh(); }
             else toast.error(res.error);
+        });
+    }
+
+    /** Republier le post **déjà en ligne** au format « un message par donjon » (#26). */
+    function handleRepublishLayout() {
+        startTransition(async () => {
+            const res = await republishDjMultiLayout(guildId, post.id);
+            if (res.success) {
+                toast.success("Post Discord republié — un message par donjon.");
+                onRefresh();
+            } else {
+                toast.error(res.error);
+            }
         });
     }
 
@@ -770,6 +784,21 @@ export function DjPostDetailModal({
                                             >
                                                 <Bell className="w-4 h-4 mr-2" />
                                                 Relancer
+                                            </Button>
+                                        )}
+                                        {/* Posts publiés AVANT le 16/10/2026 : un seul message
+                                            (N embeds + N rangées). Ce bouton les fait passer au
+                                            format « un message par donjon », sans migration. */}
+                                        {isMulti && post.isDiscordPublished && post.discordMessageId && (
+                                            <Button
+                                                variant="outline"
+                                                className="border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/20 font-bold h-11 transition-all px-4 rounded-xl"
+                                                onClick={handleRepublishLayout}
+                                                disabled={isPending}
+                                                title="Republier le post Discord : un message par donjon (le message d'ouverture devient le chapeau)"
+                                            >
+                                                <Layers className="w-4 h-4 mr-2" />
+                                                Republier en 1 msg/donjon
                                             </Button>
                                         )}
                                         <Button

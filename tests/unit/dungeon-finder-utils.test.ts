@@ -23,6 +23,8 @@ import {
     embedCoverUrl,
     getDjDungeonStats,
     summarizeDjDungeons,
+    getMultiMessageIds,
+    withMultiMessageIds,
     QUEST_ICON_FALLBACK,
     questStartMapId,
     questMapImageUrl,
@@ -485,6 +487,39 @@ describe("getDjDungeonStats / summarizeDjDungeons", () => {
             label: "",
             perDungeon: [],
         });
+    });
+});
+
+
+/**
+ * Enveloppe `dungeonsJson` : identifiants des **messages Discord par donjon** (#26).
+ *
+ * Le format « un message par donjon » doit pouvoir être adopté **sans migration** : la clé
+ * `_messageIds` vit à côté de `_items` (déjà écrite par les rappels d'inactivité), et rien
+ * de ce qui existait ne doit être perdu à l'écriture.
+ */
+describe("getMultiMessageIds / withMultiMessageIds", () => {
+    it("sans ids (tableau nu ou enveloppe) → aucun message : format historique", () => {
+        expect(getMultiMessageIds(null)).toEqual([]);
+        expect(getMultiMessageIds([dj("A", 1)])).toEqual([]);
+        expect(getMultiMessageIds({ _items: [dj("A", 1)], _autoReminderCount: 2 })).toEqual([]);
+        // Valeurs inexploitables ignorées (jamais un PATCH vide ni un `42` en custom_id).
+        expect(getMultiMessageIds({ _items: [], _messageIds: ["1", "", null, 42, "2"] })).toEqual(["1", "2"]);
+    });
+
+    it("écrit les ids en préservant les items et les autres clés", () => {
+        const out = withMultiMessageIds({ _items: [dj("A", 1), dj("B", 2)], _autoReminderCount: 3 }, ["m1", "m2"]);
+        expect(out._messageIds).toEqual(["m1", "m2"]);
+        expect(out._autoReminderCount).toBe(3); // jamais perdu
+        expect(getMultiDungeons(out).map((d) => d.name)).toEqual(["A", "B"]);
+        // Aller-retour : ce qu'on écrit est ce qu'on relit.
+        expect(getMultiMessageIds(out)).toEqual(["m1", "m2"]);
+    });
+
+    it("depuis un tableau nu (post créé avant l'enveloppe) : normalisé sans perte", () => {
+        const fromArray = withMultiMessageIds([dj("C", 3)], ["m3"]);
+        expect(fromArray._items.map((d) => d.name)).toEqual(["C"]);
+        expect(getMultiMessageIds(fromArray)).toEqual(["m3"]);
     });
 });
 

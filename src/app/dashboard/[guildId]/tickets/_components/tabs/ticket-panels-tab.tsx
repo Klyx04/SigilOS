@@ -39,6 +39,9 @@ interface TicketPanelsTabProps {
 }
 
 export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount, onRefresh }: TicketPanelsTabProps) {
+    // Les anciennes catégories v1 sont migrées automatiquement depuis l'onglet
+    // « Types de Demande » : les panneaux n'en parlent plus (one-shot R2).
+    void legacyCategoryCount;
     const [modalOpen, setModalOpen] = useState(false);
     const [editingPanel, setEditingPanel] = useState<any | null>(null);
     const [isPending, startTransition] = useTransition();
@@ -113,7 +116,8 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
                 embedImage: embedImage.trim() || undefined,
                 embedFooter: embedFooter.trim() || undefined,
                 style,
-                categoryIds: editingPanel?.categoryIds || [],
+                // Panneaux 100 % types de demande (les catégories v1 sont mortes).
+                categoryIds: [],
                 journeyIds: selectedJourneyIds,
                 isActive: true,
                 deployAfterSave,
@@ -230,14 +234,6 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
                                         </span>{" "}
                                         type(s) de demande affiché(s)
                                     </div>
-                                    {(panel.categoryIds || []).length > 0 && (
-                                        <div>
-                                            <span className="font-semibold text-foreground">
-                                                {(panel.categoryIds || []).length}
-                                            </span>{" "}
-                                            ancienne(s) catégorie(s)
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
@@ -363,12 +359,6 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
                                 <label className="font-semibold text-foreground">
                                     Types de demande affichés sur ce panneau :
                                 </label>
-                                {legacyCategoryCount > 0 && (
-                                    <p className="text-[11px] text-emerald-200 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2">
-                                        {legacyCategoryCount} ancienne(s) catégorie(s) à convertir dans l'onglet « Types de Demande »
-                                        pour pouvoir les enrichir.
-                                    </p>
-                                )}
                                 <div className="space-y-1.5 max-h-44 overflow-y-auto border border-border rounded-lg p-2 bg-surface/30">
                                     {journeys.length === 0 ? (
                                         <p className="text-[11px] text-muted-foreground p-1">

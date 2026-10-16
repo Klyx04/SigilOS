@@ -22,8 +22,33 @@
  *     c'est l'action qui vérifie, jamais l'ouverture seule).
  */
 
+import {
+    resolveTicketButton,
+    ticketButtonLayout,
+    type ResolvedTicketButton,
+    type TicketButtonKey,
+    type TicketButtonSettings,
+} from "./button-config";
+import type { TicketLang } from "./ticket-texts";
+
 export const TICKET_CLOSE_POLICIES = ["STAFF_ONLY", "STAFF_OR_CREATOR"] as const;
 export type TicketCategoryClosePolicy = (typeof TICKET_CLOSE_POLICIES)[number];
+
+/**
+ * 🆕 **Boutons surchargés par motif** (one-shot R2, sans migration : même tiroir
+ * `settingsJson.categories[<motif>]`). Seuls deux réglages sont surchargeables :
+ * `disabled` (retire le bouton de CE salon) et `label` (renomme pour CE salon).
+ * Tout le reste (emoji, couleur, droit) hérite du réglage global de
+ * `Configuration` (`settingsJson.buttons`) — une seule source par niveau.
+ */
+export type TicketMotifButtonOverride = {
+    disabled?: boolean;
+    label?: string;
+};
+
+export type TicketMotifButtonOverrides = Partial<
+    Record<"claim" | "close" | "reopen" | "transcript" | "delete", TicketMotifButtonOverride>
+>;
 
 export type TicketCategoryPermissionOverride = {
     closePolicy?: TicketCategoryClosePolicy;
@@ -47,6 +72,12 @@ export type TicketCategoryPermissionOverride = {
     notifyMessage?: string;
     /** 🆕 Message personnalisé envoyé **au demandeur** à l'ouverture (`{membre}` = sa mention). */
     creatorMessage?: string;
+    /**
+     * 🆕 **Boutons de CE motif** (surcharge du global). Absent ou vide = héritage
+     * total du réglage `Configuration` ; une entrée `{ disabled: true }` retire le
+     * bouton de ce salon, `{ label }` le renomme pour ce salon.
+     */
+    buttons?: TicketMotifButtonOverrides;
 };
 
 export type TicketGuildPermissionSettings = {
@@ -63,8 +94,39 @@ const DEFAULT_SETTINGS: TicketGuildPermissionSettings = {
     categories: {},
 };
 
+/** Boutons surchargeables par motif (mêmes 5 clés que le réglage global). */
+const MOTIF_BUTTON_KEYS = ["claim", "close", "reopen", "transcript", "delete"] as const;
+
+/**
+ * Message FR servi quand deux enregistrements de motif se marchent dessus
+ * (contrainte d'unicité `TicketForm` / `TicketJourney`) : on ne fait **jamais**
+ * remonter le nom brut de la contrainte Prisma au client. Vit ici (et pas dans
+ * l'action `"use server"`, qui ne peut exporter que des fonctions async).
+ */
+export const TICKET_MOTIF_DUPLICATE_MESSAGE =
+    "Ce type de demande existe déjà (nom enregistré à l'instant par un collègue). Recharge la liste et réessaie.";
+
 function isSnowflake(value: unknown): value is string {
     return typeof value === "string" && /^\d{5,}$/.test(value);
+}
+
+/** Lit la surcharge de boutons d'un motif **sans jamais jeter** (illisible = héritage). */
+export function readTicketMotifButtons(raw: unknown): TicketMotifButtonOverrides {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const input = raw as Record<string, unknown>;
+    const clean: TicketMotifButtonOverrides = {};
+    for (const key of MOTIF_BUTTON_KEYS) {
+        const entry = input[key];
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+        const candidate = entry as Record<string, unknown>;
+        const override: TicketMotifButtonOverride = {};
+        if (candidate.disabled === true) override.disabled = true;
+        if (typeof candidate.label === "string" && candidate.label.trim()) {
+            override.label = candidate.label.trim().slice(0, 80);
+        }
+        if (override.disabled !== undefined || override.label !== undefined) clean[key] = override;
+    }
+    return clean;
 }
 
 /** Lit `settingsJson` **sans jamais jeter** (JSON invalide = défauts). */
@@ -103,6 +165,11 @@ export function readTicketPermissionSettings(raw: unknown): TicketGuildPermissio
             if (typeof entry.creatorMessage === "string" && entry.creatorMessage.trim()) {
                 clean.creatorMessage = entry.creatorMessage.trim().slice(0, 900);
             }
+            // 🆕 Surcharge de boutons du motif (héritage du global sinon).
+            if (entry.buttons && typeof entry.buttons === "object" && !Array.isArray(entry.buttons)) {
+                const motifButtons = readTicketMotifButtons(entry.buttons);
+                if (Object.keys(motifButtons).length > 0) clean.buttons = motifButtons;
+            }
             if (
                 clean.closePolicy !== undefined ||
                 clean.requireConfirm !== undefined ||
@@ -111,7 +178,8 @@ export function readTicketPermissionSettings(raw: unknown): TicketGuildPermissio
                 clean.allowedRoleIds !== undefined ||
                 clean.notifyEnabled !== undefined ||
                 clean.notifyMessage !== undefined ||
-                clean.creatorMessage !== undefined
+                clean.creatorMessage !== undefined ||
+                clean.buttons !== undefined
             ) {
                 categories[String(categoryId).slice(0, 40)] = clean;
             }
@@ -202,6 +270,44 @@ export function readTicketMotifMessages(
         notifyMessage: override?.notifyMessage ?? null,
         creatorMessage: override?.creatorMessage ?? null,
     };
+}
+
+/**
+ * 🆕 **Bouton résolu pour UN motif** : surcharge du motif, sinon réglage global,
+ * sinon défaut restrictif. `disabled` (motif ou global) retire le bouton.
+ */
+export function resolveTicketButtonForMotif(
+    key: TicketButtonKey,
+    motifButtons: TicketMotifButtonOverrides | null | undefined,
+    globalSettings: TicketButtonSettings | null | undefined,
+    lang: TicketLang = "fr"
+): ResolvedTicketButton {
+    const base = resolveTicketButton(key, globalSettings, lang);
+    const override = motifButtons?.[key];
+    if (!override) return base;
+    if (override.disabled === true) return { ...base, access: "disabled" };
+    if (override.label) return { ...base, label: override.label.slice(0, 80) };
+    return base;
+}
+
+/**
+ * 🆕 **Barre de boutons d'un motif** : même ordre et mêmes états que le global
+ * (ouvert → Prendre en charge + Fermer ; fermé → Rouvrir + Transcript + Supprimer),
+ * avec la surcharge du motif appliquée bouton par bouton.
+ */
+export function ticketButtonLayoutForMotif(
+    status: string,
+    motifButtons: TicketMotifButtonOverrides | null | undefined,
+    globalSettings: TicketButtonSettings | null | undefined,
+    lang: TicketLang = "fr"
+): ResolvedTicketButton[] {
+    return ticketButtonLayout(status, globalSettings, lang).map((button) => {
+        const override = motifButtons?.[button.key];
+        if (!override) return button;
+        if (override.disabled === true) return null;
+        if (override.label) return { ...button, label: override.label.slice(0, 80) };
+        return button;
+    }).filter((button): button is ResolvedTicketButton => button !== null);
 }
 
 /**

@@ -18,6 +18,10 @@ import {
 } from "./form-schema";
 import { TICKET_BUTTON_EMOJIS, ticketLabel, type TicketLang } from "./ticket-texts";
 import { ticketButtonLayout, type TicketButtonKey, type TicketButtonSettings } from "./button-config";
+import {
+    ticketButtonLayoutForMotif,
+    type TicketMotifButtonOverrides,
+} from "./category-permissions";
 import { ticketIconPayload } from "./ticket-icons";
 
 /** Limites Discord appliquées à la construction (jamais dépassées en silence). */
@@ -360,9 +364,16 @@ export function buildActionRows(input: {
     lang?: TicketLang;
     /** Réglages de boutons de la guilde (`settingsJson.buttons`), déjà nettoyés. */
     buttons?: TicketButtonSettings | null;
+    /**
+     * 🆕 Surcharge du motif (`settingsJson.categories[<motif>].buttons`) : un
+     * bouton retiré ou renommé pour CE salon. Absent = héritage total du global.
+     */
+    motifButtons?: TicketMotifButtonOverrides | null;
 }): DiscordActionRow[] {
     const lang = input.lang ?? "fr";
-    const buttons = ticketButtonLayout(input.status, input.buttons, lang);
+    const buttons = input.motifButtons
+        ? ticketButtonLayoutForMotif(input.status, input.motifButtons, input.buttons, lang)
+        : ticketButtonLayout(input.status, input.buttons, lang);
     if (buttons.length === 0) return [];
 
     return [
@@ -442,9 +453,10 @@ export function buildDeleteConfirmRows(ticketId: string, lang: TicketLang = "fr"
 export function buildModerationRows(
     ticketId: string,
     lang: TicketLang = "fr",
-    buttons?: TicketButtonSettings | null
+    buttons?: TicketButtonSettings | null,
+    motifButtons?: TicketMotifButtonOverrides | null
 ): DiscordActionRow[] {
-    return buildActionRows({ ticketId, status: "CLOSED", lang, buttons });
+    return buildActionRows({ ticketId, status: "CLOSED", lang, buttons, motifButtons });
 }
 
 /** Boutons d'approbation d'une demande d'ouverture (aucun salon n'existe encore). */

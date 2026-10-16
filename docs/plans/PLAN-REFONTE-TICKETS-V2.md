@@ -69,6 +69,41 @@
 > (« Tout passer en Motifs ») pour disposer du réglage « Qui peut ouvrir » ; ④ SLA / auto-fermeture
 > restent des réglages **sans exécutant** (hors brief).
 
+## 0-bis. One-shot R2 (16/10/2026) — **fin v1, message d'ouverture unifié, boutons par motif, slug FR** — branche `feat/tickets-oneshot-r2`
+
+> **Déclencheur** : comparatif TicketTool du propriétaire (panneau, questionnaire, form
+> create, ticket avec message libre + pings + bloc Q/R + bouton Fermer) + doc TicketTool
+> lue en entier (8 pages : `messages-options`, `button-options`, `form-options`,
+> `variables`, `custom-commands`, `ticket-options`, `moderator-options`,
+> `claiming-options`). Tranché avec l'utilisateur : custom commands dédiées ⇒ **chantier Z**,
+> pas ce lot.
+>
+> **Fait (aucune migration : tout en `settingsJson` / `metadataJson`)** :
+> ① **v1 morte** — migration **auto** à l'ouverture de l'onglet (fini bouton « Tout
+> convertir » et bannières), `migrateCategoriesToMotifsAction` bascule les panneaux sur les
+> parcours **et vide leurs `categoryIds`**, tout enregistrement de panneau n'expose plus
+> que des parcours, `internalHandleTicketCreate` **refuse** une `categoryId` héritée avec un
+> message qui guide (vieux bouton Discord non redéployé) ;
+> ② **message d'ouverture en un bloc** (étapes 2 du formulaire : texte d'accueil + ping
+> d'équipe + message demandeur, variables `{membre}` `{motif}` `{numero}`, aperçu live
+> construit par les **mêmes fonctions pures** que l'envoi) ;
+> ③ **boutons par motif** (`settingsJson.categories[<motif>].buttons` : `disabled` retire,
+> `label` renomme, le reste hérite du global) appliqués aux **5 barres** (ouverture, prise
+> en charge, 2 clôtures, réouverture) via `motifButtonsOf` + `ticketButtonLayoutForMotif` ;
+> ④ le **résumé des listes ne part plus** sur Discord (l'accueil = texte du motif + notice) ;
+> ⑤ **`P2002` → FR** (`TICKET_MOTIF_DUPLICATE_MESSAGE`, jamais le nom brut de la
+> contrainte) + reprise du formulaire gagnant en cas de course ;
+> ⑥ formulaire **guidé en 5 étapes**, vocabulaire simple (« Équipe qui traite »,
+> « Résumé affiché sur les listes — ne part jamais sur Discord », liste blanche explicite).
+>
+> **Preuves** : `tsc` **0** · `lint` **0 erreur** · suite **405/406 fichiers, 4403/4407**
+> (les 4 échecs `ladder-actions` sont **pré-existants sur `dev`**, prouvés sans mes
+> changements) · filet neuf `tests/unit/tickets-oneshot-r2.test.ts` (**17 cas**).
+>
+> **Reste / ops (humain)** : la migration auto ne **redéploie pas** les panneaux (aucune
+> écriture Discord surprise) : après conversion, **redéployer chaque panneau** ; les tickets
+> ouverts avant R2 gardent leurs boutons globaux (pas de surcharge, héritage total).
+
 
 
 | Lot | État | Où |

@@ -2039,7 +2039,7 @@ un même `ok` : ce sont deux causes opposées (attente vs échec), la distinctio
 
 - **#198** Badges & Achievements (méta-succès, configurable God, raretés, ping Discord épique/légendaire).
 - **#71** Prêts / Coffre : rappel auto @ping si prêt non clos (cron worker), historique/export par guilde, refonte modale.
-- **#265** Épuration cartes + filtres + mode multi-donjons (2-5) + multi-embed Discord unique (1 ping).
+- **#265** Épuration cartes + filtres + mode multi-donjons (2-5). ✅ **16/10/2026** — **candidature et places PAR DONJON** : migration `20270110000000_dj_participant_unique_per_dungeon` (index unique `(postId, profileId, dungeonIndex)` — « erreur lors de l'inscription » au 2ᵉ donjon corrigée), règle pure `getDjDungeonStats`/`summarizeDjDungeons` (carte + modale + filtre), `joinDjPost(dungeonIndexes)`/`leaveDjPost(dungeonIndex)`, UI donjon par donjon (roster, places, candidature à cases, « Mes inscriptions ») · **Discord : un post, un message par donjon** (chapeau + `_messageIds` sans migration, rafraîchissement ciblé, bouton « Republier en 1 msg/donjon » ; salon textuel = message unique) · **Marché : un post par lot, un message par objet** (fin du post forum par objet). Reste : reprise facultative des inscrits `dungeonIndex = null` (branche `feat/dj-multi-donjons-par-donjon`, PR à ouvrir).
 - **#196 + #197** API Webhooks (HMAC, rate-limit, retry, OpenAPI) + PWA (service worker, push, install) — même socle.
 
 ## 🟡 Bloc D — God / Télémétrie

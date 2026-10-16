@@ -13,7 +13,8 @@ import { resolveDjContributionPoints } from "@/lib/points-config";
 import { emitGuildActivity } from "@/server/guild-activity-emit";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
-import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates, getDjDungeonStats, getMultiMessageIds, withMultiMessageIds } from "@/lib/dungeon-finder-utils";
+import { getDiscordApiCode, getDiscordApiStatus } from "@/lib/discord-api-errors";
+import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates, mergeMultiDungeonRequiredClasses, getDjDungeonStats, getMultiMessageIds, withMultiMessageIds } from "@/lib/dungeon-finder-utils";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 import { syncDjMirror } from "@/server/agenda-mirror-sync";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
@@ -313,6 +314,8 @@ const createMultiPostSchema = z.object({
         targetDate: z.date().nullable(),
         // #203 — taille du groupe PAR donjon (2-8), optionnelle (fallback global).
         maxMembers: z.number().min(2).max(8).optional(),
+        /** #26 — classes recherchées **de ce donjon** (jamais la liste globale pour tous). */
+        requiredClasses: z.array(z.string().max(30)).max(19).default([]),
     })).min(2).max(5),
     maxMembers: z.number().min(2).max(8).default(4),
     requiredClasses: z.array(z.string()).default([]),
@@ -341,6 +344,10 @@ const updatePostSchema = z.object({
     multiDungeonDates: z.array(z.object({
         targetDate: z.date().nullable().catch(null),
     })).max(5).nullable().optional(),
+    /** #26 — classes recherchées PAR donjon d'un post multi (max 5 donjons, 19 classes). */
+    multiDungeonClasses: z.array(
+        z.array(z.string().max(30)).max(19)
+    ).max(5).nullable().optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -524,6 +531,16 @@ async function sendDiscordNotification(
  * on garde un message unique portant les N embeds + les N rangées.
  */
 
+/**
+ * Motif **assaini** d'un refus Discord (statut + code) — jamais le corps brut (F-15).
+ * Utilisé pour dire **pourquoi** un message a été refusé au lieu d'un « échec » muet.
+ */
+function discordErrorDetail(error: unknown): string {
+    const status = getDiscordApiStatus(error);
+    const code = getDiscordApiCode(error);
+    return [status ? `HTTP ${status}` : "", code ? `code ${code}` : ""].filter(Boolean).join(" · ");
+}
+
 /** Rangée de boutons PAR donjon (max 5 rangées, ≤5 donjons) — bouton « S'inscrire »
  *  libellé avec le nom du donjon + index (dj:join:{postId}:{idx}). */
 function buildMultiButtonRows(post: any, guildId: string) {
@@ -664,10 +681,21 @@ async function sendMultiDiscordNotification(
                 // mémorisés dans l'enveloppe `dungeonsJson` (aucune migration).
                 const messageIds: string[] = [];
                 for (let i = 0; i < embeds.length; i++) {
-                    const postedId = await postChannelMessage(thread.id, {
-                        embeds: [embeds[i]],
-                        components: buildMultiDungeonRows(post, guildId, i),
-                    }).catch(() => null);
+                    const components = buildMultiDungeonRows(post, guildId, i);
+                    let detail = "";
+                    let postedId = await postChannelMessage(thread.id, { embeds: [embeds[i]], components })
+                        .catch((err) => {
+                            detail = discordErrorDetail(err);
+                            return null;
+                        });
+                    if (!postedId) {
+                        // Même repli qu'à la republication : cartes sobres plutôt que cartes absentes.
+                        const plain = await buildMultiPostEmbeds(post, authorName, { plainEmoji: true });
+                        postedId = await postChannelMessage(thread.id, { embeds: [plain[i]], components }).catch(() => null);
+                    }
+                    if (!postedId) {
+                        logger.error(`[DJ Multi Embed] message du donjon ${i + 1} refusé`, { detail });
+                    }
                     if (postedId) messageIds.push(postedId);
                 }
                 if (messageIds.length === embeds.length) {
@@ -712,7 +740,7 @@ async function sendMultiDiscordNotification(
  * Construit UN embed PAR donjon du mode multi (#26) : nom, image, succès visés,
  * date prévue, note, classes recherchées + membres (partagés sur la session).
  */
-async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[]> {
+async function buildMultiPostEmbeds(post: any, authorName: string, opts?: { plainEmoji?: boolean }): Promise<any[]> {
     const entries: any[] = getMultiDungeons(post.dungeonsJson);
     const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
     const isMulti = entries.length > 0;
@@ -720,7 +748,10 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
     // une illustration d'embed doit être une URL **https absolue**, Discord ne sait pas
     // charger un chemin relatif — ni localhost.
     const appUrl = getAppBaseUrl();
-    const emo = await loadEmojiResolver();
+    // `plainEmoji` (repli de republication) : **aucune** référence `<:nom:id>`. Une référence
+    // d'emoji que l'application ne porte plus fait rejeter le message ENTIER (400) — mieux vaut
+    // des cartes sobres que des cartes absentes.
+    const emo = opts?.plainEmoji ? (() => "") : await loadEmojiResolver();
 
     let creatorClasse: string | null = post.profile?.classe ?? null;
     if (!creatorClasse && post.profileId) {
@@ -789,10 +820,15 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
             if (achNames) fields.push({ name: `${emo("dofus_success")} Succès visés`, value: achNames, inline: true });
         }
         if (entry.message) fields.push({ name: `${emo("dofus_note")} Note`, value: entry.message, inline: false });
-        if (post.requiredClasses?.length) {
+        // Classes recherchées : **celles du donjon** (#26). Un post créé avant la fonctionnalité
+        // garde la liste globale du post — jamais un champ vide, jamais la liste d'un autre donjon.
+        const classesForDungeon: string[] = Array.isArray(entry.requiredClasses) && entry.requiredClasses.length > 0
+            ? entry.requiredClasses
+            : (post.requiredClasses ?? []);
+        if (classesForDungeon.length) {
             fields.push({
                 name: `🎭 Classes recherchées`,
-                value: post.requiredClasses
+                value: classesForDungeon
                     .map((c: string) => {
                         const ref = classEmojiName(c) ? emo(classEmojiName(c)!) : "";
                         return ref ? `${ref} ${c}` : `\`${c}\``;
@@ -878,13 +914,32 @@ export async function republishDjMultiLayout(guildId: string, postId: string): P
 
         const messageIds: string[] = [];
         for (let i = 0; i < embeds.length; i++) {
-            const postedId = await postChannelMessage(post.discordChannelId, {
+            const components = buildMultiDungeonRows(post, guildId, i);
+            let detail = "";
+            let postedId = await postChannelMessage(post.discordChannelId, {
                 embeds: [embeds[i]],
-                components: buildMultiDungeonRows(post, guildId, i),
-            }).catch(() => null);
+                components,
+            }).catch((err) => {
+                detail = discordErrorDetail(err);
+                return null;
+            });
+
             if (!postedId) {
-                logger.error(`[republishDjMultiLayout] message du donjon ${i + 1} refusé`, { postId });
-                return { success: false, error: `Discord a refusé le message du donjon ${i + 1}` };
+                // 🛟 Repli : le MÊME message **sans emoji d'application** — une référence
+                // `<:nom:id>` que Discord ne connaît plus fait rejeter tout le message (400).
+                const plainEmbeds = await buildMultiPostEmbeds(post, authorName, { plainEmoji: true });
+                postedId = await postChannelMessage(post.discordChannelId, {
+                    embeds: [plainEmbeds[i]],
+                    components,
+                }).catch(() => null);
+                if (postedId) {
+                    logger.warn(`[republishDjMultiLayout] donjon ${i + 1} publié SANS emoji d'application`, { postId, detail });
+                }
+            }
+
+            if (!postedId) {
+                logger.error(`[republishDjMultiLayout] message du donjon ${i + 1} refusé`, { postId, detail });
+                return { success: false, error: `Discord a refusé le message du donjon ${i + 1}${detail ? ` (${detail})` : ""}` };
             }
             messageIds.push(postedId);
         }
@@ -1652,6 +1707,9 @@ export async function createDjPosts(
                 targetDate: p.targetDate,
                 // #203 — taille du groupe par donjon (fallback : la valeur globale du post).
                 maxMembers: p.maxMembers ?? rest.maxMembers,
+                // #26 — classes recherchées **par donjon** (l'UI de création les demande donjon
+                // par donjon ; la valeur globale du post reste pour les posts simples).
+                requiredClasses: p.requiredClasses ?? [],
             };
         });
 
@@ -1713,6 +1771,8 @@ export async function updateDjPost(
         questUrl?: string | null;
         /** #26 — dates prévues par donjon (posts multi uniquement). */
         multiDungeonDates?: { targetDate: Date | null }[] | null;
+        /** #26 — classes recherchées par donjon (posts multi uniquement, index = donjon). */
+        multiDungeonClasses?: string[][] | null;
     }
 ): Promise<ActionResponse> {
     const user = await getUserContext(guildId);
@@ -1743,11 +1803,16 @@ export async function updateDjPost(
 
         const prevMax = postBefore.maxMembers ?? 1;
 
-        // #26 — dates par donjon : on ne remplace QUE `targetDate` et on préserve
-        // l'enveloppe `{ _items, _autoReminderCount }` écrite par les rappels.
-        const multi = Array.isArray(data.multiDungeonDates) && data.multiDungeonDates.length > 0
+        // #26 — dates ET classes par donjon : on ne remplace QUE ce qui est fourni et on préserve
+        // l'enveloppe `{ _items, _autoReminderCount, _messageIds }` écrite par les rappels / la
+        // republication (la perdre rejouerait les rappels et détacherait les messages Discord).
+        const mergedDates = Array.isArray(data.multiDungeonDates) && data.multiDungeonDates.length > 0
             ? mergeMultiDungeonTargetDates(postBefore.dungeonsJson, data.multiDungeonDates)
-            : null;
+            : undefined;
+        const mergedClasses = Array.isArray(data.multiDungeonClasses) && data.multiDungeonClasses.length > 0
+            ? mergeMultiDungeonRequiredClasses(mergedDates ?? postBefore.dungeonsJson, data.multiDungeonClasses)
+            : undefined;
+        const multi = mergedClasses ?? mergedDates ?? null;
 
         // Replanification H-1 : si `targetDate` change (nouvelle heure ou passage
         // en indéfini), le marqueur `_h1ReminderSentAt` doit repartir à zéro pour

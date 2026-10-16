@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 /**
  * 🎫 Tickets — **onglet « Types de demande »** (unique) : un type = un bouton sur un
@@ -67,10 +67,7 @@ import {
     readTicketButtonSettings,
     type TicketButtonKey,
 } from "@/lib/tickets/button-config";
-import {
-    buildTicketCreatorContent,
-    buildTicketNotifyContentWithTemplate,
-} from "@/lib/tickets/notifications";
+import { buildTicketOpeningContent } from "@/lib/tickets/notifications";
 
 interface TicketMotifsTabProps {
     guildId: string;
@@ -79,6 +76,8 @@ interface TicketMotifsTabProps {
     /** Anciennes catégories v1 : migrées automatiquement (silencieuses à l'écran). */
     legacyCategories: any[];
     permissionSettings?: unknown;
+    /** Transcripts activés sur la guilde (contrôle la visibilité du bouton Transcript dans l'aperçu). */
+    enableTranscripts?: boolean;
     onRefresh: () => void;
 }
 
@@ -96,6 +95,7 @@ export function TicketMotifsTab({
     forms,
     legacyCategories,
     permissionSettings,
+    enableTranscripts = true,
     onRefresh,
 }: TicketMotifsTabProps) {
     const [modalOpen, setModalOpen] = useState(false);
@@ -555,7 +555,7 @@ export function TicketMotifsTab({
                             <TicketCategoryPicker guildId={guildId} value={channelParentId} onChange={setChannelParentId} />
 
                             <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">Résumé affiché sur les listes</label>
+                                <label className="font-semibold text-foreground">Description interne (mémo staff)</label>
                                 <Input
                                     placeholder="ex : Présente ta candidature pour rejoindre la guilde."
                                     value={description}
@@ -563,8 +563,7 @@ export function TicketMotifsTab({
                                     className="text-xs h-8"
                                 />
                                 <p className="text-[11px] text-muted-foreground">
-                                    Visible uniquement dans le dashboard — <strong>ne part jamais sur Discord</strong>.
-                                    Le texte du salon se règle à l'étape 2.
+                                    Visible uniquement sur le dashboard (carte du motif) pour expliquer cette demande à votre équipe — <strong>ne part jamais sur Discord</strong>.
                                 </p>
                             </div>
 
@@ -589,7 +588,8 @@ export function TicketMotifsTab({
                                 <p className="text-[11px] text-muted-foreground">
                                     C'est <strong>tout</strong> ce que le membre et l'équipe reçoivent à l'ouverture :
                                     le texte d'accueil (embed), le ping de l'équipe et le message au demandeur.
-                                    Variables : <span className="font-mono">{"{membre}"}</span>{" "}
+                                    Variables : <span className="font-mono">{"{demandeur}"}</span> (ping créateur){" "}
+                                    <span className="font-mono">{"{roles}"}</span> (ping staff){" "}
                                     <span className="font-mono">{"{motif}"}</span>{" "}
                                     <span className="font-mono">{"{numero}"}</span> — aperçu à droite, en direct.
                                 </p>
@@ -634,16 +634,36 @@ export function TicketMotifsTab({
                                             />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className="font-semibold text-foreground">Message envoyé avec le ping</label>
+                                            <div className="flex items-center justify-between">
+                                                <label className="font-semibold text-foreground">Message envoyé avec le ping</label>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNotifyMessage((prev) => `${prev ? `${prev} ` : ""}{demandeur}`)}
+                                                        className="text-[10px] bg-surface/80 hover:bg-surface px-1.5 py-0.5 rounded border border-border text-emerald-400 font-mono transition-colors"
+                                                        title="Insérer le ping du créateur"
+                                                    >
+                                                        +{"{demandeur}"}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNotifyMessage((prev) => `${prev ? `${prev} ` : ""}{roles}`)}
+                                                        className="text-[10px] bg-surface/80 hover:bg-surface px-1.5 py-0.5 rounded border border-border text-emerald-400 font-mono transition-colors"
+                                                        title="Insérer le ping des rôles staff"
+                                                    >
+                                                        +{"{roles}"}
+                                                    </button>
+                                                </div>
+                                            </div>
                                             <Input
                                                 value={notifyMessage}
                                                 onChange={(event) => setNotifyMessage(event.target.value)}
                                                 maxLength={900}
-                                                placeholder="ex : Nouvelle demande de {membre} ({motif} #{numero}) — à traiter !"
+                                                placeholder="ex : Nouveau ticket de {demandeur} pour l'équipe {roles} (#{numero}) !"
                                                 className="text-xs h-8"
                                             />
                                             <p className="text-[11px] text-muted-foreground">
-                                                Variables : {"{membre}"} (pseudo), {"{motif}"}, {"{numero}"}. Vide = message par défaut.
+                                                Variables : <span className="font-mono text-foreground">{"{demandeur}"}</span> (ping créateur), <span className="font-mono text-foreground">{"{roles}"}</span> (ping staff), <span className="font-mono text-foreground">{"{pseudo}"}</span> (nom seul), <span className="font-mono">{"{motif}"}</span>, <span className="font-mono">{"{numero}"}</span>.
                                             </p>
                                         </div>
                                     </>
@@ -654,16 +674,26 @@ export function TicketMotifsTab({
                                 )}
 
                                 <div className="space-y-1.5">
-                                    <label className="font-semibold text-foreground">Message envoyé au demandeur</label>
+                                    <div className="flex items-center justify-between">
+                                        <label className="font-semibold text-foreground">Message envoyé au demandeur</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCreatorMessage((prev) => `${prev ? `${prev} ` : ""}{demandeur}`)}
+                                            className="text-[10px] bg-surface/80 hover:bg-surface px-1.5 py-0.5 rounded border border-border text-emerald-400 font-mono transition-colors"
+                                            title="Insérer le ping du demandeur"
+                                        >
+                                            +{"{demandeur}"}
+                                        </button>
+                                    </div>
                                     <Input
                                         value={creatorMessage}
                                         onChange={(event) => setCreatorMessage(event.target.value)}
                                         maxLength={900}
-                                        placeholder="ex : {membre} merci ! Un membre du staff te répond très vite."
+                                        placeholder="ex : {demandeur} merci ! Un membre du staff te répond très vite."
                                         className="text-xs h-8"
                                     />
                                     <p className="text-[11px] text-muted-foreground">
-                                        {"{membre}"} = sa mention (elle est ajoutée automatiquement si tu l&apos;oublies).
+                                        {"{demandeur}"} (ou {"{membre}"}) = sa mention (ajoutée automatiquement au début si absente).
                                     </p>
                                 </div>
                             </div>
@@ -1047,24 +1077,21 @@ export function TicketMotifsTab({
                             </div>
 
                             {(() => {
-                                const vars = { membre: "@Toi", motif: name.trim() || "motif", numero: 42 };
-                                const creator = buildTicketCreatorContent({
+                                const line = buildTicketOpeningContent({
                                     creatorDiscordId: "123456789012345678",
-                                    template: creatorMessage,
-                                    vars,
-                                });
-                                const roles = buildTicketNotifyContentWithTemplate({
+                                    creatorName: "Toi",
                                     roleIds: notifyRoleIds,
-                                    template: notifyMessage,
-                                    enabled: notifyEnabled,
-                                    vars: { ...vars, membre: "@Toi" },
+                                    notifyEnabled,
+                                    notifyMessage: notifyMessage || undefined,
+                                    creatorMessage: creatorMessage || undefined,
+                                    motif: name.trim() || "motif",
+                                    numero: 42,
                                 });
-                                const line = [creator, roles].filter(Boolean).join(" ");
                                 if (!line) return null;
                                 return (
                                     <>
                                         <div className="text-[11px] text-[#949ba4]">Message envoyé en haut du salon :</div>
-                                        <div className="text-xs text-white break-words">{line}</div>
+                                        <div className="text-xs text-white break-words whitespace-pre-wrap">{line}</div>
                                     </>
                                 );
                             })()}
@@ -1115,7 +1142,7 @@ export function TicketMotifsTab({
                                  }
                                  const global = readTicketButtonSettings(permissionSettings);
                                  const render = (status: "OPEN" | "CLOSED") =>
-                                     ticketButtonLayoutForMotif(status, overrides, global, "fr").map((button) => (
+                                     ticketButtonLayoutForMotif(status, overrides, global, "fr", { enableTranscripts }).map((button) => (
                                          <span
                                              key={button.key}
                                              className={`px-2 py-1 rounded text-white text-[10px] font-semibold ${

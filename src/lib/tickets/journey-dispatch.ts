@@ -55,17 +55,6 @@ function journeyLabel(journeyName: string): string {
 }
 
 /**
- * Liste numérotée des questions à choix : **le libellé saisi par l'admin est écrit**.
- * Sans ça, deux questions Oui/Non affichaient quatre boutons muets (« Oui » / « Non »)
- * dont personne ne pouvait dire à quoi ils répondaient.
- */
-function choicePromptLines(prompts: string[]): string {
-    return prompts
-        .map((prompt, index) => `${index + 1}. ${truncate(neutralizeMentions(prompt), 200) || "Question"}`)
-        .join("\n");
-}
-
-/**
  * Réponse à une étape du tunnel, quand l'interaction reçue était un **clic** (bouton ou
  * menu) : une modale est alors une réponse autorisée.
  */
@@ -80,14 +69,12 @@ export function buildTicketTunnelReply(input: {
     if (input.step.kind === "choices") {
         const asked = input.step.fieldIds.length;
         const later = input.step.remaining;
-        const lines = choicePromptLines(input.step.prompts);
         return {
             kind: "choices",
             content:
                 `🎫 **${label}** — ${asked} question(s) à choix` +
                 (later > 0 ? `, puis ${later} autre(s)` : "") +
-                " avant le questionnaire." +
-                (lines ? `\n\n${lines}` : ""),
+                " avant le questionnaire.",
             components: input.step.rows,
         };
     }
@@ -139,12 +126,9 @@ export function buildTicketModalSubmittedReply(input: {
     }
 
     if (input.step.kind === "choices") {
-        const lines = choicePromptLines(input.step.prompts);
         return {
             kind: "choices",
-            content:
-                `🎫 **${label}** — encore ${input.step.remaining} question(s) à choix.` +
-                (lines ? `\n\n${lines}` : ""),
+            content: `🎫 **${label}** — encore ${input.step.remaining} question(s) à choix.`,
             components: input.step.rows,
         };
     }

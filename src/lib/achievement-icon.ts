@@ -1,6 +1,23 @@
 import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
 
 /**
+ * Ramène un chemin d'asset à sa forme **ASCII** : « spécial » → `special.png`.
+ *
+ * 🐛 Mesure du 16/10/2026 : le succès « Spécial » restait **noir** dans les fiches interne
+ * et externe alors que le fichier `spécial.png` existe, que la base stocke bien le chemin
+ * NFC et que l'URL encodée répond **200** — un accent dans un chemin est une bombe à
+ * retardement : encodage de l'URL, cache d'un ancien 404, mojibake d'un attribut HTML,
+ * normalisation différente selon le système de fichiers. Les 27 autres assets du dépôt
+ * sont **tous** en ASCII (`conquerant.png`, `liberte.png`, `special.png`).
+ *
+ * Le repli ne fabrique rien : il vise le nom **ASCII jumeau**, présent au dépôt (et utilisé
+ * par le seed des autres succès). Un chemin déjà ASCII est rendu inchangé.
+ */
+function asciiAssetPath(path: string): string {
+    return path.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
  * Résout l'icône d'un succès / challenge DofusDB.
  *
  * 🐛 Mesure du 11/10/2026 (succès « Spécial » d'un boss : **case noire**, page DofusDB montrant
@@ -23,10 +40,10 @@ export function getAchievementIconUrl(slug: string | null | undefined, apiIconUr
     // transformé le « é » en « - ») avec `iconUrl: "/game-data/achievements/spécial.png"`
     // (fichier **présent** au dépôt) ⇒ reconstruire le chemin depuis le slug demandait
     // `sp-cial.png` = **404** et une case noire (constat user : « le bug succès spécial
-    // persiste »). `encodeURI` : certains noms portent un accent.
-    if (apiIconUrl && apiIconUrl.startsWith("/game-data/")) return encodeURI(apiIconUrl);
+    // persiste »). On sert donc sa forme ASCII (`special.png`), jamais un accent.
+    if (apiIconUrl && apiIconUrl.startsWith("/game-data/")) return encodeURI(asciiAssetPath(apiIconUrl));
     // ③ Dernier repli : asset local nommé d'après le slug (les 28 challenges historiques).
-    if (slug) return `/game-data/achievements/${slug}.png`;
+    if (slug) return `/game-data/achievements/${asciiAssetPath(slug)}.png`;
     return null;
 }
 

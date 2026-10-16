@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import {
-    Users, CheckCircle2, Swords, Map, Zap, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock,
+    Users, CheckCircle2, Swords, Map, Zap, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock, ChevronDown,
 } from "lucide-react";
 import {
     acceptDjParticipant,
@@ -66,6 +66,14 @@ export function DjPostDetailModal({
     // Clôture (bilan des succès/points + fermeture Discord) : action principale du
     // créateur. La suppression du groupe a été retirée (elle détruisait le bilan).
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+    /**
+     * #26 — accordéon « un bloc par donjon » : le premier est déplié d'office (on voit
+     * tout de suite où on en est), les autres s'ouvrent à la demande. Responsive par
+     * construction : un seul niveau de pliage, aucune colonne fixe.
+     */
+    const [openDungeons, setOpenDungeons] = useState<number[]>([0]);
+    const toggleDungeonOpen = (index: number) =>
+        setOpenDungeons((prev) => (prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]));
     const [isPending, startTransition] = useTransition();
 
     const isOwner = post.profileId === currentProfileId;
@@ -341,9 +349,13 @@ export function DjPostDetailModal({
                                     const d = multiDungeons[s.index];
                                     const myRow = myParticipations.find((p) => (p.dungeonIndex ?? -1) === s.index);
                                     const ticked = targets.includes(s.index);
+                                    const classesForDungeon: string[] = (d?.requiredClasses?.length ? d.requiredClasses : (post.requiredClasses ?? []));
+                                    const open = openDungeons.includes(s.index);
                                     return (
-                                    <div key={d?.dungeonId ?? s.index} className="p-2.5 rounded-xl bg-surface/50 border border-border/70 space-y-2">
-                                        <div className="flex items-center gap-2.5">
+                                    <div key={d?.dungeonId ?? s.index} className="rounded-xl bg-surface/50 border border-border/70 overflow-hidden">
+                                        {/* En-tête toujours visible (nom, places) : cliquer replie/déplie. */}
+                                        <button type="button" onClick={() => toggleDungeonOpen(s.index)}
+                                            className="w-full flex items-center gap-2.5 p-2.5 text-left hover:bg-surface/70 transition-colors">
                                             {d?.imageUrl ? (
                                                 <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-background border border-border/70 shrink-0 p-0.5" />
                                             ) : (
@@ -356,6 +368,7 @@ export function DjPostDetailModal({
                                                 <p className="text-caption text-muted-foreground font-mono">
                                                     Lvl {d?.level}
                                                     {(d?.wantedAchievementIds?.length ?? 0) > 0 && ` · ${d!.wantedAchievementIds!.length} succès`}
+                                                    {classesForDungeon.length > 0 && ` · ${classesForDungeon.length} classe${classesForDungeon.length > 1 ? "s" : ""}`}
                                                     {d?.targetDate ? ` · ${formatDjDateLabel(d.targetDate, { shortMonth: true }) ?? ""}` : ""}
                                                 </p>
                                             </div>
@@ -368,23 +381,102 @@ export function DjPostDetailModal({
                                                 {s.acceptedCount}/{s.maxMembers}
                                             </span>
                                             <span className="text-caption font-mono font-bold text-muted-foreground uppercase tracking-wider shrink-0">#{s.index + 1}</span>
-                                        </div>
-                                        {/* Roster de CE donjon : créateur + inscrits, puis la file d'attente. */}
-                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                            <span className="text-caption font-semibold text-foreground">{displayName(post.profile)}</span>
-                                            <span className="text-caption text-muted-foreground">créateur</span>
-                                            {s.accepted.map((p) => (
-                                                <PseudoChip key={p.id} pseudo={displayName(p.profile)} classe={p.classe} className="text-caption font-semibold text-foreground" />
-                                            ))}
-                                            {s.accepted.length === 0 && (
-                                                <span className="text-caption text-muted-foreground italic">personne d&apos;autre pour l&apos;instant</span>
+                                            <ChevronDown className={cn("w-4 h-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
+                                        </button>
+                                        {open && (
+                                        <div className="px-2.5 pb-2.5 space-y-2.5">
+                                            {/* Classes recherchées de CE donjon (#26) */}
+                                            {classesForDungeon.length > 0 && (
+                                                <div className="space-y-1">
+                                                    <p className="text-caption uppercase tracking-widest font-bold text-muted-foreground">Classes recherchées</p>
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {classesForDungeon.map((c) => {
+                                                            const classData = getClass(c);
+                                                            return (
+                                                                <span key={c} className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-lg bg-surface/70 border border-border/70 text-caption font-semibold text-foreground">
+                                                                    {classData?.icon && (
+                                                                        <img src={classData.icon} alt="" className="w-4 h-4 object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                                                                    )}
+                                                                    {classData?.name || c}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
                                             )}
-                                            {s.pending.length > 0 && (
-                                                <span className="text-caption font-mono text-amber-400 flex items-center gap-1">
-                                                    <AlarmClock className="w-3 h-3" /> {s.pending.length} en attente
-                                                </span>
+
+                                            {/* Note de CE donjon (dungeonsJson[].message) */}
+                                            {d?.message && (
+                                                <p className="text-caption text-foreground italic bg-surface/60 border border-border/60 rounded-lg px-2.5 py-2 break-words [overflow-wrap:anywhere]">
+                                                    &ldquo;{d.message}&rdquo;
+                                                </p>
                                             )}
-                                        </div>
+
+                                            {/* Succès visés de CE donjon (snapshot du post) */}
+                                            {(d?.wantedAchievementIds?.length ?? 0) > 0 && (
+                                                <div className="space-y-1">
+                                                    <p className="text-caption uppercase tracking-widest font-bold text-muted-foreground">Succès visés</p>
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {(d!.achievements ?? [])
+                                                            .filter((a) => d!.wantedAchievementIds!.includes(a.id))
+                                                            .map((a) => (
+                                                                <span key={a.id} className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-lg bg-surface/70 border border-border/70 text-caption font-semibold text-foreground">
+                                                                    {a.iconUrl && (
+                                                                        <img src={getAchievementIconUrl(null, a.iconUrl) ?? undefined} alt="" className="w-4 h-4 object-contain" />
+                                                                    )}
+                                                                    {a.name}
+                                                                </span>
+                                                            ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Roster de CE donjon : créateur + inscrits, puis la file (actions par personne) */}
+                                            <div className="space-y-1.5">
+                                                <p className="text-caption uppercase tracking-widest font-bold text-muted-foreground">
+                                                    Inscrits ({s.acceptedCount}/{s.maxMembers})
+                                                </p>
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                    <span className="text-caption font-semibold text-foreground">{displayName(post.profile)}</span>
+                                                    <span className="text-caption text-muted-foreground">créateur</span>
+                                                    {s.accepted.map((p) => (
+                                                        <PseudoChip key={p.id} pseudo={displayName(p.profile)} classe={p.classe} className="text-caption font-semibold text-foreground" />
+                                                    ))}
+                                                    {s.accepted.length === 0 && (
+                                                        <span className="text-caption text-muted-foreground italic">personne d&apos;autre pour l&apos;instant</span>
+                                                    )}
+                                                </div>
+                                                {s.pending.length > 0 && (
+                                                    <div className="space-y-1">
+                                                        <p className="text-caption font-mono text-amber-400 flex items-center gap-1">
+                                                            <AlarmClock className="w-3 h-3" /> En attente ({s.pending.length})
+                                                        </p>
+                                                        {s.pending.map((p) => (
+                                                            <div key={p.id} className="flex items-center justify-between gap-2 bg-surface/40 rounded-lg px-2 py-1.5 border border-border/60">
+                                                                <PseudoChip pseudo={displayName(p.profile)} classe={p.classe} className="text-caption font-semibold text-foreground min-w-0 truncate" />
+                                                                {(isOwner || isAdmin) && post.status === "OPEN" && (
+                                                                    <div className="flex gap-1 shrink-0">
+                                                                        {s.spotsLeft > 0 && (
+                                                                            <Button size="icon" variant="ghost"
+                                                                                className="w-7 h-7 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-md"
+                                                                                onClick={() => handleAccept(p.id)} disabled={isPending}
+                                                                                title="Accepter dans ce donjon">
+                                                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                                                            </Button>
+                                                                        )}
+                                                                        <Button size="icon" variant="ghost"
+                                                                            className="w-7 h-7 text-danger hover:bg-danger/20 hover:text-danger rounded-md"
+                                                                            onClick={() => handleReject(p.id)} disabled={isPending}
+                                                                            title="Refuser">
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         {!isOwner && isJoinablePost && (
                                             myRow ? (
                                                 <div className="flex items-center gap-2 flex-wrap">
@@ -416,6 +508,8 @@ export function DjPostDetailModal({
                                                 </Button>
                                             )
                                         )}
+                                        </div>
+                                        )}
                                     </div>
                                     );
                                 })}
@@ -437,8 +531,8 @@ export function DjPostDetailModal({
                             </div>
                         )}
 
-                        {/* Message */}
-                        {post.message && (
+                        {/* Message — post simple (en multi, la note vit **dans** son donjon) */}
+                        {!isMulti && post.message && (
                             <div className="bg-surface/40 rounded-xl p-3.5 border border-border/70 border-l-2 border-l-emerald-500/60 min-w-0">
                                 <p className="text-sm text-foreground leading-relaxed italic opacity-90 break-words [overflow-wrap:anywhere] break-all">
                                     &ldquo;{post.message.length > 200 ? `${post.message.slice(0, 200)}…` : post.message}&rdquo;
@@ -466,7 +560,8 @@ export function DjPostDetailModal({
                         )}
 
                         {/* Required classes */}
-                        {post.requiredClasses && post.requiredClasses.length > 0 && (
+                        {/* Classes demandées — post simple (en multi, elles sont **par donjon**) */}
+                        {!isMulti && post.requiredClasses && post.requiredClasses.length > 0 && (
                             <div className="space-y-2">
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Classes demandées</p>
                                 <div className="flex gap-1.5 flex-wrap">
@@ -485,7 +580,9 @@ export function DjPostDetailModal({
                             </div>
                         )}
 
-                        {/* Participants list */}
+                        {/* Participants list — posts **simples** uniquement : en multi, chaque
+                            donjon a son roster (inscrits, file, actions) dans l'accordéon ci-dessus. */}
+                        {!isMulti && (
                         <div>
                             <div className="flex items-center justify-between gap-3 mb-2.5">
                                 <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-2">
@@ -631,6 +728,7 @@ export function DjPostDetailModal({
                                 </div>
                             )}
                         </div>
+                        )}
 
                         {/* Candidature — post multi : on **coche les donjons visés** (jamais un
                             « global » invisible) ; post simple : un seul groupe, comme avant. */}

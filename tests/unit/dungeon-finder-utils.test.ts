@@ -19,6 +19,7 @@ import {
     formatDjDateLabel,
     formatDiscordDateStamp,
     mergeMultiDungeonTargetDates,
+    mergeMultiDungeonRequiredClasses,
     achievementLines,
     embedCoverUrl,
     getDjDungeonStats,
@@ -520,6 +521,44 @@ describe("getMultiMessageIds / withMultiMessageIds", () => {
         const fromArray = withMultiMessageIds([dj("C", 3)], ["m3"]);
         expect(fromArray._items.map((d) => d.name)).toEqual(["C"]);
         expect(getMultiMessageIds(fromArray)).toEqual(["m3"]);
+    });
+});
+
+
+/**
+ * Classes recherchées **par donjon** (#26) — même contrat que les dates : l'enveloppe
+ * `{ _items, _autoReminderCount, _messageIds }` est préservée, un donjon non fourni n'est
+ * jamais touché, et une liste **vide** est un choix explicite (« aucune classe demandée »).
+ */
+describe("mergeMultiDungeonRequiredClasses", () => {
+    it("remplace les classes du donjon visé et laisse les autres intacts", () => {
+        const items = [
+            { ...dj("A", 1), requiredClasses: ["Iop"] },
+            { ...dj("B", 2), requiredClasses: ["Cra"] },
+            { ...dj("C", 3) },
+        ];
+        const merged = mergeMultiDungeonRequiredClasses(items, [["Zobal"], undefined, ["Eniripsa", "Pandawa"]]) as {
+            requiredClasses?: string[];
+        }[];
+        expect(merged[0].requiredClasses).toEqual(["Zobal"]);
+        expect(merged[1].requiredClasses).toEqual(["Cra"]); // non fourni → intact
+        expect(merged[2].requiredClasses).toEqual(["Eniripsa", "Pandawa"]);
+    });
+
+    it("liste vide = choix explicite ; enveloppe `{ _items }` et compteurs préservés", () => {
+        const envelope = {
+            _items: [{ ...dj("A", 1), requiredClasses: ["Iop"] }],
+            _autoReminderCount: 2,
+            _messageIds: ["m1"],
+        };
+        const merged = mergeMultiDungeonRequiredClasses(envelope, [[]]) as Record<string, unknown> & {
+            _items: { requiredClasses?: string[] }[];
+        };
+        expect(merged._items[0].requiredClasses).toEqual([]);
+        expect(merged._autoReminderCount).toBe(2);
+        expect(merged._messageIds).toEqual(["m1"]);
+        // Aucun donjon multi → l'entrée est rendue telle quelle (jamais de destruction).
+        expect(mergeMultiDungeonRequiredClasses(null, [["Iop"]])).toBeNull();
     });
 });
 

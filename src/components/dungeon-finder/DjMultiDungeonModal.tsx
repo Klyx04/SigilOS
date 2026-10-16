@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Plus, Search, X, CheckCircle2, Trophy, CalendarClock, Swords, Users } from "lucide-react";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 
 type Dungeon = {
     id: string;
@@ -31,6 +32,8 @@ export type MultiDungeonSelection = {
     targetDate: string;
     /** #203 — taille du groupe PAR donjon (2-8), indépendante des autres donjons. */
     maxMembers: number;
+    /** #26 — classes recherchées PAR donjon (vide = toutes les classes acceptées). */
+    requiredClasses: string[];
 };
 
 interface DjMultiDungeonModalProps {
@@ -86,11 +89,11 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
             toast.error(`Maximum ${MAX_DUNGEONS} donjons par publication.`);
             return;
         }
-        setSelections(prev => [...prev, { dungeon: d, achievements: [], message: "", targetDate: "", maxMembers: 4 }]);
+        setSelections(prev => [...prev, { dungeon: d, achievements: [], message: "", targetDate: "", maxMembers: 4, requiredClasses: [] }]);
         setExpandedId(d.id);
     }
 
-    function updateSelection(id: string, patch: Partial<Pick<MultiDungeonSelection, "achievements" | "message" | "targetDate" | "maxMembers">>) {
+    function updateSelection(id: string, patch: Partial<Pick<MultiDungeonSelection, "achievements" | "message" | "targetDate" | "maxMembers" | "requiredClasses">>) {
         setSelections(prev => prev.map(s => s.dungeon.id === id ? { ...s, ...patch } : s));
     }
 
@@ -277,6 +280,44 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                                             {n}
                                                         </button>
                                                     ))}
+                                                </div>
+                                            </div>
+
+                                            {/* #26 — Classes recherchées PAR donjon (vide = toutes acceptées) */}
+                                            <div className="space-y-1.5">
+                                                <p className="text-caption font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                                                    <Users className="w-3 h-3" /> Classes recherchées
+                                                    <span className="text-muted-foreground normal-case font-medium">
+                                                        {s.requiredClasses.length > 0
+                                                            ? `(${s.requiredClasses.length} demandée${s.requiredClasses.length > 1 ? "s" : ""})`
+                                                            : "(toutes acceptées)"}
+                                                    </span>
+                                                </p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {DOFUS_CLASSES.map((c) => {
+                                                        const on = s.requiredClasses.includes(c.name);
+                                                        return (
+                                                            <button
+                                                                key={c.id}
+                                                                type="button"
+                                                                title={c.name}
+                                                                onClick={() => updateSelection(s.dungeon.id, {
+                                                                    requiredClasses: on
+                                                                        ? s.requiredClasses.filter((n) => n !== c.name)
+                                                                        : [...s.requiredClasses, c.name],
+                                                                })}
+                                                                className={`inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-lg text-caption font-bold border transition-colors whitespace-nowrap ${on ? "bg-warning/15 border-warning/40 text-warning" : "bg-surface border-border text-muted-foreground hover:border-border-strong hover:text-foreground"}`}
+                                                            >
+                                                                <img
+                                                                    src={c.icon}
+                                                                    alt={c.name}
+                                                                    className="w-4 h-4 object-contain"
+                                                                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                                                />
+                                                                {c.name}
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
 

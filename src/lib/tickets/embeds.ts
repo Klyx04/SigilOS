@@ -379,11 +379,17 @@ export function buildActionRows(input: {
      * bouton retiré ou renommé pour CE salon. Absent = héritage total du global.
      */
     motifButtons?: TicketMotifButtonOverrides | null;
+    /** Désactivation globale des transcripts sur la guilde ou par la plateforme. */
+    enableTranscripts?: boolean;
 }): DiscordActionRow[] {
     const lang = input.lang ?? "fr";
     const buttons = input.motifButtons
-        ? ticketButtonLayoutForMotif(input.status, input.motifButtons, input.buttons, lang)
-        : ticketButtonLayout(input.status, input.buttons, lang);
+        ? ticketButtonLayoutForMotif(input.status, input.motifButtons, input.buttons, lang, {
+              enableTranscripts: input.enableTranscripts,
+          })
+        : ticketButtonLayout(input.status, input.buttons, lang, {
+              enableTranscripts: input.enableTranscripts,
+          });
     if (buttons.length === 0) return [];
 
     return [
@@ -392,7 +398,10 @@ export function buildActionRows(input: {
             components: buttons.map(
                 (button): DiscordComponent => ({
                     type: DISCORD_BUTTON,
-                    style: TICKET_BUTTON_STYLES[button.key],
+                    style:
+                        button.key === "claim" && input.status === "CLAIMED"
+                            ? 2
+                            : TICKET_BUTTON_STYLES[button.key],
                     label: button.label,
                     custom_id: `tb:${button.key}:${input.ticketId}`,
                     emoji: button.emoji ? { name: button.emoji } : undefined,
@@ -464,9 +473,10 @@ export function buildModerationRows(
     ticketId: string,
     lang: TicketLang = "fr",
     buttons?: TicketButtonSettings | null,
-    motifButtons?: TicketMotifButtonOverrides | null
+    motifButtons?: TicketMotifButtonOverrides | null,
+    enableTranscripts?: boolean
 ): DiscordActionRow[] {
-    return buildActionRows({ ticketId, status: "CLOSED", lang, buttons, motifButtons });
+    return buildActionRows({ ticketId, status: "CLOSED", lang, buttons, motifButtons, enableTranscripts });
 }
 
 /** Boutons d'approbation d'une demande d'ouverture (aucun salon n'existe encore). */

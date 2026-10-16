@@ -140,28 +140,41 @@ export type ResolvedTicketButton = {
 export function resolveTicketButton(
     key: TicketButtonKey,
     settings: TicketButtonSettings | null | undefined,
-    lang: TicketLang = "fr"
+    lang: TicketLang = "fr",
+    status?: string
 ): ResolvedTicketButton {
     const config = settings?.[key] ?? {};
-    const label = (config.label || defaultTicketButtonLabel(key, lang)).slice(0, TICKET_BUTTON_LABEL_MAX);
-    const emoji = (config.emoji || defaultTicketButtonEmoji(key)).slice(0, TICKET_BUTTON_EMOJI_MAX);
+    let defaultLabel = defaultTicketButtonLabel(key, lang);
+    let defaultEmoji = defaultTicketButtonEmoji(key);
+
+    if (key === "claim" && status === "CLAIMED") {
+        defaultLabel = ticketTexts[lang === "en" ? "en" : "fr"].inProgress;
+        defaultEmoji = "⚙️";
+    }
+
+    const label = (status === "CLAIMED" && key === "claim" ? defaultLabel : (config.label || defaultLabel)).slice(0, TICKET_BUTTON_LABEL_MAX);
+    const emoji = (status === "CLAIMED" && key === "claim" ? defaultEmoji : (config.emoji || defaultEmoji)).slice(0, TICKET_BUTTON_EMOJI_MAX);
     return { key, label, emoji, access: config.access ?? TICKET_BUTTON_DEFAULT_ACCESS[key] };
 }
 
 /**
  * Boutons affichés dans le message, **dans l'ordre**, selon l'état du ticket :
- *   · ouvert ou pris en charge → Prendre en charge, Fermer ;
- *   · fermé → Rouvrir, Transcript, Supprimer.
+ *   · ouvert ou pris en charge → Prendre en charge (ou En traitement), Fermer ;
+ *   · fermé → Rouvrir, Transcript (si activé), Supprimer.
  * Les boutons `disabled` sont retirés (jamais affichés « pour rien »).
  */
 export function ticketButtonLayout(
     status: string,
     settings?: TicketButtonSettings | null,
-    lang: TicketLang = "fr"
+    lang: TicketLang = "fr",
+    options?: { enableTranscripts?: boolean }
 ): ResolvedTicketButton[] {
-    const keys: TicketButtonKey[] = status === "CLOSED" ? ["reopen", "transcript", "delete"] : ["claim", "close"];
+    let keys: TicketButtonKey[] = status === "CLOSED" ? ["reopen", "transcript", "delete"] : ["claim", "close"];
+    if (status === "CLOSED" && options?.enableTranscripts === false) {
+        keys = keys.filter((key) => key !== "transcript");
+    }
     return keys
-        .map((key) => resolveTicketButton(key, settings, lang))
+        .map((key) => resolveTicketButton(key, settings, lang, status))
         .filter((button) => button.access !== "disabled");
 }
 

@@ -75,16 +75,21 @@ export const TICKET_MESSAGE_MAX = 900;
 
 /** Variables disponibles dans les messages personnalisés du motif. */
 export type TicketMessageVars = {
-    /** Pour l'équipe : `@Pseudo` (aucun ping). Pour le demandeur : sa **mention**. */
+    /** Pour l'équipe : `@Pseudo` (aucun ping) ou sa mention `<@id>`. */
     membre?: string | null;
+    demandeur?: string | null;
+    pseudo?: string | null;
+    roles?: string | null;
+    staff?: string | null;
+    equipe?: string | null;
     motif?: string | null;
     numero?: number | string | null;
 };
 
 /**
- * Rend un message personnalisé : remplace `{membre}`, `{motif}`, `{numero}` puis borne le
- * résultat. Rend `null` si le texte est vide — un gabarit vide ne produit **rien**, jamais
- * une chaîne de ponctuation orpheline.
+ * Rend un message personnalisé : remplace `{membre}`, `{demandeur}`, `{roles}`, `{staff}`,
+ * `{equipe}`, `{pseudo}`, `{motif}`, `{numero}` puis borne le résultat.
+ * Rend `null` si le texte est vide.
  */
 export function renderTicketMessage(
     template: string | null | undefined,
@@ -92,8 +97,15 @@ export function renderTicketMessage(
 ): string | null {
     const raw = String(template ?? "").trim();
     if (!raw) return null;
+    const memberVal = vars.demandeur ?? vars.membre ?? "";
+    const rolesVal = vars.roles ?? vars.staff ?? vars.equipe ?? "";
     const rendered = raw
-        .replace(/\{membre\}/gi, vars.membre ? String(vars.membre) : "")
+        .replace(/\{demandeur\}/gi, memberVal ? String(memberVal) : "")
+        .replace(/\{membre\}/gi, memberVal ? String(memberVal) : "")
+        .replace(/\{roles\}/gi, rolesVal ? String(rolesVal) : "")
+        .replace(/\{staff\}/gi, rolesVal ? String(rolesVal) : "")
+        .replace(/\{equipe\}/gi, rolesVal ? String(rolesVal) : "")
+        .replace(/\{pseudo\}/gi, vars.pseudo ? String(vars.pseudo) : "")
         .replace(/\{motif\}/gi, vars.motif ? String(vars.motif) : "")
         .replace(/\{numero\}/gi, vars.numero === null || vars.numero === undefined ? "" : String(vars.numero))
         .replace(/[ \t]{2,}/g, " ")
@@ -102,8 +114,8 @@ export function renderTicketMessage(
 }
 
 /**
- * Contenu **de l'équipe** : message personnalisé (puis la mention des rôles), sinon le
- * libellé par défaut. `enabled: false` coupe tout — c'est le choix explicite de l'admin.
+ * Contenu **de l'équipe** : message personnalisé (avec insertion exacte de `{roles}` ou
+ * mention à la fin par repli), sinon le libellé par défaut. `enabled: false` coupe tout.
  */
 export function buildTicketNotifyContentWithTemplate(input: {
     roleIds?: Array<string | null | undefined> | null;
@@ -115,13 +127,30 @@ export function buildTicketNotifyContentWithTemplate(input: {
     const safe = sanitizeTicketNotifyRoleIds(input.roleIds);
     if (safe.length === 0) return null;
     const mentions = safe.map((roleId) => `<@&${roleId}>`).join(" ");
-    const custom = renderTicketMessage(input.template, input.vars);
-    // Sans message personnalisé, on garde **le** libellé par défaut du module (source unique).
-    return custom ? `${custom} ${mentions}` : buildTicketNotifyContent(input.roleIds);
+
+    const hasExplicitRoleVar = input.template
+        ? /\{(roles|staff|equipe)\}/i.test(input.template)
+        : false;
+
+    const mergedVars: TicketMessageVars = {
+        roles: mentions,
+        staff: mentions,
+        equipe: mentions,
+        ...(input.vars ?? {}),
+    };
+
+    const custom = renderTicketMessage(input.template, mergedVars);
+    if (!custom) return buildTicketNotifyContent(input.roleIds);
+
+    // Si le template a déjà placé {roles} ou {staff}, on ne duplique pas les mentions à la fin.
+    if (hasExplicitRoleVar || custom.includes(mentions)) {
+        return custom;
+    }
+    return `${custom} ${mentions}`;
 }
 
 /**
- * Contenu **du demandeur** : son message personnalisé (il y place `{membre}`), sinon sa
+ * Contenu **du demandeur** : son message personnalisé (il y place `{membre}` ou `{demandeur}`), sinon sa
  * simple mention. La mention est **garantie** : un gabarit qui l'oublie ne prive jamais le
  * demandeur de sa notification (on l'ajoute devant).
  */
@@ -133,7 +162,83 @@ export function buildTicketCreatorContent(input: {
     const creator = String(input.creatorDiscordId ?? "").trim();
     if (!SNOWFLAKE.test(creator)) return null;
     const mention = `<@${creator}>`;
-    const custom = renderTicketMessage(input.template, { membre: mention, ...(input.vars ?? {}) });
+    const custom = renderTicketMessage(input.template, {
+        membre: mention,
+        demandeur: mention,
+        ...(input.vars ?? {}),
+    });
     if (!custom) return mention;
     return custom.includes(mention) ? custom : `${mention} ${custom}`;
+}
+
+/**
+ * 🆕 Message d'ouverture unifié (mentions de l'équipe et du créateur à leur place exacte).
+ * Permet à l'administrateur de placer `{demandeur}` et `{roles}` exactement où il le souhaite
+ * dans son message sans duplication ni ping forcé au mauvais endroit.
+ */
+export function buildTicketOpeningContent(input: {
+    creatorDiscordId?: string | null;
+    creatorName?: string | null;
+    roleIds?: Array<string | null | undefined> | null;
+    notifyEnabled?: boolean;
+    notifyMessage?: string | null;
+    creatorMessage?: string | null;
+    motif?: string | null;
+    numero?: number | string | null;
+}): string | null {
+    const creator = String(input.creatorDiscordId ?? "").trim();
+    const creatorMention = SNOWFLAKE.test(creator) ? `<@${creator}>` : "";
+    const safeRoleIds = sanitizeTicketNotifyRoleIds(input.roleIds);
+    const rolesMention =
+        input.notifyEnabled !== false && safeRoleIds.length > 0
+            ? safeRoleIds.map((id) => `<@&${id}>`).join(" ")
+            : "";
+
+    const baseVars: TicketMessageVars = {
+        membre: creatorMention || (input.creatorName ? `@${input.creatorName}` : ""),
+        demandeur: creatorMention,
+        pseudo: input.creatorName ?? "",
+        roles: rolesMention,
+        staff: rolesMention,
+        equipe: rolesMention,
+        motif: input.motif ?? null,
+        numero: input.numero ?? null,
+    };
+
+    const notifyText = input.notifyMessage?.trim() || "";
+    const creatorText = input.creatorMessage?.trim() || "";
+
+    // Si le message d'équipe contient déjà à la fois le demandeur et les rôles
+    // ou si creatorText est vide, on évalue notifyText directement.
+    const notifyMentionsDemandeur = /\{(demandeur|membre)\}/i.test(notifyText);
+    const notifyMentionsRoles = /\{(roles|staff|equipe)\}/i.test(notifyText);
+
+    if (notifyMentionsDemandeur && notifyMentionsRoles) {
+        return renderTicketMessage(notifyText, baseVars);
+    }
+
+    const rolesPart = buildTicketNotifyContentWithTemplate({
+        roleIds: input.roleIds,
+        template: input.notifyMessage,
+        enabled: input.notifyEnabled,
+        vars: {
+            ...baseVars,
+            membre: notifyMentionsDemandeur
+                ? creatorMention
+                : input.creatorName ? `@${input.creatorName}` : "",
+        },
+    });
+
+    const creatorPart = buildTicketCreatorContent({
+        creatorDiscordId: input.creatorDiscordId,
+        template: input.creatorMessage,
+        vars: baseVars,
+    });
+
+    // Si l'un des deux a déjà inclus la mention de l'autre, on évite la duplication
+    if (creatorMention && rolesPart?.includes(creatorMention) && !creatorText) {
+        return rolesPart;
+    }
+
+    return [creatorPart, rolesPart].filter(Boolean).join(" ");
 }

@@ -69,6 +69,8 @@ export interface MultiDungeonItem {
     message?: string | null;
     targetDate?: Date | string | null;
     maxMembers?: number;
+    /** #26 — classes recherchées **de ce donjon** (absent = post créé avant la fonctionnalité). */
+    requiredClasses?: string[];
 }
 
 /**
@@ -454,6 +456,33 @@ export function mergeMultiDungeonTargetDates(
         // `undefined` = donjon non touché ; `null` = date retirée explicitement.
         if (!provided || provided.targetDate === undefined) return item;
         return { ...item, targetDate: provided.targetDate ?? null };
+    });
+
+    if (Array.isArray(existing)) return next;
+    if (existing && typeof existing === "object" && Array.isArray((existing as any)._items)) {
+        return { ...(existing as any), _items: next };
+    }
+    return next;
+}
+
+/**
+ * Applique de NOUVELLES **classes recherchées** aux donjons d'un post multi (#26).
+ *
+ * Même contrat que `mergeMultiDungeonTargetDates` : l'enveloppe `{ _items, _autoReminderCount }`
+ * est conservée et un donjon non fourni (`undefined`) n'est **jamais** touché. Une liste **vide**
+ * est un choix explicite (« aucune classe demandée »), pas un « ne touche pas ».
+ */
+export function mergeMultiDungeonRequiredClasses(
+    existing: unknown,
+    updates: (string[] | null | undefined)[] | null | undefined
+): unknown {
+    const items = getMultiDungeons(existing);
+    if (items.length === 0) return existing;
+
+    const next = items.map((item, index) => {
+        const provided = updates?.[index];
+        if (provided === undefined || provided === null) return item;
+        return { ...item, requiredClasses: provided };
     });
 
     if (Array.isArray(existing)) return next;

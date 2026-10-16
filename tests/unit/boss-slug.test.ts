@@ -91,6 +91,13 @@ describe("fiches boss — URL en slug, anciens liens conservés", () => {
             "src/server/actions/game-data-actions.ts",
             "src/server/actions/game-data-admin-actions.ts",
             "src/lib/anomaly-boss-siphon.ts",
+            // 🐛 16/10/2026 — les DEUX seeds créent des donjons : sans `slug`, Prisma
+            // rejette l'upsert (« Argument `slug` is missing ») AVANT de savoir si la
+            // ligne existe ⇒ seed de déploiement en exit 1, transaction annulée, données
+            // de jeu jamais synchronisées. Le cas est verrouillé en détail par
+            // `tests/unit/dungeon-slug.test.ts`.
+            "prisma/seed-data/seed.ts",
+            "prisma/seed.ts",
         ];
 
         for (const file of sites) {

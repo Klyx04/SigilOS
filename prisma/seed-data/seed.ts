@@ -17,6 +17,7 @@ import { join } from 'path';
 import 'dotenv/config';
 import { legendaryItems } from './legendary-items';
 import { getIgnoredChallenges, getIgnoredDungeons, isIgnoredChallenge, isIgnoredDungeon } from '@/lib/game-data-ignores';
+import { resolveUniqueDungeonSlug } from '@/server/game/dungeon-slug';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -319,6 +320,15 @@ async function main() {
                         create: {
                             name: dungeon.name,
                             bossName: dungeon.bossName,
+                            /* Slug public `/boss/<slug>` — colonne REQUISE et UNIQUE depuis la
+                               migration `20260919130000_add_dungeon_slug`. Sans lui, Prisma
+                               rejette l'upsert AVANT même de savoir si la ligne existe
+                               (« Argument `slug` is missing ») : le seed de déploiement
+                               sortait en exit 1 et la transaction annulait TOUTE la
+                               synchronisation (mesure bêta du 16/10/2026). La règle est
+                               celle du God, du siphon et du backfill SQL — jamais une
+                               deuxième : `resolveUniqueDungeonSlug`. */
+                            slug: await resolveUniqueDungeonSlug(dungeon.bossName, { client: tx }),
                             level: dungeon.level,
                             dpnlUrl: dungeon.dpnlUrl,
                             imageUrl: dungeon.imageUrl,

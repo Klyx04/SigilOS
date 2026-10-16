@@ -90,6 +90,22 @@ describe("⑦ réponses du questionnaire — aucune perte silencieuse", () => {
         expect(value).toContain("@\u200beveryone");
         expect(value).not.toContain("suite dans la copie");
     });
+
+    it("rend chaque réponse en bloc de code (copier-coller, distincte de la question)", () => {
+        const form = formWith(1);
+        const embed = buildTicketAnswersEmbed({ ticketNumber: 7, form, answers: { q1: "QDQS" } });
+        const value = String((embed?.fields as Array<{ value: string }>)[0]?.value ?? "");
+
+        expect(value.startsWith("```")).toBe(true);
+        expect(value.endsWith("```")).toBe(true);
+        expect(value).toContain("QDQS");
+    });
+
+    it("la création du ticket normalise l'avatar en URL CDN (jamais de hash brut)", () => {
+        const src = readFileSync("src/server/actions/ticket-bot-actions.ts", "utf8");
+        expect(src).toContain("resolveTicketCreatorAvatarUrl(params.discordUserId, params.discordUserAvatar)");
+        expect(src).toContain("buildDiscordAvatarUrl");
+    });
 });
 
 describe("③ les questions à choix portent leur libellé", () => {

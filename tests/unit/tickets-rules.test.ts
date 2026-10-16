@@ -399,7 +399,25 @@ describe("tickets v2 — messages Discord", () => {
         expect(answers?.title).toContain("Réponses");
         expect(fields.map((field) => field.name)).toContain("📋 Pseudo");
         expect(fields.find((field) => field.name === "📋 Pseudo")?.value).not.toContain("@everyone");
-        expect(fields.find((field) => field.name === "📋 Règlement accepté ?")?.value).toBe("Non");
+        // Demande user du 16/10/2026 : la réponse part en bloc de code (copier-coller),
+        // la question reste en titre — les deux ne se confondent plus.
+        const reglement = fields.find((field) => field.name === "📋 Règlement accepté ?")?.value ?? "";
+        expect(reglement).toContain("Non");
+        expect(reglement.startsWith("```")).toBe(true);
+    });
+
+    it("un hash d'avatar brut ne part jamais en thumbnail (sinon Discord 400 tout le message)", () => {
+        // Constat bêta du 16/10/2026 : `member.user.avatar` (hash) mis tel quel en
+        // `thumbnail.url` faisait rejeter le message d'accueil entier — bienvenue,
+        // pings et boutons perdus, seules les réponses partaient.
+        const broken = buildTicketWelcomeEmbed({
+            ticketNumber: 16,
+            journeyName: "Test",
+            creatorDiscordId: "123456789012345678",
+            creatorAvatarUrl: "a1b2c3d4e5f6",
+            statusLabel: "En attente",
+        });
+        expect(broken.thumbnail).toBeUndefined();
     });
 });
 

@@ -175,17 +175,23 @@ export default async function GuildSelectorPage() {
                                         </p>
 
                                         <div className="max-h-[400px] space-y-2 overflow-y-auto custom-scrollbar p-2">
-                                            {pending.map((guild) => (
-                                                <GuildSetupCard
-                                                    key={guild.id}
-                                                    guild={guild}
-                                                    clientId={clientId}
-                                                    // Un seul serveur éligible + bot déjà présent :
-                                                    // on l'active sans exiger un clic « Déployer »
-                                                    // (comme les autres bots : invité = fonctionnel).
-                                                    autoDeploy={pending.length === 1}
-                                                />
-                                            ))}
+                                            {[...pending]
+                                                .sort((a, b) => {
+                                                    if (a.isBotPresent && !b.isBotPresent) return -1;
+                                                    if (!a.isBotPresent && b.isBotPresent) return 1;
+                                                    return a.name.localeCompare(b.name);
+                                                })
+                                                .map((guild) => (
+                                                    <GuildSetupCard
+                                                        key={guild.id}
+                                                        guild={guild}
+                                                        clientId={clientId}
+                                                        // Un seul serveur éligible + bot déjà présent :
+                                                        // on l'active sans exiger un clic « Déployer »
+                                                        // (comme les autres bots : invité = fonctionnel).
+                                                        autoDeploy={pending.length === 1}
+                                                    />
+                                                ))}
                                         </div>
                                     </div>
                                 </section>

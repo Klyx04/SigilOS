@@ -6,6 +6,7 @@ import { Plus, Loader2 } from "lucide-react";
 import { onboardGuild } from "@/server/actions/admin-actions";
 import { toast } from "sonner"; // Assuming sonner or use a simple alert if not available
 import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
+import { cn } from "@/lib/utils";
 
 type GuildProps = {
     id: string;
@@ -114,9 +115,19 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
     // « Déploiement » d'un panneau `.reg-panel`, aux côtés des guildes actives
     // et des serveurs en attente. Le cadre en pointillés sur fond noir faisait
     // doublon avec le panneau qui l'accueille.
+    const isReadyToDeploy = !needsInvite;
+
     return (
-        <div className="reg-row grid-cols-[auto_minmax(0,1fr)_auto] px-4">
-            <Avatar className="h-10 w-10 rounded-md border border-border opacity-70">
+        <div className={cn(
+            "reg-row grid-cols-[auto_minmax(0,1fr)_auto] px-4 py-3 rounded-lg transition-all",
+            isReadyToDeploy
+                ? "bg-emerald-500/[0.05] border border-emerald-500/30 shadow-sm"
+                : "border-transparent"
+        )}>
+            <Avatar className={cn(
+                "h-10 w-10 rounded-md border",
+                isReadyToDeploy ? "border-emerald-500/50 opacity-100 shadow-sm" : "border-border opacity-70"
+            )}>
                 <AvatarImage src={guild.icon || ""} alt={guild.name} />
                 <AvatarFallback className="bg-muted text-muted-foreground text-xs font-semibold">
                     {guild.name.substring(0, 2).toUpperCase()}
@@ -124,13 +135,20 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
             </Avatar>
 
             <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-foreground truncate">{guild.name}</h3>
-                <p className="reg-mono mt-1 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-semibold text-foreground truncate">{guild.name}</h3>
+                    {isReadyToDeploy && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            Bot détecté · Prêt à déployer
+                        </span>
+                    )}
+                </div>
+                <p className="reg-mono mt-0.5 text-xs text-muted-foreground">
                     {needsInvite
                         ? "Bot absent — invitation requise"
                         : loading
                           ? "Activation en cours…"
-                          : "Prêt pour déploiement"}
+                          : "Cliquez sur Déployer pour activer votre guilde sur SigilOS"}
                 </p>
             </div>
 
@@ -139,14 +157,19 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
                     type="button"
                     onClick={handleSetup}
                     disabled={loading}
-                    className="reg-btn reg-btn-primary min-h-9 px-3.5 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                    className={cn(
+                        "min-h-9 px-4 py-1.5 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-60",
+                        isReadyToDeploy
+                            ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40"
+                            : "reg-btn reg-btn-primary"
+                    )}
                 >
                     {loading ? (
                         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                     ) : (
                         <Plus className="h-4 w-4" aria-hidden="true" />
                     )}
-                    <span>{loading ? "Activation…" : needsInvite ? "Inviter le bot" : "Déployer"}</span>
+                    <span>{loading ? "Activation…" : needsInvite ? "Inviter le bot" : "Déployer la guilde"}</span>
                 </button>
 
                 {needsInvite && inviteStarted && !loading && (

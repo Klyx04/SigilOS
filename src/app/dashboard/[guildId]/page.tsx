@@ -33,6 +33,7 @@ import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 import { MemberWelcomeModal } from "@/components/dashboard/member-welcome-modal";
 import { DashboardAdminTourButton } from "@/components/tour/dashboard-admin-tour-button";
 import { AvailabilityReminderPopup } from "@/components/dashboard/availability-reminder-popup";
+import { GuildGettingStartedBanner } from "@/components/dashboard/guild-getting-started-banner";
 
 export default async function DashboardPage({
     params,
@@ -205,6 +206,14 @@ export default async function DashboardPage({
 
                 {/* P2 — Guilde orpheline : bannière de récupération */}
                 <RecoveryBannerSpot guildId={guildId} />
+
+                {/* Bannière Checklist Getting-Started pour le Staff (épinglée / désépinglable) */}
+                <GuildGettingStartedBanner
+                    guildId={guildId}
+                    guildName={user.guildName || "votre guilde"}
+                    hasPseudo={!!user.pseudoDofus}
+                    isAdmin={user.isAdmin}
+                />
 
                 <header className="flex items-end justify-between gap-6">
                     <div>

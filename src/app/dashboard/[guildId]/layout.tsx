@@ -213,6 +213,7 @@ export default async function DashboardLayout({
     // (anti-boucle : `x-pathname` vide = pas de redirect, le wizard couvre) ;
     // sans accès au module profil, rien à configurer ici.
     if (
+        user.isOnboardingComplete &&
         user.hasPseudoIssue &&
         !user.isSuperAdmin &&
         user.canViewProfile &&

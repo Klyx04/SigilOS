@@ -17,6 +17,7 @@ import {
     type TicketFormDefinition,
 } from "./form-schema";
 import { TICKET_BUTTON_EMOJIS, ticketLabel, type TicketLang } from "./ticket-texts";
+import { ticketButtonLayout, type TicketButtonKey, type TicketButtonSettings } from "./button-config";
 import { ticketIconPayload } from "./ticket-icons";
 
 /** Limites Discord appliquées à la construction (jamais dépassées en silence). */
@@ -193,6 +194,12 @@ export function buildTicketWelcomeEmbed(input: {
     statusLabel: string;
     welcomeMessage?: string | null;
     lang?: TicketLang;
+    /**
+     * 🆕 Flocon du membre qui a pris en charge : ajouté à l'embed et **mis à jour en
+     * direct** au clic sur « Prendre en charge » (constat : le salon n'indiquait nulle
+     * part qui traitait la demande).
+     */
+    claimedByDiscordId?: string | null;
 }): Record<string, unknown> {
     const lang = input.lang ?? "fr";
     const fields: Array<{ name: string; value: string; inline: boolean }> = [
@@ -200,6 +207,16 @@ export function buildTicketWelcomeEmbed(input: {
         { name: lang === "en" ? "Reason" : "Motif", value: truncate(neutralizeMentions(input.journeyName), 256), inline: true },
         { name: lang === "en" ? "Status" : "Statut", value: truncate(input.statusLabel, 256), inline: true },
     ];
+
+    // Un flocon valide seulement : jamais un `User.id` interne (mention morte).
+    const claimer = String(input.claimedByDiscordId ?? "").trim();
+    if (/^\d{15,21}$/.test(claimer)) {
+        fields.push({
+            name: lang === "en" ? "Handled by" : "Pris en charge par",
+            value: `<@${claimer}>`,
+            inline: true,
+        });
+    }
 
     const fallback =
         lang === "en"
@@ -296,124 +313,72 @@ export function buildTicketCsatEmbed(input: {
     };
 }
 
+/** Libellé d'état affiché dans l'embed d'accueil (une seule source, FR/EN). */
+export function ticketStatusLabel(status: string, lang: TicketLang = "fr"): string {
+    const fr: Record<string, string> = {
+        OPEN: "🟡 En attente de prise en charge",
+        CLAIMED: "🟢 Pris en charge",
+        PENDING_USER: "🟡 En attente du demandeur",
+        CLOSED: "📦 Fermé",
+        ARCHIVE_FAILED: "🟠 Archive incomplète",
+        REFUSED: "⛔ Refusé",
+    };
+    const en: Record<string, string> = {
+        OPEN: "🟡 Waiting for staff",
+        CLAIMED: "🟢 Claimed",
+        PENDING_USER: "🟡 Waiting for the requester",
+        CLOSED: "📦 Closed",
+        ARCHIVE_FAILED: "🟠 Incomplete archive",
+        REFUSED: "⛔ Refused",
+    };
+    const table = lang === "en" ? en : fr;
+    return table[status] ?? table.OPEN;
+}
+
+/** Styles Discord des boutons du salon (un bouton fermer/rouge, un prendre en charge/vert). */
+const TICKET_BUTTON_STYLES: Record<TicketButtonKey, number> = {
+    claim: 3, // vert — « je m'en occupe »
+    close: 4, // rouge — geste destructif sur la demande
+    reopen: 3, // vert — on remet le ticket en service
+    transcript: 2, // gris — consultation
+    delete: 4, // rouge — suppression définitive du salon
+};
+
 /**
- * 🔒 **Correctif P0-2** — les boutons d'action du ticket (monolingues FR/EN).
+ * Boutons d'action du salon — **demande user du 16/10/2026** : deux boutons seulement
+ * (« Prendre en charge », « Fermer le ticket »), puis après clôture **Rouvrir**,
+ * **Transcript** et **Supprimer le salon**.
  *
- * Le salon porte **« Je m'en occupe »** : visible par tous, il est soumis au
- * gate staff (`guardTicketAction`, fail-closed) et synchronisé avec la prise
- * en charge du dashboard. Le demandeur, lui, ne reçoit que ce bouton de prise
- * en charge (réservé au staff au clic) plus **« Fermer ma demande »** si la
- * politique publiée du parcours la lui donne — jamais les outils de staff.
- *
- * Staff (2 lignes, 7 boutons au plus) :
- *   ligne 1 : Je m'en occupe / Ajouter / Note privée / Renommer
- *   ligne 2 : Fermer / Copie / Supprimer le salon
- * La fermeture et la suppression passent par une **confirmation** : `tb:close`
- * affiche `buildCloseConfirmRows`, `tb:delete` affiche `buildDeleteConfirmRows`.
- * Après fermeture, le salon reçoit `buildModerationRows`
- * (Rouvrir / Copie / Supprimer).
+ * Chaque bouton est **renommable et ré-icônifiable** (réglages `settingsJson.buttons`) et
+ * son **droit est appliqué au clic** (`guardTicketAction`, fail-closed) : Discord affiche
+ * les mêmes composants à tout le monde, donc cacher un bouton à une personne est
+ * impossible — c'est l'action qui décide, jamais l'affichage.
  */
 export function buildActionRows(input: {
     ticketId: string;
     status: string;
-    viewerIsStaff: boolean;
-    viewerIsCreator: boolean;
-    closePolicy?: "STAFF_ONLY" | "STAFF_OR_CREATOR" | null;
-    claimed?: boolean;
     lang?: TicketLang;
+    /** Réglages de boutons de la guilde (`settingsJson.buttons`), déjà nettoyés. */
+    buttons?: TicketButtonSettings | null;
 }): DiscordActionRow[] {
-    const openStatuses = new Set(["OPEN", "CLAIMED", "PENDING_USER", "ARCHIVE_FAILED"]);
-    if (!openStatuses.has(input.status)) return [];
     const lang = input.lang ?? "fr";
+    const buttons = ticketButtonLayout(input.status, input.buttons, lang);
+    if (buttons.length === 0) return [];
 
-    if (input.viewerIsStaff) {
-        return [
-            {
-                type: DISCORD_ACTION_ROW,
-                components: [
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 3,
-                        label: ticketLabel(input.claimed ? "release" : "claim", lang),
-                        custom_id: `tb:${input.claimed ? "release" : "claim"}:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.claim },
-                    },
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 2,
-                        label: ticketLabel("add", lang),
-                        custom_id: `tb:add:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.add },
-                    },
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 2,
-                        label: ticketLabel("note", lang),
-                        custom_id: `tb:note:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.note },
-                    },
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 2,
-                        label: ticketLabel("rename", lang),
-                        custom_id: `tb:rename:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.rename },
-                    },
-                ],
-            },
-            {
-                type: DISCORD_ACTION_ROW,
-                components: [
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 4,
-                        label: ticketLabel("close", lang),
-                        custom_id: `tb:close:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.close },
-                    },
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 2,
-                        label: ticketLabel("transcript", lang),
-                        custom_id: `tb:transcript:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.transcript },
-                    },
-                    {
-                        type: DISCORD_BUTTON,
-                        style: 4,
-                        label: ticketLabel("delete", lang),
-                        custom_id: `tb:delete:${input.ticketId}`,
-                        emoji: { name: TICKET_BUTTON_EMOJIS.delete },
-                    },
-                ],
-            },
-        ];
-    }
-
-    // Demandeur : prise en charge (staff seul au clic) + fermeture si autorisée.
-    if (input.viewerIsCreator) {
-        const components: DiscordComponent[] = [
-            {
-                type: DISCORD_BUTTON,
-                style: 3,
-                label: ticketLabel("claim", lang),
-                custom_id: `tb:claim:${input.ticketId}`,
-                emoji: { name: TICKET_BUTTON_EMOJIS.claim },
-            },
-        ];
-        if ((input.closePolicy ?? "STAFF_ONLY") === "STAFF_OR_CREATOR") {
-            components.push({
-                type: DISCORD_BUTTON,
-                style: 2,
-                label: ticketLabel("closeMine", lang),
-                custom_id: `tb:close:${input.ticketId}`,
-                emoji: { name: TICKET_BUTTON_EMOJIS.close },
-            });
-        }
-        return [{ type: DISCORD_ACTION_ROW, components }];
-    }
-
-    return [];
+    return [
+        {
+            type: DISCORD_ACTION_ROW,
+            components: buttons.map(
+                (button): DiscordComponent => ({
+                    type: DISCORD_BUTTON,
+                    style: TICKET_BUTTON_STYLES[button.key],
+                    label: button.label,
+                    custom_id: `tb:${button.key}:${input.ticketId}`,
+                    emoji: button.emoji ? { name: button.emoji } : undefined,
+                })
+            ),
+        },
+    ];
 }
 
 /** Confirmation de fermeture (éphémère). */
@@ -467,40 +432,19 @@ export function buildDeleteConfirmRows(ticketId: string, lang: TicketLang = "fr"
 }
 
 /**
- * Message de modération posté **dans le salon après fermeture** (façon
- * TicketTool « Moderator message ») : Rouvrir / Copie / Supprimer.
- * Le salon n'est **plus supprimé** à la clôture : la suppression est un geste
- * explicite avec confirmation.
+ * Message de modération posté **dans le salon après fermeture** (façon TicketTool
+ * « Moderator message ») : Rouvrir / Transcript / Supprimer — **exactement** la même barre
+ * que celle révélée dans l'embed d'accueil (`buildActionRows` en état `CLOSED`), donc
+ * jamais deux vérités ni deux boutons « Supprimer » différents.
+ * Le salon n'est **plus supprimé** à la clôture : la suppression est un geste explicite
+ * avec confirmation (et compte à rebours depuis le 16/10/2026).
  */
-export function buildModerationRows(ticketId: string, lang: TicketLang = "fr"): DiscordActionRow[] {
-    return [
-        {
-            type: DISCORD_ACTION_ROW,
-            components: [
-                {
-                    type: DISCORD_BUTTON,
-                    style: 3,
-                    label: ticketLabel("reopen", lang),
-                    custom_id: `tb:reopen:${ticketId}`,
-                    emoji: { name: TICKET_BUTTON_EMOJIS.reopen },
-                },
-                {
-                    type: DISCORD_BUTTON,
-                    style: 2,
-                    label: ticketLabel("transcript", lang),
-                    custom_id: `tb:transcript:${ticketId}`,
-                    emoji: { name: TICKET_BUTTON_EMOJIS.transcript },
-                },
-                {
-                    type: DISCORD_BUTTON,
-                    style: 4,
-                    label: ticketLabel("delete", lang),
-                    custom_id: `tb:delete:${ticketId}`,
-                    emoji: { name: TICKET_BUTTON_EMOJIS.delete },
-                },
-            ],
-        },
-    ];
+export function buildModerationRows(
+    ticketId: string,
+    lang: TicketLang = "fr",
+    buttons?: TicketButtonSettings | null
+): DiscordActionRow[] {
+    return buildActionRows({ ticketId, status: "CLOSED", lang, buttons });
 }
 
 /** Boutons d'approbation d'une demande d'ouverture (aucun salon n'existe encore). */

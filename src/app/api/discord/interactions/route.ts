@@ -1748,12 +1748,17 @@ export async function POST(request: NextRequest) {
                     const { internalHandleTicketDelete: doDelete } = await import(
                         "@/server/actions/ticket-bot-actions"
                     );
+                    // 🆕 Suppression **avec compte à rebours** (4 s) : la réponse part tout de
+                    // suite (< 3 s exigées par Discord), le décompte est édité ensuite, et le
+                    // salon disparaît à la fin — sauf s'il a été rouvert entre-temps.
                     const res = await doDelete({
                         discordGuildId: guild_id,
                         discordUserId: member.user.id,
                         discordUserName: member.user.global_name || member.user.username,
                         ticketId,
                         actor: ticketActorContext,
+                        applicationId: payload.application_id,
+                        interactionToken: payload.token,
                     });
                     return NextResponse.json({
                         type: 4,

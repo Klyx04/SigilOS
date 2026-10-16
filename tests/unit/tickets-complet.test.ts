@@ -76,12 +76,15 @@ describe("tickets complets — libellés FR/EN vulgarisés", () => {
         }
     });
 
-    it("le côté FR des boutons bannit le jargon (claim/transcript)", () => {
+    it("le côté FR des boutons bannit le jargon (claim/unclaim)", () => {
         for (const key of buttonKeys) {
             const frSide = ticketLabel(key, "fr").toLowerCase();
             expect(frSide, `jargon dans ${key}`).not.toContain("claim");
-            expect(frSide, `jargon dans ${key}`).not.toContain("transcript");
+            expect(frSide, `jargon dans ${key}`).not.toContain("unclaim");
         }
+        // 🆕 Décision produit du 16/10/2026 : le bouton de copie s'appelle « Transcript »
+        // (demandé explicitement — « Copie » prêtait à confusion avec un copier-coller).
+        expect(ticketLabel("transcript", "fr")).toBe("Transcript");
     });
 });
 

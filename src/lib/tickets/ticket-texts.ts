@@ -34,7 +34,8 @@ const FR = {
     confirmClose: "Oui, fermer",
     cancel: "Annuler",
     reopen: "Rouvrir",
-    transcript: "Copie",
+    // Demande user (16/10/2026) : le bouton s'appelle « Transcript », jamais « Copie ».
+    transcript: "Transcript",
     delete: "Supprimer le salon",
     deleteConfirmTitle: "Supprimer ce salon ?",
     deleteConfirmBody:

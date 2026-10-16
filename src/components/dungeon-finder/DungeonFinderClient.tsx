@@ -10,6 +10,7 @@ import { DjPostCard } from "./DjPostCard";
 import { DjPostCreateModal } from "./DjPostCreateModal";
 import { DjFiltersBar, type DjFiltersState } from "./DjFiltersBar";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
+import { getDjDungeonStats, summarizeDjDungeons } from "@/lib/dungeon-finder-utils";
 
 const DEFAULT_FILTERS: DjFiltersState = {
     search: "",
@@ -117,8 +118,8 @@ export function DungeonFinderClient({
                 if (p.dungeon.level < filters.minLevel || p.dungeon.level > filters.maxLevel) return false;
             }
             if (filters.onlyWithSpots) {
-                const accepted = (p._acceptedCount ?? 0) + 1;
-                if (accepted >= p.maxMembers) return false;
+                // Un post multi reste listé tant qu'**un** donjon a une place (#203).
+                if (summarizeDjDungeons(getDjDungeonStats(p)).allFull) return false;
             }
             if (filters.onlyWithAchievement) {
                 if (!p.wantedAchievementIds || p.wantedAchievementIds.length === 0) return false;

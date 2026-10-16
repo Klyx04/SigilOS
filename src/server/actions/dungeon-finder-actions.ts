@@ -13,7 +13,7 @@ import { resolveDjContributionPoints } from "@/lib/points-config";
 import { emitGuildActivity } from "@/server/guild-activity-emit";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
-import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates, getDjDungeonStats, getMultiMessageIds, withMultiMessageIds } from "@/lib/dungeon-finder-utils";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 import { syncDjMirror } from "@/server/agenda-mirror-sync";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
@@ -196,7 +196,6 @@ export type DjPostWithDetails = {
     lastReminderAt?: Date | null;
     createdAt: Date;
     updatedAt: Date;
-    _acceptedCount: number;
     /** Mode multi-donjons (#26) : UN SEUL post portant N donjons (2-5). */
     dungeonsJson?: {
         dungeonId: string;
@@ -518,9 +517,11 @@ async function sendDiscordNotification(
 }
 
 /**
- * Mode multi-donjons (chantier #26) : UN SEUL message Discord avec UN embed
- * PAR donjon + UN SEUL ping (créateur + rôles autorisés). UNE seule rangée de
- * boutons (S'inscrire / Se désinscrire / Voir le site) pour le post unique.
+ * Mode multi-donjons (chantier #26) : **un post, un message par donjon**.
+ *
+ * Le fil s'ouvre sur un **chapeau** (ping + résumé des places), puis chaque donjon reçoit
+ * sa propre carte, **ses** boutons et son menu de classe. En salon textuel (pas de fil),
+ * on garde un message unique portant les N embeds + les N rangées.
  */
 
 /** Rangée de boutons PAR donjon (max 5 rangées, ≤5 donjons) — bouton « S'inscrire »
@@ -539,12 +540,65 @@ function buildMultiButtonRows(post: any, guildId: string) {
     }));
 }
 
+/**
+ * Rangées de boutons d'**un** donjon d'un post multi (#26) : ses 3 actions + le menu
+ * « Choisir ma classe… » **du donjon** (`dj:class:{postId}:{idx}`).
+ *
+ * Le menu de classe était impossible tant que les 5 donjons tenaient dans un seul
+ * message (5 rangées = plafond Discord). Avec un message par donjon, il revient.
+ */
+function buildMultiDungeonRows(post: any, guildId: string, idx: number) {
+    const rows = buildMultiButtonRows(post, guildId);
+    const row = rows[idx];
+    if (!row) return rows;
+    return [row, buildClassSelectRow(`dj:class:${post.id}:${idx}`, "Choisir ma classe pour ce groupe…")];
+}
+
+/** Rangée du message d'ouverture (chapeau du lot) : un seul lien, pas cinq. */
+function buildMultiChapeauRow(guildId: string) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    return [{
+        type: 1,
+        components: [
+            { type: 2, style: 5, label: "Voir la sortie sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+        ],
+    }];
+}
+
+/**
+ * **Chapeau** du post multi : le message d'ouverture du fil (ping + résumé des donjons
+ * avec leurs places). Chaque donjon a ensuite **son** message — le lien vers le site
+ * n'est plus répété cinq fois.
+ */
+async function buildMultiChapeauEmbed(post: any, authorName: string): Promise<any> {
+    const entries: any[] = getMultiDungeons(post.dungeonsJson);
+    const stats = getDjDungeonStats(post);
+    const emo = await loadEmojiResolver();
+    const lines = entries.map((entry: any, i: number) => {
+        const s = stats[i];
+        const places = s
+            ? s.isFull
+                ? `**complet**${s.pending.length > 0 ? ` · ${s.pending.length} en attente` : ""}`
+                : `${s.acceptedCount}/${s.maxMembers} · ${s.spotsLeft} place${s.spotsLeft > 1 ? "s" : ""}`
+            : "";
+        return `**#${i + 1}** ${entry.name} — ${places}`;
+    });
+    return {
+        title: `${emo("dofus_dungeon")} SORTIE MULTI-DONJON — ${entries.length} donjons`,
+        description: [`Organisée par **${authorName}**`, "", ...lines].join("\n"),
+        color: 0x818cf8,
+        footer: { text: `SigilOS — sortie multi-donjon (${entries.length} donjons)` },
+        timestamp: new Date().toISOString(),
+    };
+}
+
 async function sendMultiDiscordNotification(
     guildId: string,
     post: any,
     embeds: any[],
     mentionRoleId?: string | null,
-    creatorDiscordId?: string | null
+    creatorDiscordId?: string | null,
+    authorName: string = "Membre"
 ) {
     try {
         const guildConfig = await (db as any).guildConfig.findUnique({
@@ -588,14 +642,45 @@ async function sendMultiDiscordNotification(
             const threadTitle = `⚔️ ${firstName}${extra}`.substring(0, 100);
             const availableTags: { id: string; name: string; moderated?: boolean }[] = channelData.available_tags || [];
             const firstUsableTag = availableTags.find((t: { moderated?: boolean }) => !t.moderated);
+            // 🧺 **Un message PAR donjon** (constat user du 16/10/2026) : le fil s'ouvre sur un
+            // **chapeau** (ping + résumé des places), puis chaque donjon reçoit son message
+            // (sa carte + **ses** boutons + son menu de classe) — fini les 5 rangées collées
+            // en bas d'un seul message.
             const forumBody: Record<string, unknown> = {
                 name: threadTitle,
-                message: { content: mentions || undefined, embeds, components: rows },
+                message: {
+                    content: mentions || undefined,
+                    embeds: [await buildMultiChapeauEmbed(post, authorName)],
+                    components: buildMultiChapeauRow(guildId),
+                },
                 auto_archive_duration: 1440,
             };
             if (firstUsableTag) forumBody.applied_tags = [firstUsableTag.id];
             const thread = await createForumThread(channelId, forumBody);
-            if (thread) { discordChannelId = thread.id; discordMessageId = thread.message?.id ?? null; }
+            if (thread) {
+                discordChannelId = thread.id;
+                discordMessageId = thread.message?.id ?? null;
+                // Les messages par donjon suivent l'ouverture du fil ; leurs ids sont
+                // mémorisés dans l'enveloppe `dungeonsJson` (aucune migration).
+                const messageIds: string[] = [];
+                for (let i = 0; i < embeds.length; i++) {
+                    const postedId = await postChannelMessage(thread.id, {
+                        embeds: [embeds[i]],
+                        components: buildMultiDungeonRows(post, guildId, i),
+                    }).catch(() => null);
+                    if (postedId) messageIds.push(postedId);
+                }
+                if (messageIds.length === embeds.length) {
+                    await (db as any).djSearchPost.update({
+                        where: { id: post.id },
+                        data: { dungeonsJson: withMultiMessageIds(post.dungeonsJson, messageIds) as any },
+                    });
+                } else {
+                    // Refus partiel : le fil reste lisible (chapeau + messages obtenus) et
+                    // l'écart est **dit** dans les logs — jamais un échec silencieux (§4).
+                    logger.error(`[DJ Multi Embed] ${embeds.length - messageIds.length} message(s) de donjon non publié(s)`);
+                }
+            }
             else { logger.error("[DJ Multi Embed] Forum thread error"); }
         } else {
             try {
@@ -739,6 +824,86 @@ async function buildMultiPostEmbeds(post: any, authorName: string): Promise<any[
 }
 
 /**
+ * Publie (ou répare) le format **« un message par donjon »** d'un post multi déjà en ligne.
+ *
+ * Les posts créés avant le 16/10/2026 vivent dans **un seul message** (N embeds + N rangées
+ * collées en bas) : rien n'est cassé, mais c'est exactement ce que l'utilisateur ne veut
+ * plus. L'action (créateur ou admin) publie les messages de chaque donjon dans le fil
+ * existant et mémorise leurs ids dans l'enveloppe `dungeonsJson` — le message d'ouverture
+ * devient le **chapeau** (ping + résumé des places).
+ */
+export async function republishDjMultiLayout(guildId: string, postId: string): Promise<ActionResponse> {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.profileId) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, djNotifyChannelId: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            include: {
+                profile: { select: { discordNickname: true, pseudoDofus: true, dofusPseudo: true, user: { select: { name: true } } } },
+                participants: {
+                    where: { status: { in: ["ACCEPTED", "PENDING"] } },
+                    include: { profile: { select: { discordNickname: true, pseudoDofus: true, dofusPseudo: true, user: { select: { name: true } } } } },
+                },
+            },
+        });
+        if (!post) return { success: false, error: "Post introuvable" };
+        // #149 — Isolement tenant strict.
+        if (post.guildId !== guildConfig.id) return { success: false, error: "Accès refusé" };
+        if (post.profileId !== user.profileId && !user.isAdmin) {
+            return { success: false, error: "Seul le créateur peut republier ce post" };
+        }
+
+        const entries = getMultiDungeons(post.dungeonsJson);
+        if (entries.length === 0) return { success: false, error: "Ce post n'est pas un multi-donjon" };
+        if (!post.discordChannelId || post.discordChannelId === guildConfig.djNotifyChannelId) {
+            return { success: false, error: "Publication impossible : ce post doit vivre dans un fil de forum" };
+        }
+
+        const authorName = post.profile?.discordNickname || post.profile?.pseudoDofus || post.profile?.dofusPseudo || post.profile?.user?.name || "Membre";
+        const embeds = await buildMultiPostEmbeds(post, authorName);
+        const messageIds: string[] = [];
+        for (let i = 0; i < embeds.length; i++) {
+            const postedId = await postChannelMessage(post.discordChannelId, {
+                embeds: [embeds[i]],
+                components: buildMultiDungeonRows(post, guildId, i),
+            }).catch(() => null);
+            if (!postedId) {
+                logger.error(`[republishDjMultiLayout] message du donjon ${i + 1} refusé`, { postId });
+                return { success: false, error: `Discord a refusé le message du donjon ${i + 1}` };
+            }
+            messageIds.push(postedId);
+        }
+
+        await (db as any).djSearchPost.update({
+            where: { id: postId },
+            data: { dungeonsJson: withMultiMessageIds(post.dungeonsJson, messageIds) as any },
+        });
+
+        // Le message d'ouverture **devient** le chapeau : l'ancien contenu (N embeds +
+        // N rangées dans un seul message) disparaît au profit des messages par donjon.
+        if (post.discordMessageId) {
+            await patchChannelMessage(post.discordChannelId, post.discordMessageId, {
+                embeds: [await buildMultiChapeauEmbed(post, authorName)],
+                components: buildMultiChapeauRow(guildId),
+            }).catch(() => false);
+        }
+
+        revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+        return { success: true, data: { messages: messageIds.length } as any };
+    } catch (error) {
+        logger.error("[republishDjMultiLayout]", error);
+        return { success: false, error: "Erreur lors de la republication" };
+    }
+}
+
+/**
  * Met à jour l'embed Discord existant (PATCH) quand les participants changent.
  */
 export async function updateDjDiscordEmbed(guildId: string, postId: string) {
@@ -765,8 +930,27 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
 
         let patchBody: Record<string, unknown>;
         if (isMulti) {
-            // #26 multi : rafraîchit UN embed PAR donjon + boutons par donjon
             const embeds = await buildMultiPostEmbeds(post, authorName);
+            const messageIds = getMultiMessageIds(post.dungeonsJson);
+            if (messageIds.length === embeds.length && post.discordChannelId) {
+                // 🧺 Format « un message par donjon » : patchs **ciblés** (le mouvement d'un
+                // joueur n'écrase plus les autres donjons) + le chapeau qui suit les places.
+                for (let i = 0; i < embeds.length; i++) {
+                    await patchChannelMessage(post.discordChannelId, messageIds[i], {
+                        embeds: [embeds[i]],
+                        components: buildMultiDungeonRows(post, guildId, i),
+                    }).catch(() => false);
+                }
+                if (post.discordMessageId) {
+                    await patchChannelMessage(post.discordChannelId, post.discordMessageId, {
+                        embeds: [await buildMultiChapeauEmbed(post, authorName)],
+                        components: buildMultiChapeauRow(guildId),
+                    }).catch(() => false);
+                }
+                return;
+            }
+            // Format historique (un seul message, N embeds + N rangées) : PATCH global.
+            // `republishDjMultiLayout` fait passer le post au format par donjon.
             const components = buildMultiButtonRows(post, guildId);
             patchBody = { embeds, components };
         } else {
@@ -1490,7 +1674,7 @@ export async function createDjPosts(
             const embeds = await buildMultiPostEmbeds(post, authorName);
             logger.debug(`[createDjPosts] ${embeds.length} embed(s) Discord multi-donjons`);
             const creatorDiscordId = await getDiscordId(user.id || "");
-            await sendMultiDiscordNotification(guildId, post, embeds, mentionRoleId, creatorDiscordId);
+            await sendMultiDiscordNotification(guildId, post, embeds, mentionRoleId, creatorDiscordId, authorName);
         }
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
@@ -1976,12 +2160,20 @@ export async function closeDjPost(
 }
 
 /**
- * Join a DJ search post.
+ * Rejoindre un post DJ — **par donjon** pour un post multi (#26).
+ *
+ * `dungeonIndexes` : les donjons visés (0-based, bornés à `dungeonsJson`). Un post multi
+ * **sans donjon choisi** est refusé : l'ancien comportement inscrivait une ligne
+ * `dungeonIndex = null`, comptée dans **tous** les donjons (constat user du 16/10/2026 —
+ * « une candidature unique c'est mal foutu »).
+ *
+ * Capacité **par donjon** (#203) : groupe plein ⇒ file d'attente (`PENDING`), jamais un
+ * refus. Un post multi ne passe jamais `FULL` globalement.
  */
 export async function joinDjPost(
     guildId: string,
     postId: string,
-    options?: { classe?: string | null; message?: string | null }
+    options?: { classe?: string | null; message?: string | null; dungeonIndexes?: number[] | null }
 ): Promise<ActionResponse> {
     const user = await getUserContext(guildId);
     if (!user.canViewFinder) return { success: false, error: "Accès refusé" };
@@ -1991,7 +2183,10 @@ export async function joinDjPost(
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
             include: {
-                participants: { where: { status: "ACCEPTED" }, select: { id: true } },
+                participants: {
+                    where: { status: { in: ["ACCEPTED", "PENDING"] } },
+                    select: { id: true, profileId: true, status: true, dungeonIndex: true },
+                },
                 profile: { select: { userId: true } },
             },
         });
@@ -2005,32 +2200,71 @@ export async function joinDjPost(
         // Creator can't join their own post
         if (post.profileId === user.profileId) return { success: false, error: "Tu es le créateur de ce post" };
 
-        // Already joined (ACCEPTED or PENDING)?
-        const existing = await (db as any).djSearchParticipant.findFirst({
-            where: { postId, profileId: user.profileId, status: { in: ["ACCEPTED", "PENDING"] } },
-        });
-        if (existing) return { success: false, error: "Tu as déjà rejoint ce groupe ou es en file d'attente" };
+        const entries = getMultiDungeons(post.dungeonsJson);
+        const isMulti = entries.length > 0;
+        const cleanClasse = options?.classe ? options.classe.trim().slice(0, 30) : null;
+        const cleanMessage = options?.message ? options.message.trim().slice(0, 200) : null;
 
-        // Determine if the post is full (accepted participants + creator >= maxMembers)
-        const acceptedCount = post.participants.length + 1; // +1 for creator
-        const isFull = acceptedCount >= post.maxMembers;
-        const newStatus = isFull ? "PENDING" : "ACCEPTED";
+        // Donjons visés : bornés, dédoublonnés, triés (jamais un index hors session).
+        const requested = isMulti
+            ? [...new Set((options?.dungeonIndexes ?? [])
+                .map((n) => Math.floor(Number(n)))
+                .filter((n) => Number.isFinite(n) && n >= 0 && n < entries.length))]
+                .sort((a, b) => a - b)
+            : [];
+        if (isMulti && requested.length === 0) {
+            return { success: false, error: "Choisis au moins un donjon à rejoindre." };
+        }
 
-        await (db as any).djSearchParticipant.create({
-            data: {
-                postId,
-                profileId: user.profileId,
-                userId: user.id!,
-                classe: options?.classe || null,
-                message: options?.message ? options.message.trim().slice(0, 200) : null,
-                status: newStatus,
-            },
-        });
+        const mine = post.participants.filter((p: any) => p.profileId === user.profileId);
+        const targets: (number | null)[] = isMulti ? requested : [null];
 
-        // Auto-fill check: mark post as FULL if accepted count just reached max
-        if (newStatus === "ACCEPTED") {
-            const newAcceptedCount = post.participants.length + 1; // +1 for creator
-            if (newAcceptedCount >= post.maxMembers) {
+        const joined: number[] = [];
+        const waitlisted: number[] = [];
+        let skipped = 0;
+
+        for (const index of targets) {
+            // « Déjà inscrit » : par donjon en multi, globalement sur un post simple.
+            if (mine.some((p: any) => (isMulti ? p.dungeonIndex === index : true))) {
+                skipped += 1;
+                continue;
+            }
+
+            // Capacité **par donjon** (#203) — le créateur compte dans chaque groupe.
+            const entryMax = isMulti && index != null ? (entries[index]?.maxMembers ?? post.maxMembers) : post.maxMembers;
+            const acceptedCount = isMulti && index != null
+                ? post.participants.filter((p: any) => p.status === "ACCEPTED" && (p.dungeonIndex === index || p.dungeonIndex == null)).length + 1
+                : post.participants.filter((p: any) => p.status === "ACCEPTED").length + 1;
+            const newStatus = acceptedCount >= entryMax ? "PENDING" : "ACCEPTED";
+
+            await (db as any).djSearchParticipant.create({
+                data: {
+                    postId,
+                    profileId: user.profileId,
+                    userId: user.id!,
+                    classe: cleanClasse,
+                    message: cleanMessage,
+                    status: newStatus,
+                    dungeonIndex: isMulti ? index : null,
+                },
+            });
+            if (newStatus === "PENDING") waitlisted.push(index as number); else joined.push(index as number);
+        }
+
+        if (joined.length === 0 && waitlisted.length === 0) {
+            return {
+                success: false,
+                error: isMulti
+                    ? "Tu es déjà inscrit à ce donjon (ou tu y es déjà en file d'attente)."
+                    : "Tu as déjà rejoint ce groupe ou es en file d'attente",
+            };
+        }
+
+        // Post simple : marquer FULL dès que le groupe est complet.
+        // Un post multi ne passe jamais FULL globalement (#203).
+        if (!isMulti && joined.length > 0) {
+            const acceptedNow = post.participants.filter((p: any) => p.status === "ACCEPTED").length + 1 + joined.length;
+            if (acceptedNow >= post.maxMembers) {
                 await (db as any).djSearchPost.update({
                     where: { id: postId },
                     data: { status: "FULL" },
@@ -2038,7 +2272,7 @@ export async function joinDjPost(
             }
         }
 
-        // Notify post creator
+        // Notify post creator — UNE seule notification, quel que soit le nombre de donjons.
         if (post.profile?.userId && post.profile.userId !== user.id) {
             const creatorProfile = await (db as any).userProfile.findFirst({
                 where: { userId: post.profile.userId },
@@ -2051,13 +2285,19 @@ export async function joinDjPost(
                 const { createNotification } = await import("@/server/actions/notification-actions");
                 const joinerName = user.name || "Un joueur";
                 const postTitle = post.questName || post.dungeon?.name || "Groupe";
-                const msg = newStatus === "PENDING"
-                    ? `**${joinerName}** a rejoint la file d'attente de ton groupe « ${postTitle} »`
-                    : `**${joinerName}** a rejoint ton groupe « ${postTitle} »`;
+                // Les donjons visés **nomment** la candidature (« a rejoint X, Y »).
+                const dungeonNames = [...joined, ...waitlisted]
+                    .map((i) => entries[i]?.name)
+                    .filter((n: string | undefined): n is string => !!n);
+                const suffix = dungeonNames.length > 0 ? ` — ${dungeonNames.join(", ")}` : "";
+                const onWaitlist = joined.length === 0;
+                const msg = onWaitlist
+                    ? `**${joinerName}** a rejoint la file d'attente de ton groupe « ${postTitle} »${suffix}`
+                    : `**${joinerName}** a rejoint ton groupe « ${postTitle} »${suffix}`;
                 await createNotification(
                     post.profile.userId,
                     "SYSTEM_INFO",
-                    newStatus === "PENDING" ? "Nouvelle demande en file d'attente" : "Nouvelle candidature DJ",
+                    onWaitlist ? "Nouvelle demande en file d'attente" : "Nouvelle candidature DJ",
                     msg,
                     `/dashboard/${guildId}/donjons-et-quetes`,
                     guildId,
@@ -2074,7 +2314,15 @@ export async function joinDjPost(
         await notifyDjUpdate(guildId);
         // Miroir agenda (R1) : la composition affichée suit les inscrits.
         await syncDjMirror(guildId, postId);
-        return { success: true, data: { waitlisted: newStatus === "PENDING" } as any };
+        return {
+            success: true,
+            data: {
+                waitlisted: waitlisted.length > 0 && joined.length === 0,
+                joined: joined.length,
+                waitlistedCount: waitlisted.length,
+                skipped,
+            } as any,
+        };
     } catch (error) {
         logger.error("[joinDjPost]", error);
         return { success: false, error: "Erreur lors de l'inscription" };
@@ -2082,11 +2330,16 @@ export async function joinDjPost(
 }
 
 /**
- * Leave a DJ search post.
+ * Quitter un post DJ — **par donjon** (#26).
+ *
+ * `dungeonIndex` : le donjon visé. Sans index, on ne devine que s'il n'existe qu'**une**
+ * seule participation : un bouton « Se désinscrire » ne doit jamais retirer la place d'un
+ * autre donjon (constat Discord du 16/10/2026 — `dj:leave:{postId}:{idx}` était ignoré).
  */
 export async function leaveDjPost(
     guildId: string,
-    postId: string
+    postId: string,
+    dungeonIndex?: number | null
 ): Promise<ActionResponse> {
     const user = await getUserContext(guildId);
     if (!user.canViewFinder) return { success: false, error: "Accès refusé" };
@@ -2095,7 +2348,7 @@ export async function leaveDjPost(
     try {
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            select: { profileId: true, status: true, maxMembers: true, guildId: true },
+            select: { profileId: true, status: true, maxMembers: true, guildId: true, dungeonsJson: true },
         });
         if (!post) return { success: false, error: "Post introuvable" };
         // #149 — Isolement tenant strict.
@@ -2107,28 +2360,60 @@ export async function leaveDjPost(
             return { success: false, error: "Utilise 'Fermer' pour quitter ton propre post" };
         }
 
-        const participation = await (db as any).djSearchParticipant.findFirst({
+        const entries = getMultiDungeons(post.dungeonsJson);
+        const mine = await (db as any).djSearchParticipant.findMany({
             where: { postId, profileId: user.profileId },
+            select: { id: true, status: true, dungeonIndex: true },
         });
-        if (!participation) return { success: false, error: "Tu n'es pas dans ce groupe" };
+        if (mine.length === 0) return { success: false, error: "Tu n'es pas dans ce groupe" };
 
-        const wasAccepted = participation.status === "ACCEPTED";
+        // Cible : le donjon demandé, la ligne « sans donjon » demandée explicitement
+        // (`null`), ou l'unique participation du joueur. Jamais « la première trouvée ».
+        const target = dungeonIndex === null
+            ? mine.find((p: any) => p.dungeonIndex == null)
+            : dungeonIndex !== undefined
+                ? mine.find((p: any) => p.dungeonIndex === dungeonIndex)
+                : mine.length === 1 ? mine[0] : null;
+        if (!target) {
+            return {
+                success: false,
+                error: dungeonIndex !== undefined
+                    ? "Tu n'es pas inscrit à ce donjon"
+                    : "Précise le donjon à quitter (tu es inscrit à plusieurs donjons de cette session).",
+            };
+        }
+
+        const wasAccepted = target.status === "ACCEPTED";
+        const leftIndex: number | null = target.dungeonIndex ?? null;
 
         await (db as any).djSearchParticipant.delete({
-            where: { id: participation.id },
+            where: { id: target.id },
         });
 
         if (wasAccepted) {
-            // Recalculate accepted count after deletion
+            const isMulti = entries.length > 0 && leftIndex != null;
+            const maxMembers = isMulti ? (entries[leftIndex as number]?.maxMembers ?? post.maxMembers) : post.maxMembers;
+            // Places restantes **de ce groupe** : la même règle que le join (#203) — un
+            // inscrit sans donjon reste compté partout (legacy), jamais promu en douce.
             const remainingAccepted = await (db as any).djSearchParticipant.count({
-                where: { postId, status: "ACCEPTED" },
+                where: {
+                    postId,
+                    status: "ACCEPTED",
+                    ...(isMulti ? { OR: [{ dungeonIndex: leftIndex }, { dungeonIndex: null }] } : {}),
+                },
             });
             const newAcceptedTotal = remainingAccepted + 1; // +1 creator
 
-            if (newAcceptedTotal < post.maxMembers) {
-                // Place freed — try to promote first PENDING in waitlist
+            if (newAcceptedTotal < maxMembers) {
+                // Place libérée — on promeut le premier PENDING **de ce même donjon**
+                // (les files d'attente sont distinctes : promouvoir celui d'un autre donjon
+                // ferait grossir un groupe qui n'a rien libéré).
                 const firstWaiting = await (db as any).djSearchParticipant.findFirst({
-                    where: { postId, status: "PENDING" },
+                    where: {
+                        postId,
+                        status: "PENDING",
+                        ...(isMulti ? { OR: [{ dungeonIndex: leftIndex }, { dungeonIndex: null }] } : {}),
+                    },
                     orderBy: { createdAt: "asc" },
                     include: { profile: { select: { userId: true, discordNickname: true, pseudoDofus: true } } },
                 });
@@ -2142,19 +2427,20 @@ export async function leaveDjPost(
                     // Notify promoted participant
                     if (firstWaiting.profile?.userId) {
                         const { createNotification } = await import("@/server/actions/notification-actions");
+                        const dungeonName = isMulti ? entries[leftIndex as number]?.name : null;
                         await createNotification(
                             firstWaiting.profile.userId,
                             "SYSTEM_INFO",
                             "Place disponible dans un groupe DJ",
-                            `Une place s'est libérée dans ton groupe en attente — tu es maintenant **inscrit** !`,
+                            `Une place s'est libérée${dungeonName ? ` sur **${dungeonName}**` : ""} dans ton groupe en attente — tu es maintenant **inscrit** !`,
                             `/dashboard/${guildId}/donjons-et-quetes`,
                             guildId
                         );
                     }
                 }
 
-                // Re-open post
-                if (post.status === "FULL") {
+                // Réouvrir : un post multi ne passe jamais FULL globalement (#203).
+                if (!isMulti && post.status === "FULL") {
                     await (db as any).djSearchPost.update({
                         where: { id: postId },
                         data: { status: "OPEN" },
@@ -2169,7 +2455,7 @@ export async function leaveDjPost(
         await notifyDjUpdate(guildId);
         // Miroir agenda (R1) : la composition affichée suit les inscrits.
         await syncDjMirror(guildId, postId);
-        return { success: true };
+        return { success: true, data: { dungeonIndex: leftIndex } as any };
     } catch (error) {
         logger.error("[leaveDjPost]", error);
         return { success: false, error: "Erreur lors du départ" };
@@ -2320,15 +2606,21 @@ export async function internalJoinDjPost(
 
 /**
  * Leave a DJ post directly by profileId (used by Discord interactions endpoint).
+ *
+ * `dungeonIndex` : le donjon visé par le bouton (`dj:leave:{postId}:{idx}`). Il est
+ * **obligatoire en pratique** sur un post multi — sans lui, l'ancien code supprimait la
+ * **première** participation trouvée, donc la place d'un autre donjon (constat du
+ * 16/10/2026). Sans index, on n'accepte que s'il n'existe qu'une seule participation.
  */
 export async function internalLeaveDjPost(
     postId: string,
-    profileId: string
+    profileId: string,
+    dungeonIndex?: number | null
 ): Promise<ActionResponse> {
     try {
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
-            select: { profileId: true, status: true },
+            select: { profileId: true, status: true, dungeonsJson: true },
         });
         if (!post) return { success: false, error: "Post introuvable" };
 
@@ -2336,16 +2628,31 @@ export async function internalLeaveDjPost(
             return { success: false, error: "Ferme ton propre post depuis le site" };
         }
 
-        const participation = await (db as any).djSearchParticipant.findFirst({
+        const entries = getMultiDungeons(post.dungeonsJson);
+        const mine = await (db as any).djSearchParticipant.findMany({
             where: { postId, profileId },
+            select: { id: true, status: true, dungeonIndex: true },
         });
-        if (!participation) return { success: false, error: "Tu n'es pas dans ce groupe" };
+        if (mine.length === 0) return { success: false, error: "Tu n'es pas dans ce groupe" };
+
+        const target = dungeonIndex != null
+            ? mine.find((p: any) => p.dungeonIndex === dungeonIndex)
+            : mine.length === 1 ? mine[0] : null;
+        if (!target) {
+            return {
+                success: false,
+                error: dungeonIndex != null
+                    ? "Tu n'es pas inscrit à ce donjon"
+                    : "Précise le donjon à quitter (tu es inscrit à plusieurs donjons de cette session).",
+            };
+        }
 
         await (db as any).djSearchParticipant.delete({
-            where: { id: participation.id },
+            where: { id: target.id },
         });
 
-        if (post.status === "FULL") {
+        // Un post multi ne passe jamais FULL globalement (#203).
+        if (post.status === "FULL" && entries.length === 0) {
             await (db as any).djSearchPost.update({
                 where: { id: postId },
                 data: { status: "OPEN" },
@@ -2586,7 +2893,6 @@ export async function getDjPosts(
                 ...p,
                 dungeonsJson: dungeonsJson.length > 0 ? dungeonsJson : p.dungeonsJson,
                 questUrl,
-                _acceptedCount: p.participants.filter((part: any) => part.status === "ACCEPTED").length,
             };
         }));
 

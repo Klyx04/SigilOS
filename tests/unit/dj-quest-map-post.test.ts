@@ -32,7 +32,8 @@ describe("quête liée d'un post DJ — carte de lancement (asset du jeu)", () =
 
         // La carte vient de notre table : `GameQuest.imageUrl` (écrite par le siphon).
         expect(src).toContain("dofusDbId: { in: questDbIds }");
-        expect(src).toContain("select: { dofusDbId: true, imageUrl: true }");
+        // MÊME requête que le PNJ donneur (`contentJson`) : un seul lot sert les deux.
+        expect(src).toContain("select: { dofusDbId: true, imageUrl: true, contentJson: true }");
         // Un lot, pas une requête par post.
         expect(src).toContain("const questDbIds: number[] = [...new Set<number>(");
         // Le payload porte la carte (le type public la déclare).

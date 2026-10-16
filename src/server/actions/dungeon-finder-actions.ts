@@ -16,7 +16,9 @@ import { sanitizeName } from "@/lib/security";
 import { getDiscordApiCode, getDiscordApiStatus } from "@/lib/discord-api-errors";
 import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates, mergeMultiDungeonRequiredClasses, getDjDungeonStats, getMultiMessageIds, withMultiMessageIds } from "@/lib/dungeon-finder-utils";
 import { questMapIdFromImageUrl, resolveQuestMinimap, type QuestMinimap } from "@/lib/quest-minimap";
+import { resolveQuestNpc } from "@/lib/npc-name";
 import { getWorldmapData, getWorldsData } from "@/server/game/worldmap-data";
+import { getNpcEntries } from "@/server/game/npc-data";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 import { syncDjMirror } from "@/server/agenda-mirror-sync";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
@@ -180,6 +182,13 @@ export type DjPostWithDetails = {
      * visuel approximatif.
      */
     questMinimap?: QuestMinimap | null;
+    /**
+     * 🧑‍🌾 **PNJ donneur** de la quête liée (id + nom), lu **localement** : l'id vient du résumé
+     * stocké (`contentJson`, texte d'objectif `« Aller voir {npc,813} »`) et le nom de la table
+     * `prisma/seed-data/npcs/npcs-client.json` (6 494 PNJ siphonnés du client). Aucun appel
+     * réseau, aucune migration. `null` quand la quête n'en porte pas (jamais un nom inventé).
+     */
+    questNpc?: { id: number; name: string } | null;
     /* Mode Défi */
     defiId?: string | null;
     defiName?: string | null;
@@ -1336,6 +1345,20 @@ export async function sendDjCustomReminder(guildId: string, postId: string, cust
 
 
 
+/**
+ * 🧑‍🌾 PNJ donneur d'un post (id + nom) — résolu **localement** : l'id est lu dans le résumé de
+ * quête déjà stocké (`contentJson`, texte d'objectif « Aller voir {npc,813} ») et le nom dans la
+ * table PNJ du dépôt (`prisma/seed-data/npcs/npcs-client.json`, **6 494** entrées siphonnées du
+ * client Dofus). Aucun appel réseau, aucune migration ; `null` (donc rien affiché) quand la quête
+ * ne nomme personne — jamais un nom inventé, et le portrait n'existe nulle part (mesuré).
+ */
+async function resolvePostQuestNpc(questId: number | null | undefined): Promise<{ id: number; name: string } | null> {
+    const id = Number(questId);
+    if (!Number.isSafeInteger(id) || id <= 0) return null;
+    const quest = await db.gameQuest.findFirst({ where: { dofusDbId: id }, select: { contentJson: true } });
+    return resolveQuestNpc(quest?.contentJson, getNpcEntries());
+}
+
 async function buildPostEmbed(post: any, authorName: string, guildId: string, acceptedParticipants: any[] = []) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
     const isDungeon = post.mode === "DONJON";
@@ -1403,6 +1426,13 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
             : "*Sans date pour l'instant*",
         inline: true,
     });
+
+    // 🧑‍🌾 PNJ donneur (mode Quête) : même source que le dashboard (résumé stocké + table PNJ du
+    // dépôt), donc l'embed et le site disent la même chose. Absent si la quête ne nomme personne.
+    if (post.mode === "QUETE") {
+        const npc = await resolvePostQuestNpc(post.questId);
+        if (npc) fields.push({ name: "🧑‍🌾 Aller voir", value: npc.name, inline: true });
+    }
 
     // New line for following fields
     fields.push({ name: "\u200b", value: "\u200b", inline: false });
@@ -2985,14 +3015,14 @@ export async function getDjPosts(
         const questDbIds: number[] = [...new Set<number>(
             posts.map((p: any) => Number(p.questId)).filter((id: number) => Number.isInteger(id) && id > 0)
         )];
-        const questMapById = new Map<number, string | null>(
-            questDbIds.length > 0
-                ? (await db.gameQuest.findMany({
-                    where: { dofusDbId: { in: questDbIds } },
-                    select: { dofusDbId: true, imageUrl: true },
-                })).map((q) => [Number(q.dofusDbId), q.imageUrl])
-                : []
-        );
+        const questRows = questDbIds.length > 0
+            ? await db.gameQuest.findMany({
+                where: { dofusDbId: { in: questDbIds } },
+                select: { dofusDbId: true, imageUrl: true, contentJson: true },
+            })
+            : [];
+        const questMapById = new Map<number, string | null>(questRows.map((q) => [Number(q.dofusDbId), q.imageUrl]));
+        const questContentById = new Map<number, unknown>(questRows.map((q) => [Number(q.dofusDbId), q.contentJson]));
 
         /* 🗺️ Capture de zone des quêtes liées : `worldmap.json` (14 703 maps → tuile + monde) et
            `worlds.json` sont lus **une fois** (cache process) puis résolus avec la MÊME règle que
@@ -3000,6 +3030,9 @@ export async function getDjPosts(
            aucun siphon, aucune migration — et l'image de l'embed Discord lit la même source. */
         const worldmapData = getWorldmapData();
         const worldsData = getWorldsData();
+        /* 🧑‍🌾 PNJ donneur : la table locale est lue **une fois** (cache process) — le nom vient du
+           client Dofus siphonné, pas d'un appel réseau à l'affichage. */
+        const npcEntries = getNpcEntries();
 
         const data = await Promise.all(posts.map(async (p: any) => {
             let questUrl = p.questUrl;
@@ -3018,6 +3051,7 @@ export async function getDjPosts(
                     worldsData,
                     questMapIdFromImageUrl(questMapById.get(Number(p.questId)) ?? null)
                 ),
+                questNpc: resolveQuestNpc(questContentById.get(Number(p.questId)), npcEntries),
             };
         }));
 

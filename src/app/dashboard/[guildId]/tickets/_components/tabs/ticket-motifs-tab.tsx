@@ -1,17 +1,17 @@
 "use client";
 
 /**
- * 🎫 Tickets — **onglet « Motifs »** (unique) : un motif = un bouton sur un
- * panneau Discord (« Candidature », « Support »), avec son salon, son équipe,
- * ses règles de fermeture et son questionnaire (20 questions au plus).
+ * 🎫 Tickets — **onglet « Types de demande »** (unique) : un type = un bouton sur un
+ * panneau Discord (« Candidature », « Support »), avec son salon, son message
+ * d'ouverture, son équipe, ses règles de fermeture et son questionnaire
+ * (20 questions au plus).
  *
- * Remplace « Parcours » (assistant 5 étapes, brouillon/publié) et « Catégories
- * & Modals » (5 questions texte) : enregistrer = publié, sans étape cachée.
- * Les anciens motifs v1 se migrent en un clic (« Tout passer en Motifs »),
- * les tickets déjà ouverts ne sont jamais touchés.
+ * Enregistrer = publié, sans étape cachée. Les anciennes catégories v1 sont
+ * migrées **automatiquement** à l'ouverture de l'onglet (aucun bouton, aucune
+ * bannière) : leurs tickets déjà ouverts ne sont jamais touchés.
  */
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
     Tags,
@@ -21,7 +21,6 @@ import {
     Power,
     X,
     ListPlus,
-    ArrowRight,
     ArrowUp,
     ArrowDown,
 } from "lucide-react";
@@ -38,7 +37,6 @@ import {
     migrateCategoriesToMotifsAction,
 } from "@/server/actions/ticket-bot-actions";
 import { TICKET_ICON_PRESETS, normalizeTicketIcon } from "@/lib/tickets/ticket-icons";
-import { ticketLabel } from "@/lib/tickets/ticket-texts";
 import {
     MOTIF_ON_NO_LABELS,
     MOTIF_QUESTION_KINDS,
@@ -58,14 +56,27 @@ import {
 } from "@/lib/tickets/journey-wizard";
 import {
     readTicketPermissionSettings,
+    readTicketMotifButtons,
+    ticketButtonLayoutForMotif,
     type TicketCategoryClosePolicy,
+    type TicketMotifButtonOverrides,
 } from "@/lib/tickets/category-permissions";
+import {
+    TICKET_BUTTON_ADMIN_LABELS,
+    TICKET_BUTTON_KEYS,
+    readTicketButtonSettings,
+    type TicketButtonKey,
+} from "@/lib/tickets/button-config";
+import {
+    buildTicketCreatorContent,
+    buildTicketNotifyContentWithTemplate,
+} from "@/lib/tickets/notifications";
 
 interface TicketMotifsTabProps {
     guildId: string;
     journeys: any[];
     forms: any[];
-    /** Anciennes catégories v1 non migrées (bannière + bouton de migration). */
+    /** Anciennes catégories v1 : migrées automatiquement (silencieuses à l'écran). */
     legacyCategories: any[];
     permissionSettings?: unknown;
     onRefresh: () => void;
@@ -112,6 +123,36 @@ export function TicketMotifsTab({
     const [welcomeMessage, setWelcomeMessage] = useState("");
     const [isEnabled, setIsEnabled] = useState(true);
     const [questions, setQuestions] = useState<MotifQuestion[]>([]);
+    // 🆕 Boutons surchargés pour CE motif (retiré / renommé — héritage du global sinon).
+    const [motifButtons, setMotifButtons] = useState<
+        Partial<Record<TicketButtonKey, { disabled: boolean; label: string }>>
+    >({});
+
+    /**
+     * 🧹 Migration auto des anciennes catégories v1 (one-shot R2) : un seul
+     * passage par montage, idempotent côté serveur, toast honnête. Plus aucun
+     * bouton ni bannière « à convertir » : ça migre, puis ça disparaît.
+     */
+    const autoMigratedRef = useRef(false);
+    useEffect(() => {
+        if (autoMigratedRef.current || legacyCategories.length === 0) return;
+        autoMigratedRef.current = true;
+        startTransition(async () => {
+            const res = await migrateCategoriesToMotifsAction(guildId);
+            if (!res.success) {
+                toast.error(res.error || "Migration automatique impossible");
+                return;
+            }
+            const data = res.data as { migrated?: number; skipped?: number } | undefined;
+            if ((data?.migrated ?? 0) > 0) {
+                toast.success(
+                    `${data?.migrated} ancienne(s) catégorie(s) convertie(s) — pense à redéployer tes panneaux.`
+                );
+                onRefresh();
+            }
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [legacyCategories.length]);
 
     const takenSlugs = useMemo(
         () => journeys.filter((journey) => journey.id !== editingId).map((journey) => String(journey.slug)),
@@ -148,6 +189,7 @@ export function TicketMotifsTab({
         setWelcomeMessage("");
         setIsEnabled(true);
         setQuestions([]);
+        setMotifButtons({});
     };
 
     const openCreateModal = () => {
@@ -178,6 +220,13 @@ export function TicketMotifsTab({
         setNotifyMessage(override?.notifyMessage ?? "");
         setCreatorMessage(override?.creatorMessage ?? "");
         setWelcomeMessage(override?.welcomeMessage || journey.welcomeMessage || "");
+        const motifButtonOverrides = readTicketMotifButtons(override?.buttons);
+        const motifButtonState: Partial<Record<TicketButtonKey, { disabled: boolean; label: string }>> = {};
+        for (const key of TICKET_BUTTON_KEYS) {
+            const entry = motifButtonOverrides[key];
+            if (entry) motifButtonState[key] = { disabled: entry.disabled === true, label: entry.label ?? "" };
+        }
+        setMotifButtons(motifButtonState);
         const form = forms.find((candidate) => candidate.id === journey.formId);
         setQuestions(form ? definitionToMotifQuestions(readTicketForm(form.draftSchemaJson)) : []);
         setModalOpen(true);
@@ -242,6 +291,14 @@ export function TicketMotifsTab({
                 notifyEnabled,
                 notifyMessage: notifyMessage.trim() || undefined,
                 creatorMessage: creatorMessage.trim() || undefined,
+                motifButtons: Object.fromEntries(
+                    TICKET_BUTTON_KEYS.flatMap((key) => {
+                        const entry = motifButtons[key];
+                        const label = entry?.label.trim() ?? "";
+                        if (!entry?.disabled && !label) return [];
+                        return [[key, { disabled: entry?.disabled === true, ...(label ? { label } : {}) }]];
+                    })
+                ),
                 namingPattern: namingPattern.trim() || "ticket-{num}",
                 closePolicy,
                 requireConfirm,
@@ -292,26 +349,6 @@ export function TicketMotifsTab({
         });
     };
 
-    const handleMigrate = () => {
-        if (
-            !confirm(
-                `${legacyCategories.length} ancien(s) motif(s) à convertir. Les tickets déjà ouverts ne sont pas touchés. Continuer ?`
-            )
-        ) {
-            return;
-        }
-        startTransition(async () => {
-            const res = await migrateCategoriesToMotifsAction(guildId);
-            if (!res.success) {
-                toast.error(res.error || "Erreur migration");
-                return;
-            }
-            const data = res.data as { migrated?: number; skipped?: number } | undefined;
-            toast.success(`${data?.migrated ?? 0} motif(s) converti(s)${data?.skipped ? `, ${data.skipped} déjà migré(s)` : ""}.`);
-            onRefresh();
-        });
-    };
-
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -321,28 +358,17 @@ export function TicketMotifsTab({
                     </h2>
                     <p className="text-xs text-muted-foreground">
                         Un type de demande = un bouton sur un panneau Discord (« Candidature », « Support »).
-                        Enregistrer = visible immédiatement sur Discord, avec son questionnaire et son salon dédié.
+                        Enregistrer = visible immédiatement sur Discord, avec son message d'ouverture,
+                        son questionnaire et son salon dédié.
                     </p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {legacyCategories.length > 0 && (
-                        <Button onClick={handleMigrate} disabled={isPending} size="sm" variant="outline" className="text-xs border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
-                            <ArrowRight className="h-4 w-4 mr-1" /> Tout convertir en types de demande ({legacyCategories.length})
-                        </Button>
-                    )}
                     <Button onClick={openCreateModal} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
                         <Plus className="h-4 w-4 mr-1" /> Nouveau type de demande
                     </Button>
                 </div>
             </div>
-
-            {legacyCategories.length > 0 && (
-                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-200">
-                    {legacyCategories.length} ancienne(s) catégorie(s) ne sont pas encore converties en types de demande complets :
-                    leurs boutons continuent de fonctionner, mais les convertir leur donne le formulaire enrichi et le message d'accueil personnalisé.
-                </div>
-            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {journeys.length === 0 ? (
@@ -453,11 +479,17 @@ export function TicketMotifsTab({
                     <DialogHeader>
                         <DialogTitle>{editingId ? "Modifier le type de demande" : "Nouveau type de demande"}</DialogTitle>
                     </DialogHeader>
+                    <p className="text-xs text-muted-foreground">
+                        Suis les étapes : <strong>1</strong> bouton sur le panneau, <strong>2</strong> message
+                        d'ouverture (façon TicketTool), <strong>3</strong> équipe et accès, <strong>4</strong> fermeture
+                        et boutons du salon, <strong>5</strong> questionnaire. Enregistrer = visible sur Discord.
+                    </p>
 
                     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 py-2 text-xs">
                     <div className="space-y-6 min-w-0">
-                        {/* Identité */}
+                        {/* 1 · Bouton sur le panneau */}
                         <div className="space-y-3">
+                            <h4 className="font-bold text-foreground">1 · Bouton sur le panneau</h4>
                             <div className="grid grid-cols-4 gap-2">
                                 <div className="col-span-1 space-y-1.5">
                                     <label className="font-semibold text-foreground">Icône</label>
@@ -523,26 +555,17 @@ export function TicketMotifsTab({
                             <TicketCategoryPicker guildId={guildId} value={channelParentId} onChange={setChannelParentId} />
 
                             <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">Courte description (affichée sur les listes)</label>
+                                <label className="font-semibold text-foreground">Résumé affiché sur les listes</label>
                                 <Input
                                     placeholder="ex : Présente ta candidature pour rejoindre la guilde."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     className="text-xs h-8"
                                 />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                    <label className="font-semibold text-foreground">Message d'accueil personnalisé dans le salon</label>
-                                    <span className="text-[10px] text-muted-foreground">Markdown Discord supporté</span>
-                                </div>
-                                <Textarea
-                                    placeholder="ex : Bienvenue ! Merci de nous transmettre tes disponibilités et ton avancée de jeu..."
-                                    value={welcomeMessage}
-                                    onChange={(e) => setWelcomeMessage(e.target.value)}
-                                    className="text-xs min-h-[75px]"
-                                />
+                                <p className="text-[11px] text-muted-foreground">
+                                    Visible uniquement dans le dashboard — <strong>ne part jamais sur Discord</strong>.
+                                    Le texte du salon se règle à l'étape 2.
+                                </p>
                             </div>
 
                             <details className="rounded-xl border border-border bg-surface/40 px-3 py-2">
@@ -559,29 +582,29 @@ export function TicketMotifsTab({
                             </details>
                         </div>
 
-                        {/* Équipe */}
+                        {/* 2 · Message d'ouverture (façon TicketTool : texte + mentions) */}
                         <div className="space-y-3 pt-4 border-t border-border/50">
-                            <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">Rôles staff de ce motif</label>
-                                <TicketRolesPicker
-                                    guildId={guildId}
-                                    value={staffRoleIds}
-                                    onChange={setStaffRoleIds}
-                                    description="Ces rôles voient et traitent les tickets de ce motif."
-                                />
+                            <div>
+                                <h4 className="font-bold text-foreground">2 · Message d'ouverture du salon</h4>
+                                <p className="text-[11px] text-muted-foreground">
+                                    C'est <strong>tout</strong> ce que le membre et l'équipe reçoivent à l'ouverture :
+                                    le texte d'accueil (embed), le ping de l'équipe et le message au demandeur.
+                                    Variables : <span className="font-mono">{"{membre}"}</span>{" "}
+                                    <span className="font-mono">{"{motif}"}</span>{" "}
+                                    <span className="font-mono">{"{numero}"}</span> — aperçu à droite, en direct.
+                                </p>
                             </div>
+
                             <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">
-                                    Qui peut ouvrir ce type de demande ?
-                                </label>
-                                <TicketRolesPicker
-                                    guildId={guildId}
-                                    value={allowedRoleIds}
-                                    onChange={setAllowedRoleIds}
-                                    title="Rôles autorisés à ouvrir"
-                                    triggerPlaceholder="Sélectionner les rôles autorisés à ouvrir..."
-                                    emptyTitle="Tout le monde peut ouvrir"
-                                    description="Vide = tout le monde (hors rôles bloqués). Sinon, seuls ces rôles — un administrateur Discord passe toujours."
+                                <div className="flex items-center justify-between">
+                                    <label className="font-semibold text-foreground">Texte d'accueil dans le salon</label>
+                                    <span className="text-[10px] text-muted-foreground">Markdown Discord supporté</span>
+                                </div>
+                                <Textarea
+                                    placeholder="ex : Bienvenue ! Merci de nous transmettre tes disponibilités et ton avancée de jeu..."
+                                    value={welcomeMessage}
+                                    onChange={(e) => setWelcomeMessage(e.target.value)}
+                                    className="text-xs min-h-[75px]"
                                 />
                             </div>
 
@@ -644,6 +667,35 @@ export function TicketMotifsTab({
                                     </p>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* 3 · Équipe & accès */}
+                        <div className="space-y-3 pt-4 border-t border-border/50">
+                            <h4 className="font-bold text-foreground">3 · Équipe et accès</h4>
+                            <div className="space-y-1.5">
+                                <label className="font-semibold text-foreground">Équipe qui traite ce motif</label>
+                                <TicketRolesPicker
+                                    guildId={guildId}
+                                    value={staffRoleIds}
+                                    onChange={setStaffRoleIds}
+                                    description="Ces rôles voient le salon et traitent les tickets de ce motif."
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="font-semibold text-foreground">
+                                    Qui peut ouvrir ce type de demande ? (liste blanche)
+                                </label>
+                                <TicketRolesPicker
+                                    guildId={guildId}
+                                    value={allowedRoleIds}
+                                    onChange={setAllowedRoleIds}
+                                    title="Rôles autorisés à ouvrir"
+                                    triggerPlaceholder="Sélectionner les rôles autorisés à ouvrir..."
+                                    emptyTitle="Tout le monde peut ouvrir"
+                                    description="Vide = tout le monde (hors rôles bloqués). Sinon, seuls ces rôles — un administrateur Discord passe toujours."
+                                />
+                            </div>
+
                             <div className="space-y-1.5">
                                 <label className="font-semibold text-foreground">Rôles invités (observateurs)</label>
                                 <TicketRolesPicker
@@ -655,8 +707,9 @@ export function TicketMotifsTab({
                             </div>
                         </div>
 
-                        {/* Fermeture */}
+                        {/* 4 · Fermeture + boutons de CE salon */}
                         <div className="space-y-3 pt-4 border-t border-border/50">
+                            <h4 className="font-bold text-foreground">4 · Fermeture et boutons du salon</h4>
                             <div className="space-y-1.5">
                                 <label className="font-semibold text-foreground">Qui peut fermer ?</label>
                                 <select
@@ -677,13 +730,59 @@ export function TicketMotifsTab({
                                 />
                                 <span>Demander confirmation avant de fermer (« Oui, fermer / Annuler »)</span>
                             </label>
+
+                            <div className="space-y-2 rounded-xl border border-border/70 bg-surface/40 p-3">
+                                <div className="font-semibold text-foreground">
+                                    Boutons affichés dans le salon de ce motif
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Héritent du réglage global (<strong>Configuration → Boutons du salon</strong> :
+                                    nom, icône, droit). Ici tu peux seulement <strong>retirer</strong> un bouton de
+                                    ce salon ou le <strong>renommer</strong> pour ce salon.
+                                </p>
+                                {TICKET_BUTTON_KEYS.map((key) => {
+                                    const entry = motifButtons[key] ?? { disabled: false, label: "" };
+                                    return (
+                                        <div key={key} className="flex items-center gap-2">
+                                            <label className="flex items-center gap-1.5 cursor-pointer min-w-32">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!entry.disabled}
+                                                    onChange={() =>
+                                                        setMotifButtons((previous) => ({
+                                                            ...previous,
+                                                            [key]: { disabled: !entry.disabled, label: entry.label },
+                                                        }))
+                                                    }
+                                                    className="rounded border-border"
+                                                />
+                                                <span className="text-xs text-foreground">{TICKET_BUTTON_ADMIN_LABELS[key]}</span>
+                                            </label>
+                                            <Input
+                                                value={entry.label}
+                                                maxLength={80}
+                                                disabled={entry.disabled}
+                                                placeholder="Nom pour ce salon (vide = nom global)"
+                                                onChange={(event) =>
+                                                    setMotifButtons((previous) => ({
+                                                        ...previous,
+                                                        [key]: { disabled: entry.disabled, label: event.target.value },
+                                                    }))
+                                                }
+                                                className="text-xs h-8 flex-1"
+                                                aria-label={`Nom du bouton ${TICKET_BUTTON_ADMIN_LABELS[key]} pour ce motif`}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
 
-                        {/* Questionnaire */}
+                        {/* 5 · Questionnaire */}
                         <div className="space-y-3 pt-4 border-t border-border/50">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <h4 className="font-bold text-foreground">Questionnaire d'ouverture</h4>
+                                    <h4 className="font-bold text-foreground">5 · Questionnaire d'ouverture</h4>
                                     <p className="text-[11px] text-muted-foreground">
                                         L&apos;ordre ci-dessous est <strong>exactement</strong> celui posé au membre :
                                         les questions texte sont groupées par 5 (une modale), les questions à choix se
@@ -921,7 +1020,7 @@ export function TicketMotifsTab({
                         </div>
                     </div>
 
-                    {/* Prévisualisation live (bouton du panneau + salon d'accueil) */}
+                    {/* Prévisualisation live (message d'ouverture + salon d'accueil) */}
                     <div className="space-y-3 lg:sticky lg:top-0 self-start">
                         <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             Aperçu Discord en direct
@@ -947,6 +1046,29 @@ export function TicketMotifsTab({
                                 </span>
                             </div>
 
+                            {(() => {
+                                const vars = { membre: "@Toi", motif: name.trim() || "motif", numero: 42 };
+                                const creator = buildTicketCreatorContent({
+                                    creatorDiscordId: "123456789012345678",
+                                    template: creatorMessage,
+                                    vars,
+                                });
+                                const roles = buildTicketNotifyContentWithTemplate({
+                                    roleIds: notifyRoleIds,
+                                    template: notifyMessage,
+                                    enabled: notifyEnabled,
+                                    vars: { ...vars, membre: "@Toi" },
+                                });
+                                const line = [creator, roles].filter(Boolean).join(" ");
+                                if (!line) return null;
+                                return (
+                                    <>
+                                        <div className="text-[11px] text-[#949ba4]">Message envoyé en haut du salon :</div>
+                                        <div className="text-xs text-white break-words">{line}</div>
+                                    </>
+                                );
+                            })()}
+
                             <div
                                 className="rounded bg-[#1e1f22] p-3 text-xs border-l-4 space-y-2"
                                 style={{ borderLeftColor: MOTIF_BUTTON_PREVIEW_COLORS[buttonStyle] }}
@@ -955,7 +1077,7 @@ export function TicketMotifsTab({
                                     {normalizeTicketIcon(emoji.trim() || "🎫")} Ticket #0042 — {name.trim() || "Nom du motif"}
                                 </div>
                                 <div className="text-[#dbdee1] whitespace-pre-wrap">
-                                    {welcomeMessage.trim() || description.trim() || "Bienvenue ! Un membre de l'équipe prendra en charge ta demande sous peu."}
+                                    {welcomeMessage.trim() || "Bienvenue ! Un membre de l'équipe prendra en charge ta demande sous peu."}
                                 </div>
                                 {questions.length > 0 && (
                                     <div className="space-y-1.5 pt-1">
@@ -983,25 +1105,39 @@ export function TicketMotifsTab({
                                  </div>
                              </div>
 
-                             <div className="text-[11px] text-[#949ba4]">Boutons dans le salon (staff) :</div>
-                             <div className="flex flex-wrap gap-1.5">
-                                 {[ticketLabel("claim"), ticketLabel("add"), ticketLabel("note"), ticketLabel("rename")].map((label) => (
-                                     <span key={label} className="px-2 py-1 rounded bg-[#4e5058] text-white text-[10px] font-semibold">
-                                         {label}
-                                     </span>
-                                 ))}
-                             </div>
-                             <div className="flex flex-wrap gap-1.5">
-                                 {[ticketLabel("close"), ticketLabel("transcript"), ticketLabel("delete")].map((label, index) => (
-                                     <span
-                                         key={label}
-                                         className={`px-2 py-1 rounded text-white text-[10px] font-semibold ${index === 1 ? "bg-[#4e5058]" : "bg-[#ed4245]"}`}
-                                     >
-                                         {label}
-                                     </span>
-                                 ))}
-                             </div>
-                         </div>
+                             <div className="text-[11px] text-[#949ba4]">Boutons dans le salon de ce motif :</div>
+                             {(() => {
+                                 const overrides: TicketMotifButtonOverrides = {};
+                                 for (const key of TICKET_BUTTON_KEYS) {
+                                     const entry = motifButtons[key];
+                                     if (entry?.disabled) overrides[key] = { disabled: true };
+                                     else if (entry?.label.trim()) overrides[key] = { label: entry.label.trim() };
+                                 }
+                                 const global = readTicketButtonSettings(permissionSettings);
+                                 const render = (status: "OPEN" | "CLOSED") =>
+                                     ticketButtonLayoutForMotif(status, overrides, global, "fr").map((button) => (
+                                         <span
+                                             key={button.key}
+                                             className={`px-2 py-1 rounded text-white text-[10px] font-semibold ${
+                                                 button.key === "claim" || button.key === "reopen"
+                                                     ? "bg-[#57f287]"
+                                                     : button.key === "transcript"
+                                                       ? "bg-[#4e5058]"
+                                                       : "bg-[#ed4245]"
+                                             }`}
+                                         >
+                                             {button.label}
+                                         </span>
+                                     ));
+                                 return (
+                                     <div className="space-y-1.5">
+                                         <div className="flex flex-wrap gap-1.5">{render("OPEN")}</div>
+                                         <div className="text-[10px] text-[#949ba4]">Après fermeture :</div>
+                                         <div className="flex flex-wrap gap-1.5">{render("CLOSED")}</div>
+                                     </div>
+                                 );
+                             })()}
+                          </div>
                      </div>
                      </div>
 

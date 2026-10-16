@@ -165,6 +165,12 @@ export type DjPostWithDetails = {
     questId: number | null;
     questName: string | null;
     questUrl: string | null;
+    /**
+     * 🗺️ Carte de **lancement** de la quête liée (`/game-data/hd_maps/{mapId}.webp`, écrit dans
+     * `GameQuest.imageUrl` par le siphon) — résolue côté serveur par `getDjPosts` à partir de
+     * `questId`, sinon `null` (jamais une image inventée : DofusDB n'expose aucune image de quête).
+     */
+    questImageUrl?: string | null;
     /* Mode Défi */
     defiId?: string | null;
     defiName?: string | null;
@@ -2955,6 +2961,23 @@ export async function getDjPosts(
             },
         });
 
+        /* 🗺️ Carte de LANCEMENT des quêtes liées : DofusDB n'expose **aucune** image de quête,
+           mais notre table `GameQuest` porte la carte du jeu (`imageUrl` = `/game-data/hd_maps/
+           {mapId}.webp`, dérivée de `startPosition` par le siphon). Un SEUL lot pour tous les
+           posts (jamais une requête par post), et rien n'est inventé : une quête sans carte
+           n'en reçoit pas. */
+        const questDbIds: number[] = [...new Set<number>(
+            posts.map((p: any) => Number(p.questId)).filter((id: number) => Number.isInteger(id) && id > 0)
+        )];
+        const questMapById = new Map<number, string | null>(
+            questDbIds.length > 0
+                ? (await db.gameQuest.findMany({
+                    where: { dofusDbId: { in: questDbIds } },
+                    select: { dofusDbId: true, imageUrl: true },
+                })).map((q) => [Number(q.dofusDbId), q.imageUrl])
+                : []
+        );
+
         const data = await Promise.all(posts.map(async (p: any) => {
             let questUrl = p.questUrl;
             if (p.mode === "QUETE" && !questUrl && p.questName) {
@@ -2966,6 +2989,7 @@ export async function getDjPosts(
                 ...p,
                 dungeonsJson: dungeonsJson.length > 0 ? dungeonsJson : p.dungeonsJson,
                 questUrl,
+                questImageUrl: questMapById.get(Number(p.questId)) ?? null,
             };
         }));
 

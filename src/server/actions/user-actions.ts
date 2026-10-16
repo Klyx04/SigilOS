@@ -180,7 +180,14 @@ export async function revalidateUserContext(guildId?: string) {
 
 export type UserContext = {
     isAuthenticated: boolean;
+    /** `User.id` interne (cuid Prisma) — clé de la base, **jamais** un identifiant Discord. */
     id?: string;
+    /**
+     * 🆕 Snowflake Discord du membre (`session.user.discordId`) — **seule** valeur
+     * utilisable dans un `<@…>` ou dans une colonne `*DiscordId`. Distincte de `id`
+     * (cuid) : les confondre affichait `<@cmlozn4dj000g01mj6d1lz4iw>` (mention morte).
+     */
+    discordId?: string | null;
     name?: string;
     image?: string;
     roleName?: string;
@@ -1246,6 +1253,11 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const finalContext = {
         isAuthenticated: true,
         id: session.user.id,
+        // 🔴 Identité Discord **distincte** de `id` : tout ce qui est pingé sur Discord
+        // ou écrit dans une colonne `*DiscordId` (prise en charge, clôture, audit) doit
+        // utiliser ce flocon. Le confondre avec `session.user.id` (cuid) produisait la
+        // mention morte `<@cmlozn4dj000g01mj6d1lz4iw>` constatée en bêta (16/10/2026).
+        discordId: discordUserId ?? null,
         name: displayName,
         image: (() => {
             // #23 — avatars Discord bornés en taille (`?size=256`, webp) → chargement fiable.

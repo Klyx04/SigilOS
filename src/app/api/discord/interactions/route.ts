@@ -1404,9 +1404,8 @@ export async function POST(request: NextRequest) {
                     // 🆕 Blacklist : un rôle bloqué ne peut pas ouvrir de ticket.
                     {
                         const { db: blacklistDb } = await import("@/lib/prisma");
-                        const { readTicketPermissionSettings, isBlacklisted } = await import(
-                            "@/lib/tickets/category-permissions"
-                        );
+                        const { readTicketPermissionSettings, isBlacklisted, isTicketOpenAllowedByRoles } =
+                            await import("@/lib/tickets/category-permissions");
                         const guildForBlacklist = await blacklistDb.guildConfig.findUnique({
                             where: { discordGuildId: guild_id },
                             select: {
@@ -1422,6 +1421,27 @@ export async function POST(request: NextRequest) {
                                 type: 4,
                                 data: {
                                     content: "🚫 Tu ne peux pas ouvrir de ticket sur ce serveur. / You cannot open a ticket on this server.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // 🆕 RBAC d'ouverture (16/10/2026) : seuls les rôles choisis pour CE motif
+                        // peuvent l'ouvrir. Liste vide = tout le monde (comportement historique) ;
+                        // un administrateur Discord passe toujours. Refus **motivé**, jamais muet.
+                        if (
+                            !isTicketOpenAllowedByRoles({
+                                settings: blacklistSettings,
+                                motifKey: categoryId,
+                                actorRoleIds: ticketActorContext.discordUserRoleIds,
+                                actorIsAdmin: ticketActorContext.discordUserIsAdmin,
+                            })
+                        ) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content:
+                                        "🚫 Ton rôle ne permet pas d'ouvrir ce type de demande. / Your role cannot open this request type.",
                                     flags: 64,
                                 },
                             });
@@ -1748,12 +1768,17 @@ export async function POST(request: NextRequest) {
                     const { internalHandleTicketDelete: doDelete } = await import(
                         "@/server/actions/ticket-bot-actions"
                     );
+                    // 🆕 Suppression **avec compte à rebours** (4 s) : la réponse part tout de
+                    // suite (< 3 s exigées par Discord), le décompte est édité ensuite, et le
+                    // salon disparaît à la fin — sauf s'il a été rouvert entre-temps.
                     const res = await doDelete({
                         discordGuildId: guild_id,
                         discordUserId: member.user.id,
                         discordUserName: member.user.global_name || member.user.username,
                         ticketId,
                         actor: ticketActorContext,
+                        applicationId: payload.application_id,
+                        interactionToken: payload.token,
                     });
                     return NextResponse.json({
                         type: 4,

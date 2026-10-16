@@ -22,6 +22,8 @@ import {
     X,
     ListPlus,
     ArrowRight,
+    ArrowUp,
+    ArrowDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -98,6 +100,11 @@ export function TicketMotifsTab({
     const [channelParentId, setChannelParentId] = useState("");
     const [staffRoleIds, setStaffRoleIds] = useState<string[]>([]);
     const [notifyRoleIds, setNotifyRoleIds] = useState<string[]>([]);
+    // 🆕 Ouverture (RBAC) + notification personnalisée (16/10/2026).
+    const [allowedRoleIds, setAllowedRoleIds] = useState<string[]>([]);
+    const [notifyEnabled, setNotifyEnabled] = useState(true);
+    const [notifyMessage, setNotifyMessage] = useState("");
+    const [creatorMessage, setCreatorMessage] = useState("");
     const [additionalRoleIds, setAdditionalRoleIds] = useState<string[]>([]);
     const [namingPattern, setNamingPattern] = useState("ticket-{num}");
     const [closePolicy, setClosePolicy] = useState<TicketCategoryClosePolicy>("STAFF_OR_CREATOR");
@@ -130,6 +137,10 @@ export function TicketMotifsTab({
         setChannelParentId("");
         setStaffRoleIds([]);
         setNotifyRoleIds([]);
+        setAllowedRoleIds([]);
+        setNotifyEnabled(true);
+        setNotifyMessage("");
+        setCreatorMessage("");
         setAdditionalRoleIds([]);
         setNamingPattern("ticket-{num}");
         setClosePolicy("STAFF_OR_CREATOR");
@@ -162,6 +173,10 @@ export function TicketMotifsTab({
         const override = settings.categories[journey.id];
         setRequireConfirm(override?.requireConfirm ?? settings.requireCloseConfirm);
         setAdditionalRoleIds(override?.additionalRoleIds ?? []);
+        setAllowedRoleIds(override?.allowedRoleIds ?? []);
+        setNotifyEnabled(override?.notifyEnabled !== false);
+        setNotifyMessage(override?.notifyMessage ?? "");
+        setCreatorMessage(override?.creatorMessage ?? "");
         setWelcomeMessage(override?.welcomeMessage || journey.welcomeMessage || "");
         const form = forms.find((candidate) => candidate.id === journey.formId);
         setQuestions(form ? definitionToMotifQuestions(readTicketForm(form.draftSchemaJson)) : []);
@@ -181,6 +196,21 @@ export function TicketMotifsTab({
 
     const removeQuestion = (key: string) => {
         setQuestions((previous) => previous.filter((item) => item.key !== key));
+    };
+
+    /**
+     * 🆕 **Réordonne une question** (16/10/2026) : l'ordre affiché ici est **exactement**
+     * celui posé au membre (`buildTicketFormSteps` — les textes forment des pages de 5, les
+     * questions à choix se répondent à leur place).
+     */
+    const moveQuestion = (index: number, direction: -1 | 1) => {
+        setQuestions((previous) => {
+            const target = index + direction;
+            if (target < 0 || target >= previous.length) return previous;
+            const next = [...previous];
+            [next[index], next[target]] = [next[target], next[index]];
+            return next;
+        });
     };
 
     const handleSave = () => {
@@ -208,6 +238,10 @@ export function TicketMotifsTab({
                 channelParentId: channelParentId.trim() || undefined,
                 staffRoleIds,
                 notifyRoleIds,
+                allowedRoleIds,
+                notifyEnabled,
+                notifyMessage: notifyMessage.trim() || undefined,
+                creatorMessage: creatorMessage.trim() || undefined,
                 namingPattern: namingPattern.trim() || "ticket-{num}",
                 closePolicy,
                 requireConfirm,
@@ -537,13 +571,78 @@ export function TicketMotifsTab({
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <label className="font-semibold text-foreground">Rôles mentionnés à l'ouverture</label>
+                                <label className="font-semibold text-foreground">
+                                    Qui peut ouvrir ce type de demande ?
+                                </label>
                                 <TicketRolesPicker
                                     guildId={guildId}
-                                    value={notifyRoleIds}
-                                    onChange={setNotifyRoleIds}
-                                    description="Notifiés à chaque ouverture. Jamais @everyone."
+                                    value={allowedRoleIds}
+                                    onChange={setAllowedRoleIds}
+                                    title="Rôles autorisés à ouvrir"
+                                    triggerPlaceholder="Sélectionner les rôles autorisés à ouvrir..."
+                                    emptyTitle="Tout le monde peut ouvrir"
+                                    description="Vide = tout le monde (hors rôles bloqués). Sinon, seuls ces rôles — un administrateur Discord passe toujours."
                                 />
+                            </div>
+
+                            <div className="space-y-3 rounded-xl border border-border/70 bg-surface/40 p-3">
+                                <label className="flex items-center justify-between gap-2 cursor-pointer">
+                                    <span className="font-semibold text-foreground">Prévenir l&apos;équipe à l&apos;ouverture</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={notifyEnabled}
+                                        onChange={(event) => setNotifyEnabled(event.target.checked)}
+                                        className="rounded border-border"
+                                    />
+                                </label>
+
+                                {notifyEnabled ? (
+                                    <>
+                                        <div className="space-y-1.5">
+                                            <label className="font-semibold text-foreground">Rôles à mentionner</label>
+                                            <TicketRolesPicker
+                                                guildId={guildId}
+                                                value={notifyRoleIds}
+                                                onChange={setNotifyRoleIds}
+                                                title="Rôles mentionnés"
+                                                triggerPlaceholder="Sélectionner les rôles à prévenir..."
+                                                emptyTitle="Aucun rôle à prévenir"
+                                                description="Ces rôles sont mentionnés à chaque ouverture — jamais @everyone."
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="font-semibold text-foreground">Message envoyé avec le ping</label>
+                                            <Input
+                                                value={notifyMessage}
+                                                onChange={(event) => setNotifyMessage(event.target.value)}
+                                                maxLength={900}
+                                                placeholder="ex : Nouvelle demande de {membre} ({motif} #{numero}) — à traiter !"
+                                                className="text-xs h-8"
+                                            />
+                                            <p className="text-[11px] text-muted-foreground">
+                                                Variables : {"{membre}"} (pseudo), {"{motif}"}, {"{numero}"}. Vide = message par défaut.
+                                            </p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Personne n&apos;est mentionné à l&apos;ouverture (le demandeur, lui, est toujours pingé).
+                                    </p>
+                                )}
+
+                                <div className="space-y-1.5">
+                                    <label className="font-semibold text-foreground">Message envoyé au demandeur</label>
+                                    <Input
+                                        value={creatorMessage}
+                                        onChange={(event) => setCreatorMessage(event.target.value)}
+                                        maxLength={900}
+                                        placeholder="ex : {membre} merci ! Un membre du staff te répond très vite."
+                                        className="text-xs h-8"
+                                    />
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {"{membre}"} = sa mention (elle est ajoutée automatiquement si tu l&apos;oublies).
+                                    </p>
+                                </div>
                             </div>
                             <div className="space-y-1.5">
                                 <label className="font-semibold text-foreground">Rôles invités (observateurs)</label>
@@ -586,8 +685,9 @@ export function TicketMotifsTab({
                                 <div>
                                     <h4 className="font-bold text-foreground">Questionnaire d'ouverture</h4>
                                     <p className="text-[11px] text-muted-foreground">
-                                        Les Oui/Non et les choix se répondent avant la modale, les textes 5 par 5.
-                                        Vide = ouverture directe.
+                                        L&apos;ordre ci-dessous est <strong>exactement</strong> celui posé au membre :
+                                        les questions texte sont groupées par 5 (une modale), les questions à choix se
+                                        répondent <strong>à leur place</strong>. Vide = ouverture directe.
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-1">
@@ -621,9 +721,31 @@ export function TicketMotifsTab({
                                                 <span className="font-bold text-emerald-400 text-xs">
                                                     Question #{index + 1} — {MOTIF_QUESTION_KIND_LABELS[question.kind]}
                                                 </span>
-                                                <button type="button" onClick={() => removeQuestion(question.key)} className="text-muted-foreground hover:text-destructive">
-                                                    <X className="h-3.5 w-3.5" />
-                                                </button>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => moveQuestion(index, -1)}
+                                                        disabled={index === 0}
+                                                        title="Monter la question"
+                                                        aria-label={`Monter la question ${index + 1}`}
+                                                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                                    >
+                                                        <ArrowUp className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => moveQuestion(index, 1)}
+                                                        disabled={index === questions.length - 1}
+                                                        title="Descendre la question"
+                                                        aria-label={`Descendre la question ${index + 1}`}
+                                                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                                    >
+                                                        <ArrowDown className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <button type="button" onClick={() => removeQuestion(question.key)} className="text-muted-foreground hover:text-destructive">
+                                                        <X className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-2">

@@ -24,16 +24,33 @@ interface PingRolesSelectorProps {
     onChange: (value: string[]) => void;
     roles: Role[];
     description?: string;
+    /**
+     * Libellés paramétrables : le sélecteur sert aussi bien à **autoriser** (ping, staff)
+     * qu'à **bloquer** (blacklist des tickets). Avec des titres figés (« Liste blanche »,
+     * « Aucun rôle autorisé ») l'écran de blacklist affirmait l'inverse de sa fonction —
+     * d'où la confusion signalée le 16/10/2026.
+     */
+    title?: string;
+    triggerPlaceholder?: string;
+    emptyTitle?: string;
 }
 
-export function PingRolesSelector({ value, onChange, roles, description = "Si la liste est vide, aucun rôle Discord ne sera disponible pour le ping dans les modales pour les membres (seuls les administrateurs verront toujours tous les rôles)." }: PingRolesSelectorProps) {
+export function PingRolesSelector({
+    value,
+    onChange,
+    roles,
+    description = "Si la liste est vide, aucun rôle Discord ne sera disponible pour le ping dans les modales pour les membres (seuls les administrateurs verront toujours tous les rôles).",
+    title = "Liste Blanche",
+    triggerPlaceholder = "Sélectionner les rôles autorisés...",
+    emptyTitle = "Aucun rôle autorisé",
+}: PingRolesSelectorProps) {
     const [open, setOpen] = useState(false);
 
     return (
         <div className="space-y-3">
             <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Liste Blanche</span>
+                    <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">{title}</span>
                     {value.length > 0 && (
                         <Button 
                             variant="ghost" 
@@ -57,7 +74,7 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                                 <Hash className="w-4 h-4 text-muted-foreground" />
                                 {value.length > 0 
                                     ? `${value.length} rôle(s) sélectionné(s)` 
-                                    : "Sélectionner les rôles autorisés..."
+                                    : triggerPlaceholder
                                 }
                             </div>
                             <ChevronsUpDown className="w-4 h-4 opacity-50" />
@@ -131,7 +148,7 @@ export function PingRolesSelector({ value, onChange, roles, description = "Si la
                     <div className="mt-4 p-4 rounded-xl bg-warning/5 border border-warning/10 flex items-start gap-3">
                         <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
                         <div>
-                            <p className="text-caption text-warning font-black uppercase tracking-widest mb-1">Aucun rôle autorisé</p>
+                            <p className="text-caption text-warning font-black uppercase tracking-widest mb-1">{emptyTitle}</p>
                             <p className="text-caption text-muted-foreground leading-relaxed italic">
                                 {description}
                             </p>

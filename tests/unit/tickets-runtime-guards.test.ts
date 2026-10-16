@@ -184,11 +184,18 @@ describe("tickets v2 — le branchement Discord de l'ouverture (parcours réels)
         expect(create, "le nom du salon vient du parcours").toContain("formatTicketChannelName(");
         expect(create).toContain("buildTicketWelcomeEmbed(");
         expect(create).toContain("buildActionRows(");
-        // Invariant #1 : le demandeur ne reçoit jamais les boutons de staff.
-        expect(create).toContain("viewerIsStaff: false");
+        // 🆕 Barre du salon (16/10/2026) : **deux boutons** (Prendre en charge, Fermer), et
+        // le droit est appliqué **au clic** (`guardTicketAction` + `buttonKey`) — jamais par
+        // l'affichage, puisque Discord sert les mêmes composants à tout le monde.
+        expect(create).toContain("readTicketButtonSettings(input.settingsJson)");
+        expect(actions).toContain('buttonKey: "claim"');
+        expect(actions).toContain('buttonKey: "close"');
+        // Le message d'accueil est retenu pour être **patché** en direct (prise en charge).
+        expect(create).toContain("metadataJson: { welcomeMessageId }");
         // Ping : seuls les rôles choisis, jamais `@everyone`, et un `allowed_mentions` explicite.
         expect(create).toContain("resolveTicketNotifyRoleIds(");
-        expect(actions).toContain("buildTicketNotifyContent(");
+        expect(actions).toContain("buildTicketNotifyContentWithTemplate(");
+        expect(actions).toContain("buildTicketCreatorContent(");
         expect(actions).toContain("allowed_mentions:");
     });
 

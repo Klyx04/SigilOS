@@ -25,7 +25,7 @@ import {
     ticketDraftExpiresAt,
     ticketTunnelState,
 } from "@/lib/tickets/journey-tunnel";
-import { TICKET_FORM_SCHEMA_VERSION, parseTicketForm, type TicketFormDefinition } from "@/lib/tickets/form-schema";
+import { TICKET_FORM_SCHEMA_VERSION, buildTicketFormSteps, parseTicketForm, type TicketFormDefinition } from "@/lib/tickets/form-schema";
 import { parseTicketCustomId } from "@/lib/tickets/interaction-routing";
 
 const JOURNEY = "clx0journey01";
@@ -175,9 +175,58 @@ describe("tunnel d'ouverture — la prochaine interaction à montrer", () => {
         const step = nextTicketTunnelStep({ form, journeyId: JOURNEY, answers: { reglement: ["yes"] } });
         expect(step.kind).toBe("modal");
         if (step.kind !== "modal") return;
+        // `page` = position affichée parmi les questions **texte** ; `stepIndex` = clé de
+        // reprise (le choix était l'étape 0, la modale est donc l'étape 1).
         expect(step.page).toBe(0);
-        expect(step.step).toBe("TEXTS:0");
+        expect(step.stepIndex).toBe(1);
+        expect(step.step).toBe("TEXTS:1");
         expect(step.rows.length).toBeLessThanOrEqual(5);
+    });
+
+    it("🆕 respecte l'ordre de l'admin : un choix APRÈS des textes est posé après", () => {
+        // Textes d'abord, puis un Oui/Non, puis encore du texte : l'ancien tunnel posait
+        // TOUS les choix en premier, quel que soit l'ordre saisi à l'écran.
+        const form = buildForm([textField(0), textField(1), yesNoField("reglement"), textField(2)]);
+        const steps = buildTicketFormSteps(form);
+        expect(steps.map((entry) => `${entry.kind}:${entry.fieldIds.join(",")}`)).toEqual([
+            "texts:q0,q1",
+            "choices:reglement",
+            "texts:q2",
+        ]);
+
+        const first = nextTicketTunnelStep({ form, journeyId: JOURNEY });
+        expect(first.kind).toBe("modal");
+        if (first.kind !== "modal") return;
+        expect(first.fieldIds).toEqual(["q0", "q1"]);
+
+        // Une fois les textes remplis, c'est le CHOIX qui vient (et non l'inverse).
+        const second = nextTicketTunnelStep({
+            form,
+            journeyId: JOURNEY,
+            answers: { q0: ["a"], q1: ["b"] },
+            page: first.stepIndex + 1,
+        });
+        expect(second.kind).toBe("choices");
+        if (second.kind !== "choices") return;
+        expect(second.fieldIds).toEqual(["reglement"]);
+        expect(second.remaining).toBe(0);
+
+        // Enfin la dernière question texte, puis l'ouverture.
+        const third = nextTicketTunnelStep({
+            form,
+            journeyId: JOURNEY,
+            answers: { q0: ["a"], q1: ["b"], reglement: ["yes"] },
+        });
+        expect(third.kind).toBe("modal");
+        if (third.kind !== "modal") return;
+        expect(third.fieldIds).toEqual(["q2"]);
+
+        const done = nextTicketTunnelStep({
+            form,
+            journeyId: JOURNEY,
+            answers: { q0: ["a"], q1: ["b"], reglement: ["yes"], q2: ["c"] },
+        });
+        expect(done.kind).toBe("open");
     });
 
     it("ne repose jamais une page déjà remplie et va jusqu'à la 4ᵉ sur 20 questions", () => {
@@ -237,7 +286,13 @@ describe("tunnel d'ouverture — brouillon : durée de vie et hygiène des répo
 
 describe("tunnel d'ouverture — bouton « Continuer »", () => {
     it("produit un `custom_id` que le routeur comprend (aucun bouton mort)", () => {
-        const rows = buildTicketModalContinueRows({ journeyId: JOURNEY, page: 1, pageCount: 4, fieldCount: 5 });
+        const rows = buildTicketModalContinueRows({
+            journeyId: JOURNEY,
+            stepIndex: 1,
+            page: 1,
+            pageCount: 4,
+            fieldCount: 5,
+        });
         expect(rows).toHaveLength(1);
 
         const component = rows[0].components[0] as { custom_id: string; label: string };
@@ -251,7 +306,10 @@ describe("tunnel d'ouverture — bouton « Continuer »", () => {
     });
 
     it("refuse une page aberrante ou un parcours trop court (fail-closed)", () => {
-        expect(parseTicketCustomId(`tb:modal_page:${JOURNEY}:9`)).toBeNull();
+        // 🆕 La borne est le nombre **maximal d'étapes** (une par question), pas les pages de
+        // texte : l'admin peut intercaler choix et textes.
+        expect(parseTicketCustomId(`tb:modal_page:${JOURNEY}:20`)).toBeNull();
+        expect(parseTicketCustomId(`tb:modal_page:${JOURNEY}:999`)).toBeNull();
         expect(parseTicketCustomId("tb:modal_page:court:0")).toBeNull();
     });
 });

@@ -16,7 +16,7 @@
 /** Préfixe des boutons, menus et modales du module (`tb:...`). */
 export const TICKET_PREFIX = "tb";
 
-import { TICKET_MODAL_PAGES_MAX } from "./form-schema";
+import { TICKET_FORM_MAX_FIELDS } from "./form-schema";
 
 /** Préfixe de l'étape « choix » (Oui/Non et sélecteurs avant la modale). */
 export const TICKET_PICK_PREFIX = "tb_pick";
@@ -190,10 +190,14 @@ export function parseTicketCustomId(customId: string): TicketActionDescriptor | 
             return descriptor;
         }
         case "modal_page": {
-            // `tb:modal_page:{journeyId}:{page}` — la page suivante du questionnaire.
+            // `tb:modal_page:{journeyId}:{page}` — l'étape suivante du questionnaire.
+            // 🆕 16/10/2026 : le nombre est l'**index d'étape** (choix et textes peuvent
+            // s'intercaler dans l'ordre choisi par l'admin), donc borné par le nombre
+            // maximal d'étapes (= une étape par question au plus) et non par les pages de
+            // texte maximales.
             if (!isTicketIdSegment(first) || !second) return null;
             const page = Number.parseInt(second, 10);
-            if (!Number.isInteger(page) || page < 0 || page >= TICKET_MODAL_PAGES_MAX) return null;
+            if (!Number.isInteger(page) || page < 0 || page >= TICKET_FORM_MAX_FIELDS) return null;
             descriptor.journeyId = first;
             descriptor.page = page;
             return descriptor;

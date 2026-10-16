@@ -279,73 +279,53 @@ describe("tickets v2 — messages Discord", () => {
         expect(parseEmbedColor(null)).toBe(0x6366f1);
     });
 
-    it("🔒 ne sert JAMAIS les boutons de staff au demandeur (correctif P0-2)", () => {
-        const asCreator = buildActionRows({
-            ticketId: "t1",
-            status: "OPEN",
-            viewerIsStaff: false,
-            viewerIsCreator: true,
-            closePolicy: "STAFF_ONLY",
-        });
-        // Le demandeur voit « Je m'en occupe » (soumis au gate staff au clic), mais AUCUN outil staff (note, ajout, transcript, suppression)
-        expect(asCreator).toHaveLength(1);
-        expect(asCreator[0].components.map((c) => c.custom_id)).toEqual(["tb:claim:t1"]);
+    it("🆕 sert deux boutons dans le salon, puis révèle Rouvrir / Transcript / Supprimer", () => {
+        // ① Ticket ouvert : « Prendre en charge » + « Fermer le ticket » — **les mêmes
+        // composants pour tout le monde** (Discord ne sait pas cacher un bouton à une
+        // personne : le droit est appliqué au clic, `guardTicketAction`).
+        const openRows = buildActionRows({ ticketId: "t1", status: "OPEN" });
+        expect(openRows).toHaveLength(1);
+        expect(openRows[0].components.map((c) => c.custom_id)).toEqual(["tb:claim:t1", "tb:close:t1"]);
 
-        const creatorWhoMayClose = buildActionRows({
-            ticketId: "t1",
-            status: "OPEN",
-            viewerIsStaff: false,
-            viewerIsCreator: true,
-            closePolicy: "STAFF_OR_CREATOR",
-        });
-        expect(creatorWhoMayClose).toHaveLength(1);
-        expect(creatorWhoMayClose[0].components.map((c) => c.custom_id)).toEqual(["tb:claim:t1", "tb:close:t1"]);
-
-        const asStaff = buildActionRows({
-            ticketId: "t1",
-            status: "OPEN",
-            viewerIsStaff: true,
-            viewerIsCreator: false,
-        });
-        expect(asStaff).toHaveLength(2);
-        expect(asStaff[0].components.map((component) => component.custom_id)).toEqual([
-            "tb:claim:t1",
-            "tb:add:t1",
-            "tb:note:t1",
-            "tb:rename:t1",
-        ]);
-        expect(asStaff[1].components.map((component) => component.custom_id)).toEqual([
-            "tb:close:t1",
+        // ② Ticket fermé : le bouton de suppression et le transcript apparaissent.
+        const closedRows = buildActionRows({ ticketId: "t1", status: "CLOSED" });
+        expect(closedRows[0].components.map((c) => c.custom_id)).toEqual([
+            "tb:reopen:t1",
             "tb:transcript:t1",
             "tb:delete:t1",
         ]);
+        // Le message de modération porte **exactement** la même barre (une seule fabrique).
+        expect(buildModerationRows("t1")[0].components.map((c) => c.custom_id)).toEqual(
+            closedRows[0].components.map((c) => c.custom_id)
+        );
 
-        const asClaimer = buildActionRows({
+        // ③ Nom + icône personnalisables, et droit par bouton (`disabled` = bouton retiré).
+        const custom = buildActionRows({
             ticketId: "t1",
-            status: "CLAIMED",
-            viewerIsStaff: true,
-            viewerIsCreator: false,
-            claimed: true,
+            status: "OPEN",
+            buttons: {
+                claim: { label: "Je m'en occupe", emoji: "🙋", access: "staff" },
+                close: { access: "disabled" },
+            },
         });
-        expect(asClaimer[0].components[0].custom_id).toBe("tb:release:t1");
+        expect(custom[0].components.map((c) => c.custom_id)).toEqual(["tb:claim:t1"]);
+        expect(String(custom[0].components[0].label)).toBe("Je m'en occupe");
+        expect((custom[0].components[0] as { emoji?: { name: string } }).emoji).toEqual({ name: "🙋" });
 
-        // Libellés monolingues (FR par défaut), jamais plus de 80 caractères (limite Discord), aucun slash de doublage.
-        for (const row of [...asStaff, ...creatorWhoMayClose]) {
+        // Libellés monolingues (FR par défaut), jamais plus de 80 caractères (limite Discord).
+        for (const row of [...openRows, ...closedRows]) {
             for (const component of row.components) {
                 expect(String(component.label).length).toBeLessThanOrEqual(80);
                 expect(String(component.label)).not.toContain("/");
             }
         }
 
-        // En anglais explicite, le libellé bascule sans doubler
-        const asStaffEn = buildActionRows({
-            ticketId: "t1",
-            status: "OPEN",
-            viewerIsStaff: true,
-            viewerIsCreator: false,
-            lang: "en",
-        });
-        expect(asStaffEn[0].components[0].label).toBe("Take it");
+        // Le bouton de copie s'appelle désormais « Transcript » (demande user du 16/10/2026).
+        expect(String(closedRows[0].components[1].label)).toBe("Transcript");
+
+        // En anglais explicite, le libellé bascule sans doubler.
+        const asEnglish = buildActionRows({ ticketId: "t1", status: "OPEN", lang: "en" });
+        expect(asEnglish[0].components[0].label).toBe("Take it");
 
         expect(buildCloseConfirmRows("t1")[0].components.map((c) => c.custom_id)).toEqual([
             "tb:close_confirm:t1",
@@ -355,16 +335,23 @@ describe("tickets v2 — messages Discord", () => {
             "tb:delete_confirm:t1",
             "tb:cancel_delete:t1",
         ]);
-        expect(buildModerationRows("t1")[0].components.map((c) => c.custom_id)).toEqual([
-            "tb:reopen:t1",
-            "tb:transcript:t1",
-            "tb:delete:t1",
-        ]);
     });
 
-    it("n'affiche plus aucune action sur un ticket clos et propose 5 étoiles au demandeur", () => {
+    it("n'affiche plus d'action d'ouverture sur un ticket clos et propose 5 étoiles au demandeur", () => {
+        const closed = buildActionRows({ ticketId: "t1", status: "CLOSED" });
+        expect(closed[0].components.map((c) => c.custom_id)).not.toContain("tb:claim:t1");
+
+        // Tous les boutons désactivés ⇒ aucun composant rendu (jamais un bouton inerte).
         expect(
-            buildActionRows({ ticketId: "t1", status: "CLOSED", viewerIsStaff: true, viewerIsCreator: false })
+            buildActionRows({
+                ticketId: "t1",
+                status: "CLOSED",
+                buttons: {
+                    reopen: { access: "disabled" },
+                    transcript: { access: "disabled" },
+                    delete: { access: "disabled" },
+                },
+            })
         ).toEqual([]);
 
         const csat = buildCsatRows("t1");

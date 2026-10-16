@@ -32,6 +32,21 @@ export type TicketCategoryPermissionOverride = {
     additionalRoleIds?: string[];
     /** Message d'accueil personnalisé dans le salon ticket (markdown, mentions autorisées). */
     welcomeMessage?: string;
+    /**
+     * 🆕 **Qui peut ouvrir** ce motif (RBAC). Liste **vide = tout membre** non blacklisté
+     * (comportement historique) ; non vide = seuls ces rôles (le staff/admin passe toujours).
+     */
+    allowedRoleIds?: string[];
+    /**
+     * 🆕 **Prévenir l'équipe** à l'ouverture (interrupteur explicite). `false` = aucun ping,
+     * même si des rôles sont configurés — avant, « pas de ping » se disait seulement par
+     * une liste vide, ce qui n'était pas un choix lisible.
+     */
+    notifyEnabled?: boolean;
+    /** 🆕 Message personnalisé envoyé **avec le ping des rôles** (`{membre}`, `{motif}`, `{numero}`). */
+    notifyMessage?: string;
+    /** 🆕 Message personnalisé envoyé **au demandeur** à l'ouverture (`{membre}` = sa mention). */
+    creatorMessage?: string;
 };
 
 export type TicketGuildPermissionSettings = {
@@ -74,11 +89,29 @@ export function readTicketPermissionSettings(raw: unknown): TicketGuildPermissio
             if (typeof entry.welcomeMessage === "string" && entry.welcomeMessage.trim()) {
                 clean.welcomeMessage = entry.welcomeMessage.trim().slice(0, 2000);
             }
+            // 🆕 Qui peut ouvrir (RBAC) + notification explicite + messages personnalisés.
+            if (Array.isArray(entry.allowedRoleIds)) {
+                const roles = (entry.allowedRoleIds as unknown[]).filter(isSnowflake).slice(0, 25);
+                // Une liste vide **signifie** « tout le monde » : on la garde pour rester
+                // fidèle au choix de l'admin (et non pour retomber dans l'ambiguïté).
+                clean.allowedRoleIds = roles;
+            }
+            if (typeof entry.notifyEnabled === "boolean") clean.notifyEnabled = entry.notifyEnabled;
+            if (typeof entry.notifyMessage === "string" && entry.notifyMessage.trim()) {
+                clean.notifyMessage = entry.notifyMessage.trim().slice(0, 900);
+            }
+            if (typeof entry.creatorMessage === "string" && entry.creatorMessage.trim()) {
+                clean.creatorMessage = entry.creatorMessage.trim().slice(0, 900);
+            }
             if (
                 clean.closePolicy !== undefined ||
                 clean.requireConfirm !== undefined ||
                 clean.additionalRoleIds !== undefined ||
-                clean.welcomeMessage !== undefined
+                clean.welcomeMessage !== undefined ||
+                clean.allowedRoleIds !== undefined ||
+                clean.notifyEnabled !== undefined ||
+                clean.notifyMessage !== undefined ||
+                clean.creatorMessage !== undefined
             ) {
                 categories[String(categoryId).slice(0, 40)] = clean;
             }
@@ -123,6 +156,52 @@ export function isBlacklisted(
     if (settings.blacklistRoleIds.length === 0) return false;
     const blocked = new Set(settings.blacklistRoleIds);
     return actorRoleIds.some((roleId) => blocked.has(roleId));
+}
+
+/**
+ * 🆕 **Qui peut ouvrir ce motif ?** (RBAC demandé le 16/10/2026).
+ *   · liste **vide ou absente** ⇒ tout membre non blacklisté (comportement historique : on
+ *     n'invente jamais une restriction que l'admin n'a pas posée) ;
+ *   · liste non vide ⇒ il faut **au moins un** de ces rôles Discord ;
+ *   · administrateur/propriétaire Discord ⇒ passe toujours (jamais enfermé dehors).
+ * La blacklist est vérifiée **avant** par l'appelant (`isBlacklisted`).
+ */
+export function isTicketOpenAllowedByRoles(input: {
+    settings: TicketGuildPermissionSettings;
+    /** Clé du motif (`journeyId` en v2, `categoryId` en v1). */
+    motifKey?: string | null;
+    actorRoleIds: string[];
+    actorIsAdmin?: boolean;
+}): boolean {
+    if (input.actorIsAdmin) return true;
+    const allowed =
+        (input.motifKey ? input.settings.categories[input.motifKey]?.allowedRoleIds : undefined) ?? [];
+    if (allowed.length === 0) return true;
+    return input.actorRoleIds.some((roleId) => allowed.includes(roleId));
+}
+
+/**
+ * 🆕 L'équipe est-elle prévenue à l'ouverture ? Interrupteur **explicite** : avant, « pas de
+ * ping » se disait uniquement par une liste de rôles vide, ce qui n'était pas lisible.
+ * Défaut : oui (le comportement d'aujourd'hui).
+ */
+export function isTicketNotifyEnabled(
+    settings: TicketGuildPermissionSettings,
+    motifKey?: string | null
+): boolean {
+    return (motifKey ? settings.categories[motifKey]?.notifyEnabled : undefined) !== false;
+}
+
+/** 🆕 Messages personnalisés d'un motif (ping de l'équipe / message au demandeur). */
+export function readTicketMotifMessages(
+    settings: TicketGuildPermissionSettings,
+    motifKey?: string | null
+): { notifyMessage: string | null; creatorMessage: string | null } {
+    const override = motifKey ? settings.categories[motifKey] : undefined;
+    return {
+        notifyMessage: override?.notifyMessage ?? null,
+        creatorMessage: override?.creatorMessage ?? null,
+    };
 }
 
 /**

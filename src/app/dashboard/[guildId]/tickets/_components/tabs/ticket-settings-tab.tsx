@@ -33,6 +33,20 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+    TICKET_BUTTON_ACCESS,
+    TICKET_BUTTON_ACCESS_LABELS,
+    TICKET_BUTTON_ADMIN_HINTS,
+    TICKET_BUTTON_ADMIN_LABELS,
+    TICKET_BUTTON_EMOJI_MAX,
+    TICKET_BUTTON_KEYS,
+    TICKET_BUTTON_LABEL_MAX,
+    readTicketButtonSettings,
+    resolveTicketButton,
+    type TicketButtonAccess,
+    type TicketButtonKey,
+    type TicketButtonSettings,
+} from "@/lib/tickets/button-config";
 
 interface TicketSettingsTabProps {
     guildId: string;
@@ -81,6 +95,12 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
         initialPermissions.blacklistRoleIds
     );
     const [csatDestination, setCsatDestination] = useState<TicketCsatDestination>(initialMessaging.csatDestination);
+    // 🆕 Boutons du salon : nom affiché, icône et droit (RBAC) de chacun.
+    const [buttonSettings, setButtonSettings] = useState<TicketButtonSettings>(
+        readTicketButtonSettings(config?.settingsJson)
+    );
+    const patchButton = (key: TicketButtonKey, patch: Partial<NonNullable<TicketButtonSettings[TicketButtonKey]>>) =>
+        setButtonSettings((previous) => ({ ...previous, [key]: { ...previous[key], ...patch } }));
     const [ticketLanguage, setTicketLanguage] = useState<"fr" | "en">(initialMessaging.ticketLanguage);
 
     // 🆕 Matrice Ouvert/Fermé (4 groupes × 2 états × 8 permissions, sans migration).
@@ -124,6 +144,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 channelPermissions: matrix,
                 csatDestination,
                 ticketLanguage,
+                buttons: buttonSettings,
             });
 
             if (!permRes.success) {
@@ -309,8 +330,16 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             guildId={guildId}
                             value={blacklistRoleIds}
                             onChange={setBlacklistRoleIds}
-                            description="Ces rôles ne voient aucun bouton d'ouverture et ne peuvent pas agir sur les tickets."
+                            title="Rôles bloqués"
+                            triggerPlaceholder="Sélectionner les rôles à bloquer..."
+                            emptyTitle="Aucun rôle bloqué"
+                            description="Ces rôles ne peuvent pas ouvrir de ticket et ne peuvent pas agir sur un ticket (fail-closed : un rôle absent de cette liste n'est pas bloqué)."
                         />
+                        <p className="text-[11px] text-muted-foreground pt-1">
+                            ℹ️ Ici on <strong>bloque</strong>. Pour choisir <strong>qui a le droit d&apos;ouvrir</strong>,
+                            c&apos;est par type de demande : onglet <strong>« Types de Demande »</strong>, bouton crayon du
+                            type, champ <strong>« Qui peut ouvrir ce type de demande ? »</strong>.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -375,6 +404,85 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                                     )}
                                 </tr>
                             ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* 🆕 Boutons du salon : nom, icône et droit (RBAC) — demande user du 16/10/2026. */}
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-4 text-xs">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-emerald-400" /> Boutons du salon de ticket
+                </h3>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Le salon affiche <strong>Prendre en charge</strong> et <strong>Fermer le ticket</strong> ; une fois
+                    le ticket fermé, il révèle <strong>Rouvrir</strong>, <strong>Transcript</strong> et{" "}
+                    <strong>Supprimer le salon</strong>. Discord sert les mêmes boutons à tout le monde : le droit est
+                    vérifié <strong>au clic</strong> — et « Désactivé » retire réellement le bouton du message.
+                </p>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                        <thead>
+                            <tr className="text-muted-foreground">
+                                <th className="text-left font-semibold p-2">Bouton</th>
+                                <th className="text-left font-semibold p-2">Nom affiché sur Discord</th>
+                                <th className="text-left font-semibold p-2">Icône</th>
+                                <th className="text-left font-semibold p-2">Qui peut le cliquer</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {TICKET_BUTTON_KEYS.map((key) => {
+                                const resolved = resolveTicketButton(key, buttonSettings, ticketLanguage);
+                                return (
+                                    <tr key={key} className="border-t border-border/40">
+                                        <td className="p-2 align-top">
+                                            <div className="font-semibold text-foreground">
+                                                {TICKET_BUTTON_ADMIN_LABELS[key]}
+                                            </div>
+                                            <div className="text-[10px] text-muted-foreground">
+                                                {TICKET_BUTTON_ADMIN_HINTS[key]}
+                                            </div>
+                                        </td>
+                                        <td className="p-2 align-top">
+                                            <Input
+                                                value={resolved.label}
+                                                maxLength={TICKET_BUTTON_LABEL_MAX}
+                                                onChange={(event) => patchButton(key, { label: event.target.value })}
+                                                className="h-8 text-xs"
+                                                aria-label={`Nom du bouton ${TICKET_BUTTON_ADMIN_LABELS[key]}`}
+                                            />
+                                        </td>
+                                        <td className="p-2 align-top">
+                                            <Input
+                                                value={resolved.emoji}
+                                                maxLength={TICKET_BUTTON_EMOJI_MAX}
+                                                onChange={(event) => patchButton(key, { emoji: event.target.value })}
+                                                className="h-8 text-xs w-20"
+                                                aria-label={`Icône du bouton ${TICKET_BUTTON_ADMIN_LABELS[key]}`}
+                                            />
+                                        </td>
+                                        <td className="p-2 align-top">
+                                            <select
+                                                value={resolved.access}
+                                                onChange={(event) =>
+                                                    patchButton(key, {
+                                                        access: event.target.value as TicketButtonAccess,
+                                                    })
+                                                }
+                                                className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                                aria-label={`Droit du bouton ${TICKET_BUTTON_ADMIN_LABELS[key]}`}
+                                            >
+                                                {TICKET_BUTTON_ACCESS.map((access) => (
+                                                    <option key={access} value={access}>
+                                                        {TICKET_BUTTON_ACCESS_LABELS[access]}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

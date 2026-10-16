@@ -183,4 +183,21 @@ describe("Sortie du déploiement — compréhensible sans explication", () => {
             expect(codeOnly(source), name).not.toContain("seed:docs");
         }
     });
+
+    it("⑨ le rapport d'arbre tient en deux lignes — le détail est derrière DEPLOY_VERBOSE=1", () => {
+        const source = deployCd();
+        // Mesure du 16/10/2026 (sortie du déploiement bêta) : à CHAQUE passage, le rapport
+        // d'arbre écrivait ~9 lignes dont 8 toujours identiques — 444 fichiers « portés par
+        // ce serveur » en 3 lignes (information, `SERVER_OWNED` : rien à faire), puis les 4
+        // données curées en 4 lignes (2 avant le pull, 2 après) pour deux noms de fichiers.
+        // Deux lignes suffisent : l'information + la preuve de restauration.
+        expect(source).toContain("portés par CE serveur (galerie God / données générées) — rien à faire.");
+        expect(source).toContain("donnée(s) locale(s) conservée(s) puis restaurée(s)");
+        // Le détail (chemins, répartition par dossier, chaque donnée curée) n'est plus écrit
+        // par défaut : il est LU quand on le demande, sans rien perdre du diagnostic.
+        const verboseGates = source.match(/"\$\{DEPLOY_VERBOSE:-0\}" == "1"/g) ?? [];
+        expect(verboseGates.length).toBeGreaterThanOrEqual(3);
+        // …et il est découvrable : la sortie de `--help` cite la variable.
+        expect(source).toContain("DEPLOY_VERBOSE=1 ./scripts/deploy-cd.sh");
+    });
 });

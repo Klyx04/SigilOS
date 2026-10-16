@@ -106,6 +106,11 @@ REPO_OWNED=(
     "public/songes"
     "public/module-dofus"
     "public/banners"
+    # 🗺️ Ajoutée le 16/10/2026 (mesure : « M » sur le VPS à chaque déploiement) :
+    # note déposée en 2025, **aucun écrivain runtime** (`git grep` : rien dans `src/`
+    # ni `scripts/`) ⇒ même règle que les médias ci-dessus, la version du dépôt fait
+    # foi. Même liste que `deploy-cd.sh`, verrouillée par le test de parité.
+    "public/game-data/worldmap/.routes-2025-api"
 )
 for _dir in "${REPO_OWNED[@]}"; do
     while IFS= read -r _tracked; do

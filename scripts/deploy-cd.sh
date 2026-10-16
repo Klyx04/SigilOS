@@ -5,6 +5,9 @@
 # Usage :
 #   ./scripts/deploy-cd.sh list beta|prod        → versions dispo sur GHCR
 #   ./scripts/deploy-cd.sh beta|prod [sha]       → déploie la version (défaut : latest)
+#   DEPLOY_VERBOSE=1 ./scripts/deploy-cd.sh beta → idem + le DÉTAIL du rapport d'arbre
+#                                                  (444 fichiers portés par le serveur,
+#                                                  chaque donnée curée mise de côté…)
 #   ./scripts/deploy-cd.sh --help                → aide
 #
 # En clair : ce script met à jour l'app depuis des images déjà construites sur
@@ -248,6 +251,7 @@ list_handler() {
 
     dim "Déployer une version précise : ./scripts/deploy-cd.sh ${target} <sha7>"
     dim "Vérifier un tag sans déployer  : ./scripts/deploy-cd.sh list ${target} <sha7>"
+    dim "Détail du rapport d'arbre      : DEPLOY_VERBOSE=1 ./scripts/deploy-cd.sh ${target}"
     exit 0
 }
 
@@ -312,6 +316,14 @@ git_fetch() {
         "public/songes"
         "public/module-dofus"
         "public/banners"
+        # 🗺️ Mesure du 16/10/2026 : `public/game-data/worldmap/.routes-2025-api` (note
+        # déposée le 25/07/2025) restait listée « modifiée » sur le VPS à CHAQUE
+        # déploiement ⇒ un `⚠` sur un fichier que personne n'écrit, plus un stash/pop.
+        # Aucun écrivain au runtime : `git grep` ne la trouve **ni dans `src/`, ni dans
+        # `scripts/`** (vérifié le 16/10/2026) — c'est donc la version du DÉPÔT qui fait
+        # foi, comme les médias ci-dessus. Si le contenu local différait vraiment, il est
+        # sauvegardé dans un patch `/tmp/sigilos-ecrase-*.patch` avant restauration.
+        "public/game-data/worldmap/.routes-2025-api"
     )
     # À l'inverse `ignored-monsters.json` et `ignored-bounties.json` sont CURÉS à la main (God) :
     # l'écraser ferait perdre les exclusions configurées sur CE serveur — un monstre retiré
@@ -432,7 +444,7 @@ git_fetch() {
     # Données curées : copie hors de l'arbre, version du dépôt remise pour que le pull
     # soit propre, puis restauration — c'est la curation du serveur qui fait foi.
 
-    local PRESERVE_DIR=""
+    local PRESERVE_DIR="" PRESERVED_LOCAL=()
     for f in "${PRESERVED[@]}"; do
         [[ -f "$f" ]] || continue
         git cat-file -e "HEAD:$f" 2>/dev/null || continue
@@ -440,7 +452,13 @@ git_fetch() {
         git diff --quiet HEAD -- "$f" 2>/dev/null && continue
         [[ -n "$PRESERVE_DIR" ]] || PRESERVE_DIR="$(mktemp -d)"
         cp "$f" "$PRESERVE_DIR/$(basename "$f")"
-        dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
+        PRESERVED_LOCAL+=("$(basename "$f")")
+        # Le détail par fichier ne sert qu'au diagnostic : il faisait 4 lignes à chaque
+        # déploiement (2 avant le pull, 2 après) pour la même information (mesure du
+        # 16/10/2026) ⇒ résumé en une ligne plus bas, détail sous `DEPLOY_VERBOSE=1`.
+        if [[ "${DEPLOY_VERBOSE:-0}" == "1" ]]; then
+            dim "  → donnée locale conservée : $f (mise de côté hors de l'arbre)"
+        fi
         # Version du dépôt remise (contenu + mode) : sans le mode, le rapport ci-dessous la
         # compterait comme « modifiée » et le pull la stasherait pour rien.
         git checkout -- "$f" 2>/dev/null || warn "  → $f : mise en conformité impossible (git checkout en échec)"
@@ -469,9 +487,16 @@ git_fetch() {
     done <<< "$DIRTY"
 
     if [[ -n "$SERVER_DIRTY" ]]; then
-        dim "  ℹ️  $(printf '%s\n' "$SERVER_DIRTY" | grep -c . || true) fichier(s) suivi(s) portés par CE serveur — laissés tels quels, rien à faire :"
-        dim "     $(printf '%s\n' "$SERVER_DIRTY" | awk 'length($0)>0 { p=substr($0,4); n=split(p,a,"/"); print (n>3 ? a[3] : "JSON") }' | sort | uniq -c | sort -rn | awk '{printf "%s=%s ", $2, $1}')"
-        dim "     → images de jeu (caches de la galerie God) et données générées par le panneau God."
+        # UNE ligne : c'est de l'INFORMATION (classes `SERVER_OWNED` : rien à faire) et
+        # elle revenait identique à chaque déploiement — 4 lignes dont 3 de détail
+        # (mesure du 16/10/2026). Le détail par dossier et l'explication de la classe
+        # se demandent : `DEPLOY_VERBOSE=1 ./scripts/deploy-cd.sh beta`.
+        dim "  ℹ️  $(printf '%s\n' "$SERVER_DIRTY" | grep -c . || true) fichier(s) suivi(s) portés par CE serveur (galerie God / données générées) — rien à faire."
+        if [[ "${DEPLOY_VERBOSE:-0}" == "1" ]]; then
+            printf '%s\n' "$SERVER_DIRTY" | grep . | sed 's/^/     /'
+            dim "     $(printf '%s\n' "$SERVER_DIRTY" | awk 'length($0)>0 { p=substr($0,4); n=split(p,a,"/"); print (n>3 ? a[3] : "JSON") }' | sort | uniq -c | sort -rn | awk '{printf "%s=%s ", $2, $1}')"
+            dim "     → images de jeu (caches de la galerie God) et données générées par le panneau God."
+        fi
     fi
     if [[ -n "$OTHER_DIRTY" ]]; then
         warn "Des fichiers suivis modifiés hors des classes connues — ils seront stashed puis réappliqués (--autostash)."
@@ -500,9 +525,17 @@ git_fetch() {
         for f in "${PRESERVED[@]}"; do
             [[ -f "$PRESERVE_DIR/$(basename "$f")" ]] || continue
             cp "$PRESERVE_DIR/$(basename "$f")" "$f"
-            dim "  → donnée locale restaurée : $f"
+            if [[ "${DEPLOY_VERBOSE:-0}" == "1" ]]; then
+                dim "  → donnée locale restaurée : $f"
+            fi
         done
         rm -rf "$PRESERVE_DIR"
+        # UNE ligne pour la même information (avant : une par fichier, avant ET après le
+        # pull). La preuve que la curation est revenue reste visible ; le détail des
+        # chemins complets se demande avec `DEPLOY_VERBOSE=1`.
+        local PRESERVED_LIST
+        PRESERVED_LIST="$(printf '%s, ' "${PRESERVED_LOCAL[@]}")"
+        dim "  → ${#PRESERVED_LOCAL[@]} donnée(s) locale(s) conservée(s) puis restaurée(s) : ${PRESERVED_LIST%, }"
     fi
 }
 

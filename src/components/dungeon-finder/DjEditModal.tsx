@@ -95,7 +95,10 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                 // invalide fabriquée à partir de "").
                 targetDate: isMulti || !targetDate ? null : new Date(targetDate),
                 wantedAchievementIds: selectedAchievements,
-                requiredClasses,
+                // #26 — classes recherchées : **par donjon** en multi (réglées à la création,
+                // chaque donjon porte les siennes). Sur un multi, on renvoie la valeur **déjà en
+                // base** (aucun changement, aucun écrasement) ; sur un post simple, la sélection.
+                requiredClasses: isMulti ? (post.requiredClasses ?? []) : requiredClasses,
                 // #26 — dates prévues PAR donjon du post multi (max 5, bornage serveur).
                 ...(isMulti && {
                     multiDungeonDates: multiDungeons.map((_, idx) => ({
@@ -303,7 +306,10 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                         </div>
                     )}
 
-                    {/* Required Classes */}
+                    {/* Required Classes — post SIMPLE : en multi, les classes sont **par donjon**
+                        (réglées à la création, chacune dans son bloc). Un sélecteur global ici
+                        ferait croire qu'il pilote tous les donjons. */}
+                    {!isMulti && (
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex justify-between items-center mb-1.5">
                             Classes demandées
@@ -333,6 +339,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                             })}
                         </div>
                     </div>
+                    )}
 
                     {/* Message */}
                     <div className="space-y-2">

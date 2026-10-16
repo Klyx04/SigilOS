@@ -426,6 +426,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                     targetDate: s.targetDate ? new Date(s.targetDate) : null,
                     // #203 — taille de groupe par donjon (fallback : la valeur globale)
                     maxMembers: s.maxMembers ?? maxMembers,
+                    // #26 — classes recherchées propres à ce donjon (l'UI les demande par donjon)
+                    requiredClasses: s.requiredClasses ?? [],
                 })),
                 maxMembers,
                 requiredClasses,

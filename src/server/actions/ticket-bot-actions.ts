@@ -52,6 +52,7 @@ import {
     readTicketMessagingSettings,
     readTicketPermissionSettings,
     resolveCategoryClosePolicy,
+    TICKET_MOTIF_DUPLICATE_MESSAGE,
     writeTicketPermissionSettings,
     type TicketCsatDestination,
     type TicketMotifButtonOverrides,
@@ -1965,14 +1966,6 @@ const TicketMotifSaveSchema = z.object({
  * (nouvelle version figée seulement si le questionnaire a changé) + réglages
  * de fermeture dans `settingsJson` (clé = `journeyId`, sans migration).
  */
-
-/**
- * Message FR servi quand deux enregistrements se marchent dessus (contrainte
- * d'unicité) : on ne fait **jamais** remonter le nom brut de la contrainte
- * Prisma au client (`TicketForm_guildId_slug_key` et sœurs).
- */
-export const TICKET_MOTIF_DUPLICATE_MESSAGE =
-    "Ce type de demande existe déjà (nom enregistré à l'instant par un collègue). Recharge la liste et réessaie.";
 export async function saveTicketMotifAction(guildId: string, data: unknown): Promise<ActionResponse> {
     try {
         const guard = await requireTicketManager(guildId);

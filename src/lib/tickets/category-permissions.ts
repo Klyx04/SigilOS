@@ -97,6 +97,15 @@ const DEFAULT_SETTINGS: TicketGuildPermissionSettings = {
 /** Boutons surchargeables par motif (mêmes 5 clés que le réglage global). */
 const MOTIF_BUTTON_KEYS = ["claim", "close", "reopen", "transcript", "delete"] as const;
 
+/**
+ * Message FR servi quand deux enregistrements de motif se marchent dessus
+ * (contrainte d'unicité `TicketForm` / `TicketJourney`) : on ne fait **jamais**
+ * remonter le nom brut de la contrainte Prisma au client. Vit ici (et pas dans
+ * l'action `"use server"`, qui ne peut exporter que des fonctions async).
+ */
+export const TICKET_MOTIF_DUPLICATE_MESSAGE =
+    "Ce type de demande existe déjà (nom enregistré à l'instant par un collègue). Recharge la liste et réessaie.";
+
 function isSnowflake(value: unknown): value is string {
     return typeof value === "string" && /^\d{5,}$/.test(value);
 }

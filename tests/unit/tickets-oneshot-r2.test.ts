@@ -20,6 +20,7 @@ import {
 import { buildActionRows } from "@/lib/tickets/embeds";
 
 const ACTIONS = "src/server/actions/ticket-bot-actions.ts";
+const PERMISSIONS_LIB = "src/lib/tickets/category-permissions.ts";
 const MOTIFS_TAB =
     "src/app/dashboard/[guildId]/tickets/_components/tabs/ticket-motifs-tab.tsx";
 const PANELS_TAB =
@@ -124,9 +125,9 @@ describe("one-shot R2 — surcharge de boutons par motif (pur)", () => {
 
 describe("one-shot R2 — aucun nom de contrainte ne fuit côté client", () => {
     it("le message de doublon est FR et ne cite aucune contrainte", () => {
-        // L'action `"use server"` ne s'importe pas sans base : on lit la constante
-        // là où elle vit (même motif que `tickets-runtime-guards`).
-        const source = read(ACTIONS);
+        // La constante vit dans le lib (une action `"use server"` ne peut
+        // exporter que des fonctions async) : on la lit là où elle vit.
+        const source = read(PERMISSIONS_LIB);
         const match = source.match(/TICKET_MOTIF_DUPLICATE_MESSAGE\s*=\s*"([^"]+)"/);
         expect(match, "constante TICKET_MOTIF_DUPLICATE_MESSAGE introuvable").not.toBeNull();
         const message = match?.[1] ?? "";

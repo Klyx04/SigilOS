@@ -34,11 +34,12 @@ export default async function ProfilePage({ params, searchParams }: {
         return <AccessDenied />;
     }
 
-    // 🔒 Verrou de module (guilde ∪ plateforme) : une URL directe reboucle (A1).
+    // 🔒 Verrou de module (guilde ∪ plateforme) + toggle admin : une URL directe reboucle (A1).
     // Le God plateforme garde l'accès (`bypassModules = isGod`).
     if (!userContext.isSuperAdmin) {
-        const { isModuleLocked } = await import("@/server/actions/module-actions");
+        const { isModuleLocked, isModuleEnabled } = await import("@/server/actions/module-actions");
         if (await isModuleLocked(guildId, "profile")) redirect(`/dashboard/${guildId}`);
+        if (!(await isModuleEnabled(guildId, "profile"))) redirect(`/dashboard/${guildId}`);
     }
 
     if (!profileResponse.success || !profileResponse.data) {

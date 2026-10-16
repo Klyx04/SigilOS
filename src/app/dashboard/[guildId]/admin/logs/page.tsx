@@ -28,11 +28,12 @@ export default async function AdminLogsPage({ params }: Props) {
         return <AccessDenied />;
     }
 
-    // 🔒 Verrou de module (guilde ∪ plateforme) : une URL directe reboucle (A1).
+    // 🔒 Verrou de module (guilde ∪ plateforme) + toggle admin : une URL directe reboucle (A1).
     // Le God plateforme garde l'accès (`bypassModules = isGod`).
     if (!user.isSuperAdmin) {
-        const { isModuleLocked } = await import("@/server/actions/module-actions");
+        const { isModuleLocked, isModuleEnabled } = await import("@/server/actions/module-actions");
         if (await isModuleLocked(guildId, "logs")) redirect(`/dashboard/${guildId}`);
+        if (!(await isModuleEnabled(guildId, "logs"))) redirect(`/dashboard/${guildId}`);
     }
 
     // Lazy Cleanup: Trigger automatic cleanup of old logs (fire & forget)

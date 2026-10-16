@@ -28,11 +28,12 @@ export default async function ReactionRolesPage({
         return <AccessDenied />;
     }
 
-    // 🔒 Verrou de module (guilde ∪ plateforme) : une URL directe reboucle (A1).
+    // 🔒 Verrou de module (guilde ∪ plateforme) + toggle admin : une URL directe reboucle (A1).
     // Le God plateforme garde l'accès (`bypassModules = isGod`).
     if (!user.isSuperAdmin) {
-        const { isModuleLocked } = await import("@/server/actions/module-actions");
+        const { isModuleLocked, isModuleEnabled } = await import("@/server/actions/module-actions");
         if (await isModuleLocked(guildId, "reactionRoles")) redirect(`/dashboard/${guildId}`);
+        if (!(await isModuleEnabled(guildId, "reactionRoles"))) redirect(`/dashboard/${guildId}`);
     }
 
     const [groupsRes, rawRoles, rawChannels] = await Promise.all([

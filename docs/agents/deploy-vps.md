@@ -42,7 +42,7 @@ décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
 
 | Ce qui s'affiche | Ce que ça veut dire |
 |---|---|
-| `→ donnée locale conservée puis restaurée : <fichier>` | fichier **suivi** mis de côté hors de l'arbre, puis remis en place (classe `PRESERVED`) — voir § L'arbre de travail |
+| `→ N donnée(s) locale(s) conservée(s) puis restaurée(s) : <fichiers>` | fichier(s) **suivi(s)** mis de côté hors de l'arbre, puis remis en place (classe `PRESERVED`) — voir § L'arbre de travail |
 | `✓ Code source à jour (branche dev, <sha>)` | l'arbre du serveur est au commit de `origin/dev` (le déploiement n'en dépend pas : les images viennent de la CI) |
 | **ÉTAPE 1/5** `✓ Connecté au registre ghcr.io/…` | lecture des images privées avec `GHCR_TOKEN` (droit de **lecture** uniquement) |
 | **ÉTAPE 2/5** `app ✓ téléchargée (312 Mo)` | les **4 images** construites par la CI sont téléchargées — **aucun build** sur le serveur |
@@ -52,10 +52,29 @@ décision. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` :
 | **ÉTAPE 4/5** `✓ Schéma déjà à jour` (beta seulement) | `db push` : la base **beta** reçoit les écarts de schéma sans fichier de migration (itération rapide). Volontairement **absent en prod** |
 | **ÉTAPE 5/5** `Données de jeu inchangées — seed ignoré` | le seed de `game-data.json` ne tourne que si son **hash** a changé depuis le dernier déploiement |
 | `⚠  Des fichiers locaux sont modifiés` | fichiers **suivis** modifiés sur le serveur **hors** des classes connues : à comprendre, pas à ignorer (§ L'arbre de travail) |
-| `ℹ️  N fichier(s) suivi(s) portés par CE serveur — laissés tels quels` | médias/JSON que le serveur écrit lui-même (`SERVER_OWNED`) : comptés **à part**, jamais touchés, **rien à faire** |
+| `ℹ️  N fichier(s) suivi(s) portés par CE serveur (galerie God / données générées) — rien à faire` | médias/JSON que le serveur écrit lui-même (`SERVER_OWNED`) : comptés **à part**, jamais touchés. Répartition par dossier : `DEPLOY_VERBOSE=1` |
 | **Un passage qui affiche l'ancienne sortie** (barre douteuse, `npm notice`, ancien libellé) | `bash` lit le script **au fil de l'exécution**, et le `git pull` le réécrit **pendant** : un passage peut montrer un **mélange** des deux versions (mesuré le 30/09/2026 — inode remplacé ⇒ l'ancienne version continue · réécriture en place ⇒ la nouvelle est exécutée). Ce n'est **pas** une régression : les **images** déployées sont toujours les nouvelles, et le passage **suivant** est intégralement à jour |
 | **Une ligne de Prisma qui n'apparaît jamais** (`262 migrations found…`, `No pending migrations…`) | Prisma réécrit la **même** ligne (`\r`) et ne finit pas son flux par un `\n` : `wc -l` ne comptait que la 1ʳᵉ ligne ⇒ le verdict de la migration était **dans le log, invisible à l'écran** (mesuré sur deux passages). Corrigé : la dernière ligne s'affiche quand même (`awk 'END{print NR}'`) et les `\r` sont remis en sauts de ligne. Le **compte** des migrations, lui, est compté **dans le dépôt** — il ne dépend plus du log |
 | `✓ Proxy Caddy à jour` · `✓ / → HTTP 200` · `✓ …/api/health → HTTP 200` | contrôles post-déploiement : config du proxy, robots/sitemap, pages clés, santé |
+
+### Le rapport d'arbre tient en deux lignes (mesure du 16/10/2026)
+
+À chaque déploiement, ce rapport écrivait **~9 lignes dont 8 toujours identiques** : les
+444 fichiers « portés par ce serveur » (information, classe `SERVER_OWNED` — **rien à
+faire**) en 3 lignes, puis les 4 données curées en 4 lignes (une par fichier, avant **et**
+après le pull) pour deux noms de fichiers, et enfin un `⚠` sur une note que personne
+n'écrit. Désormais, **deux lignes** : l'information (`N fichier(s)…`) et la preuve de
+restauration (`N donnée(s) locale(s) conservée(s) puis restaurée(s) : …`).
+
+Le détail complet — chemins des fichiers portés par le serveur, répartition par dossier,
+chaque donnée curée mise de côté puis restaurée — **existe toujours** et se demande :
+
+```bash
+DEPLOY_VERBOSE=1 ./scripts/deploy-cd.sh beta
+```
+
+Rien n'est perdu pour le diagnostic : c'est la **verbosité par défaut** qui change, pas la
+couverture. Verrouillé par `tests/unit/deploy-sortie-visible.test.ts` (⑨).
 
 ### Bruit supprimé et questions déjà posées (mesures du 30/09/2026)
 
@@ -104,7 +123,7 @@ Le serveur n'est **pas** un poste de travail : tout fichier **suivi** y est clas
 | Classe | Contenu (suivi) | Décision |
 |---|---|---|
 | `GENERATED` | `public/game-data/dungeon-monsters.json` (réécrit par le siphon via le bind mount) | **version du dépôt restaurée** (fichier éphémère) |
-| `REPO_OWNED` | médias **sans écrivain au runtime** : `game-data/achievements`, `images`, `assets`, `ordres`, `bonus_guilde`, `songes`, `module-dofus`, `banners` | **version du dépôt restaurée** (contenu **et** mode) |
+| `REPO_OWNED` | médias **sans écrivain au runtime** : `game-data/achievements`, `images`, `assets`, `ordres`, `bonus_guilde`, `songes`, `module-dofus`, `banners` — et la note `game-data/worldmap/.routes-2025-api` (ajoutée le 16/10/2026 : aucun code ne l'écrit, elle restait « M » à chaque passage) | **version du dépôt restaurée** (contenu **et** mode) |
 | `PRESERVED` | curation God : `ignored-monsters.json`, `ignored-bounties.json` | **version du serveur conservée** (mise de côté → pull → restaurée) |
 | `SERVER_OWNED` | écrits **par le serveur** : `game-data/{monsters,dungeons,legendary,invader,harvest-icons}` + les 7 JSON générés (`worldmap`, `worlds`, `zaaps`, `harvest-resources`, `bomb-dictionary{,-mixed}`, `secret-passages`) | **aucune écriture** : ni restaurés, ni signalés — **comptés à part** (information) |
 
@@ -245,7 +264,7 @@ imprime la cause probable. Il ne modifie rien.
 | Symptôme | Cause réelle | Correctif |
 |---|---|---|
 | `git pull` refuse / « local changes would be overwritten » | fichier curé modifié sur le serveur | géré par `git_fetch` (sauvegarde hors arbre → pull → restauration) |
-| ℹ️ « N fichier(s) suivi(s) portés par CE serveur » | écritures **légitimes** du serveur (galerie God, panneau God, siphons) | **rien à faire** : classe `SERVER_OWNED`, ni restaurée ni signalée ; le détail par dossier est affiché |
+| ℹ️ « N fichier(s) suivi(s) portés par CE serveur » | écritures **légitimes** du serveur (galerie God, panneau God, siphons) | **rien à faire** : classe `SERVER_OWNED`, ni restaurée ni signalée ; répartition par dossier avec `DEPLOY_VERBOSE=1` |
 | ⚠️ « Des fichiers suivis modifiés hors des classes connues » à **chaque** déploiement, **toujours les mêmes** | fichier **binaire** suivi modifié côté serveur : `--autostash` ne peut **pas** le résorber | géré par `git_fetch` (classes `GENERATED`/`REPO_OWNED` restaurées **avant** le pull) — voir § L'arbre de travail du serveur |
 | `git stash push` répond « No local changes to save » **puis** le merge refuse | bits `assume-unchanged` / `skip-worktree` → git aveugle | `git update-index --no-assume-unchanged --no-skip-worktree -- <fichier>` (voir juste au-dessus) |
 | Le deploy s'arrête à l'étape **1.5 « Vérification du tag »** | le tag n'a jamais été publié par la CI | regarder **Build & Push** dans Actions, relancer après le vert |

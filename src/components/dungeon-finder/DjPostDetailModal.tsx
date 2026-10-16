@@ -367,6 +367,12 @@ export function DjPostDetailModal({
                                                     ? "Carte de lancement (asset du jeu)"
                                                     : "Carte de lancement non disponible"}
                                         </p>
+                                        {post.questNpc && (
+                                            <p className="text-caption text-muted-foreground truncate">
+                                                Aller voir{" "}
+                                                <span className="font-semibold text-foreground/90">{post.questNpc.name}</span>
+                                            </p>
+                                        )}
                                     </div>
                                     {post.questMinimap && (
                                         <a

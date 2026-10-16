@@ -23,6 +23,7 @@ import {
     type TicketMotifButtonOverrides,
 } from "./category-permissions";
 import { ticketIconPayload } from "./ticket-icons";
+import { isDiscordAvatarUrl } from "@/lib/discord-avatars";
 
 /** Limites Discord appliquées à la construction (jamais dépassées en silence). */
 export const DISCORD_MAX_ROWS = 5;
@@ -241,7 +242,12 @@ export function buildTicketWelcomeEmbed(input: {
         footer: { text: "SigilOS Ticket System" },
         timestamp: new Date().toISOString(),
     };
-    if (input.creatorAvatarUrl) embed.thumbnail = { url: input.creatorAvatarUrl };
+    // Filet : un hash brut ou une URL non-Discord en thumbnail fait rejeter TOUT
+    // le message par Discord (constat bêta du 16/10/2026 : bienvenue, pings et
+    // boutons perdus). Seule une vraie URL d'avatar voyage.
+    if (input.creatorAvatarUrl && isDiscordAvatarUrl(input.creatorAvatarUrl)) {
+        embed.thumbnail = { url: input.creatorAvatarUrl };
+    }
     return embed;
 }
 
@@ -261,9 +267,13 @@ export const DISCORD_EMBED_FIELDS_MAX = 25;
 function embedAnswerValue(raw: string): string {
     const text = neutralizeMentions(raw);
     if (!text.trim()) return "*Non renseigné*";
-    if (text.length <= DISCORD_FIELD_VALUE_MAX) return text;
+    // Bloc de code : la réponse se copie d'un geste et ne se confond plus avec la
+    // question (demande user du 16/10/2026). Les backticks internes sont neutralisés
+    // pour ne jamais échapper du bloc ; la place des clôtures est réservée.
+    const fenced = (body: string) => `\`\`\`\n${body.replace(/`/g, "´")}\n\`\`\``;
+    if (text.length + 8 <= DISCORD_FIELD_VALUE_MAX) return fenced(text);
     const marker = " … *(suite dans la copie des messages)*";
-    return `${truncate(text, Math.max(1, DISCORD_FIELD_VALUE_MAX - marker.length))}${marker}`;
+    return `${fenced(truncate(text, Math.max(1, DISCORD_FIELD_VALUE_MAX - marker.length - 8)))}${marker}`;
 }
 
 /** Embed n°2 — **réponses du questionnaire** (absent en ouverture directe). */

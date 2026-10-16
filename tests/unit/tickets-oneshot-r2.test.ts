@@ -142,6 +142,23 @@ describe("one-shot R2 — aucun nom de contrainte ne fuit côté client", () => 
         expect((code.match(/P2002/g) || []).length).toBeGreaterThanOrEqual(3);
         expect(code).toContain("TICKET_MOTIF_DUPLICATE_MESSAGE");
     });
+
+    it("`saveTicketFormAction` ne laisse jamais fuir le brut (course double-clic)", () => {
+        const body = codeOnly(functionBody(read(ACTIONS), "saveTicketFormAction"));
+        expect(body, "saveTicketFormAction introuvable").not.toBe("");
+        expect(body).toContain("P2002");
+        expect(body).toContain("TICKET_MOTIF_DUPLICATE_MESSAGE");
+    });
+
+    it("la migration auto reprend le formulaire gagnant au lieu d'exploser en P2002", () => {
+        const body = codeOnly(functionBody(read(ACTIONS), "migrateCategoriesToMotifsAction"));
+        expect(body, "migrateCategoriesToMotifsAction introuvable").not.toBe("");
+        // Idempotence : réutilise le `q-<slug>` existant avant tout create…
+        expect(body).toContain("slug: formSlug");
+        // …reprend le gagnant sur course, et le filet final traduit P2002 en FR.
+        expect(body).toContain("P2002");
+        expect(body).toContain("TICKET_MOTIF_DUPLICATE_MESSAGE");
+    });
 });
 
 describe("one-shot R2 — la v1 est morte côté serveur", () => {

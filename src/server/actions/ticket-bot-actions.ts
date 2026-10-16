@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { db } from "@/lib/prisma";
+import { buildDiscordAvatarUrl, isDiscordAvatarUrl } from "@/lib/discord-avatars";
 import { getUserContext } from "./user-actions";
 import { isSuperAdmin } from "./super-admin-actions";
 import { rateLimit } from "@/lib/ratelimit";
@@ -1630,6 +1631,12 @@ export async function saveTicketFormAction(guildId: string, data: unknown): Prom
         return { success: true, data: { id: form.id, updatedAt: form.updatedAt } };
     } catch (error: any) {
         logger.error("[saveTicketFormAction] Error:", error);
+        // Course entre le pré-contrôle de doublon et l'écriture (double-clic, deux
+        // onglets) : message FR, jamais le nom brut de la contrainte (même patron
+        // que la création de parcours — constat bêta du 16/10/2026).
+        if (error?.code === "P2002") {
+            return { success: false, error: TICKET_MOTIF_DUPLICATE_MESSAGE };
+        }
         return { success: false, error: error?.message || "Erreur enregistrement formulaire" };
     }
 }
@@ -2282,18 +2289,41 @@ export async function migrateCategoriesToMotifsAction(guildId: string): Promise<
             }
 
             const formSlug = `q-${slug}`.slice(0, 60);
-            const form = await db.ticketForm.create({
-                data: {
-                    guildId: guard.guildInternalId,
-                    name: `Questionnaire — ${category.name}`.slice(0, 80),
-                    slug: formSlug,
-                    description: null,
-                    draftSchemaJson: (built.ok ? built.form : { schemaVersion: 2, fields: [] }) as never,
-                    currentVersion: 1,
-                    publishedVersion: 1,
-                    status: "PUBLISHED",
-                },
+            // Idempotence : deux catégories v1 peuvent se normaliser vers le même
+            // `q-<slug>` (ex. « Candidature » / « candidature »), et une migration
+            // rejouée après un état partiel retrouve un formulaire orphelin — on le
+            // réutilise au lieu d'exploser en P2002 brut (constat bêta du 16/10/2026).
+            let form = await db.ticketForm.findFirst({
+                where: { guildId: guard.guildInternalId, slug: formSlug },
+                include: { versions: { orderBy: { version: "desc" }, take: 1 } },
             });
+            if (!form) {
+                try {
+                    form = await db.ticketForm.create({
+                        data: {
+                            guildId: guard.guildInternalId,
+                            name: `Questionnaire — ${category.name}`.slice(0, 80),
+                            slug: formSlug,
+                            description: null,
+                            draftSchemaJson: (built.ok ? built.form : { schemaVersion: 2, fields: [] }) as never,
+                            currentVersion: 1,
+                            publishedVersion: 1,
+                            status: "PUBLISHED",
+                        },
+                        include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+                    });
+                } catch (error: any) {
+                    // Créé entre le `findFirst` et le `create` (migration ouverte dans
+                    // deux onglets) : on reprend le gagnant, même patron que le motif.
+                    if (error?.code !== "P2002") throw error;
+                    const winner = await db.ticketForm.findFirst({
+                        where: { guildId: guard.guildInternalId, slug: formSlug },
+                        include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+                    });
+                    if (!winner) return { success: false, error: TICKET_MOTIF_DUPLICATE_MESSAGE };
+                    form = winner;
+                }
+            }
             if (built.ok && built.form.fields.length > 0) {
                 await db.ticketFormVersion.create({
                     data: { formId: form.id, guildId: guard.guildInternalId, version: 1, schemaJson: built.form as never },
@@ -2371,6 +2401,11 @@ export async function migrateCategoriesToMotifsAction(guildId: string): Promise<
         return { success: true, data: { migrated: created, skipped } };
     } catch (error: any) {
         logger.error("[migrateCategoriesToMotifsAction] Error:", error);
+        // Filet : aucun nom de contrainte brut côté client, même sur une course
+        // non couverte par les reprises ci-dessus.
+        if (error?.code === "P2002") {
+            return { success: false, error: TICKET_MOTIF_DUPLICATE_MESSAGE };
+        }
         return { success: false, error: error?.message || "Erreur migration motifs" };
     }
 }
@@ -2650,7 +2685,11 @@ async function createTicketFromJourney(input: {
             discordGuildId: params.discordGuildId,
             creatorDiscordId: params.discordUserId,
             creatorDiscordName: params.discordUserName,
-            creatorAvatarUrl: params.discordUserAvatar,
+            // L'interaction Discord ne donne qu'un HASH d'avatar brut : un hash mis tel
+            // quel en `thumbnail.url` fait rejeter TOUT le message d'accueil par Discord
+            // (400) — bienvenue, pings et boutons perdus, seules les réponses partent
+            // (constat bêta du 16/10/2026). On persiste une vraie URL CDN (ou rien).
+            creatorAvatarUrl: resolveTicketCreatorAvatarUrl(params.discordUserId, params.discordUserAvatar),
             status: "OPEN",
             intakeAnswersJson: intake,
         },
@@ -2710,7 +2749,7 @@ async function createTicketFromJourney(input: {
         journeyName: journey.name,
         emoji: journey.emoji,
         creatorDiscordId: params.discordUserId,
-        creatorAvatarUrl: params.discordUserAvatar,
+        creatorAvatarUrl: record.creatorAvatarUrl,
         statusLabel: ticketStatusLabel("OPEN", lang),
         // Le texte libre du motif ouvre le salon (message d'accueil du motif) ;
         // le résumé affiché sur les listes dashboard n'y figure plus (il ne
@@ -2771,6 +2810,20 @@ async function createTicketFromJourney(input: {
  * (réponses du questionnaire). `allowed_mentions` est **explicite** : le créateur
  * et les rôles configurés sont notifiés, jamais `@everyone`.
  */
+/**
+ * Avatar du demandeur tel que stocké et envoyé à Discord : une vraie URL CDN ou
+ * rien. L'interaction ne fournit qu'un hash brut (`member.user.avatar`) — passé tel
+ * quel en `thumbnail.url`, Discord rejette le message entier (400). Une URL déjà
+ * valide (autre appelant) est conservée telle quelle.
+ */
+function resolveTicketCreatorAvatarUrl(
+    discordUserId: string,
+    raw: string | null | undefined
+): string | null {
+    if (isDiscordAvatarUrl(raw)) return raw as string;
+    return buildDiscordAvatarUrl(discordUserId, raw);
+}
+
 async function postTicketWelcomeMessage(input: {
     channelId: string;
     embed: Record<string, unknown>;

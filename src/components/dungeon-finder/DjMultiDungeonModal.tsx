@@ -7,7 +7,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { toast } from "sonner";
 import { Plus, Search, X, CheckCircle2, Trophy, CalendarClock, Swords, Users } from "lucide-react";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
-import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { AchievementIcon } from "@/components/ui/achievement-icon";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 
 type Dungeon = {
@@ -252,9 +252,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                                                             : "bg-surface border-border text-muted-foreground hover:border-border-strong"
                                                                     }`}
                                                                 >
-                                                                    {a.challenge.iconUrl && (
-                                                                        <img src={getAchievementIconUrl(null, a.challenge.iconUrl) ?? undefined} alt="" className="w-3.5 h-3.5 object-contain rounded" />
-                                                                    )}
+                                                                    <AchievementIcon iconUrl={a.challenge.iconUrl} size={14} className="rounded" />
                                                                     {a.challenge.name}
                                                                 </button>
                                                             );

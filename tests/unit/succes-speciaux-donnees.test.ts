@@ -183,8 +183,17 @@ describe("icône de succès — proxy d'abord, plus de case noire", () => {
         // seedé `slug: "sp-cial"` (le slugifier transforme « é » en « - ») avec
         // `iconUrl: "/game-data/achievements/spécial.png"` — et ce fichier **existe** au dépôt.
         // Reconstruire le chemin depuis le slug demandait `sp-cial.png` ⇒ 404 + case noire.
+        //
+        // ⚠️ Mesure du 16/10/2026 : l'URL encodée de `spécial.png` répondait **200** et le
+        // succès restait pourtant **noir** dans les fiches interne et externe (accent dans un
+        // chemin = encodage, cache d'un ancien 404, mojibake, normalisation du FS). On sert
+        // donc la forme **ASCII** — le nom jumeau déjà présent au dépôt, comme les 27 autres.
         expect(getAchievementIconUrl("sp-cial", "/game-data/achievements/spécial.png")).toBe(
-            "/game-data/achievements/sp%C3%A9cial.png"
+            "/game-data/achievements/special.png"
+        );
+        // Même en NFD (le « é » décomposé) : la sortie reste ASCII.
+        expect(getAchievementIconUrl("sp-cial", "/game-data/achievements/spe\u0301cial.png")).toBe(
+            "/game-data/achievements/special.png"
         );
         // Le repli par slug reste en vigueur quand la base ne porte AUCUN chemin.
         expect(getAchievementIconUrl("sp-cial", null)).toBe("/game-data/achievements/sp-cial.png");

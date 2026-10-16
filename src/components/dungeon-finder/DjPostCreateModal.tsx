@@ -15,6 +15,7 @@ import {
 import { createDjPost, createDjPosts } from "@/server/actions/dungeon-finder-actions";
 import { DjMultiDungeonModal, type MultiDungeonSelection } from "./DjMultiDungeonModal";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
+import { getAchievementIconUrl } from "@/lib/achievement-icon";
 import { getDefis } from "@/server/actions/defi-admin-actions";
 import { getTitans } from "@/server/actions/titan-admin-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
@@ -961,7 +962,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                             }`}
                                                     >
                                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${selected ? "bg-warning/20 border-warning/20" : "bg-background border-border"}`}>
-                                                            {a.challenge.iconUrl ? <img src={a.challenge.iconUrl} alt="" className="w-5 h-5 object-contain" /> : <Trophy className="w-4 h-4" />}
+                                                            {a.challenge.iconUrl ? <img src={getAchievementIconUrl(null, a.challenge.iconUrl) ?? undefined} alt="" className="w-5 h-5 object-contain" /> : <Trophy className="w-4 h-4" />}
                                                         </div>
                                                         <span className="flex-1 text-left truncate">{a.challenge.name}</span>
                                                         {selected && <CheckCircle2 className="w-3.5 h-3.5 text-warning" />}

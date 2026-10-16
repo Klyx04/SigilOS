@@ -1625,12 +1625,12 @@ export function TourProvider({
         const storedPhase = localStorage.getItem(`sigilos-tour-phase-${guildId}`) as TourPhase;
         const storedStep = parseInt(localStorage.getItem(`sigilos-tour-step-${guildId}`) || "1", 10);
 
-        if (tourParam === "1" || (storedPhase === "profile" && pathname.includes("/profile"))) {
+        if (!isAdmin && (tourParam === "1" || (storedPhase === "profile" && pathname.includes("/profile")))) {
             setTourPhase("profile");
             setCurrentStep(tourParam === "1" ? 1 : storedStep);
             setIsActive(true);
             localStorage.setItem(`sigilos-tour-phase-${guildId}`, "profile");
-        } else if (tourParam === "2" || (storedPhase === "dashboard" && pathname === `/dashboard/${guildId}`)) {
+        } else if (!isAdmin && (tourParam === "2" || (storedPhase === "dashboard" && pathname === `/dashboard/${guildId}`))) {
             setTourPhase("dashboard");
             setCurrentStep(tourParam === "2" ? 1 : storedStep);
             setIsActive(true);

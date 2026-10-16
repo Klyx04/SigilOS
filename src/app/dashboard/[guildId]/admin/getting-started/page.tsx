@@ -3,11 +3,22 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getGettingStartedProgress, type OnboardingProgress } from "@/server/actions/onboarding-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { Sparkles, CheckCircle2, ArrowRight, Rocket, Shield, Puzzle, BookOpen, Swords, Users, AlertTriangle, Lock } from "lucide-react";
+import {
+    Sparkles,
+    CheckCircle2,
+    ArrowRight,
+    Rocket,
+    Shield,
+    Puzzle,
+    BookOpen,
+    Swords,
+    Bell,
+    Lock,
+    AlertCircle,
+    Check
+} from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 import { AdminConsoleNav } from "@/components/admin/admin-console-nav";
 
@@ -16,125 +27,123 @@ type Step = OnboardingProgress["steps"][number];
 const stepIconMap: Record<string, any> = {
     dofus: Rocket,
     rbac: Shield,
-    discord: Shield,
+    discord: Bell,
     modules: Puzzle,
     presentation: BookOpen,
     missions: Swords,
-    members: Users,
 };
 
-const stepTourTarget: Record<string, string> = {
-    dofus: "admin-dofus",
-    rbac: "admin-rbac",
-    discord: "admin-discord",
-    modules: "admin-modules",
-    presentation: "admin-presentation",
-    missions: "admin-missions",
-};
-
-function StepCard({ step, idx, mandatoryComplete }: { step: Step; idx: number; mandatoryComplete: boolean }) {
+function StepRow({
+    step,
+    idx,
+    mandatoryComplete
+}: {
+    step: Step;
+    idx: number;
+    mandatoryComplete: boolean;
+}) {
     const Icon = stepIconMap[step.id] || Sparkles;
     const isCompleted = step.status === "COMPLETED";
     const isMandatory = step.mandatory;
     const isLocked = !isMandatory && !mandatoryComplete;
-    const tourTarget = stepTourTarget[step.id];
 
     return (
         <div
-            data-tour={tourTarget}
             className={cn(
-                "group relative glass-premium p-6 rounded-xl border transition-all duration-300",
+                "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 md:p-5 rounded-xl border transition-all",
                 isCompleted
-                    ? "border-success/20 bg-success/5 "
+                    ? "border-emerald-500/25 bg-emerald-500/[0.03]"
                     : isMandatory
-                        ? "border-danger/20 hover:border-danger/40"
+                        ? "border-amber-500/30 bg-amber-500/[0.03]"
                         : isLocked
-                            ? "border-border opacity-50"
-                            : "border-border hover:border-border-strong"
+                            ? "border-border bg-black/10 opacity-60"
+                            : "border-border bg-black/20 hover:border-border-strong hover:bg-black/30"
             )}
         >
-            <div className="flex items-start gap-6">
+            <div className="flex items-start gap-4 min-w-0">
                 <div className={cn(
-                    "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform",
-                    !isLocked && "group-",
+                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border",
                     isCompleted
-                        ? "bg-success/10 text-success"
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                         : isMandatory
-                            ? "bg-danger/10 text-danger"
-                            : "bg-surface text-muted-foreground"
+                            ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                            : isLocked
+                                ? "bg-surface border-border text-muted-foreground"
+                                : "bg-surface border-border text-muted-foreground"
                 )}>
-                    {isLocked ? <Lock className="w-5 h-5" /> : <Icon className="w-6 h-6" />}
+                    {isLocked ? (
+                        <Lock className="w-4 h-4" />
+                    ) : isCompleted ? (
+                        <Check className="w-5 h-5 text-emerald-400" />
+                    ) : (
+                        <Icon className="w-5 h-5" />
+                    )}
                 </div>
-                <div className="flex-1 space-y-1.5">
-                    <div className="flex items-center gap-3 flex-wrap">
+
+                <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-mono font-bold text-muted-foreground">
+                            0{idx + 1}.
+                        </span>
                         <h3 className={cn(
-                            "text-lg font-black tracking-tight uppercase",
-                            isCompleted ? "text-success" : isMandatory ? "text-foreground" : "text-muted-foreground"
+                            "text-sm font-bold tracking-tight",
+                            isCompleted ? "text-emerald-400" : "text-foreground"
                         )}>
-                            {idx + 1}. {step.title}
+                            {step.title}
                         </h3>
+
                         {isMandatory ? (
-                            <span className="px-2 py-0.5 rounded-full bg-danger/15 border border-danger/30 text-danger text-caption font-black uppercase tracking-wider">
-                                ⚡ Obligatoire
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-bold uppercase tracking-wider">
+                                Obligatoire
                             </span>
                         ) : (
-                            <span className="px-2 py-0.5 rounded-full bg-info/10 border border-info/20 text-info text-caption font-black uppercase tracking-wider">
-                                ★ Recommandé
+                            <span className="px-2 py-0.5 rounded-full bg-surface border border-border text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+                                Recommandé
                             </span>
                         )}
+
                         {isCompleted && (
-                            <span className="px-2 py-0.5 rounded-full bg-success/10 border border-success/20 text-success text-caption font-black uppercase">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
                                 ✓ Terminé
                             </span>
                         )}
-                        {isLocked && (
-                            <span className="px-2 py-0.5 rounded-full bg-surface border border-border text-muted-foreground text-caption font-black uppercase">
-                                🔒 Bloqué
-                            </span>
-                        )}
                     </div>
-                    <p className="text-sm text-muted-foreground font-medium leading-relaxed max-w-2xl">
+
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
                         {isLocked
-                            ? "Débloqué après avoir complété les étapes obligatoires."
+                            ? "Débloqué une fois les étapes obligatoires complétées."
                             : step.description}
                     </p>
                 </div>
-                <div className="flex flex-col items-end justify-center h-full pt-2">
-                    {isLocked ? (
-                        <Button
-                            disabled
-                            variant="outline"
-                            className="font-black uppercase tracking-widest text-caption px-6 h-10 border-border text-muted-foreground cursor-not-allowed"
-                        >
-                            Bloqué
-                        </Button>
-                    ) : (
-                        <Button
-                            asChild
-                            variant={isCompleted ? "outline" : "default"}
-                            className={cn(
-                                "font-black uppercase tracking-widest text-caption px-6 h-10",
-                                isCompleted
-                                    ? "border-success/20 text-success hover:bg-success/5"
-                                    : isMandatory
-                                        ? "bg-danger text-danger-foreground hover:bg-danger "
-                                        : "bg-background text-foreground hover:bg-surface"
-                            )}
-                        >
-                            <Link href={step.href}>
-                                {isCompleted ? "Revoir" : "Configurer"}
-                                <ArrowRight className="ml-2 w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                            </Link>
-                        </Button>
-                    )}
-                </div>
             </div>
 
-            {isCompleted && (
-                <div className="absolute top-4 right-4 text-success/20">
-                    <CheckCircle2 className="w-12 h-12 rotate-12" />
-                </div>
-            )}
+            <div className="shrink-0 w-full sm:w-auto flex sm:justify-end">
+                {isLocked ? (
+                    <button
+                        type="button"
+                        disabled
+                        className="reg-btn reg-btn-secondary text-xs opacity-50 cursor-not-allowed w-full sm:w-auto"
+                    >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Verrouillé</span>
+                    </button>
+                ) : (
+                    <Link
+                        href={step.href}
+                        className={cn(
+                            "w-full sm:w-auto text-xs py-2 px-4 rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-all",
+                            isCompleted
+                                ? "reg-btn reg-btn-secondary text-xs"
+                                : isMandatory
+                                    ? "bg-amber-600 hover:bg-amber-500 text-white shadow-sm"
+                                    : "reg-btn reg-btn-primary"
+                        )}
+                    >
+                        <span>{isCompleted ? "Revoir" : "Configurer"}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                )}
+            </div>
         </div>
     );
 }
@@ -154,8 +163,6 @@ export default async function GettingStartedPage({
         redirect(`/dashboard/${guildId}`);
     }
 
-    // Cas « onboarding en attente » (lien direct avant tout déploiement) :
-    // la page crée la config elle-même au lieu de lever « Guild not found ».
     let progress;
     try {
         progress = await getGettingStartedProgress(guildId);
@@ -167,196 +174,176 @@ export default async function GettingStartedPage({
         }
         progress = await getGettingStartedProgress(guildId);
     }
-    // % honnête : tant que les obligatoires ne sont pas complètes, on progresse
-    // sur les obligatoires seules (la 1re étape validée affiche 50%, pas 20%).
+
     const { getGettingStartedPercent } = await import("@/lib/onboarding-gating");
     const { percent } = getGettingStartedPercent(progress.steps);
-    // Le reste à faire d'abord : les étapes terminées (souvent via le wizard)
-    // sont repliées — la page ne montre que ce qui reste.
+
     const remainingSteps = progress.steps.filter((s) => s.status !== "COMPLETED");
     const completedSteps = progress.steps.filter((s) => s.status === "COMPLETED");
 
     return (
-        <div className="relative min-h-full pb-20 space-y-8">
-            {/* Ambient Background */}
-            <AuroraBackground className="absolute inset-0 z-0 opacity-10 pointer-events-none" />
+        <div className="relative min-h-full pb-20 space-y-6">
+            <UnifiedModuleHeader
+                title="Mise en route de votre Guilde"
+                description="Suivez ce guide pas-à-pas pour configurer votre serveur de guilde avant d'inviter vos membres"
+                icon={Rocket}
+                backHref={`/dashboard/${guildId}/admin`}
+                actions={<AdminTourReplay phase="admin" />}
+            />
 
-            <div className="relative z-10 space-y-8">
-                <UnifiedModuleHeader
-                    title="Configuration"
-                    description="L'assistant a posé les bases — finalisez ici les étapes recommandées, et revoyez les obligatoires à tout moment"
-                    icon={Rocket}
-                    backHref={`/dashboard/${guildId}/admin`}
-                    actions={<AdminTourReplay phase="admin" />}
-                />
+            <AdminConsoleNav
+                guildId={guildId}
+                showAccess={user.canManageRBAC || user.isAdmin}
+                showOnboarding={true}
+                showPilotage={user.isDiscordAdmin}
+            />
 
-                <AdminConsoleNav
-                    guildId={guildId}
-                    showAccess={user.canManageRBAC || user.isAdmin}
-                    showOnboarding={true}
-                    showPilotage={user.isDiscordAdmin}
-                />
-
-                {/* Alerte critique si étapes obligatoires non complètes */}
-                {!progress.mandatoryComplete && (
-                    <div className="mx-1 relative group">
-                        <div className="absolute -inset-px bg-gradient-to-r from-danger/40 to-warning/40 rounded-xl blur-sm opacity-70" />
-                        <div className="relative flex items-start gap-4 bg-danger/10 border border-danger/30 rounded-xl p-5">
-                            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-danger/15 flex items-center justify-center text-danger">
-                                <AlertTriangle className="w-5 h-5" />
-                            </div>
-                            <div className="flex-1 space-y-1">
-                                <p className="text-sm font-black text-danger uppercase tracking-wider">
-                                    Configuration obligatoire incomplète
-                                </p>
-                                <p className="text-sm text-danger/80 font-medium leading-relaxed">
-                                    L&apos;accès au Dashboard est bloqué pour tous les membres jusqu&apos;à ce que vous completiez les étapes{" "}
-                                    <span className="text-danger font-black">Serveur de Jeu</span> et{" "}
-                                    <span className="text-danger font-black">Rôles &amp; Permissions</span>.
-                                    Ces deux étapes sont nécessaires pour garantir la sécurité de votre guilde.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* CTA unique — « votre prochaine action ». La page alignait 7 cartes
-                    équivalentes : l'admin ne savait pas par où commencer. Une seule
-                    action, calculée CÔTÉ SERVEUR (`getNextOnboardingAction`) :
-                    obligatoires d'abord, puis l'étape entamée, puis la 1re recommandée. */}
-                {progress.nextAction && (
-                    <div className="mx-1 relative group">
-                        <div className="absolute -inset-px bg-gradient-to-r from-info/30 to-success/30 rounded-xl blur-sm opacity-60" />
-                        <div className="relative flex flex-col gap-4 bg-surface border border-info/30 rounded-xl p-5 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-start gap-4 min-w-0">
-                                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-info/15 flex items-center justify-center text-info">
-                                    <Sparkles className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0 space-y-1">
-                                    <p className="text-caption font-black text-info uppercase tracking-wider">
-                                        Votre prochaine action
-                                    </p>
-                                    <p className="text-sm font-black text-foreground">
-                                        Étape {progress.steps.indexOf(progress.nextAction) + 1} ·{" "}
-                                        {progress.nextAction.title}
-                                    </p>
-                                    <p className="max-w-[70ch] text-sm text-muted-foreground font-medium leading-relaxed">
-                                        {progress.nextAction.description}
-                                    </p>
-                                </div>
-                            </div>
-                            <Button
-                                asChild
-                                className="shrink-0 font-black uppercase tracking-widest text-caption px-6 h-10"
-                            >
-                                <Link href={progress.nextAction.href}>
-                                    {progress.nextAction.mandatory ? "Débloquer maintenant" : "Configurer maintenant"}
-                                    <ArrowRight className="ml-2 w-3 h-3" />
-                                </Link>
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Main Progress Card */}
-                <div className="relative group mx-1">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-info/20 via-info/20 to-success/20 rounded-2xl blur-xl opacity-50" />
-                    <div className="relative glass-premium p-8 rounded-2xl border border-border overflow-hidden">
-                        <div className="flex flex-col md:flex-row items-center gap-8">
-                            <div className="relative flex-shrink-0">
-                                <div className="w-24 h-24 rounded-full border-4 border-border flex items-center justify-center relative">
-                                    <svg className="w-full h-full transform -rotate-90">
-                                        <circle
-                                            cx="48"
-                                            cy="48"
-                                            r="44"
-                                            fill="transparent"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                            className="text-foreground/5"
-                                        />
-                                        <circle
-                                            cx="48"
-                                            cy="48"
-                                            r="44"
-                                            fill="transparent"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                            strokeDasharray="276"
-                                            strokeDashoffset={276 - (276 * percent) / 100}
-                                            className="text-success transition-all duration-300 ease-out"
-                                            strokeLinecap="round"
-                                        />
-                                    </svg>
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="text-2xl font-black text-foreground">{percent}%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex-1 space-y-2 text-center md:text-left">
-                                <h2 className="text-2xl font-black text-foreground tracking-tight uppercase">Progression de l&apos;installation</h2>
-                                <p className="text-muted-foreground font-medium">
-                                    {progress.mandatoryComplete
-                                        ? percent === 100
-                                            ? "Votre guilde est parfaitement configurée ! Vous êtes prêt à dominer le Monde des Douze."
-                                            : "Les étapes obligatoires sont complètes ✅ — continuez avec les étapes recommandées pour optimiser votre guilde."
-                                        : "Complétez d'abord les étapes obligatoires pour débloquer l'accès au Dashboard."}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Legend */}
-                <div className="mx-1 flex items-center gap-6 text-xs font-black uppercase tracking-widest">
-                    <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-full bg-danger/15 border border-danger/30 text-danger text-caption">⚡ Obligatoire</span>
-                        <span className="text-muted-foreground">Requis pour débloquer l&apos;accès</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-full bg-info/10 border border-info/20 text-info text-caption">★ Recommandé</span>
-                        <span className="text-muted-foreground">Optimise l&apos;expérience</span>
-                    </div>
-                </div>
-
-                {/* Steps List — reste à faire, terminées repliées */}
-                <div className="grid grid-cols-1 gap-4 mx-1">
-                    {remainingSteps.length === 0 && (
-                        <p className="text-sm text-muted-foreground">
-                            Tout est configuré — les étapes terminées restent revoyables ci-dessous.
+            {/* Alerte si étapes obligatoires incomplètes */}
+            {!progress.mandatoryComplete && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 md:p-5 flex items-start gap-3.5">
+                    <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                        <p className="text-sm font-bold text-amber-400">
+                            Configuration obligatoire incomplète
                         </p>
-                    )}
-                    {remainingSteps.map((step) => (
-                        <StepCard
-                            key={step.id}
-                            step={step}
-                            idx={progress.steps.indexOf(step)}
-                            mandatoryComplete={progress.mandatoryComplete}
-                        />
-                    ))}
-                    {completedSteps.length > 0 && (
-                        <details className="group/comp rounded-xl border border-border">
-                            <summary className="flex cursor-pointer list-none select-none items-center gap-2 px-6 py-4 text-xs font-medium text-muted-foreground">
-                                <span aria-hidden="true" className="transition-transform group-open/comp:rotate-90">
-                                    ▶
-                                </span>
-                                <span>
-                                    Étapes terminées ({completedSteps.length}) — revoir
-                                </span>
-                            </summary>
-                            <div className="grid grid-cols-1 gap-4 px-4 pb-4">
-                                {completedSteps.map((step) => (
-                                    <StepCard
-                                        key={step.id}
-                                        step={step}
-                                        idx={progress.steps.indexOf(step)}
-                                        mandatoryComplete={progress.mandatoryComplete}
-                                    />
-                                ))}
-                            </div>
-                        </details>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            L&apos;accès au tableau de bord reste réservé aux administrateurs tant que les étapes{" "}
+                            <strong className="text-foreground">Serveur de Jeu</strong> et{" "}
+                            <strong className="text-foreground">Rôles &amp; Permissions</strong> ne sont pas enregistrées.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Bannière Prochaine Action */}
+            {progress.nextAction && (
+                <div className="reg-panel p-5 border-amber-500/30 bg-gradient-to-r from-amber-500/[0.04] to-black/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3.5 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
+                            <Sparkles className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-0.5 min-w-0">
+                            <span className="text-[10px] font-bold tracking-wider text-amber-400 uppercase block">
+                                Votre prochaine action
+                            </span>
+                            <h3 className="text-sm font-bold text-foreground truncate">
+                                {progress.nextAction.title}
+                            </h3>
+                            <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
+                                {progress.nextAction.description}
+                            </p>
+                        </div>
+                    </div>
+
+                    <Link
+                        href={progress.nextAction.href}
+                        className="reg-btn reg-btn-gold text-xs px-4 py-2 shrink-0 flex items-center gap-1.5 w-full sm:w-auto justify-center"
+                    >
+                        <span>{progress.nextAction.mandatory ? "Compléter l'étape" : "Configurer"}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                </div>
+            )}
+
+            {/* Panneau de progression globale — Style Registre */}
+            <div className="reg-panel p-6">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                    <div className="relative shrink-0 flex items-center justify-center">
+                        <div className="w-20 h-20 rounded-full border-4 border-border flex items-center justify-center relative">
+                            <svg className="w-full h-full transform -rotate-90">
+                                <circle
+                                    cx="40"
+                                    cy="40"
+                                    r="34"
+                                    fill="transparent"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                    className="text-foreground/5"
+                                />
+                                <circle
+                                    cx="40"
+                                    cy="40"
+                                    r="34"
+                                    fill="transparent"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                    strokeDasharray="213"
+                                    strokeDashoffset={213 - (213 * percent) / 100}
+                                    className="text-emerald-500 transition-all duration-500 ease-out"
+                                    strokeLinecap="round"
+                                />
+                            </svg>
+                            <span className="absolute text-lg font-bold font-mono text-foreground">
+                                {percent}%
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-1 text-center md:text-left flex-1">
+                        <h2 className="text-base font-bold text-foreground">
+                            Progression de la mise en route
+                        </h2>
+                        <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
+                            {progress.mandatoryComplete
+                                ? percent === 100
+                                    ? "Votre guilde est prête à 100% ! Tous les modules essentiels sont configurés."
+                                    : "Base active ! Les étapes obligatoires sont validées. Vous pouvez dès maintenant partager le lien d'accès à vos membres."
+                                : "Complétez les étapes indispensables pour ouvrir l'accès au tableau de bord à vos membres."}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Liste des étapes restantes */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                    <h3 className="reg-eyebrow">Étapes à configurer</h3>
+                    <span className="text-xs text-muted-foreground font-mono">
+                        {remainingSteps.length} restante{remainingSteps.length > 1 ? "s" : ""}
+                    </span>
+                </div>
+
+                <div className="space-y-2.5">
+                    {remainingSteps.length === 0 ? (
+                        <div className="reg-panel p-6 text-center text-xs text-muted-foreground">
+                            Toutes les étapes sont complétées ! Vous pouvez revoir la configuration à tout moment ci-dessous.
+                        </div>
+                    ) : (
+                        remainingSteps.map((step) => (
+                            <StepRow
+                                key={step.id}
+                                step={step}
+                                idx={progress.steps.indexOf(step)}
+                                mandatoryComplete={progress.mandatoryComplete}
+                            />
+                        ))
                     )}
                 </div>
+
+                {/* Étapes terminées repliées */}
+                {completedSteps.length > 0 && (
+                    <details className="group/completed rounded-xl border border-border bg-black/10 mt-4">
+                        <summary className="flex cursor-pointer list-none select-none items-center justify-between p-4 text-xs font-semibold text-muted-foreground hover:text-foreground">
+                            <span className="flex items-center gap-2">
+                                <span className="w-4 h-4 rounded bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
+                                Étapes terminées ({completedSteps.length})
+                            </span>
+                            <span className="text-xs text-muted-foreground group-open/completed:rotate-180 transition-transform">
+                                ▼
+                            </span>
+                        </summary>
+                        <div className="space-y-2 p-3 pt-0">
+                            {completedSteps.map((step) => (
+                                <StepRow
+                                    key={step.id}
+                                    step={step}
+                                    idx={progress.steps.indexOf(step)}
+                                    mandatoryComplete={progress.mandatoryComplete}
+                                />
+                            ))}
+                        </div>
+                    </details>
+                )}
             </div>
         </div>
     );

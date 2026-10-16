@@ -1515,7 +1515,7 @@ export type GuildPortalItem = {
 
 export async function getGuildsSeparated(): Promise<{
     active: GuildPortalItem[];
-    pending: Array<{ id: string; name: string; icon: string | null }>;
+    pending: Array<{ id: string; name: string; icon: string | null; isBotPresent?: boolean }>;
     /**
      * Serveurs où l'utilisateur est admin/owner mais EXCLUS du déploiement par
      * un gel explicite (whitelist désactivée) ou le kill-switch auto-onboarding.

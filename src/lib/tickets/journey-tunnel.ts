@@ -214,7 +214,15 @@ export function applyTicketChoice(input: {
 export const TICKET_MODAL_PAGE_ACTION = "modal_page";
 
 export type TicketTunnelStep =
-    | { kind: "choices"; rows: DiscordActionRow[]; fieldIds: string[]; remaining: number; step: string }
+    | {
+          kind: "choices";
+          rows: DiscordActionRow[];
+          fieldIds: string[];
+          /** Libellés des questions posées **dans l'ordre** (écrits dans le message). */
+          prompts: string[];
+          remaining: number;
+          step: string;
+      }
     | {
           kind: "modal";
           rows: DiscordActionRow[];
@@ -250,6 +258,7 @@ export function nextTicketTunnelStep(input: {
             kind: "choices",
             rows: step.rows,
             fieldIds: step.fieldIds,
+            prompts: step.prompts,
             remaining: step.remainingFieldIds.length,
             step: TICKET_DRAFT_STEP_CHOICES,
         };

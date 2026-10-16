@@ -309,7 +309,10 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             guildId={guildId}
                             value={blacklistRoleIds}
                             onChange={setBlacklistRoleIds}
-                            description="Ces rôles ne voient aucun bouton d'ouverture et ne peuvent pas agir sur les tickets."
+                            title="Rôles bloqués"
+                            triggerPlaceholder="Sélectionner les rôles à bloquer..."
+                            emptyTitle="Aucun rôle bloqué"
+                            description="Ces rôles ne peuvent pas ouvrir de ticket et ne peuvent pas agir sur un ticket (fail-closed : un rôle absent de cette liste n'est pas bloqué)."
                         />
                     </div>
                 </div>

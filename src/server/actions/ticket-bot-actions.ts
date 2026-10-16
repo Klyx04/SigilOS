@@ -17,6 +17,7 @@ import {
     sendChannelMessage,
 } from "@/server/discord";
 import { captureTicketArchives } from "@/server/tickets/archive";
+import { sendTicketCsatSurvey } from "@/server/tickets/csat";
 import { clearTicketDraft } from "@/server/tickets/journey-open";
 import {
     evaluateAnswers,
@@ -685,6 +686,25 @@ export async function getTicketRecordAction(guildId: string, ticketId: string): 
     }
 }
 
+/**
+ * 🔴 **Identité Discord d'un auteur d'action dashboard.**
+ *
+ * `getUserContext().id` est un **cuid Prisma** (clé interne), pas un flocon Discord :
+ * l'écrire dans une colonne `*DiscordId` ou dans un `<@…>` produisait la mention morte
+ * `<@cmlozn4dj000g01mj6d1lz4iw>` (constatée en bêta le 16/10/2026). On n'accepte donc
+ * qu'un flocon ; sinon on rend le repli demandé (`null` pour une colonne nullable,
+ * `"unknown"` pour une colonne requise) — jamais une valeur inventée.
+ */
+function resolveActorDiscordId(user: { discordId?: string | null }, fallback?: string): string;
+function resolveActorDiscordId(user: { discordId?: string | null }, fallback: null): string | null;
+function resolveActorDiscordId(
+    user: { discordId?: string | null },
+    fallback: string | null = "unknown"
+): string | null {
+    const snowflake = String(user.discordId ?? "").trim();
+    return /^\d{15,21}$/.test(snowflake) ? snowflake : fallback;
+}
+
 export async function claimTicketAction(guildId: string, ticketId: string): Promise<ActionResponse> {
     try {
         const user = await getUserContext(guildId);
@@ -698,12 +718,18 @@ export async function claimTicketAction(guildId: string, ticketId: string): Prom
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        // 🔴 `user.id` (cuid interne) n'est pas un identifiant Discord : le confondre avec
+        // un flocon écrivait une fausse identité dans `claimedByDiscordId` et affichait
+        // `<@cmlozn4dj000g01mj6d1lz4iw>` au lieu de pinger la personne.
+        const claimerDiscordId = resolveActorDiscordId(user, null);
+        const claimerName = user.name || "Staff";
+
         const updated = await db.ticketRecord.update({
             where: { id: ticketId, guildId: guildConfig.id },
             data: {
                 status: "CLAIMED",
-                claimedByDiscordId: user.id || "unknown",
-                claimedByName: user.name || "Staff",
+                claimedByDiscordId: claimerDiscordId,
+                claimedByName: claimerName,
                 claimedAt: new Date(),
             },
         });
@@ -712,9 +738,10 @@ export async function claimTicketAction(guildId: string, ticketId: string): Prom
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                actorDiscordId: user.id || "unknown",
-                actorName: user.name || "Staff",
+                actorDiscordId: claimerDiscordId ?? "unknown",
+                actorName: claimerName,
                 action: "CLAIM",
+                detailsJson: { internalUserId: user.id ?? null },
             },
         });
 
@@ -722,7 +749,9 @@ export async function claimTicketAction(guildId: string, ticketId: string): Prom
         if (updated.discordChannelId) {
             await sendChannelMessage(
                 updated.discordChannelId,
-                `🛡️ <@${user.id}> (**${user.name || "Staff"}**) a pris en charge ce ticket.`
+                claimerDiscordId
+                    ? `🛡️ <@${claimerDiscordId}> (**${claimerName}**) a pris en charge ce ticket.`
+                    : `🛡️ **${claimerName}** a pris en charge ce ticket.`
             ).catch(() => {});
         }
 
@@ -761,7 +790,7 @@ export async function unclaimTicketAction(guildId: string, ticketId: string): Pr
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                actorDiscordId: user.id || "unknown",
+                actorDiscordId: resolveActorDiscordId(user),
                 actorName: user.name || "Staff",
                 action: "UNCLAIM",
             },
@@ -807,7 +836,7 @@ export async function addTicketNoteAction(
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                authorDiscordId: user.id || "unknown",
+                authorDiscordId: resolveActorDiscordId(user),
                 authorName: user.name || "Staff",
                 content: content.trim(),
             },
@@ -817,7 +846,7 @@ export async function addTicketNoteAction(
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                actorDiscordId: user.id || "unknown",
+                actorDiscordId: resolveActorDiscordId(user),
                 actorName: user.name || "Staff",
                 action: "NOTE_ADD",
             },
@@ -880,7 +909,8 @@ export async function closeTicketAction(
             data: {
                 status: "CLOSED",
                 closedAt: new Date(),
-                closedByDiscordId: user.id || "unknown",
+                // Nullable : si le flocon est inconnu on n'écrit **rien** (jamais un cuid).
+                closedByDiscordId: resolveActorDiscordId(user, null),
                 closedByName: user.name || "Staff",
                 closedReason: reason || "Fermé par le Staff",
             },
@@ -890,7 +920,7 @@ export async function closeTicketAction(
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                actorDiscordId: user.id || "unknown",
+                actorDiscordId: resolveActorDiscordId(user),
                 actorName: user.name || "Staff",
                 action: "CLOSE",
                 // L'archive est traçable : nature, complétude et échéance.
@@ -971,6 +1001,31 @@ export async function closeTicketAction(
             });
         }
 
+        // 4. Enquête de satisfaction — **même service que la fermeture depuis Discord**
+        // (`sendTicketCsatSurvey`). La fermeture dashboard n'en envoyait aucune : le vote
+        // ne partait donc jamais quand un staff fermait depuis la boîte de réception.
+        const csat = await sendTicketCsatSurvey({
+            ticket: {
+                id: ticket.id,
+                ticketNumber: ticket.ticketNumber,
+                creatorDiscordId: ticket.creatorDiscordId,
+                discordChannelId: ticket.discordChannelId,
+            },
+            guildName: ticket.guild.name,
+            motifName: ticket.journey?.name || ticket.category?.name || "Support",
+            settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+            enableCsat: ticketConfig?.enableCsat !== false,
+        });
+        if (!csat.sent && csat.reason !== "disabled") {
+            // Jamais un échec muet : l'écran dit « clôturé », le log dit que l'avis n'est
+            // pas parti (et pourquoi).
+            logger.warn("[closeTicketAction] enquête de satisfaction non envoyée", {
+                ticketId: ticket.id,
+                reason: csat.reason,
+                detail: csat.detail,
+            });
+        }
+
         revalidatePath(`/dashboard/${guildId}/tickets`);
         return { success: true, data: updated };
     } catch (error: any) {
@@ -1009,7 +1064,7 @@ export async function renameTicketAction(
             data: {
                 ticketId,
                 guildId: guildConfig.id,
-                actorDiscordId: user.id || "unknown",
+                actorDiscordId: resolveActorDiscordId(user),
                 actorName: user.name || "Staff",
                 action: "RENAME",
                 detailsJson: { newName },
@@ -3026,78 +3081,28 @@ export async function internalHandleTicketClose(params: {
             },
         });
 
-        // Enquête de satisfaction (seul le créateur vote, garde `creator`).
-        // Destination au choix du staff : `TICKET` = boutons dans le salon fermé
-        // (non supprimé, le créateur y garde l'accès en lecture) ; `DM` = message
-        // privé (repli : si les MP sont fermés, l'avis est perdu en silence).
-        if (ticketConfig?.enableCsat && ticket.creatorDiscordId) {
-            const closeMessaging = readTicketMessagingSettings(
-                (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
-            );
-            const csatLang = resolveTicketLang(closeMessaging.ticketLanguage);
-            const motifName = ticket.journey?.name || ticket.category?.name || "Support";
-            const csatEmbed =
-                csatLang === "en"
-                    ? {
-                          title: `⭐ Your feedback on Ticket #${ticket.ticketNumber}`,
-                          description: `Your ticket about **${motifName}** on **${ticket.guild.name}** has just been closed.\n\nHow would you rate the handling of your request?`,
-                          color: 0x5865f2,
-                          footer: { text: "SigilOS Feedback" },
-                      }
-                    : {
-                          title: `⭐ Votre avis sur le Ticket #${ticket.ticketNumber}`,
-                          description: `Votre ticket concernant **${motifName}** sur **${ticket.guild.name}** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?`,
-                          color: 0x5865f2,
-                          footer: { text: "SigilOS Feedback" },
-                      };
-            const csatComponents = [
-                {
-                    type: 1, // Action Row
-                    components: [1, 2, 3, 4, 5].map((star) => ({
-                        type: 2,
-                        style: 2, // Secondary
-                        label: `${"⭐".repeat(star)}`,
-                        custom_id: `tb:csat:${ticket.id}:${star}`,
-                    })),
-                },
-            ];
-            if (closeMessaging.csatDestination === "TICKET" && ticket.discordChannelId) {
-                await sendChannelMessage(ticket.discordChannelId, `<@${ticket.creatorDiscordId}>`, {
-                    embedTitle: String(csatEmbed.title),
-                    embedColor: 0x5865f2,
-                    embedDescription: String(csatEmbed.description),
-                    embedFooter: "SigilOS Feedback",
-                    components: csatComponents as DiscordActionRow[],
-                }).catch(() => {});
-            } else {
-                const { fetchWithRetry, DISCORD_USER_AGENT } = await import("@/server/discord");
-                const token = process.env.DISCORD_BOT_TOKEN;
-                if (token) {
-                    // Open DM channel
-                    const dmRes = await fetchWithRetry("/api/v10/users/@me/channels", {
-                        method: "POST",
-                        headers: {
-                            Authorization: `Bot ${token}`,
-                            "Content-Type": "application/json",
-                            "User-Agent": DISCORD_USER_AGENT,
-                        },
-                        body: JSON.stringify({ recipient_id: ticket.creatorDiscordId }),
-                    });
-
-                    if (dmRes.ok) {
-                        const dmChannel = await dmRes.json();
-                        await fetchWithRetry(`/api/v10/channels/${dmChannel.id}/messages`, {
-                            method: "POST",
-                            headers: {
-                                Authorization: `Bot ${token}`,
-                                "Content-Type": "application/json",
-                                "User-Agent": DISCORD_USER_AGENT,
-                            },
-                            body: JSON.stringify({ embeds: [csatEmbed], components: csatComponents }),
-                        }).catch(() => {});
-                    }
-                }
-            }
+        // Enquête de satisfaction (seul le créateur vote, garde `creator`) — **service
+        // partagé** avec la fermeture depuis le dashboard (`sendTicketCsatSurvey`) :
+        // mention du demandeur, et **repli** dans le salon fermé si les MP sont fermés
+        // (avant : un MP refusé perdait l'avis en silence).
+        const csat = await sendTicketCsatSurvey({
+            ticket: {
+                id: ticket.id,
+                ticketNumber: ticket.ticketNumber,
+                creatorDiscordId: ticket.creatorDiscordId,
+                discordChannelId: ticket.discordChannelId,
+            },
+            guildName: ticket.guild.name,
+            motifName: ticket.journey?.name || ticket.category?.name || "Support",
+            settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+            enableCsat: ticketConfig?.enableCsat !== false,
+        });
+        if (!csat.sent && csat.reason !== "disabled") {
+            logger.warn("[internalHandleTicketClose] enquête de satisfaction non envoyée", {
+                ticketId: ticket.id,
+                reason: csat.reason,
+                detail: csat.detail,
+            });
         }
 
         // Delete Discord channel

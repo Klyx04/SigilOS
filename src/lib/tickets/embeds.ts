@@ -224,6 +224,27 @@ export function buildTicketWelcomeEmbed(input: {
     return embed;
 }
 
+/**
+ * Champs Discord d'un embed : **25 maximum**. Le contrat de formulaire borne déjà les
+ * questions à `TICKET_FORM_MAX_FIELDS` (20) : aucune réponse ne peut donc être perdue ici.
+ * La constante reste explicite (et testée contre la borne des questions) pour qu'une
+ * future hausse du nombre de questions ne se traduise pas par des réponses muettes.
+ */
+export const DISCORD_EMBED_FIELDS_MAX = 25;
+
+/**
+ * Valeur d'un champ de réponse, **honnête** : mentions neutralisées, et si Discord impose
+ * une coupe (1 024 caractères — un paragraphe peut monter à 4 000), on l'**écrit** au lieu
+ * de tronquer en silence.
+ */
+function embedAnswerValue(raw: string): string {
+    const text = neutralizeMentions(raw);
+    if (!text.trim()) return "*Non renseigné*";
+    if (text.length <= DISCORD_FIELD_VALUE_MAX) return text;
+    const marker = " … *(suite dans la copie des messages)*";
+    return `${truncate(text, Math.max(1, DISCORD_FIELD_VALUE_MAX - marker.length))}${marker}`;
+}
+
 /** Embed n°2 — **réponses du questionnaire** (absent en ouverture directe). */
 export function buildTicketAnswersEmbed(input: {
     ticketNumber: number;
@@ -233,16 +254,45 @@ export function buildTicketAnswersEmbed(input: {
 }): Record<string, unknown> | null {
     const rows = formatAnswersForDisplay(input.form, input.answers);
     if (rows.length === 0) return null;
+
     return {
         title: input.lang === "en" ? `📋 Ticket #${input.ticketNumber} — Answers` : `📋 Ticket #${input.ticketNumber} — Réponses`,
         color: 0x57f287,
-        fields: rows.slice(0, 25).map((row) => ({
+        fields: rows.slice(0, DISCORD_EMBED_FIELDS_MAX).map((row) => ({
             name: truncate(`📋 ${row.label}`, DISCORD_TITLE_MAX),
-            value: sanitizeEmbedText(row.value) || "*Non renseigné*",
+            value: embedAnswerValue(row.value),
             inline: false,
         })),
         footer: { text: "SigilOS Ticket System" },
         timestamp: new Date().toISOString(),
+    };
+}
+
+/**
+ * Embed de l'**enquête de satisfaction** (pur : le serveur l'envoie, en MP ou dans le
+ * salon fermé). Une seule source de vérité ⇒ la fermeture depuis Discord **et** depuis
+ * le dashboard posent exactement la même question (constat : le chemin dashboard
+ * n'envoyait aucune enquête).
+ */
+export function buildTicketCsatEmbed(input: {
+    ticketNumber: number;
+    motifName: string;
+    guildName: string;
+    lang?: TicketLang;
+}): { title: string; description: string; color: number; footer: { text: string } } {
+    if (input.lang === "en") {
+        return {
+            title: `⭐ Your feedback on Ticket #${input.ticketNumber}`,
+            description: `Your ticket about **${input.motifName}** on **${input.guildName}** has just been closed.\n\nHow would you rate the handling of your request?`,
+            color: 0x5865f2,
+            footer: { text: "SigilOS Feedback" },
+        };
+    }
+    return {
+        title: `⭐ Votre avis sur le Ticket #${input.ticketNumber}`,
+        description: `Votre ticket concernant **${input.motifName}** sur **${input.guildName}** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?`,
+        color: 0x5865f2,
+        footer: { text: "SigilOS Feedback" },
     };
 }
 

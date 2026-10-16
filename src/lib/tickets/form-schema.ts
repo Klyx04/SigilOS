@@ -399,6 +399,23 @@ export function buildTicketModalRows(form: TicketFormDefinition): DiscordActionR
     return buildTicketModalPage(form, 0).rows;
 }
 
+/** Libellé de bouton du canal : Discord en accepte 80 caractères, jamais une coupe muette. */
+export const DISCORD_BUTTON_LABEL_MAX = 80;
+
+/**
+ * « Oui — Es-tu en reprise du jeu ? » : quand **plusieurs** questions à choix sont posées
+ * sur le même message, un bouton « Oui » tout seul ne dit pas à quoi il répond. Le libellé
+ * de la question est donc repris sur le bouton (et non perdu), sans dépasser 80 caractères.
+ */
+export function choiceButtonLabel(answerLabel: string, questionLabel: string): string {
+    const answer = (answerLabel || "?").trim().slice(0, DISCORD_BUTTON_LABEL_MAX) || "?";
+    const question = (questionLabel || "").trim();
+    const room = DISCORD_BUTTON_LABEL_MAX - answer.length - 3; // « — »
+    if (!question || room < 8) return answer;
+    const clipped = question.length > room ? `${question.slice(0, room - 1)}…` : question;
+    return `${answer} — ${clipped}`;
+}
+
 /**
  * Étape « choix » (message éphémère **avant** la modale) : Oui/Non en boutons,
  * sélections en menu. 5 lignes au plus par message — `remainingFieldIds` dit
@@ -407,17 +424,22 @@ export function buildTicketModalRows(form: TicketFormDefinition): DiscordActionR
  * ⚠️ Le `custom_id` porte le **parcours** (`tb_pick:<journeyId>:<fieldId>`) : c'est lui
  * qui permet de retrouver le brouillon du membre au clic, sans jamais faire confiance à
  * un identifiant venu du client.
+ *
+ * `prompts` (= les libellés des questions posées, dans l'ordre) sert à les **écrire** dans
+ * le message : sans ça, deux questions Oui/Non donnaient quatre boutons muets.
  */
 export function buildChoiceStep(
     form: TicketFormDefinition,
     options: { journeyId: string; answers?: Record<string, unknown> }
-): { rows: DiscordActionRow[]; fieldIds: string[]; remainingFieldIds: string[] } {
+): { rows: DiscordActionRow[]; fieldIds: string[]; prompts: string[]; remainingFieldIds: string[] } {
     const journeyId = options.journeyId;
     const answers = options.answers ?? {};
     const { choices } = splitTicketForm(form);
     const pending = choices.filter((field) => answers[field.id] === undefined || answers[field.id] === null);
     const covered = pending.slice(0, TICKET_MODAL_LIMITS.maxRows);
     const rest = pending.slice(TICKET_MODAL_LIMITS.maxRows);
+    // Plusieurs questions sur un même message ⇒ chaque bouton porte son libellé de question.
+    const needsContext = covered.length > 1;
 
     const rows: DiscordActionRow[] = covered.map((field) => {
         if (field.kind === "yes_no") {
@@ -427,13 +449,17 @@ export function buildChoiceStep(
                     {
                         type: DISCORD_BUTTON,
                         style: 3,
-                        label: field.yesLabel.slice(0, 80),
+                        label: needsContext
+                            ? choiceButtonLabel(field.yesLabel, field.label)
+                            : field.yesLabel.slice(0, DISCORD_BUTTON_LABEL_MAX),
                         custom_id: `tb_pick:${journeyId}:${field.id}:${TICKET_YES_VALUE}`,
                     },
                     {
                         type: DISCORD_BUTTON,
                         style: 4,
-                        label: field.noLabel.slice(0, 80),
+                        label: needsContext
+                            ? choiceButtonLabel(field.noLabel, field.label)
+                            : field.noLabel.slice(0, DISCORD_BUTTON_LABEL_MAX),
                         custom_id: `tb_pick:${journeyId}:${field.id}:${TICKET_NO_VALUE}`,
                     },
                 ],
@@ -447,6 +473,7 @@ export function buildChoiceStep(
                 {
                     type: DISCORD_STRING_SELECT,
                     custom_id: `tb_pick:${journeyId}:${field.id}`,
+                    // Le menu n'a pas de bouton porteur : le libellé vit dans le placeholder.
                     placeholder: field.label.slice(0, TICKET_MODAL_LIMITS.placeholderMax),
                     min_values: isMulti ? (field.required ? 1 : 0) : 1,
                     max_values: isMulti ? field.maxChoices : 1,
@@ -463,6 +490,7 @@ export function buildChoiceStep(
     return {
         rows,
         fieldIds: covered.map((field) => field.id),
+        prompts: covered.map((field) => field.label),
         remainingFieldIds: rest.map((field) => field.id),
     };
 }

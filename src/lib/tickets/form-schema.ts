@@ -399,6 +399,70 @@ export function buildTicketModalRows(form: TicketFormDefinition): DiscordActionR
     return buildTicketModalPage(form, 0).rows;
 }
 
+/**
+ * 🆕 **Étapes ordonnées du questionnaire** (demande user du 16/10/2026 : « on devrait
+ * pouvoir ordonner les questions dans un ordre précis »).
+ *
+ * Une suite de questions texte = **une page de modale** (5 lignes au plus, contrainte
+ * Discord) ; un groupe de questions à choix = **une étape à sa position** (5 choix par
+ * message). Avant, tous les choix passaient d'abord, quoi qu'ait saisi l'admin : l'écran
+ * ne le disait qu'en tout petit, d'où l'incompréhension.
+ */
+export type TicketFormStep =
+    | { kind: "choices"; fieldIds: string[] }
+    | { kind: "texts"; fieldIds: string[] };
+
+/** Découpe le formulaire en étapes **dans l'ordre de l'admin** (aucun champ perdu). */
+export function buildTicketFormSteps(form: TicketFormDefinition): TicketFormStep[] {
+    const steps: TicketFormStep[] = [];
+    let buffer: string[] = [];
+
+    const flushTexts = () => {
+        if (buffer.length === 0) return;
+        steps.push({ kind: "texts", fieldIds: buffer });
+        buffer = [];
+    };
+
+    for (const field of form.fields) {
+        if (field.kind === "info") continue;
+
+        if (field.kind === "text_short" || field.kind === "text_long") {
+            buffer.push(field.id);
+            if (buffer.length >= TICKET_MODAL_LIMITS.maxRows) flushTexts();
+            continue;
+        }
+
+        // Question à choix : à **sa** position, groupée avec ses voisines (limite Discord).
+        const previous = steps[steps.length - 1];
+        if (previous?.kind === "choices" && previous.fieldIds.length < TICKET_MODAL_LIMITS.maxRows) {
+            previous.fieldIds.push(field.id);
+            continue;
+        }
+        flushTexts();
+        steps.push({ kind: "choices", fieldIds: [field.id] });
+    }
+
+    flushTexts();
+    return steps;
+}
+
+/**
+ * Modale construite depuis une liste **explicite** de questions texte (l'ordre est celui
+ * de la liste) : c'est ce qui permet d'intercaler choix et textes sans rien perdre.
+ */
+export function buildTicketModalForFields(
+    fields: Array<TicketTextField | TicketParagraphField>,
+    meta: { index: number; count: number }
+): { rows: DiscordActionRow[]; fieldIds: string[]; page: number; pageCount: number; isLast: boolean } {
+    return {
+        rows: fields.map(buildModalRow),
+        fieldIds: fields.map((field) => field.id),
+        page: meta.index,
+        pageCount: meta.count,
+        isLast: meta.count === 0 || meta.index >= meta.count - 1,
+    };
+}
+
 /** Libellé de bouton du canal : Discord en accepte 80 caractères, jamais une coupe muette. */
 export const DISCORD_BUTTON_LABEL_MAX = 80;
 
@@ -430,14 +494,20 @@ export function choiceButtonLabel(answerLabel: string, questionLabel: string): s
  */
 export function buildChoiceStep(
     form: TicketFormDefinition,
-    options: { journeyId: string; answers?: Record<string, unknown> }
+    options: { journeyId: string; answers?: Record<string, unknown>; fieldIds?: string[] }
 ): { rows: DiscordActionRow[]; fieldIds: string[]; prompts: string[]; remainingFieldIds: string[] } {
     const journeyId = options.journeyId;
     const answers = options.answers ?? {};
     const { choices } = splitTicketForm(form);
     const pending = choices.filter((field) => answers[field.id] === undefined || answers[field.id] === null);
-    const covered = pending.slice(0, TICKET_MODAL_LIMITS.maxRows);
-    const rest = pending.slice(TICKET_MODAL_LIMITS.maxRows);
+
+    // Deux modes : les champs **explicites** d'une étape ordonnée (l'admin a choisi l'ordre),
+    // ou à défaut les premiers choix en attente (appel direct, écran de simulation).
+    const requested = (options.fieldIds ?? [])
+        .map((fieldId) => pending.find((field) => field.id === fieldId))
+        .filter((field): field is (typeof pending)[number] => Boolean(field));
+    const covered = (requested.length > 0 ? requested : pending).slice(0, TICKET_MODAL_LIMITS.maxRows);
+    const rest = options.fieldIds && options.fieldIds.length > 0 ? [] : pending.slice(TICKET_MODAL_LIMITS.maxRows);
     // Plusieurs questions sur un même message ⇒ chaque bouton porte son libellé de question.
     const needsContext = covered.length > 1;
 

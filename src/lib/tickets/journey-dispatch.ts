@@ -130,6 +130,7 @@ export function buildTicketModalSubmittedReply(input: {
                 `${input.step.fieldIds.length} question(s) sur la page suivante.`,
             components: buildTicketModalContinueRows({
                 journeyId: input.journeyId,
+                stepIndex: input.step.stepIndex,
                 page: input.step.page,
                 pageCount: input.step.pageCount,
                 fieldCount: input.step.fieldIds.length,

@@ -22,6 +22,8 @@ import {
     X,
     ListPlus,
     ArrowRight,
+    ArrowUp,
+    ArrowDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -194,6 +196,21 @@ export function TicketMotifsTab({
 
     const removeQuestion = (key: string) => {
         setQuestions((previous) => previous.filter((item) => item.key !== key));
+    };
+
+    /**
+     * 🆕 **Réordonne une question** (16/10/2026) : l'ordre affiché ici est **exactement**
+     * celui posé au membre (`buildTicketFormSteps` — les textes forment des pages de 5, les
+     * questions à choix se répondent à leur place).
+     */
+    const moveQuestion = (index: number, direction: -1 | 1) => {
+        setQuestions((previous) => {
+            const target = index + direction;
+            if (target < 0 || target >= previous.length) return previous;
+            const next = [...previous];
+            [next[index], next[target]] = [next[target], next[index]];
+            return next;
+        });
     };
 
     const handleSave = () => {
@@ -668,8 +685,9 @@ export function TicketMotifsTab({
                                 <div>
                                     <h4 className="font-bold text-foreground">Questionnaire d'ouverture</h4>
                                     <p className="text-[11px] text-muted-foreground">
-                                        Les Oui/Non et les choix se répondent avant la modale, les textes 5 par 5.
-                                        Vide = ouverture directe.
+                                        L&apos;ordre ci-dessous est <strong>exactement</strong> celui posé au membre :
+                                        les questions texte sont groupées par 5 (une modale), les questions à choix se
+                                        répondent <strong>à leur place</strong>. Vide = ouverture directe.
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-1">
@@ -703,9 +721,31 @@ export function TicketMotifsTab({
                                                 <span className="font-bold text-emerald-400 text-xs">
                                                     Question #{index + 1} — {MOTIF_QUESTION_KIND_LABELS[question.kind]}
                                                 </span>
-                                                <button type="button" onClick={() => removeQuestion(question.key)} className="text-muted-foreground hover:text-destructive">
-                                                    <X className="h-3.5 w-3.5" />
-                                                </button>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => moveQuestion(index, -1)}
+                                                        disabled={index === 0}
+                                                        title="Monter la question"
+                                                        aria-label={`Monter la question ${index + 1}`}
+                                                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                                    >
+                                                        <ArrowUp className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => moveQuestion(index, 1)}
+                                                        disabled={index === questions.length - 1}
+                                                        title="Descendre la question"
+                                                        aria-label={`Descendre la question ${index + 1}`}
+                                                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                                    >
+                                                        <ArrowDown className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <button type="button" onClick={() => removeQuestion(question.key)} className="text-muted-foreground hover:text-destructive">
+                                                        <X className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-2">

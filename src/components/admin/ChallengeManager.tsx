@@ -18,7 +18,7 @@ import {
     deleteChallenge,
 } from "@/server/actions/game-data-admin-actions";
 import { Trophy, Trash2, Edit2, Plus, Search, MoreHorizontal, ImageIcon } from "lucide-react";
-import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { AchievementIcon } from "@/components/ui/achievement-icon";
 import { Badge } from "@/components/ui/badge";
 import { ImageDownloader } from "./ImageDownloader";
 import { LocalImagePicker } from "./LocalImagePicker";
@@ -144,10 +144,10 @@ export default function ChallengeManager() {
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     {filteredChallenges.map((challenge) => {
-                        // Résolution UNIQUE avec les fiches (`@/lib/achievement-icon`) : jamais de
-                        // hotlink DofusDB (bloqué par le CSP) ni de chemin reconstruit depuis le
-                        // slug — bug « Spécial » du 12/10/2026 (`slug: sp-cial` vs `spécial.png`).
-                        const iconSrc = getAchievementIconUrl(challenge.slug, challenge.iconUrl);
+                        // Résolution UNIQUE avec les fiches (`<AchievementIcon>` → `@/lib/achievement-icon`) :
+                        // jamais de hotlink DofusDB (bloqué par le CSP), jamais un chemin reconstruit depuis
+                        // le slug (bug « Spécial » du 12/10/2026 : `slug: sp-cial` vs `spécial.png`) et
+                        // jamais d'image cassée (repli Trophy sur `onError`, mesure du 16/10/2026).
                         return (
                         <div
                             key={challenge.id}
@@ -173,11 +173,13 @@ export default function ChallengeManager() {
 
                             <div className="flex flex-col items-center text-center gap-3">
                                 <div className="w-12 h-12 rounded-lg bg-elevated border border-border flex items-center justify-center p-1 group-hover:border-info/50 transition-colors">
-                                    {iconSrc ? (
-                                        <img src={iconSrc} alt={challenge.name} className="w-full h-full object-contain" />
-                                    ) : (
-                                        <Trophy className="w-6 h-6 text-muted-foreground" />
-                                    )}
+                                    <AchievementIcon
+                                        iconUrl={challenge.iconUrl}
+                                        slug={challenge.slug}
+                                        label={challenge.name}
+                                        size={40}
+                                        fallbackClassName="text-muted-foreground"
+                                    />
                                 </div>
 
                                 <div className="space-y-1 w-full">

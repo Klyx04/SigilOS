@@ -42,7 +42,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
 import { getDungeonFinderConfig } from "@/server/actions/dungeon-finder-actions";
 import { Eye } from "lucide-react";
-import { questThumbnail, QUEST_ICON_FALLBACK } from "@/lib/dungeon-finder-utils";
+import { QuestThumbnail } from "./quest-thumbnail";
 
 /** Les 4 modes du chercheur de groupe. */
 type FinderMode = "DONJON" | "QUETE" | "DEFI" | "TITAN";
@@ -823,17 +823,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                                 className="w-full text-left px-3 py-2.5 text-sm text-foreground hover:bg-muted hover:text-foreground transition-colors border-b border-border/50 last:border-0 flex items-center gap-3"
                                                                             >
                                                                                 {/* Vrai visuel de la quête (carte de départ du jeu, sinon icône de quête
-                                                                                    Dofus) et plus aucun id technique `#606` dans la liste. */}
+                                                                                    Dofus) et plus aucun id technique `#606` dans la liste.
+                                                                                    Repli sur l'icône si la carte manque du cache disque
+                                                                                    (`<QuestThumbnail>` : jamais d'image cassée). */}
                                                                                 <span className="w-14 h-10 rounded-lg overflow-hidden bg-background border border-border shrink-0">
-                                                                                    {/* Carte absente du cache disque ⇒ repli sur l'icône de quête
-                                                                                        (jamais d'image cassée dans la liste). */}
-                                                                                    <img
-                                                                                        src={questThumbnail(q)}
-                                                                                        alt=""
-                                                                                        className="w-full h-full object-cover"
-                                                                                        loading="lazy"
-                                                                                        onError={(e) => { e.currentTarget.src = QUEST_ICON_FALLBACK; }}
-                                                                                    />
+                                                                                    <QuestThumbnail quest={q} />
                                                                                 </span>
                                                                                 <span className="truncate block font-medium min-w-0">{q.name?.fr}</span>
                                                                             </button>

@@ -335,6 +335,11 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             emptyTitle="Aucun rôle bloqué"
                             description="Ces rôles ne peuvent pas ouvrir de ticket et ne peuvent pas agir sur un ticket (fail-closed : un rôle absent de cette liste n'est pas bloqué)."
                         />
+                        <p className="text-[11px] text-muted-foreground pt-1">
+                            ℹ️ Ici on <strong>bloque</strong>. Pour choisir <strong>qui a le droit d&apos;ouvrir</strong>,
+                            c&apos;est par type de demande : onglet <strong>« Types de Demande »</strong>, bouton crayon du
+                            type, champ <strong>« Qui peut ouvrir ce type de demande ? »</strong>.
+                        </p>
                     </div>
                 </div>
             </div>

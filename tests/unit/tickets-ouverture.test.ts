@@ -159,10 +159,17 @@ describe("le branchement serveur (gardes de source)", () => {
     });
 
     it("envoie les messages du motif à la création (équipe + demandeur)", () => {
+        // 16/10/2026 — l'action ne compose plus les deux messages en direct : elle passe
+        // par UNE brique (`buildTicketOpeningContent`), qui applique elle-même
+        // `buildTicketNotifyContentWithTemplate` (rôles) + `buildTicketCreatorContent`
+        // (demandeur). La garde suit le branchement réel **et** vérifie la chaîne entière.
         const actions = codeOnly(read("src/server/actions/ticket-bot-actions.ts"));
-        expect(actions).toContain("buildTicketNotifyContentWithTemplate(");
-        expect(actions).toContain("buildTicketCreatorContent(");
+        expect(actions).toContain("buildTicketOpeningContent(");
         expect(actions).toContain("notifyMessage: categoryOverride?.notifyMessage ?? null");
         expect(actions).toContain("creatorMessage: categoryOverride?.creatorMessage ?? null");
+
+        const notifications = codeOnly(read("src/lib/tickets/notifications.ts"));
+        expect(notifications).toContain("buildTicketNotifyContentWithTemplate({");
+        expect(notifications).toContain("buildTicketCreatorContent({");
     });
 });

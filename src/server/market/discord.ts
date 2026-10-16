@@ -20,6 +20,7 @@ import {
     deleteChannel,
     deleteChannelMessage,
     fetchChannel,
+    postChannelMessage,
     sendChannelMessage,
     updateChannelMessage,
     updateForumThreadTags,
@@ -29,6 +30,7 @@ import {
     buildForumPostName,
     buildMarketDiscordPayload,
     pickMarketEmbedImage,
+    type MarketDiscordPayload,
     type MarketDiscordPayloadInput,
     type MarketDiscordStatus,
 } from "@/lib/market/discord-payload";
@@ -563,6 +565,30 @@ export async function publishListingToDiscord(
  * jamais le lot entier. Les messages publiés avant cette livraison (sans bouton)
  * sont réécrits à la première synchronisation, donc rattrapés automatiquement.
  */
+/**
+ * Corps **brut** (embed + boutons) d'un payload Marché.
+ *
+ * Nécessaire pour publier/patch **dans un fil** : `sendChannelMessage` construit l'embed
+ * à partir d'options et **refuse** un salon forum (`400 code 50008`), tandis que
+ * `postChannelMessage` / `patchChannelMessage` attendent le corps Discord brut.
+ */
+function marketPayloadBody(built: MarketDiscordPayload): Record<string, unknown> {
+    return {
+        embeds: [{
+            title: built.embedTitle,
+            color: built.embedColor,
+            description: built.embedDescription,
+            footer: built.embedFooterIconUrl
+                ? { text: built.embedFooter, icon_url: built.embedFooterIconUrl }
+                : { text: built.embedFooter },
+            thumbnail: built.embedThumbnail ? { url: built.embedThumbnail } : undefined,
+            image: built.embedImage ? { url: built.embedImage } : undefined,
+            fields: built.fields,
+        }],
+        components: built.components,
+    };
+}
+
 export async function syncBundleComponentMessages(
     listingId: string,
     pingRoleIds?: string[]
@@ -640,32 +666,83 @@ export async function syncBundleComponentMessages(
         let mentionUsed = false;
 
         /**
-         * 🧺 **Migration silencieuse (18/09/2026)** — avant ce correctif, publier un
-         * LOT créait **un** message d'annonce (embed unique listant les objets).
-         * Ce message n'a plus de raison d'être (le lot vit par ses messages par
-         * objet) et resterait sinon **en doublon** dans le salon (constat : le post
-         * « hérité » restait affiché à côté des objets). On l'efface donc au
-         * **premier** passage du chemin par objet, puis on vide sa trace.
+         * 🧺 **UN post par annonce, un message par objet** (constat user du 16/10/2026 :
+         * « un post multi lot génère un post forum par lot, c'est pénible »).
+         *
+         * Le post est porté par `MarketDiscordMessage` (`listingId` unique) : créé **une
+         * fois**, il est réutilisé à chaque synchronisation, et son message d'ouverture
+         * devient le **chapeau du lot** (nom, vendeur, objets, ping). Chaque objet est
+         * ensuite publié/réécrit **dans ce fil** (`postChannelMessage` / PATCH).
          */
-        const legacyMessage = listing.discordMessage;
-        if (legacyMessage?.discordMessageId) {
-            const legacyId = await resolveMarketMessageId(
-                legacyMessage.discordMessageId,
-                listingMessageKey(listingId)
-            );
-            if (legacyId) {
-                await deleteMarketMessage(legacyMessage.discordChannelId, legacyId, forumMode).catch(() => false);
+        let threadId: string | null = null;
+        if (forumMode) {
+            const storedChannelId = listing.discordMessage?.discordChannelId || null;
+            const storedMessageId = listing.discordMessage?.discordMessageId || null;
+            const storedChannel = storedChannelId
+                ? await fetchChannel(storedChannelId).catch(() => null)
+                : null;
+            // Un **fil de ce salon forum** : seul cas où on réutilise le post existant
+            // (jamais un salon `type 15`, jamais le fil d'un autre salon).
+            const isOurThread = !!storedChannel
+                && storedChannel.type !== 15
+                && storedChannel.parent_id === listing.guild.marketNotifyChannelId;
+
+            const chapeau = buildMarketDiscordPayload(base);
+            const chapeauOptions = {
+                embedTitle: chapeau.embedTitle,
+                embedColor: chapeau.embedColor,
+                embedDescription: chapeau.embedDescription,
+                embedFooter: chapeau.embedFooter,
+                embedFooterIconUrl: chapeau.embedFooterIconUrl,
+                embedThumbnail: chapeau.embedThumbnail,
+                fields: chapeau.fields,
+                components: chapeau.components,
+            };
+
+            if (isOurThread && storedChannelId && storedMessageId) {
+                // Le post existe : son message d'ouverture **devient** le chapeau (aucun doublon).
+                await updateChannelMessage(storedChannelId, storedMessageId, "", chapeauOptions).catch(() => false);
+                threadId = storedChannelId;
+            } else {
+                // Annonce héritée hors forum (salon texte) : le post du lot la remplace.
+                if (storedChannelId && storedMessageId) {
+                    const legacyId = await resolveMarketMessageId(storedMessageId, listingMessageKey(listingId));
+                    await deleteMarketMessage(
+                        storedChannelId,
+                        legacyId ?? storedMessageId,
+                        !!storedChannel?.parent_id
+                    ).catch(() => false);
+                }
+                const post = await createForumPost(
+                    listing.guild.marketNotifyChannelId,
+                    buildForumPostName(base),
+                    mentionContent,
+                    { ...chapeauOptions, appliedTags }
+                );
+                if (!post) throw new Error("Création du post du lot refusée");
+                threadId = post.id;
+                await db.marketDiscordMessage.upsert({
+                    where: { listingId },
+                    create: {
+                        listingId,
+                        discordGuildId: listing.guild.discordGuildId,
+                        discordChannelId: post.id,
+                        discordMessageId: post.messageId,
+                        syncStatus: "OK",
+                        lastSyncedAt: new Date(),
+                    },
+                    update: {
+                        discordChannelId: post.id,
+                        discordMessageId: post.messageId,
+                        syncStatus: "OK",
+                        lastError: null,
+                        lastSyncedAt: new Date(),
+                    },
+                });
+                // Le ping part avec le post (le worker d'outbox n'est pas concerné ici :
+                // `createForumPost` est synchrone et fail-closed).
+                mentionUsed = true;
             }
-            await db.marketDiscordMessage.updateMany({
-                where: { listingId },
-                data: {
-                    discordChannelId: "",
-                    discordMessageId: "",
-                    syncStatus: "OK",
-                    lastError: null,
-                    lastSyncedAt: new Date(),
-                },
-            });
         }
 
         for (const component of components) {
@@ -738,6 +815,31 @@ export async function syncBundleComponentMessages(
                 components: componentBuilt.components,
             };
 
+            /**
+             * 🧺 **Migration silencieuse** — un objet publié par l'ANCIEN format vit dans
+             * **son propre post forum** (`discordChannelId` ≠ fil du lot). On retire ce post
+             * puis on republie l'objet dans le post du lot : sans ça, le nouveau format
+             * laisserait N posts orphelins à côté (constat du 16/10/2026).
+             */
+            if (forumMode && threadId && component.discordMessageId && component.discordChannelId
+                && component.discordChannelId !== threadId) {
+                const legacyId = await resolveMarketMessageId(
+                    component.discordMessageId,
+                    componentMessageKey(component.id)
+                );
+                await deleteMarketMessage(
+                    component.discordChannelId,
+                    legacyId ?? component.discordMessageId,
+                    true
+                ).catch(() => false);
+                await db.marketListingComponent.update({
+                    where: { id: component.id },
+                    data: { discordChannelId: null, discordMessageId: null },
+                });
+                component.discordChannelId = null;
+                component.discordMessageId = null;
+            }
+
             if (component.discordMessageId && component.discordChannelId) {
                 // ID `outbox:<jobId>` (mode dégradé) : on résout le vrai snowflake
                 // avant d'éditer — sinon on PATCH une URL invalide à chaque passe.
@@ -793,16 +895,12 @@ export async function syncBundleComponentMessages(
             let messageId: string;
             let messageChannelId = listing.guild.marketNotifyChannelId;
 
-            if (forumMode) {
-                const post = await createForumPost(
-                    listing.guild.marketNotifyChannelId,
-                    buildForumPostName(payload),
-                    mention,
-                    { ...embed, appliedTags }
-                );
-                if (!post) throw new Error("Création du post forum refusée (objet du lot)");
-                messageId = post.messageId;
-                messageChannelId = post.id;
+            if (forumMode && threadId) {
+                // 🧺 Un message **dans le post du lot** — jamais un post par objet.
+                const sent = await postChannelMessage(threadId, marketPayloadBody(componentBuilt));
+                if (!sent) throw new Error("Envoi dans le post du lot refusé");
+                messageId = sent;
+                messageChannelId = threadId;
             } else {
                 const sent = await sendChannelMessage(listing.guild.marketNotifyChannelId, "", {
                     ...embed,

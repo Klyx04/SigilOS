@@ -631,6 +631,8 @@ export async function fetchChannel(channelId: string) {
         guild_id?: string | null;
         name: string | null;
         type: number;
+        /** Salon parent : `parent_id` d'un **fil** (post de forum) = son salon forum. */
+        parent_id?: string | null;
         flags?: number;
         application_id?: string | null;
         // #223 — tags de forum (utilisés pour le post DJ / services) : lire via la couche centrale,

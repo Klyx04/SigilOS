@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { AchievementIcon } from "@/components/ui/achievement-icon";
 import { QuestThumbnail } from "./quest-thumbnail";
+import { MinimapGrid as MinimapGridView } from "@/components/worldmap/minimap-grid";
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -342,24 +343,50 @@ export function DjPostDetailModal({
                             </div>
                         </div>
 
-                        {/* 🗺️ Quête liée : sa **carte de lancement** (asset du jeu, `/game-data/hd_maps/
-                            {mapId}.webp` écrit dans `GameQuest.imageUrl` par le siphon) — DofusDB
-                            n'expose aucune image de quête. Résolue côté serveur à partir de
-                            `questId`, donc **aucune requête par affichage** côté navigateur. */}
+                        {/* 🗺️ Quête liée : sa **capture de zone** — la carte du monde autour de sa map de
+                            lancement, avec le repère (mêmes tuiles que la carte interactive) + lien
+                            direct. DofusDB n'expose aucune image de quête : la donnée vient de notre
+                            `worldmap.json`, résolue côté serveur. Repli : le plan de la map, puis rien. */}
                         {post.questName && (
-                            <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-surface/40 p-2.5">
-                                <span className="w-24 h-16 rounded-lg overflow-hidden bg-background border border-border shrink-0">
-                                    <QuestThumbnail quest={{ imageUrl: post.questImageUrl }} />
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-caption uppercase tracking-widest font-bold text-muted-foreground flex items-center gap-1.5">
-                                        <Map className="w-3.5 h-3.5" /> Quête liée
-                                    </p>
-                                    <p className="text-sm font-semibold text-foreground truncate">{post.questName}</p>
-                                    <p className="text-caption text-muted-foreground">
-                                        {post.questImageUrl ? "Carte de lancement (asset du jeu)" : "Carte de lancement non disponible"}
-                                    </p>
+                            <div className="overflow-hidden rounded-xl border border-border/70 bg-surface/40">
+                                <div className="flex items-center gap-3 p-2.5">
+                                    {!post.questMinimap && (
+                                        <span className="w-24 h-16 rounded-lg overflow-hidden bg-background border border-border shrink-0">
+                                            <QuestThumbnail quest={{ imageUrl: post.questImageUrl }} />
+                                        </span>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-caption uppercase tracking-widest font-bold text-muted-foreground flex items-center gap-1.5">
+                                            <Map className="w-3.5 h-3.5" /> Quête liée
+                                        </p>
+                                        <p className="text-sm font-semibold text-foreground truncate">{post.questName}</p>
+                                        <p className="text-caption text-muted-foreground truncate">
+                                            {post.questMinimap
+                                                ? `Départ en [${post.questMinimap.x}, ${post.questMinimap.y}]${post.questMinimap.subAreaName ? ` · ${post.questMinimap.subAreaName}` : post.questMinimap.worldName ? ` · ${post.questMinimap.worldName}` : ""}`
+                                                : post.questImageUrl
+                                                    ? "Carte de lancement (asset du jeu)"
+                                                    : "Carte de lancement non disponible"}
+                                        </p>
+                                    </div>
+                                    {post.questMinimap && (
+                                        <a
+                                            href={post.questMinimap.grid.mapHref}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="shrink-0 text-caption font-semibold text-emerald-400 transition-colors hover:text-emerald-300"
+                                        >
+                                            Carte →
+                                        </a>
+                                    )}
                                 </div>
+                                {post.questMinimap && (
+                                    <a href={post.questMinimap.grid.mapHref} className="group block" title="Ouvrir la carte interactive">
+                                        <MinimapGridView
+                                            grid={post.questMinimap.grid}
+                                            marker={<span className="h-2.5 w-2.5 rounded-full bg-danger" />}
+                                        />
+                                    </a>
+                                )}
                             </div>
                         )}
 

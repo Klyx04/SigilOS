@@ -15,6 +15,8 @@ import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
 import { getDiscordApiCode, getDiscordApiStatus } from "@/lib/discord-api-errors";
 import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates, mergeMultiDungeonRequiredClasses, getDjDungeonStats, getMultiMessageIds, withMultiMessageIds } from "@/lib/dungeon-finder-utils";
+import { questMapIdFromImageUrl, resolveQuestMinimap, type QuestMinimap } from "@/lib/quest-minimap";
+import { getWorldmapData, getWorldsData } from "@/server/game/worldmap-data";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 import { syncDjMirror } from "@/server/agenda-mirror-sync";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
@@ -171,6 +173,13 @@ export type DjPostWithDetails = {
      * `questId`, sinon `null` (jamais une image inventée : DofusDB n'expose aucune image de quête).
      */
     questImageUrl?: string | null;
+    /**
+     * 🗺️ **Capture de zone** de la quête liée : sa map de lancement située sur la carte du monde
+     * (grille de tuiles + repère + lien vers la carte interactive). Résolue côté serveur depuis
+     * `worldmap.json`/`worlds.json` (déjà au dépôt) — `null` dès qu'un maillon manque, jamais un
+     * visuel approximatif.
+     */
+    questMinimap?: QuestMinimap | null;
     /* Mode Défi */
     defiId?: string | null;
     defiName?: string | null;
@@ -1514,6 +1523,13 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
             const url = embedCoverUrl(source, appUrl);
             return url ? { url } : undefined;
         })(),
+        // 🗺️ Capture de zone d'une **quête** : la carte du monde autour de sa map de lancement,
+        // avec le repère. Produite par NOTRE route (`/api/dj/minimap`, PNG) parce que Discord ne
+        // lit pas de HTML et que DofusDB n'expose aucune image de quête (mesuré : 404 partout).
+        // `questId = -1` = quête saisie à la main : pas de zone à situer.
+        image: post.mode === "QUETE" && post.questId && post.questId > 0
+            ? { url: `${appUrl}/api/dj/minimap?quest=${post.questId}` }
+            : undefined,
         footer: {
             text: "SigilOS — Donjons & Quêtes",
         },
@@ -2978,6 +2994,13 @@ export async function getDjPosts(
                 : []
         );
 
+        /* 🗺️ Capture de zone des quêtes liées : `worldmap.json` (14 703 maps → tuile + monde) et
+           `worlds.json` sont lus **une fois** (cache process) puis résolus avec la MÊME règle que
+           l'encart de la fiche donjon (`resolveMinimapLandscape`). La donnée est déjà au dépôt :
+           aucun siphon, aucune migration — et l'image de l'embed Discord lit la même source. */
+        const worldmapData = getWorldmapData();
+        const worldsData = getWorldsData();
+
         const data = await Promise.all(posts.map(async (p: any) => {
             let questUrl = p.questUrl;
             if (p.mode === "QUETE" && !questUrl && p.questName) {
@@ -2990,6 +3013,11 @@ export async function getDjPosts(
                 dungeonsJson: dungeonsJson.length > 0 ? dungeonsJson : p.dungeonsJson,
                 questUrl,
                 questImageUrl: questMapById.get(Number(p.questId)) ?? null,
+                questMinimap: resolveQuestMinimap(
+                    worldmapData,
+                    worldsData,
+                    questMapIdFromImageUrl(questMapById.get(Number(p.questId)) ?? null)
+                ),
             };
         }));
 

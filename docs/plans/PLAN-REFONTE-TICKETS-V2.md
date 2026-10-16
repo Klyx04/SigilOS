@@ -15,7 +15,61 @@
 > Le **mode d'emploi destiné aux chefs de guilde** ne vit pas ici : il est dans le **guide
 > in-app** (fiche `admin-tickets` en base, éditée via `/god/docs`).
 
-## 1. Où en est le chantier (mesuré le 24/09/2026)
+## 0. Session 16/10/2026 — **retours utilisateur** : 4 lots livrés (branche `fix/tickets-lot1-bugs`)
+
+> **Demande user (verbatim)** : 13 questions sur le module ticket (« il n'y a aucun endroit où on
+> définit quel rôle Discord est autorisé à ouvrir un ticket », « pk les gros bots ont des rôles
+> invités ? », « les questions à choix unique et oui/non n'affichent même pas la question »,
+> « je veux définir si oui ou non on ping un ou plusieurs rôles + un message », « on n'a pas les
+> boutons fermer/prendre en charge dans le ticket », « à quoi sert le bouton copie ? », « il y a un
+> bug dans la mention de la personne qui prend en charge », « pk à la clôture le vote satisfaction
+> ne part pas », « les boutons rouvrir/supprimer/copie devraient avoir des droits », « laisse 3-4
+> secondes avant la suppression », « on devrait pouvoir ordonner les questions »).
+>
+> **Mesure (avant tout code, dans le code)** : la mention cassée venait de `user.id` (`User.id`
+> interne, cuid) utilisé comme flocon Discord (`claimTicketAction`, `closeTicketAction`) ;
+> `closeTicketAction` **n'envoyait aucune enquête** de satisfaction ; la barre du salon était
+> construite avec `viewerIsStaff: false` et **jamais** publiée ; `ACTION_ACCESS` figeait les droits
+> des boutons ; le tunnel servait **tous les choix avant** les modales (`splitTicketForm`) ; aucune
+> liste blanche d'ouverture n'existait (seulement une blacklist) ; le libellé du sélecteur partagé
+> disait « Liste blanche / rôles autorisés » **sur l'écran de blacklist**.
+>
+> **Fait (4 lots, 4 commits, aucun fichier laissé derrière)** :
+> ① **bugs** — `getUserContext` expose `discordId` (le flocon, distinct du cuid) et les actions
+> dashboard n'écrivent/pingent plus qu'un flocon ; **une seule** enquête de satisfaction
+> (`src/server/tickets/csat.ts`) sert les **deux** chemins de clôture, avec **repli dans le salon
+> fermé** si les MP sont fermés (décision user) et mention du demandeur ; libellés du sélecteur de
+> rôles **paramétrables** (blacklist = « Rôles bloqués ») ; la question est **écrite** au moment du
+> choix (boutons `Oui — {question}` + liste numérotée) ; une réponse coupée le **dit** et le
+> plafond de champs reste au-dessus de la borne des questions (testé).
+> ② **salon** — la barre n'affiche que **Prendre en charge** et **Fermer le ticket** ; à la clôture
+> elle **révèle** Rouvrir / **Transcript** (renommé, plus « Copie ») / Supprimer ; l'embed d'accueil
+> est **mis à jour en direct** (embed patché via `metadataJson.welcomeMessageId`, « Pris en charge
+> par <@…> ») et le demandeur est mentionné en même temps que le preneur ; **nom + icône
+> personnalisables** et **RBAC par bouton** (`settingsJson.buttons`, `disabled` retire le bouton,
+> refus au clic) ; **suppression après compte à rebours de 4 s** (`after()`, droits revérifiés — un
+> ticket rouvert n'est pas supprimé).
+> ③ **ouverture** — **liste blanche par motif** (`settingsJson.categories[<motif>].allowedRoleIds`,
+> vide = tout le monde, admin Discord toujours autorisé, refus motivé au clic) ; **interrupteur**
+> « Prévenir l'équipe » ; **message personnalisé** du ping de rôles (`{membre}` `{motif}`
+> `{numero}`) et **message personnalisé du demandeur** (mention garantie).
+> ④ **questionnaire** — `buildTicketFormSteps` : plan d'étapes **ordonné** (5 textes par modale,
+> chaque groupe de choix **à sa place**) ; le tunnel parcourt ce plan (le bouton « Continuer »
+> porte l'**index d'étape**), et l'éditeur a des **flèches monter/descendre**.
+>
+> **Preuves** : `npx tsc --noEmit` **0** · `npm run lint` **0 erreur** · suite **405 fichiers
+> passés** (dont **193 cas tickets**, 4 filets neufs : `tickets-lot1-bugs` 12, `tickets-boutons`
+> 11, `tickets-ouverture` 10, + le cas « choix APRÈS des textes ») · `git status --short` **propre**.
+> **Aucune migration** : tout tient dans `TicketGuildConfig.settingsJson` et `TicketRecord.metadataJson`.
+>
+> **Reste / à valider côté humain** : ① déployer puis vérifier en bêta le parcours complet (ouvrir,
+> prendre en charge → embed mis à jour, fermer → boutons révélés, supprimer → décompte) ; ② les
+> tickets ouverts **avant** ce lot n'ont pas de `welcomeMessageId` : leur message de modération
+> porte les boutons (repli assumé) ; ③ les anciens panneaux **v1** (catégories) doivent être migrés
+> (« Tout passer en Motifs ») pour disposer du réglage « Qui peut ouvrir » ; ④ SLA / auto-fermeture
+> restent des réglages **sans exécutant** (hors brief).
+
+
 
 | Lot | État | Où |
 |---|---|---|

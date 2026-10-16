@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useMemo, useLayoutEffect } from "react";
 import { io, Socket } from "socket.io-client";
 import { buildWsUrl } from "@/lib/socket-utils";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -791,7 +792,7 @@ export default function BombGame({
                                     <p className="text-caption font-black uppercase tracking-widest text-foreground/30 italic mb-1">Joueurs dans le salon</p>
                                     {gameState.players?.filter((p: any) => !p.isSpectator).map((p: any) => (
                                         <div key={p.id} className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl bg-surface border border-border">
-                                            <img src={p.userAvatar || `https://ui-avatars.com/api/?name=${p.userName}`} className="w-8 h-8 rounded-xl object-cover border border-border shrink-0" alt="" />
+                                            <MemberAvatar src={p.userAvatar} name={p.userName} className="w-8 h-8 rounded-xl border border-border" />
                                             <span className="text-xs font-black uppercase italic text-foreground/80 flex-1 truncate">{p.userName}</span>
                                             {p.isReady
                                                 ? <span className="text-caption font-black uppercase text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full">Pret</span>
@@ -846,7 +847,7 @@ export default function BombGame({
                                                     <span className="text-sm w-5 text-center">
                                                         {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`}
                                                     </span>
-                                                    <img src={entry.avatar || `https://ui-avatars.com/api/?name=${entry.name}`} className="w-6 h-6 rounded-lg object-cover aspect-square shrink-0" alt="" />
+                                                    <MemberAvatar src={entry.avatar} name={entry.name} className="w-6 h-6 rounded-lg aspect-square" />
                                                     <span className={cn("font-black italic uppercase flex-1 truncate text-caption")}>{entry.name}</span>
                                                     <span className="font-black text-foreground/40 tabular-nums text-caption">{entry.wordsFound} <span className="text-foreground/20 font-medium">mots</span></span>
                                                     <div className="flex gap-0.5">
@@ -917,7 +918,7 @@ export default function BombGame({
                                     p.isSpectator && "scale-50 opacity-40"
                                 )}>
                                     <div className="absolute inset-0 bg-info/0 group-hover/avatar:bg-info/5 transition-colors rounded-xl" />
-                                    <img src={p.userAvatar || `https://ui-avatars.com/api/?name=${p.userName}`} className="w-full h-full object-cover rounded-xl aspect-square shrink-0" alt="" />
+                                    <MemberAvatar src={p.userAvatar} name={p.userName} className="h-full w-full rounded-xl" />
                                     
                                     {/* STATUS INDICATORS */}
                                     {gameState.state === 'LOBBY' && !p.isSpectator && (
@@ -1132,7 +1133,7 @@ export default function BombGame({
                                                 >
                                                     <div className="flex items-center gap-3 mb-4">
                                                         <div className="w-8 h-8 rounded-xl overflow-hidden border-2 border-info">
-                                                            <img src={p.userAvatar} className="w-full h-full object-cover" alt="" />
+                                                            <MemberAvatar src={p.userAvatar} name={p.userName} />
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-xs font-black uppercase italic text-foreground">{p.userName}</span>
@@ -1223,7 +1224,7 @@ export default function BombGame({
                                     
                                     <div className="relative mt-4">
                                         <div className="w-24 h-24 rounded-[2rem] border-4 border-warning overflow-hidden ">
-                                            <img src={winnerData?.winnerAvatar || `https://ui-avatars.com/api/?name=${winnerData?.winnerName}`} className="w-full h-full object-cover" alt="" />
+                                            <MemberAvatar src={winnerData?.winnerAvatar} name={winnerData?.winnerName} />
                                         </div>
                                         <div className="absolute -bottom-2 -right-2 bg-warning text-warning-foreground p-1.5 rounded-xl shadow-lg">
                                             <Sparkles size={16} />
@@ -1243,7 +1244,7 @@ export default function BombGame({
                                                 <div className="flex items-center gap-3">
                                                     <span className={cn("text-xs font-black italic", i === 0 ? "text-warning" : "text-foreground/20")}>#{i + 1}</span>
                                                     <div className="w-8 h-8 rounded-lg overflow-hidden border border-border bg-surface">
-                                                        <img src={entry?.avatar || `https://ui-avatars.com/api/?name=${entry?.name || 'Player'}`} className="w-full h-full object-cover" alt="" />
+                                                        <MemberAvatar src={entry?.avatar} name={entry?.name} />
                                                     </div>
                                                     <span className="text-sm font-bold uppercase tracking-tight truncate max-w-[120px]">{entry?.name || 'Anonyme'}</span>
                                                 </div>

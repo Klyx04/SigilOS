@@ -2,6 +2,7 @@
 import { useMemo, memo, useState, useEffect } from "react";
 import { Users } from "lucide-react";
 import { dofusMetaIndex } from "@/lib/rush-dofus-meta";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 
 const MEMBERS_CUTOFF = 8;
 
@@ -221,12 +222,12 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                     className="flex items-center gap-3 p-2 rounded-[4px] bg-[#181e25] border border-border"
                   >
                     <div className="w-7 h-7 rounded-full bg-elevated border border-[#384352] flex items-center justify-center text-caption font-semibold text-zinc-300 overflow-hidden shrink-0">
-                      {m.userAvatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" />
-                      ) : (
-                        m.userName[0]?.toUpperCase()
-                      )}
+                      <MemberAvatar
+                        src={m.userAvatar}
+                        name={m.userName}
+                        alt={m.userName}
+                        fallbackClassName="text-caption font-semibold text-zinc-300"
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">

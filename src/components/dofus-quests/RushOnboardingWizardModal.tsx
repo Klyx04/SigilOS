@@ -6,6 +6,7 @@ import { User, Users, CheckCircle, ArrowRight, ArrowLeft, Shield, Sparkles, Exte
 import Link from "next/link";
 import { getClass } from "@/lib/dofus-assets";
 import { getMetierIconPath } from "@/lib/rush-guide-utils";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 
 type CharacterOption = {
   id: string; // "PRINCIPAL" | mule pseudo
@@ -340,12 +341,12 @@ export function RushOnboardingWizardModal({
                       >
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-full bg-indigo-900/60 border border-indigo-500/30 flex items-center justify-center text-xs font-black text-indigo-300 overflow-hidden">
-                            {m.userAvatar ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" />
-                            ) : (
-                              m.userName[0]?.toUpperCase()
-                            )}
+                            <MemberAvatar
+                              src={m.userAvatar}
+                              name={m.userName}
+                              alt={m.userName}
+                              fallbackClassName="text-xs font-black text-indigo-300"
+                            />
                           </div>
                           <div>
                             <p className="text-xs font-black text-white">{m.userName}</p>

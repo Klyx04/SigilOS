@@ -15,6 +15,7 @@ import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
 import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, type RushPrereqRef } from "@/lib/rush-guide-utils";
 import { collectCascadeUncheck } from "@/lib/rush-helpers";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import { RushOverlayHeader } from "./components/RushOverlayHeader";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
@@ -1046,27 +1047,17 @@ export default function GuideOverlayClient({
                 Sur ce chapitre
               </span>
               <span className="flex items-center -space-x-1.5">
-                {chapterMembers.slice(0, 6).map((m, i) =>
-                  m.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={i}
-                      src={m.avatar}
-                      alt={m.name}
-                      loading="lazy"
-                      title={m.name}
-                      className="w-5 h-5 rounded-full border border-[#39bc95]/40 object-cover"
-                    />
-                  ) : (
-                    <span
-                      key={i}
-                      title={m.name}
-                      className="w-5 h-5 rounded-full border border-[#39bc95]/40 bg-[#39bc95]/20 text-[#39bc95] flex items-center justify-center text-[8px] font-bold uppercase"
-                    >
-                      {m.name.charAt(0) || "?"}
-                    </span>
-                  )
-                )}
+                {chapterMembers.slice(0, 6).map((m, i) => (
+                  <MemberAvatar
+                    key={i}
+                    src={m.avatar}
+                    name={m.name}
+                    alt={m.name}
+                    title={m.name}
+                    className="w-5 h-5 rounded-full border border-[#39bc95]/40"
+                    fallbackClassName="bg-[#39bc95]/20 text-[#39bc95] text-[8px] font-bold uppercase"
+                  />
+                ))}
               </span>
               {chapterMembers.length > 6 && (
                 <span className="text-[9px] text-[#6e7784]">+{chapterMembers.length - 6}</span>

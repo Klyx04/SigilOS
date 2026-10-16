@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Handshake, Loader2 } from "lucide-react";
 import { getSequenceHelpers } from "@/server/actions/optimized-guide-actions";
 import { getRequiredMetiers, getRequiredDungeons } from "@/lib/rush-helpers";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 type Helper = {
@@ -65,14 +66,12 @@ export function QuestHelpersSection({ guildId, seq }: { guildId: string; seq: Ru
         <div className="space-y-1">
           {helpers.map((h) => (
             <div key={h.profile.profileId} className="flex items-center gap-2.5 rounded-[4px] border border-border bg-surface px-2.5 py-1.5">
-              {h.profile.avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={h.profile.avatar} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
-              ) : (
-                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-elevated text-[10px] font-semibold text-muted-foreground">
-                  {(h.profile.name || "?").charAt(0).toUpperCase()}
-                </span>
-              )}
+              <MemberAvatar
+                src={h.profile.avatar}
+                name={h.profile.name}
+                className="h-6 w-6 rounded-full"
+                fallbackClassName="bg-elevated text-[10px] font-semibold text-muted-foreground"
+              />
               <div className="min-w-0">
                 <p className="truncate text-xs font-semibold text-foreground">
                   {h.profile.name || "Membre"}

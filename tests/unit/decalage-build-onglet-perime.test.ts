@@ -24,6 +24,8 @@ import { readFileSync } from "node:fs";
 import {
     STALE_DEPLOYMENT_RELOAD_KEY,
     STALE_DEPLOYMENT_RELOAD_WINDOW_MS,
+    isDeploymentHtmlResponseError,
+    isDeploymentInterruptionError,
     isStaleDeploymentError,
     readStaleDeploymentReloadAt,
     recoverFromStaleDeployment,
@@ -73,6 +75,8 @@ describe("décalage de build — règle pure", () => {
         // Next lève ce message exact quand l'en-tête `x-nextjs-action-not-found: 1` est présent.
         expect(reducer).toMatch(/UnrecognizedActionError\(`Server Action/);
         expect(reducer).toContain("was not found on the server");
+        // …et celui-ci quand la réponse n'est pas une payload RSC (maintenance/429 en HTML).
+        expect(reducer).toContain("An unexpected response was received from the server.");
 
         const error = readFileSync(NEXT_ERROR, "utf8");
         // Et c'est bien le `name` qui discrimine l'erreur (pas l'`instanceof`, inutilisable
@@ -87,6 +91,22 @@ describe("décalage de build — règle pure", () => {
         expect(shouldAutoReloadForStaleDeployment(now, Number.NaN)).toBe(true);
         expect(shouldAutoReloadForStaleDeployment(now, now - 1)).toBe(false);
         expect(shouldAutoReloadForStaleDeployment(now, now - STALE_DEPLOYMENT_RELOAD_WINDOW_MS)).toBe(true);
+    });
+
+    it("① bis l'autre visage d'une fenêtre de déploiement : page HTML servie à une action", () => {
+        // Mesure du 17/10/2026 (Sentry `JAVASCRIPT-NEXTJS-1G`) : 3 événements sur
+        // `POST /dashboard/[guildId]`, en fenêtre de déploiement / rate-limit bêta.
+        const htmlInsteadOfAction = new Error(
+            "An unexpected response was received from the server."
+        );
+
+        expect(isDeploymentHtmlResponseError(htmlInsteadOfAction)).toBe(true);
+        expect(isDeploymentInterruptionError(htmlInsteadOfAction)).toBe(true);
+        // Un décalage de build est aussi une interruption de déploiement…
+        expect(isDeploymentInterruptionError(erreurDeNext())).toBe(true);
+        // …mais une vraie panne applicative n'en est pas une (fail-closed).
+        expect(isDeploymentHtmlResponseError(new Error("Unauthorized"))).toBe(false);
+        expect(isDeploymentInterruptionError(new Error("Failed to fetch"))).toBe(false);
     });
 });
 
@@ -128,13 +148,22 @@ describe("décalage de build — reprise côté navigateur", () => {
         expect(readStaleDeploymentReloadAt()).toBeNull();
     });
 
-    it("`recoverFromStaleDeployment` ne prend en charge QUE le décalage de build", () => {
+    it("`recoverFromStaleDeployment` prend en charge les deux visages du déploiement, rien d'autre", () => {
         stubNavigateur();
 
         expect(recoverFromStaleDeployment(new Error("Failed to fetch"))).toBe(false);
         expect(reload).not.toHaveBeenCalled();
 
         expect(recoverFromStaleDeployment(erreurDeNext())).toBe(true);
+        expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it("une page HTML servie à une action déclenche la même reprise", () => {
+        stubNavigateur();
+
+        expect(
+            recoverFromStaleDeployment(new Error("An unexpected response was received from the server."))
+        ).toBe(true);
         expect(reload).toHaveBeenCalledTimes(1);
     });
 });

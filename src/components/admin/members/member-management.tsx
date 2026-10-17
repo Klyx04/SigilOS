@@ -35,7 +35,7 @@ interface MemberManagementProps {
 /** Onglets (assets Dofus réels, jamais d'emoji dans un libellé structurant). */
 const TABS = [
     { id: "membres", label: "Membres", icon: "party.png" },
-    { id: "anciennete", label: "Rôles d'ancienneté", icon: "ladder.png" },
+    { id: "anciennete", label: "Rôles d'ancienneté", icon: "/assets/dofus/modules/ladder.png" },
     { id: "blacklist", label: "Blacklist", icon: "circle-warning.png" },
 ] as const;
 

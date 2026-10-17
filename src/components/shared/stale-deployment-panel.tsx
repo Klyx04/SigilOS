@@ -32,8 +32,8 @@ export function StaleDeploymentPanel() {
                         Nouvelle version déployée
                     </h2>
                     <p className="text-muted-foreground text-sm leading-relaxed mb-8 max-w-[95%] mx-auto">
-                        Cet onglet utilise encore la version précédente de SigilOS (mise à jour
-                        pendant votre visite). Le rechargement est automatique ; s&apos;il ne part
+                        Cet onglet utilise encore la version précédente de SigilOS (mise à jour ou
+                        redémarrage en cours). Le rechargement est automatique ; s&apos;il ne part
                         pas, lancez-le ci-dessous.
                     </p>
 

@@ -33,6 +33,13 @@ const UNRECOGNIZED_ACTION_MESSAGE = "was not found on the server";
 const UNRECOGNIZED_ACTION_NAME = "UnrecognizedActionError";
 
 /**
+ * Message de Next quand la réponse d'action n'est **pas** une payload RSC
+ * (`text/x-component`), faute de redirection — cf. `server-action-reducer.js`
+ * (« Handle invalid server action responses »).
+ */
+const INVALID_ACTION_RESPONSE_MESSAGE = "An unexpected response was received from the server.";
+
+/**
  * L'erreur vient-elle d'un **décalage de build** (client plus ancien que le serveur) ?
  *
  * On teste le **nom** et le **message** plutôt qu'un `instanceof` : la règle reste une pure
@@ -50,6 +57,36 @@ export function isStaleDeploymentError(error: unknown): boolean {
         typeof candidate.message === "string" &&
         candidate.message.includes(UNRECOGNIZED_ACTION_MESSAGE)
     );
+}
+
+/**
+ * La réponse d'action n'était pas une payload RSC : pendant un déploiement, Caddy sert la
+ * page de maintenance (`maintenance-beta.html` servie par `file_server`) ou la page 429 à
+ * **toute** requête — y compris un `POST` porteur de `next-action`, qui reçoit donc du HTML.
+ *
+ * Mesure (17/10/2026, Sentry `JAVASCRIPT-NEXTJS-1G`) : 3 événements sur `POST /dashboard/[guildId]`,
+ * uniquement en fenêtre de déploiement / rate-limit sur la bêta (`Caddyfile` l. 144-149 :
+ * le rewrite maintenance n'a **aucune** exception de méthode), 0 utilisateur impacté.
+ * Même remède que le décalage de build : recharger l'onglet.
+ */
+export function isDeploymentHtmlResponseError(error: unknown): boolean {
+    if (!error || typeof error !== "object") return false;
+
+    const candidate = error as { message?: unknown };
+    return (
+        typeof candidate.message === "string" &&
+        candidate.message.includes(INVALID_ACTION_RESPONSE_MESSAGE)
+    );
+}
+
+/**
+ * L'échec vient-il d'une **fenêtre de déploiement** ? Deux visages mesurés :
+ *  - ids de Server Actions d'un autre build (`isStaleDeploymentError`) ;
+ *  - page HTML de maintenance / 429 servie à la place de la payload d'action
+ *    (`isDeploymentHtmlResponseError`).
+ */
+export function isDeploymentInterruptionError(error: unknown): boolean {
+    return isStaleDeploymentError(error) || isDeploymentHtmlResponseError(error);
 }
 
 /**
@@ -109,13 +146,15 @@ export function reloadForStaleDeployment(): boolean {
 }
 
 /**
- * Filet d'entrée pour les appels de Server Action : si l'échec est un **décalage de build**,
- * on déclenche la reprise et l'appelant s'arrête là (inutile d'afficher un toast trompeur).
+ * Filet d'entrée pour les appels de Server Action : si l'échec vient d'une **fenêtre de
+ * déploiement** (ids d'un autre build **ou** page HTML de maintenance servie à la place de
+ * la payload d'action), on déclenche la reprise et l'appelant s'arrête là (inutile d'afficher
+ * un toast trompeur).
  *
  * @returns `true` si l'erreur a été prise en charge ici.
  */
 export function recoverFromStaleDeployment(error: unknown): boolean {
-    if (!isStaleDeploymentError(error)) return false;
+    if (!isDeploymentInterruptionError(error)) return false;
     reloadForStaleDeployment();
     return true;
 }

@@ -5,7 +5,10 @@ import { cn } from "@/lib/utils";
 
 import { useState, useEffect, useTransition, useMemo } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
+import { recoverFromStaleDeployment } from "@/lib/stale-deployment";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
@@ -187,6 +190,12 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
     const [isLoadingRoles, setIsLoadingRoles] = useState(false);
     const [roleOpen, setRoleOpen] = useState(false);
+    /** ⚠️ Un échec de chargement des rôles ne doit JAMAIS masquer le bloc en silence :
+     *  sans ce message, l'absence de l'étape « ping d'un rôle » était inexplicable pour
+     *  l'utilisateur (constat du 17/10/2026). */
+    const [rolesError, setRolesError] = useState<string | null>(null);
+    /** Incrémenté par « Réessayer » ⇒ relance l'effet de chargement des rôles. */
+    const [rolesReloadKey, setRolesReloadKey] = useState(0);
     const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
 
     const [isPending, startTransition] = useTransition();
@@ -229,6 +238,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             setRequiredClasses([]);
             setIsDiscordPublished(isDiscordConfigured === true);
             setMentionRoleIds([]);
+            setRolesError(null);
+            setRolesReloadKey(0);
             setMultiDungeons(null);
             setIsMultiOpen(false);
         }
@@ -236,21 +247,39 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
 
     // Fetch Discord Roles and auto-fill whitelisted ping roles
     useEffect(() => {
-        if (isOpen && isDiscordPublished && discordRoles.length === 0) {
-            setIsLoadingRoles(true);
-            getDiscordRolesAction(guildId, { context: "dj" })
-                .then(res => {
-                    if (res.success && res.roles) {
-                        const filtered = res.roles.filter(r => r.name !== "@everyone") as any;
-                        setDiscordRoles(filtered);
-                        // No auto-selection: default = aucun rôle pingé
-                        // L'utilisateur doit choisir explicitement
-                    }
-                })
-                .catch(console.error)
-                .finally(() => setIsLoadingRoles(false));
-        }
-    }, [isOpen, isDiscordPublished, guildId, discordRoles.length]);
+        // ⚠️ Garde conservée (un seul chargement à l'ouverture) + « Réessayer » qui la force :
+        // sans `rolesReloadKey`, un échec laissait le bloc vide et muet pour toujours.
+        if (!isOpen || !isDiscordPublished) return;
+        if (discordRoles.length > 0 && rolesReloadKey === 0) return;
+
+        let cancelled = false;
+        setIsLoadingRoles(true);
+        setRolesError(null);
+
+        getDiscordRolesAction(guildId, { context: "dj" })
+            .then(res => {
+                if (cancelled) return;
+                if (res.success && res.roles) {
+                    // Aucune auto-sélection : par défaut, aucun rôle n'est pingé.
+                    setDiscordRoles(res.roles.filter(r => r.name !== "@everyone") as any);
+                } else {
+                    setRolesError(res.error || "Les rôles Discord n'ont pas pu être récupérés.");
+                }
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                // Décalage de build : la reprise est déjà déclenchée (rechargement de l'onglet),
+                // inutile d'alarmer en plus sur un état qui va disparaître.
+                if (recoverFromStaleDeployment(err)) return;
+                logger.error("[DJ] Rôles Discord indisponibles (modale de création)", err);
+                setRolesError("Les rôles Discord n'ont pas pu être récupérés.");
+            })
+            .finally(() => {
+                if (!cancelled) setIsLoadingRoles(false);
+            });
+
+        return () => { cancelled = true; };
+    }, [isOpen, isDiscordPublished, guildId, discordRoles.length, rolesReloadKey]);
 
     // Fetch Target Channel Name
     useEffect(() => {
@@ -285,7 +314,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             setLoadingDungeons(true);
             getDungeonsWithAchievements()
                 .then(res => { if (res.success && res.data) setDungeons(res.data); })
-                .catch(console.error)
+                .catch((err) => {
+                    // Décalage de build : la reprise (rechargement) est déjà déclenchée.
+                    if (recoverFromStaleDeployment(err)) return;
+                    console.error(err);
+                })
                 .finally(() => setLoadingDungeons(false));
         }
     }, [isOpen, dungeons.length]);
@@ -296,7 +329,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             setLoadingDefis(true);
             getDefis()
                 .then(res => { if (res.success && res.data) setDefis(res.data as Defi[]); })
-                .catch(console.error)
+                .catch((err) => {
+                    if (recoverFromStaleDeployment(err)) return;
+                    console.error(err);
+                })
                 .finally(() => setLoadingDefis(false));
         }
     }, [isOpen, defis.length]);
@@ -307,7 +343,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             setLoadingTitans(true);
             getTitans()
                 .then(res => { if (res.success && res.data) setTitans(res.data as Titan[]); })
-                .catch(console.error)
+                .catch((err) => {
+                    if (recoverFromStaleDeployment(err)) return;
+                    console.error(err);
+                })
                 .finally(() => setLoadingTitans(false));
         }
     }, [isOpen, titans.length]);
@@ -1221,8 +1260,53 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         </div>
                                     )}
 
-                                    {isDiscordPublished && discordRoles.length > 0 && (
+                                    {isDiscordPublished && (
                                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-warning/20 space-y-3">
+                                            {/* ⚠️ Ce bloc n'était rendu que si `discordRoles.length > 0` : un échec de
+                                                chargement (ou une whitelist de ping vide) faisait donc **disparaître**
+                                                l'étape « ping d'un rôle » sans un mot (constat du 17/10/2026).
+                                                Ici, chaque état se dit : chargement · erreur · whitelist vide · prêt. */}
+                                            {isLoadingRoles && (
+                                                <p className="text-caption font-bold text-muted-foreground uppercase tracking-widest ml-1 animate-pulse">
+                                                    Chargement des rôles Discord…
+                                                </p>
+                                            )}
+
+                                            {!isLoadingRoles && rolesError && (
+                                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-danger/8 border border-danger/20">
+                                                    <AlertTriangle className="h-3.5 w-3.5 text-danger shrink-0 mt-0.5" />
+                                                    <p className="text-caption text-danger/90 font-medium leading-relaxed">
+                                                        {rolesError}{" "}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setRolesReloadKey((key) => key + 1)}
+                                                            className="font-bold underline underline-offset-2 hover:text-danger"
+                                                        >
+                                                            Réessayer
+                                                        </button>
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {!isLoadingRoles && !rolesError && discordRoles.length === 0 && (
+                                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-warning/8 border border-warning/20">
+                                                    <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                                                    <p className="text-caption text-warning/80 font-medium leading-relaxed">
+                                                        <span className="font-bold text-warning">Aucun rôle autorisé au ping.</span>{" "}
+                                                        Un administrateur doit en autoriser à l&apos;étape « Rôles de Ping Autorisés » des{" "}
+                                                        <Link
+                                                            href={`/dashboard/${guildId}/admin/settings`}
+                                                            className="font-bold underline underline-offset-2 hover:text-warning"
+                                                        >
+                                                            réglages Donjons &amp; Quêtes
+                                                        </Link>{" "}
+                                                        — sans cela, aucun rôle n&apos;est proposé ici.
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {!isLoadingRoles && !rolesError && discordRoles.length > 0 && (
+                                            <>
                                             <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-warning/8 border border-warning/20">
                                                 <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
                                                 <p className="text-caption text-warning/80 font-medium leading-relaxed">
@@ -1332,6 +1416,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                 </PopoverContent>
                                             </Popover>
                                             <PingEstimate guildId={guildId} roleIds={mentionRoleIds} className="ml-1" />
+                                            </>
+                                            )}
                                         </motion.div>
                                     )}
                                 </div>

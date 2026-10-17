@@ -29,8 +29,13 @@ export const COMMON_IGNORE_ERRORS: (string | RegExp)[] = [
     // puis **1 870 + 369** en 3 h une fois mesuré côté serveur : `UnrecognizedActionError:
     // Server Action "…" was not found on the server`. Ce n'est pas un bug de notre code
     // mais le **décalage de build** d'un onglet resté ouvert pendant un déploiement (les
-    // ids d'actions changent à chaque build). Next recharge la page tout seul ⇒ l'erreur
-    // est **transitoire et auto-réparée**.
+    // ids d'actions changent à chaque build). ⚠️ **Correction du 17/10/2026** : la phrase
+    // « Next recharge la page tout seul » était **fausse** (vérifié dans `next@16.4.0` —
+    // seul un `popstate` hérité recharge, voir `app-router.js`) : l'erreur remontait
+    // jusqu'à la frontière d'erreur du module (« Section Indisponible ») et « Réessayer »
+    // rejouait le **même** bundle périmé. La reprise vit désormais dans
+    // `src/lib/stale-deployment.ts` (rechargement d'onglet, gardé contre les boucles) ;
+    // le filtre reste — ce n'est toujours pas un défaut du produit.
     /UnrecognizedActionError/,
 ];
 

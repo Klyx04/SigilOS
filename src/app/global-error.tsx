@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { Geist_Mono, Space_Grotesk, Inter } from "next/font/google";
 import { AlertOctagon, RefreshCw, ServerCrash } from "lucide-react";
+import { StaleDeploymentPanel } from "@/components/shared/stale-deployment-panel";
+import { isStaleDeploymentError } from "@/lib/stale-deployment";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -28,14 +30,21 @@ export default function GlobalError({
     error: Error & { digest?: string };
     reset: () => void;
 }) {
+    // Décalage de build (onglet resté ouvert pendant un déploiement) : « Relancer l'interface »
+    // rejouerait le même bundle périmé ⇒ on recharge l'onglet (voir `src/lib/stale-deployment.ts`).
+    const staleDeployment = isStaleDeploymentError(error);
+
     useEffect(() => {
-        Sentry.captureException(error);
-    }, [error]);
+        if (!staleDeployment) Sentry.captureException(error);
+    }, [error, staleDeployment]);
 
     return (
         <html lang="fr" className="dark">
             <body className={`${spaceGrotesk.variable} ${geistMono.variable} ${inter.variable} antialiased min-h-screen bg-background flex flex-col items-center justify-center p-4 font-sans text-foreground`}>
 
+                {staleDeployment ? (
+                    <StaleDeploymentPanel />
+                ) : (
                 <div className="w-full max-w-lg">
                     <div className="rounded-[6px] border border-border bg-surface p-8 text-center md:p-10">
 
@@ -66,6 +75,7 @@ export default function GlobalError({
                         </button>
                     </div>
                 </div>
+                )}
 
                 <p className="absolute bottom-8 left-0 right-0 text-center text-caption uppercase tracking-wider text-muted-foreground">
                     SigilOS · System Recovery

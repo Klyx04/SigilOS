@@ -48,7 +48,7 @@ import { WorkerTester } from "./components/worker-tester";
 import { getPlatformConfig } from "@/server/actions/god-mini-games-actions";
 import { getTelemetryStats } from "@/server/actions/telemetry-actions";
 import { TelemetryDashboard } from "./components/telemetry-dashboard";
-import { CronStatusPanel } from "./components/cron-status-panel";
+import { CronStatusTabs } from "./components/cron-status-tabs";
 import { GodSlashCommandsPanel } from "./components/god-slash-commands-panel";
 import { getGodRoute } from "@/lib/god-route";
 
@@ -322,10 +322,11 @@ export default async function SuperAdminPage(props: {
                             <div className="space-y-3 pb-8 border-b border-border">
                                 <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight">Tâches CRON</h1>
                                 <p className="text-muted-foreground text-sm md:text-base font-medium">
-                                    Statut des scripts automatisés du VPS — dernière exécution, succès/échec, logs en direct.
+                                    Statut des scripts automatisés du VPS — dernière exécution, succès/échec,
+                                    logs en direct et journal des 10 dernières exécutions par tâche.
                                 </p>
                             </div>
-                            <CronStatusPanel />
+                            <CronStatusTabs />
                         </div>
                     )}
 

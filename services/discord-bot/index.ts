@@ -584,6 +584,13 @@ client.on(Events.GuildMemberAdd, async (member) => {
 
         if (!guildConfig) return;
 
+        // Lot 7 — l'activité de TOUS les membres existe, inscrit ou non ; elle démarre ici
+        // et un retour efface le départ (`leftDiscordAt = null`).
+        await trackMemberActivity(member.user.id, member.guild.id, {
+            joined: true,
+            displayName: serverNickname,
+        });
+
         // Find user account
         const account = await db.account.findFirst({
             where: {
@@ -660,6 +667,13 @@ client.on(Events.GuildMemberRemove, async (member) => {
         });
 
         if (!guildConfig) return;
+
+        // Lot 7 — le départ est posé pour **tous** les membres (même sans profil) :
+        // c'est le point de départ de la purge à 365 jours.
+        await trackMemberActivity(member.user.id, member.guild.id, {
+            left: true,
+            displayName: serverNickname,
+        });
 
         // Find user account (peut être absent : owner snowflake sans profil SigilOS)
         const account = await db.account.findFirst({
@@ -1098,6 +1112,69 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
 const voiceSessions = new Map<string, number>();
 const streamSessions = new Map<string, number>();
 
+// ========================
+// Lot 7 — activité de TOUS les membres (pas seulement ceux qui ont un profil).
+// `UserProfile.discordVoice*/discordMessage*` ne voit que les inscrits au dashboard :
+// un membre non inscrit pesait 0 dans le vocal. Cette table (guildId, discordId) est la
+// maison commune de l'activité, `leftDiscordAt` compris. Aucun contenu de message.
+// ========================
+const internalGuildIdCache = new Map<string, string | null>();
+
+async function resolveInternalGuildId(discordGuildId: string): Promise<string | null> {
+    if (internalGuildIdCache.has(discordGuildId)) return internalGuildIdCache.get(discordGuildId) ?? null;
+    const guild = await db.guildConfig.findUnique({
+        where: { discordGuildId },
+        select: { id: true },
+    }).catch(() => null);
+    internalGuildIdCache.set(discordGuildId, guild?.id ?? null);
+    return guild?.id ?? null;
+}
+
+type MemberActivityPatch = {
+    displayName?: string | null;
+    message?: boolean;
+    /** Durée de vocal écoulée, en **secondes** (jamais négative). */
+    voiceSeconds?: number;
+    voiceStarted?: boolean;
+    joined?: boolean;
+    left?: boolean;
+};
+
+async function trackMemberActivity(discordId: string, discordGuildId: string, patch: MemberActivityPatch) {
+    try {
+        const guildId = await resolveInternalGuildId(discordGuildId);
+        if (!guildId) return;
+        const now = new Date();
+        const seconds = patch.voiceSeconds && patch.voiceSeconds > 0 ? Math.round(patch.voiceSeconds) : 0;
+
+        await db.discordMemberActivity.upsert({
+            where: { guildId_discordId: { guildId, discordId } },
+            create: {
+                guildId,
+                discordId,
+                displayName: patch.displayName ?? null,
+                lastMessageAt: patch.message ? now : null,
+                lastVoiceAt: patch.voiceStarted ? now : null,
+                messagesTotal: patch.message ? 1 : 0,
+                voiceSecondsTotal: seconds,
+                leftDiscordAt: patch.left ? now : null,
+            },
+            update: {
+                lastSeenAt: now,
+                ...(patch.displayName ? { displayName: patch.displayName } : {}),
+                ...(patch.message ? { lastMessageAt: now, messagesTotal: { increment: 1 } } : {}),
+                ...(patch.voiceStarted ? { lastVoiceAt: now } : {}),
+                ...(seconds > 0 ? { voiceSecondsTotal: { increment: seconds } } : {}),
+                ...(patch.joined ? { leftDiscordAt: null } : {}),
+                ...(patch.left ? { leftDiscordAt: now } : {}),
+            },
+        });
+    } catch (e) {
+        // Jamais bloquant pour l'événement Discord : on le dit, on continue.
+        console.error(`[Discord Bot] Member activity not tracked for ${discordId}:`, e);
+    }
+}
+
 // Helper to update DB by Discord ID with better performance and logging
 async function updateDiscordActivity(discordId: string, guildId: string | null, data: any, activityType: string) {
     try {
@@ -1163,6 +1240,13 @@ client.on(Events.MessageCreate, async (message) => {
         lastDiscordMessageAt: new Date(),
         ...incrementData
     }, 'Message');
+
+    // Lot 7 — même fait, **autre étagère** : l'activité existe aussi pour un membre sans
+    // profil dashboard (aucun contenu de message n'est stocké, seulement le compteur).
+    await trackMemberActivity(message.author.id, message.guild.id, {
+        displayName: message.member?.nickname || message.author.globalName || message.author.username,
+        message: true,
+    });
 
     // 1bis. DÉTECTION D'ACTIVITÉ SUR LES POSTS DJ/QUÊTES & SONGES
     // Si des membres discutent dans le salon ou thread lié à un post, on actualise
@@ -1271,6 +1355,8 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
     if (!oldState.channelId && newState.channelId) {
         voiceSessions.set(userId, now);
         await updateDiscordActivity(userId, guildId, { lastDiscordVoiceAt: new Date() }, 'Voice Start');
+        // Lot 7 — la présence vocale est tracée pour tous les membres.
+        await trackMemberActivity(userId, guildId, { voiceStarted: true });
     }
     // User left voice completely
     else if (oldState.channelId && !newState.channelId) {
@@ -1283,6 +1369,9 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
                     discordVoiceTimeMonthly: { increment: durationMin },
                     discordVoiceTimeTotal: { increment: durationMin }
                 }, `Voice Session (${durationMin}m)`);
+
+                // Lot 7 — durée réelle en secondes (arrondi minute conservé côté profil).
+                await trackMemberActivity(userId, guildId, { voiceSeconds: durationMin * 60 });
             }
             voiceSessions.delete(userId);
         }

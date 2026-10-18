@@ -11,6 +11,8 @@ import {
     type BossFicheGap,
     type DataHealthRow,
 } from '@/lib/data-health';
+import { censusBossSovereignty, type BossSovereigntyCensus } from '@/lib/boss-sovereignty';
+import { readLocalDungeonCatalogue } from '@/lib/dungeon-monsters-siphon';
 import fs from 'fs';
 import path from 'path';
 // 🔎 Dernier run **suivi** (Redis) : les lignes qui ont une passe affichaient « Jamais » en dur.
@@ -47,6 +49,29 @@ export async function checkBossFicheGaps(): Promise<ActionResponse<{ gaps: BossF
     } catch (error) {
         logger.error('[checkBossFicheGaps] Erreur:', { error });
         return { success: false, error: 'Dry-run impossible' };
+    }
+}
+
+/**
+ * Recensement de **souveraineté boss** (lot 6) : donjons de la base vs catalogue local.
+ *
+ * Mesure du 18/10/2026 : 207 donjons en base pour 187 dans
+ * `public/game-data/dungeon-monsters.json` — 20 fiches sans aucune donnée locale.
+ * L'écran « État des données » doit le dire (couverture + liste), et la fiche publique
+ * affiche un repli **explicite** au lieu de faire passer le réseau pour du local.
+ */
+export async function checkBossSovereignty(): Promise<ActionResponse<BossSovereigntyCensus>> {
+    if (!(await canViewHealth())) return { success: false, error: 'Accès non autorisé' };
+    try {
+        const [dungeons, local] = await Promise.all([
+            db.dungeon.findMany({ select: { name: true, bossName: true } }),
+            Promise.resolve(readLocalDungeonCatalogue()),
+        ]);
+        if (!local) return { success: false, error: 'Catalogue local illisible' };
+        return { success: true, data: censusBossSovereignty(dungeons, local.dungeons) };
+    } catch (error) {
+        logger.error('[checkBossSovereignty] Erreur:', { error });
+        return { success: false, error: 'Recensement impossible' };
     }
 }
 

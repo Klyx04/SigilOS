@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { purgeOrphanAccountsCore } from "@/server/account-retention-core";
+import { purgeDiscordMemberActivityCore } from "@/server/discord-member-activity-retention";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
 
@@ -27,15 +28,29 @@ export async function GET(req: Request) {
         const summary = await purgeOrphanAccountsCore({ retentionDays: 90, max: 50, source: "CRON" });
         const durationMs = Date.now() - startedAt;
 
+        // Lot 7 — même passe, **autre rétention** : l'activité Discord des partants est
+        // conservée 365 jours (table de tous les membres, inscrits ou non). Un échec de
+        // cette purge est **dit** (jamais avalé) : le cron repart rouge pour qu'on le voie.
+        let discordActivity: { deleted: number; retentionDays: number; cutoff: string } | null = null;
+        let discordActivityError: string | null = null;
+        try {
+            discordActivity = await purgeDiscordMemberActivityCore();
+        } catch (error: any) {
+            discordActivityError = error?.message || "Erreur inconnue";
+            logger.error("[AccountRetentionCron] Purge DiscordMemberActivity en échec:", error);
+        }
+
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
         await recordCronExecution("account_retention", {
-            success: true,
+            success: discordActivityError === null,
             durationMs,
-            summary: `Purge RGPD : ${summary.deleted} compte(s) supprimé(s) sur ${summary.scanned} scanné(s)`,
-            details: summary,
+            summary: discordActivityError
+                ? `Purge RGPD : ${summary.deleted} compte(s) · activité Discord : ÉCHEC (${discordActivityError})`
+                : `Purge RGPD : ${summary.deleted} compte(s) supprimé(s) sur ${summary.scanned} scanné(s) · activité Discord : ${discordActivity?.deleted ?? 0} ligne(s) de plus de 365 j`,
+            details: { ...summary, discordActivity, discordActivityError },
         });
 
-        return NextResponse.json({ success: true, summary, durationMs });
+        return NextResponse.json({ success: true, summary, discordActivity, durationMs });
     } catch (error: any) {
         logger.error("[AccountRetentionCron] Global Error:", error);
         const { recordCronExecution } = await import("@/lib/cron-telemetry");

@@ -97,12 +97,14 @@ describe("B-2 — le registre accepte un sujet polymorphe (profil XOR membre Dis
     it("la modale branche le sujet et reste éditable pour les deux natures", () => {
         const dialog = codeOnly(DIALOG);
         expect(dialog).toContain("const subject: RegistrySubject");
-        expect(dialog).toContain("{ profileId: row.profileId }");
-        expect(dialog).toContain("{ discordId: row.discordId ?? \"\" }");
-        // Éditable pour un profil dashboard **ou** un membre Discord.
-        expect(dialog).toContain("canManageMembers && (isDashboard || !!row.discordId)");
+        expect(dialog).toContain("{ profileId: current.profileId }");
+        expect(dialog).toContain("{ discordId: current.discordId ?? \"\" }");
+        // Éditable pour un profil dashboard **ou** un membre Discord (ligne affichée `current`).
+        expect(dialog).toContain("canManageMembers && (isDashboard || !!current.discordId)");
         // Les actions de cycle de vie (archivage/exclusion/vacances) restent réservées aux profils.
-        expect(dialog).toContain("isDashboard && (row.status === \"ARCHIVED\"");
+        // Lot 2 : la condition lit la ligne **relue du serveur** (`current`), pour que le bouton
+        // « Réintégrer » apparaisse dès l'archivage confirmé, sans rechargement de page.
+        expect(dialog).toContain("isDashboard && (current.status === \"ARCHIVED\"");
     });
 
     it("reprend la ligne de registre sur le profil à la première connexion (aucune saisie perdue)", () => {

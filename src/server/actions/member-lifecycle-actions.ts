@@ -7,7 +7,17 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { differenceInDays } from "date-fns";
-import { ANKAMA_ID_PATTERN, MAX_REGISTRY_COMMENTS, REGISTRY_COMMENT_MAX_LENGTH, canAddRegistryComment, computeSeniorityDays, type RegistryComment } from "@/lib/member-registry";
+import {
+    ANKAMA_ID_PATTERN,
+    MAX_REGISTRY_COMMENTS,
+    REGISTRY_COMMENT_MAX_LENGTH,
+    canAddRegistryComment,
+    computeSeniorityDays,
+    getTrialDecision,
+    type RegistryComment,
+} from "@/lib/member-registry";
+// Lot 2 — photo serveur d'une fiche : la fusion est une règle pure (`src/lib/member-roster.ts`).
+import type { MemberRosterSnapshot } from "@/lib/member-roster";
 import {
     describePresenceProfile,
     resolveDiscordPresenceProfile,
@@ -725,7 +735,7 @@ export async function setMemberTrialState(
             await db.userProfile.update({ where: { id: profile.id }, data });
 
             await createAuditLog({
-                guildId: guild.id,
+                guildId,
                 actorUserId: session.user.id,
                 actorName: ctx.name || "Staff",
                 action: "SETTINGS_UPDATED",
@@ -746,7 +756,7 @@ export async function setMemberTrialState(
             });
 
             await createAuditLog({
-                guildId: guild.id,
+                guildId,
                 actorUserId: session.user.id,
                 actorName: ctx.name || "Staff",
                 action: "SETTINGS_UPDATED",
@@ -862,7 +872,7 @@ export async function recordMemberDeparture(
         });
 
         await createAuditLog({
-            guildId: guild.id,
+            guildId,
             actorUserId: currentUserId,
             actorName: ctx.name || "Staff",
             action: data.isBan ? "MEMBER_BANNED" : "PROFILE_ARCHIVED",
@@ -1142,7 +1152,7 @@ export async function addMemberRegistryComment(
         });
 
         await createAuditLog({
-            guildId: guild.id,
+            guildId,
             actorUserId: session.user.id,
             actorName: ctx.name || "Staff",
             action: "SETTINGS_UPDATED",
@@ -1224,7 +1234,7 @@ export async function updateMemberRegistryIdentity(
             await db.userProfile.update({ where: { id: profile.id }, data: data as never });
 
             await createAuditLog({
-                guildId: guild.id,
+                guildId,
                 actorUserId: session.user.id,
                 actorName: ctx.name || "Staff",
                 action: "SETTINGS_UPDATED",
@@ -1251,7 +1261,7 @@ export async function updateMemberRegistryIdentity(
             });
 
             await createAuditLog({
-                guildId: guild.id,
+                guildId,
                 actorUserId: session.user.id,
                 actorName: ctx.name || "Staff",
                 action: "SETTINGS_UPDATED",
@@ -1454,5 +1464,374 @@ export async function getMemberDiscordPresence(
     } catch (err: unknown) {
         logger.error("[getMemberDiscordPresence] Erreur:", err);
         return { success: false, error: "Erreur lors de la lecture de l'activité Discord" };
+    }
+}
+
+// ==========================================
+// LOT 2 — PHOTO SERVEUR DE LA FICHE MEMBRE
+// ==========================================
+
+/** Commentaire Prisma → type du registre (une seule conversion). */
+function toRegistryComment(comment: {
+    id: string;
+    body: string;
+    authorName: string;
+    authorUserId: string | null;
+    createdAt: Date;
+}): RegistryComment {
+    return {
+        id: comment.id,
+        body: comment.body,
+        authorName: comment.authorName,
+        authorUserId: comment.authorUserId,
+        createdAt: comment.createdAt.toISOString(),
+    };
+}
+
+/**
+ * Relit **en base** les valeurs éditables d'une fiche membre — lot 2.
+ *
+ * Mesure (18/10/2026) : après un enregistrement, la modale gardait ses valeurs locales
+ * (`row` figé, aucun resync) ⇒ un pseudo saisi «  Bob  » restait affiché avec ses espaces
+ * alors que la base stocke « Bob », un membre archivé gardait le badge « Actif », un
+ * commentaire ajouté n'apparaissait pas. Cette lecture ciblée rend la vérité du serveur
+ * (une seule fiche : aucun rechargement du roster, aucun appel Discord).
+ *
+ * Lecture seule · RBAC fail-closed (`isAdmin` ou `canManageMembers`) · cible vérifiée
+ * **dans la guilde** avant toute lecture · `readAt` vient de l'horloge **serveur**.
+ */
+export async function getMemberRegistrySnapshot(
+    guildId: string,
+    subject: RegistrySubject
+): Promise<ActionResponse<MemberRosterSnapshot>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    if (!guildId) return { success: false, error: "ID de guilde manquant" };
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canManageMembers) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    const parsed = subjectSchema.safeParse(subject);
+    if (!parsed.success) return { success: false, error: "Sujet invalide" };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, trialDurationDays: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const target = resolveRegistryTarget(parsed.data as RegistrySubject);
+        const now = new Date();
+        const readAt = now.toISOString();
+
+        if (target.kind === "profile") {
+            const profile = await db.userProfile.findFirst({
+                where: { id: target.profileId, guildId: guild.id },
+                select: {
+                    pseudoDofus: true,
+                    discordNickname: true,
+                    ankamaId: true,
+                    status: true,
+                    trialValidated: true,
+                    trialEndsAt: true,
+                    createdAt: true,
+                    guildJoinedAt: true,
+                    altPseudos: true,
+                    vacationStart: true,
+                    vacationEnd: true,
+                    user: { select: { name: true } },
+                    recruitedByProfile: {
+                        select: {
+                            id: true,
+                            pseudoDofus: true,
+                            discordNickname: true,
+                            user: { select: { name: true, image: true } },
+                        },
+                    },
+                    registryComments: {
+                        select: { id: true, body: true, authorName: true, authorUserId: true, createdAt: true },
+                        orderBy: { createdAt: "asc" },
+                        take: MAX_REGISTRY_COMMENTS,
+                    },
+                },
+            });
+            if (!profile) return { success: false, error: "Cible invalide pour cette guilde" };
+
+            const joinedAtDate = profile.guildJoinedAt ?? profile.createdAt;
+            const trialEndsAt = profile.trialEndsAt ? profile.trialEndsAt.toISOString() : null;
+            const recruiterName = profile.recruitedByProfile
+                ? profile.recruitedByProfile.pseudoDofus ||
+                  profile.recruitedByProfile.discordNickname ||
+                  profile.recruitedByProfile.user?.name ||
+                  null
+                : null;
+
+            return {
+                success: true,
+                data: {
+                    dashboard: true,
+                    displayName:
+                        profile.pseudoDofus || profile.discordNickname || profile.user?.name || null,
+                    pseudoDofus: profile.pseudoDofus,
+                    ankamaId: profile.ankamaId,
+                    status: profile.status,
+                    joinedAt: joinedAtDate.toISOString(),
+                    seniorityDays: computeSeniorityDays(joinedAtDate.toISOString(), now),
+                    trial: {
+                        validated: profile.trialValidated,
+                        endsAt: trialEndsAt,
+                        remainingDays: profile.trialEndsAt ? differenceInDays(profile.trialEndsAt, now) : null,
+                        decision: getTrialDecision({
+                            trialValidated: profile.trialValidated,
+                            trialEndsAt,
+                            joinedAtIso: joinedAtDate.toISOString(),
+                            trialDurationDays: guild.trialDurationDays,
+                            now,
+                        }),
+                    },
+                    recruiter: profile.recruitedByProfile
+                        ? {
+                              id: profile.recruitedByProfile.id,
+                              name: recruiterName || "Membre",
+                              avatar: profile.recruitedByProfile.user?.image || null,
+                          }
+                        : null,
+                    mules: normalizeMules(profile.altPseudos),
+                    comments: profile.registryComments.map(toRegistryComment),
+                    vacationStart: profile.vacationStart ? profile.vacationStart.toISOString() : null,
+                    vacationEnd: profile.vacationEnd ? profile.vacationEnd.toISOString() : null,
+                    readAt,
+                },
+            };
+        }
+
+        // Membre Discord hors dashboard : la ligne de registre peut ne pas exister encore.
+        const entry = await db.memberRegistryEntry.findUnique({
+            where: { guildId_discordId: { guildId: guild.id, discordId: target.discordId } },
+            select: {
+                pseudoDofus: true,
+                ankamaId: true,
+                guildJoinedAt: true,
+                recruitedById: true,
+                trialValidated: true,
+                trialEndsAt: true,
+                altPseudos: true,
+            },
+        });
+        const comments = await db.memberRegistryComment.findMany({
+            where: { guildId: guild.id, discordId: target.discordId },
+            select: { id: true, body: true, authorName: true, authorUserId: true, createdAt: true },
+            orderBy: { createdAt: "asc" },
+            take: MAX_REGISTRY_COMMENTS,
+        });
+
+        const recruiter = entry?.recruitedById
+            ? await db.userProfile.findFirst({
+                  where: { id: entry.recruitedById, guildId: guild.id },
+                  select: {
+                      id: true,
+                      pseudoDofus: true,
+                      discordNickname: true,
+                      user: { select: { name: true, image: true } },
+                  },
+              })
+            : null;
+
+        const joinedAt = entry?.guildJoinedAt ? entry.guildJoinedAt.toISOString() : null;
+        const trialEndsAt = entry?.trialEndsAt ? entry.trialEndsAt.toISOString() : null;
+        const recruiterName = recruiter
+            ? recruiter.pseudoDofus || recruiter.discordNickname || recruiter.user?.name || null
+            : null;
+
+        return {
+            success: true,
+            data: {
+                dashboard: false,
+                // Nom et date Discord : mesurés par le bot, absents de la base ⇒ la fusion
+                // de la ligne (`applyRosterSnapshot`) les conserve (`null` = « je ne sais pas »).
+                displayName: null,
+                pseudoDofus: entry?.pseudoDofus ?? null,
+                ankamaId: entry?.ankamaId ?? null,
+                status: null,
+                joinedAt,
+                seniorityDays: joinedAt ? computeSeniorityDays(joinedAt, now) : null,
+                trial: entry
+                    ? {
+                          validated: entry.trialValidated,
+                          endsAt: trialEndsAt,
+                          remainingDays: entry.trialEndsAt ? differenceInDays(entry.trialEndsAt, now) : null,
+                          decision: getTrialDecision({
+                              trialValidated: entry.trialValidated,
+                              trialEndsAt,
+                              joinedAtIso: joinedAt ?? now.toISOString(),
+                              trialDurationDays: guild.trialDurationDays,
+                              now,
+                          }),
+                      }
+                    : null,
+                recruiter: recruiter
+                    ? {
+                          id: recruiter.id,
+                          name: recruiterName || "Membre",
+                          avatar: recruiter.user?.image || null,
+                      }
+                    : null,
+                mules: entry ? normalizeMules(entry.altPseudos) : [],
+                comments: comments.map(toRegistryComment),
+                vacationStart: null,
+                vacationEnd: null,
+                readAt,
+            },
+        };
+    } catch (err: unknown) {
+        logger.error("[getMemberRegistrySnapshot] Erreur:", err);
+        return { success: false, error: "Erreur lors de la relecture de la fiche" };
+    }
+}
+
+// ==========================================
+// LOT 4 — JOURNAL DU STAFF : ÉDITION / SUPPRESSION AUDITÉES
+// ==========================================
+
+const registryCommentEditSchema = z.object({
+    commentId: z.string().min(1).max(64),
+    body: z.string().trim().min(1, "Commentaire vide").max(REGISTRY_COMMENT_MAX_LENGTH),
+});
+
+/** Périmètre d'un commentaire : la guilde **et** le membre visé (profil ou Discord). */
+function commentScope(guildId: string, target: RegistryTarget) {
+    return target.kind === "profile"
+        ? { guildId, profileId: target.profileId }
+        : { guildId, discordId: target.discordId };
+}
+
+/**
+ * Édite un commentaire du journal du staff — **avec trace** (lot 4).
+ *
+ * Le commentaire est retrouvé par `id` **dans la guilde et sur le membre visé** : un
+ * identifiant d'une autre fiche (ou d'une autre guilde) ne peut pas être édité.
+ * L'auteur d'origine est conservé ; l'audit dit qui a modifié quoi.
+ */
+export async function updateMemberRegistryComment(
+    guildId: string,
+    subject: RegistrySubject,
+    input: { commentId: string; body: string }
+): Promise<ActionResponse<{ message: string; comment: RegistryComment }>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canManageMembers) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    if (!subjectSchema.safeParse(subject).success) return { success: false, error: "Sujet invalide" };
+
+    const validated = registryCommentEditSchema.safeParse(input);
+    if (!validated.success) {
+        return { success: false, error: validated.error.errors[0]?.message || "Commentaire invalide" };
+    }
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const target = resolveRegistryTarget(subject);
+        const scope = commentScope(guild.id, target);
+        const previous = await db.memberRegistryComment.findFirst({
+            where: { id: validated.data.commentId, ...scope },
+            select: { id: true, body: true },
+        });
+        if (!previous) return { success: false, error: "Commentaire introuvable sur cette fiche" };
+
+        const updated = await db.memberRegistryComment.update({
+            where: { id: previous.id },
+            data: { body: validated.data.body },
+            select: { id: true, body: true, authorName: true, authorUserId: true, createdAt: true },
+        });
+
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: ctx.name || "Staff",
+            action: "MEMBER_COMMENT_UPDATED",
+            targetType: "USER_PROFILE",
+            targetId: updated.id,
+            oldValue: { body: previous.body },
+            newValue: { body: updated.body },
+            metadata: { source: "registre", kind: "registry_comment", commentId: updated.id },
+        });
+
+        return {
+            success: true,
+            data: { message: "Commentaire modifié", comment: toRegistryComment(updated) },
+        };
+    } catch (err: unknown) {
+        logger.error("[updateMemberRegistryComment] Erreur:", err);
+        return { success: false, error: "Erreur lors de la modification du commentaire" };
+    }
+}
+
+/**
+ * Supprime un commentaire du journal du staff — **avec trace** (lot 4).
+ *
+ * Même périmètre que l'édition (guilde + membre visé). L'audit conserve le corps
+ * supprimé : une suppression n'efface jamais la trace de ce qui a été dit.
+ */
+export async function deleteMemberRegistryComment(
+    guildId: string,
+    subject: RegistrySubject,
+    commentId: string
+): Promise<ActionResponse<{ message: string }>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canManageMembers) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    if (!subjectSchema.safeParse(subject).success) return { success: false, error: "Sujet invalide" };
+    const parsedId = z.string().min(1).max(64).safeParse(commentId);
+    if (!parsedId.success) return { success: false, error: "Commentaire invalide" };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guild) return { success: false, error: "Guilde introuvable" };
+
+        const target = resolveRegistryTarget(subject);
+        const scope = commentScope(guild.id, target);
+        const previous = await db.memberRegistryComment.findFirst({
+            where: { id: parsedId.data, ...scope },
+            select: { id: true, body: true },
+        });
+        if (!previous) return { success: false, error: "Commentaire introuvable sur cette fiche" };
+
+        await db.memberRegistryComment.delete({ where: { id: previous.id } });
+
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: ctx.name || "Staff",
+            action: "MEMBER_COMMENT_DELETED",
+            targetType: "USER_PROFILE",
+            targetId: previous.id,
+            oldValue: { body: previous.body },
+            metadata: { source: "registre", kind: "registry_comment", commentId: previous.id },
+        });
+
+        return { success: true, data: { message: "Commentaire supprimé" } };
+    } catch (err: unknown) {
+        logger.error("[deleteMemberRegistryComment] Erreur:", err);
+        return { success: false, error: "Erreur lors de la suppression du commentaire" };
     }
 }

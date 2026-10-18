@@ -1807,7 +1807,14 @@ export async function getDungeonMonsters(
 
         return { success: true, data: { familyId: null, monsters: [] } };
     } catch (error) {
-        logger.error('[getDungeonMonsters] Error:', { error });
+        // ① Amont DofusDB indisponible (5xx, 429, coupure) : cas d'EXPLOITATION, pas un défaut
+        // du produit — la fiche dégrade déjà proprement (`success: false`, repli local tenté
+        // juste avant). ② `sentry.server.config.ts` active
+        // `captureConsoleIntegration({ levels: ["error"] })` : un `logger.error` ici crée une
+        // **Issue par incident** (mesure du 18/10/2026 : `JAVASCRIPT-NEXTJS-1Q`, 3 événements
+        // sur `/boss/comte-et-klime`, 0 utilisateur). Donc `warn` — visible dans `docker logs`,
+        // invisible pour Sentry.
+        logger.warn("[getDungeonMonsters] DofusDB indisponible — repli sans monstres", error);
         return { success: false, error: 'Erreur DofusDB' };
     }
 }

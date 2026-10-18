@@ -162,6 +162,21 @@ describe("faux positifs Sentry — cas non fatal & bruit de process", () => {
         }
     });
 
+    it("⑨ la couche MetaMob ne journalise plus un amont en échec en `console.error`", () => {
+        // Mesure du 18/10/2026 — `JAVASCRIPT-NEXTJS-1S` : `TypeError: fetch failed`
+        // (`connect ETIMEDOUT 172.67.169.207:443` / `ENETUNREACH` IPv6 vers Cloudflare) sur
+        // `GET /dashboard/<guildId>`. Le catch DÉGRADE (cache Redis, `null`, liste vide) ou
+        // lève une erreur typée — ce n'est pas un défaut du produit. Deux `console.error`
+        // suffisaient à créer une Issue ; il y en avait même un **doublon** avec le
+        // `console.warn("Silent fail…")` juste après.
+        const source = readFileSync("src/lib/metamob-client.ts", "utf8");
+        expect(source).not.toMatch(/console\.error\(/);
+        // Le vrai signal (format d'API changé) reste en `error`, une seule fois.
+        expect(source).toContain('logger.error("[Metamob] Format de réponse API inattendu"');
+        // Et l'amont indisponible est dit en `warn`, une ligne par branche.
+        expect(source).toMatch(/logger\.warn\(`\[Metamob\] Amont indisponible/);
+    });
+
     it("⑦ une image pas encore siphonnée ne devient plus une Issue serveur", () => {
         // Mesure du 11/10/2026 (Sentry) : 12 issues `⨯ The requested resource isn't a valid
         // image for /game-data/monsters/<slug>.webp received null`, ~64 événements chacune,

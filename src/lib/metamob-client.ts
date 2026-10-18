@@ -504,7 +504,7 @@ async function fetchApi<T>(
                 return JSON.parse(cached);
             }
         } catch (e) {
-            console.error("[Metamob] Cache-First lookup failed:", e);
+            logger.warn("[Metamob] Cache-First indisponible — lecture réseau", e);
         }
     }
 
@@ -593,23 +593,29 @@ async function fetchApi<T>(
                     return JSON.parse(cached);
                 }
             } catch (cacheErr) {
-                console.error("[Metamob] Redis fallback failed:", cacheErr);
+                // Redis indisponible = cas d'INFRA géré (on continue sans cache) — `warn`, sinon
+                // chaque hoquet Redis créait une Issue Sentry (le serveur capture `console.error`).
+                logger.warn("[Metamob] Cache Redis indisponible — repli réseau", cacheErr);
             }
         }
 
         if (error instanceof z.ZodError) {
-            console.error("[Metamob] Schema validation failed:", error.errors);
+            // Là, c'est un VRAI signal : le format de l'API a changé (drift) → reste en `error`.
+            logger.error("[Metamob] Format de réponse API inattendu", error.errors);
             throw new MetamobApiError("API_ERROR", "Format de réponse API invalide");
         }
-        
-        console.error("[Metamob] Network error:", error);
-        
-        // Final fallback: If not a user resource, return null instead of throwing to avoid blocking UI
+
+        // Amont MetaMob injoignable (DNS/TLS/timeout, 2 reprises épuisées) : cas
+        // d'EXPLOITATION, pas un défaut du produit. Ressource publique → repli (cache ou
+        // `null`) ; ressource utilisateur → erreur typée renvoyée à l'écran. Un seul log par
+        // branche, en `warn` (visible dans `docker logs`, hors Sentry) — mesure du 18/10/2026 :
+        // `JAVASCRIPT-NEXTJS-1S` (`ETIMEDOUT`/`ENETUNREACH` vers Cloudflare, 1 événement).
         if (!isUserResource) {
-            console.warn(`[Metamob] Silent fail for public resource: ${endpoint}`);
+            logger.warn(`[Metamob] Amont indisponible — repli silencieux sur ${endpoint}`, error);
             return null as any;
         }
-        
+
+        logger.warn(`[Metamob] Amont indisponible — erreur typée renvoyée pour ${endpoint}`, error);
         throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible.");
     }
 }
@@ -642,7 +648,7 @@ async function fetchPaginatedApi<T>(
             const cached = await redis.get(cacheKey);
             if (cached) return JSON.parse(cached);
         } catch (e) {
-            console.error("[Metamob] Cache-First paginated lookup failed:", e);
+            logger.warn("[Metamob] Cache-First indisponible (paginé) — lecture réseau", e);
         }
     }
 
@@ -729,21 +735,20 @@ async function fetchPaginatedApi<T>(
                     return JSON.parse(cached);
                 }
             } catch (cacheErr) {
-                console.error("[Metamob] Redis fallback failed (paginated):", cacheErr);
+                logger.warn("[Metamob] Cache Redis indisponible (paginé) — repli réseau", cacheErr);
             }
         }
 
-        console.error("[Metamob] Network error (paginated):", error);
-
-        // Final fallback for public resources: Return empty items instead of throwing
+        // Même règle que la voie non paginée : amont indisponible = `warn`, une seule ligne.
         if (!isUserResource) {
-            console.warn(`[Metamob] Silent fail for public paginated resource: ${fullEndpoint}`);
+            logger.warn(`[Metamob] Amont indisponible — liste vide pour ${fullEndpoint}`, error);
             return { 
                 data: [], 
                 pagination: { total: 0, limit: 50, offset: 0 } 
             };
         }
 
+        logger.warn(`[Metamob] Amont indisponible — erreur typée renvoyée pour ${fullEndpoint}`, error);
         throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible.");
     }
 }

@@ -8,6 +8,13 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
+## 📝 Session 18/10/2026 (suite 9) — **Compléments lot 6/7 : la mesure de tous les membres est visible, la provenance boss est dite partout** — branche `feat/complements-fiche-membre-et-repli`
+> **Demande user (verbatim)** : « dernière pr tout ce qui manquait » (suite du rapport de #1020).
+> **Mesures** : ① `getMemberDiscordPresence` renvoyait `tracked:false` pour tout hors-dashboard — faux depuis le lot 7, le bot mesure désormais **tous** les membres ; ② `getDungeonMonsters` retombait sur DofusDB/Dofensive **sans le dire** dans les surfaces internes (Succès boss, Titans, overlay) alors que 20 donjons n'ont aucune donnée locale.
+> **Fait** : ① l'action expose `source` (`profile` / `member` / `none`) + `memberActivity` (messages, vocal total, première vue, dernière activité, `leftDiscordAt`) ; un hors-dashboard mesuré n'est plus « Non mesuré », le panneau rend les **compteurs bruts** et le départ Discord, et un profil affiche aussi son départ ; ② `getDungeonMonsters` déclare `source: "local" | "network" | "empty"` et les **trois** surfaces internes affichent « repli réseau » quand ce n'est pas local.
+> **Preuves** : **4 cas** neufs (2 `discord-member-activity`, 2 `boss-sovereignty`) · suite **421 fichiers / 4 594 tests ✓** · `tsc` **0** · `eslint` **0 erreur** · **aucune migration**.
+> **Reste / ops (humain)** : inchangé (#1020 : migration `20270113000000` à jouer, **bot à redéployer**). Puis **PR « moteur de rôles multi-sources »**.
+
 ## 📝 Session 18/10/2026 (suite 8) — **Fiche membre 2→7 : relecture serveur, essai/départ, journal audité, relance/vacances, souveraineté boss, activité Discord de tous** — branche `feat/lots-membres-2-7`
 > **Demande user (verbatim)** : « enchaine tout une seule PR » (lots 2 → 7 du conducteur).
 > **Mesures** : ① la modale gardait ses valeurs locales (`row` figé, `onChanged` jamais passé) : pseudo «  Bob  » affiché avec ses espaces, badge « Actif » après archivage, journal/essai/mules périmés ; ② `createAuditLog` résout la guilde par `discordGuildId`, mais **six** appels du registre lui passaient l'ID interne (`guild.id`) ⇒ **aucune trace** (retour « Guild not found » avalé) ; ③ **207** donjons en base pour **187** dans `dungeon-monsters.json`, et les `cleanName` collés ne matchaient pas (`bossMatchKey` ne retire pas les séparateurs) ; ④ `UserProfile.discordVoice*/discordMessage*` ne mesure que les **inscrits**.

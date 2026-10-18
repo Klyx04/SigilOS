@@ -1331,9 +1331,30 @@ export async function updateGuildLifecycleConfig(
 // PRÉSENCE DISCORD PAR MEMBRE (onglet de la fiche)
 // ==========================================
 
+/**
+ * Mesure brute du bot pour **tous** les membres (`DiscordMemberActivity`, lot 7) :
+ * compteurs et horodatages seulement, aucun contenu de message.
+ */
+export type MemberActivitySnapshot = {
+    messagesTotal: number;
+    /** Secondes cumulées → minutes arrondies (l'unité de l'écran). */
+    voiceMinutesTotal: number;
+    firstSeenAt: string;
+    lastSeenAt: string;
+    lastMessageAt: string | null;
+    lastVoiceAt: string | null;
+    /** Renseigné quand le membre a quitté le serveur Discord (purge à 365 j). */
+    leftDiscordAt: string | null;
+};
+
 export type MemberDiscordPresence = {
-    /** `false` = hors dashboard / jamais mesuré : le bot ne suit pas ce membre. */
+    /** `false` = aucune mesure (ni profil, ni ligne `DiscordMemberActivity`). */
     tracked: boolean;
+    /**
+     * D'où vient la mesure : compteurs riches d'un **profil** (fenêtres hebdo/mois) ou
+     * ligne **tous membres** écrite par le bot (`DiscordMemberActivity`, lot 7).
+     */
+    source: "profile" | "member" | "none";
     voiceWeekly: number;
     voiceMonthly: number;
     voiceTotal: number;
@@ -1349,10 +1370,13 @@ export type MemberDiscordPresence = {
     profileMonthly: DiscordPresenceProfile | null;
     noteWeekly: string | null;
     noteMonthly: string | null;
+    /** Mesure brute (tous les membres) — `null` tant que le bot n'a jamais vu la personne. */
+    memberActivity: MemberActivitySnapshot | null;
 };
 
 const UNTRACKED_PRESENCE: MemberDiscordPresence = {
     tracked: false,
+    source: "none",
     voiceWeekly: 0,
     voiceMonthly: 0,
     voiceTotal: 0,
@@ -1368,13 +1392,46 @@ const UNTRACKED_PRESENCE: MemberDiscordPresence = {
     profileMonthly: null,
     noteWeekly: null,
     noteMonthly: null,
+    memberActivity: null,
 };
+
+/** Lit la ligne `DiscordMemberActivity` d'un membre (tous, inscrit ou non) — lot 7. */
+async function readMemberActivity(
+    guildId: string,
+    discordId: string
+): Promise<MemberActivitySnapshot | null> {
+    const row = await db.discordMemberActivity.findUnique({
+        where: { guildId_discordId: { guildId, discordId } },
+        select: {
+            messagesTotal: true,
+            voiceSecondsTotal: true,
+            firstSeenAt: true,
+            lastSeenAt: true,
+            lastMessageAt: true,
+            lastVoiceAt: true,
+            leftDiscordAt: true,
+        },
+    });
+    if (!row) return null;
+    return {
+        messagesTotal: row.messagesTotal,
+        voiceMinutesTotal: Math.round(row.voiceSecondsTotal / 60),
+        firstSeenAt: row.firstSeenAt.toISOString(),
+        lastSeenAt: row.lastSeenAt.toISOString(),
+        lastMessageAt: row.lastMessageAt ? row.lastMessageAt.toISOString() : null,
+        lastVoiceAt: row.lastVoiceAt ? row.lastVoiceAt.toISOString() : null,
+        leftDiscordAt: row.leftDiscordAt ? row.leftDiscordAt.toISOString() : null,
+    };
+}
 
 /**
  * Activité Discord mesurée d'un membre (onglet « Activité Discord » de la fiche).
  * Lecture staff (`isAdmin` ou `canManageMembers`), sujet vérifié, guilde
- * cloisonnée. Un membre hors dashboard n'a pas de `UserProfile` : le bot ne le
- * mesure pas (`tracked: false`, jamais un zéro accusateur).
+ * cloisonnée.
+ *
+ * Deux sources, jamais mélangées : les compteurs **riches** d'un profil (fenêtres
+ * hebdo/mensuelle) et la mesure **tous membres** du bot (`DiscordMemberActivity`, lot 7).
+ * Un hors-dashboard mesuré n'est donc plus « non mesuré » — et un membre jamais vu le dit.
  */
 export async function getMemberDiscordPresence(
     guildId: string,
@@ -1400,7 +1457,25 @@ export async function getMemberDiscordPresence(
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
         const target = resolveRegistryTarget(parsed.data as RegistrySubject);
-        if (target.kind !== "profile") return { success: true, data: UNTRACKED_PRESENCE };
+
+        // Membre Discord sans profil : la mesure « tous membres » (lot 7) répond seule.
+        if (target.kind !== "profile") {
+            const activity = await readMemberActivity(guild.id, target.discordId);
+            if (!activity) return { success: true, data: UNTRACKED_PRESENCE };
+            return {
+                success: true,
+                data: {
+                    ...UNTRACKED_PRESENCE,
+                    tracked: true,
+                    source: "member",
+                    voiceTotal: activity.voiceMinutesTotal,
+                    messagesTotal: activity.messagesTotal,
+                    lastMessageAt: activity.lastMessageAt,
+                    lastVoiceAt: activity.lastVoiceAt,
+                    memberActivity: activity,
+                },
+            };
+        }
 
         const profile = await db.userProfile.findUnique({
             where: { id: target.profileId },
@@ -1417,11 +1492,24 @@ export async function getMemberDiscordPresence(
                 lastDiscordMessageAt: true,
                 lastDiscordVoiceAt: true,
                 lastDiscordReactionAt: true,
+                user: {
+                    select: {
+                        accounts: {
+                            where: { provider: "discord" },
+                            select: { providerAccountId: true },
+                            take: 1,
+                        },
+                    },
+                },
             },
         });
         if (!profile || profile.guildId !== guild.id) {
             return { success: false, error: "Cible invalide pour cette guilde" };
         }
+
+        // La mesure « tous membres » complète le profil (départ Discord, dernière présence).
+        const discordId = profile.user?.accounts?.[0]?.providerAccountId ?? null;
+        const memberActivity = discordId ? await readMemberActivity(guild.id, discordId) : null;
 
         const counters: PresenceCounters = {
             voiceWeekly: profile.discordVoiceTimeWeekly || 0,
@@ -1444,6 +1532,7 @@ export async function getMemberDiscordPresence(
             success: true,
             data: {
                 tracked: true,
+                source: "profile",
                 voiceWeekly: counters.voiceWeekly,
                 voiceMonthly: counters.voiceMonthly,
                 voiceTotal: counters.voiceTotal,
@@ -1459,6 +1548,7 @@ export async function getMemberDiscordPresence(
                 profileMonthly,
                 noteWeekly: describePresenceProfile(profileWeekly, "weekly"),
                 noteMonthly: describePresenceProfile(profileMonthly, "monthly"),
+                memberActivity,
             },
         };
     } catch (err: unknown) {

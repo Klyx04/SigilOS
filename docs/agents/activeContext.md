@@ -5,6 +5,14 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+## 📝 Session 18/10/2026 (suite 9) — **Compléments lot 6/7 : mesure « tous membres » visible, provenance boss dite partout** — branche `feat/complements-fiche-membre-et-repli`
+> **Demande user (verbatim)** : « dernière pr tout ce qui manquait ».
+> **Mesure** : `getMemberDiscordPresence` disait `tracked:false` pour tout hors-dashboard (faux depuis le lot 7) · `getDungeonMonsters` retombait sur le réseau sans le dire dans les surfaces internes.
+> **Fait** : `source` (`profile`/`member`/`none`) + `memberActivity` (messages, vocal total, première vue, dernière activité, `leftDiscordAt`) ; hors-dashboard mesuré = compteurs bruts affichés (plus « Non mesuré ») ; départ Discord aussi sur un profil · `getDungeonMonsters` déclare `local|network|empty`, et Succès boss / Titans / overlay affichent « repli réseau ».
+> **Preuves** : **4 cas** neufs · **421 fichiers / 4 594 tests ✓** · `tsc` 0 · `eslint` 0 erreur · aucune migration.
+> **Reste / ops (humain)** : inchangé (#1020 : migration à jouer, **bot à redéployer**). Puis PR « moteur de rôles multi-sources ».
+> **Rotation** : bloc « 18/10 (suite 3) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 18/10/2026 (suite 8) — **Lots 2→7 en une PR : fiche membre relue, journal audité, relance/vacances, souveraineté boss, activité Discord de tous** — branche `feat/lots-membres-2-7`
 > **Demande user (verbatim)** : « enchaine tout une seule PR ».
 > **Mesure** : modale figée (`row` non relu, `onChanged` jamais branché) · **six** `createAuditLog` du registre recevaient l'ID interne (aucune trace) · **207** donjons en base / **187** locaux (`cleanName` collés) · `UserProfile` ne mesure que les inscrits.
@@ -49,13 +57,6 @@
 > **Reste / ops (humain)** : déployer la bêta (migration incluse) ; **redémarrer `npm run dev`**. Puis **C2 → C3 → C4 → lots 2 → 7** (nouvelle PR), enfin **moteur de rôles multi-sources** (décision ouverte : vocal hebdo+mensuel + contribution totale).
 > **Rotation** : bloc « 16/10 (suite 3) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 18/10/2026 (suite 3) — **Rôles d'ancienneté : le module ne faisait RIEN (champ absent du `select`), les membres hors dashboard sont couverts, rattrapage borné** — branche `feat/roles-anciennete-hors-dashboard`
-> **Demande user (verbatim)** : « j'ai pourtant vu des gens qui devaient changer de rôle mais il n'ont jamais été distribué ni d'embed pourtant bien activé, donc notre module est pas bon » · « je veux que des membres mem hors dashboard soit notifié » · « une seule PR de S0-fix à S3 ».
-> **Mesure (bêta, `sigilos-db-beta`)** : STELLIUM `isActive=t`, `seniorityRolesEnabled=t`, **4 paliers valides** (`days` 10/90/182/274, `roleIds` = snowflakes de 19 chiffres), salon réglé, `activatedAt` 15/10 06:42 (écrit par le bouton « Activer », pas par une passe) ; passe à la demande : `{"guildsProcessed":0,"guildsSkipped":1,"membersChecked":0,"durationMs":19}`. **Cause racine** : `seniority-roles-core.ts` **filtrait** sur `seniorityRolesEnabled` **sans le sélectionner** ⇒ `mergeSeniorityRolesConfig` relisait `undefined` ⇒ `enabled=false` ⇒ **toute guilde sautée**, en silence, depuis la mise en service. `tsc` ne pouvait pas le voir (`SeniorityRolesConfigSource` optionnel, `SeniorityGuildRow` sans le champ).
-> **Fait (S0-fix → S3, aucune migration)** : ① **S0-fix** — champ **sélectionné** + `findMany` annoté `SeniorityGuildRow[]` (retirer un champ lu ne compile plus) ; ② **S1** — résumé du cron « N traitées · N sautées · N en erreur · N membres vérifiés (dont N sans profil) · N rôles · N annonces · N rattrapages silencieux · 1ʳᵉ erreur », `details` clé/valeur **par guilde** (rendu par la modale God existante), `logger.warn` par guilde sautée avec le motif (« N paliers lus, 0 retenu ») ; ③ **S2** — source = **membres Discord** (`fetchAllGuildMembersDetailed` paginé, **1 appel au lieu de N**, `joined_at` comme date d'arrivée ⇒ plus de vétérans à 0 jour), bots exclus, **CTA « 🎯 Pas encore inscrit ? »** avec le lien `getAppBaseUrl()` pour les **seuls** membres sans profil, alias `{rôles}/{rôle}/{role}` + variable `{lien}`, avertissement à l'enregistrement pour toute variable inconnue ; ④ **S3** — boutons « Synchroniser maintenant » / « Annoncer les paliers déjà atteints » (**1 carte/membre au palier le plus haut, 10/passe**, reliquat aux passes suivantes, `rateLimit` 1/5 min) ; bornes 5 000 membres (troncature dite) + écritures de rôles temporisées 100 ms.
-> **Preuves** : suite **413/413 fichiers · 4 491 tests ✓** · `tsc` **0** · `eslint` **0 erreur** · 38 tests ciblés dont **13 neufs** (`tests/unit/seniority-roles-membres-discord.test.ts`, verrou du `select` inclus) · **aucune migration**.
-> **Reste / ops (humain)** : déployer la bêta puis **jouer une passe** (« Synchroniser maintenant ») ; les paliers franchis **avant** le 15/10 06:42 restent muets (règle du 14/10) ⇒ « Annoncer les paliers déjà atteints », 10 par passe. **T0 fait** (`9f1d9649`, origine unique `getAppBaseUrl`) ; lot 2 (carte de cycle de vie depuis la modale) inchangé.
 
 ## PR / Branche
 - **Session « Démo publique » (02/10/2026)** → branche **`feat/demo-publique`**, **PR #830 mergée sur `dev`** : `src/lib/demo/**` (source statique) + route `/demo` + bandeau « Démonstration » + `readOnly` sur l'annuaire réel. Dossier : `docs/plans/PLAN-DEMO-PUBLIQUE.md`.

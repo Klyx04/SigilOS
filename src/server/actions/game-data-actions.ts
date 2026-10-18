@@ -1635,7 +1635,7 @@ export async function getMonsterStats(
 export async function getDungeonMonsters(
     bossName: string,
     dungeonName?: string
-): Promise<ActionResponse<{ familyId: number | null; monsters: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[] }>> {
+): Promise<ActionResponse<{ familyId: number | null; monsters: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[]; source: "local" | "network" | "empty" }>> {
     const cacheKey = `${bossName.trim().toLowerCase()}::${(dungeonName ?? "").toLowerCase()}`;
     const cached = dungeonFamilyCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
@@ -1693,7 +1693,7 @@ export async function getDungeonMonsters(
 
             const monsters = Array.from(mapById.values());
             if (monsters.length > 0) {
-                const result = { familyId: matchedDungeon.raceId ?? null, monsters };
+                const result = { familyId: matchedDungeon.raceId ?? null, monsters, source: "local" as const };
                 dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
                 return { success: true, data: result };
             }
@@ -1712,7 +1712,7 @@ export async function getDungeonMonsters(
                         isBoss: !!m.isBoss,
                     }));
                 if (famMobs.length > 0) {
-                    const result = { familyId: mob.raceId, monsters: famMobs };
+                    const result = { familyId: mob.raceId, monsters: famMobs, source: "local" as const };
                     dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
                     return { success: true, data: result };
                 }
@@ -1743,7 +1743,7 @@ export async function getDungeonMonsters(
                     isBoss: !!m.isBoss,
                 }));
                 if (monsters.length > 0) {
-                    const result = { familyId: race, monsters };
+                    const result = { familyId: race, monsters, source: "network" as const };
                     dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
                     return { success: true, data: result };
                 }
@@ -1778,7 +1778,7 @@ export async function getDungeonMonsters(
                             } catch {}
                         }
                         if (mobList.length > 0) {
-                            const result = { familyId: null, monsters: mobList };
+                            const result = { familyId: null, monsters: mobList, source: "network" as const };
                             dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
                             return { success: true, data: result };
                         }
@@ -1798,14 +1798,14 @@ export async function getDungeonMonsters(
                         imageUrl: null,
                         isBoss: idx === 0 || dofDungeon.data?.bossMonsterId === m.id,
                     }));
-                    const result = { familyId: null, monsters };
+                    const result = { familyId: null, monsters, source: "network" as const };
                     dungeonFamilyCache.set(cacheKey, { data: result, expiresAt: Date.now() + DUNGEON_FAMILY_TTL });
                     return { success: true, data: result };
                 }
             } catch {}
         }
 
-        return { success: true, data: { familyId: null, monsters: [] } };
+        return { success: true, data: { familyId: null, monsters: [], source: "empty" as const } };
     } catch (error) {
         // ① Amont DofusDB indisponible (5xx, 429, coupure) : cas d'EXPLOITATION, pas un défaut
         // du produit — la fiche dégrade déjà proprement (`success: false`, repli local tenté

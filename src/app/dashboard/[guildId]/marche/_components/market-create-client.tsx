@@ -2011,7 +2011,7 @@ function ForgeBlock({
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                            Runes siphonnées
+                            Runes
                         </span>
                         <span className="flex items-center gap-2 text-[10px] font-bold uppercase text-muted-foreground">
                             {SMITHMAGIC_PALIERS.map((value) => (

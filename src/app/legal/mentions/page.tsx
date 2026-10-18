@@ -68,13 +68,6 @@ export default async function MentionsPage() {
                         .
                     </li>
                     <li>
-                        <strong>Dofensive :</strong> Données de combat, sorts, géométries de donjons et bestiaire issues de l'API du site{" "}
-                        <a href="https://dofensive.com/" target="_blank" rel="noopener noreferrer">
-                            Dofensive
-                        </a>
-                        .
-                    </li>
-                    <li>
                         <strong>Dofus pour les Noobs :</strong> Guides, parcours de quêtes et contenus de référence du site{" "}
                         <a href="https://www.dofuspourlesnoobs.com/" target="_blank" rel="noopener noreferrer">
                             Dofus pour les Noobs

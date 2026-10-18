@@ -226,8 +226,7 @@ export function BountyFicheView({
                 <div className="space-y-2">
                     {spells.length === 0 ? (
                         <p className="py-6 text-center text-xs text-muted-foreground">
-                            Aucun sort : ni DofusDB ni Dofensive n&apos;en référencent pour cet avis (certains
-                            avis, comme « Ronce », n&apos;en lancent aucun).
+                            Aucun sort référencé pour cet avis (certains, comme « Ronce », n&apos;en lancent aucun).
                         </p>
                     ) : (
                         spells.map((s: any) => (

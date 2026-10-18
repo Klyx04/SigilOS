@@ -585,7 +585,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                 showOverlayAction={isGuildMode}
                                                 fallbackImageUrl={bounties.find((b: any) => b.id === activeBountyId)?.imageUrl ?? null}
                                                 emptyTitle="Fiche non disponible"
-                                                emptyHint="Cet avis n'a pas encore de fiche siphonnée (God → Données de jeu → Avis de recherche)."
+                                                emptyHint="Cet avis n'a pas encore de fiche (God → Données de jeu → Avis de recherche)."
                                             />
                                         </div>
                                     )}

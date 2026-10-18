@@ -2,7 +2,7 @@
 // Songes — surfaces et actions sur les TOKENS du thème (accent unique : info) ; contrat : src/lib/songes/ui.ts
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Search, X, Star, Swords, Shield, Wind, BookOpen, Lightbulb, ChevronDown, ExternalLink, Dice5 } from "lucide-react";
+import { Search, X, Star, Swords, Shield, Wind, BookOpen, Lightbulb, ChevronDown, Dice5 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ============================================
@@ -262,17 +262,6 @@ function BossDetail({ boss, shortVersion }: { boss: BossData; shortVersion: bool
                             {renderMarkdown(advice)}
                         </div>
                     </div>
-
-                    {/* Dofensive Link */}
-                    <a
-                        href={`https://dofensive.com/fr/monster/${boss.Id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-border bg-surface text-foreground/60 hover:bg-surface hover:text-foreground transition-all text-sm font-medium group mt-auto"
-                    >
-                        <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                        Besoin de détails ? (Dofensive)
-                    </a>
                 </div>
             </div>
         </div>

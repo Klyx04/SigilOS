@@ -29,7 +29,7 @@ export const ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (12 rouges)",
+                label: "Variante (12 rouges)",
                 mapId: 176160772,
                 red: [241, 256, 313, 341, 342, 366, 369, 370, 371, 380, 439, 454],
                 blue: [66, 79, 95, 109, 178, 179, 180, 207, 208, 236, 291, 305],
@@ -49,7 +49,7 @@ export const ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (12 rouges)",
+                label: "Variante (12 rouges)",
                 mapId: 176161796,
                 red: [326, 327, 341, 342, 355, 356, 394, 408, 410, 424, 425, 438],
                 blue: [221, 236, 249, 250, 264, 265, 317, 331, 333, 347, 348, 361],
@@ -69,7 +69,7 @@ export const ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (12 rouges)",
+                label: "Variante (12 rouges)",
                 mapId: 176162820,
                 red: [270, 284, 285, 298, 381, 396, 400, 410, 413, 414, 425, 428],
                 blue: [206, 217, 220, 231, 232, 235, 245, 249, 304, 318, 319, 332],
@@ -89,7 +89,7 @@ export const ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (12 rouges)",
+                label: "Variante (12 rouges)",
                 mapId: 176163844,
                 red: [244, 259, 272, 273, 328, 342, 343, 356, 454, 468, 483, 497],
                 blue: [179, 192, 193, 207, 247, 248, 262, 276, 346, 360, 375],
@@ -109,7 +109,7 @@ export const ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (11 rouges)",
+                label: "Variante (11 rouges)",
                 mapId: 176164868,
                 red: [387, 388, 389, 390, 415, 416, 432, 443, 445, 459, 471],
                 blue: [203, 205, 206, 207, 231, 259, 287, 311, 312, 313, 314, 315, 395, 423, 451],

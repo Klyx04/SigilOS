@@ -25,7 +25,7 @@ export default async function BossSimDemoPage({
             <main className="min-h-[70vh] flex flex-col items-center justify-center gap-3 px-4 text-center">
                 <p className="text-lg font-black text-foreground">Donjon « {boss} »</p>
                 <p className="text-sm text-muted-foreground">
-                    {res.error ?? "Donjon introuvable chez Dofensive"}
+                    {res.error ?? "Donjon introuvable"}
                 </p>
             </main>
         );

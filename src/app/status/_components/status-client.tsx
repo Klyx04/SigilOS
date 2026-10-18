@@ -116,27 +116,11 @@ function buildRows(health: HealthData | null): ServiceRow[] {
         },
         {
             key: "metamob",
-            name: "Metamob",
+            name: "Synchro module Metamob",
             usage: "Quête Ocre, doublons, échanges",
             icon: <ServiceIcon src="/assets/brands/metamob.png" />,
             state: checks?.metamob.status ?? "unknown",
             detail: checks?.metamob.latencyMs != null ? `${checks.metamob.latencyMs} ms` : undefined,
-        },
-        {
-            key: "dofusdb",
-            name: "DofusDB",
-            usage: "Encyclopédie, images d'objets",
-            icon: <ServiceIcon src="/assets/brands/dofusdb.png" />,
-            state: checks?.dofusdb.status ?? "unknown",
-            detail: checks?.dofusdb.latencyMs != null ? `${checks.dofusdb.latencyMs} ms` : undefined,
-        },
-        {
-            key: "dofensive",
-            name: "Dofensive",
-            usage: "Fiches boss, cartes tactiques",
-            icon: <ServiceIcon src="/assets/brands/dofensive.png" />,
-            state: checks?.dofensive.status ?? "unknown",
-            detail: checks?.dofensive.latencyMs != null ? `${checks.dofensive.latencyMs} ms` : undefined,
         },
     ];
 }

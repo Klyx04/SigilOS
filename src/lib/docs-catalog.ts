@@ -421,7 +421,7 @@ La revente d'archimonstres capturés en guilde à l'hôtel des ventes est viveme
 </ul>
 
 <h2>Le Guide des Boss</h2>
-<p>Avant de partir, clique sur <strong>Guide des Boss</strong> : les fiches des <strong>144 boss</strong> (données Songes pour les Noobs, par Volcasaurus) avec recherche par nom, note de difficulté, barres Focus, Esquive et Tank, onglets Informations, Mécaniques et Conseils. La <strong>version courte</strong> se lit entre deux salles, le <strong>boss aléatoire</strong> donne des idées, et le lien Dofensive apporte le détail complet.</p>
+<p>Avant de partir, clique sur <strong>Guide des Boss</strong> : les fiches des <strong>144 boss</strong> (données Songes pour les Noobs, par Volcasaurus) avec recherche par nom, note de difficulté, barres Focus, Esquive et Tank, onglets Informations, Mécaniques et Conseils. La <strong>version courte</strong> se lit entre deux salles, et le <strong>boss aléatoire</strong> donne des idées.</p>
 
 <h2>Si ça coince</h2>
 <ul>
@@ -788,11 +788,6 @@ La copie est <em>unitaire</em> : plus de bouton qui copiait toute la liste d'un 
             <td><strong>DofusDB</strong></td>
             <td>Encyclopédie</td>
             <td>Base de données ultra-complète sur tous les monstres, items, quêtes, recettes et succès.</td>
-        </tr>
-        <tr>
-            <td><strong>Dofensive</strong></td>
-            <td>Stratégie IA</td>
-            <td>Simulateur d'IA des monstres, portées de sorts, lignes de vue et patterns d'attaque.</td>
         </tr>
         <tr>
             <td><strong>Metamob</strong></td>

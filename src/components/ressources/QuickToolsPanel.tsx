@@ -51,12 +51,6 @@ const SECTIONS: ToolSection[] = [
         color: "#ef4444",
         tools: [
             {
-                title: "Dofensive",
-                emoji: "🛡️",
-                url: "https://dofensive.com",
-                desc: "Sorts et résistances précises par monstre",
-            },
-            {
                 title: "DofusBook",
                 emoji: "📗",
                 url: "https://www.dofusbook.net",

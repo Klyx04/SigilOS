@@ -15,6 +15,10 @@ const ACTION = "src/server/actions/data-health-actions.ts";
 const PAGE = "src/app/boss/[dungeonId]/page.tsx";
 const PANEL = "src/components/admin/DataHealthPanel.tsx";
 const MIGRATION = "prisma/schema.prisma";
+const GAME_DATA = "src/server/actions/game-data-actions.ts";
+const BOSS_GUIDE = "src/components/succes/SuccesBossGuide.tsx";
+const TITAN = "src/components/succes/SuccesTitanTab.tsx";
+const OVERLAY = "src/components/boss-overlay/BossOverlayClient.tsx";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -91,5 +95,23 @@ describe("lot 6 — câblage (souveraineté dite, repli explicite)", () => {
         const src = read(MIGRATION);
         // Le modèle de lot 7 et la souveraineté ne doivent pas dupliquer un chemin de données.
         expect(src).toContain("model DiscordMemberActivity");
+    });
+});
+
+describe("lot 6 — la provenance est dite jusque dans les surfaces internes", () => {
+    it("getDungeonMonsters déclare `local` / `network` / `empty`", () => {
+        const src = read(GAME_DATA);
+        expect(src).toContain('source: "local" as const');
+        expect(src).toContain('source: "network" as const');
+        expect(src).toContain('source: "empty" as const');
+        expect(src).toContain('source: "local" | "network" | "empty"');
+    });
+
+    it("les trois surfaces internes affichent le repli réseau", () => {
+        for (const file of [BOSS_GUIDE, TITAN, OVERLAY]) {
+            const src = read(file);
+            expect(src, file).toContain('source === "network"');
+            expect(src, file).toMatch(/repli réseau|network fallback/);
+        }
     });
 });

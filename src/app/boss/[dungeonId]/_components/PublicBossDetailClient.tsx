@@ -89,6 +89,11 @@ interface FamilyMember {
 export interface DungeonFamily {
   familyId: number | null;
   monsters: FamilyMember[];
+  /**
+   * Lot 6 — provenance de la composition : `local` (catalogue souverain),
+   * `network` (repli DofusDB/Dofensive) ou `empty`. L'UI le dit quand ce n'est pas local.
+   */
+  source?: "local" | "network" | "empty";
   /** Monstres de l'anomalie uniquement (accompagnateurs) — sous-ensemble de `monsters`. */
   companions?: FamilyMember[];
   /** « 3 au hasard parmi 16 » (fourni par la source siphonnée). */

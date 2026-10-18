@@ -102,6 +102,8 @@ interface FamilyMember {
 interface DungeonFamily {
   familyId: number | null;
   monsters: FamilyMember[];
+  /** Lot 6 — provenance de la composition (`local` / `network` / `empty`). */
+  source?: "local" | "network" | "empty";
 }
 
 type CatalogFilter = "boss" | "anomalie" | "raid" | "monstre" | "titan" | "bounty";
@@ -980,6 +982,11 @@ export function BossOverlayClient({
                     <span className="flex-1 text-[11px] text-white/70 group-hover:text-white/90 transition-colors">
                       {isEn ? "Dungeon Family" : "Famille du donjon"}
                       <span className="ml-1.5 font-mono text-white/40">{family.monsters.length}</span>
+                      {family.source === "network" && (
+                        <span className="ml-1.5 rounded border border-warning/40 px-1 text-[9px] font-semibold uppercase text-warning">
+                          {isEn ? "network fallback" : "repli réseau"}
+                        </span>
+                      )}
                     </span>
                     <ChevronRight className="w-3.5 h-3.5 text-white/30 group-hover:text-white/60 transition-colors" />
                   </button>

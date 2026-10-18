@@ -24,6 +24,8 @@ const MIGRATION = "prisma/migrations/20270113000000_add_discord_member_activity/
 const BOT = "services/discord-bot/index.ts";
 const PURGE = "src/server/discord-member-activity-retention.ts";
 const CRON = "src/app/api/cron/account-retention/route.ts";
+const ACTION = "src/server/actions/member-lifecycle-actions.ts";
+const PANEL = "src/components/admin/members/member-discord-activity.tsx";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -98,5 +100,28 @@ describe("lot 7 — écriture bot et purge", () => {
         expect(route).toContain("discordActivityError");
         expect(route).toContain("success: discordActivityError === null");
         expect(route).toContain("verifyCronSecret(req)");
+    });
+});
+
+describe("lot 7 — la mesure est VISIBLE dans la fiche", () => {
+    it("l'action expose sa source et lit la table pour un hors-dashboard", () => {
+        const src = read(ACTION);
+        expect(src).toContain("db.discordMemberActivity.findUnique(");
+        expect(src).toContain('source: "member"');
+        expect(src).toContain('source: "profile"');
+        expect(src).toContain("tracked: true");
+        expect(src).toContain("leftDiscordAt");
+        // Le hors-dashboard mesuré n'est plus renvoyé comme « non mesuré ».
+        expect(src).toContain("if (!activity) return { success: true, data: UNTRACKED_PRESENCE }");
+    });
+
+    it("le panneau rend la mesure brute au lieu de « Non mesuré »", () => {
+        const src = read(PANEL);
+        expect(src).toContain('data.source === "member"');
+        expect(src).toContain("Mesuré · tous membres");
+        expect(src).toContain("membre non inscrit au dashboard");
+        expect(src).toContain("compteurs bruts");
+        // Le cas « aucune mesure » reste dit (jamais un zéro accusateur).
+        expect(src).toContain("Non mesuré");
     });
 });

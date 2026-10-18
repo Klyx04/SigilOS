@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Clock, Heart, Loader2, MessageSquare, Reply, Tv } from "lucide-react";
+import { Activity, BookOpen, CalendarClock, Clock, Heart, Loader2, MessageSquare, Reply, Tv } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -125,6 +125,57 @@ export function MemberDiscordActivity({
         );
     }
 
+    // Lot 7 — membre mesuré par le bot **sans profil dashboard** : compteurs bruts uniquement
+    // (pas de fenêtre hebdo/mensuelle), présentés pour ce qu'ils sont.
+    if (data.source === "member" && data.memberActivity) {
+        const activity = data.memberActivity;
+        return (
+            <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-success/40 bg-surface px-2 py-0.5 text-caption font-semibold uppercase text-success">
+                        Mesuré · tous membres
+                    </span>
+                    <span className="text-caption text-muted-foreground">
+                        membre non inscrit au dashboard
+                    </span>
+                    {activity.leftDiscordAt && (
+                        <span className="rounded-full border border-warning/40 bg-surface px-2 py-0.5 text-caption font-semibold uppercase text-warning">
+                            A quitté le serveur le {formatDateTime(activity.leftDiscordAt)}
+                        </span>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <Stat icon={MessageSquare} label="Messages" value={activity.messagesTotal.toLocaleString()} hint="Cumul mesuré par le bot, tous les membres" />
+                    <Stat icon={Clock} label="Vocal · total" value={formatMinutes(activity.voiceMinutesTotal)} hint="Minutes cumulées mesurées par le bot (tous les membres)" />
+                    <Stat icon={CalendarClock} label="Première vue" value={formatDateTime(activity.firstSeenAt)} hint="Première activité observée par le bot" />
+                    <Stat icon={Activity} label="Dernière activité" value={formatDateTime(activity.lastSeenAt)} hint="Dernier événement observé (message ou vocal)" />
+                </div>
+
+                <dl className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+                    <div className="rounded-md border border-border bg-surface p-2.5">
+                        <dt className="text-caption uppercase text-muted-foreground">Dernier message</dt>
+                        <dd className="mt-0.5 text-foreground">{formatDateTime(activity.lastMessageAt)}</dd>
+                    </div>
+                    <div className="rounded-md border border-border bg-surface p-2.5">
+                        <dt className="text-caption uppercase text-muted-foreground">Dernier vocal</dt>
+                        <dd className="mt-0.5 text-foreground">{formatDateTime(activity.lastVoiceAt)}</dd>
+                    </div>
+                    <div className="rounded-md border border-border bg-surface p-2.5">
+                        <dt className="text-caption uppercase text-muted-foreground">Départ Discord</dt>
+                        <dd className="mt-0.5 text-foreground">{formatDateTime(activity.leftDiscordAt)}</dd>
+                    </div>
+                </dl>
+
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    Membre non inscrit : le bot mesure les <strong>compteurs bruts</strong> (messages,
+                    vocal total) — pas de fenêtre hebdomadaire ni mensuelle, et aucune réaction suivie.
+                    Lecture staff, jamais un blâme.
+                </p>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -176,6 +227,13 @@ export function MemberDiscordActivity({
                 Mesuré par le bot en temps réel · minutes arrondies (moins d&apos;une minute = invisible) ·
                 réactions émises non comptées · données de lecture staff, jamais un blâme.
             </p>
+
+            {/* Lot 7 — la mesure « tous membres » complète le profil : départ du serveur Discord. */}
+            {data.memberActivity?.leftDiscordAt && (
+                <p className="rounded-md border border-warning/40 bg-surface p-3 text-xs text-warning">
+                    Ce membre a quitté le serveur Discord le {formatDateTime(data.memberActivity.leftDiscordAt)}.
+                </p>
+            )}
         </div>
     );
 }

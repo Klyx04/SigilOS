@@ -108,7 +108,7 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
     const [linkedQuests, setLinkedQuests] = useState<BossLinkedQuestsData | null>(null);
     const [activeSpellId, setActiveSpellId] = useState<number | undefined>(undefined);
     const [dungeonMaps, setDungeonMaps] = useState<DofensiveDungeonInfo | null | undefined>(undefined);
-    const [family, setFamily] = useState<{ familyId: number | null; monsters: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[] } | null>(null);
+    const [family, setFamily] = useState<{ familyId: number | null; monsters: { id: number; name: string; imageUrl: string | null; isBoss: boolean }[]; source?: "local" | "network" | "empty" } | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -596,9 +596,15 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
                     {/* Onglet Monstres de salle */}
                     {detailTab === "monsters" && (
                         <div className="space-y-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Users className="w-4 h-4 text-warning" />
                                 <h4 className="text-sm font-bold text-foreground">Monstres de la salle</h4>
+                                {/* Lot 6 — provenance non locale : dite, jamais déguisée. */}
+                                {family?.source === "network" && (
+                                    <span className="rounded-full border border-warning/40 px-2 py-0.5 text-[10px] font-semibold uppercase text-warning">
+                                        Composition : repli réseau
+                                    </span>
+                                )}
                             </div>
                             {family && family.monsters.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

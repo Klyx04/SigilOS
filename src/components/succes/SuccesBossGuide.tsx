@@ -222,6 +222,8 @@ interface FamilyMember {
 interface DungeonFamily {
     familyId: number | null;
     monsters: FamilyMember[];
+    /** Lot 6 — provenance de la composition (`local` / `network` / `empty`). */
+    source?: "local" | "network" | "empty";
     /** Monstres de l'anomalie uniquement (accompagnateurs) — sous-ensemble de `monsters`. */
     companions?: FamilyMember[];
     /** « 3 au hasard parmi 16 » (fourni par la source siphonnée). */
@@ -1315,6 +1317,13 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                     <Target className="w-4 h-4 opacity-70" />
                                     Simulation &amp; portée des sorts
                                 </h4>
+
+                                {/* Lot 6 — la composition n'est pas locale : on le dit ici aussi. */}
+                                {familyByDungeon[selected.id]?.source === "network" && (
+                                    <span className="rounded-full border border-warning/40 px-2 py-0.5 text-[10px] font-semibold uppercase text-warning">
+                                        Composition : repli réseau
+                                    </span>
+                                )}
 
                                 {familyByDungeon[selected.id]?.monsters && familyByDungeon[selected.id].monsters.length > 1 && (
                                     <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border bg-background/40 p-1">

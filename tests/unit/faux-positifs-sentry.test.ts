@@ -145,6 +145,9 @@ describe("faux positifs Sentry — cas non fatal & bruit de process", () => {
         const sites = [
             { file: "src/server/actions/game-data-actions.ts", marker: "[getDungeonMonsters]" },
             { file: "src/server/actions/ocre-actions.ts", marker: "[getGuildKralamoureEvents]" },
+            // 18/10/2026, troisième occurrence de la même famille (widget d'échanges
+            // d'archimonstres, `POST …/members/<pseudo>`) : compte Metamob non authentifié.
+            { file: "src/server/actions/ocre-actions.ts", marker: "[getProfileMatchingArchis]" },
         ];
 
         for (const { file, marker } of sites) {

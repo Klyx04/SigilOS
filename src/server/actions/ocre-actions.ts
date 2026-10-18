@@ -1119,7 +1119,12 @@ export async function getProfileMatchingArchis(
         };
 
     } catch (error) {
-        logger.error("[getProfileMatchingArchis] Error:", error);
+        // Même famille que `getGuildKralamoureEvents` : un compte Metamob **privé / non
+        // authentifié** (`MetamobApiError` « Accès refusé : Authentification requise. ») est une
+        // configuration UTILISATEUR, et le widget rend déjà un message propre (`success: false`).
+        // En `error`, chaque profil privé consulté créait une Issue Sentry (mesure du
+        // 18/10/2026 : `JAVASCRIPT-NEXTJS-1R`, `POST …/members/<pseudo>`).
+        logger.warn("[getProfileMatchingArchis] Metamob refusé ou indisponible", error);
         return { success: false, error: "Erreur lors du calcul des échanges" };
     }
 }

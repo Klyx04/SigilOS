@@ -24,17 +24,26 @@ export function resolveAppBaseUrl(env: {
   NEXTAUTH_URL?: string
 }): { url: string; configured: boolean } {
   const explicit = env.NEXT_PUBLIC_APP_URL?.trim()
-  if (explicit) return { url: explicit, configured: true }
+  if (explicit) return { url: stripTrailingSlashes(explicit), configured: true }
 
   const auth = env.NEXTAUTH_URL?.trim()
   if (auth) {
     return {
-      url: auth.includes("beta.sigilos.fr") ? "https://beta.sigilos.fr" : auth,
+      url: auth.includes("beta.sigilos.fr") ? "https://beta.sigilos.fr" : stripTrailingSlashes(auth),
       configured: true,
     }
   }
 
   return { url: "https://sigilos.fr", configured: false }
+}
+
+/**
+ * Une origine ne porte jamais de slash final : sans ça, `${origine}/dashboard` produirait
+ * `https://…//dashboard` (mesure du 18/10/2026 : la règle était dupliquée dans ~30 fichiers,
+ * aucun ne la normalisait).
+ */
+function stripTrailingSlashes(value: string): string {
+  return value.replace(/\/+$/, "")
 }
 
 /** Évite de répéter l'avertissement à chaque appel (le module est chargé une fois par process). */

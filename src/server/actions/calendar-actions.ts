@@ -17,6 +17,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { isAgendaMirror } from "@/lib/agenda-mirror";
 import { blindAutoCloseWhere, shouldBlindAutoClose } from "@/lib/calendar-auto-close";
 import { startOfWeek, addDays } from "date-fns";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // ============================================
 // LOCAL ENUM DEFINITIONS (mirrors Prisma schema)

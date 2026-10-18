@@ -18,7 +18,7 @@ import { clearCachePattern } from "@/lib/cache";
 import { buildProfileSlug } from "@/lib/profile-slug";
 import { getDefaultDiscordAvatar } from "@/lib/discord-avatars";
 import { z } from "zod";
-import { formatDofusPseudo } from "@/lib/utils";
+import { formatDofusPseudo, getAppBaseUrl } from "@/lib/utils";
 // Règle de pseudo PARTAGÉE (profil interne ↔ guide public) : une seule définition.
 import {
     PSEUDO_PATTERN,
@@ -34,6 +34,7 @@ import { resolveDofusImageUrl } from "@/lib/dofus-image-url";
 import { PREFERRED_ACTIVITY_IDS } from "@/lib/profile-activities";
 import { metierIds } from "@/lib/metiers";
 import { postChannelMessage } from "@/server/discord";
+
 
 const rankingCache = new Map<string, { data: any[], expiresAt: number }>();
 const RANKING_CACHE_TTL = 300_000; // 5 minutes
@@ -1937,7 +1938,7 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
         const securedPseudo = getDisplayName(profile);
 
         const channelId = guildConfig.absenceChannelId;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const appUrl = getAppBaseUrl();
         // 🔗 #126 : slug lisible pour le lien Discord (pseudoDofus → discordNickname → id)
         const profileSlug = encodeURIComponent(buildProfileSlug({
             pseudoDofus: profile.pseudoDofus,
@@ -2190,7 +2191,7 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
                 if (achievementChannel) {
                     const { sendChannelMessage } = await import("@/server/discord");
                     const userName = currentProfile.discordNickname || currentProfile.pseudoDofus || "Un membre";
-                    const absoluteLink = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guildConfig.discordGuildId}/admin/validation`;
+                    const absoluteLink = `${getAppBaseUrl()}/dashboard/${guildConfig.discordGuildId}/admin/validation`;
                     const absoluteImageUrl = getDiscordPublicUrl(proofUrl);
                     
                     const mentionRole = (guildConfig as any).achievementNotifyRoleId || guildConfig.missionValidationNotifyRoleId;

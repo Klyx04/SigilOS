@@ -8,6 +8,7 @@ import { NotificationType, NotificationCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { DOFUS_JOBS, getAlignment, getOrder } from "@/lib/dofus-assets";
+import { getAppBaseUrl } from "@/lib/utils";
 
 export async function sendUserRequest(
     guildId: string,
@@ -119,7 +120,7 @@ export async function sendUserRequest(
         // 4. Send Discord Ping if configured
         if (guildConfig?.userRequestChannelId) {
             try {
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                const appUrl = getAppBaseUrl();
                 
                 await sendChannelMessage(
                     guildConfig.userRequestChannelId,
@@ -209,7 +210,7 @@ export async function replyToUserRequestAction(
     // L'expéditeur de la sollicitation est encodé dans le lien de la notification (?req=).
     let senderUserId: string | null = null;
     try {
-        const url = new URL(notif.link || "", "https://sigilos.fr");
+        const url = new URL(notif.link || "", getAppBaseUrl());
         senderUserId = url.searchParams.get("req");
     } catch {
         // lien invalide → senderUserId reste null
@@ -239,7 +240,7 @@ export async function replyToUserRequestAction(
     // Message Discord dans le canal de sollicitation (mention de l'expéditeur)
     if (guildConfig.userRequestChannelId) {
         try {
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+            const appUrl = getAppBaseUrl();
             const senderAccount = await db.account.findFirst({
                 where: { userId: senderUserId, provider: "discord" },
                 select: { providerAccountId: true }

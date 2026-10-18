@@ -6,6 +6,7 @@ import { getUserContext } from "./user-actions";
 import { revalidatePath } from "next/cache";
 import { getDofusWeek } from "@/lib/date-utils";
 import { COUNTED_MODULE_KEYS, getNextOnboardingAction } from "@/lib/onboarding-gating";
+import { getAppBaseUrl } from "@/lib/utils";
 
 export type OnboardingProgress = {
     steps: {
@@ -320,7 +321,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                 embedTitle: `🌟 NOUVELLE ARRIVÉE !`,
                 embedDescription: content,
                 embedColor: 0xf59e0b, // Amber 500
-                embedThumbnail: profile?.user?.image || "https://beta.sigilos.fr/assets/ui/logo-v2.png",
+                embedThumbnail: profile?.user?.image || `${getAppBaseUrl()}/assets/ui/logo-v2.png`,
                 embedFooter: "SigilOS Onboarding System"
             });
         } catch (e) {

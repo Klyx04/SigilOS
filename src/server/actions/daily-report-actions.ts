@@ -6,6 +6,7 @@ import { redis } from "@/lib/redis";
 import { auth } from "@/auth";
 import { sendChannelMessage } from "@/server/discord";
 import { isSuperAdmin } from "./super-admin-actions";
+import { getAppBaseUrl } from "@/lib/utils";
 
 /**
  * 📊 Envoie un rapport quotidien détaillé sur Discord.
@@ -184,7 +185,7 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
             embedUrl: dashboardUrl,
             embedDescription: `Événements récents nécessitant l'attention du staff.\n[Accéder au Dashboard Staff ➡️](${dashboardUrl})`,
             embedColor: 0x3b82f6, // Info blue
-            embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png",
+            embedThumbnail: `${getAppBaseUrl()}/assets/ui/logo-v2.png`,
             fields,
             embedFooter: `SigilOS • Rapport Staff du ${new Date().toLocaleDateString('fr-FR')}`,
         };

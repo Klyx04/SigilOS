@@ -6,6 +6,7 @@ import { sendChannelMessage, updateChannelMessage } from "@/server/discord";
 // Règle « un ID de message Discord est un snowflake » : source unique partagée
 // (statut Discord, outbox, Marché, embeds du calendrier).
 import { isDiscordSnowflake } from "@/lib/discord-ids";
+import { getAppBaseUrl } from "@/lib/utils";
 
 const REDIS_STATUS_MSG_KEY = process.env.NODE_ENV === "production" ? "sigilos:discord_status_message_id_prod" : "sigilos:discord_status_message_id_beta";
 const REDIS_STATUS_LAST_TS_KEY = process.env.NODE_ENV === "production" ? "sigilos:discord_status_last_ts_prod" : "sigilos:discord_status_last_ts_beta";
@@ -154,7 +155,7 @@ export async function sendGlobalStatusPingCore(
         const isBeta = process.env.NEXT_PUBLIC_APP_URL?.includes("beta") || process.env.NODE_ENV !== "production";
         const envName = isBeta ? "Beta / Test" : "Production";
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
         const statusUrl = `${appUrl}/status`;
 
         // Final Health Calc
@@ -230,7 +231,7 @@ export async function sendGlobalStatusPingCore(
                 ? "Nos équipes (enfin, le robot de maintenance) analysent actuellement l'incident."
                 : undefined,
             embedColor: statusColor,
-            embedThumbnail: effectiveLite ? undefined : "https://sigilos.fr/assets/ui/logo-v2.png",
+            embedThumbnail: effectiveLite ? undefined : `${getAppBaseUrl()}/assets/ui/logo-v2.png`,
             fields,
             embedFooter: `SigilOS Status • Mise à jour auto`,
         };

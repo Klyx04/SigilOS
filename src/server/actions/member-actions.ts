@@ -9,6 +9,7 @@ import { ActionResponse } from "./user-actions";
 import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { redis } from "@/lib/redis";
+import { getAppBaseUrl } from "@/lib/utils";
 
 export type MemberReconciliationData = {
     discordId: string;
@@ -228,7 +229,7 @@ export async function sendRosterAuditReport(rawData: z.infer<typeof RosterReport
         const filled = "🟩".repeat(Math.round(percent / 10));
         const empty = "⬜".repeat(10 - Math.round(percent / 10));
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
         const dashboardUrl = `${appUrl}/dashboard/${guildId}`;
 
         // 3. Construction des champs visuels (colonnes)

@@ -106,6 +106,7 @@ const sendServiceReplySchema = z.object({
 // ---------------------------------------------------------------------------
 
 import { CATEGORY_LABELS, CATEGORY_EMOJIS, CATEGORY_COLORS_HEX } from "./services-constants";
+import { getAppBaseUrl } from "@/lib/utils";
 
 function getName(p: { discordNickname?: string | null; pseudoDofus?: string | null; user?: { name?: string | null } | null }): string {
     return p.pseudoDofus || p.discordNickname || p.user?.name || "Membre";
@@ -156,7 +157,7 @@ async function sendServiceDiscordNotification(
         if (!token) return;
 
         const channelId = guildConfig.servicesNotifyChannelId;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
 
         // -- Detect channel type -- (via la couche centrale : fetchChannel, jamais de fetch direct)
         let channelInfo: { type: number; available_tags?: { id: string; name: string; moderated?: boolean }[] } | null = null;
@@ -739,7 +740,7 @@ export async function contactPasseurAction(
         if (!token) return { success: false, error: "Configuration Discord manquante" };
 
         const channelId = guildConfig.servicesNotifyChannelId;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
 
         const emoji = CATEGORY_EMOJIS[listing.category];
         const categoryLabel = CATEGORY_LABELS[listing.category];
@@ -924,7 +925,7 @@ export async function closeServiceRequestAction(
         });
 
         const providerName = request.providerProfile.pseudoDofus || request.providerProfile.discordNickname || "Prestataire";
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
         const feedbackUrl = `${appUrl}/dashboard/${guildId}/services?feedback=${feedbackToken}`;
 
         // 1. Notification Dashboard → client

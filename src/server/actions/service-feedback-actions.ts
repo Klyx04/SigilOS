@@ -10,6 +10,7 @@ import { z } from "zod";
 import { ServiceCategory, NotificationType, NotificationCategory } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { sanitizeName } from "@/lib/security";
+import { getAppBaseUrl } from "@/lib/utils";
 
 const submitFeedbackSchema = z.object({
     providerProfileId: z.string().min(1, "Prestataire requis"),
@@ -144,7 +145,7 @@ export async function submitServiceFeedback(
         // 2. Publication d'un embed Discord dans le salon de service de la guilde
         const stars = "⭐".repeat(rating);
         const providerName = providerProfile.pseudoDofus || providerProfile.discordNickname || providerProfile.user?.name || "Prestataire";
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
 
         if (guildConfig.servicesNotifyChannelId) {
             // Si la demande avait un message Discord, on met à jour le message existant pour clore le cycle

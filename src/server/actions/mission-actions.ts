@@ -22,6 +22,7 @@ import { getDofusWeek } from "@/lib/date-utils";
 import { getKamaStats } from "./kama-actions";
 import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import { missionCategoryImage } from "@/lib/mission-category-images";
+import { getAppBaseUrl } from "@/lib/utils";
 
 
 // --- Types & Schemas ---
@@ -77,7 +78,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
         if (discordChannelId) {
             try {
                 const { sendChannelMessage } = await import("@/server/discord");
-                const absoluteLink = link ? `${process.env.NEXT_PUBLIC_APP_URL}${link}` : undefined;
+                const absoluteLink = link ? `${getAppBaseUrl()}${link}` : undefined;
                 const absoluteImageUrl = getDiscordPublicUrl(proofUrl);
 
                 // Compact validation alert with proof screenshot + action buttons
@@ -1718,7 +1719,7 @@ export async function publishMissionsToDiscord(
  * Priority: Event missions → Songes → Dungeon boss → Regulation (default Dofus Ébène)
  */
 function getMissionThumbnailUrl(missions: { category: string; payload: any }[]): string {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const appUrl = getAppBaseUrl();
 
     // Prefer event missions (most visual)
     const eventMission = missions.find(m => m.category === "EVENT");

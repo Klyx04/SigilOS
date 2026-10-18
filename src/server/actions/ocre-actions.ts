@@ -53,6 +53,7 @@ import { decrypt } from "@/lib/encryption";
 import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
 import { metamobQueue } from "@/lib/queue/metamob-queue";
 import { redis } from "@/lib/redis";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // -----------------------------------------------------------------------------
 // TYPES
@@ -1920,7 +1921,7 @@ export async function createTradeRequest(
                 const monsterImageUrl = clientMonsterImage || undefined;
 
                 const { sendChannelMessage } = await import("@/server/discord");
-                const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                const publicUrl = getAppBaseUrl();
                 const requesterName = getDisplayName(requesterProfile);
                 
                 const targetMention = `<@${targetDiscordAccount.providerAccountId}>`;

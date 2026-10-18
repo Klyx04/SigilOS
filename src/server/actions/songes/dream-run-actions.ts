@@ -17,6 +17,7 @@ import { getDisplayName } from "@/lib/display-name";
 import { resolveSongesContributionPoints } from "@/lib/points-config";
 import { syncSongesMirror } from "@/server/agenda-mirror-sync";
 import { emitGuildActivity } from "@/server/guild-activity-emit";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // ============================================
 // CONSTANTS & HELPERS

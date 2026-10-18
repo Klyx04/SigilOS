@@ -720,7 +720,7 @@ export async function broadcastChangelogToGuilds(entryId: string) {
         errors: [] as string[]
     };
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sigilos.fr';
+    const appUrl = getAppBaseUrl();
     const emoji = CHANGELOG_CATEGORY_EMOJI[entry.category] ?? '📝';
     const color = CHANGELOG_CATEGORY_COLORS[entry.category] ?? 0x9333ea;
 

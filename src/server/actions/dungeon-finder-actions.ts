@@ -408,7 +408,7 @@ async function sendDiscordNotification(
         }
         if (!channelData) { logger.error("[DJ Embed] Cannot fetch channel: 404"); return; }
         const isForumChannel = channelData.type === 15;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
 
         const buttonComponents: any[] = [
             // #169 — le bouton « S'inscrire » ouvre une modal Discord (choix de classe) : dj:apply:{postId}
@@ -568,7 +568,7 @@ function discordErrorDetail(error: unknown): string {
 /** Rangée de boutons PAR donjon (max 5 rangées, ≤5 donjons) — bouton « S'inscrire »
  *  libellé avec le nom du donjon + index (dj:join:{postId}:{idx}). */
 function buildMultiButtonRows(post: any, guildId: string) {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const appUrl = getAppBaseUrl();
     const entries: any[] = getMultiDungeons(post.dungeonsJson);
     return entries.map((entry: any, idx: number) => ({
         type: 1,
@@ -597,7 +597,7 @@ function buildMultiDungeonRows(post: any, guildId: string, idx: number) {
 
 /** Rangée du message d'ouverture (chapeau du lot) : un seul lien, pas cinq. */
 function buildMultiChapeauRow(guildId: string) {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const appUrl = getAppBaseUrl();
     return [{
         type: 1,
         components: [
@@ -660,7 +660,7 @@ async function sendMultiDiscordNotification(
         }
         if (!channelData) { logger.error("[DJ Multi Embed] Cannot fetch channel: 404"); return; }
         const isForumChannel = channelData.type === 15;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
 
         const rows = buildMultiButtonRows(post, guildId);
 
@@ -1011,7 +1011,7 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
         });
         if (!post?.discordMessageId || !post?.discordChannelId) return;
         const authorName = post.profile?.discordNickname || post.profile?.pseudoDofus || post.profile?.dofusPseudo || post.profile?.user?.name || "Membre";
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
         const isMulti = getMultiDungeons(post.dungeonsJson).length > 0;
         const isOpen = post.status === "OPEN" || post.status === "FULL";
 
@@ -1360,7 +1360,7 @@ async function resolvePostQuestNpc(questId: number | null | undefined): Promise<
 }
 
 async function buildPostEmbed(post: any, authorName: string, guildId: string, acceptedParticipants: any[] = []) {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const appUrl = getAppBaseUrl();
     const isDungeon = post.mode === "DONJON";
     
     // Fetch creator's Discord ID for pinging

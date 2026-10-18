@@ -22,13 +22,17 @@ import { computeSeniorityDays, resolveJoinedAt } from "@/lib/member-registry";
 import { normalizeDiscordAvatarUrl } from "@/lib/discord-avatars";
 import {
     SENIORITY_ANNOUNCEMENT_DESCRIPTION_MAX_LENGTH,
+    SENIORITY_ANNOUNCEMENT_EXTRA_VARIABLES,
     SENIORITY_ANNOUNCEMENT_MESSAGE_MAX_LENGTH,
     SENIORITY_ANNOUNCEMENT_TITLE_MAX_LENGTH,
+    SENIORITY_ANNOUNCEMENT_VARIABLE_ALIASES,
+    SENIORITY_ANNOUNCEMENT_VARIABLES,
     SENIORITY_ROLES_MAX_DAYS,
     SENIORITY_ROLES_MAX_ROLES_PER_TIER,
     SENIORITY_ROLES_MAX_TIERS,
     SENIORITY_ROLES_MIN_DAYS,
     SENIORITY_UPCOMING_WINDOW_DAYS,
+    findUnknownAnnouncementVariables,
     mergeSeniorityRolesConfig,
     normalizeSeniorityTiers,
     resolveSeniorityRoleTier,
@@ -39,6 +43,22 @@ import {
 
 /** Plafond d'affichage de la liste « Prochains paliers » : l'écran reste lisible. */
 const MAX_UPCOMING = 25;
+
+/**
+ * Rappel lisible des variables **réellement** remplacées. Mesure du 18/10/2026 : `{rôles}`
+ * accentué traînait dans une configuration réelle et s'affichait littéralement dans l'embed.
+ * L'alias est toléré, la faute de frappe restante est signalée à l'enregistrement.
+ */
+const KNOWN_ANNOUNCEMENT_VARIABLES = [
+    ...SENIORITY_ANNOUNCEMENT_VARIABLES,
+    ...Object.keys(SENIORITY_ANNOUNCEMENT_VARIABLE_ALIASES),
+    ...SENIORITY_ANNOUNCEMENT_EXTRA_VARIABLES,
+]
+    .map((variable) => `{${variable}}`)
+    .join(", ");
+
+/** Fenêtre d'anti-rafale du bouton « Synchroniser maintenant » (une passe coûte des appels Discord). */
+const SYNC_COOLDOWN_SECONDS = 5 * 60;
 
 /** Identifiant Discord (snowflake) — même borne que le reste du dépôt. */
 const SNOWFLAKE = z.string().regex(/^\d{17,20}$/, "Identifiant Discord invalide");
@@ -282,6 +302,26 @@ export async function updateSeniorityRolesSettings(guildId: string, input: unkno
         // refêter des paliers déjà passés.
         const activatedAt = guild.seniorityRolesActivatedAt ?? (parsed.data.enabled ? new Date() : null);
 
+        // 🔎 Variables inconnues : on **enregistre quand même** (le texte reste modifiable), mais
+        // on le dit. Sans cet avertissement, une faute de frappe s'affiche dans l'embed public.
+        const templates = [
+            parsed.data.announcement.messageTemplate,
+            parsed.data.announcement.embedTitle,
+            parsed.data.announcement.embedDescription,
+            ...parsed.data.tiers.flatMap((tier) => [
+                tier.announcement?.messageTemplate,
+                tier.announcement?.embedTitle,
+                tier.announcement?.embedDescription,
+            ]),
+        ].filter((value): value is string => typeof value === "string" && value.length > 0);
+        const unknownVariables = [
+            ...new Set(templates.flatMap((template) => findUnknownAnnouncementVariables(template))),
+        ];
+        const warnings = unknownVariables.map(
+            (name) =>
+                `Variable inconnue « {${name}} » : elle restera affichée telle quelle. Variables valides : ${KNOWN_ANNOUNCEMENT_VARIABLES}.`,
+        );
+
         await db.guildConfig.update({
             where: { id: guild.id },
             data: {
@@ -295,7 +335,7 @@ export async function updateSeniorityRolesSettings(guildId: string, input: unkno
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/members`);
-        return { success: true as const };
+        return { success: true as const, warnings };
     } catch (e) {
         logger.error("[updateSeniorityRolesSettings] error:", e);
         return { success: false as const, error: "Erreur serveur" };
@@ -353,6 +393,71 @@ export async function updateSeniorityRolesChannel(guildId: string, input: unknow
         return { success: true as const };
     } catch (e) {
         logger.error("[updateSeniorityRolesChannel] error:", e);
+        return { success: false as const, error: "Erreur serveur" };
+    }
+}
+
+/**
+ * « Synchroniser maintenant » — passe **à la demande**, sur une seule guilde.
+ *
+ * Pourquoi une action dédiée : le cron est quotidien et son résumé vivait hors de l'écran ;
+ * l'administrateur ne pouvait donc jamais vérifier qu'un réglage produisait un effet. Cette
+ * passe renvoie le bilan **complet** (membres lus, rôles posés, paliers silencieux) — c'est
+ * aussi elle qui déclenche le **rattrapage**, jamais le cron (un déploiement ne doit pas
+ * inonder un salon).
+ *
+ * Garde-fous : même drapeau que l'onglet (`canManageMembers`), `rateLimit` 1 passe / 5 min
+ * par guilde (une passe coûte un appel paginé + une écriture par rôle modifié).
+ */
+export async function syncSeniorityRolesNow(
+    guildId: string,
+    options: { announceRetroactive?: boolean } = {},
+) {
+    const access = await requireMemberManager(guildId);
+    if (!access.allowed) return { success: false as const, error: access.error };
+
+    const limit = await rateLimit(`seniority-sync:${guildId}`, 1, SYNC_COOLDOWN_SECONDS);
+    if (!limit.success) {
+        return {
+            success: false as const,
+            error: "Une synchronisation vient d'être lancée : réessaie dans quelques minutes",
+        };
+    }
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guild) return { success: false as const, error: "Guilde introuvable" };
+
+        const { syncSeniorityRolesCore } = await import("@/server/seniority-roles-core");
+        const result = await syncSeniorityRolesCore({
+            onlyGuildId: guild.id,
+            announceRetroactive: options.announceRetroactive === true,
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/members`);
+        return {
+            success: result.guildsErrored === 0,
+            error: result.errors[0] ?? null,
+            summary: {
+                processed: result.guildsProcessed,
+                skipped: result.guildsSkipped,
+                errored: result.guildsErrored,
+                membersChecked: result.membersChecked,
+                membersUnregistered: result.membersUnregistered,
+                rolesAdded: result.rolesAdded,
+                rolesRemoved: result.rolesRemoved,
+                announcementsSent: result.announcementsSent,
+                retroactiveTiersMuted: result.retroactiveTiersMuted,
+                retroactiveAnnouncementsSent: result.retroactiveAnnouncementsSent,
+                retroactiveAnnouncementsPending: result.retroactiveAnnouncementsPending,
+            },
+            details: result.details,
+        };
+    } catch (e) {
+        logger.error("[syncSeniorityRolesNow] error:", e);
         return { success: false as const, error: "Erreur serveur" };
     }
 }

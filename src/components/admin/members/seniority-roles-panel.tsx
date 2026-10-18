@@ -15,10 +15,10 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { Check, ChevronsUpDown, Clock, ExternalLink, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { Check, ChevronsUpDown, Clock, ExternalLink, Loader2, Megaphone, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, getAppBaseUrl } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -33,16 +33,19 @@ import { DiscordEmbedPreview } from "@/components/discord/DiscordEmbedPreview";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import {
     getSeniorityRolesSettings,
+    syncSeniorityRolesNow,
     updateSeniorityRolesSettings,
     type SeniorityRolesSettingsPayload,
 } from "@/server/actions/seniority-roles-actions";
 import {
     DEFAULT_SENIORITY_ANNOUNCEMENT,
     SENIORITY_ANNOUNCEMENT_VARIABLES,
+    SENIORITY_MAX_RETRO_ANNOUNCEMENTS_PER_PASS,
     SENIORITY_ROLES_MAX_DAYS,
     SENIORITY_ROLES_MIN_DAYS,
     SENIORITY_UPCOMING_WINDOW_DAYS,
     buildSeniorityAnnouncementValues,
+    buildSeniorityNotRegisteredField,
     renderSeniorityAnnouncement,
     resolveTierAnnouncement,
     type SeniorityThumbnailSource,
@@ -248,6 +251,9 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
     const [previewTierIndex, setPreviewTierIndex] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
+    /** Passe à la demande : le bilan complet, affiché sous les boutons (jamais un simple toast). */
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [syncReport, setSyncReport] = useState<string[] | null>(null);
 
     const load = useCallback(async () => {
         const [settings, rolesRes] = await Promise.all([
@@ -345,6 +351,11 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
             });
 
             if (result.success) {
+                // 🔎 Une variable inconnue (ex. `{rôles}` accentué) reste affichée telle quelle dans
+                // l'embed : on le dit ici, au moment où l'administrateur peut encore corriger.
+                for (const warning of result.warnings) {
+                    toast.warning(warning, { duration: 10_000 });
+                }
                 toast.success("Rôles d'ancienneté : configuration enregistrée");
                 setIsLoading(true);
                 await load(); // l'état (répartition, marqueur d'activation) se relit sur le serveur
@@ -352,6 +363,41 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
         });
+    };
+
+    /**
+     * Passe **à la demande**. Le bilan s'affiche sous les boutons : un toast ne dit ni combien
+     * de membres ont été lus, ni pourquoi une guilde a été sautée (mesure du 18/10/2026).
+     */
+    const handleSync = async (announceRetroactive: boolean) => {
+        setIsSyncing(true);
+        setSyncReport(null);
+        try {
+            const result = await syncSeniorityRolesNow(guildId, { announceRetroactive });
+            if (!result.success) {
+                toast.error(result.error || "Synchronisation impossible");
+                return;
+            }
+            const summary = result.summary;
+            const lines = [
+                `${summary.processed} guilde(s) traitée(s) · ${summary.skipped} sautée(s) · ${summary.errored} en erreur`,
+                `${summary.membersChecked} membre(s) Discord — ${summary.membersUnregistered} sans profil`,
+                `${summary.rolesAdded} rôle(s) posé(s) · ${summary.rolesRemoved} retiré(s) · ${summary.announcementsSent} carte(s)`,
+            ];
+            if (announceRetroactive || summary.retroactiveAnnouncementsSent > 0) {
+                lines.push(
+                    `${summary.retroactiveAnnouncementsSent} carte(s) de rattrapage · ${summary.retroactiveAnnouncementsPending} en attente (plafond ${SENIORITY_MAX_RETRO_ANNOUNCEMENTS_PER_PASS}/passe)`,
+                );
+            }
+            setSyncReport([...lines, ...(result.details ?? [])]);
+            toast.success("Passe terminée");
+            setIsLoading(true);
+            await load(); // répartition, annonces et dernière passe se relisent
+        } catch {
+            toast.error("Synchronisation impossible");
+        } finally {
+            setIsSyncing(false);
+        }
     };
 
     // Aperçu : **le même rendu pur** que l'envoi (valeurs de démonstration, jamais un vrai membre).
@@ -365,6 +411,9 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
               awardedRoleIds: (previewTier ?? draft.tiers[0])?.roleIds ?? [],
           })
         : null;
+
+    // Lien **de l'environnement** (bêta ↔ prod) : partagé par l'aperçu et par l'envoi réel.
+    const dashboardUrl = `${getAppBaseUrl()}/dashboard`;
 
     const preview =
         draft && previewValues
@@ -382,6 +431,8 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                       },
                   }),
                   values: previewValues,
+                  // `{lien}` : le lien **de l'environnement**, comme l'envoi réel.
+                  extras: { lien: dashboardUrl },
               })
             : null;
 
@@ -726,13 +777,23 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                         </Select>
                                     </div>
                                 </div>
+                                {/* Le champ « Pas encore inscrit ? » n'est ajouté qu'aux membres
+                                    **sans profil** : il est montré ici pour que l'aperçu dise la
+                                    vérité complète. */}
                                 <DiscordEmbedPreview
                                     title={preview.embedTitle}
                                     description={preview.embedDescription}
                                     color={preview.color}
                                     thumbnail={previewThumbnail}
                                     mentionContent={preview.content}
+                                    fields={[buildSeniorityNotRegisteredField(dashboardUrl)]}
                                 />
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                    Le champ « Pas encore inscrit ? » n&apos;est ajouté qu&apos;aux membres qui
+                                    n&apos;ont pas encore de profil sur le dashboard. La variable{" "}
+                                    <code className="font-mono">{"{lien}"}</code> pointe sur{" "}
+                                    <code className="font-mono">{dashboardUrl}</code>.
+                                </p>
                             </div>
                         </div>
 
@@ -880,6 +941,59 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                 paliers franchis <strong>avant</strong> cette date sont posés en silence (aucune
                                 annonce rétroactive).
                             </p>
+                        </div>
+
+                        {/* ── Passes à la demande (le cron reste la voie normale) ── */}
+                        <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
+                            <div>
+                                <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                                    Passes à la demande
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Le robot passe une fois par jour. Ici, tu lances la même passe tout de
+                                    suite, sur cette guilde seulement (une passe toutes les 5 minutes).
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleSync(false)}
+                                    disabled={isSyncing || isPending}
+                                    className="gap-2"
+                                >
+                                    {isSyncing ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <RefreshCw className="h-4 w-4" />
+                                    )}
+                                    Synchroniser maintenant
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleSync(true)}
+                                    disabled={isSyncing || isPending}
+                                    className="gap-2"
+                                >
+                                    <Megaphone className="h-4 w-4" />
+                                    Annoncer les paliers déjà atteints
+                                </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Le rattrapage envoie au plus {SENIORITY_MAX_RETRO_ANNOUNCEMENTS_PER_PASS} cartes
+                                par passe (une par membre, au palier le plus haut) : le reste part aux passes
+                                suivantes, sans rien perdre.
+                            </p>
+                            {syncReport && (
+                                <ul className="space-y-1 rounded-lg border border-border bg-background/40 p-3 text-xs text-muted-foreground">
+                                    {syncReport.map((line, index) => (
+                                        <li key={index}>{line}</li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
 
                         <div className="flex justify-end">

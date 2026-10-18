@@ -28,10 +28,19 @@ export async function GET(req: NextRequest) {
         const result = await syncSeniorityRolesCore();
         const durationMs = Date.now() - startedAt;
 
+        // 🎯 Ce résumé est **le seul endroit** où le propriétaire lit ce que la passe a fait :
+        // il porte donc les compteurs qui manquaient (« guildes sautées », « membres vérifiés »)
+        // et la **première** erreur. Mesure du 18/10/2026 : « 0 guilde(s) traitée(s) · 0 rôle(s) »
+        // ne distinguait ni un module coupé, ni des paliers rejetés, ni un intent Discord absent.
+        const errors = result.errors.length > 0 ? ` · erreur : ${result.errors[0]}` : "";
         const summary =
-            `${result.guildsProcessed} guilde(s) traitée(s) · ${result.rolesAdded} rôle(s) posé(s) · ` +
+            `${result.guildsProcessed} guilde(s) traitée(s) · ${result.guildsSkipped} sautée(s) · ` +
+            `${result.guildsErrored} en erreur · ${result.membersChecked} membre(s) vérifié(s) ` +
+            `(dont ${result.membersUnregistered} sans profil) · ${result.rolesAdded} rôle(s) posé(s) · ` +
             `${result.rolesRemoved} retiré(s) · ${result.announcementsSent} annonce(s) · ` +
-            `${result.retroactiveTiersMuted} palier(s) de rattrapage passé(s) sous silence`;
+            `${result.retroactiveTiersMuted} palier(s) de rattrapage silencieux · ` +
+            `${result.retroactiveAnnouncementsSent} carte(s) de rattrapage envoyée(s)` +
+            `${errors}`;
 
         if (result.errors.length === 0) {
             logger.info("[CRON SeniorityRoles] Passe terminée", { durationMs, ...result });
@@ -41,10 +50,11 @@ export async function GET(req: NextRequest) {
 
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
         await recordCronExecution("seniority_roles", {
-            success: result.errors.length === 0,
+            success: result.guildsErrored === 0,
             durationMs,
             summary,
-            details: result.details,
+            // La modale du panneau God rend cet objet clé/valeur : « MaGuilde : sautée — … ».
+            details: result.telemetryDetails,
         });
 
         return NextResponse.json({ success: true, durationMs, ...result });

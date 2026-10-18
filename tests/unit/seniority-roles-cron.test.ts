@@ -36,13 +36,13 @@ vi.mock("@/lib/prisma", () => ({
     },
 }));
 
-const fetchGuildMember = vi.fn();
+const fetchAllGuildMembersDetailed = vi.fn();
 const addRoleToMember = vi.fn();
 const removeRoleFromMember = vi.fn();
 const sendChannelMessage = vi.fn();
 
 vi.mock("@/server/discord", () => ({
-    fetchGuildMember: (...args: unknown[]) => fetchGuildMember(...args),
+    fetchAllGuildMembersDetailed: (...args: unknown[]) => fetchAllGuildMembersDetailed(...args),
     addRoleToMember: (...args: unknown[]) => addRoleToMember(...args),
     removeRoleFromMember: (...args: unknown[]) => removeRoleFromMember(...args),
     sendChannelMessage: (...args: unknown[]) => sendChannelMessage(...args),
@@ -116,12 +116,29 @@ const profileRow = (overrides: Record<string, unknown> = {}) => ({
     ...overrides,
 });
 
+/**
+ * Membre **Discord** (source de vérité depuis le 18/10/2026) : la date d'arrivée vient de
+ * `joined_at`, les rôles portés de `roles`. Un membre sans profil est éligible comme les autres.
+ */
+const discordMember = (overrides: Record<string, unknown> = {}) => ({
+    user: { id: DISCORD_ID, username: "klyx", global_name: "Klyx", avatar: "a_hash" },
+    nick: null,
+    avatar: null,
+    roles: [] as string[],
+    joined_at: "2026-04-01T00:00:00.000Z",
+    ...overrides,
+});
+
+/** Réponse de la couche Discord : la liste **et** son drapeau de troncature. */
+const memberList = (members: unknown[], truncated = false) => ({ members, truncated });
+
 beforeEach(() => {
     vi.clearAllMocks();
     process.env.DISCORD_BOT_TOKEN = "bot-token";
     guildConfigFindMany.mockResolvedValue([]);
     guildConfigUpdate.mockResolvedValue({});
     userProfileFindMany.mockResolvedValue([]);
+    fetchAllGuildMembersDetailed.mockResolvedValue(memberList([]));
     announcementFindMany.mockResolvedValue([]);
     announcementCreate.mockResolvedValue({ id: "ann-1" });
     announcementDeleteMany.mockResolvedValue({ count: 1 });
@@ -181,7 +198,7 @@ describe("Y-2 — passe du cron : éligibilité, marqueur d'activation, rôles",
         expect(result.guildsSkipped).toBe(1);
         expect(result.guildsProcessed).toBe(0);
         expect(userProfileFindMany).not.toHaveBeenCalled();
-        expect(fetchGuildMember).not.toHaveBeenCalled();
+        expect(fetchAllGuildMembersDetailed).not.toHaveBeenCalled();
     });
 
     it("estampe le marqueur d'activation à la première passe et le dit dans le détail", async () => {
@@ -207,7 +224,7 @@ describe("Y-2 — passe du cron : éligibilité, marqueur d'activation, rôles",
     it("pose les rôles dus et passe les paliers antérieurs à l'activation sous silence", async () => {
         guildConfigFindMany.mockResolvedValue([guildRow()]);
         userProfileFindMany.mockResolvedValue([profileRow()]);
-        fetchGuildMember.mockResolvedValue({ roles: [], user: { id: DISCORD_ID, username: "klyx", avatar: "a_hash" } });
+        fetchAllGuildMembersDetailed.mockResolvedValue(memberList([discordMember()]));
 
         const result = await syncSeniorityRolesCore({ now: NOW });
 
@@ -225,7 +242,14 @@ describe("Y-2 — passe du cron : éligibilité, marqueur d'activation, rôles",
     it("retire les rôles d'un palier perdu, et seulement ceux-là", async () => {
         guildConfigFindMany.mockResolvedValue([guildRow()]);
         userProfileFindMany.mockResolvedValue([profileRow({ discordJoinedAt: new Date("2026-09-10T00:00:00.000Z") })]);
-        fetchGuildMember.mockResolvedValue({ roles: [ROLE_A, ROLE_B, snowflake(50)], user: { id: DISCORD_ID, username: "klyx" } });
+        fetchAllGuildMembersDetailed.mockResolvedValue(
+            memberList([
+                discordMember({
+                    roles: [ROLE_A, ROLE_B, snowflake(50)],
+                    joined_at: "2026-09-10T00:00:00.000Z",
+                }),
+            ]),
+        );
 
         const result = await syncSeniorityRolesCore({ now: NOW });
 
@@ -256,10 +280,9 @@ describe("Y-2 — annonces : une fois, et seulement pour un vrai franchissement"
             }),
         ]);
         userProfileFindMany.mockResolvedValue([celebrating()]);
-        fetchGuildMember.mockResolvedValue({
-            roles: [],
-            user: { id: DISCORD_ID, username: "klyx", avatar: "a_hash" },
-        });
+        fetchAllGuildMembersDetailed.mockResolvedValue(
+            memberList([discordMember({ joined_at: "2026-09-10T00:00:00.000Z" })]),
+        );
 
         const result = await syncSeniorityRolesCore({ now: NOW });
 
@@ -276,7 +299,9 @@ describe("Y-2 — annonces : une fois, et seulement pour un vrai franchissement"
     it("fête un franchissement postérieur à l'activation, avec la mention et la PP du membre", async () => {
         guildConfigFindMany.mockResolvedValue([guildRow()]);
         userProfileFindMany.mockResolvedValue([celebrating()]);
-        fetchGuildMember.mockResolvedValue({ roles: [], user: { id: DISCORD_ID, username: "klyx", avatar: "a_hash" } });
+        fetchAllGuildMembersDetailed.mockResolvedValue(
+            memberList([discordMember({ joined_at: "2026-09-10T00:00:00.000Z" })]),
+        );
 
         const result = await syncSeniorityRolesCore({ now: NOW });
 
@@ -299,7 +324,9 @@ describe("Y-2 — annonces : une fois, et seulement pour un vrai franchissement"
         guildConfigFindMany.mockResolvedValue([guildRow()]);
         userProfileFindMany.mockResolvedValue([celebrating()]);
         announcementFindMany.mockResolvedValue([{ discordId: DISCORD_ID, tierDays: 30 }]);
-        fetchGuildMember.mockResolvedValue({ roles: [ROLE_A], user: { id: DISCORD_ID, username: "klyx" } });
+        fetchAllGuildMembersDetailed.mockResolvedValue(
+            memberList([discordMember({ roles: [ROLE_A], joined_at: "2026-09-10T00:00:00.000Z" })]),
+        );
 
         const result = await syncSeniorityRolesCore({ now: NOW });
 
@@ -311,7 +338,9 @@ describe("Y-2 — annonces : une fois, et seulement pour un vrai franchissement"
     it("ne fête jamais un palier dont les rôles n'ont pas pu être posés (fail-closed)", async () => {
         guildConfigFindMany.mockResolvedValue([guildRow()]);
         userProfileFindMany.mockResolvedValue([celebrating()]);
-        fetchGuildMember.mockResolvedValue({ roles: [], user: { id: DISCORD_ID, username: "klyx" } });
+        fetchAllGuildMembersDetailed.mockResolvedValue(
+            memberList([discordMember({ joined_at: "2026-09-10T00:00:00.000Z" })]),
+        );
         addRoleToMember.mockResolvedValue(false);
 
         const result = await syncSeniorityRolesCore({ now: NOW });
@@ -324,7 +353,9 @@ describe("Y-2 — annonces : une fois, et seulement pour un vrai franchissement"
     it("relâche la revendication quand l'envoi échoue (le palier ne doit pas être perdu)", async () => {
         guildConfigFindMany.mockResolvedValue([guildRow()]);
         userProfileFindMany.mockResolvedValue([celebrating()]);
-        fetchGuildMember.mockResolvedValue({ roles: [], user: { id: DISCORD_ID, username: "klyx" } });
+        fetchAllGuildMembersDetailed.mockResolvedValue(
+            memberList([discordMember({ joined_at: "2026-09-10T00:00:00.000Z" })]),
+        );
         sendChannelMessage.mockResolvedValue(null);
 
         const result = await syncSeniorityRolesCore({ now: NOW });
@@ -338,7 +369,9 @@ describe("Y-2 — annonces : une fois, et seulement pour un vrai franchissement"
     it("pose les rôles sans rien poster quand aucun salon n'est réglé", async () => {
         guildConfigFindMany.mockResolvedValue([guildRow({ seniorityRolesChannelId: null })]);
         userProfileFindMany.mockResolvedValue([celebrating()]);
-        fetchGuildMember.mockResolvedValue({ roles: [], user: { id: DISCORD_ID, username: "klyx" } });
+        fetchAllGuildMembersDetailed.mockResolvedValue(
+            memberList([discordMember({ joined_at: "2026-09-10T00:00:00.000Z" })]),
+        );
 
         const result = await syncSeniorityRolesCore({ now: NOW });
 
@@ -347,17 +380,21 @@ describe("Y-2 — annonces : une fois, et seulement pour un vrai franchissement"
         expect(result.announcementsSent).toBe(0);
     });
 
-    it("ignore un profil sans compte Discord, et un membre absent du serveur", async () => {
+    it("un profil sans compte Discord est ignoré, mais un membre du serveur sans profil reçoit ses rôles", async () => {
         guildConfigFindMany.mockResolvedValue([guildRow()]);
-        userProfileFindMany.mockResolvedValue([profileRow({ user: { name: "Sans lien", accounts: [] } }), profileRow()]);
-        fetchGuildMember.mockResolvedValue(null);
+        // Ce profil n'a aucun compte Discord : il ne peut désigner personne.
+        userProfileFindMany.mockResolvedValue([profileRow({ user: { name: "Sans lien", accounts: [] } })]);
+        fetchAllGuildMembersDetailed.mockResolvedValue(
+            memberList([discordMember({ joined_at: "2026-09-10T00:00:00.000Z" })]),
+        );
 
         const result = await syncSeniorityRolesCore({ now: NOW });
 
-        // Le profil sans compte Discord n'est même pas interrogé chez Discord.
-        expect(fetchGuildMember).toHaveBeenCalledTimes(1);
-        expect(addRoleToMember).not.toHaveBeenCalled();
-        expect(result.membersChecked).toBe(2);
+        // Le membre vient de Discord, pas du dashboard : il reçoit quand même son rôle…
+        expect(addRoleToMember).toHaveBeenCalledWith("1290442961380835451", DISCORD_ID, ROLE_A);
+        expect(result.membersChecked).toBe(1);
+        // … et compte comme « sans profil » (l'embed portera le CTA « crée ton profil »).
+        expect(result.membersUnregistered).toBe(1);
     });
 
     it("ne touche à rien sans jeton de bot (fail-closed, et sans requête)", async () => {

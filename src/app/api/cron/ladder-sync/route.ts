@@ -3,6 +3,7 @@ import { db } from "@/lib/prisma";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { recordCronExecution } from "@/lib/cron-telemetry";
 import { summarizeLadderSync, buildLadderSyncMessage, buildLadderSyncFields } from "@/lib/ladder-sync-alert";
+import { boundCronList } from "@/lib/cron-metrics";
 import { emitSuccessPointsMilestone, emitLadderTopEntry } from "@/server/ladder-milestones";
 
 // Wait function to avoid spamming the worker / Ankama
@@ -70,7 +71,7 @@ export async function GET(req: Request) {
         });
 
         if (profiles.length === 0) {
-            await recordCronExecution("ladder_sync", { success: true, durationMs: Date.now() - startedAt, summary: "Aucun profil à synchroniser (0)", details: { batch: 0, success_count: 0, fail_count: 0 } });
+            await recordCronExecution("ladder_sync", { success: true, durationMs: Date.now() - startedAt, summary: "Aucun profil à synchroniser (0)", details: { profilsTraites: 0, profilsReussis: 0, echecs: 0 } });
             return NextResponse.json({ message: "No profiles to update.", count: 0 });
         }
 
@@ -188,19 +189,31 @@ export async function GET(req: Request) {
             // étaient vertes alors que des profils avaient échoué (la couleur mentait).
             success: summary.allSucceeded,
             metadata: {
-                batch_size: summary.batchSize,
-                success_count: summary.successCount,
-                fail_count: summary.failCount,
-                failures: summary.failures.map((f) => `${f.pseudo}: ${f.reason}`),
+                // C4 — mêmes clés que les autres crons (français, explicites) : plus de
+                // `batch_size`/`success_count`/`fail_count` dans le repli de la console.
+                profilsTraites: summary.batchSize,
+                profilsReussis: summary.successCount,
+                echecs: summary.failCount,
+                listeEchecs: boundCronList(summary.failures.map((f) => `${f.pseudo} : ${f.reason}`)).text,
             },
             fields: buildLadderSyncFields(summary),
         });
 
+        const failures = boundCronList(summary.failures.map((f) => `${f.pseudo} — ${f.reason}`), 100);
         await recordCronExecution("ladder_sync", {
             success: true,
             durationMs: Date.now() - startedAt,
             summary: `${summary.batchSize} profils traités (${summary.successCount} réussis, ${summary.failCount} échecs)`,
-            details: { batch: summary.batchSize, success_count: summary.successCount, fail_count: summary.failCount },
+            details: {
+                profilsTraites: summary.batchSize,
+                profilsReussis: summary.successCount,
+                echecs: summary.failCount,
+                // Une ligne par échec dans la fiche du journal (lot C2).
+                ...Object.fromEntries(failures.shown.map((line, index) => [`Échec ${index + 1}`, line])),
+                ...(failures.hidden > 0
+                    ? { "… autres échecs": `${failures.hidden} échec(s) non affiché(s) (plafond 100).` }
+                    : {}),
+            },
         });
 
         return NextResponse.json({

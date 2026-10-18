@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { markGodNotificationRead, markAllGodNotificationsRead } from "@/server/actions/god-notif-actions";
 import { resolveRecoveryClaim } from "@/server/actions/guild-owner-actions";
+import { detailsFromMetadata, type GodNotificationDetail } from "@/lib/god-notification-details";
 import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,8 @@ interface GodNotification {
     success: boolean;
     isRead: boolean;
     metadata: any;
+    /** Vérité complète des champs affichables (voir `src/lib/god-notification-details.ts`). */
+    details?: GodNotificationDetail[] | null;
     createdAt: Date;
 }
 
@@ -72,7 +75,10 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                             String(val).toLowerCase().includes(term)
                         );
                     }
-                    if (!matchesTitle && !matchesMessage && !matchesType && !matchesMetadata) return false;
+                    const matchesDetails = (n.details ?? []).some(detail =>
+                        detail.name.toLowerCase().includes(term) || detail.value.toLowerCase().includes(term)
+                    );
+                    if (!matchesTitle && !matchesMessage && !matchesType && !matchesMetadata && !matchesDetails) return false;
                 }
 
                 // Filters
@@ -187,7 +193,7 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input 
                         type="text"
-                        placeholder="Recherche (titre, message, metadata)..."
+                        placeholder="Recherche (titre, message, détails)…"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 bg-surface border border-border rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border-strong transition-colors"
@@ -274,7 +280,14 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                 ) : (
                     filteredAndSortedNotifications.map((notif) => {
                         const link = getNotificationLink(notif);
-                        
+
+                        // Tout est affiché, sans coupure : `details` (vérité persistée), sinon
+                        // repli sur `metadata` pour les alertes antérieures à la migration.
+                        const detailRows: GodNotificationDetail[] | null =
+                            notif.details && notif.details.length > 0
+                                ? notif.details
+                                : detailsFromMetadata(notif.metadata);
+
                         const CardContent = (
                             <div className="flex items-start gap-4 relative z-10 w-full">
                                 {/* Success/Fail Indicator */}
@@ -346,12 +359,12 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                                         </div>
                                     )}
 
-                                    {notif.metadata && Object.keys(notif.metadata).length > 0 && (
-                                        <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            {Object.entries(notif.metadata).map(([key, value]) => (
-                                                <div key={key} className="space-y-0.5 min-w-0">
-                                                    <div className="text-caption font-bold text-muted-foreground uppercase tracking-wider truncate">{key}</div>
-                                                    <div className="text-xs text-foreground font-mono truncate">{String(value)}</div>
+                                    {detailRows && detailRows.length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                                            {detailRows.map((detail, index) => (
+                                                <div key={`${detail.name}-${index}`} className="space-y-0.5 min-w-0">
+                                                    <div className="text-caption font-bold text-muted-foreground uppercase tracking-wider break-words">{detail.name}</div>
+                                                    <div className="text-xs text-foreground font-mono whitespace-pre-line break-words">{detail.value}</div>
                                                 </div>
                                             ))}
                                         </div>

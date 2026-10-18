@@ -6,6 +6,11 @@ import { rateLimit } from "@/lib/ratelimit";
 import { isOutboxFailureContext } from "@/lib/discord-outbox-context";
 import { sendChannelMessage, buildSafeRoleMention } from "@/server/discord";
 import { revalidatePath } from "next/cache";
+import {
+    resolveGodNotificationDetails,
+    toGodEmbedFields,
+    GOD_NOTIFICATIONS_LIST_MAX,
+} from "@/lib/god-notification-details";
 
 /**
  * Global Admin Notification Engine
@@ -59,6 +64,11 @@ export async function notifyGod(params: {
         webOnly = false, dedupeKey, dedupeWindowMs, fields,
     } = params;
 
+    // 🎯 Une seule vérité, trois lecteurs : le détail complet est **persisté** (`details`),
+    // l'embed Discord n'en reçoit qu'une **projection bornée** (25 champs / 1 024 car.), et
+    // la console God affiche `details` en entier — cf. `src/lib/god-notification-details.ts`.
+    const details = resolveGodNotificationDetails({ fields, metadata });
+
     // 🛑 INVARIANT ANTI-BOUCLE (structurel, pas une convention d'appel) : une alerte
     // émise PENDANT le traitement d'un échec d'écriture outbox ne repart jamais sur
     // Discord — elle repasserait par la file qui vient d'échouer. Le ciblage se fait
@@ -106,6 +116,7 @@ export async function notifyGod(params: {
                     type,
                     success,
                     metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : null,
+                    details: details ?? null,
                 }
             });
             try {
@@ -139,12 +150,7 @@ export async function notifyGod(params: {
                         embedDescription: message,
                         embedColor,
                         embedFooter: `SigilOS Alert System • ${type}`,
-                        fields: fields ?? (metadata && typeof metadata === 'object' ? 
-                            Object.entries(metadata).slice(0, 5).map(([k, v]) => ({
-                                name: k,
-                                value: String(v),
-                                inline: true
-                            })) : undefined)
+                        fields: toGodEmbedFields(details)
                     }
                 );
                 // Contrat strict : `string | null` — un salon en pause d'écriture (ou sans
@@ -181,9 +187,6 @@ export async function markGodNotificationRead(id: string) {
 }
 
 /**
- * Get recent god notifications
- */
-/**
  * Mark all god notifications as read (bouton "Tout marquer lu" côté God dashboard)
  */
 export async function markAllGodNotificationsRead() {
@@ -199,11 +202,17 @@ export async function markAllGodNotificationsRead() {
     }
 }
 
+/**
+ * Get recent god notifications — `limit` est **borné côté serveur** (1…100) : une requête
+ * ne rapporte jamais plus, même si l'appelant demande 10 000.
+ */
 export async function getGodNotifications(limit = 50) {
     try {
+        const requested = Number.isFinite(limit) ? Math.trunc(limit) : 50;
+        const bounded = Math.min(Math.max(requested, 1), GOD_NOTIFICATIONS_LIST_MAX);
         const notifications = await (db as any).godNotification.findMany({
             orderBy: { createdAt: "desc" },
-            take: limit
+            take: bounded
         });
         return { success: true, data: notifications };
     } catch (err: any) {

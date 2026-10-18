@@ -234,6 +234,10 @@ model GodNotification {
   type      GodNotifyType
   success   Boolean       @default(true)
   metadata  Json?
+  /// Projection humaine de l'alerte (libellés + valeurs prêts à afficher), **source
+  /// unique** partagée par l'embed Discord et la console God (cf.
+  /// `src/lib/god-notification-details.ts`). `null` ⇒ repli sur `metadata`.
+  details   Json?
   isRead    Boolean       @default(false)
   createdAt DateTime      @default(now())
 }

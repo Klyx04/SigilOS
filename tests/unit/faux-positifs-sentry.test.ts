@@ -186,4 +186,45 @@ describe("faux positifs Sentry — cas non fatal & bruit de process", () => {
         expect(source).toMatch(/isn't a valid image/);
         expect(source).toMatch(/fuji-givrefoux\.webp/);
     });
+
+    it("⑩ la couche Discord ne journalise plus un refus d'exploitation en `console.error`", () => {
+        // Mesure du 18/10/2026 : `src/server/discord.ts` portait 43 sites « erreur », dont 27
+        // `console.error` ⇒ une Issue Sentry par 403/404/429. Le fichier passe désormais par
+        // `logger` + `logDiscordFailure` (401/inconnu = error, refus Discord/réseau = warn).
+        const source = readFileSync("src/server/discord.ts", "utf8");
+        const code = codeSeul(source);
+        expect(code).not.toMatch(/\bconsole\s*\./);
+        expect(code).toContain('from "@/lib/logger"');
+        expect(code).toContain("logDiscordFailure(");
+        expect(code).toContain("discordFailureLevel");
+
+        // Le vrai signal reste en `error` : isolation inter-guilde, token/clé absents, signature.
+        for (const marker of [
+            "[Discord Security] BLOCKED",
+            "Missing DISCORD_BOT_TOKEN",
+            "Missing DISCORD_APPLICATION_PUBLIC_KEY",
+            "Clé publique Ed25519 invalide",
+            "Signature verification failed",
+        ]) {
+            const ligne = code.split("\n").find((line) => line.includes(marker) && line.includes("logger.error("));
+            expect(ligne, marker).toBeDefined();
+        }
+
+        // Aucun repli rendu ne reste au niveau `error`, et aucun corps brut n'est journalisé.
+        for (const marker of [
+            "Error sending DM",
+            "Failed to create DM channel",
+            "Error creating forum thread",
+            "Error deleting message",
+            "Error adding role to member",
+            "Error archiving thread",
+            "Error sending raw embed",
+        ]) {
+            const fautives = code
+                .split("\n")
+                .filter((line) => line.includes(marker) && line.includes("logger.error("));
+            expect(fautives, marker).toEqual([]);
+        }
+        expect(code).not.toMatch(/logger\.\w+\([^)]*errBody/);
+    });
 });

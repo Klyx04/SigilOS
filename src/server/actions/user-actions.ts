@@ -20,6 +20,7 @@ import { resolveIsMember } from "@/lib/guild-membership";
 
 import { redis } from "@/lib/redis";
 import { isCompleteCachedGuildConfig } from "@/lib/guild-config-cache";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // In-memory cache for configs and user context
 const configCache = new Map<string, { data: any, expiresAt: number }>();
@@ -2242,7 +2243,7 @@ export async function internalUpdateMemberProfileStatus(
             }
 
             if (status === "ACTIVE") {
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                const appUrl = getAppBaseUrl();
                 dmDesc += `\n\n**🔗 [Accéder au Dashboard](${appUrl}/dashboard/${profile.guild.discordGuildId})**`;
             }
 

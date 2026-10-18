@@ -8,6 +8,7 @@ import { BonusType, BonusStatus, MentionType, GuildBonus } from "@prisma/client"
 import { getUserContext } from "./user-actions";
 import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // --- Types ---
 
@@ -396,7 +397,7 @@ export async function purchaseBonus(
 
             const discordTimestamp = Math.floor(activatesAt.getTime() / 1000);
 
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://sigilos.fr";
+            const baseUrl = getAppBaseUrl();
             const dashboardUrl = `${baseUrl}/dashboard/${validated.guildId}`;
             const bonusImagePath = BONUS_IMAGES[validated.bonusType];
             const bonusThumbnailUrl = bonusImagePath

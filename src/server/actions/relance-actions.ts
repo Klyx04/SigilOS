@@ -16,6 +16,7 @@ import { getDofusWeek } from "@/lib/date-utils";
 import { getGameDisplayName } from "@/lib/display-name";
 import { z } from "zod";
 import { rateLimit } from "@/lib/ratelimit";
+import { getAppBaseUrl } from "@/lib/utils";
 
 export type ActionResponse<T = any> = {
     success: boolean;
@@ -402,7 +403,7 @@ export async function sendManualNudge(guildId: string, targetDiscordId: string):
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
         const message = `Salut ! Pense à configurer ton pseudo Dofus et ta classe principale sur le Dashboard de la guilde pour avoir accès à tous les modules et fonctionnalités. Ça ne prend que 10 secondes : ${appUrl}/dashboard/${guildId}`;
 
         const msgId = await sendDirectMessage(targetDiscordId, "", {

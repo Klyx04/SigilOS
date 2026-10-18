@@ -62,6 +62,7 @@ const createVaultEntrySchema = z.object({
 // ---------------------------------------------------------------------------
 
 import { VAULT_ACTION_LABELS } from "./services-constants";
+import { getAppBaseUrl } from "@/lib/utils";
 
 const profileSelect = {
     id: true,
@@ -224,7 +225,7 @@ export async function createVaultEntry(
                         const color = isDeposit ? 0x22c55e : 0xf97316;
                         const emoji = isDeposit ? "📥" : "📤";
                         const actionLabel = isDeposit ? "Dépôt" : "Retrait";
-                        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                        const appUrl = getAppBaseUrl();
                         const dashboardUrl = `${appUrl}/dashboard/${guildId}/services`;
                         // Discord needs an absolute URL with access token
                         const publicProofUrl = getDiscordPublicUrl(proofUrl);

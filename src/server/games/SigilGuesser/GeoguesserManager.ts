@@ -4,6 +4,7 @@ import { GeoguesserRoom } from "./GeoguesserRoom";
 import { WorldMapService } from "./WorldMapService";
 import { GeoguesserGuessSchema } from "../../websocket/schemas";
 import { db } from "@/lib/prisma";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // Simple random ID generator (or reuse DB ID)
 function generateShortId() {
@@ -291,7 +292,7 @@ export class GeoguesserManager {
                     const { sendChannelMessage, buildSafeRoleMention } = await import("@/server/discord");
                     const ping = await buildSafeRoleMention((config as any).godNotifyChannelId, (config as any).godNotifyRoleId);
                     
-                    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                    const appUrl = getAppBaseUrl();
                     await sendChannelMessage((config as any).godNotifyChannelId, ping, {
                         embedTitle: "🚩 Signalement Map SigilGuesser",
                         embedColor: 0xef4444,

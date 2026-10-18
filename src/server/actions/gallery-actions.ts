@@ -9,6 +9,7 @@ import { canonicalClassId, getClassName, isUsableDofusbookRawPayload, processDof
 import { rateLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
 import { getGameDisplayName } from "@/lib/display-name";
+import { getAppBaseUrl } from "@/lib/utils";
 
 /**
  * Route image provider URLs through the internal proxy to bypass anti-hotlink
@@ -32,7 +33,7 @@ function resolveDiscordImage(rawImage: string, baseUrl?: string): string | undef
             host === "d-bk.net" || host.endsWith(".d-bk.net");
 
         if (isProtectedProvider) {
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://beta.sigilos.fr";
+            const appUrl = getAppBaseUrl();
             return `${appUrl}/api/proxy-image?url=${encodeURIComponent(parsedUrl.href)}`;
         }
         return parsedUrl.href;
@@ -643,7 +644,7 @@ export async function shareGalleryItemOnDiscord(
     }
 
     let embedImage: string | undefined = undefined;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://beta.sigilos.fr";
+    const appUrl = getAppBaseUrl();
     try {
         const { fetchChannel, sendChannelMessage, createForumPost } = await import("@/server/discord");
 

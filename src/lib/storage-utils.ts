@@ -2,6 +2,7 @@ import { unlink, rmdir } from "fs/promises";
 import { join, dirname, normalize } from "path";
 import { logger } from "@/lib/logger";
 import { createHmac, timingSafeEqual } from "crypto";
+import { getAppBaseUrl } from "@/lib/utils";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SIGNED STORAGE URLS (F-02 / audit 2026)
@@ -176,7 +177,7 @@ export function verifyStorageToken(path: string, token: string): boolean {
 export function getDiscordPublicUrl(proofUrl: string | null | undefined): string | undefined {
     if (!proofUrl) return undefined;
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const appUrl = getAppBaseUrl();
     const baseUrl = proofUrl.startsWith("http") ? proofUrl : `${appUrl}${proofUrl}`;
 
     // Extract path for signature (part after /api/storage/)

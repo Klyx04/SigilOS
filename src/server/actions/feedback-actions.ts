@@ -9,6 +9,7 @@ import { FEEDBACK_TYPES, FEEDBACK_LABELS } from "@/lib/feedback-types";
 import { getUserContext } from "./user-actions";
 import { notifyGod } from "./god-notif-actions";
 import { sendChannelMessage } from "@/server/discord";
+import { getAppBaseUrl } from "@/lib/utils";
 
 const feedbackSchema = z.object({
   feedbackType: z.enum(FEEDBACK_TYPES),
@@ -135,7 +136,7 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
       const targetChannel = (platformConfig as any)?.questFeedbackChannelId || (platformConfig as any)?.godNotifyChannelId;
 
       if (targetChannel) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
 
         await sendChannelMessage(
           targetChannel,

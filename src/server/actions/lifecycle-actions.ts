@@ -18,6 +18,7 @@ import {
     withdrawMarketListingsForProfileCore,
 } from "@/server/market/lifecycle";
 import { rateLimit } from "@/lib/ratelimit";
+import { formatDofusPseudo, getAppBaseUrl } from "@/lib/utils";
 
 /**
  * Archive a profile (Self-service or Admin)
@@ -240,7 +241,7 @@ export async function sendLifecycleNotification(
                 break;
         }
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
         const rosterLink = `${appUrl}/dashboard/${guildId}/admin/members?status=${type === "REACTIVATED" ? "ACTIVE" : type === "DELETED" ? "archived" : type}`;
 
         // Build avatar URL for Discord embed author
@@ -1224,7 +1225,7 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
     }
 }
 
-import { formatDofusPseudo } from "@/lib/utils";
+
 
 /**
  * Request reactivation for an ARCHIVED profile (User action)
@@ -1320,7 +1321,7 @@ export async function requestProfileReactivation(guildId: string, pseudo?: strin
                     embedThumbnail: profile.user.image || undefined,
                     fields: [
                         { name: "Raison", value: reason || "Non précisée" },
-                        { name: "Lien Admin", value: `${process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr"}/dashboard/${guildId}/admin/validation?tab=retours` }
+                        { name: "Lien Admin", value: `${getAppBaseUrl()}/dashboard/${guildId}/admin/validation?tab=retours` }
                     ],
                     components: [
                         {

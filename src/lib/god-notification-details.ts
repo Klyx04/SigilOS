@@ -20,6 +20,8 @@
  * la perte est **dite** dans un champ dédié — jamais silencieuse.
  */
 
+import { formatDetailValue, isPlainDetailObject, truncateDetailValue } from "@/lib/detail-value";
+
 export type GodNotificationDetail = { name: string; value: string; inline?: boolean };
 
 /** Plafond de sécurité du nombre de détails **conservés** en base. */
@@ -37,42 +39,9 @@ export const GOD_DETAILS_EMBED_OVERFLOW_NAME = "… autres détails";
 /** Borne de lecture de la console God (une requête ne rapporte jamais plus). */
 export const GOD_NOTIFICATIONS_LIST_MAX = 100;
 
-const ELLIPSIS = "…";
-
-function truncate(value: string, max: number): string {
-    if (value.length <= max) return value;
-    return `${value.slice(0, Math.max(1, max - ELLIPSIS.length)).trimEnd()}${ELLIPSIS}`;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value) && !(value instanceof Date);
-}
-
-/** Rend une valeur exploitable à l'écran (jamais `[object Object]`). */
+/** Rend une valeur exploitable à l'écran (jamais `[object Object]`) — règle partagée. */
 export function formatGodDetailValue(value: unknown): string | null {
-    if (value === null || value === undefined) return null;
-    if (typeof value === "string") {
-        const trimmed = value.trim();
-        return trimmed.length > 0 ? truncate(trimmed, GOD_DETAILS_VALUE_MAX) : null;
-    }
-    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-        return String(value);
-    }
-    if (value instanceof Date) return value.toISOString();
-    if (Array.isArray(value)) {
-        const parts = value
-            .map((entry) => formatGodDetailValue(entry))
-            .filter((entry): entry is string => entry !== null);
-        return parts.length > 0 ? truncate(parts.join(", "), GOD_DETAILS_VALUE_MAX) : null;
-    }
-    if (isPlainObject(value)) {
-        try {
-            return truncate(JSON.stringify(value), GOD_DETAILS_VALUE_MAX);
-        } catch {
-            return null;
-        }
-    }
-    return truncate(String(value), GOD_DETAILS_VALUE_MAX);
+    return formatDetailValue(value, GOD_DETAILS_VALUE_MAX);
 }
 
 /** Normalise une liste de champs ; `null` si rien n'est affichable. */
@@ -81,14 +50,14 @@ export function normalizeGodNotificationDetails(input: unknown): GodNotification
 
     const rows: GodNotificationDetail[] = [];
     for (const entry of input) {
-        if (!isPlainObject(entry)) continue;
+        if (!isPlainDetailObject(entry)) continue;
         const rawName = entry.name;
         const name = typeof rawName === "string" ? rawName.trim() : "";
         if (name.length === 0) continue;
         const value = formatGodDetailValue(entry.value);
         if (value === null) continue;
 
-        const label = truncate(name, GOD_DETAILS_NAME_MAX);
+        const label = truncateDetailValue(name, GOD_DETAILS_NAME_MAX);
         rows.push(
             typeof entry.inline === "boolean"
                 ? { name: label, value, inline: entry.inline }
@@ -111,7 +80,7 @@ export function normalizeGodNotificationDetails(input: unknown): GodNotification
 
 /** Détails dérivés d'un `metadata` brut (alertes écrites avant la colonne `details`). */
 export function detailsFromMetadata(metadata: unknown): GodNotificationDetail[] | null {
-    if (!isPlainObject(metadata)) return null;
+    if (!isPlainDetailObject(metadata)) return null;
     return normalizeGodNotificationDetails(
         Object.entries(metadata).map(([name, value]) => ({ name, value })),
     );
@@ -136,8 +105,8 @@ export function toGodEmbedFields(
     if (!details || details.length === 0) return undefined;
 
     const projected: GodNotificationDetail[] = details.map((detail) => ({
-        name: truncate(detail.name, GOD_DETAILS_NAME_MAX),
-        value: truncate(detail.value, GOD_DETAILS_EMBED_VALUE_MAX),
+        name: truncateDetailValue(detail.name, GOD_DETAILS_NAME_MAX),
+        value: truncateDetailValue(detail.value, GOD_DETAILS_EMBED_VALUE_MAX),
         ...(detail.inline === undefined ? {} : { inline: detail.inline }),
     }));
 

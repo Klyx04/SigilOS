@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { boundCronList } from "@/lib/cron-metrics";
 
 export const dynamic = 'force-dynamic';
 
@@ -111,6 +112,22 @@ export async function GET(req: Request) {
                 message: `${summary}.${auto} Aucune suppression n'est automatique : voir le Tableau (god → données de jeu).`,
                 type: "SYSTEM",
                 success: true,
+                // C4 — les 9 métriques deviennent des **champs français** : l'embed ne
+                // dépend plus du repli `metadata` (clés techniques) du lot C1.
+                fields: [
+                    { name: "Objets (DofusDB)", value: `${remoteItems} distants · ${localItems} locaux`, inline: true },
+                    { name: "Quêtes", value: `${questNew} nouvelle(s) · ${questModified} modifiée(s)`, inline: true },
+                    { name: "Donjons", value: `${remoteDungeons} distants · ${localDungeons} locaux`, inline: true },
+                    ...(autoQueued.length > 0
+                        ? [{ name: "Veille ciblée mise en file", value: boundCronList(autoQueued).text, inline: false }]
+                        : []),
+                    ...(autoRunning.length > 0
+                        ? [{ name: "Veille déjà en cours", value: boundCronList(autoRunning).text, inline: false }]
+                        : []),
+                    ...(autoUnavailable.length > 0
+                        ? [{ name: "⚠️ File indisponible", value: `${boundCronList(autoUnavailable).text} — à lancer depuis le Tableau god`, inline: false }]
+                        : []),
+                ],
                 metadata: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable },
             });
         }

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
 import { createSystemAuditLog, syncDofensiveMaps } from "@/lib/dofensive-sync";
+import { boundCronList } from "@/lib/cron-metrics";
 
 /**
  * 🗺️ CRON quotidien : synchronisation locale des maps et donjons Dofensive.
@@ -40,8 +41,17 @@ export async function GET(req: Request) {
             errors: result.errors.slice(0, 5),
         });
 
-        // Envoi d'une alerte/notification God avec embed Discord structuré et lisible
+        // Envoi d'une alerte/notification God avec embed Discord structuré et lisible.
+        // C4 — les listes ne sont plus coupées ICI (10 cartes / 5 erreurs) : on garde tout
+        // jusqu'au plafond partagé (200, perte dite) et l'embed reste borné par la
+        // projection du lot C1 — jamais par une coupe muette décidée dans la route.
         const { notifyGod } = await import("@/server/actions/god-notif-actions");
+        const mapLines = (result.syncedMaps ?? []).map(
+            (m) => `${m.dungeonName} : ${m.name} (#${m.mapId})${m.isBoss ? " 👑 Boss" : ""}`,
+        );
+        const mapsBound = boundCronList(mapLines);
+        const errorsBound = boundCronList(result.errors);
+
         const embedFields: { name: string; value: string; inline?: boolean }[] = [
             {
                 name: "📊 Bilan synchronisation",
@@ -50,16 +60,10 @@ export async function GET(req: Request) {
             },
         ];
 
-        if (result.syncedMaps && result.syncedMaps.length > 0) {
-            const mapLines = result.syncedMaps.slice(0, 10).map((m) =>
-                `• **${m.dungeonName}** : ${m.name} (\`#${m.mapId}\`)${m.isBoss ? " 👑 *Boss*" : ""}`
-            );
-            if (result.syncedMaps.length > 10) {
-                mapLines.push(`*... et ${result.syncedMaps.length - 10} autre(s) carte(s)*`);
-            }
+        if (mapLines.length > 0) {
             embedFields.push({
-                name: `🗺️ Cartes mises à jour (${result.syncedMaps.length})`,
-                value: mapLines.join("\n").slice(0, 1024),
+                name: `🗺️ Cartes mises à jour (${mapLines.length})`,
+                value: boundCronList(mapLines, 30).text,
                 inline: false,
             });
         } else {
@@ -73,7 +77,7 @@ export async function GET(req: Request) {
         if (result.errors.length > 0) {
             embedFields.push({
                 name: `⚠️ Erreurs (${result.errors.length})`,
-                value: result.errors.slice(0, 5).map((e) => `• ${e}`).join("\n").slice(0, 1024),
+                value: boundCronList(result.errors, 10).text,
                 inline: false,
             });
         }
@@ -88,17 +92,25 @@ export async function GET(req: Request) {
                 synced: result.synced,
                 unchanged: result.unchanged,
                 skippedFresh: result.skippedFresh,
+                mapsCount: mapLines.length,
                 errorsCount: result.errors.length,
+                erreurs: errorsBound.shown,
             },
         });
 
-        // Télémétrie panel God « Tâches CRON »
+        // Télémétrie panel God « Tâches CRON » — listes complètes (bornées, perte dite).
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
         await recordCronExecution("sync_dofensive_maps", {
             success: result.errors.length === 0,
             durationMs: Date.now() - startedAt,
             summary: `${result.synced} maps synchronisées, ${result.unchanged} inchangées (${result.errors.length} erreur(s))`,
-            details: { synced: result.synced, unchanged: result.unchanged, skippedFresh: result.skippedFresh, errors: result.errors.slice(0, 5) },
+            details: {
+                synced: result.synced,
+                unchanged: result.unchanged,
+                skippedFresh: result.skippedFresh,
+                cartes: mapsBound.text,
+                erreurs: errorsBound.text,
+            },
         });
 
         return NextResponse.json({ success: true, result });

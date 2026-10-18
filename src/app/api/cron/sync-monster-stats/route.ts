@@ -9,6 +9,7 @@ import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { persistMonsterStat } from "@/lib/dofensive-sync";
 import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
 import { db } from "@/lib/prisma";
+import { boundCronList } from "@/lib/cron-metrics";
 
 /**
  * 🐉 CRON quotidien : synchronisation locale des fiches et statistiques de monstres (DofusDB + Dofensive).
@@ -400,13 +401,21 @@ export async function GET(req: Request) {
                 { name: "Erreurs", value: String(errors), inline: true },
                 { name: "Fiches fraîches ignorées", value: String(skippedFresh), inline: true },
                 { name: "Succès complétés", value: String(achievementsSiphoned + specialAchievementsSiphoned), inline: true },
+                // C4 — la liste des boss en erreur était coupée à 20 en base et à 5 dans
+                // le message : elle devient un champ (20 affichés, perte dite) et le
+                // journal reçoit la liste complète (plafond partagé 200).
+                ...(errorBosses.length > 0
+                    ? [{ name: `⚠️ Boss en erreur (${errorBosses.length})`, value: boundCronList(errorBosses, 20).text, inline: false }]
+                    : []),
             ],
             metadata: {
                 synced,
                 errors,
                 totalBosses: bosses.length,
                 skippedFresh,
-                errorBosses: errorBosses.slice(0, 20),
+                imagesSiphoned,
+                errorBossesCount: errorBosses.length,
+                errorBosses: boundCronList(errorBosses).shown,
             },
         });
 
@@ -422,6 +431,8 @@ export async function GET(req: Request) {
                 images: imagesSiphoned,
                 totalBosses: bosses.length,
                 skippedFresh,
+                // C4 — la liste complète (bornée à 200, perte dite) arrive au journal.
+                bossesEnErreur: boundCronList(errorBosses).text,
                 anomalySynced,
                 anomalyErrors,
                 anomalyDefaultMap,

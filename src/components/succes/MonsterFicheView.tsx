@@ -163,11 +163,6 @@ export function MonsterFicheView({
                 <div className="min-w-0">
                     <h1 className="truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">{fiche.name}</h1>
                     {zoneName ? <p className="mt-0.5 text-xs text-muted-foreground">{zoneName}</p> : null}
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                        {fiche.source === "unity"
-                            ? (fr ? "Fiche locale — bestiaire du client de jeu" : "Local page — game client bestiary")
-                            : (fr ? "Fiche siphonnée — DofusDB · Dofensive" : "Synced page — DofusDB · Dofensive")}
-                    </p>
                 </div>
             </header>
 
@@ -299,9 +294,7 @@ export function MonsterFicheView({
             {detailTab === "loot" && (
                 drops.length === 0 ? (
                     <p className="py-6 text-center text-xs text-muted-foreground">
-                        {fiche.source === "unity"
-                            ? (fr ? "Butin non renseigné : la fiche locale du client de jeu ne le porte pas." : "Loot not provided by the local game-client page.")
-                            : (fr ? "Aucun butin référencé." : "No loot referenced.")}
+                        {fr ? "Butin non renseigné pour ce monstre." : "No loot referenced for this monster."}
                     </p>
                 ) : (
                     <div className="space-y-2">

@@ -641,7 +641,7 @@ export function SpellRangeGrid({
             .catch(() => {
                 if (!cancelled) {
                     setMapLoading(false);
-                    setMapError("Erreur réseau Dofensive");
+                    setMapError("Erreur réseau");
                 }
             });
         return () => { cancelled = true; };

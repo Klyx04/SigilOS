@@ -76,7 +76,7 @@ export const SERVITUDE_ROOMS: ServitudeRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (10 rouges)",
+                label: "Variante (10 rouges)",
                 mapId: 203161606,
                 red: [369, 370, 382, 398, 399, 410, 411, 427, 439, 440],
                 blue: [231, 246, 247, 259, 274, 275, 317, 318],
@@ -96,7 +96,7 @@ export const SERVITUDE_ROOMS: ServitudeRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (9 rouges)",
+                label: "Variante (9 rouges)",
                 mapId: 203162630,
                 red: [394, 395, 409, 422, 423, 424, 436, 451, 452],
                 blue: [285, 313, 314, 343, 356, 372, 400, 401],
@@ -116,7 +116,7 @@ export const SERVITUDE_ROOMS: ServitudeRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (10 rouges)",
+                label: "Variante (10 rouges)",
                 mapId: 203163654,
                 red: [341, 342, 343, 357, 383, 385, 398, 410, 413, 425],
                 blue: [260, 275, 288, 290, 316, 330, 331, 332],
@@ -136,7 +136,7 @@ export const SERVITUDE_ROOMS: ServitudeRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (10 rouges)",
+                label: "Variante (10 rouges)",
                 mapId: 203164678,
                 red: [435, 436, 449, 457, 458, 463, 472, 478, 486, 499],
                 blue: [255, 256, 271, 282, 301, 328, 345, 372],
@@ -156,7 +156,7 @@ export const SERVITUDE_ROOMS: ServitudeRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (10 rouges)",
+                label: "Variante (10 rouges)",
                 mapId: 203165702,
                 red: [250, 263, 304, 306, 348, 411, 413, 437, 455, 467],
                 blue: [189, 242, 243, 245, 271, 283, 284, 326],

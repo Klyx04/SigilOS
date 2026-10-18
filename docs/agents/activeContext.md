@@ -5,11 +5,11 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
-## 📝 Session 18/10/2026 (suite 9) — **Compléments lot 6/7 : mesure « tous membres » visible, provenance boss dite partout** — branche `feat/complements-fiche-membre-et-repli`
+## 📝 Session 18/10/2026 (suite 9) — **Compléments lot 6/7 + plus aucune source interne côté utilisateur** — branches `feat/complements-fiche-membre-et-repli` (**#1021 mergée**) puis `feat/ui-sans-sources-internes` (**#1022**)
 > **Demande user (verbatim)** : « dernière pr tout ce qui manquait ».
 > **Mesure** : `getMemberDiscordPresence` disait `tracked:false` pour tout hors-dashboard (faux depuis le lot 7) · `getDungeonMonsters` retombait sur le réseau sans le dire dans les surfaces internes.
-> **Fait** : `source` (`profile`/`member`/`none`) + `memberActivity` (messages, vocal total, première vue, dernière activité, `leftDiscordAt`) ; hors-dashboard mesuré = compteurs bruts affichés (plus « Non mesuré ») ; départ Discord aussi sur un profil · `getDungeonMonsters` déclare `local|network|empty`, et Succès boss / Titans / overlay affichent « repli réseau ».
-> **Preuves** : **4 cas** neufs · **421 fichiers / 4 594 tests ✓** · `tsc` 0 · `eslint` 0 erreur · aucune migration.
+> **Fait** : `source` (`profile`/`member`/`none`) + `memberActivity` (messages, vocal total, première vue, dernière activité, `leftDiscordAt`) ; hors-dashboard mesuré = compteurs bruts affichés (plus « Non mesuré ») ; départ Discord aussi sur un profil · `getDungeonMonsters` déclare `local|network|empty`, et Succès boss / Titans / overlay affichent « repli réseau » · **plus aucune mention de Dofensive côté utilisateur** (fiche, liens, statut, légales, docs, variantes) — siphon **God only**.
+> **Preuves** : **10 cas** neufs · **422 fichiers / 4 600 tests ✓** · `tsc` 0 · `eslint` 0 erreur · aucune migration.
 > **Reste / ops (humain)** : inchangé (#1020 : migration à jouer, **bot à redéployer**). Puis PR « moteur de rôles multi-sources ».
 > **Rotation** : bloc « 18/10 (suite 3) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
 

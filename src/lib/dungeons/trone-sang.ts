@@ -29,7 +29,7 @@ export const ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (8 rouges)",
+                label: "Variante (8 rouges)",
                 mapId: 202375174,
                 red: [186, 215, 228, 240, 244, 257, 269, 298],
                 blue: [202, 216, 274, 283, 288, 297, 342, 355],
@@ -49,7 +49,7 @@ export const ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (8 rouges)",
+                label: "Variante (8 rouges)",
                 mapId: 202376198,
                 red: [229, 242, 256, 269, 271, 283, 285, 298],
                 blue: [317, 346, 357, 384, 400, 411, 413, 427],
@@ -69,7 +69,7 @@ export const ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (8 rouges)",
+                label: "Variante (8 rouges)",
                 mapId: 202377222,
                 red: [296, 323, 352, 365, 468, 470, 497, 510],
                 blue: [273, 289, 300, 316, 331, 343, 358, 370],
@@ -89,7 +89,7 @@ export const ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (8 rouges)",
+                label: "Variante (8 rouges)",
                 mapId: 202378246,
                 red: [421, 435, 450, 464, 479, 493, 508, 522],
                 blue: [258, 272, 300, 315, 329, 344, 345, 359],
@@ -109,7 +109,7 @@ export const ROOMS: TacticalRoom[] = [
         variants: [
             {
                 key: "alt",
-                label: "Dofensive (8 rouges)",
+                label: "Variante (8 rouges)",
                 mapId: 202379270,
                 red: [366, 394, 409, 424, 436, 451, 466, 467],
                 blue: [217, 230, 246, 272, 273, 275, 301, 317],

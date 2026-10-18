@@ -1284,7 +1284,7 @@ const SUCCES_STEPS: TourStep[] = [
     {
         target: '[data-tour="succes-tracker-detail"]',
         title: "Le détail d'un donjon",
-        description: "Tous les succès du donjon, avec leurs points et les guides partenaires (DPNL, Dofensive). Coche un succès pour le valider, ou utilise le bouton global « Tout cocher ».",
+        description: "Tous les succès du donjon, avec leurs points et les guides partenaires (DPLN). Coche un succès pour le valider, ou utilise le bouton global « Tout cocher ».",
         placement: "left",
         module: "succes",
     },

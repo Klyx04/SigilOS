@@ -864,7 +864,7 @@ export function PublicBossDetailClient({
             {bountyMeta.battleMapLabel && (
               <span
                 className="inline-flex items-center gap-1.5 text-muted-foreground"
-                title="Aucune carte de combat n'est exposée pour un avis (Dofensive ne publie que les salles de donjon) : la simulation utilise la grille vide, sans décor trompeur."
+                title="Aucune carte de combat n'est exposée pour un avis : la simulation utilise la grille vide, sans décor trompeur."
               >
                 <Info className="w-3.5 h-3.5" /> Simulation : {bountyMeta.battleMapLabel}
               </span>

@@ -477,6 +477,72 @@ export async function fetchAllGuildMembers(guildId: string): Promise<Set<string>
     return memberIds;
 }
 
+/**
+ * Membres d'une guilde **avec leurs rôles et leur date d'arrivée** — la source de vérité du
+ * module « Rôles par ancienneté » (demande user du 18/10/2026 : les membres **hors
+ * dashboard** reçoivent aussi leur rôle et leur carte).
+ *
+ * Pourquoi une variante de `listGuildMembers` / `fetchAllGuildMembers` :
+ *  · `listGuildMembers` ne pagine pas (`?limit=1000` sec : une guilde de 1 400 membres serait
+ *    tronquée **sans le dire**) ;
+ *  · `fetchAllGuildMembers` pagine mais ne rend que des ids — or le diff des paliers a besoin
+ *    des `roles` **réellement portés** et de `joined_at` (la seule date d'arrivée fiable pour
+ *    un membre qui n'a jamais créé de profil).
+ *
+ * ⚠️ Pas de cache : la passe compare l'état Discord **frais** (un cache de 10 min ferait
+ * recalculer un diff déjà appliqué). Le plafond protège le cron d'une guilde géante.
+ * 403 ⇒ intent « Server Members » absent du portail Discord : le message le dit.
+ */
+export interface DiscordGuildMemberDetailed {
+    user: {
+        id: string;
+        username: string;
+        global_name?: string | null;
+        bot?: boolean;
+        avatar?: string | null;
+    };
+    nick?: string | null;
+    avatar?: string | null;
+    roles: string[];
+    joined_at?: string;
+}
+
+export async function fetchAllGuildMembersDetailed(
+    guildId: string,
+    maxMembers = 5_000,
+): Promise<{ members: DiscordGuildMemberDetailed[]; truncated: boolean }> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+
+    const members: DiscordGuildMemberDetailed[] = [];
+    let after = "0";
+
+    while (members.length < maxMembers) {
+        const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/members?limit=1000&after=${after}`, {
+            headers: { Authorization: `Bot ${token}` },
+        });
+
+        if (!res.ok) {
+            if (res.status === 403) {
+                throw new Error(
+                    "Discord API Forbidden (403): Le bot n'a probablement pas l'intent 'Server Members' activé dans le portail développeur Discord.",
+                );
+            }
+            throw new Error(`Discord API error: ${res.status} (${res.statusText})`);
+        }
+
+        const page = (await res.json()) as DiscordGuildMemberDetailed[];
+        members.push(...page);
+
+        // Dernière page (Discord rend moins de 1000) : on s'arrête là.
+        if (page.length < 1000) return { members, truncated: false };
+        after = page[page.length - 1].user.id;
+    }
+
+    // On a atteint le plafond : on le dit, l'appelant le journalise et le comptabilise.
+    return { members: members.slice(0, maxMembers), truncated: true };
+}
+
 export async function fetchGuildBans(guildId: string) {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");

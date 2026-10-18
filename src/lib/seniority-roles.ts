@@ -45,6 +45,17 @@ export const SENIORITY_ANNOUNCEMENT_MESSAGE_MAX_LENGTH = 2000;
 export const SENIORITY_ANNOUNCEMENT_TITLE_MAX_LENGTH = 256;
 export const SENIORITY_ANNOUNCEMENT_DESCRIPTION_MAX_LENGTH = 4096;
 
+/** Limite Discord d'un **champ** d'embed (le CTA « pas encore inscrit » y est borné). */
+export const SENIORITY_EMBED_FIELD_VALUE_MAX_LENGTH = 1024;
+
+/**
+ * Plafond du **rattrapage** par passe et par guilde. Mesure du 18/10/2026 : 47 membres
+ * concernés ⇒ 47 cartes et 47 pings d'un coup. Dix cartes maintenant, le reste aux passes
+ * suivantes (aucune revendication n'est écrite pour les non-servis : elles repartent seules).
+ * Vit ici (règle pure) pour que l'écran **et** le cron lisent la même borne.
+ */
+export const SENIORITY_MAX_RETRO_ANNOUNCEMENTS_PER_PASS = 10;
+
 // ── Forme des réglages ───────────────────────────────────────────────────────
 
 /** Surcharge **du texte** d'un palier : un champ absent hérite du message global. */
@@ -371,7 +382,8 @@ export function computeSeniorityRoleDiff(input: {
  * Variables autorisées dans les modèles. Allowlist **fermée** : aucun `eval`, aucun
  * accès dynamique. Une variable inconnue reste écrite telle quelle — donc **visible
  * dans l'aperçu** : une faute de frappe se voit tout de suite, elle ne disparaît pas
- * en silence.
+ * en silence. `findUnknownAnnouncementVariables` la signale **aussi** à l'enregistrement
+ * (mesure du 18/10/2026 : `{rôles}` accentué est resté dans une configuration réelle).
  */
 export const SENIORITY_ANNOUNCEMENT_VARIABLES = ["membre", "pseudo", "anciennete", "roles", "guilde"] as const;
 
@@ -380,14 +392,91 @@ export type SeniorityAnnouncementVariable = (typeof SENIORITY_ANNOUNCEMENT_VARIA
 /** Valeurs injectées dans les modèles (construites par `buildSeniorityAnnouncementValues`). */
 export type SeniorityAnnouncementValues = Record<SeniorityAnnouncementVariable, string>;
 
-/** Remplace les variables connues, laisse toute autre accolade intacte. */
-export function renderSeniorityAnnouncementText(template: string, values: SeniorityAnnouncementValues): string {
+/**
+ * Alias **tolérés** : une façon de nommer une variable canonique. Ils n'ajoutent aucune
+ * valeur — `{rôles}` accentué pointe sur `roles`, et ne s'affiche donc plus littéralement
+ * dans l'embed.
+ */
+export const SENIORITY_ANNOUNCEMENT_VARIABLE_ALIASES: Record<string, SeniorityAnnouncementVariable> = {
+    "rôles": "roles",
+    "rôle": "roles",
+    role: "roles",
+};
+
+/**
+ * Variables fournies par l'appelant (`extras`), hors du jeu « membre » : le lien du
+ * dashboard dépend de l'**environnement** (bêta/prod), jamais du membre.
+ */
+export const SENIORITY_ANNOUNCEMENT_EXTRA_VARIABLES = ["lien"] as const;
+
+/** Échappe un littéral pour `RegExp` (les alias peuvent contenir des accents). */
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Remplace les variables connues (canoniques, alias, extras), laisse le reste intact. */
+export function renderSeniorityAnnouncementText(
+    template: string,
+    values: SeniorityAnnouncementValues,
+    extras: Record<string, string> = {},
+): string {
     let out = template;
     for (const variable of SENIORITY_ANNOUNCEMENT_VARIABLES) {
         // Remplacement par fonction : un `$` dans un pseudo ne peut pas être réinterprété.
         out = out.replace(new RegExp(`\\{${variable}\\}`, "g"), () => values[variable]);
     }
+    for (const [alias, variable] of Object.entries(SENIORITY_ANNOUNCEMENT_VARIABLE_ALIASES)) {
+        out = out.replace(new RegExp(`\\{${escapeRegExp(alias)}\\}`, "g"), () => values[variable]);
+    }
+    for (const variable of SENIORITY_ANNOUNCEMENT_EXTRA_VARIABLES) {
+        const value = extras[variable];
+        if (typeof value !== "string" || !value) continue;
+        out = out.replace(new RegExp(`\\{${variable}\\}`, "g"), () => value);
+    }
     return out;
+}
+
+/**
+ * Variables `{…}` d'un modèle qui ne seront **jamais** remplacées (faute de frappe,
+ * accent, pluriel). Sert à avertir **à l'enregistrement** au lieu de laisser
+ * `{rôles}` s'afficher dans un embed public.
+ */
+export function findUnknownAnnouncementVariables(template: string): string[] {
+    const known = new Set<string>([
+        ...SENIORITY_ANNOUNCEMENT_VARIABLES,
+        ...Object.keys(SENIORITY_ANNOUNCEMENT_VARIABLE_ALIASES),
+        ...SENIORITY_ANNOUNCEMENT_EXTRA_VARIABLES,
+    ]);
+    const unknown = new Set<string>();
+    for (const match of template.matchAll(/\{([^{}]{1,40})\}/g)) {
+        if (!known.has(match[1])) unknown.add(match[1]);
+    }
+    return [...unknown];
+}
+
+/** Titre du champ ajouté **aux seuls membres sans profil** (appel à créer son profil). */
+export const SENIORITY_NOT_REGISTERED_FIELD_TITLE = "🎯 Pas encore inscrit ?";
+
+/**
+ * Champ d'embed « pas encore inscrit ». Le lien vient de `getAppBaseUrl()` côté appelant
+ * (bêta ↔ prod), jamais d'un littéral : un embed de bêta ne doit pas renvoyer vers la prod.
+ * L'URL est validée ici et le texte reste **borné** à la limite Discord d'un champ.
+ */
+export function buildSeniorityNotRegisteredField(dashboardUrl: string): {
+    name: string;
+    value: string;
+    inline: boolean;
+} {
+    const url = /^https?:\/\/[^\s<>]+$/.test(dashboardUrl) ? dashboardUrl : "";
+    const tail = "pour un accès détaillé au ladder de la guilde !";
+    const value = url
+        ? `Pense à créer ton profil sur <${url}> ${tail}`
+        : `Pense à créer ton profil sur le dashboard ${tail}`;
+    return {
+        name: SENIORITY_NOT_REGISTERED_FIELD_TITLE,
+        value: boundText(value, SENIORITY_EMBED_FIELD_VALUE_MAX_LENGTH),
+        inline: false,
+    };
 }
 
 /**
@@ -433,18 +522,21 @@ function boundText(value: string, max: number): string {
 export function renderSeniorityAnnouncement(input: {
     announcement: SeniorityAnnouncementConfig;
     values: SeniorityAnnouncementValues;
+    /** Variables hors « membre » (`{lien}`) : fournies par l'appelant, jamais devinées. */
+    extras?: Record<string, string>;
 }): SeniorityAnnouncement {
+    const extras = input.extras ?? {};
     return {
         content: boundText(
-            renderSeniorityAnnouncementText(input.announcement.messageTemplate, input.values),
+            renderSeniorityAnnouncementText(input.announcement.messageTemplate, input.values, extras),
             SENIORITY_ANNOUNCEMENT_MESSAGE_MAX_LENGTH,
         ),
         embedTitle: boundText(
-            renderSeniorityAnnouncementText(input.announcement.embedTitle, input.values),
+            renderSeniorityAnnouncementText(input.announcement.embedTitle, input.values, extras),
             SENIORITY_ANNOUNCEMENT_TITLE_MAX_LENGTH,
         ),
         embedDescription: boundText(
-            renderSeniorityAnnouncementText(input.announcement.embedDescription, input.values),
+            renderSeniorityAnnouncementText(input.announcement.embedDescription, input.values, extras),
             SENIORITY_ANNOUNCEMENT_DESCRIPTION_MAX_LENGTH,
         ),
         color: input.announcement.color,

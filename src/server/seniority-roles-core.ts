@@ -25,8 +25,11 @@ import { logger } from "@/lib/logger";
 import { isDiscordSnowflake } from "@/lib/discord-ids";
 import { buildDiscordAvatarUrl, getDefaultDiscordAvatar } from "@/lib/discord-avatars";
 import { computeSeniorityDays, resolveJoinedAt } from "@/lib/member-registry";
+import { getAppBaseUrl } from "@/lib/utils";
 import {
+    SENIORITY_MAX_RETRO_ANNOUNCEMENTS_PER_PASS,
     buildSeniorityAnnouncementValues,
+    buildSeniorityNotRegisteredField,
     computeSeniorityRoleDiff,
     mergeSeniorityRolesConfig,
     renderSeniorityAnnouncement,
@@ -36,23 +39,68 @@ import {
     type SeniorityAnnouncementConfig,
     type SeniorityTier,
 } from "@/lib/seniority-roles";
-import { addRoleToMember, fetchGuildMember, removeRoleFromMember, sendChannelMessage } from "@/server/discord";
+import {
+    addRoleToMember,
+    fetchAllGuildMembersDetailed,
+    removeRoleFromMember,
+    sendChannelMessage,
+} from "@/server/discord";
 
 /** Borne de sûreté d'un passage : une guilde ne doit pas tenir le cron des heures. */
 export const MAX_SENIORITY_GUILDS_PER_RUN = 50;
 
+/** Plafond de membres lus par guilde : au-delà, la liste est tronquée et **dit**. */
+export const MAX_SENIORITY_MEMBERS_PER_GUILD = 5_000;
+
+/**
+ * Plafond du **rattrapage** par passe et par guilde. La valeur vit dans la règle pure
+ * (`SENIORITY_MAX_RETRO_ANNOUNCEMENTS_PER_PASS`) : l'écran l'affiche, le cron l'applique.
+ */
+export const MAX_RETRO_ANNOUNCEMENTS_PER_PASS = SENIORITY_MAX_RETRO_ANNOUNCEMENTS_PER_PASS;
+
+/** Temporisation entre deux écritures de rôle (Discord limite les écritures par guilde). */
+export const SENIORITY_ROLE_WRITE_THROTTLE_MS = 100;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export interface SeniorityRolesSyncResult {
     guildsProcessed: number;
     guildsSkipped: number;
+    /** Guildes dont la passe a **levé** (Discord muet, intent manquant, base). */
+    guildsErrored: number;
     membersChecked: number;
+    /** Membres Discord **sans profil** : ils reçoivent le CTA « crée ton profil ». */
+    membersUnregistered: number;
     membersChanged: number;
     rolesAdded: number;
     rolesRemoved: number;
     announcementsSent: number;
-    /** Paliers atteints **avant** l'activation du module : marqués sans être postés. */
+    /** Paliers franchis **avant** l'activation du module (marqués sans être postés). */
     retroactiveTiersMuted: number;
+    /** Cartes de rattrapage envoyées par cette passe (plafonnées). */
+    retroactiveAnnouncementsSent: number;
+    /** Paliers éligibles au rattrapage mais **non** envoyés (budget de la passe, échec). */
+    retroactiveAnnouncementsPending: number;
     errors: string[];
     details: string[];
+    /**
+     * Une ligne lisible **par guilde** (clé = nom de guilde, jamais un snowflake). La modale
+     * du panneau God rend déjà cet objet : c'est ce qui fait dire à l'écran *pourquoi* une
+     * guilde est sautée, au lieu du seul « 0 guilde traitée » (mesure du 18/10/2026).
+     */
+    telemetryDetails: Record<string, string>;
+}
+
+export interface SeniorityRolesSyncOptions {
+    now?: Date;
+    /** Ne traite qu'une guilde (bouton « Synchroniser maintenant ») — id interne `GuildConfig`. */
+    onlyGuildId?: string;
+    /**
+     * Rattrapage **explicite** : fête le palier le **plus haut** déjà atteint, jamais tous
+     * (une carte par membre), et seulement dans la limite de `MAX_RETRO_ANNOUNCEMENTS_PER_PASS`.
+     * Jamais activé par le cron : un déploiement ne doit pas inonder un salon.
+     */
+    announceRetroactive?: boolean;
 }
 
 interface SeniorityGuildRow {
@@ -60,6 +108,13 @@ interface SeniorityGuildRow {
     discordGuildId: string;
     name: string;
     iconUrl: string | null;
+    /**
+     * ⚠️ **Lu, pas seulement filtré** : `mergeSeniorityRolesConfig` exige ce champ. Son
+     * absence du `select` faisait sauter **toutes** les guildes en silence (« 0 guilde
+     * traitée », 19 ms) — bug mesuré le 18/10/2026 sur la bêta. L'annotation
+     * `SeniorityGuildRow[]` sur le `findMany` empêche la rechute **à la compilation**.
+     */
+    seniorityRolesEnabled: boolean;
     seniorityRolesChannelId: string | null;
     seniorityRolesTiers: unknown;
     seniorityRolesAnnouncement: unknown;
@@ -73,6 +128,15 @@ interface SeniorityMemberRow {
     pseudoDofus: string | null;
     discordNickname: string | null;
     user: { name: string | null; accounts: Array<{ provider: string; providerAccountId: string }> } | null;
+}
+
+/** Membre Discord tel que la couche anti-corruption le rend (rôles + arrivée). */
+interface SeniorityDiscordMember {
+    user: { id: string; username: string; global_name?: string | null; bot?: boolean; avatar?: string | null };
+    nick?: string | null;
+    avatar?: string | null;
+    roles: string[];
+    joined_at?: string;
 }
 
 /** Id Discord d'un profil : le compte **discord** (jamais « le premier venu »). */
@@ -118,19 +182,26 @@ async function releaseAnnouncement(guildId: string, discordId: string, tierDays:
 }
 
 /** Une passe complète sur toutes les guildes éligibles. Idempotente, jamais fatale. */
-export async function syncSeniorityRolesCore(options: { now?: Date } = {}): Promise<SeniorityRolesSyncResult> {
+export async function syncSeniorityRolesCore(
+    options: SeniorityRolesSyncOptions = {},
+): Promise<SeniorityRolesSyncResult> {
     const now = options.now ?? new Date();
     const result: SeniorityRolesSyncResult = {
         guildsProcessed: 0,
         guildsSkipped: 0,
+        guildsErrored: 0,
         membersChecked: 0,
+        membersUnregistered: 0,
         membersChanged: 0,
         rolesAdded: 0,
         rolesRemoved: 0,
         announcementsSent: 0,
         retroactiveTiersMuted: 0,
+        retroactiveAnnouncementsSent: 0,
+        retroactiveAnnouncementsPending: 0,
         errors: [],
         details: [],
+        telemetryDetails: {},
     };
 
     if (!process.env.DISCORD_BOT_TOKEN) {
@@ -138,13 +209,18 @@ export async function syncSeniorityRolesCore(options: { now?: Date } = {}): Prom
         return result;
     }
 
-    const guilds = await db.guildConfig.findMany({
-        where: { isActive: true, seniorityRolesEnabled: true },
+    // `SeniorityGuildRow[]` est une **garde de compilation** : retirer un champ du `select`
+    // (par exemple `seniorityRolesEnabled`, cause racine du 18/10/2026) ne compile plus.
+    const guilds: SeniorityGuildRow[] = await db.guildConfig.findMany({
+        where: options.onlyGuildId
+            ? { id: options.onlyGuildId }
+            : { isActive: true, seniorityRolesEnabled: true },
         select: {
             id: true,
             discordGuildId: true,
             name: true,
             iconUrl: true,
+            seniorityRolesEnabled: true,
             seniorityRolesChannelId: true,
             seniorityRolesTiers: true,
             seniorityRolesAnnouncement: true,
@@ -155,19 +231,36 @@ export async function syncSeniorityRolesCore(options: { now?: Date } = {}): Prom
 
     for (const guild of guilds) {
         const config = mergeSeniorityRolesConfig(guild);
+        // Le compte **brut** dit pourquoi une config valide en apparence peut être vide :
+        // « 4 paliers lus, 0 retenu » n'est pas « module coupé ».
+        const rawTiers = Array.isArray(guild.seniorityRolesTiers) ? guild.seniorityRolesTiers.length : 0;
+
         if (!config.enabled || config.tiers.length === 0) {
             result.guildsSkipped += 1;
+            const reason = !config.enabled
+                ? "module désactivé (activation non lue en base)"
+                : `${rawTiers} palier(s) lu(s), 0 retenu(s) après validation`;
+            result.details.push(`${guild.name} : sautée — ${reason}`);
+            result.telemetryDetails[guild.name] = `sautée — ${reason}`;
+            // ⚠️ Un saut n'est pas une erreur produit, mais il doit **se voir** : sans cette
+            // ligne, le panneau God affichait « 0 guilde traitée » sans cause possible.
+            logger.warn("[SeniorityRoles] Guilde sautée", { guild: guild.name, reason });
             continue;
         }
 
         try {
-            await syncGuild(guild, config, now, result);
+            await syncGuild(guild, config, now, result, {
+                announceRetroactive: options.announceRetroactive === true,
+            });
             result.guildsProcessed += 1;
         } catch (error) {
             // Une guilde en échec (Discord muet, base) ne prive pas les autres de leur passe.
+            // Le nom remplace le snowflake : `AGENTS.md` §5.7 interdit l'identifiant en log.
             const message = error instanceof Error ? error.message : String(error);
-            result.errors.push(`${guild.discordGuildId} : ${message}`);
-            logger.error("[SeniorityRoles] Guilde en échec", { guildId: guild.discordGuildId, error: message });
+            result.guildsErrored += 1;
+            result.errors.push(`${guild.name} : ${message}`);
+            result.telemetryDetails[guild.name] = `erreur — ${message}`;
+            logger.error("[SeniorityRoles] Guilde en échec", { guild: guild.name, error: message });
         }
     }
 
@@ -180,6 +273,7 @@ async function syncGuild(
     config: GuildSeniorityRolesConfig,
     now: Date,
     result: SeniorityRolesSyncResult,
+    options: { announceRetroactive: boolean },
 ): Promise<void> {
     // ① Marqueur d'activation : estampé à la première passe, jamais déplacé ensuite. Le jour
     //    où l'écran existe (Y-3), c'est lui qui l'estampera à l'activation du module.
@@ -196,9 +290,10 @@ async function syncGuild(
     }
     const activatedAtIso = activatedAt.toISOString();
 
-    // ② Membres **connus** de la guilde (profils actifs) : un inconnu ne reçoit jamais rien.
+    // ② Profils du dashboard — **tous statuts** : un profil archivé reste « inscrit » (il ne
+    //    doit pas recevoir le CTA « crée ton profil »). Ils servent à nommer et à dater.
     const profiles = await db.userProfile.findMany({
-        where: { guildId: guild.id, status: "ACTIVE" },
+        where: { guildId: guild.id },
         select: {
             guildJoinedAt: true,
             discordJoinedAt: true,
@@ -208,50 +303,106 @@ async function syncGuild(
             user: { select: { name: true, accounts: { select: { provider: true, providerAccountId: true } } } },
         },
     });
+    const profileByDiscordId = new Map<string, SeniorityMemberRow>();
+    for (const profile of profiles) {
+        const discordId = resolveProfileDiscordId(profile.user?.accounts);
+        if (discordId) profileByDiscordId.set(discordId, profile);
+    }
 
-    // ③ Paliers déjà fêtés (une lecture, une garde locale ; la contrainte unique reste le filet).
+    // ③ Source de vérité : **les membres du serveur Discord**, inscrits ou non (demande user
+    //    du 18/10/2026). Une liste paginée remplace N appels `fetchGuildMember`.
+    const { members, truncated } = await fetchAllGuildMembersDetailed(
+        guild.discordGuildId,
+        MAX_SENIORITY_MEMBERS_PER_GUILD,
+    );
+    const humans = members.filter(
+        (member): member is SeniorityDiscordMember => !member.user?.bot && isDiscordSnowflake(member.user?.id),
+    );
+    if (truncated) {
+        result.details.push(
+            `${guild.name} : liste tronquée à ${MAX_SENIORITY_MEMBERS_PER_GUILD} membres — le reste sera lu à la passe suivante`,
+        );
+        logger.warn("[SeniorityRoles] Liste de membres tronquée", {
+            guild: guild.name,
+            max: MAX_SENIORITY_MEMBERS_PER_GUILD,
+        });
+    }
+
+    // ④ Paliers déjà fêtés (une lecture, une garde locale ; la contrainte unique reste le filet).
     const announcedRows = await db.seniorityRoleAnnouncement.findMany({
         where: { guildId: guild.id },
         select: { discordId: true, tierDays: true },
     });
     const announced = new Set(announcedRows.map((row) => `${row.discordId}:${row.tierDays}`));
 
-    for (const profile of profiles) {
-        result.membersChecked += 1;
-        const discordId = resolveProfileDiscordId(profile.user?.accounts);
-        if (!discordId) continue; // profil sans compte Discord : rien à synchroniser
+    const beforeRoles = result.rolesAdded;
+    const beforeAnnouncements = result.announcementsSent;
+    const beforeMuted = result.retroactiveTiersMuted;
+    const beforeRetro = result.retroactiveAnnouncementsSent;
+    let registeredCount = 0;
+    let unregisteredCount = 0;
 
+    /** Candidats au rattrapage : une carte par membre, au palier **le plus haut**. */
+    const retroCandidates: Array<{
+        discordId: string;
+        displayName: string;
+        member: SeniorityDiscordMember;
+        seniorityDays: number;
+        tier: SeniorityTier;
+        registered: boolean;
+    }> = [];
+
+    for (const member of humans) {
+        result.membersChecked += 1;
+        const discordId = member.user.id;
+        const profile = profileByDiscordId.get(discordId) ?? null;
+        if (profile) registeredCount += 1;
+        else {
+            unregisteredCount += 1;
+            result.membersUnregistered += 1;
+        }
+
+        // Arrivée : le réglage **staff** prime, puis la **date Discord réelle**. `createdAt`
+        // n'est qu'un dernier recours (inscription au dashboard, souvent récente) — c'est ce
+        // repli qui comptait 0 jour à des vétérans (mesure du 18/10/2026).
         const joinedAtIso = resolveJoinedAt({
-            guildJoinedAt: profile.guildJoinedAt ? profile.guildJoinedAt.toISOString() : null,
-            discordJoinedAt: profile.discordJoinedAt ? profile.discordJoinedAt.toISOString() : null,
-            createdAt: profile.createdAt.toISOString(),
+            guildJoinedAt: profile?.guildJoinedAt ? profile.guildJoinedAt.toISOString() : null,
+            discordJoinedAt:
+                member.joined_at ?? (profile?.discordJoinedAt ? profile.discordJoinedAt.toISOString() : null),
+            createdAt: profile?.createdAt
+                ? profile.createdAt.toISOString()
+                : (member.joined_at ?? now.toISOString()),
         });
         const seniorityDays = computeSeniorityDays(joinedAtIso, now);
-
-        const member = await fetchGuildMember(guild.discordGuildId, discordId);
-        if (!member) continue; // plus sur le serveur Discord (404) : rien à faire
 
         const diff = computeSeniorityRoleDiff({ config, seniorityDays, currentRoleIds: member.roles ?? [] });
         if (!diff.changed && diff.targetTierIndex < 0) continue; // rien à poser, aucun palier atteint
 
-        // ④ Rôles : ajouts puis retraits. Un échec Discord n'interrompt pas les autres membres,
-        //    mais **interdit l'annonce** de celui-ci (on ne fête jamais un palier dont les rôles
-        //    n'ont pas pu être posés) — le passage suivant réessaiera, le diff étant recalculé
-        //    sur les rôles réellement portés.
+        const displayName =
+            (profile ? profile.pseudoDofus || profile.discordNickname || profile.user?.name : null) ||
+            member.nick ||
+            member.user.global_name ||
+            member.user.username;
+
+        // ⑤ Rôles : ajouts puis retraits, séparés par une temporisation (Discord limite les
+        //    écritures par guilde). Un échec n'interrompt pas les autres membres, mais
+        //    **interdit l'annonce** de celui-ci — le passage suivant réessaiera.
         let rolesFailed = false;
         for (const roleId of diff.toAdd) {
             const ok = await addRoleToMember(guild.discordGuildId, discordId, roleId);
             if (ok) result.rolesAdded += 1;
             else rolesFailed = true;
+            await sleep(SENIORITY_ROLE_WRITE_THROTTLE_MS);
         }
         for (const roleId of diff.toRemove) {
             const ok = await removeRoleFromMember(guild.discordGuildId, discordId, roleId);
             if (ok) result.rolesRemoved += 1;
             else rolesFailed = true;
+            await sleep(SENIORITY_ROLE_WRITE_THROTTLE_MS);
         }
         if (diff.changed) result.membersChanged += 1;
 
-        // ⑤ Annonces : un palier franchi **depuis l'activation**, une seule fois, du plus ancien
+        // ⑥ Annonces : un palier franchi **depuis l'activation**, une seule fois, du plus ancien
         //    au plus récent.
         for (let index = 0; index <= diff.targetTierIndex; index += 1) {
             const tier = config.tiers[index];
@@ -274,10 +425,11 @@ async function syncGuild(
                 guild,
                 config,
                 discordId,
-                profile,
+                displayName,
                 member,
                 seniorityDays,
                 tier,
+                registered: profile !== null,
             });
             if (sent) {
                 result.announcementsSent += 1;
@@ -288,7 +440,62 @@ async function syncGuild(
                 await releaseAnnouncement(guild.id, discordId, tier.days);
             }
         }
+
+        // ⑦ Candidat au rattrapage : le palier **le plus haut**, s'il précède l'activation et
+        //    n'a jamais été fêté. Rien n'est envoyé ici : on trie et on borne après la boucle.
+        if (diff.targetTierIndex >= 0 && !rolesFailed) {
+            const topTier = config.tiers[diff.targetTierIndex];
+            const key = `${discordId}:${topTier.days}`;
+            if (
+                !announced.has(key) &&
+                !shouldCelebrateSeniorityTier({ joinedAtIso, tierDays: topTier.days, activatedAtIso })
+            ) {
+                retroCandidates.push({
+                    discordId,
+                    displayName,
+                    member,
+                    seniorityDays,
+                    tier: topTier,
+                    registered: profile !== null,
+                });
+            }
+        }
     }
+
+    // ⑧ Rattrapage **explicite** : jamais par le cron. Le palier le plus haut d'abord, puis
+    //    alphabétique ; les non-servis restent sans revendication ⇒ repris à la passe suivante.
+    if (options.announceRetroactive && config.channelId) {
+        retroCandidates.sort((a, b) => b.tier.days - a.tier.days || a.displayName.localeCompare(b.displayName));
+        for (const candidate of retroCandidates.slice(0, MAX_RETRO_ANNOUNCEMENTS_PER_PASS)) {
+            if (!(await claimAnnouncement(guild.id, candidate.discordId, candidate.tier.days))) continue;
+            const sent = await sendSeniorityAnnouncement({
+                guild,
+                config,
+                discordId: candidate.discordId,
+                displayName: candidate.displayName,
+                member: candidate.member,
+                seniorityDays: candidate.seniorityDays,
+                tier: candidate.tier,
+                registered: candidate.registered,
+            });
+            if (sent) result.retroactiveAnnouncementsSent += 1;
+            else await releaseAnnouncement(guild.id, candidate.discordId, candidate.tier.days);
+        }
+    }
+    result.retroactiveAnnouncementsPending +=
+        retroCandidates.length - (result.retroactiveAnnouncementsSent - beforeRetro);
+
+    // ⑨ Ce que la passe a RÉELLEMENT fait, par guilde : la ligne que le panneau God n'avait pas
+    //    (« 0 guilde traitée » sans cause possible, mesure du 18/10/2026).
+    const rolesHere = result.rolesAdded - beforeRoles;
+    const announcementsHere = result.announcementsSent - beforeAnnouncements;
+    const mutedHere = result.retroactiveTiersMuted - beforeMuted;
+    result.details.push(
+        `${guild.name} : ${humans.length} membre(s) Discord (${registeredCount} inscrit(s), ${unregisteredCount} sans profil) · ${rolesHere} rôle(s) posé(s) · ${announcementsHere} annonce(s) · ${mutedHere} palier(s) rétroactif(s) silencieux`,
+    );
+    result.telemetryDetails[guild.name] =
+        `${humans.length} membre(s) — ${registeredCount} inscrit(s), ${unregisteredCount} sans profil · ` +
+        `${rolesHere} rôle(s) posé(s) · ${announcementsHere} annonce(s) · ${mutedHere} rattrapage(s) silencieux`;
 }
 
 /**
@@ -299,18 +506,21 @@ async function sendSeniorityAnnouncement(input: {
     guild: SeniorityGuildRow;
     config: GuildSeniorityRolesConfig;
     discordId: string;
-    profile: SeniorityMemberRow;
+    displayName: string;
     member: { avatar?: string | null; user?: { avatar?: string | null } | null };
     seniorityDays: number;
     tier: SeniorityTier;
+    /** `false` ⇒ le membre n'a **aucun profil** : l'embed porte l'appel à en créer un. */
+    registered: boolean;
 }): Promise<boolean> {
     const channelId = input.config.channelId;
     if (!channelId) return false;
 
-    const displayName =
-        input.profile.pseudoDofus || input.profile.discordNickname || input.profile.user?.name || "Membre";
+    // Lien **de l'environnement** (bêta ↔ prod), jamais un littéral : un embed de bêta ne doit
+    // pas renvoyer vers la prod (dette « origine unique » du reste du dépôt).
+    const dashboardUrl = `${getAppBaseUrl()}/dashboard`;
     const values = buildSeniorityAnnouncementValues({
-        member: { discordId: input.discordId, displayName },
+        member: { discordId: input.discordId, displayName: input.displayName },
         guildName: input.guild.name,
         seniorityDays: input.seniorityDays,
         awardedRoleIds: input.tier.roleIds,
@@ -319,6 +529,8 @@ async function sendSeniorityAnnouncement(input: {
         // Le texte du **palier** s'il est personnalisé, sinon le message global de la guilde.
         announcement: resolveTierAnnouncement({ announcement: input.config.announcement, tier: input.tier }),
         values,
+        // `{lien}` : disponible dans les modèles, sans dépendre du membre.
+        extras: { lien: dashboardUrl },
     });
 
     const messageId = await sendChannelMessage(channelId, "", {
@@ -334,6 +546,9 @@ async function sendSeniorityAnnouncement(input: {
             guildIconUrl: input.guild.iconUrl,
         }),
         embedFooter: `${input.guild.name} • Rôles par ancienneté`,
+        // Le CTA n'apparaît **que** pour un membre sans profil : les inscrits n'ont pas à lire
+        // « crée ton profil ».
+        fields: input.registered ? undefined : [buildSeniorityNotRegisteredField(dashboardUrl)],
     });
 
     return messageId !== null;

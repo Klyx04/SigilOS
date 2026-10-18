@@ -472,6 +472,8 @@ model GuildConfig {
   sigilRoles                       SigilRole[]
   profiles                         UserProfile[]
   memberRegistryEntries            MemberRegistryEntry[]
+  /// Lot 7 — activité Discord de **tous** les membres (y compris sans profil dashboard).
+  discordMemberActivities          DiscordMemberActivity[]
   seniorityRoleAnnouncements       SeniorityRoleAnnouncement[]
   vaultEntries                     VaultEntry[]
   allowedPingRoleIds               String[]                @default([])
@@ -894,6 +896,36 @@ model MemberRegistryEntry {
   @@unique([guildId, discordId])
   @@index([guildId])
   @@index([discordId])
+}
+
+/// Lot 7 — activité Discord **de tous les membres** d'une guilde, **même sans profil**
+/// (`UserProfile` ne couvre que les inscrits : c'était l'angle mort du vocal).
+///
+/// Écrit par le **bot** à chaque message / passage en vocal / arrivée / départ ;
+/// `leftDiscordAt` n'est jamais effacé avant la purge (365 jours, cf.
+/// `src/lib/discord-member-activity.ts`). Aucun token, aucun contenu de
+/// message : des **compteurs** et des **horodatages**, rien d'autre.
+model DiscordMemberActivity {
+  id                String      @id @default(cuid())
+  guildId           String
+  discordId         String
+  /// Dernier nom affiché connu (surnom Discord prioritaire) — jamais une source de vérité.
+  displayName       String?
+  firstSeenAt       DateTime    @default(now())
+  lastSeenAt        DateTime    @default(now())
+  lastMessageAt     DateTime?
+  lastVoiceAt       DateTime?
+  messagesTotal     Int         @default(0)
+  voiceSecondsTotal Int         @default(0)
+  /// Départ du serveur Discord : point de départ de la purge (365 jours).
+  leftDiscordAt     DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  guild             GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, discordId])
+  @@index([guildId, leftDiscordAt])
+  @@index([guildId, lastSeenAt])
 }
 
 /// Chantier Y (lot Y-2) — palier d'ancienneté **déjà fêté** pour un membre : une ligne par

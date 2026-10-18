@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Activity, CheckCircle2, Loader2, ArrowRight, FlaskConical, Play, RefreshCw } from 'lucide-react';
+import { Activity, CheckCircle2, Loader2, ArrowRight, FlaskConical, Play, RefreshCw, Skull } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
     getDataHealthOverview,
     checkBossFicheGaps,
+    checkBossSovereignty,
 } from '@/server/actions/data-health-actions';
 import type { DataHealthRow, BossFicheGap } from '@/lib/data-health';
+import type { BossSovereigntyCensus } from '@/lib/boss-sovereignty';
 import { getSiphonInventory, triggerBatchAssetSiphonAction } from '@/server/actions/asset-siphon-actions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -123,6 +126,8 @@ export function DataHealthPanel({ onGoTab }: { onGoTab: (tab: string) => void })
     const [gapKind, setGapKind] = useState<'fiches' | 'images' | null>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [syncing, setSyncing] = useState(false);
+    /** Lot 6 — souveraineté boss : base vs catalogue local (lecture seule). */
+    const [sovereignty, setSovereignty] = useState<BossSovereigntyCensus | null>(null);
     /**
      * 📱 **Tableau → cartes** (chantier A3) : le seuil (768 px) et le débordement mesuré viennent de
      * `useResponsiveTable` — la même règle que le tableau d'état des datasets, jamais recopiée ici.
@@ -145,6 +150,14 @@ export function DataHealthPanel({ onGoTab }: { onGoTab: (tab: string) => void })
 
     useEffect(() => {
         loadOverview();
+        // Lot 6 — recensement de souveraineté : une lecture, aucun appel externe.
+        checkBossSovereignty()
+            .then((res) => {
+                if (res.success && res.data) setSovereignty(res.data);
+            })
+            .catch(() => {
+                /* l'écran reste utilisable : la carte ne s'affiche simplement pas */
+            });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -319,6 +332,57 @@ export function DataHealthPanel({ onGoTab }: { onGoTab: (tab: string) => void })
                     ))
                 )}
             </div>
+
+            {/* Lot 6 — **souveraineté boss** : le recensement est dit, pas supposé.
+                207 donjons en base / 187 dans le catalogue local (mesure du 18/10/2026) :
+                les fiches sans données locales utilisent un repli réseau, désormais explicite. */}
+            {sovereignty && (
+                <div className="space-y-2 rounded-lg border border-border-strong bg-surface p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <Skull className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                            Souveraineté boss
+                        </h4>
+                        <Badge
+                            variant="outline"
+                            className={cn(
+                                'text-caption tabular-nums',
+                                sovereignty.missingTotal === 0 ? 'border-success/40 text-success' : 'border-warning/40 text-warning'
+                            )}
+                        >
+                            {sovereignty.matchedCount}/{sovereignty.databaseCount} couverts
+                            {sovereignty.coveragePct !== null ? ` · ${sovereignty.coveragePct} %` : ''}
+                        </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Catalogue local : <strong className="text-foreground">{sovereignty.localCount}</strong> donjons ·
+                        base : <strong className="text-foreground">{sovereignty.databaseCount}</strong> donjons.
+                    </p>
+                    {sovereignty.missingTotal === 0 ? (
+                        <p className="text-xs text-success">Aucun repli réseau nécessaire : toutes les fiches ont leurs données locales.</p>
+                    ) : (
+                        <p className="text-xs text-warning">
+                            <strong>{sovereignty.missingTotal}</strong> donjon(s) sans données locales — leur fiche affiche
+                            désormais un repli <strong>explicite</strong> au lieu de faire passer le réseau pour du local.
+                        </p>
+                    )}
+                    {sovereignty.missing.length > 0 && (
+                        <ul className="max-h-40 divide-y divide-border/40 overflow-y-auto rounded-md border border-border/60">
+                            {sovereignty.missing.map((gap) => (
+                                <li key={gap.dungeonName} className="flex items-center justify-between gap-2 px-3 py-1.5 text-xs">
+                                    <span className="truncate text-foreground">{gap.bossName}</span>
+                                    <span className="shrink-0 text-caption text-muted-foreground">{gap.dungeonName}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    {sovereignty.missingTotal > sovereignty.missing.length && (
+                        <p className="text-caption text-muted-foreground">
+                            … {sovereignty.missingTotal - sovereignty.missing.length} autre(s) non listé(s) (liste bornée).
+                        </p>
+                    )}
+                </div>
+            )}
 
             {checking && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -1,7 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AlertTriangle, Ban, Trash2, RefreshCw, Archive, Loader2 } from "lucide-react";
+import {
+    AlertTriangle,
+    ArchiveRestore,
+    Ban,
+    CalendarClock,
+    CheckCircle2,
+    Pencil,
+    Palmtree,
+    Trash2,
+    RefreshCw,
+    Archive,
+    Loader2,
+    MessageSquare,
+    X,
+} from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -42,14 +56,27 @@ import {
 import { DiscordAvatarImage } from "@/components/shared/discord-avatar-image";
 import { GameIcon } from "@/components/shared/game-icon";
 import { cn } from "@/lib/utils";
-import type { RosterMule, RosterRow } from "@/lib/member-roster";
+import {
+    canAddRegistryComment,
+    MAX_REGISTRY_COMMENTS,
+    type RegistryComment,
+} from "@/lib/member-registry";
+import {
+    applyRosterSnapshot,
+    type MemberRosterSnapshot,
+    type RosterMule,
+    type RosterRow,
+} from "@/lib/member-roster";
 import {
     addMemberRegistryComment,
+    deleteMemberRegistryComment,
+    getMemberRegistrySnapshot,
     recordMemberDeparture,
     reintegrateMember,
     setMemberTrialState,
     updateMemberAlts,
     updateMemberRecruiter,
+    updateMemberRegistryComment,
     updateMemberRegistryIdentity,
     type RegistrySubject,
 } from "@/server/actions/member-lifecycle-actions";
@@ -110,6 +137,28 @@ function formatDay(iso: string | null): string {
     return format(date, "dd MMM yyyy", { locale: fr });
 }
 
+/** Heure locale `HH:MM` d'un instant **serveur** (ISO) — jamais l'horloge du poste. */
+function formatTime(iso: string): string {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "—";
+    return format(date, "HH:mm", { locale: fr });
+}
+
+/**
+ * État d'essai lisible (lot 3) : validé, en cours (jours restants) ou échu.
+ * Aucun état inventé — un essai sans échéance le dit.
+ */
+function trialBadge(trial: RosterRow["trial"]): { label: string; tone: string } | null {
+    if (!trial) return null;
+    if (trial.validated) return { label: "Essai validé", tone: "border-success/40 text-success" };
+    if (!trial.endsAt) return { label: "Essai — sans échéance", tone: "border-border text-muted-foreground" };
+    const remaining = trial.remainingDays ?? 0;
+    if (remaining < 0) {
+        return { label: `Essai échu (${Math.abs(remaining)} j)`, tone: "border-danger/40 text-danger" };
+    }
+    return { label: `Essai — ${remaining} j restant${remaining > 1 ? "s" : ""}`, tone: "border-warning/40 text-warning" };
+}
+
 /** Titre de section : asset Dofus réel + accent SigilOS (jamais un glyphe générique). */
 function SectionTitle({ icon, children }: { icon: string; children: React.ReactNode }) {
     return (
@@ -150,6 +199,20 @@ export function MemberDetailDialog({
     const [recruiterId, setRecruiterId] = useState(row?.recruiter?.id ?? "NONE");
     const [mules, setMules] = useState<RosterMule[]>(row?.mules ?? []);
     const [comment, setComment] = useState("");
+    /** Lot 4 — édition en ligne d'un commentaire du journal (une seule à la fois). */
+    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+    const [editingCommentBody, setEditingCommentBody] = useState("");
+    /** Lot 4 — confirmation de suppression d'un commentaire. */
+    const [deletingComment, setDeletingComment] = useState<RegistryComment | null>(null);
+    /** Lot 2 — photo serveur de la fiche (null = aucune relecture depuis l'ouverture). */
+    const [snapshot, setSnapshot] = useState<MemberRosterSnapshot | null>(null);
+    /**
+     * Instant du dernier enregistrement **confirmé** (ISO) : celui de la relecture serveur,
+     * ou à défaut l'horloge locale quand la relecture a échoué (le bandeau le dit alors).
+     */
+    const [saveStamp, setSaveStamp] = useState<string | null>(null);
+    /** Relecture impossible **après** une écriture réussie : l'écran le dit, il ne ment pas. */
+    const [rereadError, setRereadError] = useState<string | null>(null);
     /** Onglet de la fiche : la fiche registre, ou l'activité Discord mesurée. */
     const [detailTab, setDetailTab] = useState<"fiche" | "discord">("fiche");
 
@@ -157,18 +220,39 @@ export function MemberDetailDialog({
         return null;
     }
 
-    const isSelf = row.userId !== null && row.userId === currentUserId;
-    const isOwner = !!row.discordId && !!ownerId && row.discordId === ownerId;
-    const isDashboard = row.dashboard && !!row.profileId;
-    /** B-2 : les **deux** natures de lignes sont éditables (profil dashboard ou membre Discord). */
-    const canEdit = canManageMembers && (isDashboard || !!row.discordId) && !isOwner;
-    /** Sujet de l'écriture : le profil quand il existe, sinon le membre Discord hors dashboard. */
-    const subject: RegistrySubject = row.profileId
-        ? { profileId: row.profileId }
-        : { discordId: row.discordId ?? "" };
-    const roleNames = new Map(roles.map((role) => [role.id, role.name]));
+    /**
+     * Ligne **affichée** : la ligne reçue du serveur, recouverte par la photo relue après
+     * chaque enregistrement. Une seule règle de fusion (`applyRosterSnapshot`), testée.
+     */
+    const current: RosterRow = snapshot ? applyRosterSnapshot(row, snapshot) : row;
 
-    /** Exécute une mutation serveur et rend compte honnêtement (jamais de succès supposé). */
+    const isSelf = current.userId !== null && current.userId === currentUserId;
+    const isOwner = !!current.discordId && !!ownerId && current.discordId === ownerId;
+    const isDashboard = current.dashboard && !!current.profileId;
+    /** B-2 : les **deux** natures de lignes sont éditables (profil dashboard ou membre Discord). */
+    const canEdit = canManageMembers && (isDashboard || !!current.discordId) && !isOwner;
+    /** Sujet de l'écriture : le profil quand il existe, sinon le membre Discord hors dashboard. */
+    const subject: RegistrySubject = current.profileId
+        ? { profileId: current.profileId }
+        : { discordId: current.discordId ?? "" };
+    const roleNames = new Map(roles.map((role) => [role.id, role.name]));
+    /** Lot 3 — état d'essai lisible (badge d'en-tête), calculé une seule fois. */
+    const trialState = trialBadge(current.trial);
+
+    /** Recharge les champs éditables depuis la vérité serveur (lot 2). */
+    function syncFormFrom(next: RosterRow) {
+        setPseudoDofus(next.pseudoDofus ?? "");
+        setAnkamaId(next.ankamaId ?? "");
+        setJoinedAt(next.joinedAt ? next.joinedAt.slice(0, 10) : "");
+        setTrialEndsAt(next.trial?.endsAt ? next.trial.endsAt.slice(0, 10) : "");
+        setRecruiterId(next.recruiter?.id ?? "NONE");
+        setMules(next.mules);
+    }
+
+    /**
+     * Exécute une mutation serveur, **relit la fiche** puis rend compte honnêtement.
+     * Un seul chemin pour les sept écritures : aucune ne peut oublier la relecture.
+     */
     function run(
         action: () => Promise<{ success: boolean; error?: string }>,
         successMessage: string,
@@ -177,13 +261,28 @@ export function MemberDetailDialog({
         startTransition(async () => {
             try {
                 const result = await action();
-                if (result.success) {
-                    toast.success(successMessage);
-                    onDone?.();
-                    onChanged?.();
-                } else {
+                if (!result.success) {
                     toast.error(result.error || "Action refusée");
+                    return;
                 }
+
+                // La base a dit oui : on relit ce qu'elle contient vraiment (trim, bornes,
+                // statut, journal…). Un échec de relecture n'annule pas l'écriture — il se dit.
+                const fresh = await getMemberRegistrySnapshot(guildId, subject);
+                if (fresh.success && fresh.data) {
+                    setSnapshot(fresh.data);
+                    setSaveStamp(fresh.data.readAt);
+                    setRereadError(null);
+                    syncFormFrom(applyRosterSnapshot(current, fresh.data));
+                } else {
+                    setSnapshot(null);
+                    setSaveStamp(new Date().toISOString());
+                    setRereadError(fresh.error || "Relecture impossible");
+                }
+
+                toast.success(successMessage);
+                onDone?.();
+                onChanged?.();
             } catch {
                 toast.error("Erreur de communication");
             }
@@ -224,7 +323,7 @@ export function MemberDetailDialog({
         run(
             () =>
                 recordMemberDeparture(guildId, {
-                    profileId: row.profileId as string,
+                    profileId: current.profileId as string,
                     reason: departureReason.trim(),
                     category: departureCategory,
                     isBan,
@@ -236,7 +335,7 @@ export function MemberDetailDialog({
 
     function handleReintegrate() {
         if (!row?.profileId) return;
-        run(() => reintegrateMember(guildId, row.profileId as string), "Membre réintégré");
+        run(() => reintegrateMember(guildId, current.profileId as string), "Membre réintégré");
     }
 
     function handleSaveRecruiter() {
@@ -265,6 +364,41 @@ export function MemberDetailDialog({
         );
     }
 
+    /** Lot 4 — passe un commentaire en édition (une seule ligne à la fois). */
+    function startEditComment(entry: RegistryComment) {
+        setEditingCommentId(entry.id);
+        setEditingCommentBody(entry.body);
+    }
+
+    function handleUpdateComment() {
+        if (!editingCommentId) return;
+        if (!editingCommentBody.trim()) {
+            toast.error("Le commentaire est vide.");
+            return;
+        }
+        run(
+            () =>
+                updateMemberRegistryComment(guildId, subject, {
+                    commentId: editingCommentId,
+                    body: editingCommentBody.trim(),
+                }),
+            "Commentaire modifié",
+            () => {
+                setEditingCommentId(null);
+                setEditingCommentBody("");
+            }
+        );
+    }
+
+    function handleDeleteComment() {
+        if (!deletingComment) return;
+        run(
+            () => deleteMemberRegistryComment(guildId, subject, deletingComment.id),
+            "Commentaire supprimé",
+            () => setDeletingComment(null)
+        );
+    }
+
     function handleDelete() {
         if (!onDelete || !row) return;
         run(() => onDelete(row, deleteAccount), "Profil supprimé définitivement", () => onOpenChange(false));
@@ -277,30 +411,63 @@ export function MemberDetailDialog({
                     <DialogHeader>
                         <div className="flex items-center gap-3">
                             <Avatar className="h-12 w-12 rounded-lg">
-                                <DiscordAvatarImage src={row.avatar} alt="" className="object-cover" />
+                                <DiscordAvatarImage src={current.avatar} alt="" className="object-cover" />
                                 <AvatarFallback className="rounded-lg">
-                                    {row.displayName.slice(0, 2).toUpperCase()}
+                                    {current.displayName.slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
-                                <DialogTitle className="truncate text-lg">{row.displayName}</DialogTitle>
+                                <DialogTitle className="truncate text-lg">{current.displayName}</DialogTitle>
                                 <DialogDescription className="flex flex-wrap items-center gap-2 text-xs">
-                                    {row.username ? `@${row.username}` : row.discordId ?? "Membre Discord"}
+                                    {current.username ? `@${current.username}` : current.discordId ?? "Membre Discord"}
                                     <Badge
                                         variant="outline"
                                         className={cn(
                                             "text-caption",
-                                            row.dashboard
-                                                ? STATUS_TONES[row.status ?? ""]
+                                            current.dashboard
+                                                ? STATUS_TONES[current.status ?? ""]
                                                 : "text-muted-foreground"
                                         )}
                                     >
-                                        {row.dashboard ? STATUS_LABELS[row.status ?? ""] ?? "—" : "Hors dashboard"}
+                                        {current.dashboard ? STATUS_LABELS[current.status ?? ""] ?? "—" : "Hors dashboard"}
                                     </Badge>
+                                    {trialState && (
+                                        <Badge variant="outline" className={cn("text-caption", trialState.tone)}>
+                                            <CalendarClock className="mr-1 h-3 w-3" aria-hidden="true" />
+                                            {trialState.label}
+                                        </Badge>
+                                    )}
                                 </DialogDescription>
                             </div>
                         </div>
                     </DialogHeader>
+
+                    {/* Lot 2 — preuve honnête : l'heure du **serveur** + l'état de la relecture.
+                        Aucun bandeau sans écriture confirmée ; une relecture ratée se dit. */}
+                    {saveStamp && (
+                        <div
+                            role="status"
+                            aria-live="polite"
+                            className={cn(
+                                "flex items-start gap-2 rounded-md border px-3 py-2 text-xs",
+                                rereadError
+                                    ? "border-warning/40 bg-surface text-warning"
+                                    : "border-success/40 bg-surface text-success"
+                            )}
+                        >
+                            {rereadError ? (
+                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            ) : (
+                                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            )}
+                            <span>
+                                <strong>Enregistré à {formatTime(saveStamp)}</strong>
+                                {rereadError
+                                    ? ` · relecture impossible (${rereadError}) — la fiche peut être en retard`
+                                    : " · valeurs relues du serveur"}
+                            </span>
+                        </div>
+                    )}
 
                     {/* Onglets de la fiche : registre, puis activité Discord mesurée. */}
                     <div className="flex items-center gap-1 border-b border-border" role="tablist" aria-label="Contenu de la fiche">
@@ -329,7 +496,7 @@ export function MemberDetailDialog({
                     </div>
 
                     {detailTab === "discord" ? (
-                        <MemberDiscordActivity guildId={guildId} subject={subject} displayName={row.displayName} />
+                        <MemberDiscordActivity guildId={guildId} subject={subject} displayName={current.displayName} />
                     ) : (
                     <div className="space-y-6">
                         {/* ── 1. Profil & actions ─────────────────────────────── */}
@@ -338,23 +505,23 @@ export function MemberDetailDialog({
                             <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                                 <div>
                                     <dt className="text-caption uppercase text-muted-foreground">Arrivée</dt>
-                                    <dd className="text-foreground">{formatDay(row.joinedAt)}</dd>
+                                    <dd className="text-foreground">{formatDay(current.joinedAt)}</dd>
                                 </div>
                                 <div>
                                     <dt className="text-caption uppercase text-muted-foreground">Ancienneté</dt>
                                     <dd className="tabular-nums text-foreground">
-                                        {row.seniorityDays !== null ? `${row.seniorityDays} j` : "—"}
+                                        {current.seniorityDays !== null ? `${current.seniorityDays} j` : "—"}
                                     </dd>
                                 </div>
                                 <div>
                                     <dt className="text-caption uppercase text-muted-foreground">Essai</dt>
                                     <dd className="text-foreground">
-                                        {row.trial ? (row.trial.validated ? "Validé" : "En cours") : "—"}
+                                        {current.trial ? (current.trial.validated ? "Validé" : "En cours") : "—"}
                                     </dd>
                                 </div>
                                 <div>
                                     <dt className="text-caption uppercase text-muted-foreground">Mules</dt>
-                                    <dd className="tabular-nums text-foreground">{row.mules.length}</dd>
+                                    <dd className="tabular-nums text-foreground">{current.mules.length}</dd>
                                 </div>
                             </dl>
 
@@ -413,20 +580,22 @@ export function MemberDetailDialog({
                                             size="sm"
                                             variant="ghost"
                                             onClick={() =>
-                                                setRelanceTargets([{ id: row.discordId ?? "", name: row.displayName }])
+                                                setRelanceTargets([{ id: current.discordId ?? "", name: current.displayName }])
                                             }
-                                            disabled={!row.discordId}
+                                            disabled={!current.discordId}
                                         >
                                             <RefreshCw className="h-3.5 w-3.5" />
                                             Relancer
                                         </Button>
-                                        {isDashboard && (row.status === "ARCHIVED" || row.status === "BANNED") && (
+                                        {isDashboard && (current.status === "ARCHIVED" || current.status === "BANNED") && (
                                             <Button size="sm" variant="outline" onClick={handleReintegrate} disabled={isPending}>
+                                                <ArchiveRestore className="h-3.5 w-3.5" />
                                                 Réintégrer
                                             </Button>
                                         )}
                                         {isDashboard && (
                                             <Button size="sm" variant="ghost" onClick={() => setVacationOpen(true)}>
+                                                <Palmtree className="h-3.5 w-3.5" />
                                                 Vacances
                                             </Button>
                                         )}
@@ -450,7 +619,7 @@ export function MemberDetailDialog({
                                         </Button>
                                     </div>
 
-                                    {row.status === "ACTIVE" && (
+                                    {current.status === "ACTIVE" && (
                                         <>
                                             <Separator />
                                             <div className="space-y-2">
@@ -486,21 +655,73 @@ export function MemberDetailDialog({
                                                     </Select>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
-                                                    <Button size="sm" variant="outline" onClick={() => handleDeparture(false)} disabled={isPending}>
-                                                        <Archive className="h-3.5 w-3.5" />
-                                                        Archiver
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="text-danger"
-                                                        onClick={() => handleDeparture(true)}
-                                                        disabled={isPending}
-                                                    >
-                                                        <Ban className="h-3.5 w-3.5" />
-                                                        Exclure
-                                                    </Button>
+                                                    {/* Lot 3 — aucune sortie sans lire sa conséquence. */}
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button size="sm" variant="outline" disabled={isPending}>
+                                                                <Archive className="h-3.5 w-3.5" />
+                                                                Archiver
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Archiver {current.displayName} ?</AlertDialogTitle>
+                                                                <AlertDialogDescription asChild>
+                                                                    <ul className="list-disc space-y-1 pl-4 text-left text-xs">
+                                                                        <li>le profil passe en <strong>Archivé</strong> et sort des comptes actifs ;</li>
+                                                                        <li>la fiche (registre, essai, mules, journal) est <strong>conservée</strong> ;</li>
+                                                                        <li>aucun rôle Discord n&apos;est retiré ;</li>
+                                                                        <li>le membre est <strong>réintégrable</strong> depuis cette fiche.</li>
+                                                                    </ul>
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                                                <AlertDialogAction
+                                                                    onClick={() => handleDeparture(false)}
+                                                                    disabled={isPending || departureReason.trim().length < 3}
+                                                                >
+                                                                    Oui, archiver
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button size="sm" variant="outline" className="text-danger" disabled={isPending}>
+                                                                <Ban className="h-3.5 w-3.5" />
+                                                                Exclure
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Exclure {current.displayName} ?</AlertDialogTitle>
+                                                                <AlertDialogDescription asChild>
+                                                                    <ul className="list-disc space-y-1 pl-4 text-left text-xs">
+                                                                        <li>le profil passe en <strong>Exclu</strong> (exclusion conservée en base) ;</li>
+                                                                        <li>la fiche reste consultable et le motif est <strong>tracé</strong> ;</li>
+                                                                        <li>aucun rôle Discord n&apos;est retiré par SigilOS ;</li>
+                                                                        <li>une réintégration reste possible, mais elle doit être <strong>volontaire</strong>.</li>
+                                                                    </ul>
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                                                <AlertDialogAction
+                                                                    onClick={() => handleDeparture(true)}
+                                                                    disabled={isPending || departureReason.trim().length < 3}
+                                                                >
+                                                                    Oui, exclure
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
                                                 </div>
+                                                {departureReason.trim().length < 3 && (
+                                                    <p className="text-caption text-muted-foreground">
+                                                        Renseignez un motif (3 caractères minimum) : il est obligatoire et tracé.
+                                                    </p>
+                                                )}
                                             </div>
                                         </>
                                     )}
@@ -541,20 +762,101 @@ export function MemberDetailDialog({
                                     />
 
                                     <div className="space-y-2">
-                                        <Label className="text-xs">Journal du staff</Label>
-                                        {row.comments.length === 0 ? (
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Label className="flex items-center gap-1.5 text-xs">
+                                                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                                Journal du staff
+                                            </Label>
+                                            <span
+                                                className={cn(
+                                                    "tabular-nums text-caption",
+                                                    canAddRegistryComment(current.comments.length)
+                                                        ? "text-muted-foreground"
+                                                        : "text-warning"
+                                                )}
+                                            >
+                                                {current.comments.length}/{MAX_REGISTRY_COMMENTS}
+                                            </span>
+                                        </div>
+                                        {current.comments.length === 0 ? (
                                             <p className="text-xs text-muted-foreground">Aucun commentaire.</p>
                                         ) : (
                                             <ul className="space-y-2">
-                                                {row.comments.map((entry) => (
+                                                {current.comments.map((entry) => (
                                                     <li
                                                         key={entry.id}
                                                         className="rounded-md border border-border-strong bg-surface p-2.5"
                                                     >
+                                                        {editingCommentId === entry.id ? (
+                                                            <div className="space-y-2">
+                                                                <Textarea
+                                                                    value={editingCommentBody}
+                                                                    onChange={(event) => setEditingCommentBody(event.target.value)}
+                                                                    rows={3}
+                                                                    className="text-sm"
+                                                                    maxLength={1000}
+                                                                    aria-label="Modifier le commentaire"
+                                                                />
+                                                                <div className="flex flex-wrap justify-end gap-2">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        onClick={() => {
+                                                                            setEditingCommentId(null);
+                                                                            setEditingCommentBody("");
+                                                                        }}
+                                                                        disabled={isPending}
+                                                                    >
+                                                                        <X className="h-3.5 w-3.5" />
+                                                                        Annuler
+                                                                    </Button>
+                                                                    <Button size="sm" onClick={handleUpdateComment} disabled={isPending}>
+                                                                        {isPending ? (
+                                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                        ) : (
+                                                                            <CheckCircle2 className="h-3.5 w-3.5" />
+                                                                        )}
+                                                                        Enregistrer
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <>
                                                         <p className="whitespace-pre-wrap text-xs text-foreground">{entry.body}</p>
-                                                        <p className="mt-1 text-caption text-muted-foreground">
-                                                            {entry.authorName} · {formatDay(entry.createdAt)}
-                                                        </p>
+                                                        <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                                                            <p className="text-caption text-muted-foreground">
+                                                                {entry.authorName} · {formatDay(entry.createdAt)} à{" "}
+                                                                {formatTime(entry.createdAt)}
+                                                            </p>
+                                                            {canEdit && (
+                                                                <div className="flex items-center gap-1">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        className="h-7 w-7 p-0"
+                                                                        aria-label="Modifier le commentaire"
+                                                                        title="Modifier"
+                                                                        onClick={() => startEditComment(entry)}
+                                                                        disabled={isPending}
+                                                                    >
+                                                                        <Pencil className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        className="h-7 w-7 p-0 text-danger"
+                                                                        aria-label="Supprimer le commentaire"
+                                                                        title="Supprimer"
+                                                                        onClick={() => setDeletingComment(entry)}
+                                                                        disabled={isPending}
+                                                                    >
+                                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                            </>
+                                                        )}
                                                     </li>
                                                 ))}
                                             </ul>
@@ -565,11 +867,22 @@ export function MemberDetailDialog({
                                                     value={comment}
                                                     onChange={(event) => setComment(event.target.value)}
                                                     rows={2}
-                                                    placeholder="Ajouter un commentaire…"
+                                                    placeholder={
+                                                        canAddRegistryComment(current.comments.length)
+                                                            ? "Ajouter un commentaire…"
+                                                            : `Plafond atteint (${MAX_REGISTRY_COMMENTS}) — supprimez un commentaire pour en ajouter un.`
+                                                    }
                                                     className="text-sm"
                                                     maxLength={1000}
+                                                    disabled={!canAddRegistryComment(current.comments.length)}
                                                 />
-                                                <Button size="sm" variant="outline" onClick={handleAddComment} disabled={isPending}>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={handleAddComment}
+                                                    disabled={isPending || !canAddRegistryComment(current.comments.length)}
+                                                >
+                                                    <MessageSquare className="h-3.5 w-3.5" />
                                                     Ajouter au journal
                                                 </Button>
                                             </div>
@@ -588,20 +901,20 @@ export function MemberDetailDialog({
                             <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                                 <div>
                                     <dt className="text-caption uppercase text-muted-foreground">Identifiant Discord</dt>
-                                    <dd className="truncate tabular-nums text-xs text-foreground">{row.discordId ?? "—"}</dd>
+                                    <dd className="truncate tabular-nums text-xs text-foreground">{current.discordId ?? "—"}</dd>
                                 </div>
                                 <div>
                                     <dt className="text-caption uppercase text-muted-foreground">Pseudo serveur</dt>
-                                    <dd className="text-foreground">{row.discordNickname ?? "—"}</dd>
+                                    <dd className="text-foreground">{current.discordNickname ?? "—"}</dd>
                                 </div>
                             </dl>
                             <div className="space-y-1.5">
                                 <p className="text-caption uppercase text-muted-foreground">Rôles Discord</p>
-                                {row.roles.length === 0 ? (
+                                {current.roles.length === 0 ? (
                                     <p className="text-xs text-muted-foreground">Aucun rôle connu.</p>
                                 ) : (
                                     <div className="flex flex-wrap gap-1.5">
-                                        {row.roles.map((roleId) => (
+                                        {current.roles.map((roleId) => (
                                             <Badge
                                                 key={roleId}
                                                 variant="outline"
@@ -656,7 +969,7 @@ export function MemberDetailDialog({
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>
-                                            Supprimer définitivement {row.displayName} ?
+                                            Supprimer définitivement {current.displayName} ?
                                         </AlertDialogTitle>
                                         <AlertDialogDescription asChild>
                                             <div className="space-y-2 text-left text-sm text-muted-foreground">
@@ -719,14 +1032,35 @@ export function MemberDetailDialog({
                     onClose={() => setRelanceTargets(null)}
                 />
             )}
-            {vacationOpen && row.profileId && row.userId && (
+            {/* Lot 4 — la suppression d'un commentaire se confirme et reste tracée (audit). */}
+            {deletingComment && (
+                <AlertDialog open onOpenChange={(next) => !next && setDeletingComment(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Supprimer ce commentaire ?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Le commentaire de {deletingComment.authorName} sera retiré du journal. La
+                                trace d&apos;audit conserve son contenu et l&apos;auteur de la suppression.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteComment} disabled={isPending}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Oui, supprimer
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
+            {vacationOpen && current.profileId && current.userId && (
                 <VacationEditDialog
                     guildId={guildId}
-                    profileId={row.profileId}
-                    userId={row.userId}
-                    memberName={row.displayName}
-                    initialVacationStart={row.vacationStart}
-                    initialVacationEnd={row.vacationEnd}
+                    profileId={current.profileId}
+                    userId={current.userId}
+                    memberName={current.displayName}
+                    initialVacationStart={current.vacationStart}
+                    initialVacationEnd={current.vacationEnd}
                     open={vacationOpen}
                     onOpenChange={setVacationOpen}
                     onSuccess={() => onChanged?.()}

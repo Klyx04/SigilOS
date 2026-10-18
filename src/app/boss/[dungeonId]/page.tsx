@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
@@ -17,6 +17,8 @@ import { getBountyFiche } from "@/server/actions/bounty-actions";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { PublicBossDetailClient, type DungeonFamily } from "./_components/PublicBossDetailClient";
 import { getPublicLinkedQuests, getPublicDungeonAchievements } from "@/server/actions/public-boss-tabs-actions";
+import { bossSovereigntyKey } from "@/lib/boss-sovereignty";
+import { readLocalDungeonCatalogue } from "@/lib/dungeon-monsters-siphon";
 
 export const revalidate = 3600;
 
@@ -230,6 +232,19 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   const family: DungeonFamily | null = familyRes.success ? ((familyRes.data as DungeonFamily) ?? null) : null;
   const dungeonMaps = mapsRes.success ? mapsRes.data : null;
 
+  /**
+   * Lot 6 — **repli explicite** : le catalogue local ne couvre que 187 donjons (mesure du
+   * 18/10/2026, pour 207 en base). Quand ce donjon n'y est pas, la fiche s'appuie sur le
+   * repli réseau : elle le dit au lieu de présenter ces valeurs comme locales.
+   * `null` = catalogue illisible ⇒ on ne prétend rien (aucune bannière inventée).
+   */
+  const localCatalogue = dungeon ? readLocalDungeonCatalogue() : null;
+  const localCovered: boolean | null = dungeon && localCatalogue
+    ? localCatalogue.dungeons.some(
+        (entry) => bossSovereigntyKey(entry.cleanName || entry.name) === bossSovereigntyKey(dungeon.name)
+      )
+    : null;
+
   // Quêtes et succès — uniquement pour les vrais donjons (pas titans, pas bounties).
   const [questsRes, achievementsRes] = dungeon
     ? await Promise.all([
@@ -309,6 +324,18 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
           </Link>
 
         </div>
+
+        {/* Lot 6 — **repli explicite** : aucune donnée locale ⇒ on le dit (jamais un réseau déguisé). */}
+        {localCovered === false && (
+          <p className="mb-4 flex items-start gap-2 rounded-md border border-warning/40 bg-surface/60 px-3 py-2 text-xs text-warning">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              {locale === "en"
+                ? "No local data for this dungeon: this sheet uses the network fallback, which can be incomplete."
+                : "Aucune donnée locale pour ce donjon : cette fiche utilise le repli réseau, qui peut être incomplet."}
+            </span>
+          </p>
+        )}
 
         {/* Client Boss Detail Client */}
         <PublicBossDetailClient

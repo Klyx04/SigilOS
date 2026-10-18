@@ -52,6 +52,8 @@ export type AuditAction =
     | "MEMBER_BANNED"             // Member was banned on Discord
     | "MEMBER_PSEUDO_UPDATE"      // Manual pseudo override
     | "MEMBER_ANKAMA_ID_UPDATE"   // Manual Ankama ID override
+    | "MEMBER_COMMENT_UPDATED"    // Journal du staff : commentaire modifié (corps avant/après)
+    | "MEMBER_COMMENT_DELETED"    // Journal du staff : commentaire supprimé (corps conservé)
     | "PROFILE_ARCHIVED"          // Profile manually or automatically archived
     | "PROFILE_REACTIVATED"       // Archived profile restored to active
     | "PLATFORM_ARRIVAL"          // User first registered on platform

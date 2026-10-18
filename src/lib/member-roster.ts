@@ -469,6 +469,65 @@ export function queryRoster(
     return { filtered, page: paginateRoster(filtered, page, pageSize) };
 }
 
+/**
+ * Photo **serveur** d'une fiche membre (lot 2) : ce que la base vient de rendre après une
+ * écriture du registre. Elle ne porte que des champs que le serveur possède — jamais une
+ * identité de ligne (`key`, `profileId`, `discordId`, `roles`, `avatar`) ni une donnée
+ * Discord qui n'existe pas en base (le pseudo serveur d'un hors-dashboard).
+ */
+export interface MemberRosterSnapshot {
+    /** Vrai pour un profil dashboard : seuls ces membres ont un statut et des vacances. */
+    dashboard: boolean;
+    /** Nom d'affichage recalculé par le serveur (`pseudoDofus` → surnom → nom du compte). */
+    displayName: string | null;
+    pseudoDofus: string | null;
+    ankamaId: string | null;
+    status: RosterStatus | null;
+    /** Date d'arrivée retenue côté serveur (saisie manuelle, sinon création du profil). */
+    joinedAt: string | null;
+    seniorityDays: number | null;
+    trial: RosterTrial | null;
+    recruiter: RosterRecruiter | null;
+    mules: RosterMule[];
+    comments: RegistryComment[];
+    vacationStart: string | null;
+    vacationEnd: string | null;
+    /** Horloge **serveur** de la relecture (ISO) — jamais l'horloge du poste. */
+    readAt: string;
+}
+
+/**
+ * Applique une photo serveur à une ligne de la liste — **règle unique** du lot 2.
+ *
+ * Invariants :
+ * - l'identité de la ligne est **conservée** (`key`, `profileId`, `discordId`, `userId`,
+ *   `roles`, `username`, `avatar`, `dashboard`) : la photo ne la porte pas ;
+ * - un champ que le serveur ne connaît pas (`null`) ne **efface** pas une valeur locale
+ *   légitime — c'est le cas de la date d'arrivée Discord d'un hors-dashboard et de son
+ *   nom d'affichage (mesurés par le bot, absents de la base) ;
+ * - `0` est une valeur (ancienneté, compteurs), pas un « vide » ;
+ * - l'objet d'entrée n'est **jamais** muté.
+ */
+export function applyRosterSnapshot(row: RosterRow, snapshot: MemberRosterSnapshot): RosterRow {
+    return {
+        ...row,
+        displayName: snapshot.displayName ?? row.displayName,
+        status: snapshot.status ?? row.status,
+        joinedAt: snapshot.joinedAt ?? row.joinedAt,
+        seniorityDays: snapshot.seniorityDays ?? row.seniorityDays,
+        pseudoDofus: snapshot.pseudoDofus,
+        ankamaId: snapshot.ankamaId,
+        trial: snapshot.trial,
+        recruiter: snapshot.recruiter,
+        mules: snapshot.mules,
+        comments: snapshot.comments,
+        // Les vacances n'existent que sur un profil dashboard : pour un hors-dashboard,
+        // la photo ne doit pas remplacer la valeur de la ligne par `null`.
+        vacationStart: snapshot.dashboard ? snapshot.vacationStart : row.vacationStart,
+        vacationEnd: snapshot.dashboard ? snapshot.vacationEnd : row.vacationEnd,
+    };
+}
+
 /** Options du filtre « rôle Discord » : seulement les rôles portés par au moins un membre. */
 export function rosterRoleOptions(
     roles: readonly RosterRoleInput[] | null | undefined,

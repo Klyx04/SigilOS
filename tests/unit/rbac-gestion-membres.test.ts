@@ -58,7 +58,8 @@ describe("RBAC membres — l'écran et le serveur disent la même chose", () => 
 
         // La modale membre ouvre l'édition dès `canManageMembers`, pour les **deux** natures de
         // lignes (profil dashboard **ou** membre Discord hors dashboard — chantier B-2).
-        expect(codeOnly(MEMBER_DIALOG)).toContain("canManageMembers && (isDashboard || !!row.discordId)");
+        // Lot 2 : la condition porte sur la ligne affichée (`current`), dérivée de la même identité.
+        expect(codeOnly(MEMBER_DIALOG)).toContain("canManageMembers && (isDashboard || !!current.discordId)");
         // …et la permission traverse page → liste → modale (aucun maillon ne la perd).
         expect(codeOnly(MEMBER_MANAGEMENT)).toContain("canManageMembers={canManageMembers}");
         expect(codeOnly(MEMBER_ROSTER_LIST)).toContain("canManageMembers={canManageMembers}");

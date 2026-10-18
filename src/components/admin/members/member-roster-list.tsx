@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, ArrowUpDown, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -181,6 +182,10 @@ export function MemberRosterList({
     const [sort, setSort] = useState<RosterSort>(DEFAULT_ROSTER_SORT);
     const [page, setPage] = useState(1);
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
+    // Lot 2 — après une écriture, la liste derrière la modale relit la vérité serveur.
+    // `router.refresh()` ne touche ni les filtres, ni la page, ni la modale ouverte
+    // (le `selected` retombe déjà sur `rows` non filtré).
+    const router = useRouter();
 
     // Compteurs facetés : chaque pastille est calculée sur les lignes qui passent **toutes les
     // autres** facettes (recherche, rôle, inscription, statut) — le nombre affiché est donc celui
@@ -500,6 +505,7 @@ export function MemberRosterList({
                         }}
                         onDelete={canDeleteMembers ? handleDelete : undefined}
                         showAccountPurge={variant === "god"}
+                        onChanged={() => router.refresh()}
                     />
                 </>
             )}

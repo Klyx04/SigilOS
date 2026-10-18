@@ -1,0 +1,23 @@
+-- ============================================================================
+-- GodNotification — détails lisibles de l'alerte (une seule vérité)
+-- ============================================================================
+-- POURQUOI : `notifyGod` construisait les champs de l'embed Discord à la volée
+-- (`fields`, libellés français : « Profils traités », « Cartes mises à jour »…) mais ne
+-- persistait que `metadata` (clés techniques : `success_count`, `localDungeons`…). La même
+-- alerte se lisait donc de deux façons : lisible sur Discord, jargon dans la console God —
+-- et la console rendait toutes les clés sans borne de longueur.
+--
+-- CE QU'ELLE CONTIENT : une colonne **NULLABLE** `details` (JSONB) sur `GodNotification`.
+-- Elle reçoit la liste **complète** des champs affichables `{ name, value, inline }`, dans
+-- l'ordre fourni par l'appelant. L'embed Discord en est une **projection bornée** (25 champs
+-- max, 1 024 caractères par valeur) ; la console God l'affiche **en entier**.
+--
+-- POURQUOI ÉCRITE À LA MAIN : cf. `docs/agents/prisma-schema-change.md` §0 — le dépôt
+-- n'utilise pas `migrate dev` (base locale en drift sur une migration absente du dépôt) ;
+-- les migrations récentes sont écrites à la main, additives et idempotentes.
+--
+-- AUCUNE DONNÉE RÉÉCRITE : les lignes existantes restent à `NULL` et retombent sur l'ancien
+-- rendu (`metadata`) — réversible sans perte.
+-- ============================================================================
+
+ALTER TABLE "GodNotification" ADD COLUMN IF NOT EXISTS "details" JSONB;

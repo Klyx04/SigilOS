@@ -1119,7 +1119,12 @@ export async function getProfileMatchingArchis(
         };
 
     } catch (error) {
-        logger.error("[getProfileMatchingArchis] Error:", error);
+        // Même famille que `getGuildKralamoureEvents` : un compte Metamob **privé / non
+        // authentifié** (`MetamobApiError` « Accès refusé : Authentification requise. ») est une
+        // configuration UTILISATEUR, et le widget rend déjà un message propre (`success: false`).
+        // En `error`, chaque profil privé consulté créait une Issue Sentry (mesure du
+        // 18/10/2026 : `JAVASCRIPT-NEXTJS-1R`, `POST …/members/<pseudo>`).
+        logger.warn("[getProfileMatchingArchis] Metamob refusé ou indisponible", error);
         return { success: false, error: "Erreur lors du calcul des échanges" };
     }
 }
@@ -1313,7 +1318,13 @@ export async function getGuildKralamoureEvents(
 
         return { success: true, data: events };
     } catch (error) {
-        logger.error("[getGuildKralamoureEvents] Error:", error);
+        // Compte Metamob **privé** / clé API invalide / amont indisponible : c'est une
+        // configuration UTILISATEUR (ou un incident fournisseur), pas une panne du produit —
+        // le widget retombe volontairement sur une liste vide (l. suivantes). En `error`, ce
+        // cas créait une Issue Sentry **par profil privé** (mesure du 18/10/2026 :
+        // `JAVASCRIPT-NEXTJS-1P`, `POST …/quete-ocre`, « Accès refusé : Ce compte Metamob est
+        // privé. »). Donc `warn` : tracé dans `docker logs`, hors Sentry.
+        logger.warn("[getGuildKralamoureEvents] Metamob refusé ou indisponible", error);
 
         if (error instanceof MetamobApiError) {
             if (error.code === "RATE_LIMIT") {

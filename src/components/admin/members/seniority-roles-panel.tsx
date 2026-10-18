@@ -39,6 +39,7 @@ import {
 } from "@/server/actions/seniority-roles-actions";
 import {
     DEFAULT_SENIORITY_ANNOUNCEMENT,
+    SENIORITY_ANNOUNCEMENT_EXTRA_VARIABLES,
     SENIORITY_ANNOUNCEMENT_VARIABLES,
     SENIORITY_MAX_RETRO_ANNOUNCEMENTS_PER_PASS,
     SENIORITY_ROLES_MAX_DAYS,
@@ -663,7 +664,10 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                 </Label>
                                 <p className="mt-1 text-xs text-muted-foreground">
                                     Variables disponibles :{" "}
-                                    {SENIORITY_ANNOUNCEMENT_VARIABLES.map((variable) => (
+                                    {[
+                                        ...SENIORITY_ANNOUNCEMENT_VARIABLES,
+                                        ...SENIORITY_ANNOUNCEMENT_EXTRA_VARIABLES,
+                                    ].map((variable) => (
                                         <code
                                             key={variable}
                                             className="mr-1 rounded bg-elevated px-1 py-0.5 text-caption text-foreground"
@@ -671,6 +675,9 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                             {`{${variable}}`}
                                         </code>
                                     ))}
+                                    — les accents sont tolérés (<code className="font-mono">{"{rôles}"}</code> ={" "}
+                                    <code className="font-mono">{"{roles}"}</code>), une variable inconnue est signalée
+                                    à l&apos;enregistrement.
                                 </p>
                             </div>
 

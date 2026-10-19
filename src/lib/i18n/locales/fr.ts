@@ -676,8 +676,11 @@ export const fr = {
 
     // Almanax
     almanaxPage: {
-        metaTitle: "Almanax Dofus du Jour : Offrande, Bonus et Calendrier | SigilOS",
-        metaDesc: "Consultez l'Almanax Dofus du jour : offrande requise, bonus du Méryde, récompenses en kamas et calendrier des prochains jours pour préparer vos offrandes.",
+        // Mesure du 19/10/2026 : « almanax du jour » = 202 impressions pour 0 clic (position 9,1)
+        // et le hub `/almanax` = 479 impressions pour 1 clic ⇒ on colle à la requête, sans marque
+        // (Google ajoute le nom du site) et sous 60 caractères.
+        metaTitle: "Almanax du jour : offrande, bonus et calendrier",
+        metaDesc: "Almanax Dofus du jour : offrande à apporter, bonus du Méryde, récompense en kamas et calendrier des 7 prochains jours.",
         breadcrumbHome: "Accueil",
         breadcrumbAlmanax: "Almanax Dofus",
         badge: "Données officielles",

@@ -1,8 +1,8 @@
 export const guide = {
     slug: "guide-brisage-rentabilite-runes",
-    title: "Guide du Brisage et Rentabilité des Runes sur Dofus (2026)",
+    title: "Brisage Dofus : rentabilité des runes (2026)",
     description:
-        "Formule mathématique du focus, coefficients secrets de 1% à 4000%, paliers de niveau et méthode pas-à-pas pour rentabiliser vos sessions de concassage sur Dofus Unity.",
+        "Formule du focus, coefficients du brisage, paliers de niveau et méthode pas à pas pour rentabiliser vos runes sur Dofus Unity.",
     publishedAt: "2026-08-17",
     updatedAt: "2026-10-02",
     draft: false,

@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/10/2026 — **SEO : extraits SERP bornés (le CTR avant le contenu)** — branche `fix/seo-titres-ctr`
+> **Demande user (verbatim)** : « il est à chier le compteur maison non, JE SUIS PERDU DEPUIS LES 3 AUDITS du coup que fais ton ».
+> **Mesures (export Search Console bêta, 01/08 → 17/10/2026)** : **6 156 impressions / 109 clics (CTR 1,77 %, position ~11)** · guides **10 pages → 48 clics (44 %)** · boss **230 pages → 4 clics (0,23 %)** · bestiaire **72 → 0 clic** · `/almanax` **479 impr. → 1 clic** · guide « créer une guilde » **933 impr. → 6 clics** · titres boss **91 car.** (coupés par Google) · requête n°1 `almanax du jour` **202 impr. / 0 clic** · `sigilos` **6 impr.**.
+> **Fait** : `src/lib/seo.ts` (`truncateAtWord`, `composeSerpTitle`, `clampSerpDescription`, bornes **60/155**) ; fiches boss (avis **et** boss/titan) composées et bornées ; hub `/almanax` FR+EN recalé sur « almanax du jour » ; **7 guides FR** ramenés sous **60 car.** (marque `| SigilOS` comprise) et **155 car.** de description ; garde `tests/unit/seo-serp-extraits.test.ts` (**16 cas**).
+> **Preuves** : suite **430 fichiers / 4 643 tests ✓** · `tsc` **0** · `eslint` **0 erreur** (6 avertissements préexistants de la fiche boss).
+> **Reste / ops (humain)** : déployer la bêta, puis **attendre 21 jours** avant de relire le CTR des fiches boss / `/almanax` / guide guilde dans GSC ; **lot 2** = le Rush sort dans quelques jours (toggle God ⇒ `index` + sitemap automatiques, **rien à coder** ; titre déjà ramené de 89 à 44 car.) ; **lot 3 = ABANDONNÉ, mesuré le 20/10** : GSC n'attribue aux requêtes que **6 clics / 1 689 impr.** (5,5 % / 27 % des totaux) ⇒ le croisement page × requête est inexploitable, et l'API renvoie la même donnée anonymisée (ne pas monter de service account).
+> **Rotation** : bloc « 19/10 — Ménage local » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 19/10/2026 (suite) — **Bêta `5b31ad0` déployée, Grafana supprimé, limites de God annotées** — branche `docs/supervision-etat`
 > **Demande user (verbatim)** : « annote ça maj les fichiers fait sur ce chantier » + « je deploie la prod ou pas ? ».
 > **Mesures** : tag CI **7 caractères** (`5b31ad0`) ; le SHA 8 (`5b31ad0f`) est refusé par le pré-vol ; déploiement bêta `5b31ad0` : 6 conteneurs `Healthy`, base à jour, toutes les pages **200** ; `monitor.sigilos.fr` **000/TLS** (voulu) ; carte God « Conteneurs » vide alors que Prometheus est **4/4**.
@@ -50,13 +59,6 @@
 > **Rotation** : bloc « 18/10 (suite 5) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 19/10/2026 — **Ménage local + dépôt + file Dependabot + alertes CodeQL** — branches `chore/depot-allege`, `fix/zero-empreinte-arbo`, `fix/codeql-alertes`, `docs/menage-2026-10-19`
-> **Demande user (verbatim)** : « il est temps de nettoyer notre arbo et notre projet… » puis « tu me valides un par un ce que tu vas supprimer ».
-> **Mesures** : `.next` 15 001 Mo ; `temp/` 19,4 Mo ; 23 images Sigil King (34,5 Mo) dont une seule citée ; 83 bounties (12,9 Mo) ; 29 titlescreen (4,6 Mo) ; `aide-module` (notes + ID Discord) ; 15 alertes CodeQL + 2 Dependabot.
-> **Fait** : `.next` supprimé (14,72 Go) ; PR #1025 (137 fichiers, ~52,8 Mo) ; PR #1028 (`aide-module` + `tests/unit/repo-hygiene.test.ts`) ; PR #1031 (XSS/SSRF + `tests/unit/url-safety.test.ts`) ; Dependabot bot activé (#1024) ; #1029/#1030/#1027 mergées ; 6 faux positifs CodeQL + 2 Dependabot dismissés avec justification.
-> **Preuves** : `npx vitest run tests/unit/url-safety.test.ts` 4/4 ; suite **423 fichiers / 4 604 tests ✓** ; `tsc` 0 ; `eslint` 0 erreur ; `git status --short` propre.
-> **Reste / ops (humain)** : #1026 (bot prod deps) à re-run/rebaser ; #1031 à merger après vert ; scinder `ROADMAP.md` (792 Ko, Lot 7) ; `seed.ts` IDs réels (polish) ; `refs/cline` 307 + 2 stashes ; vérifier les alertes CodeQL restantes après le prochain scan.
-> **Rotation** : bloc « 18/10 (suite 4) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 ## PR / Branche
 - **Session « Démo publique » (02/10/2026)** → branche **`feat/demo-publique`**, **PR #830 mergée sur `dev`** : `src/lib/demo/**` (source statique) + route `/demo` + bandeau « Démonstration » + `readOnly` sur l'annuaire réel. Dossier : `docs/plans/PLAN-DEMO-PUBLIQUE.md`.

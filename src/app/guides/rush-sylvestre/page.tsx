@@ -28,9 +28,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const underConstruction = !!res.success && !!res.guide?.isUnderConstruction;
 
   return {
-  title: { absolute: "Guide Rush Sylvestre Dofus Unity : Quêtes, Trajets & Overlay In-Game | SigilOS" },
+  title: { absolute: "Dofus Sylvestre : quêtes, trajets et overlay" },
   description:
-    "Guide complet étape par étape pour obtenir le Dofus Sylvestre sur Dofus Unity. Coordonnées /travel, liste des ressources, prérequis de quêtes et Overlay In-Game détachable 100% gratuit.",
+    "Les quêtes du Dofus Sylvestre dans l'ordre : coordonnées /travel copiables, ressources à prévoir et overlay en jeu gratuit.",
   alternates: {
     canonical: `${getAppBaseUrl()}/guides/rush-sylvestre`,
   },

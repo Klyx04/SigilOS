@@ -679,8 +679,8 @@ export const en: Translations = {
 
     // Almanax
     almanaxPage: {
-        metaTitle: "Daily Dofus Almanax: Tribute, Bonus & Calendar | SigilOS",
-        metaDesc: "Consult today's Dofus Almanax: required tribute, Meridia bonus, kamas rewards, and upcoming schedule to prepare your daily quests.",
+        metaTitle: "Daily Dofus Almanax: tribute, bonus & calendar",
+        metaDesc: "Today's Dofus Almanax: the required tribute, the Meridia bonus, the kamas reward and the next 7 days of the calendar.",
         breadcrumbHome: "Home",
         breadcrumbAlmanax: "Dofus Almanax",
         badge: "Official Game Data",

@@ -1,6 +1,6 @@
 # Carte du projet SigilOS — « c'est quoi ce fichier ? »
 
-État au 20/09/2026. Objectif : pouvoir répondre, pour n'importe quel fichier du dépôt : **à quoi il sert,
+État au 19/10/2026. Objectif : pouvoir répondre, pour n'importe quel fichier du dépôt : **à quoi il sert,
 qui l'utilise, et s'il peut partir.**
 
 ## 0. La méthode : « ce fichier sert-il encore ? » (3 commandes)
@@ -26,17 +26,17 @@ Verdict : **cité + lancé** = vivant (à garder) · **cité seulement dans un v
 | Dossier | À quoi il sert | Vivant ? |
 |---|---|---|
 | `src/` | Le site Next.js (pages, composants, logique serveur) | ✅ cœur du projet |
-| `prisma/` | Schéma BDD + 253 migrations + données de seed des modules Dofus | ✅ |
+| `prisma/` | Schéma BDD + 279 migrations + données de seed des modules Dofus | ✅ |
 | `public/` | Tout ce qui est servi en statique (assets, images, game-data, uploads) | ✅ |
-| `scripts/` | Outils de dev/ops : seeds, siphons de données Dofus, déploiement, worldmap | ✅ trié (76 fichiers — lot L5 du 19/09) |
-| `tests/` | Tests vitest (162 fichiers, 1722 tests) | ✅ |
+| `scripts/` | Outils de dev/ops : seeds, siphons de données Dofus, déploiement, worldmap | ✅ trié (90 fichiers — lot L5 du 19/09) |
+| `tests/` | Tests vitest (424 fichiers, 4 604 tests) | ✅ |
 | `docs/` | **Toute la documentation du projet** + `docs/audits/` (non suivi) | ✅ arbo unique depuis le 20/09 (§2bis) |
 | `services/` | Le **bot Discord** (process Node séparé, 117 Mo avec son `node_modules`) | ✅ |
 | `cloudflare-workers/` | 3 Workers Cloudflare (proxies Dofusbook / Ladder) | ✅ |
 | `monitoring/` | Config Prometheus **unique** (dev **et** prod) | ✅ unifié le 20/09/2026 — l'ancien doublon `prometheus/prometheus.yml` est supprimé |
-| `.gemini/` | Brouillons locaux d'un assistant IA (**ignoré par git** : plus rien de suivi) | ❌ jetable |
+| `.gemini/` | Brouillons d'un assistant IA — **n'existe plus** (nettoyé) | ❌ supprimé |
 | `.github/` `.husky/` | CI/CD + hook pre-commit (scan de secrets, tsc, vérif migration Prisma) | ✅ |
-| `node_modules/` `.next/` `dist/` `.playwright-profile/` | Artefacts locaux (jamais commités) | ❌ jetables |
+| `node_modules/` `.next/` `dist/` | Artefacts locaux (jamais commités) | ❌ jetables |
 
 ## 2. La racine, fichier par fichier (25 fichiers suivis)
 
@@ -113,7 +113,7 @@ docs/
 
 ---
 
-## 3. `src/` — le cœur Next.js (1 246 fichiers suivis)
+## 3. `src/` — le cœur Next.js (1 474 fichiers suivis)
 
 | Dossier | Rôle | Volume |
 |---|---|---|
@@ -133,13 +133,13 @@ docs/
 | `src/scripts/` | ✅ **vidé le 19/09/2026** : ses 2 outils (`reset-db.ts`, `verify-schema.ts`) sont dans `scripts/` | 0 |
 | `src/temp/` | Zone de travail **volatile, ignorée par git** — **supprimée le 20/09/2026**, recréée à la demande par une session (règle : `docs/agents/zone-volatile.md`) | 0 |
 
-## 4. `public/` — tout ce qui est servi aux visiteurs (2 303 fichiers suivis)
+## 4. `public/` — tout ce qui est servi aux visiteurs (1 657 fichiers suivis)
 
 | Sous-dossier | Contenu | Statut |
 |---|---|---|
-| `assets/` (721) | Visuels du site : landing, calendrier, classes Dofus, screenshots | ✅ |
-| `game-data/` (473) | Données Dofus générées (monstres, donjons, items, tuiles de carte) + JSON | ✅ mais **partiellement ignoré** par git (§7) |
-| `images/` (407) | Images de contenu (Sigil King, cartes, bannières) | ✅ |
+| `assets/` (754) | Visuels du site : landing, calendrier, classes Dofus, screenshots | ✅ |
+| `game-data/` (481) | Données Dofus générées (monstres, donjons, items, tuiles de carte) + JSON | ✅ mais **partiellement ignoré** par git (§7) |
+| `images/` (358) | Images de contenu (cartes, bannières, boss) | ✅ |
 | `module-dofus/` (27) | Les 28 icônes Dofus officielles | ✅ |
 | `ordres/`, `banners/`, `sounds/`, `songes/`, `bonus_guilde/` | Visuels et audio des modules | ✅ |
 | `uploads/` | 2 natures différentes → ci-dessous | ⚠️ |
@@ -191,10 +191,10 @@ docs/
 | `docs/agents/` (13) | Procédures pour les assistants : `session-amorce.md`, `git-push.md`, `prisma-schema-change.md`, `deploy-vps.md`, `zone-volatile.md`… + `activeContext.md` (**journal de session** — rotation à 6 sessions, ~29 Ko). L'amorce lue automatiquement est `AGENTS.md` (racine) | ✅ outils internes (ex-`.agents/workflows/`) |
 | `.github/workflows/verify.yml` + `deploy.yml`, `dependabot.yml`, `CODEOWNERS` | CI (filtre, lint/tsc/tests, scan secrets/IOC, build de prod), déploiement GHCR, mises à jour de dépendances, propriétaires de revue (surface sensible) | ✅ |
 | `.husky/pre-commit` | Scan de secrets + `tsc` + refus si `schema.prisma` change sans migration | ✅ (⚠️ bloque aussi un simple commentaire dans le schéma) |
-| `.gemini/antigravity/brain/…/scratch/*` | Brouillons locaux d'un assistant IA | ✅ **rien de suivi** (ignoré par git) |
-| `docs/` (32 suivis) | **Toute la documentation du projet** : 5 docs de référence + `agents/`, `ops/`, `plans/`, `reference/`, `arbo/` | ✅ arbo unique (cf. §2bis) |
+| `.gemini/antigravity` | Ancien contexte d'assistant — **n'existe plus** | ❌ supprimé |
+| `docs/` (55 suivis) | **Toute la documentation du projet** : 5 docs de référence + `agents/`, `ops/`, `plans/`, `reference/`, `arbo/` | ✅ arbo unique (cf. §2bis) |
 | `docs/audits/` (6 fichiers, **non suivis**) | Audits de sécurité/infra/SEO + `retour-kimik3.md` | ✅ locaux par choix (`AGENTS.md` §3 l'interdit) |
-| `tests/` (162) | `unit/` (154) + `security/` + `infrastructure.test.ts` : 1722 tests | ✅ |
+| `tests/` (424) | `unit/` + `security/` + `infrastructure.test.ts` : 4 604 tests | ✅ |
 
 ## 8. Récap : ce qui ne sert plus (par ordre de certitude)
 
@@ -214,5 +214,12 @@ docs/
 | `src/` — 12 **reliques** (`TODO-rush-sylvestre-refactor.md`, `module-quetes-dofus-v3.md`, `sigil_king_guide.md`, `temp-demo-deploy`, `.metamob_api`, `.feed-ankama`…) | Notes, dumps, specs livrées et log de déploiement **tracés à la racine de `src/`** | ✅ **sorties le 20/09** (archivées hors dépôt, 0 citation) |
 | `.antigravity` (58 Ko) | Contexte d'assistant figé depuis le 31/08 | ✅ **supprimé le 20/09** |
 | `_menage-2026-09-13/17/19` | Kits de ménage à la racine | ✅ **sortis le 20/09** (l'archive du ménage a elle-même été supprimée le même jour, après copie des preuves utiles — voir `docs/arbo/ARCHIVES-TEMP-2026-09.md`) |
+| `public/images/sigil-king` (22 images) + `table-sigil-king.png` | Images de l'ancien mini-jeu — **1 seule citée** (`Roublard.png`) | ✅ **supprimés le 19/10/2026** (34,5 Mo ; PR #1025) |
+| `public/images/bounties/` (83) | Anciennes images d'avis — **0 réf. code/seeds/BDD** | ✅ **supprimés le 19/10/2026** (12,9 Mo ; PR #1025) |
+| `public/assets/titlescreen/` (29) | Ancien écran-titre — **0 citation** | ✅ **supprimé le 19/10/2026** (4,6 Mo ; PR #1025) |
+| `public/assets/kofi_cover_sigilos.png` | Couverture Ko-fi — **0 citation** | ✅ **supprimé le 19/10/2026** (818 Ko ; PR #1025) |
+| `docs/imports/donjons-et-quetes-doc.html` | Guide HTML importé, jamais servi | ✅ **supprimé le 19/10/2026** (11 Ko ; PR #1025) |
+| `src/components/dofus-quests/aide-module` | Fichier texte (notes + ID Discord), **0 citation** | ✅ **supprimé le 19/10/2026** + garde `tests/unit/repo-hygiene.test.ts` (PR #1028) |
+| `.next/` (15 Go) | Cache/build local | ✅ **supprimé le 19/10/2026** (14,72 Go libérés) |
 
 

@@ -8,6 +8,13 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
+## 📝 Session 19/10/2026 — **Ménage local et dépôt + alertes CodeQL** — PR #1025, #1028, #1031
+> **Demande user (verbatim)** : « il est temps de nettoyer notre arbo et notre projet… » puis « tu me valides un par un ce que tu vas supprimer ».
+> **Mesures** : `.next` 15 Go ; 23 images Sigil King (34,5 Mo, 1 seule citée) ; 83 bounties (12,9 Mo, 0 réf. code/BDD) ; 29 titlescreen (4,6 Mo, 0 citation) ; `aide-module` (notes + ID Discord).
+> **Fait** : `.next` supprimé (14,72 Go) ; PR #1025 (137 fichiers, ~52,8 Mo) ; PR #1028 (`aide-module` + garde `src/` sans extension) ; PR #1031 (XSS overlay + SSRF `redirect: error` + log) ; Dependabot bot (#1024) ; 6 faux positifs CodeQL + 2 Dependabot dismissés.
+> **Reste / ops (humain)** : #1026 (bot prod deps) à re-run ; #1031 à merger après vert ; scinder `ROADMAP.md` (792 Ko) ; `seed.ts` IDs réels ; `refs/cline` 307 + 2 stashes.
+
+
 ## 📝 Session 18/10/2026 (suite 9) — **Compléments lot 6/7 + plus aucune source interne côté utilisateur** — branches `feat/complements-fiche-membre-et-repli` (**#1021 mergée**) puis `feat/ui-sans-sources-internes` (**#1022**)
 > **Demande user (verbatim)** : « dernière pr tout ce qui manquait » (suite du rapport de #1020).
 > **Mesures** : ① `getMemberDiscordPresence` renvoyait `tracked:false` pour tout hors-dashboard — faux depuis le lot 7, le bot mesure désormais **tous** les membres ; ② `getDungeonMonsters` retombait sur DofusDB/Dofensive **sans le dire** dans les surfaces internes (Succès boss, Titans, overlay) alors que 20 donjons n'ont aucune donnée locale.

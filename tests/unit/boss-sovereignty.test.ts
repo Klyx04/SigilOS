@@ -88,7 +88,9 @@ describe("lot 6 — câblage (souveraineté dite, repli explicite)", () => {
         const src = read(PAGE);
         expect(src).toContain("readLocalDungeonCatalogue()");
         expect(src).toContain("localCovered === false");
-        expect(src).toContain("Aucune donnée locale pour ce donjon");
+        // 20/10/2026 : le bandeau parlait au développeur (« repli réseau », « donnée locale »)
+        // sur une page publique — reformulé côté joueur, sans changer la règle de souveraineté.
+        expect(src).toContain("Fiche partielle : certaines données");
     });
 
     it("le catalogue reste une lecture unique (aucun second chemin de fichier)", () => {

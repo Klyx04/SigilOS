@@ -337,8 +337,8 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>
               {locale === "en"
-                ? "No local data for this dungeon: this sheet uses the network fallback, which can be incomplete."
-                : "Aucune donnée locale pour ce donjon : cette fiche utilise le repli réseau, qui peut être incomplet."}
+                ? "Partial sheet: some data (resistances, loot, spells) may be missing for this dungeon."
+                : "Fiche partielle : certaines données (résistances, butin, sorts) peuvent manquer pour ce donjon."}
             </span>
           </p>
         )}

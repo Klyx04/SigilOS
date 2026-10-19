@@ -231,6 +231,25 @@ export function cleanDofusText(text: string | null | undefined): string {
 }
 
 /**
+ * Une ligne d'effet de sort est-elle **publiable** ? (mesure du 20/10/2026)
+ *
+ * `public/game-data/unity-bestiary.json` contient **4 380** lignes d'effet réduites à un id
+ * d'effet client nu (`"24515"`, `"24523"`…) : le client Dofus Unity ne les a pas résolues en
+ * texte. Les publier telles quelles affiche un numéro sans signification sur la fiche
+ * (`/bestiaire/barbrule`, relevé le 20/10/2026). Ce n'est pas un effet : on ne l'affiche pas.
+ *
+ * Règle volontairement minimale : on **écarte** la ligne, on ne la remplace par rien —
+ * aucune invention, aucun libellé de substitution.
+ */
+export function isRenderableDofusEffectLine(line: string | null | undefined): boolean {
+    const text = cleanDofusText(line);
+    if (!text) return false;
+    // « 24515 » : id d'effet non résolu (aucun caractère alphabétique dans la ligne).
+    if (/^\d+$/.test(text)) return false;
+    return true;
+}
+
+/**
  * Rend un libellé d'effet de sort **lisible** (Lot C du 12/10/2026) :
  *  · nettoie d'abord les scories Unity via `cleanDofusText` (`{{~ps}}`, `<br>`, « Dommagess ») ;
  *  · résout « Invoque : <idMonstre> » → « Invoque : <Nom> » quand `resolveMonsterName`

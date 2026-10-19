@@ -27,6 +27,7 @@ import {
     resolveInvocationLabel,
     scaleUnityDamageLine,
 } from "@/lib/monster-spell-levels";
+import { cleanDofusText, isRenderableDofusEffectLine } from "@/lib/dofus-spells";
 import {
     getMonsterSpellLevels,
     resolveMonsterNames,
@@ -221,9 +222,15 @@ export function MonsterFicheView({
                                 air: carac?.agility,
                             };
                             const lookup = (id: number): string | null => summonNames[id] ?? null;
-                            const renderedEffects = rawEffects.map((effect) =>
-                                scaleUnityDamageLine(resolveInvocationLabel(String(effect), lookup), dmgStats)
-                            );
+                            // Mesure du 20/10/2026 : `unity-bestiary.json` contient **4 380** lignes
+                            // d'effet réduites à un id client nu (« 24515 ») et **5 351** lignes portant
+                            // des balises `{{~ps}}` / `{{~zs}}`. La règle de nettoyage existait déjà
+                            // (`cleanDofusText`, utilisée par la fiche boss, l'overlay et Succès) mais
+                            // **pas ici** : le monstre était la seule surface publique à afficher le brut.
+                            const renderedEffects = rawEffects
+                                .map((effect) => cleanDofusText(String(effect)))
+                                .filter((effect) => isRenderableDofusEffectLine(effect))
+                                .map((effect) => scaleUnityDamageLine(resolveInvocationLabel(effect, lookup), dmgStats));
                             const enriched = (spellLevels?.spells ?? []).find((s) => s.spellId === Number(spell.id));
                             return (
                                 <div key={`${spell.id}-${index}`} className="flex items-start gap-2.5 rounded-xl border border-border bg-background/40 p-3">

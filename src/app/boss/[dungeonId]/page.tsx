@@ -114,8 +114,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       ),
     },
     description: clampSerpDescription(locale === "en"
-      ? `${bossName}${dungeon ? `, boss of ${dungeonLabel}` : `, titan (${dungeonLabel})`} (level ${level}): spells, ranges, resistances and a detachable in-game overlay. Free.`
-      : `${bossName}${dungeon ? `, boss du donjon ${dungeonLabel}` : `, titan (${dungeonLabel})`} (niveau ${level}) : sorts, portées, résistances et overlay in-game détachable. 100 % gratuit.`),
+      // `dungeonLabel` porte déjà « Donjon … » pour la plupart des donjons : jamais de préfixe
+      // « boss of » / « boss du donjon », qui produisait « donjon Donjon du Comte Harebourg ».
+      ? `${bossName}${dungeon ? "" : ", titan"} (${dungeonLabel}, level ${level}): spells, ranges, resistances and a detachable in-game overlay. Free.`
+      : `${bossName}${dungeon ? "" : ", titan"} (${dungeonLabel}, niveau ${level}) : sorts, portées, résistances et overlay in-game détachable. 100 % gratuit.`),
     alternates: {
       canonical: canonicalUrl,
     },

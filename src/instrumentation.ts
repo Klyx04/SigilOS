@@ -7,7 +7,7 @@
  * server action n'atteignent jamais Sentry. C'est la cause de l'angle mort constaté
  * lors de l'incident du 06/10/2026 (panne d'auth silencieuse, cf. `docs/MAINTENANCE.md`).
  *
- * - `register()` charge la bonne config selon le runtime d'exécution ;
+ * - `register()` valide l'environnement puis charge la bonne config Sentry ;
  * - `onRequestError` capture automatiquement les erreurs de requête (RSC, route
  *   handlers, server actions).
  *
@@ -17,6 +17,9 @@ import * as Sentry from "@sentry/nextjs";
 
 export async function register() {
     if (process.env.NEXT_RUNTIME === "nodejs") {
+        // Fail-closed en production : une config incomplète empêche le démarrage.
+        const { validateEnv } = await import("./lib/env");
+        validateEnv();
         await import("../sentry.server.config");
     }
     if (process.env.NEXT_RUNTIME === "edge") {

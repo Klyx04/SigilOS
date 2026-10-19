@@ -62,7 +62,10 @@ const PALETTE =
 
 describe("deslop Songes — le slop ne revient pas", () => {
     it("les composants du module sont bien analysés", () => {
-        expect(COMPONENTS.length).toBeGreaterThanOrEqual(15);
+        // Baseline : 17 composants au 13/10/2026 ; 12 après le retrait de 5
+        // composants morts (B-1, 19/10/2026). La borne empêche un dossier vide
+        // de faire passer les `it.each` sans rien tester.
+        expect(COMPONENTS.length).toBeGreaterThanOrEqual(12);
     });
 
     it.each(COMPONENTS)("%s : aucune classe interdite", (file) => {

@@ -201,7 +201,7 @@ function getStepQuests(step: RushStep, alignment: AlignmentChoice, order: OrderC
 ## 6. Décisions VERROUILLÉES le 10/10/2026 (ne pas re-débattre)
 
 > Arbitrages tranchés avec le propriétaire. Le détail d'exécution vit dans
-> `docs/plans/MODULE-RUSH-SYLVESTRE.md` (§ F) ; l'ordre, dans `docs/plans/FILE-EXECUTION.md`.
+> `docs/plans/MODULE-RUSH-SYLVESTRE.md` (§ F) ; l'ordre, dans `docs/ROADMAP.md`.
 
 1. **Un seul guide** `rush-sylvestre`, branché par **données** : `alignReq` (cité), `alignOrderReq` (ordre),
    `alignLevelReq` (seuil). **Jamais deux guides** (un « bontarien » et un « brâkmarien »).

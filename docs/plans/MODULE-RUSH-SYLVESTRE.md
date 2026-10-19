@@ -10,8 +10,8 @@ description: Module Rush Sylvestre — agrégateur (carte des fichiers + chantie
 > **Sources de vérité (contenu)**
 > - Refonte rush (ergonomie, visuel, éditeur God, perf) → **chantier T** : `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md`
 > - Alignement Bonta/Brâkmar + Ordres → `docs/plans/ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md` + `docs/plans/MAPPING-RUSH-SYLVESTRE.md`
-> - **Ordre d'exécution** (jamais dupliqué ici) → `docs/plans/FILE-EXECUTION.md`
-> - Backlog canonique + blocs de session → `docs/ROADMAP.md`
+> - **Ordre d'exécution** (jamais dupliqué ici) → `docs/ROADMAP.md`
+> - Backlog + ordre → `docs/ROADMAP.md` ; blocs de session → `docs/agents/journal-sessions-2026.md`
 >
 > **Dernière MAJ : 10/10/2026.**
 
@@ -19,8 +19,9 @@ description: Module Rush Sylvestre — agrégateur (carte des fichiers + chantie
 
 | Rôle | Fichier |
 |---|---|
-| L'ORDRE (« la prochaine chose ? ») | `docs/plans/FILE-EXECUTION.md` |
-| Le backlog canonique + blocs de session | `docs/ROADMAP.md` |
+| L'ORDRE (« la prochaine chose ? ») | `docs/ROADMAP.md` |
+| Le backlog + l'ordre | `docs/ROADMAP.md` |
+| Les blocs de session (historique) | `docs/agents/journal-sessions-2026.md` |
 | Le contenu durable par sujet | `docs/plans/*.md` (ce fichier + les plans cités) |
 
 Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
@@ -64,7 +65,7 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 ## 2. Chantiers du module
 
 > Format : **BESOIN → ÉTAT MESURÉ → CHANGEMENT → TESTS → DÉPENDANCES → STATUT**.
-> L'**ordre** vit dans `FILE-EXECUTION.md` ; ici, le **quoi**.
+> L'**ordre** vit dans `docs/ROADMAP.md` ; ici, le **quoi**.
 
 ### T — Refonte rush (plan durable : `PLAN-REFONTE-RUSH-SYLVESTRE.md`)
 - **Reste** : T-2c (id de quête dans `prereq_text`) · lot 4 habillage Dofus (O14/O15, G7, G8, G9, T2) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
@@ -72,7 +73,7 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 
 ### U — Zéro dépendance DofusDB (cadré, aucun lot commencé)
 - **Lots** : U-1 inventaire / ratchet · U-2 réécrire les `img` des `*-compiled.json` · **U-3 plus de repli réseau** · U-4 recherches sur catalogue local · U-5 ops (health / crons / allowlist).
-- **Statut** : cadrage dans `FILE-EXECUTION.md` §1 (pas encore de plan dédié).
+- **Statut** : cadrage dans `docs/ROADMAP.md` §1 (pas encore de plan dédié).
 
 ### A — Une seule agrégation des ressources (toutes les surfaces)
 - **Besoin** : liste et compteurs de ressources **identiques** partout (overlay, dashboard, guide public, sidebar « Objets requis », modale, grilles de quête).
@@ -155,7 +156,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
 ## 3. Ordre d'exécution
 
-→ **`docs/plans/FILE-EXECUTION.md`** (l'ordre unique). Non recopié ici.
+→ **`docs/ROADMAP.md`** (l'ordre unique). Non recopié ici.
 
 ## 4. Invariants non négociables du module
 

@@ -24,9 +24,9 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 
 | Besoin | Source de vérité |
 |---|---|
-| **Quoi faire / statut des chantiers** | `docs/ROADMAP.md` (backlog canonique — **à lire en premier en mode plan**) |
-| **Dans quel ordre avancer** (la file d'exécution) | `docs/plans/FILE-EXECUTION.md` — **l'ordre unique**, chantiers A→Q étape par étape (pointe vers les plans, ne duplique rien) |
+| **Quoi faire / dans quel ordre** | `docs/ROADMAP.md` — **backlog et ordre uniques** (à lire en premier en mode plan) |
 | État réel entre 2 sessions | `docs/agents/activeContext.md` — **en-tête + bloc du sujet uniquement** (jamais en entier) |
+| Historique des sessions (171 blocs) | `docs/agents/journal-sessions-2026.md` — **à la demande uniquement** |
 | Coder aux conventions + sécurité | `docs/RULES.md` (§ Security · § fail-closed · § Code Organization · § Git Workflow) |
 | Politique de sécurité publique | `docs/SECURITY.md` |
 | Architecture, modules, pièges | `docs/CONTEXT.md` |
@@ -35,7 +35,7 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | Indexation, robots, sitemap + **checklist de bascule prod** | `docs/plans/SEO_REPRISE.md` (section « CHECKLIST … OUVERTURE PROD ») |
 | « C'est quoi ce fichier ? » | `docs/arbo/CARTE-DU-PROJET.md` |
 | Procédure ciblée | `docs/agents/` : `git-push` · `prisma-schema-change` · `add-cron-task` · `discord-module` · `dev-local` · `deploy-vps` · `disaster-recovery` · `zone-volatile` |
-| Amorce détaillée (sources, méthode, DoD) | `docs/agents/session-amorce.md` — **à la demande**, pas par défaut |
+| **Harnais agentique (règles, skills, hooks)** | `docs/agents/harnais.md` — **à la demande**, pas par défaut |
 | Index complet de la doc | `docs/README.md` |
 
 **Ne lis pas par défaut** : l'historique long, les rapports d'audit (`docs/audits/`, non versionnés), les

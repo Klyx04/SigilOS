@@ -43,6 +43,7 @@
     "scripts",
     "scratch",
     "temp",
+    "src/temp",
     ".next"
   ]
 }

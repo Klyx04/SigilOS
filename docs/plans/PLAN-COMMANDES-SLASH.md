@@ -1,7 +1,7 @@
-# PLAN — **Commandes slash personnalisées** (chantier « Z », étape 60)
+# PLAN — **Commandes slash personnalisées** (chantier « Z », rang 13)
 
 > **Demande user (verbatim, 14/10/2026)** : « l'amélioration module commande slash perso ».
-> **Statut : plan écrit ; l'étape 60 de `docs/plans/FILE-EXECUTION.md` est débloquée** (chantier Y livré).
+> **Statut : plan écrit ; le rang 13 de `docs/ROADMAP.md` est débloqué** (chantier Y livré).
 > **Ce plan part d'un état mesuré** : le module existe **déjà à moitié** — il ne s'agit pas de le créer.
 
 ## 1. Le besoin

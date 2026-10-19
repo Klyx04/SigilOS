@@ -94,12 +94,13 @@ docs/
 ├── RULES.md                       conventions de code + sécurité (ex-racine)
 ├── SECURITY.md                    politique de sécurité (ex-racine ; GitHub lit aussi docs/)
 ├── MAINTENANCE.md                 ops : cron, déploiement, incidents (ex-racine)
-├── ROADMAP.md                     backlog priorisé + workflow de session
+├── ROADMAP.md                     feuille de route unique : backlog + ordre
 ├── agents/                        consignes données aux assistants IA (ex-`.agents/workflows/`) ;
 │   │                              l'amorce lue automatiquement est `AGENTS.md` (RACINE)
-│   ├── session-amorce.md · activeContext.md · git-push.md · prisma-schema-change.md
-│   └── add-cron-task.md · discord-module.md · dev-local.md · deploy-vps.md ·
-│       disaster-recovery.md · dofus-quest-compile.md · siphon-worldmap.md · sync-game-assets.md
+│   ├── harnais.md · journal-sessions-2026.md · activeContext.md · git-push.md
+│   ├── prisma-schema-change.md · add-cron-task.md · discord-module.md · dev-local.md
+│   ├── deploy-vps.md · disaster-recovery.md · dofus-quest-compile.md · siphon-worldmap.md
+│   └── sync-game-assets.md · zone-volatile.md · archive/ (anciens ordres)
 ├── ops/                           runbooks d'exploitation (GUIDE-DEPLOIEMENT-PROD-JOUR-J.md)
 ├── plans/                         chantiers produit (ONBOARDING, LANDING, SEO)
 ├── reference/                     références stables (I18N, GLOSSARY-EN, OCR, Dofusbook, hardening…)
@@ -188,7 +189,7 @@ docs/
 | `services/discord-bot/` (6 suivis) | **Le bot Discord** : `index.ts` (source), `Dockerfile`, `package.json`… | ✅ `dist/index.js` est **détracké** (19/09) : régénéré au déploiement |
 | `cloudflare-workers/` (6) | 3 Workers : `dofusbook-proxy`, `dofus-ladder-proxy`, `sigil-ladder-ankama` (chacun `worker.js` + `wrangler.toml`) | ✅ cache `.wrangler/` **ignoré** (détracké le 19/09) |
 | `monitoring/prometheus/prometheus.yml` | Config Prometheus **unique** : montée par `docker-compose.yml:192` (dev) **et** `docker-compose.prod.yml:367` (prod) | ✅ unifié le 20/09/2026 (l'ancien doublon `prometheus/prometheus.yml` est supprimé) |
-| `docs/agents/` (13) | Procédures pour les assistants : `session-amorce.md`, `git-push.md`, `prisma-schema-change.md`, `deploy-vps.md`, `zone-volatile.md`… + `activeContext.md` (**journal de session** — rotation à 6 sessions, ~29 Ko). L'amorce lue automatiquement est `AGENTS.md` (racine) | ✅ outils internes (ex-`.agents/workflows/`) |
+| `docs/agents/` (14) | Procédures pour les assistants : `harnais.md`, `journal-sessions-2026.md`, `git-push.md`, `prisma-schema-change.md`, `deploy-vps.md`, `zone-volatile.md`… + `activeContext.md` (**journal de session** — rotation à 6 sessions, ~29 Ko). L'amorce lue automatiquement est `AGENTS.md` (racine) | ✅ outils internes (ex-`.agents/workflows/`) |
 | `.github/workflows/verify.yml` + `deploy.yml`, `dependabot.yml`, `CODEOWNERS` | CI (filtre, lint/tsc/tests, scan secrets/IOC, build de prod), déploiement GHCR, mises à jour de dépendances, propriétaires de revue (surface sensible) | ✅ |
 | `.husky/pre-commit` | Scan de secrets + `tsc` + refus si `schema.prisma` change sans migration | ✅ (⚠️ bloque aussi un simple commentaire dans le schéma) |
 | `.gemini/antigravity` | Ancien contexte d'assistant — **n'existe plus** | ❌ supprimé |

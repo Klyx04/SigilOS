@@ -6,6 +6,14 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/10/2026 (suite) — **Harnais agentique : roadmap unique, journal archivé, zone temp unique, règles/skills/hooks** — branche `chore/harnais-agentique`
+> **Demande user (verbatim)** : « tout ces trucs d'agentique dans cline là on pourrait s'en servir ? … optimisation de notre harnais » puis « one shot complet H0-H7 … même PR ».
+> **Mesures** : ROADMAP 814 Ko / 2 203 lignes / 171 blocs / 335 « Reste » · docs 1 597 Ko · `public` 39 999 fichiers / 2,2 Go · `temp/` 41 fichiers / 2,8 Mo · 0 skill/hook/règle conditionnelle/`.clineignore` · 155 `console.*` hors tests · 0 import de `src/lib/env.ts` · `monitor.sigilos.fr` sans `basic_auth`.
+> **Fait** : H0 `docs/agents/harnais.md` · H1 roadmap unique (14 Ko) + journal `docs/agents/journal-sessions-2026.md` (796 Ko, 171 blocs, 3 IDs masqués) + archivage de FILE-EXECUTION/BRIEF-REPRISE/session-amorce + `temp/` déplacé dans `src/temp/archive/` + `.gitignore` sans `/temp/` · H2 4 règles conditionnelles · H3 6 skills · H4 3 hooks · H5 `.clineignore` · H6 skill `sentry-triage` · H7 `tests/unit/harness-config.test.ts`.
+> **Preuves** : **426 fichiers / 4 608 tests ✓** · `tsc` **0** · `eslint` **0 erreur** (7 603 warnings préexistants) · hooks testés (`.env`, migration, `--force` bloqués ; fichier normal accepté) · garde `harness-config` **8 cas** · `git status --short` à vérifier avant PR.
+> **Reste / ops (humain)** : recharger la fenêtre Cline pour charger skills/hooks ; tester `/lot-pr` et le blocage `.env` ; merger la PR.
+
+
 ## 📝 Session 19/10/2026 (suite) — **Supply chain : aucun script d'installation npm non justifié** — branche `chore/supply-chain-install-scripts`
 > **Demande user (verbatim)** : « allons y » + deux articles (TensorLake → Shai-Hulud du 08/10 ; MALFEX / `tlxbnhd` du 09/10).
 > **Mesures** : `tensorlake` et `tlxbnhd` = **0** dans le lock (`tlxbnhd` retiré du registre le 22/09) ; scan IOC Shai-Hulud = **0** ; **0** PNG avec signature `MZ` ; **8** paquets à `hasInstallScript` ; en dossier isolé, `--ignore-scripts` ne prive que `prisma` et `@prisma/engines` d'un binaire utile (esbuild et unrs-resolver passent par `optionalDependencies` ; `@sentry/cli` n'est pas utilisé hors du build Docker).
@@ -50,16 +58,6 @@
 > **Rotation** : bloc « 17/10 » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 18/10/2026 (suite 6) — **Ladder : « qui, par guilde » + contexte d'un pseudo disparu** — branche `feat/ladder-par-guilde` (PR à ouvrir)
-> **Demande user (verbatim)** : « besoin d'un max de data si pseudo a changé et plus dispo via verif ladder etc etc ».
-> **Mesure** : le run ladder couvre **plusieurs guildes** mais l'alerte listait des pseudos à plat (5 max), sans guilde ni contexte ; le profil portait déjà niveau, points, classe, dernier sync, **alias** et pseudo Discord — jamais lus.
-> **Fait** : sélection worker élargie · `summarizeLadderFailuresByGuild` (regroupement, tri, 10 guildes max, masquage dit) · `formatLadderFailureContext` (niv., pts, classe, dernier sync, alias, Discord) · message par guilde (5 max + « … et N ») · **un champ d'embed par guilde** avec pseudos contextés · `ladderFailureDetailRows` = **une ligne par profil en échec** dans `details` ⇒ le **tableau dans la fiche du Journal (C2)**, aucun nouvel onglet · plafonds 100 lignes / 10 guildes **dits** · aucune migration.
-> **Preuves** : `tests/unit/ladder-sync-alert.test.ts` **22 cas** (+9) · suite **417 fichiers / 4 551 tests ✓** · `tsc` 0 · `eslint` 0 erreur.
-> **Reste / ops (humain)** : déployer la bêta, attendre une passe ladder, ouvrir **God → Tâches CRON → Journal**. Lot suivant **C4**.
-> **Rotation** : bloc « 16/10 (suite 5) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
-
-
-
 ## PR / Branche
 - **Session « Démo publique » (02/10/2026)** → branche **`feat/demo-publique`**, **PR #830 mergée sur `dev`** : `src/lib/demo/**` (source statique) + route `/demo` + bandeau « Démonstration » + `readOnly` sur l'annuaire réel. Dossier : `docs/plans/PLAN-DEMO-PUBLIQUE.md`.
 - **Session « deslop annuaire » (05/10/2026, volet `membres` de M-1)** → branche **`feat/deslop-annuaire`**, **PR #834 mergée sur `dev`** : une source unique de classes pour les 6 filtres, neutre/accent, assets Dofus réels (`GameIcon`), garde `tests/unit/deslop-annuaire.test.ts`. Dossier : `docs/plans/PLAN-DESLOP-ANNUAIRE.md`.
@@ -76,7 +74,7 @@
 
 ## NEXT (priorités — à faire)
 
-### 🚦 Priorités au 05/10/2026 — **source de vérité : `docs/ROADMAP.md` § « 🚧 Chantiers ouverts »** + `docs/plans/FILE-EXECUTION.md` (ordre, mesures et décisions y vivent : **ne rien recopier ici**)
+### 🚦 Priorités au 05/10/2026 — **source de vérité : `docs/ROADMAP.md` § « 🚧 Chantiers ouverts »** + `docs/ROADMAP.md` (ordre, mesures et décisions y vivent : **ne rien recopier ici**)
 - **Y+ · Moteur de rôles multi-sources** — **cadré le 18/10/2026**, **aucun code** : ancienneté (projection, zéro régression) + vocal + contribution, garde-fous (gel, portail, 1 rôle = 1 règle, hystérésis), **un onglet**, **1 migration additive** (`GuildConfig.roleAutomationRules`). Dossier : **`docs/plans/PLAN-MOTEUR-ROLES-MULTI-SOURCES.md`**. ⚠️ **D-R1 à trancher avant R-1** : les fenêtres hebdo/mensuelles ne sont mesurées que pour les **inscrits** ⇒ **voie A** (vocal **total** universel, recommandée) ou **voie B** (fenêtres dans `DiscordMemberActivity` + reset bot, 1 migration). **Rien ne démarre avant.**
 - **T · Rush Sylvestre — session 08/10 « one shot »** (branche `feat/rush-one-shot`, **3 commits**, PR à ouvrir → `dev`) : pictos réels (source unique `RUSH_RESOURCES_PICTO`), rail de droite qui défile (interne **et** public), **alignement/ordre en LECTURE SEULE**, table Dofus **unique** (5 copies divergentes supprimées), bruit Sentry filtré/annoté · **Reste** : **T-2c** (compter les prérequis orphelins **sur la base qui porte le guide réel**), lot **4** (O15, G7, G8, G9, T2), lot **5** (O9, O10, O11, O13), lot **6** (perf) et transverses (O5, O6, O7, G2, G5, T1, T5, 4 `prompt()` du studio) · **Ops** : `./scripts/deploy-cd.sh beta` (**0 migration**) + contrôle visuel.
 
@@ -110,13 +108,13 @@
 - 🟡 **UI** — Responsive : auto-replier aussi la barre de chapitre / le bloc recherche sur très petite hauteur ; mode compact en fallback auto très petit.
 - 🟡 **Perf** — Factoriser `getSequenceHelpers` par guide / agréger « qui peut aider » par chapitre.
 - 🟣 **Tech** — Nettoyer `as any` (~70 admin, ~64 timeline) ; confirmer suppression `RushOverlayQuestPanel.tsx` (orphelin).
-- 🟢 **V · Rush Sylvestre (données & ocre/Metamob)** — **V-A et V-B ✅ livrés le 10/10/2026** (le rail « Objets requis » partage l'agrégation unique ; les **391** ids du guide balayés, **5** ids non servis par DofusDB traités) ; **prochaine étape = 50 · V-G** (liaison Metamob dans l'overlay), puis **52 · V-C** → V-D → V-F → V-H · côté **T** (refonte), **42 · T-2c** est la priorité de reprise : l'**ordre**, les mesures et les décisions vivent dans `docs/plans/FILE-EXECUTION.md` §2/§3 et `docs/plans/MODULE-RUSH-SYLVESTRE.md` (**ne rien recopier ici**).
+- 🟢 **V · Rush Sylvestre (données & ocre/Metamob)** — **V-A et V-B ✅ livrés le 10/10/2026** (le rail « Objets requis » partage l'agrégation unique ; les **391** ids du guide balayés, **5** ids non servis par DofusDB traités) ; **prochaine étape = 50 · V-G** (liaison Metamob dans l'overlay), puis **52 · V-C** → V-D → V-F → V-H · côté **T** (refonte), **42 · T-2c** est la priorité de reprise : l'**ordre**, les mesures et les décisions vivent dans `docs/ROADMAP.md` §2/§3 et `docs/plans/MODULE-RUSH-SYLVESTRE.md` (**ne rien recopier ici**).
 
 
 ## Références clés
 - 🎨 **SOURCE D'ICÔNES OFFICIELLE (permanente, tout module)** : `<Bureau>/dofus_assets` (~23 770 fichiers : icônes 1x/2x, items 2x, sorts, monstres, UI…). On peut y piocher des icônes pour n'importe quel module, **UNIQUEMENT après les avoir proposées au user ET validées** avant intégration.
 - Backlog canonique : `docs/ROADMAP.md` (à lire en premier en mode plan).
-- 🧭 **Amorce de session générique** : `docs/agents/session-amorce.md` (contexte + **checklist sécurité non négociable** + méthode de preuve + vérifs + DoD + **bloc à coller** §10) — **remplacée le 20/09/2026 par `AGENTS.md`** (racine), lu automatiquement par les assistants.
+- 🧰 **Harnais agentique** : `docs/agents/harnais.md` (règles, skills, hooks, mesure) — l'ancienne amorce est archivée dans `docs/agents/archive/session-amorce-2026-09.md`.
 - 🛒 **Marché — amorce de la phase de debug** : `refonte-marche/AMORCE-DERNIERE-PHASE-DEBUG.md` (+ `AMORCE-DEBUG-A-COLLER.txt`).
 - Demandes ouvertes + annotations : `docs/ROADMAP.md` (source unique).
 - Plan maître #223 : `refonte-long-terme-discord-compatibilite/PLAN-MAITRE-RESILIENCE-DISCORD-LONG-TERME.md` + `sigilos-discord-resilience.md`.

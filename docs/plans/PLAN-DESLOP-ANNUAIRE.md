@@ -5,7 +5,7 @@ description: Deslop de l'annuaire (volet « membres » du §16 → chantier M / 
 # 🧹 Deslop de l'annuaire — volet `membres` de M-1
 
 > **Chantier `M`** (Guildes & admin), volet `membres` du **§16** — première partie de **M-1**.
-> File d'exécution : `docs/plans/FILE-EXECUTION.md` (§1 ligne `M`, §2).
+> File d'exécution : `docs/ROADMAP.md` — chantier `guildes-admin` (M), **rang 23**.
 > Toutes les mesures sont horodatées (02/10/2026) et reproductibles **en lecture seule**.
 
 ---

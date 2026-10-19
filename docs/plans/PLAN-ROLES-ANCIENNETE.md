@@ -6,8 +6,8 @@ description: Chantier Y — rôles automatiques par ancienneté : besoin, état 
 
 > **Rôle.** Ce fichier est la **référence de contenu** du chantier Y : le besoin, l'état mesuré,
 > les changements, les tests, l'acceptation et la vigilance. Il ne porte **pas** l'ordre
-> d'exécution (c'est `docs/plans/FILE-EXECUTION.md`, étape 59) ni le fil des demandes
-> (`docs/plans/BRIEF-REPRISE.md` §3).
+> d'exécution (c'est `docs/ROADMAP.md`, chantier Y **clos** — §5) ni le fil des demandes
+> (`docs/agents/archive/BRIEF-REPRISE-2026-10-14.md` §3).
 > Référence produit : module « **Autoroles** » de **Dyno**. Cadrage : 14/10/2026.
 > **Statut : chantier ✅ CLOS** — **Y-1, Y-2, Y-3 et Y-4 livrés** (14/10/2026). Voir §6.
 

@@ -2,13 +2,17 @@
 description: Brief de reprise — le fil complet des chantiers (demandes user, livré, restes, décisions, pièges) + les chantiers prêts (Y, Z), à donner en un seul prompt
 ---
 
+> ⚠️ **ARCHIVÉ le 19/10/2026** — remplacé par `docs/ROADMAP.md` (source unique du backlog et de l'ordre).
+> Conservé pour mémoire ; ne plus le tenir à jour. Les numéros d'étape cités ici sont historiques.
+
+
 # 🧵 Brief de reprise — tout le fil en une passe
 
 > **Rôle.** Ce fichier **rassemble le fil** : ce qui a été demandé (verbatim), ce qui est livré, ce qui
 > reste, ce qui doit être tranché, et les pièges déjà payés. Il est écrit pour être **donné tel quel** en
 > début de prompt : un agent doit pouvoir reprendre **en une seule passe** sans relire dix documents.
 >
-> **Ce qu'il ne fait pas.** Il ne porte **pas l'ordre global** (c'est `docs/plans/FILE-EXECUTION.md`, seule
+> **Ce qu'il ne fait pas.** Il ne porte **pas l'ordre global** (c'est `docs/agents/archive/FILE-EXECUTION-2026-10-15.md`, seule
 > source de l'ordre) et il **ne remplace aucune source de vérité** : les conventions restent `AGENTS.md` +
 > `docs/RULES.md`, l'état technique `docs/CONTEXT.md`, l'historique de session `docs/agents/activeContext.md`.
 > Une chose n'est jamais écrite deux fois : ici, on **synthétise** ce qui est dispersé, et on **pointe** le reste.
@@ -71,7 +75,7 @@ on ne « corrige » pas une supposition.
 
 ## 3. Chantier **Y** — rôles automatiques par ancienneté ✅ *clos le 14/10/2026 (Y-1 → Y-4 livrés)*
 
-> Référence produit : module « Autoroles » de Dyno. Cadré le 14/10/2026. `docs/plans/FILE-EXECUTION.md`
+> Référence produit : module « Autoroles » de Dyno. Cadré le 14/10/2026. `docs/agents/archive/FILE-EXECUTION-2026-10-15.md`
 > §1 « Y » + **étape 59** (« juste après l'étape 24 = chantier B », **livrée**). Plan durable : **créé** —
 > **`docs/plans/PLAN-ROLES-ANCIENNETE.md`** porte désormais le besoin, l'état mesuré, les décisions
 > tranchées, les tests, l'acceptation et la vigilance du chantier ; ce brief n'en garde que le fil.
@@ -110,7 +114,7 @@ maison sur Dyno) ou seulement l'ancienneté à venir ? Si oui : fenêtre de ratt
 ## 4. Chantier **Z** — commandes slash personnalisées ⏳ *cadré, après Y*
 
 > Référence produit : doc Dyno « Custom Commands » + showcase. Cadré le 14/10/2026.
-> `docs/plans/FILE-EXECUTION.md` §1 « Z » + **étape 60** (« après l'étape 59 »). Plan durable : **à créer**.
+> `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` §1 « Z » + **étape 60** (« après l'étape 59 »). Plan durable : **à créer**.
 
 **Ce que l'utilisateur veut** : un admin fabrique **ses** commandes Discord (message ou embed, variables,
 ajout/retrait de rôles) sans passer par le code, avec un créateur assisté et un aperçu.

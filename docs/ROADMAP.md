@@ -15,6 +15,7 @@
 > **Preuves** : 4 610 tests ✓ · `tsc` 0 · `eslint` 0 erreur · **`npm run build` exit 0** · `security:audit` franchie.
 > **Reste / ops (humain)** : PR à ouvrir → `dev` ; puis lots A→F du ménage (7 deps mortes, 74 fichiers, 16 scripts, doublons, `seed.ts`, `refs/cline`).
 > **Lot A (même session)** : 7 dépendances mortes + `@types/lodash-es` retirées (`npm ls` empty, 32 paquets, lock −436 lignes) ; `tsc` 0, lint 0 erreur, 4 610 tests, build 0.
+> **Lot B-1 (même session)** : 13 fichiers morts retirés (#1036 pilote 3, #1037 `profile` 5, #1038 `songes` 5) ; 2 candidats écartés (`ui/virtual-list` doc-only, `coming-soon-banner` cité par un test) ; garde `songes-ui-deslop` 15→12 ; 4 600 tests, `tsc` 0, lint 0 erreur, build 0.
 
 
 ## 📝 Session 19/10/2026 — **Ménage local et dépôt + alertes CodeQL** — PR #1025, #1028, #1031

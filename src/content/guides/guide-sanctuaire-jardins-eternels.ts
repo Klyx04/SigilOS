@@ -1,8 +1,8 @@
 export const guide = {
     slug: "raid-sanctuaire-jardins-eternels-dofus-guide",
-    title: "Guide du Raid : Sanctuaire des Jardins Éternels (Dofus 3)",
+    title: "Raid Sanctuaire des Jardins Éternels : guide",
     description:
-        "Guide complet du raid Sanctuaire des Jardins Éternels sur Dofus : les 4 énigmes interconnectées, les 4 gardiens, le corridor aux 60 monstres, compositions optis et stratégies contre la Reine Écarlate et la Princesse Maudite.",
+        "Le raid Sanctuaire des Jardins Éternels : les 4 énigmes, les 4 gardiens, le corridor aux 60 monstres et les compos contre la Reine Écarlate.",
     publishedAt: "2026-09-22",
     updatedAt: "2026-09-30",
     draft: false,

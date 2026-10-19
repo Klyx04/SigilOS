@@ -129,7 +129,7 @@ QUESTION : quel est le plan précis pour cette session ? (attente retour IA → 
 | Domaine | Rôle | SEO |
 |---|---|---|
 | `beta.sigilos.fr` | La vraie app (annuaire, guildes, contenu) — branch `dev` | ✅ soumis à Google, indexation en cours → **vrai levier** |
-| `sigilos.fr` | Page d'attente vitrine (maintenance.html) — Caddy | ✅ page optimisée + indexable, pas de sitemap (pas encore la vraie app) |
+| `sigilos.fr` | Page d'attente vitrine (maintenance.html) — Caddy | 🚫 `noindex, nofollow` (`X-Robots-Tag`, `Caddyfile`) + `sitemap.xml` en **404** — voulu jusqu'à la bascule prod |
 
 - Le **socle SEO est dans `dev`** → restera **actif sur la beta** à chaque reprise.
 - `main` (prod) est très en retard ; **ne pas fusionner tant que sigilos.fr n'est pas prêt** à ouvrir.
@@ -144,7 +144,7 @@ QUESTION : quel est le plan précis pour cette session ? (attente retour IA → 
 | Domaine | Rôle réel | Indexation |
 |---|---|---|
 | **beta.sigilos.fr** | La **vraie app** (dev) — guide, annuaire, guildes | ✅ **Domaine SEO ACTIF actuellement** (c'est lui qui travaille) |
-| **sigilos.fr** | Page vitrine statique (attente prod) | ⚠️ Indexable mais **vide de contenu** → ne rapporte rien en organique |
+| **sigilos.fr** | Page vitrine statique (attente prod) | 🚫 **`noindex, nofollow`** (voulu, `Caddyfile`) + `sitemap.xml` 404 → ne rapporte rien en organique **et ne doit rien rapporter** tant que la prod n'est pas ouverte |
 
 - Le **guide vit sur `beta.sigilos.fr/guides/creer-gerer-guilde-dofus-2026`**, PAS sur sigilos.fr.
 - Il est publié (draft:false), indexable, dans le sitemap de la beta → il SERA indexé une fois
@@ -227,3 +227,38 @@ QUESTION : quel est le plan précis pour cette session ? (attente retour IA → 
 ---
 
 *— Fichier de reprise SEO maintenu à jour (02/08/2026). —*
+
+---
+
+## 📈 Extraits SERP — mesure GSC du 19/10/2026 (le CTR avant le contenu)
+
+> Export Search Console `beta.sigilos.fr`, **01/08 → 17/10/2026** (3 mois, recherche web) :
+> **6 156 impressions → 109 clics (CTR 1,77 %, position moyenne ~11)**, en croissance
+> (~5 impr./jour le 12/08 → 180-250/jour le 12-17/10).
+
+| Gabarit | Pages vues par Google | Clics | Impressions | CTR |
+|---|---|---|---|---|
+| **Guides** | 10 | **48** (44 %) | 2 368 | 2,03 % |
+| Almanax (hub + dates) | 56 | 38 (35 %) | 1 050 | 3,62 % |
+| **Fiches boss** | **230** | **4** | 1 715 | **0,23 %** |
+| **Bestiaire** | **72** | **0** | 169 | 0 % |
+| Guildes | 2 | 3 | 116 | 2,59 % |
+| Accueil | 2 | 5 | 178 | 2,81 % |
+
+**Ce que la mesure impose** :
+1. **La valeur est éditoriale, pas encyclopédique.** 2,6 % des pages (guides) font 44 % des clics ;
+   79 % des pages (boss + bestiaire) font 3,7 %. On n'ajoute **pas** de fiches pour « faire du SEO ».
+2. **Les titres dépassaient la limite SERP** (91 car. sur les fiches boss) ⇒ règles pures
+   `src/lib/seo.ts` (`composeSerpTitle`, `clampSerpDescription`, bornes **60 / 155 car.**) et garde
+   `tests/unit/seo-serp-extraits.test.ts`. Le nom cherché passe **toujours** en tête ; le
+   qualificatif est ce qu'on sacrifie.
+3. **Les requêtes à volume sont des requêtes d'outil** : `almanax du jour` (**202 impr., 0 clic**),
+   noms de boss, `dofus annuaire` (9 impr., position 8,9 sur une seule guilde publique). Un hub qui
+   ne répond pas à la requête exacte (`/almanax` : 479 impr. → **1 clic**) rate son sujet.
+4. **Le compteur maison ne remplace pas GSC** : il compte **par écran** (11 préfixes), plafonne à
+   **90 jours** (`MAX_PUBLIC_WINDOW_DAYS`) et masque sous **25 vues** ⇒ il ne dit jamais *quelle
+   page* rapporte. Décision : **GSC pour le SEO**, compteur conservé pour l'activité par section —
+   aucun outil d'analytics tiers tant qu'un événement métier n'est pas nécessaire.
+
+**Mesure de l'effet** : relire le CTR des fiches boss / `/almanax` / guide « créer une guilde »
+**21 jours** après déploiement. Aucun autre indicateur n'est nécessaire pour juger ce lot.

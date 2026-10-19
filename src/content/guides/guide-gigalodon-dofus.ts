@@ -2,7 +2,7 @@ export const guide = {
     slug: "raid-gigalodon-dofus-guide",
     title: "Guide du Raid : Gouffre du Gigalodon (Dofus 3)",
     description:
-        "Guide tactique complet du Gouffre du Gigalodon : checklist de préparation, gestion de la lumière, strats des 3 boss, boucle de raccourci à 20% de drop, énigmes et burst du Gigalodon.",
+        "Guide du raid Gouffre du Gigalodon : préparation, jauge de lumière, strats des 3 boss, raccourci (20 % de drop) et burst final.",
     publishedAt: "2026-09-20",
     // Vraie date d'écriture (dernier commit du fichier, 27/09) : le `2026-10-02` d'origine était
     // la date de sortie du raid — un `lastmod` **futur** publié dans le sitemap et affiché

@@ -1,8 +1,8 @@
 export const guide = {
     slug: "creer-gerer-guilde-dofus-2026",
-    title: "Créer et gérer sa guilde Dofus en 2026 : le guide complet",
+    title: "Créer une guilde Dofus 3 : le guide complet",
     description:
-        "Les mécaniques de guilde après les mises à jour 3.4 et 3.6 : création, recrutement, rangs, hall, progression, paliers d'activité, Guildatons et raids de guilde.",
+        "Créer une guilde Dofus 3 : création, recrutement, rangs, hall, paliers d'activité, Guildatons et raids après les MàJ 3.4 et 3.6.",
     publishedAt: "2026-08-02",
     updatedAt: "2026-08-17",
     draft: false,

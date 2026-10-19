@@ -1,6 +1,6 @@
 export const guide = {
     slug: "poids-runes-forgemagie-dofus",
-    title: "Poids des Runes et Guide Ultime de Forgemagie sur Dofus (2026)",
+    title: "Poids des runes Dofus : tableau et puits FM",
     description:
         "Tableau officiel complet du poids des runes (PWR), règles du reliquat (puits), priorités de passage, over-jet, exotisme et transcendance sur Dofus Unity.",
     publishedAt: "2026-08-17",

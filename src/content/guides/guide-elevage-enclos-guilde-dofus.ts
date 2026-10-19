@@ -1,8 +1,8 @@
 export const guide = {
     slug: "guide-elevage-enclos-guilde-dofus",
-    title: "Élever des montures dans Dofus Unity : le guide pour débuter (MàJ 3.7)",
+    title: "Élevage de montures Dofus 3.7 : le guide",
     description:
-        "Par où commencer : capturer sa première monture, monter le métier d'éleveur, comprendre enclos, sérénité et accouplements, jusqu'aux croisements, au clonage et aux génétons. À jour de la MàJ 3.7.",
+        "Capturer sa monture, monter éleveur, enclos, sérénité, accouplements, croisements, clonage et génétons : le guide à jour de la MàJ 3.7.",
     publishedAt: "2026-08-17",
     updatedAt: "2026-10-11",
     draft: false,

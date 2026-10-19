@@ -8,6 +8,7 @@ import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { JsonLd } from "@/components/shared/json-ld";
 import { auth } from "@/auth";
 import { getAppBaseUrl } from "@/lib/utils";
+import { clampSerpDescription, composeSerpTitle } from "@/lib/seo";
 import { db } from "@/lib/prisma";
 import { bountyIdFromLegacySlug } from "@/lib/bounty";
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
@@ -78,15 +79,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const canonicalUrl = `${getAppBaseUrl()}/boss/${canonicalSegment}`;
   if (bounty) {
     return {
-      // `absolute` : le titre porte déjà la marque (sinon le template du layout l'ajoute une 2ᵉ fois).
+      // `absolute` : on maîtrise la longueur SERP — le template du layout ajouterait
+      // « | SigilOS » et repousserait le titre au-delà de ce que Google affiche.
       title: {
-        absolute: locale === "en"
-          ? `${bossName} (${t.bossPage.levelShort} ${level}) Wanted Bounty: Spells, Hunt Zone & Simulation | SigilOS`
-          : `Avis de recherche ${bossName} (Niveau ${level}) : Sorts, Zone de traque & Simulation | SigilOS`,
+        absolute: composeSerpTitle(
+          bossName,
+          `(${t.bossPage.levelShort} ${level})`,
+          locale === "en" ? "wanted bounty" : "avis de recherche",
+        ),
       },
-      description: locale === "en"
-        ? `Tactical guide for wanted bounty ${bossName} (${t.bossPage.levelShort.toLowerCase()} ${level}, hunt zone: ${dungeonLabel}): monster spells, ranges, resistances, loot and isometric simulation. 100% free.`
-        : `Fiche tactique de l'avis de recherche ${bossName} (niveau ${level}, zone de traque : ${dungeonLabel}) : sorts du monstre, portées, résistances, butin et simulation isométrique. 100% gratuit.`,
+      description: clampSerpDescription(locale === "en"
+        ? `${bossName}, wanted bounty (level ${level}, hunt zone: ${dungeonLabel}): spells, ranges, resistances, loot and range simulation. Free, no account required.`
+        : `${bossName}, avis de recherche niveau ${level} (zone de traque : ${dungeonLabel}) : sorts, portées, résistances, butin et simulation de portée. 100 % gratuit.`),
       alternates: {
         canonical: canonicalUrl,
       },
@@ -101,15 +105,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
   return {
-    // `absolute` : le titre porte déjà la marque (sinon le template du layout l'ajoute une 2ᵉ fois).
+    // `absolute` : même raison que pour l'avis — la longueur SERP est tenue par le composeur.
     title: {
-      absolute: locale === "en"
-        ? `${bossName} (${t.bossPage.levelShort} ${level}): Spells, Ranges & Strategy | SigilOS`
-        : `${bossName} (Niveau ${level}) : Sorts, Portées & Stratégie | SigilOS`,
+      absolute: composeSerpTitle(
+        bossName,
+        `(${t.bossPage.levelShort} ${level})`,
+        locale === "en" ? "spells, ranges & resistances" : "sorts, portées, résistances",
+      ),
     },
-    description: locale === "en"
-      ? `Complete tactical sheet for ${dungeon ? `boss ${bossName} from dungeon ${dungeonLabel}` : `titan ${bossName} (${dungeonLabel})`}. Isometric spell range simulation, resistances and detachable in-game overlay over Dofus. 100% free.`
-      : `Fiche tactique complète pour ${dungeon ? `le boss ${bossName} du donjon ${dungeonLabel}` : `le titan ${bossName} (${dungeonLabel})`}. Simulation isométrique de portée des sorts, résistances et mini-fenêtre overlay détachable par-dessus Dofus. 100% gratuit.`,
+    description: clampSerpDescription(locale === "en"
+      ? `${bossName}${dungeon ? `, boss of ${dungeonLabel}` : `, titan (${dungeonLabel})`} (level ${level}): spells, ranges, resistances and a detachable in-game overlay. Free.`
+      : `${bossName}${dungeon ? `, boss du donjon ${dungeonLabel}` : `, titan (${dungeonLabel})`} (niveau ${level}) : sorts, portées, résistances et overlay in-game détachable. 100 % gratuit.`),
     alternates: {
       canonical: canonicalUrl,
     },

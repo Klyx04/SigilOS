@@ -6,6 +6,14 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/10/2026 (suite) — **Rang 1 : validation d'environnement au démarrage (fail-closed) + roadmap corrigée** — branche `feat/env-validation`
+> **Demande user (verbatim)** : « ok » (après proposition du rang 1).
+> **Mesures** : `src/lib/env.ts` existait mais **0 import** ; `src/instrumentation.ts` existait (Sentry) mais ne validait rien ; `CRON_SECRET`, `STORAGE_SIGNING_SECRET`, `CSP_ENFORCE`, `WS_AUTH_ENABLED`, `DEV_SKIP_OCR`, `DOFUSDB_OFFLINE` absents du schéma ; la roadmap affichait `dev = b6b7bf0e` et « instrumentation.ts absent » (faux).
+> **Fait** : `validateEnv()` testable (prod fail-closed, dev avertit, build ignoré) ; `instrumentation.ts` l'appelle au runtime Node ; schéma élargi (secrets + interrupteurs) ; `.env.example` complété ; `tests/unit/env-validation.test.ts` (**9 cas**) ; roadmap : SHA + instrumentation corrigés, rang 1 au registre, prochaine étape rang 2.
+> **Preuves** : **427 fichiers / 4 618 tests ✓** (dont `env-validation` **9 cas**) · `tsc` **0** · `eslint` **0 erreur** · `git status --short` à vérifier avant PR.
+> **Reste / ops (humain)** : poser `CSP_ENFORCE=true` avant l'ouverture prod (rang 7) ; sinon la validation avertit mais ne bloque pas.
+
+
 ## 📝 Session 19/10/2026 (suite) — **Harnais agentique : roadmap unique, journal archivé, zone temp unique, règles/skills/hooks** — branche `chore/harnais-agentique`
 > **Demande user (verbatim)** : « tout ces trucs d'agentique dans cline là on pourrait s'en servir ? … optimisation de notre harnais » puis « one shot complet H0-H7 … même PR ».
 > **Mesures** : ROADMAP 814 Ko / 2 203 lignes / 171 blocs / 335 « Reste » · docs 1 597 Ko · `public` 39 999 fichiers / 2,2 Go · `temp/` 41 fichiers / 2,8 Mo · 0 skill/hook/règle conditionnelle/`.clineignore` · 155 `console.*` hors tests · 0 import de `src/lib/env.ts` · `monitor.sigilos.fr` sans `basic_auth`.
@@ -48,15 +56,6 @@
 > **Preuves** : **29 cas** neufs (3 fichiers) + 2 verrous ajustés · **421 fichiers / 4 590 tests ✓** · `tsc` 0 · `eslint` 0 erreur · **1 migration additive**.
 > **Reste / ops (humain)** : jouer la migration, **redéployer le bot**, redémarrer `npm run dev`. Puis PR « moteur de rôles multi-sources ».
 > **Rotation** : bloc « 17/10 (suite 1) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 18/10/2026 (suite 7) — **C4 : les émetteurs cron ne coupent plus leurs listes avant l'alerte** — branche `feat/cron-metriques` (PR à ouvrir)
-> **Demande user (verbatim)** : « go cv4 » (lot **C4**).
-> **Mesure** : 4 routes cron (`data-watch`, `ladder-sync`, `sync-dofensive-maps`, `sync-monster-stats`) + le worker ladder (C3). Coupes **avant** notification : cartes 10, erreurs 5, boss 20 ; `data-watch` n'envoyait que des clés techniques ; la route ladder envoyait `batch_size`/`success_count`/`fail_count` sans aucune ligne d'échec en télémétrie.
-> **Fait** : règle pure `boundCronList()` (200, perte **dite**) · `data-watch` en **champs français** · route ladder en clés françaises + **une ligne par échec** dans `details` · **plus aucune coupe** avant l'alerte côté Dofensive (embed 30/10 pour la lisibilité, détails complets 200) · boss en erreur = champ + liste complète dans le journal · **aucune migration**.
-> **Preuves** : `tests/unit/cron-metrics.test.ts` **10 cas** (dont 5 verrous de source) · suite **418 fichiers / 4 561 tests ✓** · `tsc` 0 · `eslint` 0 erreur. ⚠️ Un 1ᵉʳ passage avait un timeout isolé (`lot4-slash-commands`, 7 s) : **vert seul** puis **vert en suite** ⇒ flake de charge.
-> **Reste / ops (humain)** : déployer la bêta, puis **Tâches CRON → Journal** montre les listes complètes. Lots suivants : **2** → **7**.
-> **Rotation** : bloc « 17/10 » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
-
 
 ## PR / Branche
 - **Session « Démo publique » (02/10/2026)** → branche **`feat/demo-publique`**, **PR #830 mergée sur `dev`** : `src/lib/demo/**` (source statique) + route `/demo` + bandeau « Démonstration » + `readOnly` sur l'annuaire réel. Dossier : `docs/plans/PLAN-DEMO-PUBLIQUE.md`.

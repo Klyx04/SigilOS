@@ -55,6 +55,7 @@ docs/
 │   ├── BRIEF-REPRISE.md           ⭐ reprise « une passe » : fil des demandes + chantiers prêts (Y, Z) + restes
 │   ├── PLAN-ROLES-ANCIENNETE.md   chantier Y : rôles automatiques par ancienneté (paliers `jours → rôles`, annonce)
 │   ├── PLAN-ROLES-SUCCES.md        chantier S : rôles par points de succès ladder (paliers `points → rôles`)
+│   ├── PLAN-MOTEUR-ROLES-MULTI-SOURCES.md  chantier Y+ : moteur unique ancienneté + vocal + contribution (garde-fous, 1 migration)
 │   ├── PLAN-COMMANDES-SLASH.md     chantier Z : commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés)
 │   ├── PLAN-ACTIVITE-GUILDE.md     chantier N : activité de guilde enrichie & notifications (aucune migration)
 

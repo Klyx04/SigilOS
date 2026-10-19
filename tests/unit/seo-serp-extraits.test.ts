@@ -106,6 +106,22 @@ describe("fiches boss — plus de titre tronqué à 91 caractères", () => {
     });
 });
 
+describe("guide Rush Sylvestre — extrait borné avant publication", () => {
+    const page = () => readFileSync("src/app/guides/rush-sylvestre/page.tsx", "utf8");
+
+    it("titre en `absolute` ≤ 60 caractères", () => {
+        const title = page().match(/title: \{ absolute: "([^"]+)" \}/)?.[1] ?? "";
+        expect(title.length).toBeGreaterThan(0);
+        expect(title.length).toBeLessThanOrEqual(SERP_TITLE_MAX_LENGTH);
+    });
+
+    it("description ≤ 155 caractères", () => {
+        const description = page().match(/description:\s*\n?\s*"([^"]+)"/)?.[1] ?? "";
+        expect(description.length).toBeGreaterThan(0);
+        expect(description.length).toBeLessThanOrEqual(SERP_DESCRIPTION_MAX_LENGTH);
+    });
+});
+
 describe("almanax — hub collé à la requête mesurée", () => {
     it("titre ≤ 60 et portant l'expression « almanax du jour »", () => {
         expect(fr.almanaxPage.metaTitle.length).toBeLessThanOrEqual(SERP_TITLE_MAX_LENGTH);

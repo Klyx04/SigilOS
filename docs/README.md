@@ -16,7 +16,7 @@ colocalisés d'un sous-projet autonome).
 | Coder aux conventions du projet (sécu, patterns) | [`RULES.md`](./RULES.md) |
 | La posture sécurité réelle | [`SECURITY.md`](./SECURITY.md) |
 | Exploiter le VPS (cron, déploiement, incidents) | [`MAINTENANCE.md`](./MAINTENANCE.md) |
-| Savoir quoi faire ensuite (backlog priorisé) | [`ROADMAP.md`](./ROADMAP.md) |
+| Savoir quoi faire et dans quel ordre | [`ROADMAP.md`](./ROADMAP.md) — feuille de route unique |
 | Comprendre l'arborescence fichier par fichier | [`arbo/CARTE-DU-PROJET.md`](./arbo/CARTE-DU-PROJET.md) |
 
 ## L'arborescence
@@ -29,11 +29,13 @@ docs/
 ├── RULES.md                       conventions de code + règles de sécurité non négociables
 ├── SECURITY.md                    politique de sécurité (découverte par GitHub dans docs/)
 ├── MAINTENANCE.md                 ops : cron, déploiement, incidents, procédures
-├── ROADMAP.md                     backlog priorisé + workflow de session
+├── ROADMAP.md                     feuille de route unique : backlog + ordre
 │
 ├── agents/                        consignes données aux assistants IA
 │   │                              (amorce lue automatiquement : `AGENTS.md`, à la RACINE)
-│   ├── session-amorce.md          amorce détaillée : sources, checklists, DoD
+│   ├── harnais.md                 harnais agentique : règles, skills, hooks, mesure
+│   ├── journal-sessions-2026.md   archive des 171 blocs de session (à la demande)
+│   ├── archive/                   anciennes sources d'ordre (FILE-EXECUTION, BRIEF, amorce)
 │   ├── activeContext.md           journal de session (état réel entre deux sessions)
 │   ├── zone-volatile.md           règle de la zone de brouillons `src/temp/` (recréée au besoin)
 │   ├── git-push.md                procédure de push / PR
@@ -51,8 +53,7 @@ docs/
 │   └── GUIDE-DEPLOIEMENT-PROD-JOUR-J.md
 │
 ├── plans/                         chantiers produit (en cours / à venir)
-│   ├── FILE-EXECUTION.md          ⭐ l'ORDRE d'exécution unique (chantiers A→V, pas à pas) — point d'entrée
-│   ├── BRIEF-REPRISE.md           ⭐ reprise « une passe » : fil des demandes + chantiers prêts (Y, Z) + restes
+│   ├── (l'ordre vit dans ../ROADMAP.md — anciens fichiers : ../agents/archive/)
 │   ├── PLAN-ROLES-ANCIENNETE.md   chantier Y : rôles automatiques par ancienneté (paliers `jours → rôles`, annonce)
 │   ├── PLAN-ROLES-SUCCES.md        chantier S : rôles par points de succès ladder (paliers `points → rôles`)
 │   ├── PLAN-MOTEUR-ROLES-MULTI-SOURCES.md  chantier Y+ : moteur unique ancienneté + vocal + contribution (garde-fous, 1 migration)
@@ -62,10 +63,11 @@ docs/
 │   ├── AMORCE-DEMO-PUBLIQUE.md     amorce du chantier S (S-1 → S-5)
 │   ├── PLAN-DESLOP-ANNUAIRE.md     deslop de l'annuaire (volet membres de M-1)
 │   ├── PLAN-RACCORD-DOFUSDB.md     raccord DofusDB (données de combat + visuels)
-│   ├── PLAN-REFONTE-RUSH-SYLVERSTRE.md  refonte du rush Sylvestre (T-1 → T-6)
-│   ├── ARCHITECTURE-ALIGNEMENT-RUSH-SYLVERSTRE.md  rush : architecture d'alignement
-│   ├── MAPPING-RUSH-SYLVERSTRE.md  rush : mapping des données
+│   ├── PLAN-REFONTE-RUSH-SYLVESTRE.md  refonte du rush Sylvestre (T-1 → T-6)
+│   ├── ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md  rush : architecture d'alignement
+│   ├── MAPPING-RUSH-SYLVESTRE.md  rush : mapping des données
 │   ├── PLAN-SUCCES-SPECIAUX.md     succès spéciaux (données + fiches)
+│   ├── PLAN-SOLVEURS-TACTIQUES.md solveurs tactiques (à cadrer)
 
 │   ├── PLAN-REFONTE-ONBOARDING.md
 │   ├── PLAN-REFONTE-TICKETS-V2.md  module Tickets : état mesuré + ce qui reste pour le boucler
@@ -103,6 +105,6 @@ docs/
 3. **Jamais de rapport d'audit versionné** : il va dans `docs/audits/` (ignoré par git).
 4. **Un chemin cité doit exister.** Avant de renommer/déplacer un fichier, mettre à jour ses citations
    (`git grep -n "nom-du-fichier"`).
-5. **Zones volatiles** : `src/temp/` (brouillons de session — **n'existe que si une session le crée**,
-   règle : [`agents/zone-volatile.md`](./agents/zone-volatile.md)) et les archives externes `A:\SigilOS--*`
-   (mémos, amorces, historiques) — cf. [`arbo/ARCHIVES-TEMP-2026-09.md`](./arbo/ARCHIVES-TEMP-2026-09.md).
+5. **Une seule zone volatile** : `src/temp/` (brouillons de session, **jamais versionnée** ; règle :
+   [`agents/zone-volatile.md`](./agents/zone-volatile.md)). Le corpus d'audit du 20/09 a été **déplacé**
+   dans `src/temp/archive/audit-2026-09/` le 19/10/2026 (aucune suppression).

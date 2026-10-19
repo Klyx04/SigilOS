@@ -1,8 +1,9 @@
 # 📁 `src/temp/` — la zone volatile (règle)
 
-> **Cette page est LA RÈGLE de la zone de brouillons.** Le dossier `src/temp/` **n'existe pas**
-> dans le dépôt : il est **recréé à la demande** par la session qui a besoin d'un brouillon,
-> et il est **ignoré par git** (`.gitignore` → `/src/temp/`).
+> **Cette page est LA RÈGLE de la zone de brouillons.** Le dossier `src/temp/` n'est **pas versionné**
+> (`.gitignore` → `/src/temp/`) et peut être recréé à la demande. Depuis le 19/10/2026, c'est la
+> **seule** zone volatile : l'ancien `temp/` de la racine a été **déplacé** dans
+> `src/temp/archive/audit-2026-09/` (aucune suppression).
 > ⚠️ **Rien** de ce qui y est écrit n'est sauvegardé par git, par un commit ou par une corbeille.
 > Un document qui doit survivre à la session va dans **`docs/`** (ou est commité ailleurs).
 > Les **demandes ouvertes** ne vivent plus ici : source unique = **`docs/ROADMAP.md`**.

@@ -1,0 +1,20 @@
+# Pansement temporaire — Cline annonce la dépréciation de .clineignore.
+# But : sortir de l'index les binaires, les builds et les archives locales.
+node_modules/
+.next/
+dist/
+coverage/
+tsconfig.tsbuildinfo
+package-lock.json
+public/assets/
+public/uploads/
+private_uploads/
+docs/audits/
+src/temp/
+temp/
+services/**/node_modules/
+services/**/dist/
+cloudflare-workers/**/.wrangler/
+*.log
+*.tmp
+.env*

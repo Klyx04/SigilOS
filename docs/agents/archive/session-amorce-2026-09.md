@@ -2,6 +2,10 @@
 description: Template générique d'« amorce de session » — le prompt à coller pour démarrer n'importe quel chantier SigilOS (contexte, sécurité, méthode, DoD)
 ---
 
+> ⚠️ **ARCHIVÉ le 19/10/2026** — remplacé par `AGENTS.md` + `docs/agents/harnais.md`.
+> Conservé pour mémoire ; ne plus le tenir à jour.
+
+
 # 🧭 Amorce de session — **template générique** (SigilOS)
 
 > **À quoi ça sert** : démarrer une session (bug, feature, refonte, docs, ops) avec le bon

@@ -2,6 +2,10 @@
 description: File d'exécution unique — tous les chantiers (A→V), un seul ordre pas à pas ; porte l'ORDRE, pointe vers les plans (ne duplique rien)
 ---
 
+> ⚠️ **ARCHIVÉ le 19/10/2026** — remplacé par `docs/ROADMAP.md` (source unique du backlog et de l'ordre).
+> Conservé pour mémoire ; ne plus le tenir à jour. Les numéros d'étape cités ici sont historiques.
+
+
 # 🧵 File d'exécution — tous les chantiers, un seul ordre
 
 > **Rôle (unique).** Ce fichier porte **l'ordre d'exécution** : la seule liste qui répond à « c'est quoi,

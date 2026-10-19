@@ -7,7 +7,7 @@ description: Amorce de session — chantier S (démo publique) : état livré, p
 > **À lire par la nouvelle session** avec `AGENTS.md` (lu automatiquement) et le dossier
 > `docs/plans/PLAN-DEMO-PUBLIQUE.md` (contenu complet). Cette page ne duplique **rien** : elle dit
 > **où on en est**, **ce qu'on fait ensuite** et **comment on prouve**.
-> File d'exécution : `docs/plans/FILE-EXECUTION.md` (§1 ligne `S`, §2 étapes **33 → 38**).
+> File d'exécution : `docs/ROADMAP.md` — chantier `demo-publique` (S), **rang 26**.
 
 ---
 
@@ -100,7 +100,7 @@ l'inscription (`canApply = canApplyConditions && canJoinSonges`, `RunCard.tsx:12
 
 ```text
 Chantier S — démo publique (reprise). Lis : AGENTS.md, docs/plans/AMORCE-DEMO-PUBLIQUE.md,
-docs/plans/PLAN-DEMO-PUBLIQUE.md (dossier complet) et docs/plans/FILE-EXECUTION.md (§1 ligne S, §2 étapes 33→38).
+docs/plans/PLAN-DEMO-PUBLIQUE.md (dossier complet) et docs/ROADMAP.md (chantier demo-publique, S — rang 26).
 État : S-0 ✅ (mesure) et S-1 ✅ livré (PR #830, mergée) — dev = 042de5ee. L'annuaire (deslop + assets réels, PR #834),
 les avatars Discord par défaut (PR #835) et la porte de sécurité avant push (PR #836) sont livrés sur la même base :
 ne pas les refaire, s'appuyer dessus.

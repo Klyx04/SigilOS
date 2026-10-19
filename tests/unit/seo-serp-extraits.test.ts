@@ -105,6 +105,13 @@ describe("fiches boss — plus de titre tronqué à 91 caractères", () => {
         expect(page()).not.toMatch(/Sorts, Portées & Stratégie \| SigilOS/);
     });
 
+    it("normalise le nom de la donnée avant de composer la description", () => {
+        // « Phossile » porte un espace parasite en base : sans trim, la description servait
+        // « Phossile , boss du donjon … » (relevé le 20/10/2026).
+        expect(page()).toMatch(/const cleanBossName = String\(bossName\)\.replace\(/);
+        expect(page().match(/cleanBossName/g)?.length).toBeGreaterThanOrEqual(4);
+    });
+
     it("ne préfixe plus le nom du donjon (« Donjon Donjon … »)", () => {
         // `dungeon.name` vaut déjà « Donjon du Comte Harebourg » : un préfixe « boss du donjon »
         // produisait la duplication en production (mesuré le 20/10/2026).

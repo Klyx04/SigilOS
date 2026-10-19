@@ -71,6 +71,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const bossName = dungeon ? dungeon.bossName || dungeon.name : bounty ? bounty.name : titan!.name;
+  /**
+   * Nom « propre » pour les extraits SERP : certaines entrées de la base portent un espace
+   * parasite (`"Phossile "`), qui produisait « Phossile , boss du donjon … » en production
+   * (relevé le 20/10/2026). Le titre est déjà normalisé par `composeSerpTitle`.
+   */
+  const cleanBossName = String(bossName).replace(/\s+/g, " ").trim();
   const dungeonLabel = dungeon ? dungeon.name : bounty ? bounty.zoneName || (locale === "en" ? "Wanted Bounty" : "Avis de recherche") : titan!.zone || "Titan";
   const level = dungeon ? dungeon.level : bounty ? bounty.level : titan!.level;
   const imageUrl = dungeon ? dungeon.imageUrl : bounty ? bounty.imageUrl : titan!.imageUrl;
@@ -89,8 +95,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         ),
       },
       description: clampSerpDescription(locale === "en"
-        ? `${bossName}, wanted bounty (level ${level}, hunt zone: ${dungeonLabel}): spells, ranges, resistances, loot and range simulation. Free, no account required.`
-        : `${bossName}, avis de recherche niveau ${level} (zone de traque : ${dungeonLabel}) : sorts, portées, résistances, butin et simulation de portée. 100 % gratuit.`),
+        ? `${cleanBossName}, wanted bounty (level ${level}, hunt zone: ${dungeonLabel}): spells, ranges, resistances, loot and range simulation. Free, no account required.`
+        : `${cleanBossName}, avis de recherche niveau ${level} (zone de traque : ${dungeonLabel}) : sorts, portées, résistances, butin et simulation de portée. 100 % gratuit.`),
       alternates: {
         canonical: canonicalUrl,
       },
@@ -116,8 +122,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description: clampSerpDescription(locale === "en"
       // `dungeonLabel` porte déjà « Donjon … » pour la plupart des donjons : jamais de préfixe
       // « boss of » / « boss du donjon », qui produisait « donjon Donjon du Comte Harebourg ».
-      ? `${bossName}${dungeon ? "" : ", titan"} (${dungeonLabel}, level ${level}): spells, ranges, resistances and a detachable in-game overlay. Free.`
-      : `${bossName}${dungeon ? "" : ", titan"} (${dungeonLabel}, niveau ${level}) : sorts, portées, résistances et overlay in-game détachable. 100 % gratuit.`),
+      ? `${cleanBossName}${dungeon ? "" : ", titan"} (${dungeonLabel}, level ${level}): spells, ranges, resistances and a detachable in-game overlay. Free.`
+      : `${cleanBossName}${dungeon ? "" : ", titan"} (${dungeonLabel}, niveau ${level}) : sorts, portées, résistances et overlay in-game détachable. 100 % gratuit.`),
     alternates: {
       canonical: canonicalUrl,
     },

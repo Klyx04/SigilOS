@@ -35,6 +35,9 @@ leurs éditeurs.
   dans la CI **et** avant chaque commit.
 - Les actions tierces des workflows sont **épinglées par SHA complet** ; les dépendances sont
   suivies automatiquement (Dependabot) et les alertes traitées dans les délais ci-dessus.
+- **Aucun script d'installation non examiné** : tout paquet du lock qui exécute du code à
+  l'installation (`preinstall` / `install` / `postinstall`) doit être justifié dans
+  `scripts/check-install-scripts.mjs` — contrôle **bloquant** en CI, avant toute installation.
 - Le **rapport interne de durcissement** (mesures détaillées, état de l'infrastructure, écarts
   connus) est **volontairement non publié** : publié, il indiquerait à un attaquant où chercher.
   Une demande motivée peut être adressée par le canal privé ci-dessus.

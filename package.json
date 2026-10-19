@@ -11,6 +11,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "security:audit": "node scripts/security-gate.mjs",
+    "security:install-scripts": "node scripts/check-install-scripts.mjs",
     "worker": "npx -y tsx src/workers/metamob-worker.ts",
     "ws": "npx -y tsx src/server/websocket/server.ts",
     "start:ws": "node ./ws-server.js",

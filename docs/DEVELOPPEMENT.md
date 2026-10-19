@@ -58,7 +58,7 @@ docker compose up -d
 | Commande | Rôle |
 |---|---|
 | `npm run dev` / `build` / `start` | Next.js (dev / build de prod / serveur) |
-| `npm run test:run` | Suite Vitest complète (≈ 1 700 tests) |
+| `npm run test:run` | Suite Vitest complète (4 604 tests) |
 | `npm run test:coverage` | Idem avec couverture |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | Vérification TypeScript (aussi jouée par le hook pre-commit) |

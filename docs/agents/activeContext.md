@@ -5,6 +5,15 @@
 > **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) ; ils restent **intégralement**
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
+
+## 📝 Session 19/10/2026 — **Ménage local + dépôt + file Dependabot + alertes CodeQL** — branches `chore/depot-allege`, `fix/zero-empreinte-arbo`, `fix/codeql-alertes`, `docs/menage-2026-10-19`
+> **Demande user (verbatim)** : « il est temps de nettoyer notre arbo et notre projet… » puis « tu me valides un par un ce que tu vas supprimer ».
+> **Mesures** : `.next` 15 001 Mo ; `temp/` 19,4 Mo ; 23 images Sigil King (34,5 Mo) dont une seule citée ; 83 bounties (12,9 Mo) ; 29 titlescreen (4,6 Mo) ; `aide-module` (notes + ID Discord) ; 15 alertes CodeQL + 2 Dependabot.
+> **Fait** : `.next` supprimé (14,72 Go) ; PR #1025 (137 fichiers, ~52,8 Mo) ; PR #1028 (`aide-module` + `tests/unit/repo-hygiene.test.ts`) ; PR #1031 (XSS/SSRF + `tests/unit/url-safety.test.ts`) ; Dependabot bot activé (#1024) ; #1029/#1030/#1027 mergées ; 6 faux positifs CodeQL + 2 Dependabot dismissés avec justification.
+> **Preuves** : `npx vitest run tests/unit/url-safety.test.ts` 4/4 ; suite **423 fichiers / 4 604 tests ✓** ; `tsc` 0 ; `eslint` 0 erreur ; `git status --short` propre.
+> **Reste / ops (humain)** : #1026 (bot prod deps) à re-run/rebaser ; #1031 à merger après vert ; scinder `ROADMAP.md` (792 Ko, Lot 7) ; `seed.ts` IDs réels (polish) ; `refs/cline` 307 + 2 stashes ; vérifier les alertes CodeQL restantes après le prochain scan.
+> **Rotation** : bloc « 18/10 (suite 4) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 18/10/2026 (suite 9) — **Compléments lot 6/7 + plus aucune source interne côté utilisateur** — branches `feat/complements-fiche-membre-et-repli` (**#1021 mergée**) puis `feat/ui-sans-sources-internes` (**#1022**)
 > **Demande user (verbatim)** : « dernière pr tout ce qui manquait ».
 > **Mesure** : `getMemberDiscordPresence` disait `tracked:false` pour tout hors-dashboard (faux depuis le lot 7) · `getDungeonMonsters` retombait sur le réseau sans le dire dans les surfaces internes.
@@ -46,16 +55,6 @@
 > **Preuves** : `tests/unit/cron-journal.test.ts` **16 cas** (+ 21 cas C1 verts) · suite **417 fichiers / 4 542 tests ✓** · `tsc` 0 · `eslint` 0 erreur · **aucune migration**.
 > **Reste / ops (humain)** : déployer la bêta, ouvrir **God → Tâches CRON → Journal** ; lot suivant **C3**.
 > **Rotation** : bloc « 16/10 (suite 4) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 18/10/2026 (suite 4) — **Alertes God : `details` persisté, console complète, embed borné (lot C1)** — branche `feat/god-notif-details` (PR à ouvrir)
-> **Demande user (verbatim)** : « je veux tout côté god, pas dans les embed évidemment » · « dis go C1 ».
-> **Mesure (`dev` = `9f1d9649`)** : **#1015 mergée** avec **10 lots encore ouverts** — seuls `762f07c2` (logs Discord) et `38ecf7da` (T0 origine unique) sont dans `dev` ; ces 10 lots ne vivaient que dans `src/temp/` (volatile) ⇒ **backlog rapatrié dans `docs/ROADMAP.md`** (bloc du 18/10 suite 4).
-> **Cause racine (C1)** : `notifyGod` envoyait à Discord des champs humanisés (`fields`) **non persistés** ; la console God réaffichait `metadata` brut (clés techniques), **sans borne**. Le plus gros émetteur réel (`data-watch`) envoie **9** champs ⇒ un plafond à 8 masquait `autoUnavailable`.
-> **Fait** : colonne `details` (migration **additive** `20270112000000_add_god_notification_details`, nullable, aucune donnée réécrite) + règle pure `src/lib/god-notification-details.ts` : **base = tout** (plafonds de sécurité 200 champs / 4 000 car., perte dite), **embed = extrait borné** (24 + « … autres détails » au-delà de 25, 1 024 car./valeur), **console = tout** (aucun `slice`, grille responsive, valeurs longues multilignes) ; `getGodNotifications` borne `limit` 1…100 côté serveur ; repli `metadata` par la même règle pour les alertes antérieures.
-> **Preuves** : `tests/unit/god-notification-details.test.ts` **21 cas** (9 champs `data-watch` conservés, 30 ⇒ 30 base / 25 embed, `details` NULL sans champ, `limit` borné, 3 verrous de source) · `prisma migrate status` **up to date** · colonne vérifiée en base.
-> **Reste / ops (humain)** : déployer la bêta (migration incluse) ; **redémarrer `npm run dev`**. Puis **C2 → C3 → C4 → lots 2 → 7** (nouvelle PR), enfin **moteur de rôles multi-sources** (décision ouverte : vocal hebdo+mensuel + contribution totale).
-> **Rotation** : bloc « 16/10 (suite 3) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 ## PR / Branche

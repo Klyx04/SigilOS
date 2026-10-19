@@ -58,6 +58,14 @@ docs/
 │   ├── PLAN-MOTEUR-ROLES-MULTI-SOURCES.md  chantier Y+ : moteur unique ancienneté + vocal + contribution (garde-fous, 1 migration)
 │   ├── PLAN-COMMANDES-SLASH.md     chantier Z : commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés)
 │   ├── PLAN-ACTIVITE-GUILDE.md     chantier N : activité de guilde enrichie & notifications (aucune migration)
+│   ├── PLAN-DEMO-PUBLIQUE.md       chantier S : démo publique en lecture seule
+│   ├── AMORCE-DEMO-PUBLIQUE.md     amorce du chantier S (S-1 → S-5)
+│   ├── PLAN-DESLOP-ANNUAIRE.md     deslop de l'annuaire (volet membres de M-1)
+│   ├── PLAN-RACCORD-DOFUSDB.md     raccord DofusDB (données de combat + visuels)
+│   ├── PLAN-REFONTE-RUSH-SYLVERSTRE.md  refonte du rush Sylvestre (T-1 → T-6)
+│   ├── ARCHITECTURE-ALIGNEMENT-RUSH-SYLVERSTRE.md  rush : architecture d'alignement
+│   ├── MAPPING-RUSH-SYLVERSTRE.md  rush : mapping des données
+│   ├── PLAN-SUCCES-SPECIAUX.md     succès spéciaux (données + fiches)
 
 │   ├── PLAN-REFONTE-ONBOARDING.md
 │   ├── PLAN-REFONTE-TICKETS-V2.md  module Tickets : état mesuré + ce qui reste pour le boucler

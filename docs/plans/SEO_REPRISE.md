@@ -259,6 +259,15 @@ QUESTION : quel est le plan précis pour cette session ? (attente retour IA → 
    **90 jours** (`MAX_PUBLIC_WINDOW_DAYS`) et masque sous **25 vues** ⇒ il ne dit jamais *quelle
    page* rapporte. Décision : **GSC pour le SEO**, compteur conservé pour l'activité par section —
    aucun outil d'analytics tiers tant qu'un événement métier n'est pas nécessaire.
+5. **Les données par requête sont trouées — mesuré le 20/10/2026** : le même export donne
+   **383 pages = 109 clics / 6 156 impressions** (100 % des totaux) mais **517 requêtes = 6 clics /
+   1 689 impressions** (soit **5,5 % des clics et 27 % des impressions**). Google masque les
+   requêtes à faible volume (seuil de confidentialité). Exemple : `/guides/guide-elevage-enclos-guilde-dofus`
+   = **27 clics / 593 impressions** côté page, mais **9 requêtes visibles totalisant 24 impressions**
+   côté requêtes. **Conséquence : un croisement page × requête est inexploitable** à ce volume —
+   et l'API Search Console / BigQuery renvoient la **même** donnée anonymisée, donc ce n'est pas un
+   problème d'outil. On pilote avec le **page-level** (complet) et les requêtes **visibles** (les têtes
+   de traîne) ; pour l'intention réelle, on lit la SERP à la main.
 
 **Mesure de l'effet** : relire le CTR des fiches boss / `/almanax` / guide « créer une guilde »
 **21 jours** après déploiement. Aucun autre indicateur n'est nécessaire pour juger ce lot.

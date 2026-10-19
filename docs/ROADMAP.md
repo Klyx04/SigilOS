@@ -14,6 +14,7 @@
 > **Fait** : `scripts/check-install-scripts.mjs` + `tests/unit/install-scripts-allowlist.test.ts` (5 cas) ; jobs `verify` et `security-scan` en `npm ci --ignore-scripts`, `npm rebuild prisma @prisma/engines` dans `verify` ; **`npm run install:safe`** pour le poste local (documenté AGENTS.md §6 + DEVELOPPEMENT.md §3) ; docs RULES § chaîne d'outils + SECURITY.
 > **Preuves** : 4 610 tests ✓ · `tsc` 0 · `eslint` 0 erreur · **`npm run build` exit 0** · `security:audit` franchie.
 > **Reste / ops (humain)** : PR à ouvrir → `dev` ; puis lots A→F du ménage (7 deps mortes, 74 fichiers, 16 scripts, doublons, `seed.ts`, `refs/cline`).
+> **Lot A (même session)** : 7 dépendances mortes + `@types/lodash-es` retirées (`npm ls` empty, 32 paquets, lock −436 lignes) ; `tsc` 0, lint 0 erreur, 4 610 tests, build 0.
 
 
 ## 📝 Session 19/10/2026 — **Ménage local et dépôt + alertes CodeQL** — PR #1025, #1028, #1031

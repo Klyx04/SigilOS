@@ -12,7 +12,7 @@
 |---|---|---|
 | Node.js | **22+** | aligné sur `Dockerfile` (`node:22-alpine`) et la CI |
 | Docker + Compose | récent | fournit PostgreSQL, Redis, Caddy et le monitoring en local |
-| Git | récent | hooks `husky` installés automatiquement par `npm install` |
+| Git | récent | hooks `husky` installés par `npm run install:safe` (ou `npm install`) |
 
 ## 2. Les trois fichiers d'environnement
 
@@ -28,8 +28,10 @@
 ## 3. Démarrage pas à pas
 
 ```bash
-# 1. Dépendances (installe aussi le hook pre-commit husky)
-npm install
+# 1. Dépendances SANS exécuter le code des paquets (recommandé — cf. TensorLake/MALFEX)
+#    installe aussi le hook pre-commit husky et le moteur de migration Prisma
+npm run install:safe
+#    Alternative historique, moins sûre : `npm install` exécute le code d'installation de TOUS les paquets
 
 # 2. Environnement
 cp .env.example .env          # puis renseigner DATABASE_URL, AUTH_SECRET, Discord…
@@ -38,7 +40,7 @@ cp .env.example .env          # puis renseigner DATABASE_URL, AUTH_SECRET, Disco
 docker compose up -d db redis
 
 # 4. Client Prisma + schéma + données de référence
-npx prisma generate
+npx prisma generate            # requis : `install:safe` n'exécute pas ce script par sécurité
 npx prisma migrate deploy      # migrations EN ATTENTE sur la base locale (`migrate dev` est inutilisable ici)
 npm run seed                   # données de base
 npm run seed:game-data         # données de jeu (monstres, donjons, items…)
@@ -58,6 +60,7 @@ docker compose up -d
 | Commande | Rôle |
 |---|---|
 | `npm run dev` / `build` / `start` | Next.js (dev / build de prod / serveur) |
+| `npm run install:safe` | Installation reproductible **sans exécuter les scripts** des paquets (+ moteur Prisma + husky) |
 | `npm run test:run` | Suite Vitest complète (4 604 tests) |
 | `npm run test:coverage` | Idem avec couverture |
 | `npm run lint` | ESLint |

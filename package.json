@@ -16,6 +16,7 @@
     "ws": "npx -y tsx src/server/websocket/server.ts",
     "start:ws": "node ./ws-server.js",
     "prepare": "husky",
+    "install:safe": "npm ci --ignore-scripts && npm rebuild prisma \"@prisma/engines\" && npm run prepare",
     "seed": "npx -y tsx prisma/seed.ts",
     "seed:game-data": "npx -y tsx prisma/seed-data/seed.ts",
     "seed:game-data:prod": "node prisma/seed-data/seed.js",

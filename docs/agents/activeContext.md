@@ -13,6 +13,7 @@
 > **Preuves** : **425 fichiers / 4 610 tests ✓** · `tsc` **0** · `eslint` **0 erreur** · **`npm run build` exit 0** (compilation 77 s) · `npm run security:audit` franchie · `git status` propre.
 > **Reste / ops (humain)** : ouvrir la PR → `dev` ; lots A (7 deps mortes), B (74 fichiers), C (16 scripts), D (doublons), E (`seed.ts`), F (`refs/cline`) inchangés.
 > **Lot A (même session)** : **7 dépendances mortes + `@types/lodash-es` retirées** (`npm ls` = **empty**, 32 paquets, lock **−436 lignes**) ; `tsc` 0, lint 0 erreur, **4 610 tests**, **build 0**.
+> **Lot B-1 (même session)** : **13 fichiers morts retirés** en 3 PR (#1036 pilote 3, #1037 `profile` 5, #1038 `songes` 5) ; **2 candidats écartés** (`ui/virtual-list` doc-only, `coming-soon-banner` cité par un test de garde) ; garde `songes-ui-deslop` ajustée **15→12** (17→12 composants) ; **4 600 tests**, `tsc` 0, lint 0 erreur, build 0.
 > **Rotation** : bloc « 18/10 (suite 5) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
 
 

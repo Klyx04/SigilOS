@@ -13,6 +13,7 @@
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops en attente** : migrations `20270112000000` + `20270113000000` · redéploiement du bot · crontabs (sondages `* * * * *`, ancienneté `30 4 * * *`, 4 rappels).
 - **Mesures du 19/10** : 155 `console.*` hors tests · **0** import de `src/lib/env.ts` · **Grafana retiré** de l'exposition publique (God → Système & Infra).
+- **Bêta** : déployée en `5b31ad0` (19/10/2026) — 6 conteneurs `Healthy`, pages **200**, `monitor.sigilos.fr` **inaccessible** (voulu).
 
 ## 1. P0 — Bloquants prod / ops / sécurité (ordre strict)
 
@@ -66,6 +67,9 @@
 | 40 | `captures-a3` | 3 captures 1440 / 1024 / 390 manquantes | session navigateur connectée | les prendre | — |
 | 41 | `active-context-rotation` | Purge effective des blocs ou abandon de la règle des 6 ? | 6 blocs | trancher | `docs/agents/activeContext.md` |
 | 42 | `harness-maintenance` | Harnais H0-H7 livré : re-mesurer après stabilisation | cette PR | re-mesure + ajustements | `docs/agents/harnais.md` |
+| 43 | `god-system-polish` | Carte Conteneurs vide alors que Prometheus est 4/4 ; pas de détail par conteneur | bêta 19/10 | corriger la requête cAdvisor + tableau (nom, CPU, RAM, redémarrages) + charge CPU/version lisibles | `docs/MAINTENANCE.md` |
+| 44 | `grafana-alerts-audit` | Règles d'alerte Grafana éventuelles dans `grafana_data` : plus exécutées | volume conservé, non audité | lister et recréer dans Sentry/webhook si nécessaire | `docs/MAINTENANCE.md` |
+| 45 | `deploy-sha-normalize` | `deploy-cd.sh` refuse un SHA 8/40 alors que la CI publie 7 caractères | `5b31ad0f` refusé, `5b31ad0` accepté | normaliser le SHA à 7 dans `deploy-cd.sh` et `rollback.sh` | `docs/agents/deploy-vps.md` |
 
 ## 4. Décisions en attente (elles bloquent un rang)
 
@@ -104,8 +108,8 @@
 | `supply-chain` | Garde-fou des scripts d'installation npm | 19/10/2026 |
 | `codeql` | XSS overlay + SSRF `redirect: error` | 19/10/2026 |
 | `env-validation` (F8) | Validation d'environnement au démarrage (`instrumentation.ts`), fail-closed en prod, avertissement CSP | 19/10/2026 |
-| `monitor-private` (F9) | Grafana retiré de l'exposition publique et du compose ; Prometheus interne épinglé v3.15.0 ; accès God | 19/10/2026 |
-| `god-system` | God → Système & Infra : CPU, RAM, disque, Redis, PostgreSQL, conteneurs, crons | 19/10/2026 |
+| `monitor-private` (F9) | Grafana retiré de l'exposition publique et du compose ; Prometheus interne épinglé v3.15.0 ; accès God — **déployé bêta `5b31ad0`** | 19/10/2026 |
+| `god-system` | God → Système & Infra : CPU, RAM, disque, Redis, PostgreSQL, conteneurs, crons — **déployé bêta `5b31ad0`** | 19/10/2026 |
 | `harnais H0-H7` | Roadmap unique, journal archivé, zone temp unique, 4 règles, 6 skills, 3 hooks, `.clineignore`, garde | 19/10/2026 |
 
 ## 6. Archives et mémoire froide
@@ -116,6 +120,8 @@
 - `docs/agents/archive/session-amorce-2026-09.md` — remplacé par `AGENTS.md` + `docs/agents/harnais.md`.
 - `src/temp/archive/` — corpus volatil (audits 20/09, maquettes, siphons) déplacé, **jamais versionné**.
 - Volume Docker `grafana_data` conservé (non monté) — suppression seulement sur accord explicite.
+- Règles d'alerte Grafana : aucune n'a été auditée ; elles ne tournent plus. Le volume les conserve peut-être.
+- Prod **non déployée** : `main` = `07c0500e` (12/10), `dev` a **103 commits d'avance**. `deploy-cd.sh prod 5b31ad0` s'arrête au contrôle du tag.
 - `src/temp/archive/duplicates-2026-10-19/` — 3 doublons exacts (hash identique) : `ARCHITECTURE-…SYLVERSTRE` = `AMORCE-DEMO-PUBLIQUE.md`, `MODULE-…SYLVERSTRE` = `AMORCE-DEMO-PUBLIQUE.md`, `PLAN-REFONTE-…SYLVERSTRE` = `PLAN-DESLOP-ANNUAIRE.md`.
 
 ## 7. Tenue de cette feuille

@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/10/2026 (suite) — **Bêta `5b31ad0` déployée, Grafana supprimé, limites de God annotées** — branche `docs/supervision-etat`
+> **Demande user (verbatim)** : « annote ça maj les fichiers fait sur ce chantier » + « je deploie la prod ou pas ? ».
+> **Mesures** : tag CI **7 caractères** (`5b31ad0`) ; le SHA 8 (`5b31ad0f`) est refusé par le pré-vol ; déploiement bêta `5b31ad0` : 6 conteneurs `Healthy`, base à jour, toutes les pages **200** ; `monitor.sigilos.fr` **000/TLS** (voulu) ; carte God « Conteneurs » vide alors que Prometheus est **4/4**.
+> **Fait** : docs annotées (ROADMAP, MAINTENANCE, activeContext) ; limites et prochain lot listés ; **prod non déployée** (main `07c0500e`, dev +103 commits).
+> **Preuves** : log de déploiement, `sigilos-grafana Removed`, `site 200`, `santé 200`, `monitor 000`.
+> **Reste** : carte Conteneurs + tableau par conteneur (rang 43), audit des règles Grafana dans `grafana_data` (rang 44), normalisation SHA 7 dans les scripts (rang 45), prod à planifier (rang 3, D7).
+> **Fichiers du chantier** : `src/app/god/components/system-health-dashboard.tsx`, `src/app/god/page.tsx`, `src/server/actions/god-system-actions.ts`, `src/lib/system-metrics.ts`, `docker-compose.prod.yml`, `docker-compose.yml`, `Caddyfile`, `tests/unit/{system-metrics,monitor-private}.test.ts`, `docs/{ROADMAP,MAINTENANCE,CONTEXT,RULES}.md`.
+
+
 ## 📝 Session 19/10/2026 (suite) — **Supervision rendue privée : Grafana supprimé de l'exposition, God « Système & Infra »** — branche `fix/monitor-prive`
 > **Demande user (verbatim)** : « je suis perplexe on est pas safe avec notre exposition là actuellement ? » puis « tu choisis, tu anticipes anti slop ia, ui landing cutting edge … one shot la total ».
 > **Mesures** : `monitor.sigilos.fr` = Grafana public sans `basic_auth` ; audit F-12 🟡 moyenne ; `GF_AUTH_GITHUB_ALLOW_SIGN_UP=true` ; images `grafana:latest` / `prometheus:latest` ; **aucun Alertmanager** ; Prometheus sur `prod-net` + `beta-net` ; `SystemHealthDashboard` existait mais **non monté** et très slop.
@@ -48,14 +57,6 @@
 > **Preuves** : `npx vitest run tests/unit/url-safety.test.ts` 4/4 ; suite **423 fichiers / 4 604 tests ✓** ; `tsc` 0 ; `eslint` 0 erreur ; `git status --short` propre.
 > **Reste / ops (humain)** : #1026 (bot prod deps) à re-run/rebaser ; #1031 à merger après vert ; scinder `ROADMAP.md` (792 Ko, Lot 7) ; `seed.ts` IDs réels (polish) ; `refs/cline` 307 + 2 stashes ; vérifier les alertes CodeQL restantes après le prochain scan.
 > **Rotation** : bloc « 18/10 (suite 4) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 18/10/2026 (suite 9) — **Compléments lot 6/7 + plus aucune source interne côté utilisateur** — branches `feat/complements-fiche-membre-et-repli` (**#1021 mergée**) puis `feat/ui-sans-sources-internes` (**#1022**)
-> **Demande user (verbatim)** : « dernière pr tout ce qui manquait ».
-> **Mesure** : `getMemberDiscordPresence` disait `tracked:false` pour tout hors-dashboard (faux depuis le lot 7) · `getDungeonMonsters` retombait sur le réseau sans le dire dans les surfaces internes.
-> **Fait** : `source` (`profile`/`member`/`none`) + `memberActivity` (messages, vocal total, première vue, dernière activité, `leftDiscordAt`) ; hors-dashboard mesuré = compteurs bruts affichés (plus « Non mesuré ») ; départ Discord aussi sur un profil · `getDungeonMonsters` déclare `local|network|empty`, et Succès boss / Titans / overlay affichent « repli réseau » · **plus aucune mention de Dofensive côté utilisateur** (fiche, liens, statut, légales, docs, variantes) — siphon **God only**.
-> **Preuves** : **10 cas** neufs · **422 fichiers / 4 600 tests ✓** · `tsc` 0 · `eslint` 0 erreur · aucune migration.
-> **Reste / ops (humain)** : inchangé (#1020 : migration à jouer, **bot à redéployer**). Puis PR « moteur de rôles multi-sources ».
-> **Rotation** : bloc « 18/10 (suite 3) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
 
 ## PR / Branche
 - **Session « Démo publique » (02/10/2026)** → branche **`feat/demo-publique`**, **PR #830 mergée sur `dev`** : `src/lib/demo/**` (source statique) + route `/demo` + bandeau « Démonstration » + `readOnly` sur l'annuaire réel. Dossier : `docs/plans/PLAN-DEMO-PUBLIQUE.md`.

@@ -76,6 +76,12 @@ describe("harnais agentique", () => {
         }
     });
 
+    it("les hooks forcent une sortie UTF-8", () => {
+        for (const hook of ["PreToolUse.ps1", "TaskStart.ps1", "TaskComplete.ps1"]) {
+            const body = fs.readFileSync(path.join(root, ".clinerules/hooks", hook), "utf8");
+            expect(body, hook).toMatch(/\[Console\]::OutputEncoding\s*=\s*\[System\.Text\.Encoding\]::UTF8/);
+        }
+    });
     it(".clineignore sort les binaires de l'index", () => {
         const ignore = read(".clineignore");
         expect(ignore).toMatch(/public\/assets\//);

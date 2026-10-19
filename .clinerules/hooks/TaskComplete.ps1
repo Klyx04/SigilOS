@@ -1,4 +1,6 @@
 ﻿$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 try {
     $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $status = @(git -C $root status --short 2>$null)

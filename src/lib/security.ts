@@ -72,6 +72,28 @@ export function sanitizeName(name: string | null, maxLength: number = 50): strin
 }
 
 /**
+ * URL de lien externe (ancre) : http(s) uniquement, normalisée par `URL`.
+ *
+ * - Rejette `javascript:`, `data:`, `vbscript:`, les URL relatives et les chaînes invalides.
+ * - `encodeURI` neutralise les métacaractères HTML (guillemets, `<`, `>`, espaces) **sans
+ *   casser les query strings** (`&`, `=`, `?` restent intacts, contrairement à `safeImageUrl`).
+ * - Utilisation : `href={safeExternalUrl(value)}` ; une valeur refusée devient `""`
+ *   et l'appelant ne rend pas le lien.
+ */
+export function safeExternalUrl(url: string | null | undefined): string {
+    if (!url) return "";
+    const trimmed = url.trim();
+    if (!trimmed) return "";
+    try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+        return encodeURI(parsed.toString());
+    } catch {
+        return "";
+    }
+}
+
+/**
  * #148 (CodeQL High « DOM text reinterpreted as HTML ») — Allowlist stricte d'URL d'image.
  * Autorise UNIQUEMENT http(s):// ou un chemin relatif local (/...).
  * Rejette javascript:, data:, vbscript:, blob:, «//... » (protocol-relative) et tout espace/guillemet.

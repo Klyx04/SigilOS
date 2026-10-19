@@ -52,7 +52,9 @@ const exp = Math.floor(Date.now() / 1000) + 300;
 const token = crypto.createHmac("sha256", SIGN).update(`${ID}.${exp}`).digest("hex");
 
 console.log(`relais : ${RELAY}`);
-console.log(`secret : ${SECRET ? `${SECRET.length} car.` : "❌ ABSENT"} · sign secret : ${SIGN ? `${SIGN.length} car.` : "❌ ABSENT"}\n`);
+// Pas de longueur ni de valeur : CodeQL `js/clear-text-logging` ne doit voir
+// qu'un booléen « présent / absent » (aucune donnée d'environnement en clair).
+console.log(`secret : ${SECRET ? "présent" : "❌ ABSENT"} · sign secret : ${SIGN ? "présent" : "❌ ABSENT"}\n`);
 
 await probe("1. serveur    /{id}   (X-SigilOS-Key)", `${RELAY}/${ID}`, { Accept: "application/json", "X-SigilOS-Key": SECRET });
 await probe("2. serveur    /{id}   (sans clé → 401 attendu)", `${RELAY}/${ID}`, { Accept: "application/json" });

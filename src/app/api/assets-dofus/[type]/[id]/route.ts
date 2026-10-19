@@ -144,8 +144,10 @@ export async function GET(
             if (!spriteUrl) return placeholderResponse();
             try {
                 await assertSafeUrl(spriteUrl);
+                // SSRF : aucune redirection suivie — une 3xx sortirait de l'allowlist.
                 const spriteRes = await fetch(spriteUrl, {
                     headers: { 'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)' },
+                    redirect: 'error',
                     signal: AbortSignal.timeout(6_000),
                 });
                 if (spriteRes.ok) {
@@ -301,6 +303,7 @@ export async function GET(
                                 await assertSafeUrl(imgUrl);
                                 const imgRes = await fetch(imgUrl, {
                                     headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                                    redirect: 'error',
                                     signal: AbortSignal.timeout(6_000),
                                 });
                                 if (imgRes.ok) {
@@ -328,6 +331,7 @@ export async function GET(
                     await assertSafeUrl(safeUrlParam);
                     const declared = await fetch(safeUrlParam, {
                         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        redirect: 'error',
                         signal: AbortSignal.timeout(6_000),
                     });
                     if (declared.ok) {
@@ -418,6 +422,7 @@ export async function GET(
                     await assertSafeUrl(safeUrlParam);
                     const declared = await fetch(safeUrlParam, {
                         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        redirect: 'error',
                         signal: AbortSignal.timeout(6_000),
                     });
                     if (declared.ok) {
@@ -569,6 +574,7 @@ export async function GET(
                         Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
                     },
+                    redirect: 'error',
                     signal: AbortSignal.timeout(8_000),
                 });
 

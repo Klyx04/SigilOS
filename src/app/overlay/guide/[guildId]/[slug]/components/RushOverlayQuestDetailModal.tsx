@@ -15,6 +15,7 @@ import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManua
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
 import { brandIconForUrl } from "@/lib/source-icons";
+import { safeExternalUrl, safeImageUrl } from "@/lib/security";
 
 interface RushOverlayQuestDetailModalProps {
   milestone: RushMilestone;
@@ -75,13 +76,15 @@ export function RushOverlayQuestDetailModal({
   const resources = useMemo(() => getItemTags(seq.activityTags), [seq.activityTags]);
   const coord = useMemo(() => getSequenceCoord(seq), [seq]);
   const name = seq.subGuideName || seq.subGuideRef || milestone.title;
-  const noobsUrl = seq.dofuspourlesnoobsUrl;
-  const dbUrl = seq.dofusdbUrl;
+  // CodeQL `js/xss-through-dom` : allowlist unique du dépôt (http(s) uniquement,
+  // jamais javascript:/data:). Une URL refusée devient "" et le lien n'est pas rendu.
+  const noobsUrl = safeExternalUrl(seq.dofuspourlesnoobsUrl);
+  const dbUrl = safeExternalUrl(seq.dofusdbUrl);
   const dofusImg = resolveDofusLocalImage(milestone.title) || resolveDofusLocalImage(name);
   const noobsIcon = brandIconForUrl(noobsUrl);
   const dbIcon = brandIconForUrl(dbUrl);
   // Icône de type choisie en God (repli : rien, le titre suffit).
-  const seqIcon = resolveRushSeqIcon(seq.icon);
+  const seqIcon = safeImageUrl(resolveRushSeqIcon(seq.icon));
   // PNJ donneur (tag God) : nom + portrait par convention.
   const seqNpc = getSequenceNpc(seq);
   // Guilde RÉELLE pour la section « Qui peut aider » : `null` quand la fiche est celle

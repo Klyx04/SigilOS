@@ -196,11 +196,5 @@ beta.sigilos.fr {
 }
 
 # =============================================================================
-# 📊 MONITORING
+# 📊 MONITORING (interne : Prometheus, non exposé par Caddy)
 # =============================================================================
-monitor.sigilos.fr {
-    import security_headers
-    import rate_limit_base
-    import error_page_429
-    reverse_proxy sigilos-grafana:3000
-}

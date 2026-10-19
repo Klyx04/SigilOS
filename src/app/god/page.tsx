@@ -41,6 +41,7 @@ import { EventZoneManager } from "@/components/admin/EventZoneManager";
 
 import { OverviewTabs } from "./components/overview-tabs";
 import { GodLoadingSkeleton } from "./ui";
+import { SystemHealthDashboard } from "./components/system-health-dashboard";
 import { BlacklistSection } from "./components/blacklist-section";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
@@ -264,9 +265,9 @@ export default async function SuperAdminPage(props: {
 
                     {tab === "infrastructure" && (
                         <div className="space-y-12">
-                            <div className="space-y-4 pb-12 border-b border-white/5">
-                                <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">Infrastructure</h1>
-                                <p className="text-zinc-500 text-base md:text-lg font-medium">Configuration globale des services, stockage et OCR.</p>
+                            <div className="space-y-4 pb-12 border-b border-border">
+                                <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">Système & Infrastructure</h1>
+                                <p className="text-sm text-muted-foreground max-w-3xl">Santé des services, métriques Prometheus et configuration globale.</p>
                             </div>
 
                             {(resolvedSearchParams as any).sub === "STORAGE" ? (
@@ -275,12 +276,13 @@ export default async function SuperAdminPage(props: {
                                 </div>
                             ) : (
                                 <>
-                                    <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-64 rounded-3xl" />}>
+                                    <SystemHealthDashboard />
+                                    <Suspense fallback={<div className="animate-pulse bg-surface h-64 rounded-xl" />}>
                                         <PlatformConfigServer />
                                     </Suspense>
 
-                                    <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8 backdrop-blur-xl">
-                                        <Suspense fallback={<div className="animate-pulse bg-zinc-900/30 h-32 rounded-3xl" />}>
+                                    <div className="rounded-xl border border-border bg-surface p-5">
+                                        <Suspense fallback={<div className="animate-pulse bg-surface h-32 rounded-xl" />}>
                                             <OcrStatsServer />
                                         </Suspense>
                                     </div>

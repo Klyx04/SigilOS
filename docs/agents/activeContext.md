@@ -6,6 +6,14 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/10/2026 (suite) — **Supervision rendue privée : Grafana supprimé de l'exposition, God « Système & Infra »** — branche `fix/monitor-prive`
+> **Demande user (verbatim)** : « je suis perplexe on est pas safe avec notre exposition là actuellement ? » puis « tu choisis, tu anticipes anti slop ia, ui landing cutting edge … one shot la total ».
+> **Mesures** : `monitor.sigilos.fr` = Grafana public sans `basic_auth` ; audit F-12 🟡 moyenne ; `GF_AUTH_GITHUB_ALLOW_SIGN_UP=true` ; images `grafana:latest` / `prometheus:latest` ; **aucun Alertmanager** ; Prometheus sur `prod-net` + `beta-net` ; `SystemHealthDashboard` existait mais **non monté** et très slop.
+> **Fait** : service Grafana supprimé du compose prod ; bloc Caddy `monitor.sigilos.fr` retiré ; Prometheus épinglé **v3.15.0** et **interne** ; `PROMETHEUS_URL` injecté dans `app-prod` et `app-beta` ; dashboard God réécrit (tokens, rayons ≤ 12 px, responsive, accessible) et monté dans **Système & Infra** ; métriques ajoutées (CPU, Redis détaillé, PostgreSQL, conteneurs/redémarrages, crons, cibles Prometheus) ; parseurs purs + 2 gardes de non-régression.
+> **Preuves** : **429 fichiers / 4 627 tests ✓** (dont `system-metrics` **5** et `monitor-private` **4**) · `tsc` **0** · `eslint` **0 erreur** · `god-deslop` **4/4** · `git status --short` à vérifier avant PR.
+> **Reste / ops (humain)** : après merge, `git pull` sur le VPS puis `docker compose … up -d --remove-orphans` pour retirer Grafana ; volume `grafana_data` conservé ; ouvrir God → Système & Infra.
+
+
 ## 📝 Session 19/10/2026 (suite) — **Rang 1 : validation d'environnement au démarrage (fail-closed) + roadmap corrigée** — branche `feat/env-validation`
 > **Demande user (verbatim)** : « ok » (après proposition du rang 1).
 > **Mesures** : `src/lib/env.ts` existait mais **0 import** ; `src/instrumentation.ts` existait (Sentry) mais ne validait rien ; `CRON_SECRET`, `STORAGE_SIGNING_SECRET`, `CSP_ENFORCE`, `WS_AUTH_ENABLED`, `DEV_SKIP_OCR`, `DOFUSDB_OFFLINE` absents du schéma ; la roadmap affichait `dev = b6b7bf0e` et « instrumentation.ts absent » (faux).
@@ -48,14 +56,6 @@
 > **Preuves** : **10 cas** neufs · **422 fichiers / 4 600 tests ✓** · `tsc` 0 · `eslint` 0 erreur · aucune migration.
 > **Reste / ops (humain)** : inchangé (#1020 : migration à jouer, **bot à redéployer**). Puis PR « moteur de rôles multi-sources ».
 > **Rotation** : bloc « 18/10 (suite 3) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 18/10/2026 (suite 8) — **Lots 2→7 en une PR : fiche membre relue, journal audité, relance/vacances, souveraineté boss, activité Discord de tous** — branche `feat/lots-membres-2-7`
-> **Demande user (verbatim)** : « enchaine tout une seule PR ».
-> **Mesure** : modale figée (`row` non relu, `onChanged` jamais branché) · **six** `createAuditLog` du registre recevaient l'ID interne (aucune trace) · **207** donjons en base / **187** locaux (`cleanName` collés) · `UserProfile` ne mesure que les inscrits.
-> **Fait** : relecture serveur + bandeau `Enregistré à HH:MM` (`role="status"`, échec dit) · badge d'essai + modales de conséquence avant Archiver/Exclure · journal n/20 édition/suppression **auditées** · relance/vacances restylées (icônes, un accent par tuile, rayons ≤ 8 px) · `censusBossSovereignty` + carte God + repli **explicite** sur la fiche publique · `DiscordMemberActivity` (bot : tous les membres, `leftDiscordAt`, purge 365 j via `account-retention`).
-> **Preuves** : **29 cas** neufs (3 fichiers) + 2 verrous ajustés · **421 fichiers / 4 590 tests ✓** · `tsc` 0 · `eslint` 0 erreur · **1 migration additive**.
-> **Reste / ops (humain)** : jouer la migration, **redéployer le bot**, redémarrer `npm run dev`. Puis PR « moteur de rôles multi-sources ».
-> **Rotation** : bloc « 17/10 (suite 1) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
 
 ## PR / Branche
 - **Session « Démo publique » (02/10/2026)** → branche **`feat/demo-publique`**, **PR #830 mergée sur `dev`** : `src/lib/demo/**` (source statique) + route `/demo` + bandeau « Démonstration » + `readOnly` sur l'annuaire réel. Dossier : `docs/plans/PLAN-DEMO-PUBLIQUE.md`.

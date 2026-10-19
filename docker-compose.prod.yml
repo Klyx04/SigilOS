@@ -60,6 +60,7 @@ services:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
       - AUTH_TRUST_HOST=true
+      - PROMETHEUS_URL=http://prometheus:9090
     depends_on:
       - db-prod
       - redis
@@ -181,6 +182,7 @@ services:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
       - AUTH_TRUST_HOST=true
+      - PROMETHEUS_URL=http://prometheus:9090
     depends_on:
       - db-beta
       - redis-beta
@@ -375,7 +377,7 @@ services:
   # 📊 MONITORING STACK
   # ===========================================================================
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.15.0
     container_name: sigilos-prometheus
     restart: always
     command:
@@ -393,35 +395,6 @@ services:
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
-    networks:
-      - prod-net
-      - beta-net
-    logging: *default-logging
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: sigilos-grafana
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-      - GF_SERVER_ROOT_URL=https://monitor.sigilos.fr
-      # 🛡️ GitHub OAUTH2
-      - GF_AUTH_GITHUB_ENABLED=true
-      - GF_AUTH_GITHUB_ALLOW_SIGN_UP=true
-      - GF_AUTH_GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-      - GF_AUTH_GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-      - GF_AUTH_GITHUB_ALLOWED_USERS=Klyx04
-      - GF_AUTH_GITHUB_SCOPES=user:email,read:org
-      - GF_AUTH_GITHUB_AUTH_URL=https://github.com/login/oauth/authorize
-      - GF_AUTH_GITHUB_TOKEN_URL=https://github.com/login/oauth/access_token
-      - GF_AUTH_GITHUB_API_URL=https://api.github.com/user
-    volumes:
-      - grafana_data:/var/lib/grafana
     networks:
       - prod-net
       - beta-net
@@ -517,7 +490,6 @@ volumes:
   redis_data:
   redis-beta-data:
   prometheus_data:
-  grafana_data:
   uploads-prod-data: # ✅ Production uploads isolated
   uploads-beta-data:
     # ✅ Beta uploads isolated

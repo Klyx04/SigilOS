@@ -4,6 +4,9 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 import { isSuperAdmin } from "./super-admin-actions";
+import os from "node:os";
+import { getAllCronStatuses } from "@/lib/cron-telemetry";
+import { parseRedisInfo, queryPrometheus } from "@/lib/system-metrics";
 
 /**
  * Get internal system status for God Dashboard
@@ -35,6 +38,14 @@ export async function getInternalSystemStatus() {
             isRedisOk = pong === "PONG";
         } catch (e) {
             logger.error("[SystemStatus] Redis Error:", e);
+        }
+
+        // 2 bis. Détails Redis (mémoire, clients, évictions) — agrégats seulement.
+        let redisDetails: ReturnType<typeof parseRedisInfo> | null = null;
+        try {
+            redisDetails = parseRedisInfo(await redis.info());
+        } catch (e) {
+            logger.warn("[SystemStatus] Redis INFO Error:", e);
         }
 
         // 3. Last Backup Check
@@ -113,6 +124,25 @@ export async function getInternalSystemStatus() {
             logger.error("[SystemStatus] Queue Error:", e);
         }
 
+        // 8 bis. Prometheus interne (aucune donnée exposée hors God).
+        const [cpuUsage, ramProm, diskProm, containerCount, containerRestarts, pgConnections, pgSize, nodeUptime, targetsUp, targetsTotal, diskFree, diskTotal] = await Promise.all([
+            queryPrometheus('100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)'),
+            queryPrometheus('100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)'),
+            queryPrometheus('max(100 * (1 - node_filesystem_avail_bytes{mountpoint=~"/|/rootfs",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint=~"/|/rootfs",fstype!~"tmpfs|overlay"}))'),
+            queryPrometheus('count(container_last_seen{name!=""})'),
+            queryPrometheus('sum(changes(container_start_time_seconds{name!=""}[1h]))'),
+            queryPrometheus('sum(pg_stat_database_numbackends)'),
+            queryPrometheus('sum(pg_database_size_bytes)'),
+            queryPrometheus('time() - node_boot_time_seconds'),
+            queryPrometheus('count(up == 1)'),
+            queryPrometheus('count(up)'),
+            queryPrometheus('max(node_filesystem_avail_bytes{mountpoint=~"/|/rootfs",fstype!~"tmpfs|overlay"}) / 1024 / 1024'),
+            queryPrometheus('max(node_filesystem_size_bytes{mountpoint=~"/|/rootfs",fstype!~"tmpfs|overlay"}) / 1024 / 1024'),
+        ]);
+        const prometheusOk = [cpuUsage, ramProm, diskProm].some((r) => r.value !== null);
+        const prometheusError = prometheusOk ? null : (cpuUsage.error ?? ramProm.error ?? diskProm.error ?? "Prometheus indisponible");
+        const crons = await getAllCronStatuses();
+
         // 9. Database Insights (Counts)
         let insights = { auditLogs: 0, profiles: 0, missions: 0 };
         try {
@@ -127,7 +157,7 @@ export async function getInternalSystemStatus() {
         return {
             database: { status: isDbOk ? "ONLINE" : "OFFLINE", latency: dbLatency, insights },
             cache: { status: isRedisOk ? "ONLINE" : "OFFLINE", latency: redisLatency },
-            backup: { 
+            backup: {
                 status: lastBackup?.success ? "SUCCESS" : (lastBackup ? "FAILED" : "N/A"),
                 lastAt: lastBackup?.createdAt || null
             },
@@ -150,7 +180,41 @@ export async function getInternalSystemStatus() {
                 totalMb: ramTotalMb,
                 freeMb: ramFreeMb,
                 usagePercent: ramUsagePercent
-            }
+            },
+            cpu: {
+                load1: Number(os.loadavg()[0].toFixed(2)),
+                cores: os.cpus().length,
+                usagePercent: cpuUsage.value,
+            },
+            redisDetails,
+            prometheus: {
+                ok: prometheusOk,
+                error: prometheusError,
+                containers: containerCount.value,
+                restarts: containerRestarts.value,
+                pgConnections: pgConnections.value,
+                pgSizeMb: pgSize.value === null ? null : Math.round(pgSize.value / (1024 * 1024)),
+                uptimeDays: nodeUptime.value === null ? null : Math.round((nodeUptime.value / 86400) * 10) / 10,
+                targetsUp: targetsUp.value,
+                targetsTotal: targetsTotal.value,
+                cpuUsagePercent: cpuUsage.value,
+                ramUsagePercent: ramProm.value,
+                diskUsagePercent: diskProm.value,
+                diskFreeMb: diskFree.value,
+                diskTotalMb: diskTotal.value,
+            },
+            crons: crons.map((cron) => ({
+                id: cron.id,
+                name: cron.name,
+                schedule: cron.schedule,
+                lastRun: cron.lastRun,
+                durationMs: cron.durationMs,
+                status: cron.status,
+                summary: cron.summary,
+            })),
+            version: process.env.SENTRY_RELEASE || process.env.npm_package_version || "unknown",
+            environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || "unknown",
+            generatedAt: new Date().toISOString(),
         };
     } catch (e) {
         logger.error("[SystemStatus] Global Error:", e);

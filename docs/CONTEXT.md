@@ -26,7 +26,7 @@
 - **Stack** : Next.js 16 (App Router + Server Actions + RSC) · React 19 · TypeScript 5 · Prisma 7 · PostgreSQL · Redis (BullMQ) · Discord.js v14 · Socket.IO · Tailwind 4.
 - **Archi** : Server-first + App Router ; **multi-tenant** (une app pour toutes les guildes, données scopées par `guildId`).
 - **Auth** : Auth.js v5 (Discord OAuth, JWT, cookies `httpOnly`/`SameSite`/`__Secure-*` en prod).
-- **Infra** : VPS Docker (app, bot, workers, ws, db, redis, monitoring) orienté **Caddy** reverse proxy · **Cloudflare Workers** (proxies ladder/dofusbook) · Grafana/Prometheus · Sentry · Backups GPG → Cloudflare R2.
+- **Infra** : VPS Docker (app, bot, workers, ws, db, redis, monitoring) orienté **Caddy** reverse proxy · **Cloudflare Workers** (proxies ladder/dofusbook) · Prometheus interne + God « Système & Infra » · Sentry · Backups GPG → Cloudflare R2.
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks. Déploiement CD (build GitHub → images GHCR → VPS `scripts/deploy-cd.sh`, ~30s). Fallback historique `scripts/deploy.sh`, rollback `scripts/rollback.sh`. Voir `docs/MAINTENANCE.md`.
 
 ## 🧭 Chantier global — backlog unique

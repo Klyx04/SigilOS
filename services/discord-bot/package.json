@@ -8,10 +8,10 @@
         "dev": "node --loader ts-node/esm --watch index.ts"
     },
     "dependencies": {
-        "@prisma/adapter-pg": "^7.5.0",
-        "@prisma/client": "^7.5.0",
+        "@prisma/adapter-pg": "^7.10.1",
+        "@prisma/client": "^7.10.1",
         "discord.js": "^14.27.0",
-        "pg": "^8.13.0"
+        "pg": "^8.23.1"
     },
     "devDependencies": {
         "@types/node": "^22.20.5",

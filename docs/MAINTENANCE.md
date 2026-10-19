@@ -649,6 +649,16 @@ salon de notification est un **forum** (un post de forum est un thread).
 ---
 
 
+## 📊 Supervision — God « Système & Infra »
+
+- **Aucune exposition publique** : `monitor.sigilos.fr` a été retiré le 19/10/2026 et le service **Grafana supprimé** du compose de prod.
+- **Prometheus reste interne** (`prometheus:9090`, non publié) : node-exporter, cAdvisor et postgres-exporter.
+- **Accès** : God → **Système & Infra** (`?tab=infrastructure`) : CPU, RAM, disque, Redis, PostgreSQL (taille/connexions), conteneurs/redémarrages, sauvegarde, worker et les 8 crons les plus critiques.
+- **Pas d'Alertmanager** : Prometheus ne pousse aucune alerte. L'alerte disque >85 % reste le webhook Discord (`DISCORD_ADMIN_WEBHOOK`).
+- **Volume `grafana_data`** : conservé sur le VPS, plus monté. Ne le supprimer qu'après accord explicite (données de dashboards).
+- **Diagnostic ponctuel** : `sudo docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f prometheus` (jamais de port public).
+
+---
 ## 📞 Contacts & Alertes
 
 **Discord Webhook**: Configuré dans `.env.prod`  
@@ -673,7 +683,7 @@ salon de notification est un **forum** (un post de forum est un thread).
 - [ ] Vérifier croissance DB (`df -h`)
 - [ ] Tester restauration backup (dry-run)
 - [ ] Vérifier mises à jour système (`apt list --upgradable`)
-- [ ] Review Grafana dashboards
+- [ ] Vérifier God → Système & Infra (CPU, RAM, disque, Redis, DB, conteneurs, crons)
 - [ ] Vérifier certificats SSL Caddy
 - [ ] ⏰ Vérifier expiration GHCR_TOKEN (renouveler si < 2 semaines) — voir section 3b CI/CD
 

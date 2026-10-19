@@ -180,7 +180,7 @@ services:
   # MONITORING - PROMETHEUS (Metrics Collector)
   # -----------------------------------------------------------------------------
   prometheus:
-    image: prom/prometheus:v2.48.0
+    image: prom/prometheus:v3.15.0
     container_name: sigilos-prometheus
     restart: always
     command:

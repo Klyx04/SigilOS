@@ -5,20 +5,19 @@
 > **Mémoire.** 6 dernières sessions : `docs/agents/activeContext.md`.
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
-> **Dernière MàJ** : 19/10/2026 · `dev` = `ebaba1b4`.
+> **Dernière MàJ** : 19/10/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 
-- **Prochaine étape** : rang **2** (supervision), puis **3** (ouverture prod) ; le rang **1** est livré (§5).
+- **Prochaine étape** : rang **3** (ouverture prod) ; les rangs **1** et **2** sont livrés (§5).
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops en attente** : migrations `20270112000000` + `20270113000000` · redéploiement du bot · crontabs (sondages `* * * * *`, ancienneté `30 4 * * *`, 4 rappels).
-- **Mesures du 19/10** : 155 `console.*` hors tests · **0** import de `src/lib/env.ts` · `monitor.sigilos.fr` sans `basic_auth`.
+- **Mesures du 19/10** : 155 `console.*` hors tests · **0** import de `src/lib/env.ts` · **Grafana retiré** de l'exposition publique (God → Système & Infra).
 
 ## 1. P0 — Bloquants prod / ops / sécurité (ordre strict)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |
 |---|---|---|---|---|---|---|
-| 2 | `monitor-auth` (F9) | `monitor.sigilos.fr` est exposé sans mot de passe | `Caddyfile:201`, **aucun `basic_auth`** | `basic_auth` + `GF_AUTH_GITHUB_ALLOW_SIGN_UP=false` | `docs/MAINTENANCE.md` | — |
 | 3 | `ouverture-prod` (#57) | `robots.txt`, `sitemap.xml` et `llms.txt` renvoient la page d'attente (HTML) ; 2 apps Discord à isoler ; hardlinks ; rewrite Caddy à retirer | mesuré le 21/09/2026 | robots/sitemap statiques + `noindex` ; checklist Jour J | `docs/ops/GUIDE-DEPLOIEMENT-PROD-JOUR-J.md` · `docs/plans/SEO_REPRISE.md` | **D7** (landing) |
 | 4 | `restore-db` (F7) | La restauration n'a jamais été jouée ; le script purge à **3 j** alors que la doc dit **30 j** | `scripts/backup_db.sh` ↔ `docs/MAINTENANCE.md` | jouer un restore sur base jetable + écrire date et RTO | `docs/agents/disaster-recovery.md` | — |
 | 5 | `migrations-ops` | 2 migrations additives + bot + crontabs non déployés | `20270112000000` (GodNotification.details), `20270113000000` (DiscordMemberActivity) | jouer bêta puis prod ; redéployer le bot ; poser les 4 crontabs | `docs/MAINTENANCE.md` | — |
@@ -105,6 +104,8 @@
 | `supply-chain` | Garde-fou des scripts d'installation npm | 19/10/2026 |
 | `codeql` | XSS overlay + SSRF `redirect: error` | 19/10/2026 |
 | `env-validation` (F8) | Validation d'environnement au démarrage (`instrumentation.ts`), fail-closed en prod, avertissement CSP | 19/10/2026 |
+| `monitor-private` (F9) | Grafana retiré de l'exposition publique et du compose ; Prometheus interne épinglé v3.15.0 ; accès God | 19/10/2026 |
+| `god-system` | God → Système & Infra : CPU, RAM, disque, Redis, PostgreSQL, conteneurs, crons | 19/10/2026 |
 | `harnais H0-H7` | Roadmap unique, journal archivé, zone temp unique, 4 règles, 6 skills, 3 hooks, `.clineignore`, garde | 19/10/2026 |
 
 ## 6. Archives et mémoire froide
@@ -114,6 +115,7 @@
 - `docs/agents/archive/BRIEF-REPRISE-2026-10-14.md` — fil des demandes et décisions du 14/10.
 - `docs/agents/archive/session-amorce-2026-09.md` — remplacé par `AGENTS.md` + `docs/agents/harnais.md`.
 - `src/temp/archive/` — corpus volatil (audits 20/09, maquettes, siphons) déplacé, **jamais versionné**.
+- Volume Docker `grafana_data` conservé (non monté) — suppression seulement sur accord explicite.
 - `src/temp/archive/duplicates-2026-10-19/` — 3 doublons exacts (hash identique) : `ARCHITECTURE-…SYLVERSTRE` = `AMORCE-DEMO-PUBLIQUE.md`, `MODULE-…SYLVERSTRE` = `AMORCE-DEMO-PUBLIQUE.md`, `PLAN-REFONTE-…SYLVERSTRE` = `PLAN-DESLOP-ANNUAIRE.md`.
 
 ## 7. Tenue de cette feuille

@@ -334,7 +334,7 @@ Utilise toujours `./scripts/deploy.sh [beta|prod]` depuis la racine du projet su
 - **Prod** : Déploie la branche `main` sur `sigilos.fr`.
 
 ### 2. Monitoring
-Accède à la tour de contrôle sur `monitor.sigilos.fr`. 
+Accède à la tour de contrôle via God → Système & Infra.
 - Authentification via GitHub uniquement.
 - Ne jamais désactiver le 2FA GitHub.
 

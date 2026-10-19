@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
-import { censusBossSovereignty } from "@/lib/boss-sovereignty";
+import { bossSovereigntyKey, censusBossSovereignty } from "@/lib/boss-sovereignty";
 
 const ACTION = "src/server/actions/data-health-actions.ts";
 const PAGE = "src/app/boss/[dungeonId]/page.tsx";
@@ -21,6 +21,48 @@ const TITAN = "src/components/succes/SuccesTitanTab.tsx";
 const OVERLAY = "src/components/boss-overlay/BossOverlayClient.tsx";
 
 const read = (path: string) => readFileSync(path, "utf8");
+
+describe("alias de souveraineté — mesure du 20/10/2026", () => {
+    // 34 des 151 fiches publiées portaient « Fiche partielle » ; **9** de ces donjons existent
+    // au catalogue sous un autre nom (vérifié sur la bêta **et** dans le catalogue local).
+    it("ramène les variantes « double boss » au donjon parent", () => {
+        const parent = bossSovereigntyKey("Donjon du Comte Harebourg");
+        for (const variant of [
+            "Comte et Sylargh",
+            "Comte et Klime",
+            "Comte et Nileza",
+            "Comte et Missiz Frizz",
+            "Harebourg et Frizz",
+        ]) {
+            expect(bossSovereigntyKey(variant)).toBe(parent);
+        }
+    });
+
+    it("ramène le nom tronqué en base et le nom de catalogue différent", () => {
+        expect(bossSovereigntyKey("Donjon du Comte Harebour")).toBe(
+            bossSovereigntyKey("Donjon du Comte Harebourg"),
+        );
+        expect(bossSovereigntyKey("Torkélonia")).toBe(bossSovereigntyKey("Sanctuaire de Torkélonia"));
+    });
+
+    it("ignore le suffixe de doublon « (2) »", () => {
+        expect(bossSovereigntyKey("Centre du labyrinthe du Minotoror (2)")).toBe(
+            bossSovereigntyKey("Centre du Labyrinthe du Minotoror"),
+        );
+    });
+
+    it("aligne « Antre de la Reine Nyée » sur son cleanName collé", () => {
+        // `bossMatchKey` applique son cas spécial AVANT le collage : sur un cleanName déjà
+        // collé il ne se déclenche jamais, d'où deux clés différentes avant correctif.
+        expect(bossSovereigntyKey("Antre de la Reine Nyée")).toBe(
+            bossSovereigntyKey("antredelareinenyee"),
+        );
+    });
+
+    it("ne touche pas un donjon réellement absent du catalogue", () => {
+        expect(bossSovereigntyKey("Marché de Kelba")).toBe("marchedekelba");
+    });
+});
 
 describe("lot 6 — censusBossSovereignty", () => {
     it("rend la couverture réelle et nomme les donjons sans données locales", () => {

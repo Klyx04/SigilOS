@@ -16,9 +16,43 @@ import { bossMatchKey } from "./data-health";
  * particuliers) puis suppression de tout séparateur — le catalogue stocke `cleanName`
  * **collé** (« courdubouftouroyal ») alors que la base garde les espaces
  * (« Cour du Bouftou Royal »). Sans cette étape, **aucun** donjon ne matchait.
+ *
+ * ⚠️ Constat du 20/10/2026 sur la bêta : **34** donjons de la base n'avaient aucune entrée
+ * locale (le bandeau « Fiche partielle » s'affichait sur 34 des 151 fiches publiées). Après
+ * vérification nom par nom, **9** d'entre eux sont présents au catalogue sous un autre nom :
+ *   · `Centre du labyrinthe du Minotoror (2)` — suffixe de doublon de saisie ;
+ *   · `Comte et Sylargh` / `Klime` / `Nileza` / `Missiz Frizz` et `Harebourg et Frizz` —
+ *     variantes **créées en base** par `scripts/fix-double-boss-resolution.ts` ;
+ *   · `Donjon du Comte Harebour` — nom **tronqué** en base (il manque le `g`) ;
+ *   · `Torkélonia` — le catalogue nomme ce donjon « Sanctuaire de Torkélonia » ;
+ *   · `Antre de la Reine Nyée` — le cas spécial de `bossMatchKey` s'applique **avant** le
+ *     collage des mots : sur un `cleanName` déjà collé (`antredelareinenyee`) il ne se
+ *     déclenche jamais, d'où deux clés différentes.
+ *
+ * Les correctifs ci-dessous sont **déterministes et bornés** : aucune heuristique, aucun
+ * `includes()` sur un mot courant. Les 25 autres donjons sont **réellement absents** du
+ * catalogue (siphon à compléter — lot distinct).
  */
+const SOVEREIGNTY_ALIASES: Readonly<Record<string, string>> = {
+    // Variantes « double boss » (créées en base, même salle que le donjon parent)
+    comteetklime: "donjonducomteharebourg",
+    comteetmissizfrizz: "donjonducomteharebourg",
+    comteetnileza: "donjonducomteharebourg",
+    comteetsylargh: "donjonducomteharebourg",
+    harebourgetfrizz: "donjonducomteharebourg",
+    // Nom tronqué en base (« Harebour » sans `g`)
+    donjonducomteharebour: "donjonducomteharebourg",
+    // Le catalogue nomme ce donjon « Sanctuaire de Torkélonia »
+    torkelonia: "sanctuairedetorkelonia",
+    // Cas spécial de `bossMatchKey` réduit au seul mot-clé : on le ramène au nom complet
+    reinenyee: "antredelareinenyee",
+};
+
 export function bossSovereigntyKey(value: string | null | undefined): string {
-    return bossMatchKey(value).replace(/[^a-z0-9]/g, "");
+    // Suffixe de doublon de saisie (« … Minotoror (2) ») : il n'a pas de sens côté catalogue.
+    const withoutDuplicateSuffix = String(value ?? "").replace(/\s*\(\d+\)\s*$/, "");
+    const collapsed = bossMatchKey(withoutDuplicateSuffix).replace(/[^a-z0-9]/g, "");
+    return SOVEREIGNTY_ALIASES[collapsed] ?? collapsed;
 }
 
 export interface BossSovereigntyGap {

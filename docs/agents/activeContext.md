@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 19/10/2026 (suite) — **Supply chain : aucun script d'installation npm non justifié** — branche `chore/supply-chain-install-scripts`
+> **Demande user (verbatim)** : « allons y » + deux articles (TensorLake → Shai-Hulud du 08/10 ; MALFEX / `tlxbnhd` du 09/10).
+> **Mesures** : `tensorlake` et `tlxbnhd` = **0** dans le lock (`tlxbnhd` retiré du registre le 22/09) ; scan IOC Shai-Hulud = **0** ; **0** PNG avec signature `MZ` ; **8** paquets à `hasInstallScript` ; en dossier isolé, `--ignore-scripts` ne prive que `prisma` et `@prisma/engines` d'un binaire utile (esbuild et unrs-resolver passent par `optionalDependencies` ; `@sentry/cli` n'est pas utilisé hors du build Docker).
+> **Fait** : `scripts/check-install-scripts.mjs` (allowlist justifiée des 8 paquets) + `tests/unit/install-scripts-allowlist.test.ts` (**5 cas**) ; jobs `verify` et `security-scan` en `npm ci --ignore-scripts`, `npm rebuild prisma @prisma/engines` dans `verify` ; règles dans `docs/RULES.md` § chaîne d'outils et `docs/SECURITY.md`.
+> **Preuves** : **425 fichiers / 4 610 tests ✓** · `tsc` **0** · `eslint` **0 erreur** · **`npm run build` exit 0** (compilation 77 s) · `npm run security:audit` franchie · `git status` propre.
+> **Reste / ops (humain)** : ouvrir la PR → `dev` ; lots A (7 deps mortes), B (74 fichiers), C (16 scripts), D (doublons), E (`seed.ts`), F (`refs/cline`) inchangés.
+> **Rotation** : bloc « 18/10 (suite 5) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 19/10/2026 — **Ménage local + dépôt + file Dependabot + alertes CodeQL** — branches `chore/depot-allege`, `fix/zero-empreinte-arbo`, `fix/codeql-alertes`, `docs/menage-2026-10-19`
 > **Demande user (verbatim)** : « il est temps de nettoyer notre arbo et notre projet… » puis « tu me valides un par un ce que tu vas supprimer ».
 > **Mesures** : `.next` 15 001 Mo ; `temp/` 19,4 Mo ; 23 images Sigil King (34,5 Mo) dont une seule citée ; 83 bounties (12,9 Mo) ; 29 titlescreen (4,6 Mo) ; `aide-module` (notes + ID Discord) ; 15 alertes CodeQL + 2 Dependabot.
@@ -47,14 +56,6 @@
 > **Reste / ops (humain)** : déployer la bêta, attendre une passe ladder, ouvrir **God → Tâches CRON → Journal**. Lot suivant **C4**.
 > **Rotation** : bloc « 16/10 (suite 5) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 18/10/2026 (suite 5) — **Tâches CRON : journal des exécutions (onglet, filtres serveur, fiche)** — branche `feat/cron-task-journal` (PR à ouvrir)
-> **Demande user (verbatim)** : « avance maj le fichier à mesure » (lot **C2**).
-> **Mesure** : le journal existait déjà en Redis (`cron:telemetry:history:<cronId>`, **10/tâche**, TTL **7 j**, écrit par `recordCronExecution`) mais **aucune vue ne l'agrégeait** ; `?tab=cron-status` ne montrait que le dernier passage. **Aucune migration.**
-> **Fait** : règle **pure** `src/lib/cron-journal.ts` (tri, doublons, illisibles écartés, plafonds 500/200 **dits**, filtres tâche/statut/fenêtre/recherche, jours **UTC**) · route `GET /api/god/task-journal` (**auth + `isSuperAdmin`**, **Zod**, filtrage délégué) · `getAllCronHistories()` + `CRON_HISTORY_LIMIT = 10` unique (écriture **et** lecture) · **onglet « Journal »** dans `?tab=cron-status` (`CronStatusTabs`) avec filtres, liste par jour, **fiche** complète et bandeau **« Redis indisponible »** · briques partagées `cron-ui.tsx` + `detail-value.ts` (mêmes badges/format que les alertes God).
-> **Preuves** : `tests/unit/cron-journal.test.ts` **16 cas** (+ 21 cas C1 verts) · suite **417 fichiers / 4 542 tests ✓** · `tsc` 0 · `eslint` 0 erreur · **aucune migration**.
-> **Reste / ops (humain)** : déployer la bêta, ouvrir **God → Tâches CRON → Journal** ; lot suivant **C3**.
-> **Rotation** : bloc « 16/10 (suite 4) » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
 
 
 ## PR / Branche

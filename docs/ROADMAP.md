@@ -8,6 +8,14 @@
 > externes ont été **supprimées le 20/09/2026** (`docs/arbo/ARCHIVES-TEMP-2026-09.md`) — plus rien à
 > ouvrir hors du dépôt.
 
+## 📝 Session 19/10/2026 (suite) — **Supply chain : garde-fou des scripts d'installation npm** — branche `chore/supply-chain-install-scripts`
+> **Demande user (verbatim)** : « allons y » + articles TensorLake (Shai-Hulud, 08/10) et MALFEX (`tlxbnhd`, 09/10).
+> **Mesures** : paquets cités **absents** du lock (`tlxbnhd` retiré du registre le 22/09) ; scan IOC **0** ; **8** paquets à script d'installation, tous justifiés ; en dossier isolé, `--ignore-scripts` ne prive que `prisma` et `@prisma/engines` d'un binaire utile en CI (esbuild et unrs-resolver passent par `optionalDependencies`).
+> **Fait** : `scripts/check-install-scripts.mjs` + `tests/unit/install-scripts-allowlist.test.ts` (5 cas) ; jobs `verify` et `security-scan` en `npm ci --ignore-scripts`, `npm rebuild prisma @prisma/engines` dans `verify` ; docs RULES § chaîne d'outils + SECURITY.
+> **Preuves** : 4 610 tests ✓ · `tsc` 0 · `eslint` 0 erreur · **`npm run build` exit 0** · `security:audit` franchie.
+> **Reste / ops (humain)** : PR à ouvrir → `dev` ; puis lots A→F du ménage (7 deps mortes, 74 fichiers, 16 scripts, doublons, `seed.ts`, `refs/cline`).
+
+
 ## 📝 Session 19/10/2026 — **Ménage local et dépôt + alertes CodeQL** — PR #1025, #1028, #1031
 > **Demande user (verbatim)** : « il est temps de nettoyer notre arbo et notre projet… » puis « tu me valides un par un ce que tu vas supprimer ».
 > **Mesures** : `.next` 15 Go ; 23 images Sigil King (34,5 Mo, 1 seule citée) ; 83 bounties (12,9 Mo, 0 réf. code/BDD) ; 29 titlescreen (4,6 Mo, 0 citation) ; `aide-module` (notes + ID Discord).

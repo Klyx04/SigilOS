@@ -88,7 +88,8 @@ plans de module — **seulement si la tâche l'exige**. Ne déverse jamais tout 
 ## 6. Commandes
 
 ```bash
-npm install                        # installe aussi le hook pre-commit (husky)
+npm run install:safe               # npm ci SANS exécuter le code des paquets + moteur Prisma + husky (recommandé)
+# npm install                      # alternative historique : exécute le code d'installation de TOUS les paquets
 docker compose up -d db redis      # PostgreSQL (hôte 5433) + Redis
 # ⚠️ Base locale : la faire suivre le schéma AVANT de lancer l'app — sinon « The column X does not exist »
 npx prisma migrate deploy          # joue les migrations en attente (5433) — voir docs/agents/prisma-schema-change.md

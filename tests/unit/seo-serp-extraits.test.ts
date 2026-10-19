@@ -104,6 +104,13 @@ describe("fiches boss — plus de titre tronqué à 91 caractères", () => {
         expect(page()).not.toMatch(/Zone de traque & Simulation \| SigilOS/);
         expect(page()).not.toMatch(/Sorts, Portées & Stratégie \| SigilOS/);
     });
+
+    it("ne préfixe plus le nom du donjon (« Donjon Donjon … »)", () => {
+        // `dungeon.name` vaut déjà « Donjon du Comte Harebourg » : un préfixe « boss du donjon »
+        // produisait la duplication en production (mesuré le 20/10/2026).
+        expect(page()).not.toMatch(/boss du donjon \$\{dungeonLabel\}/);
+        expect(page()).not.toMatch(/boss of \$\{dungeonLabel\}/);
+    });
 });
 
 describe("guide Rush Sylvestre — extrait borné avant publication", () => {

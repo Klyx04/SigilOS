@@ -658,12 +658,20 @@ salon de notification est un **forum** (un post de forum est un thread).
 - **Volume `grafana_data`** : conservé sur le VPS, plus monté. Ne le supprimer qu'après accord explicite (données de dashboards).
 - **Diagnostic ponctuel** : `sudo docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f prometheus` (jamais de port public).
 
+### État au 19/10/2026
+
+- Bêta déployée en **`5b31ad0`** : 6 conteneurs `Healthy`, base à jour, `/`, `/guides`, `/guides/rush-sylvestre`, `/boss`, `robots.txt`, `sitemap.xml`, `/api/health` → **200**.
+- `sigilos-grafana` **supprimé** ; `monitor.sigilos.fr` → **000 / TLS coupé** (voulu).
+- **Limites connues** : carte « Conteneurs » vide (requête cAdvisor à corriger), pas de détail par conteneur, règles d'alerte Grafana non auditées (volume `grafana_data` conservé).
+- **Prod non déployée** : `main` = `07c0500e` (12/10), `dev` = **103 commits d'avance**. Les images prod ne sont construites que depuis `main`.
+- **Convention des tags** : la CI publie **7 caractères** (`5b31ad0`). Utiliser `./scripts/deploy-cd.sh beta <sha7>` ; le script ne normalise pas encore un SHA 8/40.
+
 ---
 ## 📞 Contacts & Alertes
 
 **Discord Webhook**: Configuré dans `.env.prod`  
 **Variable**: `DISCORD_ADMIN_WEBHOOK`  
-**Alertes**: Saturation disque >85%
+**Alertes**: Saturation disque >85% (webhook Discord) + Sentry (erreurs). **Pas d'Alertmanager** : Prometheus n'envoie aucune alerte.
 
 ---
 

@@ -8,6 +8,7 @@ import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinat
 import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverlayMemberBubbles";
 import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
 import { getAlignmentSet } from "@/lib/rush-helpers";
+import { safeExternalUrl, safeImageUrl } from "@/lib/security";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import type { RushSequence } from "@/types/rush-guide-types";
@@ -76,10 +77,15 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
       : alignmentSet.camp
     : null;
   // Lien externe prioritaire : DofusPourLesNoobs, sinon DofusDB.
-  const externalUrl = seq.dofuspourlesnoobsUrl || seq.dofusdbUrl || null;
-  const externalLabel = seq.dofuspourlesnoobsUrl ? "DofusPourLesNoobs" : "DofusDB";
+  // CodeQL `js/xss-through-dom` : ces URL viennent de la base ; on ne rend un lien
+  // que si le schéma est http(s) (jamais javascript:/data:). `safeExternalUrl`
+  // normalise et encode l'URL ; `safeImageUrl` protège les icônes ci-dessous.
+  const noobsUrl = safeExternalUrl(seq.dofuspourlesnoobsUrl);
+  const dbUrl = safeExternalUrl(seq.dofusdbUrl);
+  const externalUrl = noobsUrl || dbUrl || null;
+  const externalLabel = noobsUrl ? "DofusPourLesNoobs" : "DofusDB";
   // Icône de type choisie en God (repli : rien, le titre suffit).
-  const seqIcon = resolveRushSeqIcon(seq.icon);
+  const seqIcon = safeImageUrl(resolveRushSeqIcon(seq.icon));
   /**
    * Étiquette d'information : filet 1 px, rayon 3 px, texte atténué. La couleur
    * ne sert qu'à qualifier (ocre = donnée de jeu, rouge = verrou), jamais à

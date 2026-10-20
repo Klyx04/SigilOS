@@ -201,6 +201,52 @@ PRISMA_TIMEOUT="${PRISMA_TIMEOUT:-900}"
 
 cd "$(dirname "$0")/.."
 # -----------------------------------------------------------------------------
+# Digest d'un tag GHCR — deux lecteurs, et la VRAIE raison d'un échec
+# -----------------------------------------------------------------------------
+# 🐛 Mesure du 20/10/2026 : `list beta` affichait « introuvable (build GHCR ?) »
+# pour les 4 images alors que les tags existaient. Cause : `/root/.docker/config.json`
+# portait un token **régénéré** (donc mort) ; `imagetools inspect` répondait 403,
+# l'erreur était jetée par `2>/dev/null`, et le message accusait le build.
+# `docker manifest inspect` lit le même tag, avec la même authentification, mais
+# sans passer par un builder. Ici : buildx d'abord, repli manifest, puis une raison
+# NOMMÉE — « tag absent » n'a pas le même remède que « token périmé ».
+#
+# Contrat : renvoie 0 et pose `GHCR_DIGEST` ; en échec renvoie 1 et pose
+# `GHCR_DIGEST_REASON` (courte, affichable) + `GHCR_DIGEST_ERROR` (1re ligne du
+# registre, pour le diagnostic). ⚠️ Ne JAMAIS appeler via `$(image_digest …)` :
+# une substitution de commande s'exécute dans un sous-shell et perdrait ces variables.
+image_digest() {
+    local img="$1" out="" d=""
+    GHCR_DIGEST=""; GHCR_DIGEST_REASON=""; GHCR_DIGEST_ERROR=""
+
+    if out="$(sudo docker buildx imagetools inspect "$img" 2>&1)"; then
+        d="$(grep -oE 'sha256:[a-f0-9]{12}' <<<"$out" | head -1)"
+        if [[ -n "$d" ]]; then GHCR_DIGEST="$d"; return 0; fi
+    fi
+    if out="$(sudo docker manifest inspect "$img" 2>&1)"; then
+        d="$(grep -oE 'sha256:[a-f0-9]{12}' <<<"$out" | head -1)"
+        if [[ -n "$d" ]]; then GHCR_DIGEST="$d"; return 0; fi
+    fi
+
+    GHCR_DIGEST_ERROR="$(printf '%s\n' "$out" | awk 'NF' | head -1)"
+    case "$GHCR_DIGEST_ERROR" in
+        *"manifest unknown"*|*"not found"*|*404*)
+            GHCR_DIGEST_REASON="tag absent" ;;
+        *unauthorized*|*denied*|*403*|*forbidden*|*authoriz*)
+            GHCR_DIGEST_REASON="accès refusé (token GHCR périmé ?)" ;;
+        *"not a docker command"*|*buildx*)
+            GHCR_DIGEST_REASON="buildx indisponible" ;;
+        *sudo*|*password*)
+            GHCR_DIGEST_REASON="sudo refusé (mot de passe ?)" ;;
+        *)
+            GHCR_DIGEST_REASON="registre injoignable" ;;
+    esac
+    return 1
+}
+
+
+
+# -----------------------------------------------------------------------------
 # Commande : list — versions disponibles sur GHCR
 # -----------------------------------------------------------------------------
 list_handler() {
@@ -216,12 +262,13 @@ list_handler() {
     printf "${C_BOLD}  %-32s %s${C_RESET}\n" "Image" "latest (digest)"
     for NAME in app worker ws discord-bot; do
         local IMG="${GHCR_REG}/sigilos-${NAME}-${target}"
-        local DIGEST
-        DIGEST="$(sudo docker buildx imagetools inspect "${IMG}:latest" 2>/dev/null | grep -oE 'sha256:[a-f0-9]{12}' | head -1 || true)"
-        if [[ -z "$DIGEST" ]]; then
-            printf "  %-32s %s\n" "sigilos-${NAME}-${target}" "introuvable (build GHCR ?)"
+        if image_digest "${IMG}:latest"; then
+            printf "  %-32s %s\n" "sigilos-${NAME}-${target}" "$GHCR_DIGEST"
         else
-            printf "  %-32s %s\n" "sigilos-${NAME}-${target}" "$DIGEST"
+            printf "  %-32s ${C_YELLOW}%s${C_RESET}\n" "sigilos-${NAME}-${target}" "${GHCR_DIGEST_REASON}"
+            if [[ -n "${GHCR_DIGEST_ERROR:-}" ]]; then
+                dim "      ${GHCR_DIGEST_ERROR}"
+            fi
         fi
     done
     horiz
@@ -234,10 +281,13 @@ list_handler() {
         local MISSING=0
         for NAME in app worker ws discord-bot; do
             local IMG="${GHCR_REG}/sigilos-${NAME}-${target}"
-            if sudo docker buildx imagetools inspect "${IMG}:${sha}" >/dev/null 2>&1; then
+            if image_digest "${IMG}:${sha}"; then
                 printf "  %-32s ${C_GREEN}✓ publié${C_RESET}\n" "sigilos-${NAME}-${target}"
             else
-                printf "  %-32s ${C_RED}✗ absent${C_RESET}\n" "sigilos-${NAME}-${target}"
+                printf "  %-32s ${C_RED}✗ %s${C_RESET}\n" "sigilos-${NAME}-${target}" "${GHCR_DIGEST_REASON}"
+                if [[ -n "${GHCR_DIGEST_ERROR:-}" ]]; then
+                    dim "      ${GHCR_DIGEST_ERROR}"
+                fi
                 MISSING=1
             fi
         done
@@ -813,10 +863,13 @@ deploy() {
         local MISSING_TAG=0
         for NAME in app worker ws discord-bot; do
             local IMG="${GHCR_REG}/sigilos-${NAME}-${TARGET}"
-            if sudo docker buildx imagetools inspect "${IMG}:${SHA}" >/dev/null 2>&1; then
+            if image_digest "${IMG}:${SHA}"; then
                 ok "${NAME} : tag ${SHA} publié"
             else
-                err "${NAME} : tag ${SHA} absent (${IMG})"
+                err "${NAME} : tag ${SHA} — ${GHCR_DIGEST_REASON} (${IMG})"
+                if [[ -n "${GHCR_DIGEST_ERROR:-}" ]]; then
+                    dim "   ${GHCR_DIGEST_ERROR}"
+                fi
                 MISSING_TAG=1
             fi
         done

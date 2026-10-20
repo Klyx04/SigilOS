@@ -693,7 +693,7 @@ salon de notification est un **forum** (un post de forum est un thread).
 - [ ] Vérifier mises à jour système (`apt list --upgradable`)
 - [ ] Vérifier God → Système & Infra (CPU, RAM, disque, Redis, DB, conteneurs, crons)
 - [ ] Vérifier certificats SSL Caddy
-- [ ] ⏰ Vérifier expiration GHCR_TOKEN (renouveler si < 2 semaines) — voir section 3b CI/CD
+- [ ] ⏰ Vérifier que `GHCR_TOKEN` est toujours valide (token **sans expiration** — rotation/révocation manuelle) — voir section 3b CI/CD
 
 ---
 
@@ -786,21 +786,22 @@ salon de notification est un **forum** (un post de forum est un thread).
     ⚠️ **Ne JAMAIS Ctrl+C en pleine migration** : une migration à moitié appliquée exige `migrate resolve --rolled-back <migration>` avant de relancer.
 - **Note** : le workflow GHCR ne remplace PAS `verify.yml` (qui reste le garde-fou lint/test/audit). Les deux coexistent : `verify` valide, `deploy.yml` build/push.
 - ⚠️ **Prérequis secrets GitHub** : `BETA_PASSWORD` (settings > secrets). `NEXT_PUBLIC_APP_URL` est défini automatiquement selon la branche.
-- ⚠️ **GHCR Token sur le VPS** : générer un PAT GitHub avec scope `read:packages`, et l'exporter (ou le mettre dans le `.bashrc`/cron).
-- ⏰ **⚠️ EXPIRATION DU GHCR_TOKEN (IMPORTANT)** : le PAT GitHub créé avec « Expiration: 90 days » **expire ≈ 90 jours après sa création** (créé le 03/08/2026 → **expire ≈ début novembre 2026**). Quand il expire, `deploy-cd.sh` échoue sur le `docker pull` → déploiement CD bloqué.
-  
-  **Renouvellement (LE minimum, ~2 min)** :
-  1. GitHub → avatar → Settings → Developer settings → Personal access tokens → **Tokens (classic)**
-     → **Generate new token (classic)** → Note `sigilos-vps`, expiration 90 jours, cocher **uniquement `read:packages`** → Generate.
-     📝 **Note la date « Expires on »** affichée (ex: `Sun, Nov 1 2026`).
-  2. Sur le VPS, coller 2 lignes (remplacer par le nouveau token + la date notée) :
+- ⚠️ **GHCR Token sur le VPS** : PAT GitHub **classic**, scope **`read:packages` uniquement**, **sans expiration**, nommé `sigilos-vps-AAAA-MM`. Exporté dans `~/.bashrc` (`chmod 600`) et lu par `deploy-cd.sh`. `GHCR_TOKEN_EXPIRY` reste **optionnel** : le définir affiche un compte à rebours, l'omettre affiche « expiration non renseignée » (ligne grise, pas une alerte).
+- 🔑 **Token sans expiration — rotation manuelle (décision du 20/10/2026)** : le token est **en lecture seule** (télécharger des images, jamais publier ni toucher au code) ⇒ risque accepté, **à condition** de pouvoir le révoquer en un clic.
+  - **Créer / régénérer** : GitHub → Settings → Developer settings → Personal access tokens → **Tokens (classic)** → cocher **uniquement `read:packages`** → **Expiration : No expiration** → nommer `sigilos-vps-AAAA-MM` (la date de création sert de repère).
+  - **Poser le token sur le VPS** (remplacer la ligne, ne pas empiler) :
      ```bash
-     echo 'export GHCR_TOKEN=<NOUVEAU_TOKEN>' >> ~/.bashrc && source ~/.bashrc
-     echo 'export GHCR_TOKEN_EXPIRY=<AAAA-MM-JJ>' >> ~/.bashrc && source ~/.bashrc
-     # exemple : export GHCR_TOKEN_EXPIRY=2026-11-01
+     sed -i 's|^export GHCR_TOKEN=.*|export GHCR_TOKEN=<NOUVEAU_TOKEN>|' ~/.bashrc
+     sed -i '/^export GHCR_TOKEN_EXPIRY=/d' ~/.bashrc   # plus de compte à rebours
+     chmod 600 ~/.bashrc && source ~/.bashrc
      ```
-  → C'est tout. Le script affichera le nouveau compte à rebours.
-  ⚠️ Alternative **zéro renouvellement** : à la prochaine création, choisir un **fine-grained token sans expiration** (Repository access > SigilOS, permission **Packages: Read**) → plus jamais besoin de renouveler.
+  - **Tester le token sans rien déployer** : `list` ne fait **pas** de `docker login` (il réutilise `/root/.docker/config.json`), donc la preuve est un `pull` :
+     ```bash
+     echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u klyx04 --password-stdin
+     sudo docker pull ghcr.io/klyx04/sigilos-app-beta:latest
+     ```
+  - ⚠️ **Régénérer invalide immédiatement l'ancien secret** : `/root/.docker/config.json` garde l'ancien jusqu'au `docker login` suivant. Un `list` lancé entre-temps affiche `accès refusé (token GHCR périmé ?)` — c'est le token, pas les images (mesuré le 20/10/2026).
+  - **Révoquer** : supprimer l'ancienne ligne dans GitHub dès que le nouveau token est validé (un seul token vivant).
 
 #### 3c. Séparer le Redis beta/prod (chantier I-07) — ✅ FAIT + DÉPLOYÉ (09/08)
 - **Problème** : la beta et la prod partageaient le **même Redis** → risque de collision de jobs BullMQ/queues.
@@ -915,7 +916,7 @@ salon de notification est un **forum** (un post de forum est un thread).
 **Fait** : phase 1, 3a (rollback), 3b (CI/CD GHCR), **3c (Redis séparé — déployé beta 09/08)**.
 **Reste** :
 1. **Phase 2** (image de base partagée) — optionnel, le CI/CD règle déjà le build redondant sur le VPS.
-2. **Renouveler GHCR_TOKEN** (expire ≈ début nov 2026) — cf. section 3b.
+2. **Vérifier `GHCR_TOKEN`** (sans expiration : le remplacer/révoquer en cas de doute) — cf. section 3b.
 
 
 

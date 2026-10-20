@@ -1980,15 +1980,23 @@ export async function POST(request: NextRequest) {
                     });
                 } else if (action === "csat") {
                     const ticketId = entityId;
-                    const rating = parseInt(extra, 10) || 5;
+                    const parsed = parseInt(extra, 10);
+                    const safeRating = parsed >= 1 && parsed <= 5 ? parsed : 5;
                     const res = await internalHandleTicketCsat({
                         discordUserId: member.user.id,
                         ticketId,
-                        rating,
+                        rating: safeRating,
                         actor: ticketActorContext,
                     });
                     if (res.success) {
-                        const stars = "⭐".repeat(rating);
+                        const STARS_BY_RATING: Record<number, string> = {
+                            1: "⭐",
+                            2: "⭐⭐",
+                            3: "⭐⭐⭐",
+                            4: "⭐⭐⭐⭐",
+                            5: "⭐⭐⭐⭐⭐",
+                        };
+                        const stars = STARS_BY_RATING[safeRating] ?? "⭐⭐⭐⭐⭐";
                         const originalEmbed = (payload.message?.embeds?.[0] as Record<string, unknown>) || {};
                         return NextResponse.json({
                             type: 7, // UPDATE_MESSAGE : met à jour le message et retire définitivement les boutons de vote
@@ -1997,7 +2005,7 @@ export async function POST(request: NextRequest) {
                                     {
                                         ...originalEmbed,
                                         title: "⭐ Avis enregistré !",
-                                        description: `Merci d'avoir pris le temps de donner votre avis !\nVotre note : ${stars} (**${rating}/5**) a bien été enregistrée.`,
+                                        description: `Merci d'avoir pris le temps de donner votre avis !\nVotre note : ${stars} (**${safeRating}/5**) a bien été enregistrée.`,
                                         color: 0x22c55e,
                                     },
                                 ],

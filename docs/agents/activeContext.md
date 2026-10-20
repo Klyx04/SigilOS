@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/10/2026 (suite 3) — **Double boss Frigost : le bon boss, le bon balcon, les deux combattants** — branche `feat/boss-multi-frigost` (PR #1059)
+> **Demandes user (verbatim)** : « les 4 double boss en base … on affiche juste l'icône du comte et ses stats … la map a un choix de dropdown au lieu de focus uniquement sur la map concernée » · « centrée sur les 2 » · « dans la simulation on doit pouvoir de base poser les 2 boss » · « je veux conserver toutes les salles ».
+> **Mesures** : en base, `Dungeon.bossName` porte le **nom du donjon** (« Comte et Nileza ») alors que `dofensiveMonsterName` (Nileza) et `dofensiveDungeonName` (« Donjon du Comte Harebourg ») **sont déjà renseignés** sur les 4 ; la page passait `bossName` partout ⇒ stats/passif/carte du Comte ; `SpellRangeGrid` filtre les salles **par nom de boss** ⇒ aucun match, donc toutes les salles ; `selectMonster` neutralisait `m.isBoss` ⇒ second boss non cliquable ; 10 vignettes en repli alors que `/api/assets-dofus/monsters/3416` répond **200 `image/webp`**.
+> **Fait** : règle pure `src/lib/dungeon-boss-pair.ts` (`focus` = monstre de la salle, `partner` déduit du donjon, **jamais inventé**) branchée sur `page.tsx` (stats, sorts, carte) et `PublicBossDetailClient` (focus, bandeau « Double boss » cliquable, titre = nom du donjon, sélection du second boss réparée) ; `MonsterImage` : **1 retry** + repli `waveMonsters.png`.
+> **Preuves** : 8 cas neufs (`tests/unit/boss-multi-frigost.test.ts`) · suite **435 fichiers / 4 684 tests ✓** (plus aucun échec `ladder` : le cache Redis local avait expiré) · `tsc` 0 · `eslint` 0 erreur.
+> **Reste / ops (à trancher)** : **poser les 2 boss dans la simulation** (modèle d'entités : `SpellRangeGrid` n'a qu'un caster + des jetons de position sans identité) · **fusion des onglets « Monstres de la salle (10) » / « Monstres (8) »** (le verrou `boss-fiche-tabs-parite` impose aujourd'hui les deux) · contrôler les 4 fiches après déploiement.
+> **Rotation** : bloc « 19/10 — Rang 1 » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
+
+
+
 ## 📝 Session 20/10/2026 (suite 2) — **Token GHCR sans expiration, et `list` ne confond plus token mort et tag absent** — branche `fix/sentry-et-diagnostic-ghcr` (PR #1056)
 > **Demandes user (verbatim)** : « je mets aucune date d'expiration ca me gonfle ? » · « c généré ensuite » · « je vois pas ou le mettre la chaine ».
 > **Mesures** : token `sigilos-vps` **régénéré** ⇒ l'ancien secret est mort **immédiatement** ; `/root/.docker/config.json` (login root posé au déploiement précédent) portait encore l'ancien ⇒ `imagetools inspect` répondait **403**, l'erreur était **jetée** par `2>/dev/null` ⇒ `list beta` affichait « introuvable (build GHCR ?) » pour les 4 images. Preuves : `Login Succeeded` + `docker pull` avec le nouveau token, `docker manifest inspect` renvoie le JSON du tag, `buildx v0.38.0` **présent**, `imagetools` lancé à la main affiche `Digest: sha256:90626492b203…`.
@@ -49,14 +59,6 @@
 > **Fait** : service Grafana supprimé du compose prod ; bloc Caddy `monitor.sigilos.fr` retiré ; Prometheus épinglé **v3.15.0** et **interne** ; `PROMETHEUS_URL` injecté dans `app-prod` et `app-beta` ; dashboard God réécrit (tokens, rayons ≤ 12 px, responsive, accessible) et monté dans **Système & Infra** ; métriques ajoutées (CPU, Redis détaillé, PostgreSQL, conteneurs/redémarrages, crons, cibles Prometheus) ; parseurs purs + 2 gardes de non-régression.
 > **Preuves** : **429 fichiers / 4 627 tests ✓** (dont `system-metrics` **5** et `monitor-private` **4**) · `tsc` **0** · `eslint` **0 erreur** · `god-deslop` **4/4** · `git status --short` à vérifier avant PR.
 > **Reste / ops (humain)** : après merge, `git pull` sur le VPS puis `docker compose … up -d --remove-orphans` pour retirer Grafana ; volume `grafana_data` conservé ; ouvrir God → Système & Infra.
-
-
-## 📝 Session 19/10/2026 (suite) — **Rang 1 : validation d'environnement au démarrage (fail-closed) + roadmap corrigée** — branche `feat/env-validation`
-> **Demande user (verbatim)** : « ok » (après proposition du rang 1).
-> **Mesures** : `src/lib/env.ts` existait mais **0 import** ; `src/instrumentation.ts` existait (Sentry) mais ne validait rien ; `CRON_SECRET`, `STORAGE_SIGNING_SECRET`, `CSP_ENFORCE`, `WS_AUTH_ENABLED`, `DEV_SKIP_OCR`, `DOFUSDB_OFFLINE` absents du schéma ; la roadmap affichait `dev = b6b7bf0e` et « instrumentation.ts absent » (faux).
-> **Fait** : `validateEnv()` testable (prod fail-closed, dev avertit, build ignoré) ; `instrumentation.ts` l'appelle au runtime Node ; schéma élargi (secrets + interrupteurs) ; `.env.example` complété ; `tests/unit/env-validation.test.ts` (**9 cas**) ; roadmap : SHA + instrumentation corrigés, rang 1 au registre, prochaine étape rang 2.
-> **Preuves** : **427 fichiers / 4 618 tests ✓** (dont `env-validation` **9 cas**) · `tsc` **0** · `eslint` **0 erreur** · `git status --short` à vérifier avant PR.
-> **Reste / ops (humain)** : poser `CSP_ENFORCE=true` avant l'ouverture prod (rang 7) ; sinon la validation avertit mais ne bloque pas.
 
 
 

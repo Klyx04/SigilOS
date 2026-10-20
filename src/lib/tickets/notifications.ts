@@ -240,5 +240,5 @@ export function buildTicketOpeningContent(input: {
         return rolesPart;
     }
 
-    return [creatorPart, rolesPart].filter(Boolean).join(" ");
+    return [creatorPart, rolesPart].filter(Boolean).join("\n\n");
 }

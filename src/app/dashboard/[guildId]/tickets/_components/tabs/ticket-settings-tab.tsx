@@ -91,6 +91,9 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
     const [requireCloseConfirm, setRequireCloseConfirm] = useState<boolean>(
         initialPermissions.requireCloseConfirm
     );
+    const [channelPositionInCategory, setChannelPositionInCategory] = useState<"TOP" | "BOTTOM">(
+        initialPermissions.channelPositionInCategory ?? "BOTTOM"
+    );
     const [blacklistRoleIds, setBlacklistRoleIds] = useState<string[]>(
         initialPermissions.blacklistRoleIds
     );
@@ -140,6 +143,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
             const permRes = await saveTicketGuildPermissionsAction(guildId, {
                 allowUserClose,
                 requireCloseConfirm,
+                channelPositionInCategory,
                 blacklistRoleIds,
                 channelPermissions: matrix,
                 csatDestination,
@@ -322,6 +326,21 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             </div>
                         </div>
                         <Switch checked={requireCloseConfirm} onCheckedChange={setRequireCloseConfirm} />
+                    </div>
+
+                    <div className="space-y-1.5 pt-3">
+                        <label className="font-semibold text-foreground">Position des salons dans la catégorie Discord</label>
+                        <select
+                            value={channelPositionInCategory}
+                            onChange={(e) => setChannelPositionInCategory(e.target.value as "TOP" | "BOTTOM")}
+                            className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                        >
+                            <option value="BOTTOM">En bas de catégorie (défaut Discord — nouveaux salons en fin)</option>
+                            <option value="TOP">Tout en haut de catégorie (visible en premier au-dessus)</option>
+                        </select>
+                        <p className="text-[11px] text-muted-foreground">
+                            Emplacement où sont créés les salons dans leur catégorie Discord. Surchargeable par type de demande.
+                        </p>
                     </div>
 
                     <div className="space-y-1 pt-3">

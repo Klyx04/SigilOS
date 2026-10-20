@@ -25,8 +25,6 @@ interface HealthData {
     checks?: {
         discordBot: ExternalCheck;
         metamob: ExternalCheck;
-        dofusdb: ExternalCheck;
-        dofensive: ExternalCheck;
     };
     version?: string;
 }
@@ -66,10 +64,12 @@ function StatusDot({ state }: { state: CheckState }) {
  * Icône d'un service — l'identifiant visuel réel du tiers, servi depuis nos
  * propres fichiers et jamais depuis son site.
  *
- * Provenance des copies locales (`public/assets/brands/`, relevé du 16/09/2026) :
+ * Provenance de la copie locale (`public/assets/brands/`, relevé du 16/09/2026) :
  *   metamob.png    https://www.metamob.fr/img/favicon-96.png              — 96×96
- *   dofusdb.png    https://dofusdb.fr/icons/android-icon-192x192.png      — 192×192
- *   dofensive.png  https://www.dofensive.com/favicon.ico                  — entrée 48×48 de l'ICO
+ *
+ * Les logos DofusDB/Dofensive ont été retirés du status le 16/10/2026
+ * (souveraineté : plus aucun appel à ces tiers à l'exécution). Leurs fichiers
+ * restent utilisés comme **sources** dans les guides (`src/lib/source-icons.ts`).
  *
  * Le dossier s'appelle `brands/` (et non `status/`) parce que ces mêmes logos
  * sont aussi cités comme **sources** dans les guides : un seul original par
@@ -92,6 +92,8 @@ interface ServiceRow {
     icon: React.ReactNode;
     state: CheckState;
     detail?: string;
+    /** Lien sortant ( Metamob, seul tiers restant ) — affiché sur le nom. */
+    href?: string;
 }
 
 function buildRows(health: HealthData | null): ServiceRow[] {
@@ -121,6 +123,7 @@ function buildRows(health: HealthData | null): ServiceRow[] {
             icon: <ServiceIcon src="/assets/brands/metamob.png" />,
             state: checks?.metamob.status ?? "unknown",
             detail: checks?.metamob.latencyMs != null ? `${checks.metamob.latencyMs} ms` : undefined,
+            href: "https://www.metamob.fr",
         },
     ];
 }
@@ -269,7 +272,13 @@ export function StatusClient({ user, isMember }: { user?: User; isMember: boolea
                                     >
                                         <span className="flex items-center gap-2.5">
                                             <span className="inline-flex shrink-0 items-center justify-center">{row.icon}</span>
-                                            {row.name}
+                                            {row.href ? (
+                                                <a href={row.href} target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-4">
+                                                    {row.name}
+                                                </a>
+                                            ) : (
+                                                row.name
+                                            )}
                                         </span>
                                     </th>
                                     <td className="hidden text-sm text-muted-foreground sm:table-cell">

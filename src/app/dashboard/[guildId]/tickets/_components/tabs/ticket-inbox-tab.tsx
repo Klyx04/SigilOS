@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { toast } from "sonner";
 import {
     Ticket,
@@ -19,6 +19,7 @@ import {
     X,
     FileText,
     Trash2,
+    RotateCw,
 } from "lucide-react";
 import {
     claimTicketAction,
@@ -53,7 +54,18 @@ export function TicketInboxTab({ guildId, tickets, categories, journeys = [], on
     const [closeReason, setCloseReason] = useState("");
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [newName, setNewName] = useState("");
+    const [autoRefresh, setAutoRefresh] = useState(true);
     const [isPending, startTransition] = useTransition();
+
+    useEffect(() => {
+        if (!autoRefresh) return;
+        const timer = setInterval(() => {
+            if (typeof document !== "undefined" && document.visibilityState === "visible") {
+                onRefresh();
+            }
+        }, 10_000);
+        return () => clearInterval(timer);
+    }, [autoRefresh, onRefresh]);
 
     const ITEMS_PER_PAGE = 20;
 
@@ -180,14 +192,39 @@ export function TicketInboxTab({ guildId, tickets, categories, journeys = [], on
             <div className="lg:col-span-5 space-y-4">
                 {/* Search & Filters */}
                 <div className="p-4 rounded-xl bg-card border border-border space-y-3 shadow-sm">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Rechercher par membre, #ID ou sujet..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-9 h-9 text-xs"
-                        />
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Rechercher par membre, #ID ou sujet..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="pl-9 h-9 text-xs"
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onRefresh()}
+                            title="Actualiser les tickets"
+                            className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
+                        >
+                            <RotateCw className="h-3.5 w-3.5" />
+                        </Button>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground px-0.5">
+                        <span>{filteredTickets.length} ticket{filteredTickets.length > 1 ? "s" : ""}</span>
+                        <button
+                            type="button"
+                            onClick={() => setAutoRefresh(!autoRefresh)}
+                            className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer"
+                            title={autoRefresh ? "Clique pour mettre en pause" : "Clique pour activer le direct"}
+                        >
+                            <span className={`inline-block h-1.5 w-1.5 rounded-full ${autoRefresh ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground/40"}`} />
+                            {autoRefresh ? "Direct 10s" : "Direct en pause"}
+                        </button>
                     </div>
 
                     <div className="flex gap-2">

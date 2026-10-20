@@ -2306,6 +2306,8 @@ export async function createTicketChannelDiscord(
          * Absent = repli historique (équipe + demandeur, tout le monde refusé).
          */
         overwrites?: Array<{ id: string; type: 0 | 1; allow: string; deny: string }>;
+        /** Position du salon dans sa catégorie ("TOP" = tout en haut, "BOTTOM" = fin de catégorie). */
+        positionInCategory?: "TOP" | "BOTTOM";
     }
 ): Promise<{ success: boolean; channelId?: string; error?: string }> {
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -2361,6 +2363,10 @@ export async function createTicketChannelDiscord(
             body.parent_id = options.parentId;
         }
 
+        if (options.positionInCategory === "TOP") {
+            body.position = 0;
+        }
+
         const res = await fetchWithRetry(`/api/v10/guilds/${guildId}/channels`, {
             method: "POST",
             headers: {
@@ -2373,6 +2379,20 @@ export async function createTicketChannelDiscord(
 
         if (res.ok) {
             const data = await res.json();
+            // Si position "TOP", réindexe explicitement pour garantir le placement au sommet de la catégorie
+            if (options.positionInCategory === "TOP" && options.parentId) {
+                await fetchWithRetry(`/api/v10/guilds/${guildId}/channels`, {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                        "Content-Type": "application/json",
+                        "User-Agent": DISCORD_USER_AGENT,
+                    },
+                    body: JSON.stringify([{ id: data.id, position: 0 }]),
+                }).catch((err) => {
+                    logger.warn("[Discord] Impossible de réindexer le salon au sommet de la catégorie", { err });
+                });
+            }
             return { success: true, channelId: data.id };
         }
 

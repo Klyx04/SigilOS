@@ -53,6 +53,8 @@ export type TicketMotifButtonOverrides = Partial<
 export type TicketCategoryPermissionOverride = {
     closePolicy?: TicketCategoryClosePolicy;
     requireConfirm?: boolean;
+    /** Position du salon dans sa catégorie Discord ("TOP" = tout en haut, "BOTTOM" = en fin de catégorie). */
+    channelPositionInCategory?: "TOP" | "BOTTOM";
     /** Rôles invités du motif (observateurs) : overwrites « additional » de la matrice. */
     additionalRoleIds?: string[];
     /** Message d'accueil personnalisé dans le salon ticket (markdown, mentions autorisées). */
@@ -83,6 +85,7 @@ export type TicketCategoryPermissionOverride = {
 export type TicketGuildPermissionSettings = {
     allowUserClose: boolean;
     requireCloseConfirm: boolean;
+    channelPositionInCategory?: "TOP" | "BOTTOM";
     blacklistRoleIds: string[];
     categories: Record<string, TicketCategoryPermissionOverride>;
 };
@@ -90,6 +93,7 @@ export type TicketGuildPermissionSettings = {
 const DEFAULT_SETTINGS: TicketGuildPermissionSettings = {
     allowUserClose: true,
     requireCloseConfirm: true,
+    channelPositionInCategory: "BOTTOM",
     blacklistRoleIds: [],
     categories: {},
 };
@@ -170,9 +174,13 @@ export function readTicketPermissionSettings(raw: unknown): TicketGuildPermissio
                 const motifButtons = readTicketMotifButtons(entry.buttons);
                 if (Object.keys(motifButtons).length > 0) clean.buttons = motifButtons;
             }
+            if (entry.channelPositionInCategory === "TOP" || entry.channelPositionInCategory === "BOTTOM") {
+                clean.channelPositionInCategory = entry.channelPositionInCategory;
+            }
             if (
                 clean.closePolicy !== undefined ||
                 clean.requireConfirm !== undefined ||
+                clean.channelPositionInCategory !== undefined ||
                 clean.additionalRoleIds !== undefined ||
                 clean.welcomeMessage !== undefined ||
                 clean.allowedRoleIds !== undefined ||
@@ -188,12 +196,29 @@ export function readTicketPermissionSettings(raw: unknown): TicketGuildPermissio
     const blacklist = Array.isArray(input.blacklistRoleIds)
         ? (input.blacklistRoleIds as unknown[]).filter(isSnowflake).slice(0, 25)
         : [];
+    const position =
+        input.channelPositionInCategory === "TOP" || input.channelPositionInCategory === "BOTTOM"
+            ? input.channelPositionInCategory
+            : DEFAULT_SETTINGS.channelPositionInCategory;
     return {
         allowUserClose: input.allowUserClose === false ? false : true,
         requireCloseConfirm: input.requireConfirm === false || input.requireCloseConfirm === false ? false : true,
+        channelPositionInCategory: position,
         blacklistRoleIds: blacklist,
         categories,
     };
+}
+
+/** Position effective d'un salon ticket dans sa catégorie (surcharge motif > réglage guilde > BOTTOM). */
+export function resolveTicketChannelPosition(
+    settings: TicketGuildPermissionSettings | null | undefined,
+    motifKey?: string | null
+): "TOP" | "BOTTOM" {
+    if (!settings) return "BOTTOM";
+    if (motifKey && settings.categories?.[motifKey]?.channelPositionInCategory) {
+        return settings.categories[motifKey].channelPositionInCategory!;
+    }
+    return settings.channelPositionInCategory === "TOP" ? "TOP" : "BOTTOM";
 }
 
 /** Politique de fermeture effective d'un motif (surcharge > global > défaut). */
@@ -346,6 +371,7 @@ export function writeTicketPermissionSettings(
     patch: Partial<{
         allowUserClose: boolean;
         requireCloseConfirm: boolean;
+        channelPositionInCategory: "TOP" | "BOTTOM";
         blacklistRoleIds: string[];
         category: { id: string; override: TicketCategoryPermissionOverride };
         csatDestination: TicketCsatDestination;
@@ -357,6 +383,9 @@ export function writeTicketPermissionSettings(
         : {}) as Record<string, unknown>;
     if (patch.allowUserClose !== undefined) base.allowUserClose = patch.allowUserClose;
     if (patch.requireCloseConfirm !== undefined) base.requireCloseConfirm = patch.requireCloseConfirm;
+    if (patch.channelPositionInCategory === "TOP" || patch.channelPositionInCategory === "BOTTOM") {
+        base.channelPositionInCategory = patch.channelPositionInCategory;
+    }
     if (patch.blacklistRoleIds !== undefined) {
         base.blacklistRoleIds = patch.blacklistRoleIds.filter(isSnowflake).slice(0, 25);
     }

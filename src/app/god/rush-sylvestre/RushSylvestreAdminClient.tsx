@@ -166,6 +166,8 @@ const DOFUS_LIST = RUSH_DOFUS_META;
 // (`RUSH_ACTIVITY_TAG_CONFIG` → `public/assets/dofus-ui/pictos/`) : une seule
 // vérité avec la vue publique et l'overlay. Ici on ne déclare que ce qui est
 // propre à l'éditeur GOD (champs de saisie complémentaires).
+type PrereqChoice = { id: string; name: string };
+
 type ActivityTagDef = {
   type: ActivityTagType;
   hasName?: boolean;
@@ -2120,10 +2122,12 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   };
 
   // Multiselect Prerequisites state
-  const [prereqs, setPrereqs] = useState<string[]>(() => {
+  const [prereqs, setPrereqs] = useState<PrereqChoice[]>(() => {
     const existingTags = (seq.activityTags as any[])?.filter(t => t.type === "prereq_text") || [];
     if (existingTags.length > 0) {
-      return existingTags.map(t => t.name).filter(Boolean);
+      return existingTags
+        .map(t => ({ id: typeof t.id === "string" ? t.id : "", name: String(t.name ?? "") }))
+        .filter(p => p.name);
     }
     return [];
   });
@@ -2146,10 +2150,10 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     }, 250);
   };
 
-  const addPrereq = (nameToAdd: string) => {
-    const trimmed = nameToAdd.trim();
-    if (!trimmed || prereqs.includes(trimmed)) return;
-    const nextPrereqs = [...prereqs, trimmed];
+  const addPrereq = (picked: PrereqChoice) => {
+    const trimmed = picked.name.trim();
+    if (!trimmed || prereqs.some(p => (picked.id ? p.id === picked.id : p.name === trimmed))) return;
+    const nextPrereqs = [...prereqs, { id: picked.id, name: trimmed }];
     setPrereqs(nextPrereqs);
     setPrereqQuery("");
     setPrereqResults([]);
@@ -2157,18 +2161,18 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     // Sync activityTags
     setActivityTags(prev => {
       const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
-      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
       return [...nonPrereqs, ...prereqTags];
     });
   };
 
-  const removePrereq = (nameToRemove: string) => {
-    const nextPrereqs = prereqs.filter(p => p !== nameToRemove);
+  const removePrereq = (target: PrereqChoice) => {
+    const nextPrereqs = prereqs.filter(p => !(p.id === target.id && p.name === target.name));
     setPrereqs(nextPrereqs);
     
     setActivityTags(prev => {
       const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
-      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
       return [...nonPrereqs, ...prereqTags];
     });
   };
@@ -2900,11 +2904,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                 </label>
                 {prereqs.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-1.5">
-                    {prereqs.map((pName, pIdx) => (
+                    {prereqs.map((p, pIdx) => (
                       <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-caption font-bold">
                         <Lock className="w-2.5 h-2.5 text-amber-400" />
-                        <span className="max-w-[120px] truncate">{pName}</span>
-                        <button type="button" onClick={() => removePrereq(pName)} className="hover:text-red-400 text-zinc-400 ml-0.5">
+                        <span className="max-w-[120px] truncate">{p.name}</span>
+                        <button type="button" onClick={() => removePrereq(p)} className="hover:text-red-400 text-zinc-400 ml-0.5">
                           <X className="w-2.5 h-2.5" />
                         </button>
                       </span>
@@ -2919,7 +2923,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     onKeyDown={e => {
                       if (e.key === "Enter" && prereqQuery.trim()) {
                         e.preventDefault();
-                        addPrereq(prereqQuery.trim());
+                        if (prereqResults[0]) addPrereq(prereqResults[0]);
                       }
                     }}
                     className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
@@ -2933,7 +2937,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                       <button
                         key={res.id}
                         type="button"
-                        onClick={() => addPrereq(res.name)}
+                        onClick={() => addPrereq({ id: res.id, name: res.name })}
                         className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-200 hover:bg-amber-500/20 hover:text-amber-100 flex items-center gap-2 transition-colors"
                       >
                         <Search className="w-3 h-3 text-amber-400 shrink-0" />
@@ -3517,7 +3521,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [selectedDofusId, setSelectedDofusId] = useState<string>("");
   
   // Multiselect Prerequisites state
-  const [prereqs, setPrereqs] = useState<string[]>([]);
+  const [prereqs, setPrereqs] = useState<PrereqChoice[]>([]);
   const [prereqQuery, setPrereqQuery] = useState("");
   const [prereqResults, setPrereqResults] = useState<{ id: string; name: string }[]>([]);
   const [searchingPrereqs, setSearchingPrereqs] = useState(false);
@@ -3537,10 +3541,10 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
     }, 250);
   };
 
-  const addPrereq = (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed || prereqs.includes(trimmed)) return;
-    const nextPrereqs = [...prereqs, trimmed];
+  const addPrereq = (picked: PrereqChoice) => {
+    const trimmed = picked.name.trim();
+    if (!trimmed || prereqs.some(p => (picked.id ? p.id === picked.id : p.name === trimmed))) return;
+    const nextPrereqs = [...prereqs, { id: picked.id, name: trimmed }];
     setPrereqs(nextPrereqs);
     setPrereqQuery("");
     setPrereqResults([]);
@@ -3548,18 +3552,18 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
     // Sync activityTags
     setActivityTags(prev => {
       const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
-      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
       return [...nonPrereqs, ...prereqTags];
     });
   };
 
-  const removePrereq = (nameToRemove: string) => {
-    const nextPrereqs = prereqs.filter(p => p !== nameToRemove);
+  const removePrereq = (target: PrereqChoice) => {
+    const nextPrereqs = prereqs.filter(p => !(p.id === target.id && p.name === target.name));
     setPrereqs(nextPrereqs);
     
     setActivityTags(prev => {
       const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
-      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
       return [...nonPrereqs, ...prereqTags];
     });
   };
@@ -3647,11 +3651,11 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   {/* Badges / Tags de prérequis choisis */}
                   {prereqs.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
-                      {prereqs.map((pName, pIdx) => (
+                      {prereqs.map((p, pIdx) => (
                         <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-caption font-bold">
                           <Lock className="w-2.5 h-2.5 text-amber-400" />
-                          <span className="max-w-[120px] truncate">{pName}</span>
-                          <button type="button" onClick={() => removePrereq(pName)} className="hover:text-red-400 text-zinc-400 ml-0.5">
+                          <span className="max-w-[120px] truncate">{p.name}</span>
+                          <button type="button" onClick={() => removePrereq(p)} className="hover:text-red-400 text-zinc-400 ml-0.5">
                             <X className="w-2.5 h-2.5" />
                           </button>
                         </span>
@@ -3668,7 +3672,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                       onKeyDown={e => {
                         if (e.key === "Enter" && prereqQuery.trim()) {
                           e.preventDefault();
-                          addPrereq(prereqQuery.trim());
+                          if (prereqResults[0]) addPrereq(prereqResults[0]);
                         }
                       }}
                       className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
@@ -3684,7 +3688,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                         <button
                           key={res.id}
                           type="button"
-                          onClick={() => addPrereq(res.name)}
+                          onClick={() => addPrereq({ id: res.id, name: res.name })}
                           className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-200 hover:bg-amber-500/20 hover:text-amber-100 flex items-center gap-2 transition-colors"
                         >
                           <Search className="w-3 h-3 text-amber-400 shrink-0" />

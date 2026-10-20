@@ -363,73 +363,96 @@ export function rushResourceKey(tag: { id?: string | null; name?: string | null 
   return `id:${tag.id ?? ""}|${normResourceName(tag.name ?? "")}`;
 }
 
-/**
- * Retourne les quêtes prérequis d'une séquence (match par nom via tags `prereq_text`).
- * Indépendant de la complétion : sert à afficher/dispatcher les prérequis cliquables.
- */
-export function getPrereqRefs(seq: RushSequence | null | undefined, allMilestones: RushMilestone[]): RushPrereqRef[] {
-  if (!seq || !Array.isArray(seq.activityTags) || !seq.activityTags.length) return [];
-  const prereqNames = seq.activityTags
-    .filter((tag) => tag.type === "prereq_text")
-    .map((tag) => tag.name?.toLowerCase().trim())
-    .filter(Boolean) as string[];
-  if (!prereqNames.length) return [];
+type PrereqCandidate = {
+  seqId: string;
+  milestoneId: string;
+  /** Libellé affichable (libellé d'origine de la séquence). */
+  name: string;
+  /** Libellé normalisé (casse + espaces insécables). */
+  label: string;
+};
 
-  const out: RushPrereqRef[] = [];
-  for (const candidateMs of allMilestones) {
-    if (candidateMs.type === "SEPARATEUR" || candidateMs.type === "INFO") continue;
-    for (const candidateSeq of candidateMs.sequences) {
-      if (candidateSeq.id === seq.id) continue;
-      const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "")
-        .toLowerCase()
-        .trim();
-      if (prereqNames.includes(candidateName)) {
-        out.push({
-          seqId: candidateSeq.id,
-          milestoneId: candidateMs.id,
-          name: candidateSeq.subGuideName || candidateSeq.subGuideRef || candidateSeq.id,
-        });
-      }
+/** Index des cibles possibles d'un prérequis : les séquences des VRAIS chapitres. */
+function prereqCandidates(allMilestones: RushMilestone[]): PrereqCandidate[] {
+  const out: PrereqCandidate[] = [];
+  for (const ms of allMilestones) {
+    if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
+    for (const seq of ms.sequences) {
+      out.push({
+        seqId: seq.id,
+        milestoneId: ms.id,
+        name: seq.subGuideName || seq.subGuideRef || seq.id,
+        label: normPrereqName(seq.subGuideName || seq.subGuideRef),
+      });
     }
   }
   return out;
 }
 
 /**
- * Résout la CIBLE d'un prérequis déclaré en God vers la séquence à ouvrir.
+ * Résout UN tag `prereq_text` vers sa séquence cible.
  *
- * ⚠️ Mesure (08/10/2026) : le tag `prereq_text` ne porte **qu'un nom** —
- * `RushSylvestreAdminClient` écrit `{ type: "prereq_text", name }`. Il n'y a donc pas d'id à
- * lire : l'id se **résout**, et c'est l'ORDRE de résolution qui décide de la justesse :
- *   1. **nom exact** (casse / espaces / espaces insécables normalisés) ;
- *   2. nom **partiel** en dernier recours — l'ancien code s'arrêtait au premier `includes`,
- *      donc « La grande bibliothèque » pouvait envoyer vers « La grande bibliothèque
- *      interdite » (retour user 08/10/2026 : « le prérequis peut viser la mauvaise quête »).
+ * **L'id d'abord** (T-2c) : un tag qui porte un id ne dépend plus du libellé, donc
+ * renommer une quête dans le studio God ne casse plus ses prérequis.
+ * **Fail-closed** : un id fourni mais introuvable ⇒ `null` — on ne devine pas par nom
+ * (un id périmé doit se voir, pas retomber silencieusement sur un homonyme).
+ * Sans id (tags historiques), on garde l'ordre historique : nom exact, puis partiel.
+ */
+function resolvePrereqTag(
+  tag: { id?: string | null; name?: string | null },
+  candidates: PrereqCandidate[]
+): PrereqCandidate | null {
+  const wantedId = (tag.id ?? "").trim();
+  if (wantedId) return candidates.find((c) => c.seqId === wantedId) ?? null;
+
+  const wanted = normPrereqName(tag.name);
+  if (!wanted) return null;
+  return (
+    candidates.find((c) => c.label === wanted) ??
+    candidates.find((c) => c.label.includes(wanted)) ??
+    null
+  );
+}
+
+
+/**
+ * Retourne les quêtes prérequis d'une séquence (tag `prereq_text`, résolu par **id** puis
+ * par libellé). Indépendant de la complétion : sert à afficher/dispatcher les cibles.
+ */
+export function getPrereqRefs(seq: RushSequence | null | undefined, allMilestones: RushMilestone[]): RushPrereqRef[] {
+  if (!seq || !Array.isArray(seq.activityTags) || !seq.activityTags.length) return [];
+  const tags = seq.activityTags.filter((tag) => tag.type === "prereq_text");
+  if (!tags.length) return [];
+
+  const candidates = prereqCandidates(allMilestones);
+  const out: RushPrereqRef[] = [];
+  const seen = new Set<string>();
+  for (const tag of tags) {
+    const hit = resolvePrereqTag(tag, candidates);
+    if (!hit || hit.seqId === seq.id || seen.has(hit.seqId)) continue;
+    seen.add(hit.seqId);
+    out.push({ seqId: hit.seqId, milestoneId: hit.milestoneId, name: hit.name });
+  }
+  return out;
+}
+
+/**
+ * Résout la CIBLE d'un prérequis vers la séquence à ouvrir.
  *
- * Fonction PURE (exportée pour les tests) : `null` quand rien ne correspond — on ne devine pas.
- * Le stockage d'un **id** dans le tag est un changement God + backfill, tracé à part (T-2c).
+ * **T-2c** : le tag `prereq_text` porte désormais un **id** stable (écrit par le studio
+ * God). La résolution est donc : **id** d'abord, puis libellé (tags historiques) —
+ * nom exact, puis nom partiel. Un id fourni mais introuvable renvoie `null` :
+ * on ne devine pas (fail-closed), sinon un id périmé viserait un homonyme.
+ *
+ * Fonction PURE (exportée pour les tests) : `null` quand rien ne correspond.
  */
 export function resolvePrereqTarget(
   name: string | null | undefined,
-  allMilestones: RushMilestone[]
+  allMilestones: RushMilestone[],
+  id?: string | null
 ): { seqId: string; milestoneId: string } | null {
-  const wanted = normPrereqName(name);
-  if (!wanted) return null;
-
-  const candidates: { seqId: string; milestoneId: string; label: string }[] = [];
-  for (const ms of allMilestones) {
-    if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
-    for (const seq of ms.sequences) {
-      const label = normPrereqName(seq.subGuideName || seq.subGuideRef);
-      if (label) candidates.push({ seqId: seq.id, milestoneId: ms.id, label });
-    }
-  }
-
-  const exact = candidates.find((c) => c.label === wanted);
-  if (exact) return { seqId: exact.seqId, milestoneId: exact.milestoneId };
-  const partial = candidates.find((c) => c.label.includes(wanted));
-  if (partial) return { seqId: partial.seqId, milestoneId: partial.milestoneId };
-  return null;
+  const hit = resolvePrereqTag({ id, name }, prereqCandidates(allMilestones));
+  return hit ? { seqId: hit.seqId, milestoneId: hit.milestoneId } : null;
 }
 
 /** Normalisation d'un libellé de prérequis : espaces (dont insécables), casse. */
@@ -450,32 +473,18 @@ export function isSequenceBlockedByPrereqs(
     return false;
   }
 
-  const prereqNames = seq.activityTags
-    .filter((tag) => tag.type === "prereq_text")
-    .map((tag) => tag.name?.toLowerCase().trim())
-    .filter(Boolean) as string[];
+  const tags = seq.activityTags.filter((tag) => tag.type === "prereq_text");
+  if (!tags.length) return false;
 
-  if (!prereqNames.length) return false;
-
-  return allMilestones.some((candidateMs) => {
-    if (candidateMs.type === "SEPARATEUR" || candidateMs.type === "INFO") return false;
-    return candidateMs.sequences.some((candidateSeq) => {
-      if (candidateSeq.id === seq.id) return false;
-      const candidateName = (
-        candidateSeq.subGuideName ||
-        candidateSeq.subGuideRef ||
-        ""
-      )
-        .toLowerCase()
-        .trim();
-
-      // Si le candidat correspond à un prérequis requis ET qu'il n'est PAS complété -> bloqué
-      return (
-        prereqNames.includes(candidateName) &&
-        !allCompletedSeqIds.has(candidateSeq.id)
-      );
-    });
-  });
+  const candidates = prereqCandidates(allMilestones);
+  for (const tag of tags) {
+    const hit = resolvePrereqTag(tag, candidates);
+    if (!hit || hit.seqId === seq.id) continue;
+    // Cible connue et non cochée ⇒ bloqué. Un prérequis introuvable ne bloque pas :
+    // il est signalé dans le studio, il ne peut pas verrouiller une quête à vie.
+    if (!allCompletedSeqIds.has(hit.seqId)) return true;
+  }
+  return false;
 }
 
 /**

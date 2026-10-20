@@ -53,6 +53,7 @@ import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-
 import { DocContent } from "@/components/doc/doc-content";
 import { buildBossFicheTabs } from "@/lib/boss-fiche-tabs";
 import { listNormalMonsters, monsterFicheHref } from "@/lib/monster-fiche";
+import { resolveDungeonBossPair } from "@/lib/dungeon-boss-pair";
 
 interface PublicDungeon {
   id: string;
@@ -134,6 +135,12 @@ function MonsterImage({
     : src || null;
   const [currentSrc, setCurrentSrc] = useState<string | null>(initialSrc);
   const [failed, setFailed] = useState(false);
+  // 🐛 Mesure du 20/10/2026 : la première vague de 10 vignettes affichait toutes l'épée
+  // générique alors que `/api/assets-dofus/monsters/3416` répond **200 image/webp**. Le proxy
+  // télécharge l'asset à froid : un échec transitoire condamnait la vignette (`failed`
+  // définitif) pour toute la session. On retente **une fois** (paramètre de cache-busting
+  // inoffensif pour la route) avant de basculer sur un repli qui a du sens.
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     const next = targetId
@@ -141,18 +148,33 @@ function MonsterImage({
       : src || null;
     setCurrentSrc(next);
     setFailed(false);
+    setRetry(0);
   }, [src, targetId, assetType]);
 
   if (!currentSrc || failed) {
     return (
       <span className={cn("inline-flex items-center justify-center text-muted-foreground/40 bg-background", className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/assets/dofus/icons/crossedSwords.png" alt="" className="w-1/2 h-1/2 max-w-6 max-h-6 object-contain opacity-50" />
+        <img
+          src="/assets/dofus/icons/waveMonsters.png"
+          alt=""
+          className="w-1/2 h-1/2 max-w-6 max-h-6 object-contain opacity-50"
+        />
       </span>
     );
   }
   return (
-    <img src={currentSrc} alt={alt} className={className} loading="lazy" onError={() => setFailed(true)} />
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={retry > 0 ? `${currentSrc}${currentSrc.includes("?") ? "&" : "?"}retry=${retry}` : currentSrc}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => {
+        if (retry < 1) setRetry((n) => n + 1);
+        else setFailed(true);
+      }}
+    />
   );
 }
 
@@ -225,7 +247,21 @@ export function PublicBossDetailClient({
   initialQuestsData,
   initialAchievements,
 }: PublicBossDetailClientProps) {
-  const bossName = dungeon.bossName || dungeon.name;
+  // 🐛 Double boss (mesure du 20/10/2026) : `dungeon.bossName` porte le nom du donjon
+  // (« Comte et Nileza ») et non un monstre ⇒ l'écran demandait les stats du Comte et la
+  // simulation ne pouvait filtrer aucune salle. La règle donne le vrai boss de la salle
+  // (`focus`) et son partenaire (`partner`), sans rien inventer.
+  const bossPair = resolveDungeonBossPair({
+    name: dungeon.name,
+    bossName: dungeon.bossName,
+    dofensiveMonsterName: dungeon.dofensiveMonsterName,
+    dofensiveDungeonName: dungeon.dofensiveDungeonName,
+  });
+  const bossName = bossPair.focus;
+  /** Les deux combattants d'un donjon double boss (partenaire d'abord, focus ensuite). */
+  const doubleBossNames = bossPair.isDoubleBoss
+    ? [bossPair.partner, bossPair.focus].filter((n): n is string => !!n)
+    : [];
   // 📜 Onglets « quêtes liées » / « succès du donjon » : le serveur ne fournit ces données que
   // pour les **vrais donjons** (ni titan, ni avis de recherche) ⇒ l'onglet disparaît quand il n'y
   // a rien à montrer, jamais un onglet vide.
@@ -458,7 +494,10 @@ export function PublicBossDetailClient({
   }, [dungeon.id, activeMonsterName, activeGradeIndex]);
 
   const selectMonster = (m: FamilyMember) => {
-    if (m.isBoss || m.name === bossName) {
+    // Double boss (mesure du 20/10/2026) : la condition `m.isBoss` renvoyait TOUJOURS le
+    // boss de la fiche, donc le second boss d'une salle n'était pas sélectionnable.
+    // Seul le monstre **déjà affiché** (`bossName`) remet la vue par défaut.
+    if (m.name === bossName) {
       setActiveMonsterName(null);
     } else {
       setActiveMonsterName(m.name);
@@ -529,7 +568,7 @@ export function PublicBossDetailClient({
                   <span className="font-mono normal-case">{t.bossPage.levelShort} {dungeon.level ?? 200}</span>
                 </p>
                 <h1 className="mt-0.5 truncate text-2xl font-semibold text-foreground sm:text-3xl">
-                  {activeMonsterName ?? bossName}
+                  {activeMonsterName ?? (bossPair.isDoubleBoss ? dungeon.name : bossName)}
                 </h1>
                 <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
                   <Compass className="w-3.5 h-3.5 opacity-70" />
@@ -538,6 +577,44 @@ export function PublicBossDetailClient({
                 </p>
               </div>
             </div>
+
+            {/* Double boss — les deux combattants de la salle, cliquables (mesure du 20/10/2026) :
+                sans ce bandeau, la fiche annonçait « Comte et Nileza » mais ne montrait que le Comte. */}
+            {bossPair.isDoubleBoss && (
+              <div className="flex flex-wrap items-center gap-1.5" data-testid="boss-pair">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Double boss
+                </span>
+                {doubleBossNames.map((name) => {
+                  const monster = roomMonsters.find((m) => m.name === name);
+                  const active = (activeMonsterName ?? bossName) === name;
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => monster && selectMonster(monster)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] transition-colors",
+                        active
+                          ? "border-border-strong bg-surface/80 text-foreground"
+                          : "border-border bg-surface/40 text-muted-foreground hover:text-foreground"
+                      )}
+                      title={locale === "en" ? `Show ${name}` : `Afficher ${name}`}
+                    >
+                      {monster?.imageUrl ? (
+                        <MonsterImage
+                          src={monster.imageUrl}
+                          alt=""
+                          monsterId={monster.id}
+                          className="h-3.5 w-3.5 object-contain"
+                        />
+                      ) : null}
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Entrée du donjon : coordonnées copiables (clic) + zone. */}
             {coords && (

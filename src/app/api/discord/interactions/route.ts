@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { getAppBaseUrl } from "@/lib/utils";
 import { DOFUS_JOBS, DAYS_OF_WEEK } from "@/lib/dofus-assets";
 import { PREFERRED_ACTIVITIES } from "@/lib/profile-activities";
@@ -8,6 +9,7 @@ import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-c
 import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
 import type { ModuleKey } from "@/lib/module-types";
 import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
+import type { TicketAuthorizationContext } from "@/lib/tickets/access";
 import {
     buildTicketModalSubmittedReply,
     buildTicketOpenRefusal,
@@ -3982,6 +3984,178 @@ export async function POST(request: NextRequest) {
                         ],
                     },
                 });
+            }
+
+            // ── Commandes Slash Personnalisées de Tickets ─────────────────────────
+            if (guild_id) {
+                const { readTicketCustomCommands, interpolateTicketCommandTokens } = await import(
+                    "@/lib/tickets/custom-commands"
+                );
+                const { addRoleToMember, removeRoleFromMember } = await import("@/server/discord");
+                const { internalHandleTicketClose } = await import("@/server/actions/ticket-bot-actions");
+
+                const ticketConfig = await db.ticketGuildConfig.findFirst({
+                    where: { guild: { discordGuildId: guild_id } },
+                    include: { guild: true },
+                });
+
+                if (ticketConfig?.isEnabled) {
+                    const customCommands = readTicketCustomCommands(ticketConfig.settingsJson);
+                    const matchedCmd = customCommands.find(
+                        (c) => c.isEnabled && c.name.toLowerCase() === commandName.toLowerCase()
+                    );
+
+                    if (matchedCmd) {
+                        const channelId: string = payload.channel_id || payload.channel?.id || "";
+
+                        // Verrou 1 : Salon ticket ouvert obligatoire
+                        const ticket = await db.ticketRecord.findFirst({
+                            where: {
+                                guildId: ticketConfig.guildId,
+                                discordChannelId: channelId,
+                                status: { in: ["OPEN", "CLAIMED"] },
+                            },
+                            include: { journey: true },
+                        });
+
+                        if (!ticket) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: "💡 Cette commande est un outil d'assistance réservé aux salons tickets.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // Verrou 2 : Whitelist & Autorisations
+                        const isGuildAdmin = (BigInt(member?.permissions || "0") & BigInt(0x8)) === BigInt(0x8);
+                        let isAllowed = isGuildAdmin;
+
+                        if (!isAllowed) {
+                            if (matchedCmd.permissionMode === "ALL") {
+                                isAllowed = true;
+                            } else if (matchedCmd.permissionMode === "CUSTOM_ROLES") {
+                                const allowed = matchedCmd.allowedRoleIds || [];
+                                isAllowed = allowed.length === 0 || userRoleIds.some((r) => allowed.includes(r));
+                            } else {
+                                // STAFF_ONLY
+                                const motifStaff = ticket.journey?.staffRoleIds || [];
+                                const globalStaff = ticketConfig.staffRoleIds || [];
+                                const allStaff = [...new Set([...motifStaff, ...globalStaff])];
+                                isAllowed = allStaff.length === 0 || userRoleIds.some((r) => allStaff.includes(r));
+                            }
+                        }
+
+                        if (!isAllowed) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: "🚫 Tes rôles Discord ne t'autorisent pas à utiliser cette commande.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // Résolution du membre cible (option `membre` ou demandeur)
+                        const memberOption = payload.data?.options?.find((opt: any) => opt.name === "membre");
+                        const targetUserId = memberOption?.value ? String(memberOption.value) : ticket.creatorDiscordId;
+                        const targetUserObj = payload.data?.resolved?.users?.[targetUserId];
+                        const targetPseudo =
+                            payload.data?.resolved?.members?.[targetUserId]?.nick ||
+                            targetUserObj?.global_name ||
+                            targetUserObj?.username ||
+                            (targetUserId === ticket.creatorDiscordId ? ticket.creatorDiscordName : "Membre");
+                        const targetAvatar = targetUserObj?.avatar
+                            ? `https://cdn.discordapp.com/avatars/${targetUserId}/${targetUserObj.avatar}.png`
+                            : undefined;
+
+                        // Exécution des actions sur les rôles
+                        if (matchedCmd.addRoleIds && matchedCmd.addRoleIds.length > 0) {
+                            for (const rId of matchedCmd.addRoleIds) {
+                                await addRoleToMember(guild_id, targetUserId, rId);
+                            }
+                        }
+                        if (matchedCmd.removeRoleIds && matchedCmd.removeRoleIds.length > 0) {
+                            for (const rId of matchedCmd.removeRoleIds) {
+                                await removeRoleFromMember(guild_id, targetUserId, rId);
+                            }
+                        }
+
+                        // Contexte pour le remplacement des variables
+                        const cmdCtx = {
+                            demandeurId: ticket.creatorDiscordId,
+                            demandeurPseudo: ticket.creatorDiscordName,
+                            targetId: targetUserId,
+                            targetPseudo,
+                            targetAvatar,
+                            staffId: discordUserId,
+                            staffPseudo: member?.user?.global_name || member?.user?.username || member?.nick || "Staff",
+                            ticketNumero: ticket.ticketNumber,
+                            ticketMotif: ticket.journey?.name || "Support",
+                            channelId,
+                            serverName: ticketConfig.guild.name,
+                        };
+
+                        const textContent = interpolateTicketCommandTokens(matchedCmd.content, cmdCtx);
+
+                        // Construction de l'embed
+                        const responseEmbeds: any[] = [];
+                        if (matchedCmd.embedEnabled && matchedCmd.embed) {
+                            const emb = matchedCmd.embed;
+                            const embTitle = interpolateTicketCommandTokens(emb.title, cmdCtx);
+                            const embDesc = interpolateTicketCommandTokens(emb.description, cmdCtx);
+                            const embFooter = interpolateTicketCommandTokens(emb.footer, cmdCtx);
+
+                            const colorHex = emb.color?.replace("#", "").trim() || "5865F2";
+                            const colorInt = parseInt(colorHex, 16) || 0x5865f2;
+
+                            responseEmbeds.push({
+                                title: embTitle || undefined,
+                                description: embDesc || undefined,
+                                color: colorInt,
+                                image: emb.imageUrl ? { url: emb.imageUrl } : undefined,
+                                thumbnail: emb.thumbnailUrl ? { url: emb.thumbnailUrl } : undefined,
+                                footer: embFooter ? { text: embFooter } : undefined,
+                            });
+                        }
+
+                        // Clôture automatique du ticket si demandée
+                        if (matchedCmd.autoCloseTicket) {
+                            try {
+                                const actor = resolveInteractionActor(payload);
+                                if (actor) {
+                                    const ticketActorContext: TicketAuthorizationContext = {
+                                        discordUserId: actor.discordUserId,
+                                        discordUserName: actor.displayName,
+                                        discordUserRoleIds: actor.roleIds,
+                                        discordUserIsAdmin: actor.isGuildAdmin,
+                                        hasStaffPermission: isAllowed,
+                                    };
+                                    await internalHandleTicketClose({
+                                        discordGuildId: guild_id,
+                                        discordUserId: actor.discordUserId,
+                                        discordUserName: actor.displayName,
+                                        ticketId: ticket.id,
+                                        actor: ticketActorContext,
+                                        reason: `Exécution de la commande /${matchedCmd.name}`,
+                                    });
+                                }
+                            } catch (closeErr) {
+                                logger.warn("[TicketCustomCommand] Échec clôture automatique:", closeErr);
+                            }
+                        }
+
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: textContent || (responseEmbeds.length === 0 ? "✅ Commande exécutée." : undefined),
+                                embeds: responseEmbeds.length > 0 ? responseEmbeds : undefined,
+                                flags: matchedCmd.ephemeral ? 64 : undefined,
+                            },
+                        });
+                    }
+                }
             }
 
             return NextResponse.json({ type: 4, data: { content: "Commande inconnue.", flags: 64 } });

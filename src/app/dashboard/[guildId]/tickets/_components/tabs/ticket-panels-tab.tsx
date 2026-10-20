@@ -281,6 +281,16 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
                     </DialogHeader>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
+                        {/* Pedagogical Banner */}
+                        <div className="col-span-1 md:col-span-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs space-y-1">
+                            <div className="font-bold text-foreground flex items-center gap-1.5">
+                                <span>📢 Message d&apos;accueil du support sur Discord</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                                Ce panneau est le point de contact officiel de vos membres. Choisissez le salon Discord (ex: <code className="text-emerald-400 font-mono">#tickets</code> ou <code className="text-emerald-400 font-mono">#recrutement</code>) et cochez les motifs que vous souhaitez mettre à disposition.
+                            </p>
+                        </div>
+
                         {/* Left: Form settings */}
                         <div className="space-y-4 text-xs">
                             <div className="space-y-1.5">
@@ -322,6 +332,9 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
                                     rows={3}
                                     className="text-xs"
                                 />
+                                <p className="text-[10px] text-muted-foreground">
+                                    Markdown Discord supporté (ex: <code>**gras**</code>, <code>*italique*</code>, puces). Ce texte incite les membres à ouvrir un ticket.
+                                </p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
@@ -352,6 +365,11 @@ export function TicketPanelsTab({ guildId, panels, journeys, legacyCategoryCount
                                         <option value="BUTTONS">Boutons interactifs</option>
                                         <option value="SELECT_MENU">Menu déroulant (Select)</option>
                                     </select>
+                                    <p className="text-[10px] text-muted-foreground">
+                                        {style === "BUTTONS"
+                                            ? "Boutons : très visuel (1 à 5 motifs)."
+                                            : "Menu déroulant : ordonné (6 à 25 motifs)."}
+                                    </p>
                                 </div>
                             </div>
 

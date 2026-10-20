@@ -1,9 +1,9 @@
 "use server";
 
 import { isSuperAdmin } from "./super-admin-actions";
-import { SLASH_COMMANDS_CATALOG } from "@/lib/slash-commands-catalog";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { readTicketCustomCommands, buildTicketSlashCommandOptions } from "@/lib/tickets/custom-commands";
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
 
@@ -137,7 +137,10 @@ function buildDiscordCommandPayloads() {
  * Enregistre (PUT = upsert bulk) toutes les commandes slash sur UN serveur Discord spécifique.
  * Utilise l'endpoint Guild Commands (instantané, pas de délai de propagation de 1h comme les globales).
  */
-async function registerCommandsForGuild(discordGuildId: string): Promise<{
+export async function registerCommandsForGuild(
+    discordGuildId: string,
+    customCommandsOverride?: Array<{ name: string; description: string; options?: any[] }>
+): Promise<{
     ok: boolean;
     guildId: string;
     error?: string;
@@ -150,7 +153,30 @@ async function registerCommandsForGuild(discordGuildId: string): Promise<{
         return { ok: false, guildId: discordGuildId, error: "Missing AUTH_DISCORD_ID / DISCORD_CLIENT_ID or DISCORD_BOT_TOKEN" };
     }
 
-    const payloads = buildDiscordCommandPayloads();
+    let customPayloads = customCommandsOverride;
+    if (!customPayloads) {
+        try {
+            const ticketConfig = await db.ticketGuildConfig.findFirst({
+                where: { guild: { discordGuildId } },
+                select: { isEnabled: true, settingsJson: true },
+            });
+            if (ticketConfig?.isEnabled) {
+                const commands = readTicketCustomCommands(ticketConfig.settingsJson);
+                customPayloads = commands
+                    .filter((c) => c.isEnabled)
+                    .map((c) => ({
+                        name: c.name,
+                        description: c.description,
+                        options: buildTicketSlashCommandOptions(c),
+                    }));
+            }
+        } catch (err) {
+            logger.warn("[SlashCommandSync] Impossible de lire les commandes de ticket pour la guilde", { discordGuildId, err });
+        }
+    }
+
+    const catalogPayloads = buildDiscordCommandPayloads();
+    const payloads = [...catalogPayloads, ...(customPayloads || [])];
     const url = `${DISCORD_API_BASE}/applications/${appId}/guilds/${discordGuildId}/commands`;
 
     try {

@@ -38,9 +38,29 @@ export type CreateDocInput = {
 export async function getDocBySlug(slug: string, guildId?: string): Promise<DocPageData | null> {
     try {
         const ctx = await getUserContext(guildId);
-        const doc = await (db.docPage as any).findUnique({
+        let doc = await (db.docPage as any).findUnique({
             where: { slug }
         });
+
+        if (!doc) {
+            const { OFFICIAL_DOCS } = await import("@/lib/docs-catalog");
+            const official = OFFICIAL_DOCS.find((d) => d.slug === slug);
+            if (official) {
+                doc = {
+                    id: "official-" + official.slug,
+                    slug: official.slug,
+                    title: official.title,
+                    content: official.content,
+                    category: official.category,
+                    order: 1,
+                    isPublished: true,
+                    accessLevel: official.accessLevel || "ADMIN",
+                    guildId: null,
+                    updatedAt: new Date(),
+                    createdAt: new Date(),
+                };
+            }
+        }
 
         if (!doc || !doc.isPublished) return null;
 
@@ -52,7 +72,7 @@ export async function getDocBySlug(slug: string, guildId?: string): Promise<DocP
             if (isGod) return doc as unknown as DocPageData;
 
             // Priority 2: Delegated Admin Access (Guild Admins or specialized roles)
-            if (!ctx.canViewAdminDocs) return null;
+            if (!ctx.canViewAdminDocs && !ctx.canManageTickets) return null;
         }
 
         // RBAC Check (Member pages) : exige une connexion authentifiée

@@ -63,17 +63,30 @@ export function readGradeResists(grade: unknown): GradeResists | null {
     const raw = RESIST_KEYS.map((key) => source[key]).find(
         (candidate) => candidate && typeof candidate === "object" && !Array.isArray(candidate),
     ) as Record<string, unknown> | undefined;
-    if (!raw) return null;
 
-    const resists: GradeResists = {
-        neutral: toPercent(raw.neutral),
-        earth: toPercent(raw.earth),
-        fire: toPercent(raw.fire),
-        water: toPercent(raw.water),
-        air: toPercent(raw.air),
+    if (raw) {
+        const resists: GradeResists = {
+            neutral: toPercent(raw.neutral),
+            earth: toPercent(raw.earth),
+            fire: toPercent(raw.fire),
+            water: toPercent(raw.water),
+            air: toPercent(raw.air),
+        };
+        if (Object.values(resists).some((value) => value !== null)) return resists;
+    }
+
+    // 🔁 Repli DofusDB (mesure du 20/10/2026) : un grade **brut** ne porte pas
+    // `neutralResistance` mais `reductionNeutral` / `reductionEarth` / … (les % de
+    // résistance du jeu). Sans ce repli, un payload dont `resists` est `{}` affichait
+    // « — » partout (cas réel : Comte Harebourg 3416).
+    const fromReduction: GradeResists = {
+        neutral: toPercent(source.reductionNeutral),
+        earth: toPercent(source.reductionEarth),
+        fire: toPercent(source.reductionFire),
+        water: toPercent(source.reductionWater),
+        air: toPercent(source.reductionAir),
     };
-    const hasAny = Object.values(resists).some((value) => value !== null);
-    return hasAny ? resists : null;
+    return Object.values(fromReduction).some((value) => value !== null) ? fromReduction : null;
 }
 
 

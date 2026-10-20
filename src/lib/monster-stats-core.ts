@@ -268,13 +268,7 @@ function buildMonsterDataFromUnity(unity: UnityMonsterData): any {
             lifePoints: g.lifePoints,
             actionPoints: g.actionPoints,
             movementPoints: g.movementPoints,
-            resists: {
-                neutral: g.neutralResistance,
-                earth: g.earthResistance,
-                fire: g.fireResistance,
-                water: g.waterResistance,
-                air: g.airResistance,
-            },
+            resists: gradeResists(g),
             carac: {
                 wisdom: g.wisdom,
                 strength: g.strength,
@@ -350,6 +344,31 @@ export interface LocalMonsterFiche {
  * base, **0** « Piou » (mesuré sur la base de dev). Ce n'est donc PAS un siphon manquant :
  * le bestiaire COMPLET est déjà versionné, il suffisait de le lire.
  */
+/**
+ * Résistances d'un grade, **quelle que soit la source**.
+ *
+ * 🐛 Mesure du 20/10/2026 : DofusDB ne sert **pas** `neutralResistance` mais
+ * `reductionNeutral` / `reductionEarth` / … (les % de résistance du jeu). Le Comte
+ * Harebourg (3416) sortait donc avec `resists = {}` — la fiche affichait « — » partout —
+ * alors que Nileza, Sylargh, Missiz et Klime avaient la valeur (payload enrichi).
+ * On accepte les deux formes ; `null` reste `null` (on n'invente pas 0 %).
+ */
+function gradeResists(g: any): {
+    neutral: number | null;
+    earth: number | null;
+    fire: number | null;
+    water: number | null;
+    air: number | null;
+} {
+    return {
+        neutral: g?.neutralResistance ?? g?.reductionNeutral ?? null,
+        earth: g?.earthResistance ?? g?.reductionEarth ?? null,
+        fire: g?.fireResistance ?? g?.reductionFire ?? null,
+        water: g?.waterResistance ?? g?.reductionWater ?? null,
+        air: g?.airResistance ?? g?.reductionAir ?? null,
+    };
+}
+
 export async function getLocalMonsterFiche(identifier: string | number): Promise<LocalMonsterFiche | null> {
     const raw = typeof identifier === "number" ? String(identifier) : String(identifier ?? "").trim();
     if (!raw) return null;
@@ -971,13 +990,7 @@ export async function getMonsterStats(
                     lifePoints: g.lifePoints,
                     actionPoints: g.pa || g.actionPoints,
                     movementPoints: g.pm || g.movementPoints,
-                    resists: {
-                        neutral: g.neutralResistance,
-                        earth: g.earthResistance,
-                        fire: g.fireResistance,
-                        water: g.waterResistance,
-                        air: g.airResistance
-                    },
+                    resists: gradeResists(g),
                     carac: {
                         wisdom: carac.wisdom,
                         strength: carac.strength,

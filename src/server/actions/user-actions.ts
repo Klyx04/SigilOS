@@ -1940,12 +1940,21 @@ export async function getGuildMemberStats(guildId: string) {
 
     if (!guildConfig) throw new Error("Guild not found");
 
-    // 2. Count by status
-    const [active, archived, banned] = await Promise.all([
-        db.userProfile.count({ where: { guildId: guildConfig.id, status: "ACTIVE" } }),
-        db.userProfile.count({ where: { guildId: guildConfig.id, status: "ARCHIVED" } }),
-        db.userProfile.count({ where: { guildId: guildConfig.id, status: "BANNED" } })
-    ]);
+    // 2. Répartition par statut — **une** requête.
+    // 🐛 Mesure du 19/10/2026 (`JAVASCRIPT-NEXTJS-1X`, `GET /dashboard/[guildId]/admin/members`) :
+    // trois `count` successifs ne différaient que par la **valeur** du statut, que Sentry ne voit
+    // pas dans le SQL paramétré (`status = $2`) ⇒ trois spans identiques dans la même transaction,
+    // signalés comme N+1. Un `groupBy` rend une requête (et un span) pour le même résultat.
+    const statusCounts = await db.userProfile.groupBy({
+        by: ["status"],
+        where: { guildId: guildConfig.id },
+        _count: { _all: true },
+    });
+
+    const countByStatus = new Map(statusCounts.map((row) => [row.status, row._count._all]));
+    const active = countByStatus.get("ACTIVE") ?? 0;
+    const archived = countByStatus.get("ARCHIVED") ?? 0;
+    const banned = countByStatus.get("BANNED") ?? 0;
 
     return {
         active,

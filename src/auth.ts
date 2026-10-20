@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
 import { fetchGuildMember } from "@/server/discord"
 import { logger } from "@/lib/logger"
+import { isUnknownAuthAction } from "@/lib/auth-log-filter"
 
 import Discord from "next-auth/providers/discord"
 
@@ -32,6 +33,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // `src/instrumentation.ts`).
     logger: {
         error(error: Error) {
+            // Scan externe sur un chemin Auth.js inexistant (`/api/auth/v1/pin/verify`) : cas
+            // **normal**, pas une panne produit ⇒ `warn` (visible dans `docker logs`) au lieu
+            // d'une Issue Sentry. Mesure et règle : `src/lib/auth-log-filter.ts`.
+            if (isUnknownAuthAction(error)) {
+                logger.warn(`[auth] Action inconnue ignorée: ${error.message}`);
+                return;
+            }
             logger.error(`[auth] ${error.name}: ${error.message}`, { authError: error.name });
         },
         warn(code: string) {

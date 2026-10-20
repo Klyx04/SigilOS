@@ -12,6 +12,7 @@ import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./aud
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
+import { resetAlignmentQuests } from "@/server/rush-alignment";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
@@ -73,8 +74,6 @@ async function requireGuideWriteAccess(scope: string, limit = 20, windowMs = 60_
 /**
  * 🛡️ Guard fail-closed local : autorise super-admin OU grant/scope sur la brique Rush.
  */
-import { resetAlignmentQuests } from "@/server/rush-alignment";
-
 async function requireRushAccess() {
   const isGod = await isSuperAdmin();
   if (isGod) return true;

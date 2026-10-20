@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { cascadeResetIds } from "@/lib/rush-alignment";
+import { cascadeResetIds } from "@/lib/rush-guide-utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
 const seq = (id: string, prereqs: Array<{ id?: string; name?: string }> = []): RushSequence =>

@@ -602,3 +602,36 @@ export function findMilestoneInsertIndex(
   }
   return ordered.length;
 }
+
+/**
+ * **Cascade de réinitialisation** d'un changement de cité.
+ *
+ * En jeu, refaire son alignement invalide aussi les quêtes qui **dépendent** d'une
+ * quête d'alignement (prérequis), puis celles qui dépendent de celles-ci, etc.
+ * On calcule la **fermeture transitive** du graphe de prérequis à partir des graines.
+ *
+ * Fonction PURE : aucun accès base, aucune mutation. Les cycles sont absorbés.
+ */
+export function cascadeResetIds(
+  allMilestones: RushMilestone[],
+  seedIds: Iterable<string>
+): Set<string> {
+  const toReset = new Set(seedIds);
+  if (toReset.size === 0) return toReset;
+
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const ms of allMilestones) {
+      for (const seq of ms.sequences || []) {
+        if (toReset.has(seq.id)) continue;
+        const refs = getPrereqRefs(seq, allMilestones);
+        if (refs.some((ref) => toReset.has(ref.seqId))) {
+          toReset.add(seq.id);
+          grew = true;
+        }
+      }
+    }
+  }
+  return toReset;
+}

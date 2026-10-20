@@ -1,6 +1,6 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { cascadeResetIds } from "@/lib/rush-alignment";
+import { cascadeResetIds } from "@/lib/rush-guide-utils";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 /**

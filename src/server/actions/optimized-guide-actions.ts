@@ -73,6 +73,8 @@ async function requireGuideWriteAccess(scope: string, limit = 20, windowMs = 60_
 /**
  * 🛡️ Guard fail-closed local : autorise super-admin OU grant/scope sur la brique Rush.
  */
+import { resetAlignmentQuests } from "@/server/rush-alignment";
+
 async function requireRushAccess() {
   const isGod = await isSuperAdmin();
   if (isGod) return true;
@@ -1314,7 +1316,6 @@ export async function applyRushAlignmentFromSequence(
         }
         mule.alignment = camp;
         mule.alignmentLevel = level;
-        mule.alignmentOrder = null;
       } else {
         const last = await findLastCheckedAlignmentQuest(
           profileId,
@@ -1325,7 +1326,6 @@ export async function applyRushAlignmentFromSequence(
         if (last) {
           mule.alignment = last.camp;
           mule.alignmentLevel = last.level;
-          mule.alignmentOrder = null;
         } else {
           const base = mule.alignmentBefore as any;
           mule.alignment = base?.alignment ?? "neutre";
@@ -1348,7 +1348,6 @@ export async function applyRushAlignmentFromSequence(
         }
         data.alignment = camp;
         data.alignmentLevel = level;
-        data.alignmentOrder = null;
       } else {
         const last = await findLastCheckedAlignmentQuest(
           profileId,
@@ -1359,7 +1358,6 @@ export async function applyRushAlignmentFromSequence(
         if (last) {
           data.alignment = last.camp;
           data.alignmentLevel = last.level;
-          data.alignmentOrder = null;
         } else {
           const base = profile.alignmentBefore as any;
           data.alignment = base?.alignment ?? "neutre";
@@ -3568,4 +3566,24 @@ export async function duplicateRushSequenceAsTwin(sequenceId: string) {
   });
 
   return { success: true as const, data: { id: twin.id, alignReq: twinCamp } };
+}
+
+/**
+ * **Logique jeu** : changer de cité réinitialise les quêtes d'alignement.
+ *
+ * Appelée par le sélecteur d'alignement (dashboard et overlay) AVANT l'écriture du
+ * nouveau camp. Les quêtes communes, prérequis, donjons et succès **gardent** leur
+ * avancement : seules les séquences marquées `alignment_set` sont retirées.
+ */
+export async function resetAlignmentProgress(guildId: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { success: rateOk } = await rateLimit(`guide-alignment-reset:${ctx.profileId}`, 10, 60_000);
+  if (!rateOk) return { success: false as const, error: "Trop de requêtes, veuillez patienter." };
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+  const cleared = await resetAlignmentQuests(profileId, characterSlot);
+  return { success: true as const, data: { cleared } };
 }

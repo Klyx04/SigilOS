@@ -18,7 +18,6 @@ export function RushOverlayAlignmentModal({
   members,
   selfAlignment,
   selfOrder,
-  selfLevel,
   mulePseudo,
   onClose,
 }: {
@@ -26,7 +25,6 @@ export function RushOverlayAlignmentModal({
   members: AlignmentMember[];
   selfAlignment?: string | null;
   selfOrder?: string | null;
-  selfLevel?: number | null;
   mulePseudo?: string | null;
   onClose: () => void;
 }) {
@@ -86,7 +84,6 @@ export function RushOverlayAlignmentModal({
               mulePseudo={mulePseudo}
               alignment={selfAlignment}
               alignmentOrder={selfOrder}
-              alignmentLevel={selfLevel ?? 0}
               onSaved={() => setMode("list")}
               onCancel={() => setMode("list")}
               className="px-3 py-3"

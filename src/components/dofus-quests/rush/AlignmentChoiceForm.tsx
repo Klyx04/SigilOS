@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { ALIGNMENTS, ORDERS, getAlignmentLevelSteps } from "@/lib/dofus-assets";
+import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { updateUserProfile, updateMuleAlignment } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,6 @@ export function AlignmentChoiceForm({
   mulePseudo,
   alignment,
   alignmentOrder,
-  alignmentLevel,
   onSaved,
   onCancel,
   className,
@@ -30,7 +29,6 @@ export function AlignmentChoiceForm({
   mulePseudo?: string | null;
   alignment?: string | null;
   alignmentOrder?: string | null;
-  alignmentLevel?: number;
   onSaved?: () => void;
   onCancel?: () => void;
   className?: string;
@@ -38,7 +36,6 @@ export function AlignmentChoiceForm({
   const router = useRouter();
   const [camp, setCamp] = useState<string | null>(alignment && alignment !== "neutre" ? alignment : null);
   const [order, setOrder] = useState<string | null>(alignmentOrder ?? null);
-  const [level, setLevel] = useState(alignmentLevel ?? 0);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -46,16 +43,11 @@ export function AlignmentChoiceForm({
   useEffect(() => {
     setCamp(alignment && alignment !== "neutre" ? alignment : null);
     setOrder(alignmentOrder ?? null);
-    setLevel(alignmentLevel ?? 0);
     setMessage(null);
-  }, [alignment, alignmentOrder, alignmentLevel]);
+  }, [alignment, alignmentOrder]);
 
   const orders = camp
     ? (ORDERS as unknown as Record<string, Array<Record<string, unknown>>>)[camp] || []
-    : [];
-  const selectedOrder = orders.find((o) => o.id === order);
-  const levelSteps = selectedOrder
-    ? (getAlignmentLevelSteps(selectedOrder as never) as Array<{ level: number; title?: string }>)
     : [];
 
   const opt = (active: boolean) =>
@@ -70,10 +62,21 @@ export function AlignmentChoiceForm({
     setSaving(true);
     setMessage(null);
     try {
+      // Logique jeu : changer de CITÉ réinitialise les quêtes d'alignement.
+      // Les autres quêtes (communes, prérequis, donjons) gardent leur avancement.
+      const campChanged = (camp ?? "neutre") !== (alignment ?? "neutre");
+      if (campChanged) {
+        const { resetAlignmentProgress } = await import("@/server/actions/optimized-guide-actions");
+        const reset = await resetAlignmentProgress(guildId, mulePseudo ?? undefined);
+        if (!reset.success) {
+          setMessage(reset.error || "Réinitialisation impossible");
+          return;
+        }
+      }
+
       const payload = {
         alignment: camp ?? "neutre",
         alignmentOrder: camp ? (order ?? null) : null,
-        alignmentLevel: camp && selectedOrder ? level : 0,
       };
       const res = mulePseudo
         ? await updateMuleAlignment({ guildId, pseudo: mulePseudo, ...payload })
@@ -108,7 +111,6 @@ export function AlignmentChoiceForm({
                 onClick={() => {
                   setCamp(alg.id === "neutre" ? null : alg.id);
                   setOrder(null);
-                  setLevel(0);
                 }}
                 aria-pressed={active}
                 className={cn(opt(active), "flex items-center gap-1.5")}
@@ -134,7 +136,6 @@ export function AlignmentChoiceForm({
                 type="button"
                 onClick={() => {
                   setOrder(String(ord.id));
-                  setLevel(0);
                 }}
                 aria-pressed={order === ord.id}
                 className={cn(opt(order === ord.id), "flex w-full items-center gap-2 text-left")}
@@ -142,36 +143,6 @@ export function AlignmentChoiceForm({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={String(ord.icon)} alt="" className="h-4 w-4 object-contain" />
                 <span className="truncate">{String(ord.name)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {selectedOrder && (
-        <div>
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Tranche
-          </p>
-          <div className="flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={() => setLevel(0)}
-              aria-pressed={level === 0}
-              className={opt(level === 0)}
-            >
-              Aucune
-            </button>
-            {levelSteps.map(({ level: k, title }) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setLevel(k)}
-                aria-pressed={level === k}
-                title={title || `Niveau ${k}`}
-                className={cn(opt(level === k), "px-1.5 py-0.5 text-[10px]")}
-              >
-                {k}
               </button>
             ))}
           </div>

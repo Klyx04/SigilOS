@@ -46,7 +46,6 @@ export default function AlignmentModal({
           mulePseudo={mulePseudo}
           alignment={alignment}
           alignmentOrder={alignmentOrder}
-          alignmentLevel={alignmentLevel}
           onSaved={close}
           onCancel={close}
         />

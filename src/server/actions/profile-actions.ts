@@ -1314,7 +1314,7 @@ const UpdateMuleAlignmentSchema = z.object({
         .max(PSEUDO_MAX_LENGTH, PSEUDO_TOO_LONG_MESSAGE),
     alignment: z.string().nullable(),
     alignmentOrder: z.string().nullable(),
-    alignmentLevel: z.number().min(0).max(100),
+    alignmentLevel: z.number().min(0).max(100).optional(),
 });
 
 /**
@@ -1356,7 +1356,7 @@ export async function updateMuleAlignment(rawData: z.infer<typeof UpdateMuleAlig
             ...alts[idx],
             alignment: alignment || "neutre",
             alignmentOrder: isNeutre ? null : alignmentOrder,
-            alignmentLevel: isNeutre ? 0 : alignmentLevel,
+            alignmentLevel: isNeutre ? 0 : (alignmentLevel ?? alts[idx].alignmentLevel ?? 0),
         };
 
         await db.userProfile.update({

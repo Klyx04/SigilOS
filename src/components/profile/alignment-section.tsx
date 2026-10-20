@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Shield, Check, Info, Sparkles } from "lucide-react";
-import { ALIGNMENTS, ORDERS, getAlignment, getOrder, getAlignmentLevelSteps } from "@/lib/dofus-assets";
+import { ALIGNMENTS, ORDERS, getAlignment, getOrder } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
@@ -247,51 +247,6 @@ export function AlignmentSection({
                                     </div>
                                 </section>
 
-                                {/* Level/Tranche Selection */}
-                                {selectedOrder && (
-                                    <section className="space-y-4 bg-surface/30 p-6 rounded-2xl border border-border">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <h4 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
-                                                <Info className="w-4 h-4" /> 3. Niveau d'Alignement (Tranche)
-                                            </h4>
-                                        </div>
-                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                            {getAlignmentLevelSteps(selectedOrder).map(({ level, title }) => {
-                                                const isExactSelected = localLevel === level;
-                                                return (
-                                                    <button
-                                                        key={level}
-                                                        onClick={() => setLocalLevel(level)}
-                                                        className={cn(
-                                                            "relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 text-center gap-2",
-                                                            isExactSelected
-                                                                ? "border-warning bg-warning/20 "
-                                                                : "border-border bg-background/50 hover:border-border-strong hover:bg-surface"
-                                                        )}
-                                                    >
-                                                        <span className={cn(
-                                                            "text-lg font-black italic",
-                                                            isExactSelected ? "text-warning" : "text-muted-foreground"
-                                                        )}>
-                                                            Niv {level}
-                                                        </span>
-                                                        <span className={cn(
-                                                            "text-caption uppercase font-bold leading-tight",
-                                                            isExactSelected ? "text-foreground" : "text-muted-foreground"
-                                                        )}>
-                                                            {title || getLevelTitle(selectedAlignment, selectedOrder, level)}
-                                                        </span>
-                                                        {isExactSelected && (
-                                                            <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-warning flex items-center justify-center">
-                                                                <Check className="w-3 h-3 text-foreground" />
-                                                            </div>
-                                                        )}
-                                                    </button>
-                                                )
-                                            })}
-                                        </div>
-                                    </section>
-                                )}
 
                             </>
                         )}

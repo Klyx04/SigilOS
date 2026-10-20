@@ -1287,7 +1287,6 @@ export default function GuideOverlayClient({
           members={alignmentMembers}
           selfAlignment={alignmentMembers.find((m) => m.isSelf)?.alignment ?? null}
           selfOrder={alignmentMembers.find((m) => m.isSelf)?.alignmentOrder ?? null}
-          selfLevel={alignmentMembers.find((m) => m.isSelf)?.alignmentLevel ?? 0}
           mulePseudo={!character?.isMain ? character?.pseudo ?? null : null}
           onClose={() => setShowAlignment(false)}
         />

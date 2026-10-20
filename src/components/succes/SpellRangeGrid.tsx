@@ -169,6 +169,12 @@ interface SpellRangeGridProps {
     onGradeChange?: (idx: number) => void;
     /** Monstres de la famille du donjon pour peupler la salle selon le butin (4..8). */
     monsters?: { id: number; name: string; isBoss?: boolean; imageUrl?: string | null }[];
+    /**
+     * Second boss d'une salle **double boss** (ex. « Comte et Nileza ») : posé d'office sur
+     * une case de départ alliée libre, avec son icône et son nom (mesure du 20/10/2026 —
+     * la grille ne modélisait qu'un caster + des jetons anonymes).
+     */
+    companion?: { id?: number; name: string; imageUrl?: string | null } | null;
     /** Mode compact optimisé pour l'overlay PiP (largeur réduite, zoom libre, marges réduites). */
     compact?: boolean;
     /** Échelle du sprite du boss (les titans occupent plusieurs cases en vrai combat). */
@@ -235,6 +241,7 @@ export function SpellRangeGrid({
     activeGradeIndex,
     onGradeChange,
     monsters,
+    companion,
     compact = false,
     entityScale = 1,
     allowFreeCasterMove = false,
@@ -274,6 +281,9 @@ export function SpellRangeGrid({
         x: CENTER,
         y: CENTER,
     });
+
+    // Second boss d'une salle double (Comte + Nileza…) : posé sur une case de départ alliée.
+    const [companionPos, setCompanionPos] = useState<DofusPos | null>(null);
 
     // Orientation du lanceur (0: SE, 1: SO, 2: NO, 3: NE).
     const [casterFacing, setCasterFacing] = useState<number>(0);
@@ -322,6 +332,21 @@ export function SpellRangeGrid({
     const [mapData, setMapData] = useState<DofensiveMapData | null>(null);
     const [mapLoading, setMapLoading] = useState(false);
     const [mapError, setMapError] = useState<string | null>(null);
+
+    // Le second boss suit la carte : première case de départ alliée libre, jamais celle du
+    // caster. Sans carte réelle (grille vide), il n'est pas posé — on n'invente pas de case.
+    useEffect(() => {
+        if (!companion || !mapData) {
+            setCompanionPos(null);
+            return;
+        }
+        const free = allyStartPositions(mapData.allyCells, MAX_ALLIES).find(
+            (p) => !(p.x === casterPos.x && p.y === casterPos.y)
+        );
+        setCompanionPos(free ?? null);
+        // ⚠️ Dépendre de l'**identité** du compagnon, pas de l'objet (recréé à chaque rendu).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [companion?.name, companion?.id, mapData, casterPos.x, casterPos.y]);
 
     // Menu déroulant « Salle » (salles du donjon) : état local au composant. Le **sélecteur de
     // sort** vit désormais dans `SimulationSpellPicker` (source unique des deux modes) : plus de
@@ -2682,6 +2707,23 @@ export function SpellRangeGrid({
                                                 </g>
                                             );
                                         })}
+                                        {companion && companionPos && companionPos.x === x && companionPos.y === y && (() => {
+                                            // Second boss d'une salle double : son icône réelle + son nom,
+                                            // pour qu'on voie les DEUX combattants sur la grille.
+                                            const src = companion.id
+                                                ? `/api/assets-dofus/monsters/${companion.id}${companion.imageUrl ? `?url=${encodeURIComponent(companion.imageUrl)}` : ""}`
+                                                : companion.imageUrl ?? "/assets/dofus/icons/waveMonsters.png";
+                                            return (
+                                                <g pointerEvents="none" data-companion="1">
+                                                    <g transform={`translate(${sx - 21}, ${sy - 30})`}>
+                                                        <image href={src} x="0" y="0" width="42" height="42" className="drop-shadow-2xl" />
+                                                    </g>
+                                                    <text x={sx} y={sy + 27} textAnchor="middle" fontSize="9" className="fill-current opacity-80 select-none">
+                                                        {companion.name}
+                                                    </text>
+                                                </g>
+                                            );
+                                        })()}
                                         {enemiesEnabled && enemies.map((enemy, ei) => {
                                             if (enemy.x !== x || enemy.y !== y) return null;
                                             const isSel = selectedEnemy === ei;

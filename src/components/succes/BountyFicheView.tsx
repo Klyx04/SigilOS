@@ -94,7 +94,7 @@ export function BountyFicheView({
     // fiche donjon interne (`@/lib/boss-fiche-tabs`).
     const tabs = buildBossFicheTabs({
         entity: "bounty",
-        counts: { grades: grades.length, roomMonsters: 0, monsters: 0, quests: 0, achievements: 0 },
+        counts: { grades: grades.length, roomMonsters: 0, quests: 0, achievements: 0 },
         hasMechanics: !!(fiche as any)?.meta?.mechanics,
     });
 

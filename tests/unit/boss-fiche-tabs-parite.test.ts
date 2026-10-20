@@ -36,14 +36,15 @@ const codeOf = (p: string) =>
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
-const ALL: BossFicheTabCounts = { grades: 5, roomMonsters: 4, monsters: 3, quests: 3, achievements: 2 };
+const ALL: BossFicheTabCounts = { grades: 5, roomMonsters: 4, quests: 3, achievements: 2 };
 const idsOf = (tabs: { id: string }[]) => tabs.map((t) => t.id);
 
 
 describe("buildBossFicheTabs — jeu d'onglets canonique", () => {
-    it("avec toutes les données : les 8 onglets, dans l'ordre canonique", () => {
+    it("avec toutes les données : les onglets utiles, dans l'ordre canonique", () => {
         const tabs = buildBossFicheTabs({ entity: "dungeon", counts: ALL, hasMechanics: true });
-        expect(idsOf(tabs)).toEqual([...BOSS_FICHE_TAB_ORDER]);
+        // L'onglet « Monstres » est réservé à la fiche d'un monstre : sur un donjon, il
+        // doublonnait « Monstres de la salle » (les 8 sont inclus dans les 10).
         expect(idsOf(tabs)).toEqual([
             "sorts",
             "sim",
@@ -51,10 +52,17 @@ describe("buildBossFicheTabs — jeu d'onglets canonique", () => {
             "grades",
             "loot",
             "family",
-            "monsters",
             "quests",
             "achievements",
         ]);
+        expect(idsOf(tabs)).not.toContain("monsters");
+    });
+
+    it("l'onglet « Monstres » n'existe plus (doublon supprimé le 20/10/2026)", () => {
+        // Il était toujours masqué (les monstres normaux sont un sous-ensemble des monstres de
+        // salle) : le lien bestiaire vit désormais sur la carte, pas dans un onglet.
+        const monster = buildBossFicheTabs({ entity: "monster", counts: ALL, hasMechanics: true });
+        expect(idsOf(monster)).not.toContain("monsters");
     });
 
     it("chaque onglet porte un libellé et un picto local (aucun hotlink)", () => {
@@ -71,7 +79,7 @@ describe("buildBossFicheTabs — jeu d'onglets canonique", () => {
     it("les onglets sans donnée sortent (jamais d'onglet vide)", () => {
         const tabs = buildBossFicheTabs({
             entity: "dungeon",
-            counts: { grades: 1, roomMonsters: 1, monsters: 0, quests: 0, achievements: 0 },
+            counts: { grades: 1, roomMonsters: 1, quests: 0, achievements: 0 },
             hasMechanics: false,
         });
         // `sorts`, `sim` et `loot` sont toujours là : leurs vues gèrent l'état vide.
@@ -137,7 +145,6 @@ describe("Parité — la MÊME définition dans les trois surfaces", () => {
         expect(code).toMatch(/detailTab === "strategy"/);
         expect(code).toMatch(/detailTab === "grades"/);
         expect(code).toMatch(/detailTab === "achievements"/);
-        expect(code).toMatch(/detailTab === "monsters"/);
         expect(code).toMatch(/<SuccesBossEncyclo/);
         expect(code).toMatch(/<PublicBossAchievementsTab/);
     });
@@ -157,12 +164,13 @@ describe("Parité — la MÊME définition dans les trois surfaces", () => {
         expect(code).toMatch(/getBountyFiche\(/);
     });
 
-    it("l'onglet Monstres des fiches passe par la règle pure `@/lib/monster-fiche`", () => {
+    it("le lien bestiaire est porté par les cartes de salle (l'onglet « Monstres » a disparu)", () => {
         for (const path of [PUBLIC_FICHE, INTERNAL_DUNGEON]) {
             const code = codeOf(path);
-            expect(code, path).toMatch(/listNormalMonsters/);
             expect(code, path).toMatch(/monsterFicheHref\(/);
-            expect(code, path).toMatch(/detailTab === "monsters"/);
+            // Le doublon d'onglets a été supprimé le 20/10/2026 : les monstres normaux sont
+            // un sous-ensemble des monstres de la salle, le lien remplace l'onglet.
+            expect(code, path).not.toMatch(/detailTab === "monsters"/);
         }
     });
 });

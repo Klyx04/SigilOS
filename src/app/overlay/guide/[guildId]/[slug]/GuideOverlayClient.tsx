@@ -48,17 +48,13 @@ import { dofusMetaIndex, type RushDofusMeta } from "@/lib/rush-dofus-meta";
 const DOFUS_DEFS: Record<string, RushDofusMeta> = dofusMetaIndex();
 
 /** Libellé court d'un membre : « Bontarien · Cœur Vaillant · T42 ». */
-function alignmentSummary(
-  camp: string,
-  orderId?: string | null,
-  level?: number | null
-): string {
+function alignmentSummary(camp: string, orderId?: string | null): string {
   const campLabel = ALIGNMENTS.find((a) => a.id === camp)?.name ?? camp;
-  if (!orderId) return level ? `${campLabel} · T${level}` : campLabel;
+  if (!orderId) return campLabel;
   const orders = (ORDERS as unknown as Record<string, Array<Record<string, unknown>>>)[camp] || [];
   const order = orders.find((o) => o.id === orderId);
   const orderLabel = order ? String(order.name) : orderId;
-  return level ? `${campLabel} · ${orderLabel} · T${level}` : `${campLabel} · ${orderLabel}`;
+  return `${campLabel} · ${orderLabel}`;
 }
 
 type Props = {
@@ -216,7 +212,7 @@ export default function GuideOverlayClient({
         const where = milestones.find((x) => x.id === m.milestoneId);
         // Alignement (cité · Ordre · tranche) lu côté serveur, puis la position.
         const parts = [
-          m.alignment ? alignmentSummary(m.alignment, m.alignmentOrder, m.alignmentLevel) : "",
+          m.alignment ? alignmentSummary(m.alignment, m.alignmentOrder) : "",
           where?.title ? `sur « ${where.title} »` : "",
         ].filter(Boolean);
         return {

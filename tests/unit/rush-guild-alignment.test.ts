@@ -43,12 +43,14 @@ describe("panneau « Alignement de la guilde »", () => {
     expect(html).toContain("Neutres");
   });
 
-  it("liste chaque membre dans son camp, avec sa tranche réelle", () => {
+  it("liste chaque membre dans son camp, sans niveau (l'Ordre fait foi)", () => {
     const html = render();
     expect(html).toContain("Kaelis");
     expect(html).toContain("Drakha");
-    expect(html).toContain("T42");
-    expect(html).toContain("T37");
+    // Plus aucune tranche affichée : la demande est « se débarrasser des tranches ».
+    expect(html).not.toContain("T42");
+    expect(html).not.toContain("T37");
+    expect(html).not.toMatch(/Tranche/);
     // Le neutre est listé à part, il n'est pas inventé dans un camp.
     expect(html).toContain("Nina");
   });

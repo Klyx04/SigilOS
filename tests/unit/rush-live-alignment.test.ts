@@ -61,9 +61,10 @@ describe("présence client — type et libellé", () => {
     expect(emit).not.toContain("alignment");
   });
 
-  it("les bulles « en ligne » affichent cité · Ordre · tranche", () => {
+  it("les bulles « en ligne » affichent cité · Ordre (sans tranche)", () => {
     const code = read(CLIENT);
-    expect(code).toContain("alignmentSummary(m.alignment, m.alignmentOrder, m.alignmentLevel)");
+    expect(code).toContain("alignmentSummary(m.alignment, m.alignmentOrder)");
     expect(code).toMatch(/function alignmentSummary\(/);
+    expect(code).not.toMatch(/T\$\{level\}/);
   });
 });

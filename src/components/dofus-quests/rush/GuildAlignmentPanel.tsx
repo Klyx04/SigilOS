@@ -2,7 +2,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
-import { getAlignment, getAlignmentLevelSteps, ORDERS } from "@/lib/dofus-assets";
+import { getAlignment, ORDERS } from "@/lib/dofus-assets";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
 
 /**
@@ -38,16 +38,6 @@ const ORDER_ICON = (camp: Camp, orderId: string) => {
   const slug = ORDER_SLUGS.find((needle) => orderId.includes(needle)) ?? ORDER_SLUGS[0];
   return `/ordres/${camp === "bontarien" ? "bontarien" : "brakmarien"}/${slug}.png`;
 };
-
-/** Titre de tranche (« Mètre des Illusions »…) depuis la source unique des Ordres. */
-function trancheTitle(camp: Camp, orderId: string, level: number): string {
-  if (!level) return "";
-  const orders = (ORDERS as unknown as Record<string, Array<Record<string, unknown>>>)[camp] || [];
-  const order = orders.find((o) => o.id === orderId);
-  if (!order) return "";
-  const steps = getAlignmentLevelSteps(order as never) as Array<{ level: number; title?: string }>;
-  return steps.find((s) => s.level === level)?.title ?? "";
-}
 
 function groupByOrder(camp: Camp, members: AlignmentMember[]): Group[] {
   const groups = new Map<string, Group>();
@@ -106,9 +96,7 @@ function SelfBadge() {
   );
 }
 
-function MemberRow({ member, camp }: { member: AlignmentMember; camp: Camp | null }) {
-  const level = member.alignmentLevel ?? 0;
-  const title = camp && member.alignmentOrder ? trancheTitle(camp, member.alignmentOrder, level) : "";
+function MemberRow({ member }: { member: AlignmentMember }) {
   return (
     <li className="flex items-center gap-2.5 rounded-[4px] px-1.5 py-1.5 transition-colors hover:bg-elevated">
       <Avatar member={member} />
@@ -117,16 +105,7 @@ function MemberRow({ member, camp }: { member: AlignmentMember; camp: Camp | nul
           <span className="truncate text-[12px] font-semibold text-foreground">{member.userName}</span>
           {member.isSelf && <SelfBadge />}
         </span>
-        {title && <span className="block truncate text-[10px] text-muted-foreground">{title}</span>}
       </span>
-      {level > 0 && (
-        <span
-          className="shrink-0 rounded-[3px] border border-border bg-background px-1 font-mono text-[10px] text-muted-foreground"
-          title={`Tranche ${level}`}
-        >
-          {`T${level}`}
-        </span>
-      )}
     </li>
   );
 }
@@ -156,7 +135,7 @@ function SummaryCell({
   );
 }
 
-function OrderCard({ group, camp }: { group: Group; camp: Camp }) {
+function OrderCard({ group }: { group: Group }) {
   return (
     <div className="overflow-hidden rounded-[6px] border border-border bg-surface/40">
       <p className="flex items-center gap-1.5 border-b border-border/70 px-2 py-1 text-[10px] font-semibold text-foreground">
@@ -169,7 +148,7 @@ function OrderCard({ group, camp }: { group: Group; camp: Camp }) {
       </p>
       <ul className="p-0.5">
         {group.members.map((member) => (
-          <MemberRow key={`${member.profileId}-${member.userName}`} member={member} camp={camp} />
+          <MemberRow key={`${member.profileId}-${member.userName}`} member={member} />
         ))}
       </ul>
     </div>
@@ -194,7 +173,7 @@ function CampSection({ camp, members }: { camp: Camp; members: AlignmentMember[]
       </header>
       <div className="space-y-1">
         {groups.map((group) => (
-          <OrderCard key={group.orderId} group={group} camp={camp} />
+          <OrderCard key={group.orderId} group={group} />
         ))}
       </div>
     </section>
@@ -251,11 +230,7 @@ export function GuildAlignmentPanel({ members, onChangeAlignment }: Props) {
             <div className="overflow-hidden rounded-[6px] border border-border bg-surface/40">
               <ul className="p-0.5">
                 {neutres.map((member) => (
-                  <MemberRow
-                    key={`${member.profileId}-${member.userName}`}
-                    member={member}
-                    camp={null}
-                  />
+                  <MemberRow key={`${member.profileId}-${member.userName}`} member={member} />
                 ))}
               </ul>
             </div>

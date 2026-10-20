@@ -2886,7 +2886,7 @@ export default function OptimizedGuideClient({
                     title="Modifier mon alignement / ordre"
                   >
                     {(() => {
-                      const { alignment, alignmentOrder, alignmentLevel } = resolvedCharInfo;
+                      const { alignment, alignmentOrder } = resolvedCharInfo;
                       if (!alignment || alignment === "neutre") {
                         return (
                           <>
@@ -2903,7 +2903,6 @@ export default function OptimizedGuideClient({
                       const od = alignmentOrder ? ords.find((o: any) => o.id === alignmentOrder) : null;
                       if (od) {
                         const isBonta = alignment === "bontarien";
-                        const trancheTitle = alignmentLevel && alignmentLevel > 0 ? (od as any).levels?.[alignmentLevel as number] || "" : "";
                         return (
                           <>
                             <div className={"guide-hero-card-icon align " + (isBonta ? "bonta" : "brak")}>
@@ -2912,12 +2911,6 @@ export default function OptimizedGuideClient({
                             <div className="text-left min-w-0 flex-1">
                               <p className="guide-hero-card-label">Ordre</p>
                               <p className={"guide-hero-card-value " + (isBonta ? "bonta" : "brak")}>{od.name}</p>
-                              {(alignmentLevel ?? 0) > 0 && (
-                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                                  <span className="guide-hero-tranche">Tranche {alignmentLevel}</span>
-                                  {trancheTitle && <span className="guide-hero-tranche-title">{trancheTitle}</span>}
-                                </div>
-                              )}
                             </div>
                           </>
                         );

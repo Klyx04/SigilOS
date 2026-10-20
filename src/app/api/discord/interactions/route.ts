@@ -1388,6 +1388,7 @@ export async function POST(request: NextRequest) {
                     internalHandleTicketTranscript,
                     internalHandleTicketDelete,
                     internalHandleTicketCsat,
+                    guardTicketAction,
                 } = await import("@/server/actions/ticket-bot-actions");
                 const { buildCloseConfirmRows, buildDeleteConfirmRows } = await import(
                     "@/lib/tickets/embeds"
@@ -1401,7 +1402,7 @@ export async function POST(request: NextRequest) {
                         return NextResponse.json({ type: 4, data: { content: "Catégorie non spécifiée", flags: 64 } });
                     }
 
-                    // 🆕 Blacklist : un rôle bloqué ne peut pas ouvrir de ticket.
+                    // 🆕 Contrôles préalables immédiats au 1er clic (fail-fast, aucun questionnaire affiché si non éligible)
                     {
                         const { db: blacklistDb } = await import("@/lib/prisma");
                         const { readTicketPermissionSettings, isBlacklisted, isTicketOpenAllowedByRoles } =
@@ -1410,9 +1411,64 @@ export async function POST(request: NextRequest) {
                             where: { discordGuildId: guild_id },
                             select: {
                                 id: true,
-                                ticketConfig: { select: { settingsJson: true } },
+                                ticketConfig: {
+                                    select: {
+                                        isEnabled: true,
+                                        settingsJson: true,
+                                        maxActiveTicketsPerUser: true,
+                                        maxTicketsTotalGuild: true,
+                                    },
+                                },
                             },
                         });
+
+                        if (!guildForBlacklist?.ticketConfig?.isEnabled) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: "🚫 Le module de support n'est pas activé sur ce serveur.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // Quota actif par membre (vérifié AVANT de proposer un formulaire)
+                        const maxActiveUser = guildForBlacklist.ticketConfig.maxActiveTicketsPerUser ?? 1;
+                        const activeUserTickets = await blacklistDb.ticketRecord.count({
+                            where: {
+                                guildId: guildForBlacklist.id,
+                                creatorDiscordId: ticketActorContext.discordUserId,
+                                status: { in: ["OPEN", "CLAIMED", "PENDING_USER"] },
+                            },
+                        });
+                        if (activeUserTickets >= maxActiveUser) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: `❌ Tu as déjà ${activeUserTickets} ticket(s) ouvert(s). Attends leur résolution avant d'en ouvrir un nouveau.`,
+                                    flags: 64,
+                                },
+                            });
+                        }
+
+                        // Quota global du serveur
+                        const maxGuildTickets = guildForBlacklist.ticketConfig.maxTicketsTotalGuild ?? 50;
+                        const activeGuildTickets = await blacklistDb.ticketRecord.count({
+                            where: {
+                                guildId: guildForBlacklist.id,
+                                status: { in: ["REQUESTED", "OPEN", "CLAIMED", "PENDING_USER", "RESOLVED", "ARCHIVE_FAILED"] },
+                            },
+                        });
+                        if (activeGuildTickets >= maxGuildTickets) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: `❌ Cette guilde a déjà ${activeGuildTickets} ticket(s) ouvert(s) (maximum ${maxGuildTickets}). Réessaie après une clôture.`,
+                                    flags: 64,
+                                },
+                            });
+                        }
+
                         const blacklistSettings = readTicketPermissionSettings(
                             (guildForBlacklist?.ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
                         );
@@ -1560,6 +1616,18 @@ export async function POST(request: NextRequest) {
                     });
                 } else if (action === "note") {
                     const ticketId = entityId;
+                    const guard = await guardTicketAction({
+                        ticketId,
+                        discordGuildId: guild_id,
+                        access: "staff",
+                        actor: ticketActorContext,
+                    });
+                    if (!guard.ok) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: guard.message || "Seul le staff peut ajouter une note.", flags: 64 },
+                        });
+                    }
                     return NextResponse.json({
                         type: 9, // MODAL
                         data: {
@@ -1585,6 +1653,18 @@ export async function POST(request: NextRequest) {
                     });
                 } else if (action === "rename") {
                     const ticketId = entityId;
+                    const guard = await guardTicketAction({
+                        ticketId,
+                        discordGuildId: guild_id,
+                        access: "staff",
+                        actor: ticketActorContext,
+                    });
+                    if (!guard.ok) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: guard.message || "Seul le staff peut renommer ce ticket.", flags: 64 },
+                        });
+                    }
                     return NextResponse.json({
                         type: 9, // MODAL
                         data: {
@@ -1614,6 +1694,19 @@ export async function POST(request: NextRequest) {
                     // (`requireConfirm: false` dans `settingsJson`). Le motif est demandé
                     // à l'étape suivante (`close_confirm` → modale `modal_close`).
                     const ticketId = entityId;
+                    const guard = await guardTicketAction({
+                        ticketId,
+                        discordGuildId: guild_id,
+                        access: "staff_or_creator",
+                        buttonKey: "close",
+                        actor: ticketActorContext,
+                    });
+                    if (!guard.ok) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: guard.message || "Tu n'as pas l'autorisation de fermer ce ticket.", flags: 64 },
+                        });
+                    }
                     const { db: closeDb } = await import("@/lib/prisma");
                     const {
                         readTicketPermissionSettings,
@@ -1733,6 +1826,19 @@ export async function POST(request: NextRequest) {
                 } else if (action === "delete") {
                     // 🆕 La suppression est un geste explicite avec confirmation.
                     const ticketId = entityId;
+                    const guard = await guardTicketAction({
+                        ticketId,
+                        discordGuildId: guild_id,
+                        access: "staff",
+                        buttonKey: "delete",
+                        actor: ticketActorContext,
+                    });
+                    if (!guard.ok) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: guard.message || "Seul le staff peut supprimer ce ticket.", flags: 64 },
+                        });
+                    }
                     const { db: deleteDb } = await import("@/lib/prisma");
                     const { readTicketMessagingSettings: readDeleteMessaging } = await import(
                         "@/lib/tickets/category-permissions"
@@ -1881,6 +1987,24 @@ export async function POST(request: NextRequest) {
                         rating,
                         actor: ticketActorContext,
                     });
+                    if (res.success) {
+                        const stars = "⭐".repeat(rating);
+                        const originalEmbed = (payload.message?.embeds?.[0] as Record<string, unknown>) || {};
+                        return NextResponse.json({
+                            type: 7, // UPDATE_MESSAGE : met à jour le message et retire définitivement les boutons de vote
+                            data: {
+                                embeds: [
+                                    {
+                                        ...originalEmbed,
+                                        title: "⭐ Avis enregistré !",
+                                        description: `Merci d'avoir pris le temps de donner votre avis !\nVotre note : ${stars} (**${rating}/5**) a bien été enregistrée.`,
+                                        color: 0x22c55e,
+                                    },
+                                ],
+                                components: [], // Supprime définitivement les boutons pour empêcher le vote multiple
+                            },
+                        });
+                    }
                     return NextResponse.json({
                         type: 4,
                         data: { content: res.message, flags: 64 },

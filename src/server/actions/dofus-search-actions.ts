@@ -279,7 +279,11 @@ export async function getQuestPrerequisites(dofusDbId: number) {
 export async function searchGuideQuests(query: string) {
     if (!query || query.length < 2) return { success: true, data: [] };
     try {
-        // 1. Search existing guide sequence names in DB
+        // T-2c — un prérequis doit viser une SÉQUENCE du guide, avec son **id stable**.
+        // Avant : `id: name`, donc l'éditeur God jetait l'id et le guide ne résolvait
+        // plus que par libellé (renommer une quête cassait ses prérequis). Le catalogue
+        // `GameQuest` n'est plus proposé : une quête absente du guide ne peut pas être
+        // cochée, donc elle produisait des prérequis inertes (mesuré : 60 sur 301).
         const sequences = await db.guideSequence.findMany({
             where: {
                 OR: [
@@ -287,27 +291,14 @@ export async function searchGuideQuests(query: string) {
                     { subGuideRef: { contains: query, mode: "insensitive" } }
                 ]
             },
-            select: { subGuideName: true, subGuideRef: true },
+            select: { id: true, subGuideName: true, subGuideRef: true },
+            orderBy: { subGuideName: "asc" },
             take: 10
         });
-
-        const names = new Set<string>();
-        sequences.forEach(s => {
-            if (s.subGuideName) names.add(s.subGuideName);
-            if (s.subGuideRef) names.add(s.subGuideRef);
-        });
-
-        // 2. Also search GameQuest table
-        const localQuests = await db.gameQuest.findMany({
-            where: { name: { contains: query, mode: "insensitive" } },
-            select: { name: true },
-            take: 10
-        });
-        localQuests.forEach(q => names.add(q.name));
 
         return {
             success: true,
-            data: Array.from(names).slice(0, 10).map(name => ({ id: name, name }))
+            data: sequences.map(s => ({ id: s.id, name: s.subGuideName || s.subGuideRef }))
         };
     } catch (error) {
         logger.error("[searchGuideQuests] Error:", error);

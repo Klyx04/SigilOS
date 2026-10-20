@@ -10,6 +10,7 @@ import { resolveRushUIConfig } from "@/lib/rush-ui-config";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 import OptimizedGuideClient from "./OptimizedGuideClient";
 import RushTimelineClient from "./RushTimelineClient";
+import { resolveRushRoute } from "@/lib/rush-route";
 
 type Props = {
     params: Promise<{ guildId: string; slug: string }>;
@@ -162,6 +163,14 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
 
     const mules = (user.altPseudos as any[] | undefined) || [];
 
+    // Route d'alignement (lot 5) : on filtre AVANT la vue, les prérequis et l'agrégation.
+    // Le camp vient du personnage SÉLECTIONNÉ (mule incluse), sinon du profil principal.
+    // Sans choix renseigné, rien n'est masqué : on ne vide jamais le guide par défaut.
+    const routeCamp = altPseudo
+        ? (userProfile.altPseudos as any[] | undefined)?.find((m) => m?.pseudo === altPseudo)?.alignment ?? null
+        : userProfile.alignment ?? null;
+    const routeMilestones = resolveRushRoute((guide.milestones as any[]) || [], { camp: routeCamp });
+
     return (
         <div className="flex flex-col w-full h-full overflow-hidden">
 
@@ -183,7 +192,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                                 imageUrl: guide.imageUrl,
                                 isUnderConstruction: guide.isUnderConstruction ?? false,
                             }}
-                            milestones={guide.milestones as any}
+                            milestones={routeMilestones as any}
                             guildProgress={allProgress}
                             initialResourceChecks={resourceChecks}
                             guildId={guildId}
@@ -211,7 +220,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                     <OptimizedGuideClient
                         key={character}
                         guide={guide}
-                        milestones={guide.milestones as any}
+                        milestones={routeMilestones as any}
                         userProgress={guide.milestones.flatMap((m: any) => m.playerProgress || [])}
                         guildProgress={allProgress}
                         serverUniqueGuildMembers={serverUniqueGuildMembers}

@@ -244,7 +244,6 @@ export function MemberCard({ profile, guildId, readOnly = false }: MemberCardPro
                                         </TooltipTrigger>
                                         <TooltipContent side="left" className="bg-surface border-border text-caption font-black uppercase tracking-widest">
                                             <p>{alignmentData?.name}{orderData ? ` - ${orderData.name}` : ""}</p>
-                                            {profile.alignmentLevel ? <p className="text-muted-foreground">Niveau {profile.alignmentLevel}</p> : null}
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>

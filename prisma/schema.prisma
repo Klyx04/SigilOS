@@ -3041,9 +3041,14 @@ model GuideSequence {
   dofuspourlesnoobsUrl String?
   tips                 String?  // Conseils spécifiques à cette quête
   
-  // Alignement optionnel lié à cette quête (ex: "bontarien", "brakmarien") + niveau d'ordre
-  alignReq             String?  // "bontarien" | "brakmarien"
-  alignOrderReq        Int?     // Niveau requis (1 à 100)
+  // Route d'alignement — DEUX étages : la cité, puis l'Ordre (seules les quêtes d'Ordre
+  // portent un code d'Ordre). Le palier est un VERROU calculé (compteur de quêtes de cité),
+  // jamais une valeur saisie.
+  alignReq             String?  // "bontarien" | "brakmarien" — toute la série de 100 quêtes
+  alignOrderCode       String?  // "coeur_vaillant" | "oeil_attentif" | "esprit_salvateur" | "coeur_saignant" | "oeil_putride" | "esprit_malsain"
+  alignLevelReq        Int?     // Palier requis : 20 | 40 | 60 | 80 | 100
+  alignOrderReq        Int?     // LEGACY : seuil de niveau (remplacé par alignLevelReq, conservé pour la bascule)
+  classReq             String?  // Classe requise (feca | osa | enu | ...) — quêtes de classe
 
   // Donjons requis (Plusieurs IDs stockés dans un tableau JSON ou de chaînes)
   dungeonIds   String[] @default([]) // Liste d'IDs de Dungeon pour supporter plusieurs donjons à la fois

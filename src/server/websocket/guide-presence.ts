@@ -35,8 +35,25 @@ type PresenceEntry = {
   userName: string;
   userAvatar?: string;
   milestoneId: string;
+  /** Alignement du personnage (lu au join, recopié tel quel dans Redis). */
+  alignment?: string | null;
+  alignmentOrder?: string | null;
+  alignmentLevel?: number | null;
   lastSeen: number;
 };
+
+/** Projection publique d'une entrée de présence (jamais `lastSeen`). */
+function publicPresenceMember(entry: PresenceEntry) {
+  return {
+    profileId: entry.profileId,
+    userName: entry.userName,
+    userAvatar: entry.userAvatar,
+    milestoneId: entry.milestoneId,
+    alignment: entry.alignment ?? null,
+    alignmentOrder: entry.alignmentOrder ?? null,
+    alignmentLevel: entry.alignmentLevel ?? 0,
+  };
+}
 
 export type GuidePresenceConfig = {
   io: Server;
@@ -126,12 +143,7 @@ export function createGuidePresence(config: GuidePresenceConfig) {
 
   async function broadcastPresence(guildId: string, guideSlug: string) {
     const members = await getPresenceMembers(guildId, guideSlug);
-    const publicMembers = members.map(({ profileId, userName, userAvatar, milestoneId }) => ({
-      profileId,
-      userName,
-      userAvatar,
-      milestoneId,
-    }));
+    const publicMembers = members.map(publicPresenceMember);
     io.to(guideRoom(guildId, guideSlug)).emit("guide:presence:update", {
       guildId,
       guideSlug,
@@ -190,7 +202,7 @@ export function createGuidePresence(config: GuidePresenceConfig) {
     socket.emit("guide:presence:update", {
       guildId: data.guildId,
       guideSlug: data.guideSlug,
-      members: members.map(({ profileId, userName, userAvatar, milestoneId }) => ({ profileId, userName, userAvatar, milestoneId })),
+      members: members.map(publicPresenceMember),
     });
   }
 
@@ -200,7 +212,7 @@ export function createGuidePresence(config: GuidePresenceConfig) {
     logger.info(`[GuidePresence] 🚪 ${socket.id} quitte ${guideRoom(data.guildId, data.guideSlug)}`);
     // Notif de départ du guide (milestoneId vide = départ du guide).
     // P1 : identité déjà résolue au join — plus de requête DB au leave non plus.
-    const identity = socket.data.guideIdentity as { profileId: string; userName?: string; userAvatar?: string } | undefined;
+    const identity = socket.data.guideIdentity as { profileId: string; userName?: string; userAvatar?: string; alignment?: string | null; alignmentOrder?: string | null; alignmentLevel?: number | null } | undefined;
     if (identity?.profileId) {
       queueEvent(guideRoom(data.guildId, data.guideSlug), {
         type: "presence:leave",
@@ -217,7 +229,7 @@ export function createGuidePresence(config: GuidePresenceConfig) {
     // P1 : identité résolue UNE seule fois au `guide:join` et mémorisée sur le socket.
     // Les heartbeats (toutes les 20s, 300+ clients) ne font PLUS aucune requête DB.
     let profileId: string | null = null;
-    const identity = socket.data.guideIdentity as { profileId: string; userName?: string; userAvatar?: string } | undefined;
+    const identity = socket.data.guideIdentity as { profileId: string; userName?: string; userAvatar?: string; alignment?: string | null; alignmentOrder?: string | null; alignmentLevel?: number | null } | undefined;
     if (wsAuthEnabled) {
       if (!identity?.profileId) return; // fail-closed : pas d'identité join → pas de heartbeat
       profileId = identity.profileId;
@@ -231,6 +243,9 @@ export function createGuidePresence(config: GuidePresenceConfig) {
       userName: data.userName || identity?.userName || "Membre",
       userAvatar: data.userAvatar || identity?.userAvatar,
       milestoneId: data.milestoneId,
+      alignment: identity?.alignment ?? null,
+      alignmentOrder: identity?.alignmentOrder ?? null,
+      alignmentLevel: identity?.alignmentLevel ?? 0,
     });
     queuePresenceBroadcast(guideRoom(data.guildId, data.guideSlug), data.guildId, data.guideSlug);
   }
@@ -242,7 +257,14 @@ export function createGuidePresence(config: GuidePresenceConfig) {
 export async function resolveActiveProfileIdentity(
   userId: string,
   discordGuildId: string
-): Promise<{ profileId: string; userName: string; userAvatar?: string } | null> {
+): Promise<{
+  profileId: string;
+  userName: string;
+  userAvatar?: string;
+  alignment?: string | null;
+  alignmentOrder?: string | null;
+  alignmentLevel?: number | null;
+} | null> {
   try {
     const { db } = await import("../../lib/prisma");
     const profile = await db.userProfile.findFirst({
@@ -251,6 +273,9 @@ export async function resolveActiveProfileIdentity(
         id: true,
         pseudoDofus: true,
         discordNickname: true,
+        alignment: true,
+        alignmentOrder: true,
+        alignmentLevel: true,
         user: { select: { name: true, image: true } },
       },
     });
@@ -259,6 +284,9 @@ export async function resolveActiveProfileIdentity(
       profileId: profile.id,
       userName: profile.pseudoDofus || profile.discordNickname || profile.user?.name || "Membre",
       userAvatar: profile.user?.image || undefined,
+      alignment: profile.alignment ?? null,
+      alignmentOrder: profile.alignmentOrder ?? null,
+      alignmentLevel: profile.alignmentLevel ?? 0,
     };
   } catch {
     return null;

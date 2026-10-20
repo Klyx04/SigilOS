@@ -144,6 +144,49 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **État mesuré** : nos 66 tags `alignment_set` sont **tous `bontarien`** · `alignReq` / `alignOrderReq` **null** partout · **Bonta 98/100** (`Bandanarthrie`, `Le subterfuge de la corne` manquantes) · **Brâkmar 0/102** · **6 ordres × 5 rangs**, 2 slots multi-quêtes.
 - **Dépendances** : **D** (même import NOOBS / Tougli) · **Statut** : **à faire**.
 
+### F2 — Arbre d'alignement à DEUX étages (état mesuré et livré le 20/10/2026)
+
+> **Révision de la section F** : la structure réelle a été vérifiée aux sources (DPLN + API Tougli).
+> Elle est plus riche que « deux colonnes » : **cité**, puis **Ordre**.
+
+**Structure réelle (mesurée)**
+- **2 séries de 100 quêtes de cité**, miroir **par position** : Bonta (100ᵉ = « L'exorciste ») ↔ Brâkmar (100ᵉ = « La danse macabre »). Même emplacement dans le déroulé, contenu différent.
+- **3 Ordres par cité**, **5 quêtes d'Apprentissage** chacun, seuils **> 20 / 40 / 60 / 80 / 100**.
+- Les **5 quêtes ont un nom propre par Ordre** (ex. Ménalt / Silvosse / Jiva) ⇒ **30 quêtes d'Ordre** au total, pas 6 × 5.
+- Le palier 100 exige donc **les 100 quêtes de cité** (dont la 100ᵉ) : c'est un **verrou**, pas un badge.
+
+**Modèle de données (migration additive `20270114000000_rush_alignment_route`)**
+| Champ | Rôle |
+|---|---|
+| `alignReq` | cité (`bontarien` / `brakmarien`) — toute la série de 100 |
+| `alignOrderCode` | Ordre (6 valeurs) — **uniquement** les quêtes d'Ordre |
+| `alignLevelReq` | palier 20/40/60/80/100 — **verrou calculé** |
+| `classReq` | classe (12 valeurs) — quêtes de classe du début de guide |
+| `alignOrderReq` | **legacy** (seuil de niveau) — conservé pour la bascule, à supprimer ensuite |
+
+**Règles (pures, testées)**
+- `resolveRushRoute` (`src/lib/rush-route.ts`) : filtre **cité → Ordre → classe**. Le palier **ne masque rien**.
+- `alignmentCountForCamp` + verrou dans `isSequenceBlockedByPrereqs` : une quête d'Ordre au palier N exige **N quêtes de cité validées**. Le verrou est évalué **avant** les tags `prereq_text` (une quête d'Ordre n'en porte pas).
+- **La tranche n'est plus une donnée** : c'est ce compteur. Aucune saisie, aucun affichage de niveau.
+- **Changement de cité = reset** des quêtes d'alignement **+ cascade transitive** des prérequis (`cascadeResetIds`), les autres quêtes gardent leur avancement.
+
+**God**
+- `duplicateRushSequenceAsTwin` : jumelle de **cité** (1 → 1, camp opposé, même `order`).
+- `duplicateRushSequenceAsOrderTwins` : jumelle d'**Ordre** (1 → 3, les 2 autres Ordres de la même cité), **idempotente**, fail-closed sans cité/Ordre.
+- Champs de création : Cité, Ordre (dépendant de la cité), Palier, Classe.
+
+**API Tougli (mesurée, pour comprendre — aucun import de leurs données)**
+- Base `https://api.tougli.barbofus.com` ; `GET /api/guide/details/<slug>` (1,1 Mo), `GET /api/guide/list`.
+- Leur modèle : `objectives[]` typés `note | title | quest | take_quests | choice`, et `choice.payload` = branches `{ condition, objectives }` avec des **conditions en texte** (`Classe=Feca`).
+- **Non copié** : le DSL en texte (fragile). On garde des champs typés.
+
+**Reste à faire (dans cet ordre)**
+1. **Vue Branches à 2 étages** dans God (cité → Ordre, paires alignées, manques signalés).
+2. **Édition** des champs de route sur une séquence **existante** (aujourd'hui : création seulement).
+3. Sélecteur d'**Ordre** dans l'overlay et le guide public (aujourd'hui : cité seule).
+4. Saisie du contenu : 2 × 100 quêtes de cité + 30 quêtes d'Ordre.
+5. Supprimer `alignOrderReq` et `alignmentLevel` quand la bascule est terminée.
+
 ### G — Liaison Metamob **dans l'overlay** (fin du cul-de-sac)
 - **État mesuré** : l'overlay ocre affiche « rien à prévoir » puis, au refresh, « Compte Metamob non lié » (`RushOverlayOcreModal:125`) — impasse.
 - **Changement** : quand non lié, afficher la brique « non lié » + bouton **« Lier mon compte Metamob »** qui ouvre **le même composant que le dashboard** (`components/profile/metamob-link.tsx` + `linkOcreAccount` / `unlinkOcreAccount` / `forceRefreshOcre`) — overlay **et** guide interne.

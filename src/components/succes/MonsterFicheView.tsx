@@ -28,6 +28,7 @@ import {
     scaleUnityDamageLine,
 } from "@/lib/monster-spell-levels";
 import { cleanDofusText, isRenderableDofusEffectLine } from "@/lib/dofus-spells";
+import { formatDofusEffectLine } from "@/lib/dofus-effects-formatter";
 import {
     getMonsterSpellLevels,
     resolveMonsterNames,
@@ -247,7 +248,13 @@ export function MonsterFicheView({
                                         {renderedEffects.length > 0 ? (
                                             <ul className="mt-1 space-y-0.5">
                                                 {renderedEffects.map((effect, i) => (
-                                                    <li key={i} className="text-[11px] text-muted-foreground">{effect}</li>
+                                                    // `formatDofusEffectLine` porte l'icône ET la couleur d'élément :
+                                                    // la fiche boss s'en servait déjà, la fiche monstre affichait du
+                                                    // texte nu (« 32 à 38 dommages Eau » sans picto) — incohérence
+                                                    // relevée le 20/10/2026.
+                                                    <li key={i} className="text-[11px] text-muted-foreground">
+                                                        {formatDofusEffectLine(effect)}
+                                                    </li>
                                                 ))}
                                             </ul>
                                         ) : description ? (

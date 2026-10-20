@@ -30,6 +30,11 @@ interface RushOverlayOcreModalProps {
    * au démarrage de la fenêtre de jeu).
    */
   initial?: OcrePanelData | null;
+  /**
+   * V-G : `not-linked` ⇒ le panneau propose la liaison au lieu d'afficher une erreur.
+   * `error` ⇒ Metamob a échoué alors que le compte est lié (on peut réessayer).
+   */
+  state?: "ready" | "not-linked" | "error";
 }
 
 /** Chip compacte « pierre requise » d'une cible (miniature + info-bulle). */
@@ -82,9 +87,10 @@ function ProgressLine({
  * Règles de calcul : `@/lib/ocre-soul-stones` (règle pure, partagée avec le dashboard).
  * Images : uniquement nos assets locaux (WebP siphonnés + pictos du jeu).
  */
-export function RushOverlayOcreModal({ guildId, onClose, initial }: RushOverlayOcreModalProps) {
+export function RushOverlayOcreModal({ guildId, onClose, initial, state = "ready" }: RushOverlayOcreModalProps) {
   const [data, setData] = useState<OcrePanelData | null>(initial ?? null);
-  const [loading, setLoading] = useState(!initial);
+  const [loading, setLoading] = useState(!initial && state !== "not-linked");
+  const [linkNeeded, setLinkNeeded] = useState(state === "not-linked");
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState<"needed" | "owned" | "all">("needed");
@@ -135,8 +141,9 @@ export function RushOverlayOcreModal({ guildId, onClose, initial }: RushOverlayO
 
   // Données déjà fournies par l'appelant ⇒ aucun chargement réseau à l'ouverture.
   useEffect(() => {
-    if (!initial) void load();
-  }, [initial, load]);
+    // Compte non lié : on ne lance pas un aller-retour Metamob voué à l'échec.
+    if (!initial && !linkNeeded) void load();
+  }, [initial, load, linkNeeded]);
 
   // Le plan est recalculé depuis la liste LOCALE : cocher une cible met à jour les
   // pierres à prévoir, les compteurs et les filtres immédiatement.
@@ -261,6 +268,14 @@ export function RushOverlayOcreModal({ guildId, onClose, initial }: RushOverlayO
           <div className="flex items-center justify-center gap-2 py-12 text-[12px] text-muted-foreground">
             <RefreshCw className="h-4 w-4 animate-spin" /> Lecture de ta progression Metamob…
           </div>
+        ) : linkNeeded ? (
+          <LinkMetamobInline
+            guildId={guildId}
+            onLinked={() => {
+              setLinkNeeded(false);
+              void load(true);
+            }}
+          />
         ) : error ? (
           <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
             <AlertTriangle className="h-6 w-6 text-warning" />
@@ -459,5 +474,89 @@ export function RushOverlayOcreModal({ guildId, onClose, initial }: RushOverlayO
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Liaison Metamob **dans l'overlay** (V-G).
+ *
+ * Le composant du dashboard (`MetamobLink`) ouvre un `Dialog` Radix : en fenêtre
+ * Picture-in-Picture, son portail vise le `document.body` de la fenêtre PRINCIPALE,
+ * donc le formulaire serait invisible et inopérant ici. Tout est donc rendu dans le
+ * panneau : deux champs, une server action déjà protégée (auth + rate limit + Zod).
+ */
+function LinkMetamobInline({ guildId, onLinked }: { guildId: string; onLinked: () => void }) {
+  const [pseudo, setPseudo] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const canSubmit = !busy && Boolean(pseudo.trim() || apiKey.trim());
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!canSubmit) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const actions = await import("@/server/actions/ocre-actions");
+      const res = await actions.linkOcreAccount({
+        guildId,
+        pseudo: pseudo.trim() || undefined,
+        apiKey: apiKey.trim() || undefined,
+      });
+      if (res.success) {
+        onLinked();
+      } else {
+        setMessage(res.error || "Liaison impossible.");
+      }
+    } catch {
+      setMessage("Liaison impossible.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-2 px-4 py-5">
+      <p className="text-[12px] leading-relaxed text-muted-foreground">
+        Lie ton compte Metamob pour voir tes archimonstres, tes gardiens et les pierres
+        d&apos;âme à prévoir — sans quitter la fenêtre de jeu.
+      </p>
+      <input
+        type="text"
+        value={pseudo}
+        onChange={(e) => setPseudo(e.target.value)}
+        placeholder="Pseudo Metamob (optionnel)"
+        aria-label="Pseudo Metamob"
+        autoComplete="off"
+        className="rounded-[4px] border border-border bg-surface px-2 py-1.5 text-[11px] text-foreground outline-none placeholder:text-muted-foreground focus:border-accent/60"
+      />
+      <input
+        type="password"
+        value={apiKey}
+        onChange={(e) => setApiKey(e.target.value)}
+        placeholder="Clé API V2 (recommandée)"
+        aria-label="Clé API Metamob"
+        autoComplete="off"
+        className="rounded-[4px] border border-border bg-surface px-2 py-1.5 text-[11px] text-foreground outline-none placeholder:text-muted-foreground focus:border-accent/60"
+      />
+      {message && <p className="text-[11px] text-danger">{message}</p>}
+      <button
+        type="submit"
+        disabled={!canSubmit}
+        className="rounded-[4px] border border-accent/50 bg-accent/15 px-3 py-1.5 text-[11px] font-semibold text-accent transition-colors hover:bg-accent/25 disabled:opacity-50"
+      >
+        {busy ? "Liaison…" : "Lier mon compte Metamob"}
+      </button>
+      <a
+        href="https://www.metamob.fr/settings#api"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-center text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+      >
+        Où trouver ma clé API ?
+      </a>
+    </form>
   );
 }

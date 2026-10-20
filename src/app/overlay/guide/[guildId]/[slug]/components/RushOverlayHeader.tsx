@@ -233,12 +233,12 @@ export function RushOverlayHeader({
           </button>
 
           {/* Quête Ocre (Metamob) — overlay interne uniquement : pastille du reste à capturer */}
-          {onOpenOcre && ocre && (
+          {onOpenOcre && (
             <button
               type="button"
               onClick={onOpenOcre}
-              aria-label={`Quête Ocre : ${ocre.missing} cibles restantes`}
-              title={`Quête Ocre · ${ocre.missing} archis / gardiens restants · ${ocre.percent}%`}
+              aria-label={ocre ? `Quête Ocre : ${ocre.missing} cibles restantes` : "Ouvrir la Quête Ocre (compte Metamob non lié)"}
+              title={ocre ? `Quête Ocre · ${ocre.missing} archis / gardiens restants · ${ocre.percent}%` : "Quête Ocre — lier mon compte Metamob"}
               className={cn(
                 "relative p-1.5 rounded-lg border transition-colors",
                 isLightMode
@@ -252,7 +252,7 @@ export function RushOverlayHeader({
                 alt=""
                 className="w-3.5 h-3.5 object-contain"
               />
-              {ocre.missing > 0 ? (
+              {ocre && (ocre.missing > 0 ? (
                 <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#e2726f] text-black text-[9px] font-black tabular-nums leading-[15px] text-center">
                   {ocre.missing > 99 ? "99+" : ocre.missing}
                 </span>
@@ -260,7 +260,7 @@ export function RushOverlayHeader({
                 <span className="absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full bg-[#39bc95] text-black grid place-items-center">
                   <Check className="w-2.5 h-2.5 stroke-[3]" />
                 </span>
-              )}
+              ))}
             </button>
           )}
 

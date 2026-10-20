@@ -72,6 +72,11 @@ type Props = {
    * public n'a ni guilde ni compte, donc aucun bouton. `null`/absent ⇒ masqué.
    */
   ocre?: OcrePanelData | null;
+  /**
+   * V-G : « non lié » est un état à part entière — l'entrée reste visible et le panneau
+   * propose la liaison (sans quoi l'overlay est un cul-de-sac pour un compte non lié).
+   */
+  ocreState?: "ready" | "not-linked" | "error";
 };
 
 export default function GuideOverlayClient({
@@ -85,6 +90,7 @@ export default function GuideOverlayClient({
   guestStoragePrefix,
   pinned = true,
   ocre = null,
+  ocreState = "ready",
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
   // Repli si le personnage n'est pas fourni (accès direct à la page overlay).
@@ -369,7 +375,9 @@ export default function GuideOverlayClient({
   // Réservé à l'overlay INTERNE d'un membre dont le compte Metamob est lié : le guide
   // public (`isGuest`) et l'overlay sans guilde n'ont ni compte ni progression Ocre,
   // donc aucun bouton n'est rendu — et aucun calcul n'est fait.
-  const ocreEnabled = !isGuest && !!ocre && !!guildId && guildId !== "public";
+  // L'entrée Ocre ne dépend plus des DONNÉES : un membre non lié doit pouvoir ouvrir le
+  // panneau et lier son compte. Le mode invité et le guide public restent exclus.
+  const ocreEnabled = !isGuest && !!guildId && guildId !== "public";
   const ocreSummary = useMemo(() => {
     if (!ocreEnabled || !ocre) return null;
     const plan = buildOcrePlan(ocre);
@@ -1216,11 +1224,12 @@ export default function GuideOverlayClient({
       )}
 
       {/* ══ PANNEAU QUÊTE OCRE (Metamob · overlay interne) ══ */}
-      {showOcre && ocreEnabled && ocre && (
+      {showOcre && ocreEnabled && (
         <RushOverlayOcreModal
           guildId={guildId}
           isLightMode={isLightMode}
           initial={ocre}
+          state={ocreState}
           onClose={() => setShowOcre(false)}
         />
       )}

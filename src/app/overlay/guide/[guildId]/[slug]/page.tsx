@@ -59,6 +59,10 @@ export default async function GuideOverlayPage({ params, searchParams }: Props) 
   // le pseudo (lecture DB légère, cloisonnée par guilde), et seulement dans ce cas on
   // interroge la progression (mise en cache 120 s côté action, comme le dashboard).
   let ocre: OcrePanelData | null = null;
+  // V-G — état explicite : « non lié » n'est PAS une erreur. Avant, `ocre === null`
+  // masquait le bouton du header, donc l'utilisateur n'avait AUCUNE entrée pour lier
+  // son compte depuis la fenêtre de jeu (impasse mesurée).
+  let ocreState: "ready" | "not-linked" | "error" = "not-linked";
   try {
     const profile = await db.userProfile.findFirst({
       where: {
@@ -74,13 +78,18 @@ export default async function GuideOverlayPage({ params, searchParams }: Props) 
       const ocreRes = await getMyOcreProgress(guildId);
       // Échec Metamob : on garde le bouton (l'utilisateur l'a bien lié) et le panneau
       // propose de réessayer — jamais d'accès refusé par défaut, jamais de plantage.
-      ocre = ocreRes.success && ocreRes.data
-        ? toOcrePanelData({ ...ocreRes.data, pseudo: profile.metamobPseudo })
-        : { monsters: [], currentStep: 0, totalSteps: 0, unavailable: true };
+      if (ocreRes.success && ocreRes.data) {
+        ocre = toOcrePanelData({ ...ocreRes.data, pseudo: profile.metamobPseudo });
+        ocreState = "ready";
+      } else {
+        ocre = { monsters: [], currentStep: 0, totalSteps: 0, unavailable: true };
+        ocreState = "error";
+      }
     }
   } catch (e) {
     // Non fatal : l'overlay s'affiche avec le panneau Ocre « indisponible » ⇒ `warn`
     // (jamais `error` : ce serait une Issue Sentry pour un cas prévu).
+    ocreState = "error";
     logger.warn("[Overlay Guide] Metamob Ocre fetch failed (non-fatal)", { error: e });
   }
 
@@ -99,6 +108,7 @@ export default async function GuideOverlayPage({ params, searchParams }: Props) 
       altPseudo={altPseudo || null}
       character={overlayChar}
       ocre={ocre}
+      ocreState={ocreState}
     />
   );
 }

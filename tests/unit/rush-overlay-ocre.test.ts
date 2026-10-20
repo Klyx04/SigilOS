@@ -350,7 +350,7 @@ describe("câblage — overlay interne seulement", () => {
 
   it("le header porte le picto archimonstre et la pastille du reste à capturer", () => {
     expect(header).toContain('src="/assets/dofus/icons/archimonster.png"');
-    expect(header).toContain("onOpenOcre && ocre && (");
+    expect(header).toContain("onOpenOcre && (");
     expect(header).toContain("ocre.missing");
     // Le bouton vit dans la rangée d'actions (plus de condition « narrow ») : la place
     // est rendue par le retour bug, déplacé dans le menu « ⋯ » avec l'aide.
@@ -359,16 +359,19 @@ describe("câblage — overlay interne seulement", () => {
   });
 
   it("l'overlay conditionne le panneau à un membre connecté et à sa guilde", () => {
-    expect(overlayClient).toContain('const ocreEnabled = !isGuest && !!ocre && !!guildId && guildId !== "public"');
+    // V-G : l'entrée ne dépend PLUS des données — un compte non lié doit pouvoir ouvrir
+    // le panneau et lier son compte (sinon : bouton absent = cul-de-sac).
+    expect(overlayClient).toContain('const ocreEnabled = !isGuest && !!guildId && guildId !== "public"');
     expect(overlayClient).toContain("<RushOverlayOcreModal");
     expect(overlayClient).toContain("initial={ocre}");
+    expect(overlayClient).toContain("state={ocreState}");
   });
 
   it("la page overlay ne charge les données Ocre que si Metamob est lié", () => {
     expect(overlayPage).toContain("metamobPseudo");
     expect(overlayPage).toContain('await import("@/server/actions/ocre-actions")');
     expect(overlayPage).toContain("toOcrePanelData");
-    expect(overlayPage).toContain("ocre={ocre}");
+    expect(overlayPage).toContain("ocreState={ocreState}");
   });
 
   it("le guide PUBLIC ne reçoit jamais le panneau Ocre", () => {

@@ -1368,7 +1368,7 @@ Pour que le bot puisse attribuer un rôle, le rôle du Bot SigilOS dans les para
                     <span style="background-color: #5865f2; font-size: 9px; font-weight: bold; padding: 1px 4px; border-radius: 4px;">APP</span>
                 </div>
                 <div style="font-size: 13px; color: #dbdee1; line-height: 1.5;">
-                    🎉 Félicitations <span style="background-color: rgba(88, 101, 242, 0.2); color: #c9cdfb; padding: 2px 6px; border-radius: 4px; font-weight: 500;">@CandidatDofus</span> ! Ta candidature sur <strong>Guilde SigilOS</strong> a été validée par <span style="background-color: rgba(88, 101, 242, 0.2); color: #c9cdfb; padding: 2px 6px; border-radius: 4px; font-weight: 500;">@Modérateur</span> !
+                    🎉 Félicitations <span style="background-color: rgba(88, 101, 242, 0.2); color: #c9cdfb; padding: 2px 6px; border-radius: 4px; font-weight: 500;">@CandidatDofus</span> ! Ta candidature sur <strong>Guilde SigilOS</strong> a été validée par <span style="background-color: rgba(88, 101, 242, 0.2); color: #c9cdfb; padding: 2px 6px; border-radius: 4px; font-weight: 500;">un membre du staff</span> !
                 </div>
 
                 <div style="margin-top: 8px; background-color: #2b2d31; border-left: 4px solid #22c55e; border-radius: 6px; padding: 10px 12px; font-size: 12px;">

@@ -12,6 +12,8 @@ import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./aud
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
+import { resetAlignmentQuests } from "@/server/rush-alignment";
+import { ORDERS } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
@@ -1314,7 +1316,6 @@ export async function applyRushAlignmentFromSequence(
         }
         mule.alignment = camp;
         mule.alignmentLevel = level;
-        mule.alignmentOrder = null;
       } else {
         const last = await findLastCheckedAlignmentQuest(
           profileId,
@@ -1325,7 +1326,6 @@ export async function applyRushAlignmentFromSequence(
         if (last) {
           mule.alignment = last.camp;
           mule.alignmentLevel = last.level;
-          mule.alignmentOrder = null;
         } else {
           const base = mule.alignmentBefore as any;
           mule.alignment = base?.alignment ?? "neutre";
@@ -1348,7 +1348,6 @@ export async function applyRushAlignmentFromSequence(
         }
         data.alignment = camp;
         data.alignmentLevel = level;
-        data.alignmentOrder = null;
       } else {
         const last = await findLastCheckedAlignmentQuest(
           profileId,
@@ -1359,7 +1358,6 @@ export async function applyRushAlignmentFromSequence(
         if (last) {
           data.alignment = last.camp;
           data.alignmentLevel = last.level;
-          data.alignmentOrder = null;
         } else {
           const base = profile.alignmentBefore as any;
           data.alignment = base?.alignment ?? "neutre";
@@ -3426,6 +3424,9 @@ export async function upsertRushSequence(data: {
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
   alignReq?: string | null;
+  alignOrderCode?: string | null;
+  alignLevelReq?: number | null;
+  classReq?: string | null;
   alignOrderReq?: number | null;
   note?: string;
   order?: number;
@@ -3445,6 +3446,9 @@ export async function upsertRushSequence(data: {
     dofuspourlesnoobsUrl: data.dofuspourlesnoobsUrl,
     tips: data.tips,
     alignReq: data.alignReq,
+    alignOrderCode: data.alignOrderCode ?? null,
+    alignLevelReq: data.alignLevelReq ?? null,
+    classReq: data.classReq ?? null,
     alignOrderReq: data.alignOrderReq,
     note: data.note,
     order: data.order ?? undefined,
@@ -3515,4 +3519,143 @@ export async function deleteRushSequence(sequenceId: string) {
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, alreadyDeleted: false };
+}
+
+/**
+ * **Lot 4 — God : route d'alignement.** Crée la **jumelle** d'une séquence : même jalon,
+ * même `order`, camp OPPOSÉ. C'est ce qui rend la saisie rapide : les deux branches se
+ * lisent ensuite en deux colonnes parallèles (slot miroir), sans dupliquer le guide.
+ *
+ * Fail-closed : une séquence sans `alignReq` exploitable est refusée (on ne devine pas
+ * un camp). L'alignement d'Ordre (`alignOrderReq`, un seuil de niveau) est recopié.
+ */
+export async function duplicateRushSequenceAsTwin(sequenceId: string) {
+  await requireRushAccess();
+
+  const source = await db.guideSequence.findUnique({ where: { id: sequenceId } });
+  if (!source) return { success: false as const, error: "Séquence introuvable" };
+
+  const camp = (source.alignReq ?? "").trim().toLowerCase();
+  if (camp !== "bontarien" && camp !== "brakmarien") {
+    return {
+      success: false as const,
+      error: "Cette séquence n'a pas de camp : renseigne d'abord Bontarien ou Brâkmarien",
+    };
+  }
+  const twinCamp = camp === "bontarien" ? "brakmarien" : "bontarien";
+
+  const twin = await db.guideSequence.create({
+    data: {
+      milestoneId: source.milestoneId,
+      order: source.order,
+      subGuideRef: `${source.subGuideRef} [${twinCamp}]`,
+      subGuideName: `${source.subGuideName} [${twinCamp}]`,
+      stepFrom: source.stepFrom,
+      stepTo: source.stepTo,
+      isPartial: source.isPartial,
+      isOptional: source.isOptional,
+      note: source.note,
+      isResume: source.isResume,
+      dofusdbUrl: source.dofusdbUrl,
+      dofuspourlesnoobsUrl: source.dofuspourlesnoobsUrl,
+      tips: source.tips,
+      alignReq: twinCamp,
+      alignOrderReq: source.alignOrderReq,
+      isSuccess: source.isSuccess,
+      icon: source.icon,
+      metamobMonsterId: source.metamobMonsterId,
+      activityTags: (source.activityTags ?? []) as never,
+      dungeonId: source.dungeonId,
+      dungeonIds: source.dungeonIds ?? [],
+    },
+    select: { id: true },
+  });
+
+  return { success: true as const, data: { id: twin.id, alignReq: twinCamp } };
+}
+
+/**
+ * **Logique jeu** : changer de cité réinitialise les quêtes d'alignement.
+ *
+ * Appelée par le sélecteur d'alignement (dashboard et overlay) AVANT l'écriture du
+ * nouveau camp. Les quêtes communes, prérequis, donjons et succès **gardent** leur
+ * avancement : seules les séquences marquées `alignment_set` sont retirées.
+ */
+export async function resetAlignmentProgress(guildId: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { success: rateOk } = await rateLimit(`guide-alignment-reset:${ctx.profileId}`, 10, 60_000);
+  if (!rateOk) return { success: false as const, error: "Trop de requêtes, veuillez patienter." };
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+  const cleared = await resetAlignmentQuests(profileId, characterSlot);
+  return { success: true as const, data: { cleared } };
+}
+
+/**
+ * **Lot 4 bis — jumelle d'ORDRE.** Crée les **2 autres Ordres** de la même cité, au
+ * même jalon et au même `order`. Les 5 quêtes d'apprentissage ont un nom propre par
+ * Ordre : sans cette action, il faudrait les saisir 3 fois.
+ *
+ * Idempotent : une branche d'Ordre déjà présente est laissée telle quelle.
+ * Fail-closed : sans cité ou sans Ordre sur la source, on refuse.
+ */
+export async function duplicateRushSequenceAsOrderTwins(sequenceId: string) {
+  await requireRushAccess();
+
+  const source = await db.guideSequence.findUnique({ where: { id: sequenceId } });
+  if (!source) return { success: false as const, error: "Séquence introuvable" };
+
+  const camp = (source.alignReq ?? "").trim().toLowerCase();
+  const orders = (ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[camp];
+  if (!orders) return { success: false as const, error: "Cette séquence n'a pas de cité (Bontarien / Brâkmarien)" };
+
+  const sourceOrder = (source.alignOrderCode ?? "").trim();
+  if (!sourceOrder) {
+    return { success: false as const, error: "Cette séquence n'a pas d'Ordre : renseigne-le d'abord" };
+  }
+
+  let created = 0;
+  for (const other of orders) {
+    if (other.id === sourceOrder) continue;
+    const exists = await db.guideSequence.findFirst({
+      where: { milestoneId: source.milestoneId, order: source.order, alignOrderCode: other.id },
+      select: { id: true },
+    });
+    if (exists) continue;
+
+    await db.guideSequence.create({
+      data: {
+        milestoneId: source.milestoneId,
+        order: source.order,
+        subGuideRef: `${source.subGuideRef} [${other.id}]`,
+        subGuideName: `${source.subGuideName} [${other.id}]`,
+        stepFrom: source.stepFrom,
+        stepTo: source.stepTo,
+        isPartial: source.isPartial,
+        isOptional: source.isOptional,
+        note: source.note,
+        isResume: source.isResume,
+        dofusdbUrl: source.dofusdbUrl,
+        dofuspourlesnoobsUrl: source.dofuspourlesnoobsUrl,
+        tips: source.tips,
+        alignReq: source.alignReq,
+        alignOrderCode: other.id,
+        alignLevelReq: source.alignLevelReq,
+        classReq: source.classReq,
+        isSuccess: source.isSuccess,
+        icon: source.icon,
+        metamobMonsterId: source.metamobMonsterId,
+        activityTags: (source.activityTags ?? []) as never,
+        dungeonId: source.dungeonId,
+        dungeonIds: source.dungeonIds ?? [],
+      },
+      select: { id: true },
+    });
+    created += 1;
+  }
+
+  return { success: true as const, data: { created } };
 }

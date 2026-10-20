@@ -32,6 +32,8 @@ import {
   updateRushUIConfig,
   reorderRushMilestones,
   reorderRushSequences,
+  duplicateRushSequenceAsTwin,
+  duplicateRushSequenceAsOrderTwins,
   seedRushSylvestreFromGuide,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
@@ -43,6 +45,7 @@ import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { ORDERS } from "@/lib/dofus-assets";
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
 import {
@@ -91,6 +94,9 @@ type Sequence = {
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
   alignReq?: string | null;
+  alignOrderCode?: string | null;
+  alignLevelReq?: number | null;
+  classReq?: string | null;
   alignOrderReq?: number | null;
   dungeon?: { id: string; name: string; bossName: string; imageUrl?: string | null } | null;
   dungeons?: { id: string; name: string; bossName: string; imageUrl?: string | null }[];
@@ -166,6 +172,8 @@ const DOFUS_LIST = RUSH_DOFUS_META;
 // (`RUSH_ACTIVITY_TAG_CONFIG` → `public/assets/dofus-ui/pictos/`) : une seule
 // vérité avec la vue publique et l'overlay. Ici on ne déclare que ce qui est
 // propre à l'éditeur GOD (champs de saisie complémentaires).
+type PrereqChoice = { id: string; name: string };
+
 type ActivityTagDef = {
   type: ActivityTagType;
   hasName?: boolean;
@@ -1800,6 +1808,89 @@ function SortableSequenceRow(props: { seq: Sequence; color: string; onEdit: () =
 }
 
 // ─── SequenceRowAdmin ─────────────────────────────────────────────────────────
+/**
+ * Bouton « Jumelle » (Lot 4) : crée la séquence du camp OPPOSÉ au même `order`.
+ * Le studio God est un formulaire : on ne touche pas à l'état de la ligne, on appelle
+ * l'action puis on rafraîchit les données serveur.
+ */
+function TwinButton({ sequenceId }: { sequenceId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const create = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await duplicateRushSequenceAsTwin(sequenceId);
+      if (res.success) {
+        router.refresh();
+      } else {
+        setError(res.error || "Échec de la création");
+      }
+    } catch {
+      setError("Échec de la création");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={create}
+      disabled={busy}
+      title={error || "Créer la jumelle du camp opposé (même ordre)"}
+      aria-label="Créer la jumelle du camp opposé"
+      className="inline-flex items-center gap-1 rounded border border-violet-500/30 bg-violet-500/10 px-1 py-0.5 text-caption font-semibold text-violet-300 transition-colors hover:bg-violet-500/20 disabled:opacity-50"
+    >
+      <Plus className="w-2.5 h-2.5" />
+      {busy ? "…" : "Jumelle"}
+    </button>
+  );
+}
+
+/**
+ * Bouton « 3 Ordres » (jumelle d'ORDRE) : crée les 2 autres Ordres de la MÊME cité.
+ * Les 5 quêtes d'apprentissage ont un nom propre par Ordre — sans ça, trois saisies.
+ */
+function OrderTwinButton({ sequenceId }: { sequenceId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const create = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await duplicateRushSequenceAsOrderTwins(sequenceId);
+      if (res.success) {
+        router.refresh();
+      } else {
+        setError(res.error || "Échec de la création");
+      }
+    } catch {
+      setError("Échec de la création");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={create}
+      disabled={busy}
+      title={error || "Créer les 2 autres Ordres de cette cité (même ordre)"}
+      aria-label="Créer les 2 autres Ordres de cette cité"
+      className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 px-1 py-0.5 text-caption font-semibold text-sky-300 transition-colors hover:bg-sky-500/20 disabled:opacity-50"
+    >
+      <Plus className="w-2.5 h-2.5" />
+      {busy ? "…" : "3 Ordres"}
+    </button>
+  );
+}
+
 function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
   seq: Sequence; color: string; onEdit: () => void; onDelete: () => void; dragHandleProps?: any;
 }) {
@@ -1861,9 +1952,13 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
             </div>
           )}
           {seq.alignReq && (
-            <span className="px-1 py-0.5 rounded text-caption font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              {seq.alignReq}{seq.alignOrderReq ? ` lv.${seq.alignOrderReq}` : ""}
-            </span>
+            <>
+              <span className="px-1 py-0.5 rounded text-caption font-semibold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                {seq.alignReq}{seq.alignOrderReq ? ` lv.${seq.alignOrderReq}` : ""}
+              </span>
+              <TwinButton sequenceId={seq.id} />
+              {seq.alignOrderCode && <OrderTwinButton sequenceId={seq.id} />}
+            </>
           )}
           {seq.tips && (
             <span title={seq.tips} className="flex-shrink-0">
@@ -2120,10 +2215,12 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   };
 
   // Multiselect Prerequisites state
-  const [prereqs, setPrereqs] = useState<string[]>(() => {
+  const [prereqs, setPrereqs] = useState<PrereqChoice[]>(() => {
     const existingTags = (seq.activityTags as any[])?.filter(t => t.type === "prereq_text") || [];
     if (existingTags.length > 0) {
-      return existingTags.map(t => t.name).filter(Boolean);
+      return existingTags
+        .map(t => ({ id: typeof t.id === "string" ? t.id : "", name: String(t.name ?? "") }))
+        .filter(p => p.name);
     }
     return [];
   });
@@ -2146,10 +2243,10 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     }, 250);
   };
 
-  const addPrereq = (nameToAdd: string) => {
-    const trimmed = nameToAdd.trim();
-    if (!trimmed || prereqs.includes(trimmed)) return;
-    const nextPrereqs = [...prereqs, trimmed];
+  const addPrereq = (picked: PrereqChoice) => {
+    const trimmed = picked.name.trim();
+    if (!trimmed || prereqs.some(p => (picked.id ? p.id === picked.id : p.name === trimmed))) return;
+    const nextPrereqs = [...prereqs, { id: picked.id, name: trimmed }];
     setPrereqs(nextPrereqs);
     setPrereqQuery("");
     setPrereqResults([]);
@@ -2157,18 +2254,18 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     // Sync activityTags
     setActivityTags(prev => {
       const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
-      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
       return [...nonPrereqs, ...prereqTags];
     });
   };
 
-  const removePrereq = (nameToRemove: string) => {
-    const nextPrereqs = prereqs.filter(p => p !== nameToRemove);
+  const removePrereq = (target: PrereqChoice) => {
+    const nextPrereqs = prereqs.filter(p => !(p.id === target.id && p.name === target.name));
     setPrereqs(nextPrereqs);
     
     setActivityTags(prev => {
       const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
-      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
       return [...nonPrereqs, ...prereqTags];
     });
   };
@@ -2900,11 +2997,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                 </label>
                 {prereqs.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-1.5">
-                    {prereqs.map((pName, pIdx) => (
+                    {prereqs.map((p, pIdx) => (
                       <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-caption font-bold">
                         <Lock className="w-2.5 h-2.5 text-amber-400" />
-                        <span className="max-w-[120px] truncate">{pName}</span>
-                        <button type="button" onClick={() => removePrereq(pName)} className="hover:text-red-400 text-zinc-400 ml-0.5">
+                        <span className="max-w-[120px] truncate">{p.name}</span>
+                        <button type="button" onClick={() => removePrereq(p)} className="hover:text-red-400 text-zinc-400 ml-0.5">
                           <X className="w-2.5 h-2.5" />
                         </button>
                       </span>
@@ -2919,7 +3016,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     onKeyDown={e => {
                       if (e.key === "Enter" && prereqQuery.trim()) {
                         e.preventDefault();
-                        addPrereq(prereqQuery.trim());
+                        if (prereqResults[0]) addPrereq(prereqResults[0]);
                       }
                     }}
                     className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
@@ -2933,7 +3030,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                       <button
                         key={res.id}
                         type="button"
-                        onClick={() => addPrereq(res.name)}
+                        onClick={() => addPrereq({ id: res.id, name: res.name })}
                         className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-200 hover:bg-amber-500/20 hover:text-amber-100 flex items-center gap-2 transition-colors"
                       >
                         <Search className="w-3 h-3 text-amber-400 shrink-0" />
@@ -3501,6 +3598,9 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [noobsUrl, setNoobsUrl] = useState("");
   const [tips, setTips] = useState("");
   const [alignReq, setAlignReq] = useState("");
+  const [alignOrderCode, setAlignOrderCode] = useState("");
+  const [alignLevelReq, setAlignLevelReq] = useState("");
+  const [classReq, setClassReq] = useState("");
   const [alignOrderReq, setAlignOrderReq] = useState("");
   const [note, setNote] = useState("");
   const [activityTags, setActivityTags] = useState<ActivityTag[]>([]);
@@ -3517,7 +3617,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [selectedDofusId, setSelectedDofusId] = useState<string>("");
   
   // Multiselect Prerequisites state
-  const [prereqs, setPrereqs] = useState<string[]>([]);
+  const [prereqs, setPrereqs] = useState<PrereqChoice[]>([]);
   const [prereqQuery, setPrereqQuery] = useState("");
   const [prereqResults, setPrereqResults] = useState<{ id: string; name: string }[]>([]);
   const [searchingPrereqs, setSearchingPrereqs] = useState(false);
@@ -3537,10 +3637,10 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
     }, 250);
   };
 
-  const addPrereq = (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed || prereqs.includes(trimmed)) return;
-    const nextPrereqs = [...prereqs, trimmed];
+  const addPrereq = (picked: PrereqChoice) => {
+    const trimmed = picked.name.trim();
+    if (!trimmed || prereqs.some(p => (picked.id ? p.id === picked.id : p.name === trimmed))) return;
+    const nextPrereqs = [...prereqs, { id: picked.id, name: trimmed }];
     setPrereqs(nextPrereqs);
     setPrereqQuery("");
     setPrereqResults([]);
@@ -3548,18 +3648,18 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
     // Sync activityTags
     setActivityTags(prev => {
       const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
-      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
       return [...nonPrereqs, ...prereqTags];
     });
   };
 
-  const removePrereq = (nameToRemove: string) => {
-    const nextPrereqs = prereqs.filter(p => p !== nameToRemove);
+  const removePrereq = (target: PrereqChoice) => {
+    const nextPrereqs = prereqs.filter(p => !(p.id === target.id && p.name === target.name));
     setPrereqs(nextPrereqs);
     
     setActivityTags(prev => {
       const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
-      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, id: p.id, name: p.name }));
       return [...nonPrereqs, ...prereqTags];
     });
   };
@@ -3602,12 +3702,16 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
       dofuspourlesnoobsUrl: noobsUrl.trim() || null,
       tips: tips.trim() || null,
       alignReq: alignReq.trim() || null,
+      alignOrderCode: alignOrderCode.trim() || null,
+      alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
+      classReq: classReq.trim() || null,
       alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
       note: note.trim() || undefined,
       activityTags,
     });
     setName(""); setDofusdbUrl(""); setNoobsUrl(""); setTips(""); setAlignReq("");
-    setAlignOrderReq(""); setNote(""); setActivityTags([]); setSelectedDungeons([]); setDungeonQuery("");
+    setAlignOrderReq(""); setAlignOrderCode(""); setAlignLevelReq(""); setClassReq("");
+    setNote(""); setActivityTags([]); setSelectedDungeons([]); setDungeonQuery("");
     setSelectedDofusId(""); setPrereqs([]); setPrereqQuery("");
     setExpanded(false);
   };
@@ -3647,11 +3751,11 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   {/* Badges / Tags de prérequis choisis */}
                   {prereqs.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
-                      {prereqs.map((pName, pIdx) => (
+                      {prereqs.map((p, pIdx) => (
                         <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-caption font-bold">
                           <Lock className="w-2.5 h-2.5 text-amber-400" />
-                          <span className="max-w-[120px] truncate">{pName}</span>
-                          <button type="button" onClick={() => removePrereq(pName)} className="hover:text-red-400 text-zinc-400 ml-0.5">
+                          <span className="max-w-[120px] truncate">{p.name}</span>
+                          <button type="button" onClick={() => removePrereq(p)} className="hover:text-red-400 text-zinc-400 ml-0.5">
                             <X className="w-2.5 h-2.5" />
                           </button>
                         </span>
@@ -3668,7 +3772,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                       onKeyDown={e => {
                         if (e.key === "Enter" && prereqQuery.trim()) {
                           e.preventDefault();
-                          addPrereq(prereqQuery.trim());
+                          if (prereqResults[0]) addPrereq(prereqResults[0]);
                         }
                       }}
                       className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
@@ -3684,7 +3788,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                         <button
                           key={res.id}
                           type="button"
-                          onClick={() => addPrereq(res.name)}
+                          onClick={() => addPrereq({ id: res.id, name: res.name })}
                           className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-200 hover:bg-amber-500/20 hover:text-amber-100 flex items-center gap-2 transition-colors"
                         >
                           <Search className="w-3 h-3 text-amber-400 shrink-0" />
@@ -3727,21 +3831,43 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">Alignement</label>
-                  <select value={alignReq} onChange={e => setAlignReq(e.target.value)}
+                  <label className="text-caption text-zinc-600 mb-1 block">Cité (route)</label>
+                  <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
                   >
-                    <option value="">— Aucun —</option>
+                    <option value="">— Aucune (commune) —</option>
                     <option value="bontarien">Bontarien</option>
                     <option value="brakmarien">Brakmarien</option>
-                    <option value="neutre">Neutre</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">Niveau</label>
-                  <input type="number" min={0} max={100} value={alignOrderReq} onChange={e => setAlignOrderReq(e.target.value)}
+                  <label className="text-caption text-zinc-600 mb-1 block">Ordre (quêtes d'Ordre)</label>
+                  <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
+                    disabled={!alignReq}
+                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
+                  >
+                    <option value="">— Aucun —</option>
+                    {((ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[alignReq] || []).map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-caption text-zinc-600 mb-1 block">Palier requis (verrou)</label>
+                  <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
-                    placeholder="0–100"
+                  >
+                    <option value="">— Aucun —</option>
+                    {[20, 40, 60, 80, 100].map(n => (
+                      <option key={n} value={n}>Alignement ≥ {n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
+                  <input value={classReq} onChange={e => setClassReq(e.target.value)}
+                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                    placeholder="feca, osa…"
                   />
                 </div>
               </div>

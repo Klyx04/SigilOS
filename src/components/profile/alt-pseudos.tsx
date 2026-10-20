@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Users, Plus, X, Save, Edit2, AlertCircle, Copy, Shield, Trash2, Check, Sparkles, Info, Search, Loader2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
-import { DOFUS_CLASSES, getClass, ALIGNMENTS, ORDERS, getAlignment, getOrder, getAlignmentLevelSteps } from "@/lib/dofus-assets";
+import { DOFUS_CLASSES, getClass, ALIGNMENTS, ORDERS, getAlignment, getOrder } from "@/lib/dofus-assets";
 import NextImage from "next/image";
 import { verifyDofusPseudo, isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
 
@@ -699,45 +699,6 @@ export function AltPseudos({
                                         </div>
                                     )}
 
-                                    {/* Tranche d'alignement (Niveau) */}
-                                    {newAlignment !== "neutre" && newOrder && (
-                                        <div className="flex flex-col gap-2 pt-2 border-t border-border animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <div className="flex items-center gap-1.5">
-                                                <Sparkles className="w-3.5 h-3.5 text-warning" />
-                                                <label className="text-caption text-foreground font-black uppercase tracking-wider">Tranche d'Alignement</label>
-                                            </div>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setNewAlignmentLevel(0)}
-                                                    className={cn(
-                                                        "px-3 py-2 rounded-xl text-caption font-black uppercase tracking-widest border transition-all",
-                                                        newAlignmentLevel === 0
-                                                            ? "bg-warning/15 border-warning/40 text-warning"
-                                                            : "bg-muted/20 border-border text-muted-foreground hover:text-foreground"
-                                                    )}
-                                                >
-                                                    Aucune
-                                                </button>
-                                                {getAlignmentLevelSteps((ORDERS as any)[newAlignment]?.find((o: any) => o.id === newOrder)).map(({ level, title }) => (
-                                                    <button
-                                                        key={level}
-                                                        type="button"
-                                                        onClick={() => setNewAlignmentLevel(level)}
-                                                        className={cn(
-                                                            "px-3 py-2 rounded-xl text-caption font-black uppercase tracking-widest border transition-all",
-                                                            newAlignmentLevel === level
-                                                                ? "bg-warning/15 border-warning/40 text-warning"
-                                                                : "bg-muted/20 border-border text-muted-foreground hover:text-foreground"
-                                                        )}
-                                                        title={title || `Niveau ${level}`}
-                                                    >
-                                                        {level} · {title || `Niv ${level}`}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
 
                                 {/* Form Submission Action Row */}

@@ -40,6 +40,8 @@ interface RushOverlayHeaderProps {
   ocre?: { missing: number; percent: number } | null;
   /** Ouvre le panneau Quête Ocre. Sans ce callback, le bouton n'est jamais rendu. */
   onOpenOcre?: () => void;
+  /** Ouvre la modale d'alignement de la guilde (overlay interne uniquement). */
+  onOpenAlignment?: () => void;
 }
 
 /**
@@ -71,6 +73,7 @@ export function RushOverlayHeader({
   isGuest = false,
   ocre,
   onOpenOcre,
+  onOpenAlignment,
 }: RushOverlayHeaderProps) {
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
@@ -232,13 +235,32 @@ export function RushOverlayHeader({
             />
           </button>
 
+          {/* Alignement de la guilde (camps + Ordres) — overlay interne uniquement */}
+          {onOpenAlignment && (
+            <button
+              type="button"
+              onClick={onOpenAlignment}
+              aria-label="Alignement de la guilde"
+              title="Qui est bontarien ou brâkmarien, par Ordre"
+              className={cn(
+                "p-1.5 rounded-lg border transition-colors",
+                isLightMode
+                  ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+                  : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
+              )}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/ordres/neutre.png" alt="" className="w-3.5 h-3.5 object-contain" />
+            </button>
+          )}
+
           {/* Quête Ocre (Metamob) — overlay interne uniquement : pastille du reste à capturer */}
-          {onOpenOcre && ocre && (
+          {onOpenOcre && (
             <button
               type="button"
               onClick={onOpenOcre}
-              aria-label={`Quête Ocre : ${ocre.missing} cibles restantes`}
-              title={`Quête Ocre · ${ocre.missing} archis / gardiens restants · ${ocre.percent}%`}
+              aria-label={ocre ? `Quête Ocre : ${ocre.missing} cibles restantes` : "Ouvrir la Quête Ocre (compte Metamob non lié)"}
+              title={ocre ? `Quête Ocre · ${ocre.missing} archis / gardiens restants · ${ocre.percent}%` : "Quête Ocre — lier mon compte Metamob"}
               className={cn(
                 "relative p-1.5 rounded-lg border transition-colors",
                 isLightMode
@@ -252,7 +274,7 @@ export function RushOverlayHeader({
                 alt=""
                 className="w-3.5 h-3.5 object-contain"
               />
-              {ocre.missing > 0 ? (
+              {ocre && (ocre.missing > 0 ? (
                 <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#e2726f] text-black text-[9px] font-black tabular-nums leading-[15px] text-center">
                   {ocre.missing > 99 ? "99+" : ocre.missing}
                 </span>
@@ -260,7 +282,7 @@ export function RushOverlayHeader({
                 <span className="absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full bg-[#39bc95] text-black grid place-items-center">
                   <Check className="w-2.5 h-2.5 stroke-[3]" />
                 </span>
-              )}
+              ))}
             </button>
           )}
 

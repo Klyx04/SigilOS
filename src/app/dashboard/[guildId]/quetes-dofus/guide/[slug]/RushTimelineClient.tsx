@@ -32,6 +32,9 @@ import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBete
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
+import { GuildAlignmentModal } from "@/components/dofus-quests/rush/GuildAlignmentModal";
+import AlignmentModal from "@/components/dofus-quests/AlignmentModal";
+import type { AlignmentMember } from "@/components/dofus-quests/rush/GuildAlignmentPanel";
 import { useGuidePresence } from "@/hooks/use-guide-presence";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { isDocumentPipSupported, openPipWindow, openFallbackPopup } from "@/hooks/use-guide-pip";
@@ -1228,6 +1231,10 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   useEffect(()=>{if(typeof window==="undefined")return;const k=`guide-incognito-${guildId}`;const stored=localStorage.getItem(k);if(stored!==null)setIncognito(stored==="true");},[guildId]);
   const toggleIncognito=useCallback(()=>{setIncognito(prev=>{const next=!prev;localStorage.setItem(`guide-incognito-${guildId}`,next?"true":"false");return next;});},[guildId]);
   const [metamobLinkOpen,setMetamobLinkOpen]=useState(false);
+  // Lot 1 — la modale d'alignement de la guilde remplace le renvoi au profil perso.
+  const [guildAlignmentOpen,setGuildAlignmentOpen]=useState(false);
+  // Lot 2 — le choix cité / Ordre / tranche se fait DANS le rush (plus de renvoi profil).
+  const [alignmentEditOpen,setAlignmentEditOpen]=useState(false);
   const [metamobStep,setMetamobStep]=useState(1);
   const [metamobPseudoInput,setMetamobPseudoInput]=useState("");
   const [metamobApiKeyInput,setMetamobApiKeyInput]=useState("");
@@ -1244,6 +1251,25 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // sur la page Profil ; une quête d'alignement cochée met le profil à jour via
   // `applyRushAlignmentFromSequence` (jamais un écran d'édition ici).
   const effectiveAltPseudo=useMemo(()=>{if(!altPseudo)return undefined;const mp=localProfile?.pseudoDofus;if(mp&&altPseudo===mp)return undefined;return altPseudo;},[altPseudo,localProfile?.pseudoDofus]);
+  // Alignement de la guilde : `guildProgress` porte DÉJÀ alignment / ordre / tranche
+  // (shape `GuideProgressRow`) — une ligne par jalon, donc on déduplique par membre.
+  const alignmentMembers=useMemo<AlignmentMember[]>(()=>{
+    const byProfile=new Map<string,AlignmentMember>();
+    for(const row of (guildProgress as any[])||[]){
+      if(!row?.profileId||byProfile.has(row.profileId))continue;
+      byProfile.set(row.profileId,{
+        profileId:row.profileId,
+        userName:row.userName||"Voyageur",
+        userAvatar:row.userAvatar,
+        alignment:row.alignment??null,
+        alignmentOrder:row.alignmentOrder??null,
+        alignmentLevel:row.alignmentLevel??0,
+        isSelf:!!currentUserProfile?.pseudoDofus&&row.userName===currentUserProfile.pseudoDofus,
+      });
+    }
+    return [...byProfile.values()];
+  },[guildProgress,currentUserProfile?.pseudoDofus]);
+
   const resolvedCharacterInfo=useMemo(()=>{if(!effectiveAltPseudo)return{alignment:localProfile?.alignment,alignmentOrder:localProfile?.alignmentOrder,alignmentLevel:localProfile?.alignmentLevel??0};const m=localProfile?.altPseudos?.find((m:any)=>m.pseudo===effectiveAltPseudo);return{alignment:m?.alignment,alignmentOrder:m?.alignmentOrder,alignmentLevel:m?.alignmentLevel??0};},[effectiveAltPseudo,localProfile]);
   const handleFocusSequence=useCallback((seqId:string)=>setFocusedSeqId(seqId),[]);
   const handleDungeonClick=useCallback((dungeonId:string,questName:string)=>setDjModal({open:true,dungeonId,questName}),[]);
@@ -1991,7 +2017,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             </div>
           </div>
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
-          <button type="button" onClick={()=>router.push(`/dashboard/${guildId}/profile`)} title="Alignement en lecture seule — modifiable depuis ton profil" className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><img src="/ordres/neutre.png" alt="" className="w-7 h-7 object-contain shrink-0 opacity-50"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><p className="text-xs font-bold text-muted-foreground mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";const trancheTitle=alignmentLevel>0?((od as any).levels?.[alignmentLevel]||""):"";return<><img src={od.icon} alt="" className="w-7 h-7 object-contain shrink-0"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Ordre</p><p className={`text-xs font-semibold mt-0.5 ${ib?"text-info":"text-danger"}`}>{od.name}</p><div className="flex flex-wrap items-center gap-1 mt-0.5">{alignmentLevel>0&&<span className="text-caption font-mono text-warning">Tranche {alignmentLevel}</span>}{trancheTitle&&<span className="text-caption text-muted-foreground">{trancheTitle}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;}return<>{ad&&<img src={ad.icon} alt="" className="w-7 h-7 object-contain shrink-0"/>}<div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-foreground">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-caption font-bold text-warning">lv.{alignmentLevel}</span>}</div></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;})()}</button>
+          <button type="button" onClick={()=>setGuildAlignmentOpen(true)} aria-label="Voir les alignements de la guilde" title="Voir qui est bontarien ou brâkmarien, par Ordre et par tranche" className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer">{(()=>{const{alignment,alignmentOrder}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><img src="/ordres/neutre.png" alt="" className="w-7 h-7 object-contain shrink-0 opacity-50"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><p className="text-xs font-bold text-muted-foreground mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";return<><img src={od.icon} alt="" className="w-7 h-7 object-contain shrink-0"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Ordre</p><p className={`text-xs font-semibold mt-0.5 ${ib?"text-info":"text-danger"}`}>{od.name}</p></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;}return<>{ad&&<img src={ad.icon} alt="" className="w-7 h-7 object-contain shrink-0"/>}<div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-foreground">{ad?.name||alignment}</span></div></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;})()}</button>
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Asset Ocre posé NU (plus de tuile teintée sous le picto). */}
@@ -2448,6 +2474,23 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         onClose={() => setResourcesModalOpen(false)}
       />
     )}
+    <GuildAlignmentModal
+      open={guildAlignmentOpen}
+      onOpenChange={setGuildAlignmentOpen}
+      members={alignmentMembers}
+      onChangeAlignment={()=>{setGuildAlignmentOpen(false);setAlignmentEditOpen(true);}}
+    />
+
+    <AlignmentModal
+      open={alignmentEditOpen}
+      onOpenChange={setAlignmentEditOpen}
+      guildId={guildId}
+      mulePseudo={selectedCharacter!=="PRINCIPAL"?selectedCharacter:undefined}
+      alignment={resolvedCharacterInfo.alignment}
+      alignmentOrder={resolvedCharacterInfo.alignmentOrder}
+      alignmentLevel={resolvedCharacterInfo.alignmentLevel}
+    />
+
     <OcreProgressModal
       open={ocreModalOpen}
       onOpenChange={setOcreModalOpen}

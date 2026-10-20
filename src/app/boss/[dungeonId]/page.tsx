@@ -20,6 +20,7 @@ import { PublicBossDetailClient, type DungeonFamily } from "./_components/Public
 import { getPublicLinkedQuests, getPublicDungeonAchievements } from "@/server/actions/public-boss-tabs-actions";
 import { bossSovereigntyKey } from "@/lib/boss-sovereignty";
 import { readLocalDungeonCatalogue } from "@/lib/dungeon-monsters-siphon";
+import { resolveDungeonBossPair } from "@/lib/dungeon-boss-pair";
 
 export const revalidate = 3600;
 
@@ -185,6 +186,20 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
     : isBounty
       ? bounty!.dungeon.name
       : titan!.mapName || titan!.zone || titan!.name;
+  // 🐛 Double boss (mesure du 20/10/2026) : `bossName` porte le **nom du donjon**
+  // (« Comte et Nileza ») et non un monstre ⇒ les stats, les sorts et la carte étaient
+  // résolus sur le Comte, et la simulation ouvrait *toutes* les salles. La règle
+  // `resolveDungeonBossPair` désigne le vrai boss de la salle (`dofensiveMonsterName`)
+  // et son partenaire ; `bossName` reste le nom du donjon (SEO, famille).
+  const bossPair = dungeon
+    ? resolveDungeonBossPair({
+        name: dungeon.name,
+        bossName: dungeon.bossName,
+        dofensiveMonsterName: dungeon.dofensiveMonsterName,
+        dofensiveDungeonName: dungeon.dofensiveDungeonName,
+      })
+    : { focus: bossName, partner: null, isDoubleBoss: false };
+  const focusMonsterName = bossPair.focus;
   // 🌀 Boss d'anomalie (« Gardiens des anomalies ») : Dofensive n'expose PAS ces donjons.
   // Sans branchement dédié, la landing publique restait sans carte ⇒ ni « Salle », ni
   // « Placements de départ », ni Placement/Butin (constat user du 15/09/2026).
@@ -199,10 +214,10 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   const [statsRes, spellsRes, familyRes, mapsRes] = await Promise.all([
     isBounty
       ? Promise.resolve({ success: true, data: bounty!.monsterStats })
-      : getMonsterStats(bossName, dungeonName, false, undefined, locale),
+      : getMonsterStats(focusMonsterName, dungeonName, false, undefined, locale),
     isBounty
       ? Promise.resolve({ success: false, data: null })
-      : getBossDofensiveSpells(bossName, dungeonName, undefined, false, undefined, locale),
+      : getBossDofensiveSpells(focusMonsterName, dungeonName, undefined, false, undefined, locale),
     // « Famille » (monstres accompagnateurs) : pour une anomalie = les autres gardiens de la
     // même carte + les monstres de l'anomalie (Briko/Bruto/Gromo), 100 % local (siphon).
     isBounty
@@ -219,7 +234,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
         : isRaidBoss
           ? Promise.resolve({ success: true, data: null })
           : getDofensiveDungeonForBoss(
-            bossName,
+            focusMonsterName,
             dungeonName,
             dungeon
               ? {
@@ -241,7 +256,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
     ];
     monsterStats = { ...monsterStats, spells: mergeDofensiveSpells(monsterStats.spells ?? [], spellsData, legitIds) };
   } else if (!monsterStats && spellsData) {
-    monsterStats = { name: bossName, spells: spellsData, grades: [], drops: [] };
+    monsterStats = { name: focusMonsterName, spells: spellsData, grades: [], drops: [] };
   }
   const family: DungeonFamily | null = familyRes.success ? ((familyRes.data as DungeonFamily) ?? null) : null;
   const dungeonMaps = mapsRes.success ? mapsRes.data : null;

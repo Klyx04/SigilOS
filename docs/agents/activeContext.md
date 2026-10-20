@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/10/2026 (suite 4) — **Fiches boss : double boss complet, onglets dédoublonnés, résistances et effets réparés** — PR **#1057 · #1058 · #1060 · #1061**
+> **Demandes user (verbatim)** : « centrée sur les 2 » · « dans la simulation on doit pouvoir de base poser les 2 boss » · « je veux conserver toutes les salles » · « les 4 double boss … la map a un choix de dropdown au lieu de focus sur la map concernée » · « le comte sa fiche a pas les résistances, les sorts sont mauvais, dégâts mauvais, crit, assets complet des effets ».
+> **Mesures** : `Dungeon.bossName` = **nom du donjon** (« Comte et Nileza »), `dofensiveMonsterName` / `dofensiveDungeonName` **déjà renseignés** sur les 4 donjons ; `SpellRangeGrid` filtre les salles **par nom de boss** (aucun match avec le nom du donjon ⇒ toutes les salles) ; `selectMonster` neutralisait `m.isBoss` (2ᵉ boss non cliquable) ; **10 vignettes** en repli alors que `/api/assets-dofus/monsters/3416` répond **200 `image/webp`** ; **`MonsterStat.stats.grades[].resists = {}`** pour le Comte (DofusDB sert `reductionNeutral/Earth/Fire/Water/Air`, **pas** `neutralResistance`) ; libellés d'effets contenant `<span name="erosion">`.
+> **Fait** : **#1057** santé sans DofusDB/Dofensive + recettes d'objets persistées au siphon · **#1058** code mort `/status` retiré · **#1060** règle `src/lib/dungeon-boss-pair.ts`, bandeau « Double boss », second boss posé sur une case de départ, onglet `monsters` **supprimé** (lien bestiaire sur la carte), **rang 50** consigné, stash `hors-sujet-R2-bis` supprimé · **#1061** `gradeResists()` (2 formes) + `cleanGameEffectText()` sur `flattenEffectLines`.
+> **Preuves** : suite **436 fichiers / 4 698 tests ✓** (avant #1061) · 8 cas neufs (`resists-dofusdb`, `game-effect-text`) · `tsc` **0** · `eslint` **0 erreur** · CI **Verify & Build verte** sur les 4 PR (#1056, #1059, #1060, #1061).
+> **Reste / ops (humain)** : **re-siphonner** (`sync-monster-stats`) pour remplir `resists` du Comte (attendu **14 / 17 / 16 / 29 / 25**) · **rang 47** (crits < base : Dofensive formate les crits en chaînes avant `isCoherentCritJet`) · audit des **sorts** affichés (4 : Contretemps, Multicomte, Jaquemart, Triche) · déployer la bêta.
+> **Rotation** : bloc « 19/10 — Supervision rendue privée » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
+
+
+
 ## 📝 Session 20/10/2026 (suite 3) — **Double boss Frigost : le bon boss, le bon balcon, les deux combattants** — branche `feat/boss-multi-frigost` (PR #1059)
 > **Demandes user (verbatim)** : « les 4 double boss en base … on affiche juste l'icône du comte et ses stats … la map a un choix de dropdown au lieu de focus uniquement sur la map concernée » · « centrée sur les 2 » · « dans la simulation on doit pouvoir de base poser les 2 boss » · « je veux conserver toutes les salles ».
 > **Mesures** : en base, `Dungeon.bossName` porte le **nom du donjon** (« Comte et Nileza ») alors que `dofensiveMonsterName` (Nileza) et `dofensiveDungeonName` (« Donjon du Comte Harebourg ») **sont déjà renseignés** sur les 4 ; la page passait `bossName` partout ⇒ stats/passif/carte du Comte ; `SpellRangeGrid` filtre les salles **par nom de boss** ⇒ aucun match, donc toutes les salles ; `selectMonster` neutralisait `m.isBoss` ⇒ second boss non cliquable ; 10 vignettes en repli alors que `/api/assets-dofus/monsters/3416` répond **200 `image/webp`**.
@@ -53,14 +63,6 @@
 > **Fichiers du chantier** : `src/app/god/components/system-health-dashboard.tsx`, `src/app/god/page.tsx`, `src/server/actions/god-system-actions.ts`, `src/lib/system-metrics.ts`, `docker-compose.prod.yml`, `docker-compose.yml`, `Caddyfile`, `tests/unit/{system-metrics,monitor-private}.test.ts`, `docs/{ROADMAP,MAINTENANCE,CONTEXT,RULES}.md`.
 
 
-## 📝 Session 19/10/2026 (suite) — **Supervision rendue privée : Grafana supprimé de l'exposition, God « Système & Infra »** — branche `fix/monitor-prive`
-> **Demande user (verbatim)** : « je suis perplexe on est pas safe avec notre exposition là actuellement ? » puis « tu choisis, tu anticipes anti slop ia, ui landing cutting edge … one shot la total ».
-> **Mesures** : `monitor.sigilos.fr` = Grafana public sans `basic_auth` ; audit F-12 🟡 moyenne ; `GF_AUTH_GITHUB_ALLOW_SIGN_UP=true` ; images `grafana:latest` / `prometheus:latest` ; **aucun Alertmanager** ; Prometheus sur `prod-net` + `beta-net` ; `SystemHealthDashboard` existait mais **non monté** et très slop.
-> **Fait** : service Grafana supprimé du compose prod ; bloc Caddy `monitor.sigilos.fr` retiré ; Prometheus épinglé **v3.15.0** et **interne** ; `PROMETHEUS_URL` injecté dans `app-prod` et `app-beta` ; dashboard God réécrit (tokens, rayons ≤ 12 px, responsive, accessible) et monté dans **Système & Infra** ; métriques ajoutées (CPU, Redis détaillé, PostgreSQL, conteneurs/redémarrages, crons, cibles Prometheus) ; parseurs purs + 2 gardes de non-régression.
-> **Preuves** : **429 fichiers / 4 627 tests ✓** (dont `system-metrics` **5** et `monitor-private` **4**) · `tsc` **0** · `eslint` **0 erreur** · `god-deslop` **4/4** · `git status --short` à vérifier avant PR.
-> **Reste / ops (humain)** : après merge, `git pull` sur le VPS puis `docker compose … up -d --remove-orphans` pour retirer Grafana ; volume `grafana_data` conservé ; ouvrir God → Système & Infra.
-
-
 
 ## PR / Branche
 - **Session « Démo publique » (02/10/2026)** → branche **`feat/demo-publique`**, **PR #830 mergée sur `dev`** : `src/lib/demo/**` (source statique) + route `/demo` + bandeau « Démonstration » + `readOnly` sur l'annuaire réel. Dossier : `docs/plans/PLAN-DEMO-PUBLIQUE.md`.
@@ -79,6 +81,7 @@
 ## NEXT (priorités — à faire)
 
 ### 🚦 Priorités au 05/10/2026 — **source de vérité : `docs/ROADMAP.md` § « 🚧 Chantiers ouverts »** + `docs/ROADMAP.md` (ordre, mesures et décisions y vivent : **ne rien recopier ici**)
+- **Fiches boss (20/10/2026) — deux rangs ouverts, rien d'autre à coder de ce côté** : **rang 47** `crits-incoherents` (crit < base, Dofensive formate les crits en chaînes avant `isCoherentCritJet`) et **rang 50** `boss-fiche-locale` (`/boss` et `/monstre` interrogent encore DofusDB). ⚠️ **Opération** : lancer `sync-monster-stats` après déploiement pour remplir `resists` du Comte Harebourg (attendu 14/17/16/29/25).
 - **Y+ · Moteur de rôles multi-sources** — **cadré le 18/10/2026**, **aucun code** : ancienneté (projection, zéro régression) + vocal + contribution, garde-fous (gel, portail, 1 rôle = 1 règle, hystérésis), **un onglet**, **1 migration additive** (`GuildConfig.roleAutomationRules`). Dossier : **`docs/plans/PLAN-MOTEUR-ROLES-MULTI-SOURCES.md`**. ⚠️ **D-R1 à trancher avant R-1** : les fenêtres hebdo/mensuelles ne sont mesurées que pour les **inscrits** ⇒ **voie A** (vocal **total** universel, recommandée) ou **voie B** (fenêtres dans `DiscordMemberActivity` + reset bot, 1 migration). **Rien ne démarre avant.**
 - **T · Rush Sylvestre — session 08/10 « one shot »** (branche `feat/rush-one-shot`, **3 commits**, PR à ouvrir → `dev`) : pictos réels (source unique `RUSH_RESOURCES_PICTO`), rail de droite qui défile (interne **et** public), **alignement/ordre en LECTURE SEULE**, table Dofus **unique** (5 copies divergentes supprimées), bruit Sentry filtré/annoté · **Reste** : **T-2c** (compter les prérequis orphelins **sur la base qui porte le guide réel**), lot **4** (O15, G7, G8, G9, T2), lot **5** (O9, O10, O11, O13), lot **6** (perf) et transverses (O5, O6, O7, G2, G5, T1, T5, 4 `prompt()` du studio) · **Ops** : `./scripts/deploy-cd.sh beta` (**0 migration**) + contrôle visuel.
 

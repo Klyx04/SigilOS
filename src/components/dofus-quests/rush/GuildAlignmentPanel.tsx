@@ -17,7 +17,7 @@ export type AlignmentMember = {
   alignment?: string | null;
   alignmentOrder?: string | null;
   alignmentLevel?: number | null;
-  /** Présence temps réel (WebSocket) — simple surbrillance. */
+  /** Présence temps réel (WebSocket) — simple point de statut. */
   isOnline?: boolean;
   /** Le membre courant (badge « toi »). */
   isSelf?: boolean;
@@ -29,24 +29,18 @@ type Props = {
   onChangeAlignment?: () => void;
 };
 
+type Camp = "bontarien" | "brakmarien";
 type Group = { orderId: string; orderName: string; icon: string; members: AlignmentMember[] };
 
-const ORDER_SLUGS: Array<[string, string]> = [
-  ["vaillant", "vaillant"],
-  ["attentif", "attentif"],
-  ["salvateur", "salvateur"],
-  ["saignant", "saignant"],
-  ["putride", "putride"],
-  ["malsain", "malsain"],
-];
+const ORDER_SLUGS = ["vaillant", "attentif", "salvateur", "saignant", "putride", "malsain"];
 
-const ORDER_ICON = (camp: "bontarien" | "brakmarien", orderId: string) => {
-  const slug = ORDER_SLUGS.find(([needle]) => orderId.includes(needle))?.[1] ?? "vaillant";
+const ORDER_ICON = (camp: Camp, orderId: string) => {
+  const slug = ORDER_SLUGS.find((needle) => orderId.includes(needle)) ?? ORDER_SLUGS[0];
   return `/ordres/${camp === "bontarien" ? "bontarien" : "brakmarien"}/${slug}.png`;
 };
 
 /** Titre de tranche (« Mètre des Illusions »…) depuis la source unique des Ordres. */
-function trancheTitle(camp: "bontarien" | "brakmarien", orderId: string, level: number): string {
+function trancheTitle(camp: Camp, orderId: string, level: number): string {
   if (!level) return "";
   const orders = (ORDERS as unknown as Record<string, Array<Record<string, unknown>>>)[camp] || [];
   const order = orders.find((o) => o.id === orderId);
@@ -55,7 +49,7 @@ function trancheTitle(camp: "bontarien" | "brakmarien", orderId: string, level: 
   return steps.find((s) => s.level === level)?.title ?? "";
 }
 
-function groupByOrder(camp: "bontarien" | "brakmarien", members: AlignmentMember[]): Group[] {
+function groupByOrder(camp: Camp, members: AlignmentMember[]): Group[] {
   const groups = new Map<string, Group>();
   for (const member of members) {
     const orderId = (member.alignmentOrder || "").trim();
@@ -78,77 +72,131 @@ function groupByOrder(camp: "bontarien" | "brakmarien", members: AlignmentMember
   return [...groups.values()].sort((a, b) => b.members.length - a.members.length);
 }
 
-function MemberRow({ member, camp }: { member: AlignmentMember; camp: "bontarien" | "brakmarien" }) {
-  const level = member.alignmentLevel ?? 0;
-  const title = member.alignmentOrder ? trancheTitle(camp, member.alignmentOrder, level) : "";
+function Avatar({ member }: { member: AlignmentMember }) {
   return (
-    <li className="flex items-center gap-2 rounded-[4px] px-1.5 py-1">
-      <span
-        className={cn(
-          "relative grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-full border",
-          member.isOnline ? "border-success/60" : "border-border"
-        )}
-      >
-        {member.userAvatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={member.userAvatar} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <span className="text-[10px] font-semibold text-muted-foreground">
-            {member.userName.slice(0, 1).toUpperCase()}
-          </span>
-        )}
-      </span>
+    <span
+      className={cn(
+        "relative grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full border bg-elevated",
+        member.isOnline ? "border-success/60" : "border-border"
+      )}
+    >
+      {member.userAvatar ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={member.userAvatar} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="text-[11px] font-semibold text-muted-foreground">
+          {member.userName.slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      {member.isOnline && (
+        <span
+          className="absolute -right-px -bottom-px h-2 w-2 rounded-full border border-background bg-success"
+          aria-label="En ligne"
+        />
+      )}
+    </span>
+  );
+}
+
+function SelfBadge() {
+  return (
+    <span className="shrink-0 rounded-[3px] border border-accent/40 bg-accent/10 px-1 text-[9px] font-semibold text-accent">
+      toi
+    </span>
+  );
+}
+
+function MemberRow({ member, camp }: { member: AlignmentMember; camp: Camp | null }) {
+  const level = member.alignmentLevel ?? 0;
+  const title = camp && member.alignmentOrder ? trancheTitle(camp, member.alignmentOrder, level) : "";
+  return (
+    <li className="flex items-center gap-2.5 rounded-[4px] px-1.5 py-1.5 transition-colors hover:bg-elevated">
+      <Avatar member={member} />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           <span className="truncate text-[12px] font-semibold text-foreground">{member.userName}</span>
-          {member.isSelf && (
-            <span className="shrink-0 rounded-[3px] border border-accent/40 bg-accent/10 px-1 text-[9px] font-semibold text-accent">
-              toi
-            </span>
-          )}
+          {member.isSelf && <SelfBadge />}
         </span>
         {title && <span className="block truncate text-[10px] text-muted-foreground">{title}</span>}
       </span>
-      {level > 0 && <span className="shrink-0 font-mono text-[10px] text-warning">{`T${level}`}</span>}
+      {level > 0 && (
+        <span
+          className="shrink-0 rounded-[3px] border border-border bg-background px-1 font-mono text-[10px] text-muted-foreground"
+          title={`Tranche ${level}`}
+        >
+          {`T${level}`}
+        </span>
+      )}
     </li>
   );
 }
 
-function CampSection({
-  camp,
-  members,
+function SummaryCell({
+  icon,
+  label,
+  value,
+  tone,
 }: {
-  camp: "bontarien" | "brakmarien";
-  members: AlignmentMember[];
+  icon: string;
+  label: string;
+  value: number;
+  tone?: string;
 }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={icon} alt="" className={cn("h-5 w-5 object-contain", value === 0 && "opacity-45")} />
+      <span className="min-w-0">
+        <span className={cn("block font-mono text-[13px] font-semibold tabular-nums", tone)}>{value}</span>
+        <span className="block truncate text-[9px] uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function OrderCard({ group, camp }: { group: Group; camp: Camp }) {
+  return (
+    <div className="overflow-hidden rounded-[6px] border border-border bg-surface/40">
+      <p className="flex items-center gap-1.5 border-b border-border/70 px-2 py-1 text-[10px] font-semibold text-foreground">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={group.icon} alt="" className="h-3.5 w-3.5 object-contain" />
+        <span className="truncate">{group.orderName}</span>
+        <span className="ml-auto font-mono text-[10px] tabular-nums text-muted-foreground">
+          {group.members.length}
+        </span>
+      </p>
+      <ul className="p-0.5">
+        {group.members.map((member) => (
+          <MemberRow key={`${member.profileId}-${member.userName}`} member={member} camp={camp} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function CampSection({ camp, members }: { camp: Camp; members: AlignmentMember[] }) {
   if (!members.length) return null;
   const alignment = getAlignment(camp);
   const groups = groupByOrder(camp, members);
   return (
-    <section className="space-y-1.5">
-      <h3 className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <section>
+      <header className="flex items-center gap-2 px-1 pt-1 pb-1.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={alignment?.icon ?? "/ordres/neutre.png"} alt="" className="h-4 w-4 object-contain" />
-        {alignment?.name ?? camp}
-        <span className="font-mono tabular-nums text-foreground">{members.length}</span>
-      </h3>
-      {groups.map((group) => (
-        <div key={group.orderId} className="rounded-[4px] border border-border bg-surface/40 p-1">
-          <p className="flex items-center gap-1.5 px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={group.icon} alt="" className="h-3.5 w-3.5 object-contain" />
-            <span className="truncate">{group.orderName}</span>
-            <span className="ml-auto font-mono tabular-nums text-muted-foreground">
-              {group.members.length}
-            </span>
-          </p>
-          <ul>
-            {group.members.map((member) => (
-              <MemberRow key={`${member.profileId}-${member.userName}`} member={member} camp={camp} />
-            ))}
-          </ul>
-        </div>
-      ))}
+        <h3 className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          {alignment?.name ?? camp}
+        </h3>
+        <span className="ml-auto font-mono text-[10px] tabular-nums text-muted-foreground">
+          {members.length}
+        </span>
+      </header>
+      <div className="space-y-1">
+        {groups.map((group) => (
+          <OrderCard key={group.orderId} group={group} camp={camp} />
+        ))}
+      </div>
     </section>
   );
 }
@@ -162,50 +210,70 @@ export function GuildAlignmentPanel({ members, onChangeAlignment }: Props) {
   const bontariens = members.filter((m) => normalizeAlignmentCamp(m.alignment) === "bontarien");
   const brakmariens = members.filter((m) => normalizeAlignmentCamp(m.alignment) === "brakmarien");
   const neutres = members.filter((m) => !normalizeAlignmentCamp(m.alignment));
+  const selfNeutre = neutres.some((m) => m.isSelf);
 
   return (
     <div className="flex min-h-0 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border px-3 py-2 text-[10px] text-muted-foreground">
-        <span>
-          Bontariens <span className="font-mono font-semibold text-info">{bontariens.length}</span>
-        </span>
-        <span>
-          Brâkmariens <span className="font-mono font-semibold text-danger">{brakmariens.length}</span>
-        </span>
-        <span>
-          Neutres <span className="font-mono font-semibold text-foreground">{neutres.length}</span>
-        </span>
+      {/* Synthèse : une ligne, trois camps, aucune couleur décorative. */}
+      <div className="grid shrink-0 grid-cols-3 divide-x divide-border border-b border-border">
+        <SummaryCell icon="/ordres/bonta.png" label="Bontariens" value={bontariens.length} tone="text-info" />
+        <SummaryCell icon="/ordres/brakmar.png" label="Brâkmariens" value={brakmariens.length} tone="text-danger" />
+        <SummaryCell icon="/ordres/neutre.png" label="Neutres" value={neutres.length} />
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-2.5 py-2">
+        {members.length === 0 && (
+          <div className="mx-auto max-w-[16rem] py-8 text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/ordres/neutre.png" alt="" className="mx-auto mb-2 h-8 w-8 object-contain opacity-60" />
+            <p className="text-[12px] font-semibold text-foreground">Aucun alignement renseigné</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              Les membres n&apos;ont pas encore indiqué leur cité. Chacun peut le faire depuis son profil.
+            </p>
+          </div>
+        )}
+
+        <CampSection camp="bontarien" members={bontariens} />
+        <CampSection camp="brakmarien" members={brakmariens} />
+
+        {neutres.length > 0 && (
+          <section>
+            <header className="flex items-center gap-2 px-1 pt-1 pb-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/ordres/neutre.png" alt="" className="h-4 w-4 object-contain opacity-80" />
+              <h3 className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Neutres
+              </h3>
+              <span className="ml-auto font-mono text-[10px] tabular-nums text-muted-foreground">
+                {neutres.length}
+              </span>
+            </header>
+            <div className="overflow-hidden rounded-[6px] border border-border bg-surface/40">
+              <ul className="p-0.5">
+                {neutres.map((member) => (
+                  <MemberRow
+                    key={`${member.profileId}-${member.userName}`}
+                    member={member}
+                    camp={null}
+                  />
+                ))}
+              </ul>
+            </div>
+            <p className="mt-1.5 px-1 text-[10px] leading-relaxed text-muted-foreground">
+              L&apos;alignement se choisit en jeu (quête d&apos;alignement), puis se renseigne sur ton
+              profil.
+            </p>
+          </section>
+        )}
+
         {onChangeAlignment && (
           <button
             type="button"
             onClick={onChangeAlignment}
-            className="ml-auto rounded-[3px] border border-border bg-surface px-1.5 py-0.5 font-semibold text-foreground transition-colors hover:bg-elevated"
+            className="w-full rounded-[4px] border border-border bg-surface px-2 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-elevated"
           >
-            Modifier le mien
+            {selfNeutre ? "Choisir mon alignement" : "Modifier mon alignement"}
           </button>
-        )}
-      </div>
-
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2">
-        {members.length === 0 && (
-          <p className="py-6 text-center text-[12px] text-muted-foreground">
-            Aucun membre n&apos;a encore renseigné son alignement.
-          </p>
-        )}
-        <CampSection camp="bontarien" members={bontariens} />
-        <CampSection camp="brakmarien" members={brakmariens} />
-        {neutres.length > 0 && (
-          <section className="space-y-1">
-            <h3 className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/ordres/neutre.png" alt="" className="h-4 w-4 object-contain opacity-70" />
-              Neutres
-              <span className="font-mono tabular-nums text-foreground">{neutres.length}</span>
-            </h3>
-            <p className="px-1.5 text-[11px] leading-relaxed text-muted-foreground">
-              {neutres.map((m) => m.userName).join(" · ")}
-            </p>
-          </section>
         )}
       </div>
     </div>

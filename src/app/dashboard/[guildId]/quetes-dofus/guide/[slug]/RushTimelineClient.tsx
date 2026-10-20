@@ -33,6 +33,7 @@ import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
 import { GuildAlignmentModal } from "@/components/dofus-quests/rush/GuildAlignmentModal";
+import AlignmentModal from "@/components/dofus-quests/AlignmentModal";
 import type { AlignmentMember } from "@/components/dofus-quests/rush/GuildAlignmentPanel";
 import { useGuidePresence } from "@/hooks/use-guide-presence";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
@@ -1232,6 +1233,8 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [metamobLinkOpen,setMetamobLinkOpen]=useState(false);
   // Lot 1 — la modale d'alignement de la guilde remplace le renvoi au profil perso.
   const [guildAlignmentOpen,setGuildAlignmentOpen]=useState(false);
+  // Lot 2 — le choix cité / Ordre / tranche se fait DANS le rush (plus de renvoi profil).
+  const [alignmentEditOpen,setAlignmentEditOpen]=useState(false);
   const [metamobStep,setMetamobStep]=useState(1);
   const [metamobPseudoInput,setMetamobPseudoInput]=useState("");
   const [metamobApiKeyInput,setMetamobApiKeyInput]=useState("");
@@ -2475,6 +2478,17 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       open={guildAlignmentOpen}
       onOpenChange={setGuildAlignmentOpen}
       members={alignmentMembers}
+      onChangeAlignment={()=>{setGuildAlignmentOpen(false);setAlignmentEditOpen(true);}}
+    />
+
+    <AlignmentModal
+      open={alignmentEditOpen}
+      onOpenChange={setAlignmentEditOpen}
+      guildId={guildId}
+      mulePseudo={selectedCharacter!=="PRINCIPAL"?selectedCharacter:undefined}
+      alignment={resolvedCharacterInfo.alignment}
+      alignmentOrder={resolvedCharacterInfo.alignmentOrder}
+      alignmentLevel={resolvedCharacterInfo.alignmentLevel}
     />
 
     <OcreProgressModal

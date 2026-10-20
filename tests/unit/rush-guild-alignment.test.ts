@@ -57,6 +57,16 @@ describe("panneau « Alignement de la guilde »", () => {
     expect(render()).toContain("toi");
   });
 
+  it("propose de choisir son alignement quand le membre courant est neutre", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(GuildAlignmentPanel, {
+        members: [{ profileId: "x", userName: "Sans", alignment: null, isSelf: true }],
+        onChangeAlignment: () => {},
+      })
+    );
+    expect(html).toContain("Choisir mon alignement");
+  });
+
   it("ne rend rien d'inventé pour un membre sans alignement", () => {
     const html = renderToStaticMarkup(
       React.createElement(GuildAlignmentPanel, {
@@ -86,5 +96,12 @@ describe("câblage du Lot 1 — le clic n'ouvre plus le profil", () => {
     const code = read(CLIENT);
     expect(code).toMatch(/const alignmentMembers=useMemo<AlignmentMember\[\]>\(\(\)=>\{/);
     expect(code).toContain("byProfile.has(row.profileId)");
+  });
+
+  it("le choix cité / Ordre / tranche se fait dans le rush (Lot 2)", () => {
+    const code = read(CLIENT);
+    expect(code).toContain("setAlignmentEditOpen(true)");
+    expect(code).toContain("<AlignmentModal");
+    expect(code).toContain("mulePseudo={selectedCharacter!==\"PRINCIPAL\"?selectedCharacter:undefined}");
   });
 });

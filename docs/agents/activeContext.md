@@ -6,6 +6,14 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 20/10/2026 (suite 5) — **Rush : prérequis par id, Metamob dans l'overlay et alignement Bonta/Brâkmar (modale, route, présence, God)** — branche `feat/rush-alignement-one-shot` (5 commits)
+> **Demandes user (verbatim)** : « on doit terminer ça aujourd'hui » · « c pas mal après ça reste moyen niveau ui surtout en neutre » · « n'oublies pas qu'on doit aligner tout les modif / nouveautés maintenant cutting edge anti slop ia landing etc » · « on vire cette mécanique et on ouvre une modale qui liste par alignement bontarien / brakmarien / neutre et par ordre … ».
+> **Mesures** : **301** tags `prereq_text`, dont **60 orphelins (20 %)** ⇒ `isSequenceBlockedByPrereqs` **fail-open** (ex. « Ça sent le gaz » : 19 prérequis inertes) ; `searchGuideQuests` renvoyait `id: name` (faux id) ; **335** séquences / **335 noms distincts** (backfill univoque) ; `ocreEnabled = !isGuest && !!ocre && …` + `ocre = null` ⇒ **bouton archimonstre absent** quand Metamob n'est pas lié ; `GuidePresenceMember` sans alignement ; `GuideProgressRow` porte **déjà** `alignment/alignmentOrder/alignmentLevel` (zéro requête ajoutée) ; `resolveRushRoute` **inexistant** (les deux camps s'affichaient).
+> **Fait** : **T-2c** id-first (`resolvePrereqTag`, action à vrai id, God écrit l'id, tags historiques toujours résolus par nom) · **V-G** état `not-linked` + formulaire PiP-safe (`LinkMetamobInline`) · **lot 5** `src/lib/rush-route.ts` + branchement serveur (mule incluse) · **lot 1** `GuildAlignmentPanel`/`GuildAlignmentModal` (camps → Ordres → tranches, avatars, présence) · **lot 2** `AlignmentChoiceForm` partagé dashboard/overlay + `PublicRouteChoice` local (guide public, aucune donnée de guilde) · **lot 3** alignement lu au join et diffusé (projection `publicPresenceMember`, jamais envoyé par le client) · **lot 4** `duplicateRushSequenceAsTwin` + bouton « Jumelle » (slot miroir, fail-closed sans camp).
+> **Preuves** : **6 fichiers neufs / 47 tests ✓** · `tsc` **0** · `eslint` **0 erreur** · suite **445 fichiers / 4 755 tests** avec **4 échecs préexistants** `ladder-actions` (reproduits sans ce lot, cache Redis local).
+> **Reste / ops (humain)** : déployer la bêta · renseigner `alignReq` sur le nouveau guide (la route reste neutre d'ici là) · trancher la **progression des membres** lors du « guide à 0 » (`PlayerGuideProgress` est accrochée aux `milestoneId`) · `isSelf` reposera à terme sur `profileId` (aujourd'hui le pseudo) · **déslop global + landing** (rang 22) à traiter comme chantier distinct.
+> **Rotation** : bloc « 19/10 — Bêta `5b31ad0` » sorti (7ᵉ) — `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 20/10/2026 (suite 4) — **Fiches boss : double boss complet, onglets dédoublonnés, résistances et effets réparés** — PR **#1057 · #1058 · #1060 · #1061**
 > **Demandes user (verbatim)** : « centrée sur les 2 » · « dans la simulation on doit pouvoir de base poser les 2 boss » · « je veux conserver toutes les salles » · « les 4 double boss … la map a un choix de dropdown au lieu de focus sur la map concernée » · « le comte sa fiche a pas les résistances, les sorts sont mauvais, dégâts mauvais, crit, assets complet des effets ».
 > **Mesures** : `Dungeon.bossName` = **nom du donjon** (« Comte et Nileza »), `dofensiveMonsterName` / `dofensiveDungeonName` **déjà renseignés** sur les 4 donjons ; `SpellRangeGrid` filtre les salles **par nom de boss** (aucun match avec le nom du donjon ⇒ toutes les salles) ; `selectMonster` neutralisait `m.isBoss` (2ᵉ boss non cliquable) ; **10 vignettes** en repli alors que `/api/assets-dofus/monsters/3416` répond **200 `image/webp`** ; **`MonsterStat.stats.grades[].resists = {}`** pour le Comte (DofusDB sert `reductionNeutral/Earth/Fire/Water/Air`, **pas** `neutralResistance`) ; libellés d'effets contenant `<span name="erosion">`.
@@ -52,16 +60,6 @@
 > **Preuves** : suite **430 fichiers / 4 652 tests ✓** · `tsc` 0 · après reboot **17/17 conteneurs `Up`**, `beta` **200**, `sigilos.fr` **200** · bandeaux recomptés **34** (l'image déployée est antérieure à tous les correctifs du jour).
 > **Reste / ops** : **déployer la bêta** (aucun correctif du jour n'est en ligne) → attendu **34 → 25** bandeaux et `www` **301** ; puis relire le CTR à **J+21** ; rangs **47** (crits incohérents), **48** (25 donjons sans données), **49** (refonte simulation S-1 → S-3) ; Rush : toggle God, rien à coder.
 > **Rotation** : inchangée (6 blocs) — bloc du 20/10 **enrichi** ; « 19/10 — Ménage local » déjà sorti.
-
-
-## 📝 Session 19/10/2026 (suite) — **Bêta `5b31ad0` déployée, Grafana supprimé, limites de God annotées** — branche `docs/supervision-etat`
-> **Demande user (verbatim)** : « annote ça maj les fichiers fait sur ce chantier » + « je deploie la prod ou pas ? ».
-> **Mesures** : tag CI **7 caractères** (`5b31ad0`) ; le SHA 8 (`5b31ad0f`) est refusé par le pré-vol ; déploiement bêta `5b31ad0` : 6 conteneurs `Healthy`, base à jour, toutes les pages **200** ; `monitor.sigilos.fr` **000/TLS** (voulu) ; carte God « Conteneurs » vide alors que Prometheus est **4/4**.
-> **Fait** : docs annotées (ROADMAP, MAINTENANCE, activeContext) ; limites et prochain lot listés ; **prod non déployée** (main `07c0500e`, dev +103 commits).
-> **Preuves** : log de déploiement, `sigilos-grafana Removed`, `site 200`, `santé 200`, `monitor 000`.
-> **Reste** : carte Conteneurs + tableau par conteneur (rang 43), audit des règles Grafana dans `grafana_data` (rang 44), normalisation SHA 7 dans les scripts (rang 45), prod à planifier (rang 3, D7).
-> **Fichiers du chantier** : `src/app/god/components/system-health-dashboard.tsx`, `src/app/god/page.tsx`, `src/server/actions/god-system-actions.ts`, `src/lib/system-metrics.ts`, `docker-compose.prod.yml`, `docker-compose.yml`, `Caddyfile`, `tests/unit/{system-metrics,monitor-private}.test.ts`, `docs/{ROADMAP,MAINTENANCE,CONTEXT,RULES}.md`.
-
 
 
 ## PR / Branche

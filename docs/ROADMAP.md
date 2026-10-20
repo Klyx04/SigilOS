@@ -29,8 +29,8 @@
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |
 |---|---|---|---|---|---|---|
-| 9 | `rush-refonte` (T) | Rush Sylvestre : ergonomie, temps réel, éditeur God, habillage Dofus, perf | **T-1, T-2, T-2b, T-3 livrés** le 08/10 | **T-2c** (id de quête dans `prereq_text`) → T-4 → T-5 → T-6 | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
-| 10 | `rush-donnees` (V) | Rush Sylvestre : agrégation unique des ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B livrés** le 10/10 | **V-G** (Metamob dans l'overlay) → V-C → V-D → V-F → V-H | `docs/plans/MODULE-RUSH-SYLVESTRE.md` · `docs/plans/MAPPING-RUSH-SYLVESTRE.md` | — |
+| 9 | `rush-refonte` (T) | Rush Sylvestre : ergonomie, temps réel, éditeur God, habillage Dofus, perf | **T-1, T-2, T-2b, T-3 livrés** le 08/10 · **T-2c livré** le 20/10 | **T-4** (habillage Dofus) → T-5 → T-6 | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
+| 10 | `rush-donnees` (V) | Rush Sylvestre : agrégation unique des ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B livrés** le 10/10 · **V-G livré** · **V-F partiel** (route `resolveRushRoute`, choix interne/public/overlay, jumelle God) | V-C → V-D → **V-F** (import Brâkmar 0/102) → V-H | `docs/plans/MODULE-RUSH-SYLVESTRE.md` · `docs/plans/MAPPING-RUSH-SYLVESTRE.md` | — |
 | 11 | `tickets-v2` (C) | Module Tickets : finir la v2 (SLA, auto-fermeture, i18n, doublons) | 13 retours du 16/10 traités ; **état à re-mesurer** | C-1 → C-4 | `docs/plans/PLAN-REFONTE-TICKETS-V2.md` | — |
 | 12 | `roles-multi` (Y+) | Moteur unique de rôles : ancienneté (projection) + vocal + contribution | cadré le 18/10, **aucun code** | R-1 (évaluateur + stockage) → R-2 (cron + annonces) → R-3 (onglet) | `docs/plans/PLAN-MOTEUR-ROLES-MULTI-SOURCES.md` | **D-R1** |
 | 13 | `commandes-slash` (Z) | Commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés) | plan écrit le 14/10, **go migration attendu** | Z-1 → Z-4 | `docs/plans/PLAN-COMMANDES-SLASH.md` | go migration |
@@ -42,7 +42,7 @@
 | 19 | `services` (J) | Services : clôture, inactivité, feedback, images, forum ; `valider-recrue` en ticket | ouvert | J-1 → J-2 | — (à créer) | — |
 | 20 | `succes` (K) | Succès & encyclopédie : onglet Monstres, succès imbriqués | ouvert | K-1 → K-2 | — (à créer) | — |
 | 21 | `mini-jeux` (H) | Mini-jeux & salons temps réel : solidité Redis, solo, Panthéon, HUD/UX | ouvert | H-1 → H-2 | — (à créer) | — |
-| 22 | `deslop` (L) | Déslop global : dashboard, admin, landing, modales, ressources, missions, ladder, worldmap | ouvert | L-1 → L-4 | — (à créer) | — |
+| 22 | `deslop` (L) | Déslop global : dashboard, admin, landing, modales, ressources, missions, ladder, worldmap | ouvert · demande du 20/10 : **aligner toutes les nouveautés** (landing incluse) | L-1 → L-4 | — (à créer) | — |
 | 23 | `guildes-admin` (M) | Guildes & admin : calendrier, profil, stuff, édition staff, logs | volet `membres` livré (05/10) | M-1 reste (calendrier/profil/stuff) → M-2 → M-3 | `docs/plans/PLAN-DESLOP-ANNUAIRE.md` | — |
 | 24 | `god-refonte` (O) | Refonte God « Guildes & Users » : 12 chantiers, 7 lots | plan vivant | G1 → G12 | `docs/plans/PLAN-REFONTE-GOD-GUILDES.md` · `docs/plans/AMORCE-REFONTE-GOD-GUILDES.md` | — |
 | 25 | `acquisition` (E) | SEO / contenu : autorité avant volume | dossier mesuré le 30/09 | E-1 → E-2 → E-3 ; **prérequis** backfill `MonsterStat` (~5 135 fiches) | `docs/plans/SEO_REPRISE.md` | **D6** |
@@ -117,6 +117,7 @@
 | `god-system` | God → Système & Infra : CPU, RAM, disque, Redis, PostgreSQL, conteneurs, crons — **déployé bêta `5b31ad0`** | 19/10/2026 |
 | `harnais H0-H7` | Roadmap unique, journal archivé, zone temp unique, 4 règles, 6 skills, 3 hooks, `.clineignore`, garde | 19/10/2026 |
 | `seo-extraits-serp` | Extraits SERP bornés (`src/lib/seo.ts`, 60/155) : fiches boss, hub `/almanax`, 7 guides FR + garde `seo-serp-extraits` — **mesuré** : 6 156 impr. / 109 clics, guides = 44 % des clics | 20/10/2026 |
+| `T-2c` · `V-G` · alignement (lots 1-5) | Rush — prérequis par id stable, liaison Metamob dans l'overlay, modale d'alignement (camps → Ordres → tranches), route `resolveRushRoute`, présence temps réel, jumelle de branche (God) | 20/10/2026 |
 
 ## 6. Archives et mémoire froide
 

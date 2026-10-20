@@ -51,4 +51,11 @@ describe("MonsterFicheView — le brut du client n'est plus publié", () => {
     it("filtre les lignes non publiables", () => {
         expect(src()).toMatch(/isRenderableDofusEffectLine/);
     });
+
+    it("passe chaque effet par le formateur partagé (icône + couleur d'élément)", () => {
+        // La fiche boss utilisait déjà `formatDofusEffectLine` ; la fiche monstre affichait du texte
+        // nu, sans picto d'élément (incohérence relevée le 20/10/2026).
+        expect(src()).toMatch(/formatDofusEffectLine\(effect\)/);
+        expect(src()).not.toMatch(/>\{effect\}</);
+    });
 });

@@ -70,6 +70,7 @@
 | 43 | `god-system-polish` | Carte Conteneurs vide alors que Prometheus est 4/4 ; pas de détail par conteneur | bêta 19/10 | corriger la requête cAdvisor + tableau (nom, CPU, RAM, redémarrages) + charge CPU/version lisibles | `docs/MAINTENANCE.md` |
 | 44 | `grafana-alerts-audit` | Règles d'alerte Grafana éventuelles dans `grafana_data` : plus exécutées | volume conservé, non audité | lister et recréer dans Sentry/webhook si nécessaire | `docs/MAINTENANCE.md` |
 | 45 | `deploy-sha-normalize` | `deploy-cd.sh` refuse un SHA 8/40 alors que la CI publie 7 caractères | `5b31ad0f` refusé, `5b31ad0` accepté | normaliser le SHA à 7 dans `deploy-cd.sh` et `rollback.sh` | `docs/agents/deploy-vps.md` |
+| 46 | `telemetrie-retention` | `TelemetryEvent` n'a **aucune purge** : la table grossit sans fin | mesuré sur le VPS le 20/10/2026 : **24 Mo**, 2ᵉ plus grosse table applicative ; aucun `deleteMany` dans `src/` | cadrer une rétention (90-180 j) + cron de purge idempotent, testé | `docs/MAINTENANCE.md` |
 
 ## 4. Décisions en attente (elles bloquent un rang)
 

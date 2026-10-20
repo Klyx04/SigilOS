@@ -18,9 +18,11 @@ export type RushAlignmentCamp = "bontarien" | "brakmarien";
 export type RushRouteChoice = {
   /** Cité choisie par le joueur (profil, choix local, ou `null` s'il n'a rien choisi). */
   camp?: string | null;
-  /** Code d'Ordre (6 valeurs) — conservé pour l'affichage, n'entre pas dans le filtre. */
+  /** Code d'Ordre (6 valeurs). Ne filtre QUE les quêtes qui en portent un. */
   order?: string | null;
-  /** Tranche / niveau d'alignement — sert au badge, pas au filtrage. */
+  /** Classe du personnage. Ne filtre QUE les quêtes de classe. */
+  playerClass?: string | null;
+  /** Palier d'alignement (calculé) — n'entre pas dans le filtre, il verrouille. */
   level?: number | null;
 };
 
@@ -49,16 +51,35 @@ export function normalizeAlignmentCamp(value?: string | null): RushAlignmentCamp
  * | camp opposé | **masquée** |
  */
 export function isSequenceOnRoute(
-  seq: Pick<RushSequence, "alignReq">,
-  camp?: string | null
+  seq: Pick<RushSequence, "alignReq" | "alignOrderCode" | "classReq">,
+  choice?: RushRouteChoice | string | null
 ): boolean {
-  const raw = (seq.alignReq ?? "").trim();
-  if (!raw) return true;
-  const required = normalizeAlignmentCamp(raw);
-  if (!required) return false;
-  const chosen = normalizeAlignmentCamp(camp);
-  if (!chosen) return true;
-  return required === chosen;
+  const route: RushRouteChoice = typeof choice === "string" ? { camp: choice } : (choice ?? {});
+
+  // Étage 1 — cité.
+  const rawCamp = (seq.alignReq ?? "").trim();
+  if (rawCamp) {
+    const required = normalizeAlignmentCamp(rawCamp);
+    if (!required) return false; // fail-closed : cité inconnue
+    const chosen = normalizeAlignmentCamp(route.camp);
+    if (chosen && required !== chosen) return false;
+  }
+
+  // Étage 2 — Ordre : ne concerne que les quêtes qui en portent un.
+  const rawOrder = (seq.alignOrderCode ?? "").trim().toLowerCase();
+  if (rawOrder) {
+    const chosenOrder = (route.order ?? "").trim().toLowerCase();
+    if (chosenOrder && rawOrder !== chosenOrder) return false;
+  }
+
+  // Classe : idem, uniquement les quêtes de classe.
+  const rawClass = (seq.classReq ?? "").trim().toLowerCase();
+  if (rawClass) {
+    const chosenClass = (route.playerClass ?? "").trim().toLowerCase();
+    if (chosenClass && rawClass !== chosenClass) return false;
+  }
+
+  return true;
 }
 
 /**
@@ -69,9 +90,8 @@ export function resolveRushRoute(
   milestones: RushMilestone[],
   choice?: RushRouteChoice | null
 ): RushMilestone[] {
-  const camp = choice?.camp ?? null;
   return milestones
-    .map((ms) => ({ ...ms, sequences: ms.sequences.filter((seq) => isSequenceOnRoute(seq, camp)) }))
+    .map((ms) => ({ ...ms, sequences: ms.sequences.filter((seq) => isSequenceOnRoute(seq, choice)) }))
     .filter(
       (ms) =>
         ms.type === "SEPARATEUR" ||

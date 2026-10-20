@@ -13,6 +13,7 @@ import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { resetAlignmentQuests } from "@/server/rush-alignment";
+import { ORDERS } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
@@ -3423,6 +3424,9 @@ export async function upsertRushSequence(data: {
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
   alignReq?: string | null;
+  alignOrderCode?: string | null;
+  alignLevelReq?: number | null;
+  classReq?: string | null;
   alignOrderReq?: number | null;
   note?: string;
   order?: number;
@@ -3442,6 +3446,9 @@ export async function upsertRushSequence(data: {
     dofuspourlesnoobsUrl: data.dofuspourlesnoobsUrl,
     tips: data.tips,
     alignReq: data.alignReq,
+    alignOrderCode: data.alignOrderCode ?? null,
+    alignLevelReq: data.alignLevelReq ?? null,
+    classReq: data.classReq ?? null,
     alignOrderReq: data.alignOrderReq,
     note: data.note,
     order: data.order ?? undefined,
@@ -3585,4 +3592,70 @@ export async function resetAlignmentProgress(guildId: string, altPseudo?: string
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
   const cleared = await resetAlignmentQuests(profileId, characterSlot);
   return { success: true as const, data: { cleared } };
+}
+
+/**
+ * **Lot 4 bis — jumelle d'ORDRE.** Crée les **2 autres Ordres** de la même cité, au
+ * même jalon et au même `order`. Les 5 quêtes d'apprentissage ont un nom propre par
+ * Ordre : sans cette action, il faudrait les saisir 3 fois.
+ *
+ * Idempotent : une branche d'Ordre déjà présente est laissée telle quelle.
+ * Fail-closed : sans cité ou sans Ordre sur la source, on refuse.
+ */
+export async function duplicateRushSequenceAsOrderTwins(sequenceId: string) {
+  await requireRushAccess();
+
+  const source = await db.guideSequence.findUnique({ where: { id: sequenceId } });
+  if (!source) return { success: false as const, error: "Séquence introuvable" };
+
+  const camp = (source.alignReq ?? "").trim().toLowerCase();
+  const orders = (ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[camp];
+  if (!orders) return { success: false as const, error: "Cette séquence n'a pas de cité (Bontarien / Brâkmarien)" };
+
+  const sourceOrder = (source.alignOrderCode ?? "").trim();
+  if (!sourceOrder) {
+    return { success: false as const, error: "Cette séquence n'a pas d'Ordre : renseigne-le d'abord" };
+  }
+
+  let created = 0;
+  for (const other of orders) {
+    if (other.id === sourceOrder) continue;
+    const exists = await db.guideSequence.findFirst({
+      where: { milestoneId: source.milestoneId, order: source.order, alignOrderCode: other.id },
+      select: { id: true },
+    });
+    if (exists) continue;
+
+    await db.guideSequence.create({
+      data: {
+        milestoneId: source.milestoneId,
+        order: source.order,
+        subGuideRef: `${source.subGuideRef} [${other.id}]`,
+        subGuideName: `${source.subGuideName} [${other.id}]`,
+        stepFrom: source.stepFrom,
+        stepTo: source.stepTo,
+        isPartial: source.isPartial,
+        isOptional: source.isOptional,
+        note: source.note,
+        isResume: source.isResume,
+        dofusdbUrl: source.dofusdbUrl,
+        dofuspourlesnoobsUrl: source.dofuspourlesnoobsUrl,
+        tips: source.tips,
+        alignReq: source.alignReq,
+        alignOrderCode: other.id,
+        alignLevelReq: source.alignLevelReq,
+        classReq: source.classReq,
+        isSuccess: source.isSuccess,
+        icon: source.icon,
+        metamobMonsterId: source.metamobMonsterId,
+        activityTags: (source.activityTags ?? []) as never,
+        dungeonId: source.dungeonId,
+        dungeonIds: source.dungeonIds ?? [],
+      },
+      select: { id: true },
+    });
+    created += 1;
+  }
+
+  return { success: true as const, data: { created } };
 }

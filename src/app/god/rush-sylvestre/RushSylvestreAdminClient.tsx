@@ -33,6 +33,7 @@ import {
   reorderRushMilestones,
   reorderRushSequences,
   duplicateRushSequenceAsTwin,
+  duplicateRushSequenceAsOrderTwins,
   seedRushSylvestreFromGuide,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
@@ -44,6 +45,7 @@ import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { ORDERS } from "@/lib/dofus-assets";
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
 import {
@@ -92,6 +94,9 @@ type Sequence = {
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
   alignReq?: string | null;
+  alignOrderCode?: string | null;
+  alignLevelReq?: number | null;
+  classReq?: string | null;
   alignOrderReq?: number | null;
   dungeon?: { id: string; name: string; bossName: string; imageUrl?: string | null } | null;
   dungeons?: { id: string; name: string; bossName: string; imageUrl?: string | null }[];
@@ -1845,6 +1850,47 @@ function TwinButton({ sequenceId }: { sequenceId: string }) {
   );
 }
 
+/**
+ * Bouton « 3 Ordres » (jumelle d'ORDRE) : crée les 2 autres Ordres de la MÊME cité.
+ * Les 5 quêtes d'apprentissage ont un nom propre par Ordre — sans ça, trois saisies.
+ */
+function OrderTwinButton({ sequenceId }: { sequenceId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const create = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await duplicateRushSequenceAsOrderTwins(sequenceId);
+      if (res.success) {
+        router.refresh();
+      } else {
+        setError(res.error || "Échec de la création");
+      }
+    } catch {
+      setError("Échec de la création");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={create}
+      disabled={busy}
+      title={error || "Créer les 2 autres Ordres de cette cité (même ordre)"}
+      aria-label="Créer les 2 autres Ordres de cette cité"
+      className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 px-1 py-0.5 text-caption font-semibold text-sky-300 transition-colors hover:bg-sky-500/20 disabled:opacity-50"
+    >
+      <Plus className="w-2.5 h-2.5" />
+      {busy ? "…" : "3 Ordres"}
+    </button>
+  );
+}
+
 function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
   seq: Sequence; color: string; onEdit: () => void; onDelete: () => void; dragHandleProps?: any;
 }) {
@@ -1911,6 +1957,7 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
                 {seq.alignReq}{seq.alignOrderReq ? ` lv.${seq.alignOrderReq}` : ""}
               </span>
               <TwinButton sequenceId={seq.id} />
+              {seq.alignOrderCode && <OrderTwinButton sequenceId={seq.id} />}
             </>
           )}
           {seq.tips && (
@@ -3551,6 +3598,9 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [noobsUrl, setNoobsUrl] = useState("");
   const [tips, setTips] = useState("");
   const [alignReq, setAlignReq] = useState("");
+  const [alignOrderCode, setAlignOrderCode] = useState("");
+  const [alignLevelReq, setAlignLevelReq] = useState("");
+  const [classReq, setClassReq] = useState("");
   const [alignOrderReq, setAlignOrderReq] = useState("");
   const [note, setNote] = useState("");
   const [activityTags, setActivityTags] = useState<ActivityTag[]>([]);
@@ -3652,12 +3702,16 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
       dofuspourlesnoobsUrl: noobsUrl.trim() || null,
       tips: tips.trim() || null,
       alignReq: alignReq.trim() || null,
+      alignOrderCode: alignOrderCode.trim() || null,
+      alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
+      classReq: classReq.trim() || null,
       alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
       note: note.trim() || undefined,
       activityTags,
     });
     setName(""); setDofusdbUrl(""); setNoobsUrl(""); setTips(""); setAlignReq("");
-    setAlignOrderReq(""); setNote(""); setActivityTags([]); setSelectedDungeons([]); setDungeonQuery("");
+    setAlignOrderReq(""); setAlignOrderCode(""); setAlignLevelReq(""); setClassReq("");
+    setNote(""); setActivityTags([]); setSelectedDungeons([]); setDungeonQuery("");
     setSelectedDofusId(""); setPrereqs([]); setPrereqQuery("");
     setExpanded(false);
   };
@@ -3777,21 +3831,43 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">Alignement</label>
-                  <select value={alignReq} onChange={e => setAlignReq(e.target.value)}
+                  <label className="text-caption text-zinc-600 mb-1 block">Cité (route)</label>
+                  <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
                   >
-                    <option value="">— Aucun —</option>
+                    <option value="">— Aucune (commune) —</option>
                     <option value="bontarien">Bontarien</option>
                     <option value="brakmarien">Brakmarien</option>
-                    <option value="neutre">Neutre</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">Niveau</label>
-                  <input type="number" min={0} max={100} value={alignOrderReq} onChange={e => setAlignOrderReq(e.target.value)}
+                  <label className="text-caption text-zinc-600 mb-1 block">Ordre (quêtes d'Ordre)</label>
+                  <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
+                    disabled={!alignReq}
+                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
+                  >
+                    <option value="">— Aucun —</option>
+                    {((ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[alignReq] || []).map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-caption text-zinc-600 mb-1 block">Palier requis (verrou)</label>
+                  <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
-                    placeholder="0–100"
+                  >
+                    <option value="">— Aucun —</option>
+                    {[20, 40, 60, 80, 100].map(n => (
+                      <option key={n} value={n}>Alignement ≥ {n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
+                  <input value={classReq} onChange={e => setClassReq(e.target.value)}
+                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                    placeholder="feca, osa…"
                   />
                 </div>
               </div>

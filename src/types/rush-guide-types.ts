@@ -65,6 +65,13 @@ export type RushSequence = {
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
   alignReq?: string | null;
+  /** Code d'Ordre (6 valeurs) — seules les quêtes d'Ordre en portent. */
+  alignOrderCode?: string | null;
+  /** Palier d'alignement requis : 20 | 40 | 60 | 80 | 100 (VERROU calculé). */
+  alignLevelReq?: number | null;
+  /** Classe requise (fec | osa | enu | …) — quêtes de classe. */
+  classReq?: string | null;
+  /** @deprecated seuil de niveau historique, remplacé par `alignLevelReq`. */
   alignOrderReq?: number | null;
   isSuccess?: boolean;
   icon?: string | null;

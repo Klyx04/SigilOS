@@ -1,6 +1,7 @@
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
 import { getJob } from "@/lib/dofus-assets";
 import { QUEST_TYPE_KEYS, questTypeIconPath, type QuestTypeKey } from "@/lib/quest-type-icon";
+import { normalizeAlignmentCamp } from "@/lib/rush-route";
 const LOCAL_ASSET_PREFIXES = ["/uploads/assets-dofus/", "/assets-dofus/"];
 
 /**
@@ -464,16 +465,57 @@ function normPrereqName(value: string | null | undefined): string {
  * Helper pur vérifiant si une séquence est bloquée par des prérequis inachevés.
  * Renvoie false si la séquence n'a pas de tag prereq_text OU si tous les prérequis sont terminés.
  */
+/** Camp d'alignement d'une séquence : `alignReq` d'abord, sinon le tag `alignment_set`. */
+function alignmentCampOf(seq: RushSequence): string | null {
+  const raw = (seq.alignReq ?? "").trim();
+  if (raw) return raw;
+  const tags = Array.isArray(seq.activityTags) ? seq.activityTags : [];
+  const tag = tags.find((t) => t.type === "alignment_set") as { name?: string } | undefined;
+  return tag?.name ?? null;
+}
+
+/**
+ * **Compteur** de quêtes d'alignement validées pour une cité.
+ *
+ * C'est lui qui remplace la « tranche » : il se met à jour en cochant, sans aucune
+ * saisie. Les quêtes d'Ordre au palier N exigent `count >= N` (20/40/60/80/100).
+ */
+export function alignmentCountForCamp(
+  allMilestones: RushMilestone[],
+  completedSeqIds: Set<string>,
+  camp: string | null | undefined
+): number {
+  const wanted = normalizeAlignmentCamp(camp);
+  if (!wanted) return 0;
+  let count = 0;
+  for (const ms of allMilestones) {
+    for (const seq of ms.sequences || []) {
+      if (!completedSeqIds.has(seq.id)) continue;
+      if (normalizeAlignmentCamp(alignmentCampOf(seq)) === wanted) count += 1;
+    }
+  }
+  return count;
+}
+
 export function isSequenceBlockedByPrereqs(
   seq: RushSequence,
   allCompletedSeqIds: Set<string>,
   allMilestones: RushMilestone[]
 ): boolean {
-  if (!seq || !Array.isArray(seq.activityTags) || !seq.activityTags.length) {
-    return false;
+  if (!seq) return false;
+
+  // 1. Verrou de palier : une quête d'Ordre au palier N exige N quêtes de cité
+  //    validées. Il est vérifié AVANT les tags : une quête d'Ordre n'en porte pas.
+  const levelReq = seq.alignLevelReq ?? 0;
+  if (levelReq > 0) {
+    const count = alignmentCountForCamp(allMilestones, allCompletedSeqIds, alignmentCampOf(seq));
+    if (count < levelReq) return true;
   }
 
-  const tags = seq.activityTags.filter((tag) => tag.type === "prereq_text");
+  // 2. Prérequis explicites (`prereq_text`).
+  const tags = Array.isArray(seq.activityTags)
+    ? seq.activityTags.filter((tag) => tag.type === "prereq_text")
+    : [];
   if (!tags.length) return false;
 
   const candidates = prereqCandidates(allMilestones);

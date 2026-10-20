@@ -43,7 +43,48 @@ describe("duplicateRushSequenceAsTwin — slot miroir", () => {
   });
 });
 
-describe("studio God — bouton Jumelle", () => {
+describe("jumelle d'ORDRE (1 → 3)", () => {
+  const code = read(ACTIONS);
+  const start = code.indexOf("export async function duplicateRushSequenceAsOrderTwins");
+  const body = code.slice(start, start + 2200);
+
+  it("est protégée et fail-closed sans cité ou sans Ordre", () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(body).toContain("await requireRushAccess();");
+    expect(body).toMatch(/n'a pas de cité/);
+    expect(body).toMatch(/n'a pas d'Ordre/);
+  });
+
+  it("crée les 2 AUTRES Ordres de la même cité, sans doublon", () => {
+    expect(body).toMatch(/if \(other\.id === sourceOrder\) continue;/);
+    expect(body).toMatch(/alignOrderCode: other\.id/);
+    expect(body).toMatch(/findFirst\(\{/);
+    expect(body).toMatch(/if \(exists\) continue;/);
+  });
+
+  it("le studio God expose le bouton sur les seules quêtes d'Ordre", () => {
+    const god = read(GOD);
+    expect(god).toContain('{seq.alignOrderCode && <OrderTwinButton sequenceId={seq.id} />}');
+    expect(god).toContain("duplicateRushSequenceAsOrderTwins");
+  });
+});
+
+describe("studio God — champs de la route à deux étages", () => {
+  const god = read(GOD);
+
+  it("propose cité, Ordre, palier et classe", () => {
+    expect(god).toContain("Cité (route)");
+    expect(god).toContain("Ordre (quêtes d'Ordre)");
+    expect(god).toContain("Palier requis (verrou)");
+    expect(god).toContain("Classe (quêtes de classe)");
+  });
+
+  it("le palier n'est proposé que sur les 5 valeurs réelles", () => {
+    expect(god).toContain("[20, 40, 60, 80, 100].map");
+  });
+});
+
+describe("studio God — bouton Jumelle (cité)", () => {
   const code = read(GOD);
 
   it("n'apparaît que sur une séquence marquée par un camp", () => {

@@ -660,16 +660,42 @@ export function TicketMotifsTab({
                                     </p>
                                 </div>
 
-                                <details className="rounded-xl border border-border bg-surface/40 px-3 py-2">
-                                    <summary className="cursor-pointer text-xs font-semibold text-foreground">
-                                        Réglages avancés (nom des salons)
+                                <details className="rounded-xl border border-border bg-surface/40 p-3">
+                                    <summary className="cursor-pointer text-xs font-semibold text-foreground flex items-center justify-between">
+                                        <span>Format du nom des salons Discord</span>
+                                        <span className="text-[10px] text-emerald-400 font-mono">#{previewTicketChannelName(namingPattern, name || "motif")}</span>
                                     </summary>
-                                    <div className="space-y-1.5 pt-2">
-                                        <Input value={namingPattern} onChange={(e) => setNamingPattern(e.target.value)} className="text-xs h-8 font-mono" />
-                                        <p className="text-[11px] text-muted-foreground">
-                                            {"{num}"} = numéro du ticket, {"{user}"} = pseudo du membre, {"{journey}"} = nom du motif.
-                                            {" "}Exemple : <span className="font-mono text-foreground">{previewTicketChannelName(namingPattern, name || "motif")}</span>
-                                        </p>
+                                    <div className="space-y-2.5 pt-3">
+                                        <Input value={namingPattern} onChange={(e) => setNamingPattern(e.target.value)} className="text-xs h-8 font-mono bg-background" />
+                                        
+                                        <div className="text-[11px] text-muted-foreground">
+                                            Cliquez sur une variable pour l&apos;insérer dans le modèle de nom :
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {[
+                                                { tag: "{num}", label: "{num}", desc: "N° ticket (ex: 0042)" },
+                                                { tag: "{user}", label: "{user}", desc: "Pseudo Discord membre" },
+                                                { tag: "{journey}", label: "{journey}", desc: "Nom court du motif" },
+                                            ].map(({ tag, label, desc }) => (
+                                                <button
+                                                    key={tag}
+                                                    type="button"
+                                                    onClick={() => setNamingPattern((prev) => `${prev ? `${prev}-` : ""}${tag}`.replace(/--+/g, "-"))}
+                                                    className="inline-flex items-center gap-1.5 text-[11px] bg-surface/80 hover:bg-emerald-500/10 hover:border-emerald-500/30 px-2 py-1 rounded-md border border-border text-foreground transition-all"
+                                                    title={desc}
+                                                >
+                                                    <span className="font-mono text-emerald-400 font-bold">{label}</span>
+                                                    <span className="text-[10px] text-muted-foreground">{desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground">
+                                            <span>Aperçu en direct sur Discord :</span>
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#2b2d31] text-[#949ba4] font-mono text-xs border border-[#3f4147]">
+                                                <span className="text-muted-foreground">#</span>
+                                                <span className="text-foreground font-semibold">{previewTicketChannelName(namingPattern, name || "motif")}</span>
+                                            </span>
+                                        </div>
                                     </div>
                                 </details>
                             </div>
@@ -680,25 +706,50 @@ export function TicketMotifsTab({
                             <div className="space-y-4">
                                 <div>
                                     <h4 className="font-bold text-foreground">2 · Message d'ouverture du salon</h4>
+                                </div>
+                                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs space-y-1">
+                                    <div className="font-semibold text-foreground flex items-center gap-1.5">
+                                        <span>💬 Messages d&apos;accueil et pings automatiques</span>
+                                    </div>
                                     <p className="text-[11px] text-muted-foreground">
-                                        Textes et notifications reçus à la création du ticket. Variables : <span className="font-mono">{"{demandeur}"}</span> (ping créateur),{" "}
-                                        <span className="font-mono">{"{roles}"}</span> (ping staff), <span className="font-mono">{"{pseudo}"}</span>,{" "}
-                                        <span className="font-mono">{"{motif}"}</span>, <span className="font-mono">{"{numero}"}</span>.
+                                        Dès qu&apos;un salon ticket s&apos;ouvre sur Discord, le bot publie un embed d&apos;accueil et peut mentionner votre staff ou le demandeur.
+                                        Toutes les balises <code className="text-emerald-400 font-mono">{"{...}"}</code> sont automatiquement remplacées lors de la création.
                                     </p>
                                 </div>
 
-                                <div className="space-y-1.5">
-                                    <div className="flex items-center justify-between">
-                                        <label className="font-semibold text-foreground">Texte d'accueil dans l'embed du salon</label>
-                                        <span className="text-[10px] text-muted-foreground">Markdown Discord supporté</span>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between flex-wrap gap-1">
+                                        <label className="font-semibold text-foreground text-xs">Texte d&apos;accueil dans l&apos;embed du salon</label>
+                                        <div className="flex items-center flex-wrap gap-1">
+                                            {[
+                                                { tag: "{demandeur}", label: "@{demandeur}", desc: "Ping membre" },
+                                                { tag: "{pseudo}", label: "{pseudo}", desc: "Nom sans @" },
+                                                { tag: "{motif}", label: "{motif}", desc: "Nom du motif" },
+                                                { tag: "{numero}", label: "#{numero}", desc: "N° ticket" },
+                                            ].map(({ tag, label, desc }) => (
+                                                <button
+                                                    key={tag}
+                                                    type="button"
+                                                    onClick={() => setWelcomeMessage((prev) => `${prev ? `${prev} ` : ""}${tag}`)}
+                                                    className="inline-flex items-center gap-1 text-[10px] bg-surface/80 hover:bg-emerald-500/10 hover:border-emerald-500/30 px-1.5 py-0.5 rounded border border-border text-foreground transition-colors"
+                                                    title={desc}
+                                                >
+                                                    <span className="font-mono text-emerald-400 font-semibold">{label}</span>
+                                                    <span className="text-[9px] text-muted-foreground">{desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                     <Textarea
-                                        placeholder="ex : Bienvenue ! Merci de nous transmettre tes disponibilités et ton avancée de jeu..."
+                                        placeholder="ex : Bienvenue {demandeur} ! Merci de nous transmettre tes disponibilités et ton avancée de jeu..."
                                         value={welcomeMessage}
                                         onChange={(e) => setWelcomeMessage(e.target.value)}
                                         rows={3}
                                         className="text-xs min-h-[75px] resize-y"
                                     />
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Texte affiché dans l&apos;embed principal. Markdown Discord supporté (gras <code>**texte**</code>, italique <code>*texte*</code>, listes).
+                                    </p>
                                 </div>
 
                                 <div className="space-y-3 rounded-xl border border-border/70 bg-surface/40 p-3">
@@ -731,19 +782,21 @@ export function TicketMotifsTab({
                                                     <label className="font-semibold text-foreground">Message envoyé avec le ping</label>
                                                     <div className="flex items-center flex-wrap gap-1">
                                                         {[
-                                                            { label: "+{demandeur}", tag: "{demandeur}" },
-                                                            { label: "+{roles}", tag: "{roles}" },
-                                                            { label: "+{pseudo}", tag: "{pseudo}" },
-                                                            { label: "+{motif}", tag: "{motif}" },
-                                                            { label: "+{numero}", tag: "{numero}" },
-                                                        ].map(({ label, tag }) => (
+                                                            { label: "@{demandeur}", tag: "{demandeur}", desc: "Mention membre (@Aventurier)" },
+                                                            { label: "@{roles}", tag: "{roles}", desc: "Mention rôles staff (@Modérateurs)" },
+                                                            { label: "{pseudo}", tag: "{pseudo}", desc: "Nom brut sans @" },
+                                                            { label: "{motif}", tag: "{motif}", desc: "Nom motif" },
+                                                            { label: "#{numero}", tag: "{numero}", desc: "N° ticket (#0042)" },
+                                                        ].map(({ label, tag, desc }) => (
                                                             <button
                                                                 key={tag}
                                                                 type="button"
                                                                 onClick={() => setNotifyMessage((prev) => `${prev ? `${prev} ` : ""}${tag}`)}
-                                                                className="text-[10px] bg-surface/80 hover:bg-surface px-1.5 py-0.5 rounded border border-border text-emerald-400 font-mono transition-colors"
+                                                                className="inline-flex items-center gap-1 text-[10px] bg-surface/80 hover:bg-emerald-500/10 hover:border-emerald-500/30 px-1.5 py-0.5 rounded border border-border text-foreground font-mono transition-colors"
+                                                                title={desc}
                                                             >
-                                                                {label}
+                                                                <span className="text-emerald-400 font-bold">{label}</span>
+                                                                <span className="text-[9px] text-muted-foreground">{desc}</span>
                                                             </button>
                                                         ))}
                                                     </div>
@@ -772,18 +825,20 @@ export function TicketMotifsTab({
                                             <label className="font-semibold text-foreground">Message envoyé au demandeur</label>
                                             <div className="flex items-center flex-wrap gap-1">
                                                 {[
-                                                    { label: "+{demandeur}", tag: "{demandeur}" },
-                                                    { label: "+{pseudo}", tag: "{pseudo}" },
-                                                    { label: "+{motif}", tag: "{motif}" },
-                                                    { label: "+{numero}", tag: "{numero}" },
-                                                ].map(({ label, tag }) => (
+                                                    { label: "@{demandeur}", tag: "{demandeur}", desc: "Mention membre (@Aventurier)" },
+                                                    { label: "{pseudo}", tag: "{pseudo}", desc: "Nom brut sans @" },
+                                                    { label: "{motif}", tag: "{motif}", desc: "Nom motif" },
+                                                    { label: "#{numero}", tag: "{numero}", desc: "N° ticket (#0042)" },
+                                                ].map(({ label, tag, desc }) => (
                                                     <button
                                                         key={tag}
                                                         type="button"
                                                         onClick={() => setCreatorMessage((prev) => `${prev ? `${prev} ` : ""}${tag}`)}
-                                                        className="text-[10px] bg-surface/80 hover:bg-surface px-1.5 py-0.5 rounded border border-border text-emerald-400 font-mono transition-colors"
+                                                        className="inline-flex items-center gap-1 text-[10px] bg-surface/80 hover:bg-emerald-500/10 hover:border-emerald-500/30 px-1.5 py-0.5 rounded border border-border text-foreground font-mono transition-colors"
+                                                        title={desc}
                                                     >
-                                                        {label}
+                                                        <span className="text-emerald-400 font-bold">{label}</span>
+                                                        <span className="text-[9px] text-muted-foreground">{desc}</span>
                                                     </button>
                                                 ))}
                                             </div>

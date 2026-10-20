@@ -57,6 +57,7 @@ export const MODULE_TOUR_PHASES = [
     "quetesDofus", "galerie", "ressources", "docs", "minijeu", "stats", "presentation",
     "guide", "succes",
     "marche",
+    "tickets",
 ] as const;
 
 export function isReplayableTourPhase(phase: TourPhase): boolean {
@@ -1426,6 +1427,57 @@ const MARCHE_STEPS: TourStep[] = [
     },
 ];
 
+const TICKETS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="tickets-header"]',
+        title: "Bot Tickets & Support Discord",
+        description: "Bienvenue dans le centre de support de votre guilde. Vous pouvez gérer vos tickets, créer des formulaires d'accueil et automatiser vos salons Discord sans aucun bot externe.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-inbox-tab"]',
+        title: "1. Boîte de Réception",
+        description: "Suivez tous les tickets ouverts en temps réel, prenez-les en charge en un clic, rédigez des notes privées réservées au staff et échangez directement avec les membres.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-motifs-tab"]',
+        title: "2. Types de Demande (Parcours)",
+        description: "Configurez vos motifs (Recrutement, Aide, Signalement...), associez-y un questionnaire interactif jusqu'à 20 questions et désignez les rôles staff assignés.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-panels-tab"]',
+        title: "3. Panneaux Discord",
+        description: "Déployez un message d'accueil soigné dans le salon Discord de votre choix avec des boutons cliquables pour ouvrir les tickets instantanément.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-commands-tab"]',
+        title: "4. Commandes Slash Discord",
+        description: "Créez jusqu'à 20 commandes slash personnalisées (/bienvenue, /gardien, /resoudre...) avec remplacement automatique de variables ({cible}, {staff}) et gestion des rôles.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-transcripts-tab"]',
+        title: "5. Archives & Transcripts",
+        description: "Consultez les copies conformes de chaque ticket clôturé avec historique complet, messages capturés et documents HTML sécurisés.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-analytics-tab"]',
+        title: "6. Avis & Satisfaction (CSAT)",
+        description: "Mesurez la satisfaction des membres grâce aux sondages automatiques de 1 à 5 étoiles envoyés lors de la clôture du ticket.",
+        placement: "bottom",
+    },
+    {
+        target: '[data-tour="tickets-settings-tab"]',
+        title: "7. Configuration & Permissions",
+        description: "Définissez la catégorie Discord où créer les salons, leur positionnement (haut ou bas), le salon de logs privé et vos plafonds de tickets.",
+        placement: "bottom",
+    },
+];
+
 export const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({
@@ -1509,6 +1561,7 @@ export function TourProvider({
     const presentationSteps = applyFilters(PRESENTATION_STEPS);
     const succesSteps = applyFilters(SUCCES_STEPS);
     const marcheSteps = applyFilters(MARCHE_STEPS);
+    const ticketsSteps = applyFilters(TICKETS_STEPS);
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
@@ -1544,6 +1597,7 @@ export function TourProvider({
             case "presentation": return presentationSteps;
             case "succes": return succesSteps;
             case "marche": return marcheSteps;
+            case "tickets": return ticketsSteps;
             default: return [];
         }
     };

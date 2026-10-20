@@ -132,3 +132,23 @@ describe("slash commands — périmètre", () => {
     });
 });
 
+describe("garde anti-SSRF — synchronisation des commandes (CodeQL)", () => {
+    const code = readFileSync("src/server/actions/discord-commands-sync.ts", "utf8");
+
+    it("refuse un identifiant de guilde non numérique AVANT de construire l'URL", () => {
+        expect(code).toContain("/^\\d{17,20}$/");
+        const guard = code.indexOf("test(discordGuildId)");
+        const url = code.indexOf("const url = new URL(");
+        expect(guard).toBeGreaterThan(-1);
+        expect(url).toBeGreaterThan(guard);
+    });
+
+    it("construit l'URL sur une base CONSTANTE et vérifie l'hôte", () => {
+        expect(code).toContain("const apiBase = new URL(`${DISCORD_API_BASE}/`)");
+        expect(code).toContain("url.hostname !== apiBase.hostname");
+        expect(code).toContain("await fetch(url, {");
+        // Plus de template string passée telle quelle à `fetch`.
+        expect(code).not.toMatch(/await fetch\(`\$\{DISCORD_API_BASE\}/);
+    });
+});
+

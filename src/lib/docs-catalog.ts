@@ -1270,65 +1270,181 @@ Pour que le bot puisse attribuer un rôle, le rôle du Bot SigilOS dans les para
         category: 'Administration & Staff',
         accessLevel: 'ADMIN' as any,
         content: `
-<h2>À quoi sert ce module</h2>
-<p>Il remplace les bots de support externes : la configuration, le suivi et les archives restent dans SigilOS, les salons et les notifications restent dans votre Discord. Aucune donnée de guilde ne part chez un tiers.</p>
-<p><strong>Le mot clé, c'est le parcours.</strong> Un parcours est un motif d'ouverture proposé aux membres — « Candidature », « Contacter le staff », « Signaler un problème ». Chaque parcours a son bouton Discord, ses rôles, son questionnaire et son salon.</p>
+<h2>À quoi sert le module Tickets</h2>
+<p>Ce module remplace avantageusement les bots tiers externes (Dyno, Ticket Tool, Ticketmaster) : la gestion de l'équipe, les notes privées, les transcripts certifiés et les avis restent hébergés au sein de SigilOS, tandis que les salons et notifications sont directement synchronisés sur votre serveur Discord. <strong>Zéro fuite de données, 100% gratuit et souverain.</strong></p>
 
-<h2>1. Ce que voit un membre</h2>
+<div class="callout callout-tip my-4">
+    <p><strong>Architecture moderne :</strong> Le module s'articule autour de 7 briques intuitives : la <strong>Boîte de Réception</strong> (traitement en direct), les <strong>Types de Demande</strong> (parcours & formulaires), les <strong>Panneaux Discord</strong> (messages d'ouverture), les <strong>Commandes Slash</strong> (raccourcis rapides avec variables), les <strong>Archives</strong> (copies conformes), les <strong>Avis CSAT</strong> (notes 1 à 5 étoiles) et la <strong>Configuration</strong> (rôles et salons).</p>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MOCKUP 1 : PANNEAU DISCORD -->
+<!-- ========================================================================= -->
+<figure class="my-6">
+    <div style="background-color: #313338; border: 1px solid #3f4147; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #ffffff; max-width: 600px; margin: 0 auto;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #22c55e; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">S</div>
+            <div>
+                <span style="font-weight: bold; font-size: 14px;">SigilOS</span>
+                <span style="background-color: #5865f2; font-size: 10px; font-weight: bold; padding: 1px 4px; border-radius: 4px; margin-left: 6px;">APP</span>
+                <span style="color: #949ba4; font-size: 11px; margin-left: 8px;">aujourd'hui à 14:30</span>
+            </div>
+        </div>
+
+        <div style="background-color: #2b2d31; border-left: 4px solid #5865f2; border-radius: 6px; padding: 14px; margin-bottom: 14px;">
+            <div style="font-size: 15px; font-weight: bold; color: #ffffff; margin-bottom: 6px;">📩 Centre de Support & Recrutement</div>
+            <div style="font-size: 13px; color: #dbdee1; line-height: 1.5;">
+                Bienvenue sur le portail de la guilde !<br>
+                Pour ouvrir un dossier privé avec notre équipe, cliquez sur l'un des boutons ci-dessous.<br>
+                <em>Un salon dédié vous sera instantanément ouvert.</em>
+            </div>
+            <div style="margin-top: 10px; font-size: 11px; color: #949ba4; border-top: 1px solid #3f4147; pt-2;">
+                Guilde SigilOS • Service automatique
+            </div>
+        </div>
+
+        <!-- Boutons d'action Discord -->
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <div style="background-color: #248046; color: #ffffff; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                🎉 Postuler dans la guilde
+            </div>
+            <div style="background-color: #4e5058; color: #ffffff; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                🛡️ Contacter les Modérateurs
+            </div>
+            <div style="background-color: #4e5058; color: #ffffff; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                ⚖️ Signaler un problème
+            </div>
+        </div>
+    </div>
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Aperçu réaliste d'un panneau d'accueil déployé dans un salon Discord.</figcaption>
+</figure>
+
+<h2>1. Boîte de Réception & Suivi en direct</h2>
+<p>L'inbox regroupe l'intégralité des tickets de votre serveur. Vous pouvez filtrer par statut (Ouvert, En attente, Fermé) ou rechercher par nom de membre, numéro de ticket ou mot-clé.</p>
 <ul>
-    <li><strong>Un panneau</strong> dans un salon : un message d'accueil et un bouton par parcours publié (ou un menu déroulant, au choix du panneau).</li>
-    <li><strong>Un questionnaire</strong>, facultatif : d'abord les questions à choix (Oui/Non, liste, choix multiples), puis les questions de texte.</li>
-    <li><strong>Son salon de ticket</strong> : créé dans la catégorie Discord du parcours, nommé selon le modèle du parcours (par défaut : ticket-0001), avec un message d'accueil qui rappelle sa demande et ses réponses.</li>
-    <li><strong>Les boutons de staff</strong> ne lui sont jamais montrés : il ne voit « Fermer ma demande » que si le parcours l'y autorise.</li>
+    <li><strong>Prise en charge (Claim) :</strong> Dès qu'un membre du staff clique sur « Prendre en charge », l'embed du salon Discord et le dashboard se mettent à jour instantanément pour afficher son nom. Les autres modérateurs savent immédiatement qui traite la demande.</li>
+    <li><strong>Notes internes sécurisées :</strong> Rédigez des mémos privés ou des comptes-rendus entre modérateurs. Ces notes restent <strong>strictement réservées au dashboard</strong> et ne sont jamais divulguées au membre dans son salon Discord.</li>
+    <li><strong>Rafraîchissement automatique :</strong> Le statut et la liste des tickets se mettent à jour en direct toutes les 10 secondes sans rechargement de page.</li>
 </ul>
 
-<h2>2. Brouillon ou publié</h2>
+<h2>2. Types de Demande & Questionnaires (Parcours)</h2>
+<p>Chaque guilde possède des besoins variés : recrutement, demande de craft, questions débutants ou réclamations. Les <strong>Types de Demande</strong> permettent de personnaliser l'expérience :</p>
 <ul>
-    <li><strong>Brouillon</strong> : invisible sur Discord. <strong>Publié</strong> : le bouton existe et ouvre un ticket. Republier incrémente la version (v1, v2…).</li>
-    <li>Un ticket garde toujours la <strong>version du questionnaire</strong> avec laquelle il a été rempli : renommer une question plus tard ne casse pas la relecture.</li>
-    <li><strong>Fermeture</strong> : réservée au staff, ou ouverte au demandeur si tu le décides. Un parcours qui porte déjà des tickets se désactive plutôt que de se supprimer.</li>
+    <li><strong>Questionnaire intake jusqu'à 20 questions :</strong> Découpage automatique en pages de 5 modales Discord. Vous pouvez poser des questions texte court, paragraphe, choix unique, choix multiples ou Oui/Non.</li>
+    <li><strong>Le Oui/Non comme condition bloquante :</strong> Une réponse « Non » (ex: <em>Possédez-vous un personnage niveau 200 ?</em>) peut soit avertir le candidat, soit bloquer directement l'envoi pour éviter de polluer le staff.</li>
+    <li><strong>Rôles staff dédiés :</strong> Seuls les rôles Discord assignés à ce parcours (ex: le rôle <code>@Recruteurs</code>) ont accès au salon du ticket et reçoivent les notifications.</li>
+    <li><strong>Sauvegarde de brouillon :</strong> Si le joueur ferme Discord en cours de saisie, ses réponses sont conservées 30 minutes : il peut reprendre son questionnaire d'un simple clic sans recommencer !</li>
 </ul>
 
-<h2>3. Le questionnaire : jusqu'à 20 questions</h2>
+<h2>3. Panneaux Discord & Déploiement 1-Clic</h2>
+<p>Les panneaux sont les messages d'accueil visibles par vos membres sur Discord :</p>
 <ul>
-    <li>Six types de champs : réponse courte, paragraphe, Oui/Non, choix unique, choix multiple, et information (qui n'attend aucune réponse).</li>
-    <li>Le <strong>Oui/Non est un vrai refus</strong> : la réponse « Non » est enregistrée, et tu choisis sa conséquence — continuer, avertir le demandeur, bloquer l'envoi, ou envoyer la demande en revue manuelle.</li>
-    <li>20 questions au maximum, réparties automatiquement en pages de 5 (limite imposée par Discord) : le membre enchaîne avec un bouton « Continuer », et une page déjà remplie ne lui est jamais reposée. Un brouillon reste 30 minutes : il peut fermer Discord et reprendre.</li>
-    <li>Un questionnaire doit être <strong>publié avant</strong> d'être rattaché à un parcours : c'est cette version qui est figée.</li>
+    <li>Choisissez le salon Discord de destination (ex: <code>#recrutement</code> ou <code>#accueil-tickets</code>).</li>
+    <li>Personnalisez l'embed avec vos couleurs de guilde, une miniature ou une grande bannière.</li>
+    <li>Sélectionnez les parcours à afficher sous forme de <strong>boutons interactifs</strong> ou de <strong>menu déroulant</strong>.</li>
+    <li>Cliquez sur « Déployer » : le message Discord est publié instantanément par le bot.</li>
 </ul>
 
-<h2>4. Qui voit, qui est prévenu</h2>
+<!-- ========================================================================= -->
+<!-- MOCKUP 2 : COMMANDE SLASH DANS LE TICKET -->
+<!-- ========================================================================= -->
+<figure class="my-6">
+    <div style="background-color: #313338; border: 1px solid #3f4147; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #ffffff; max-width: 600px; margin: 0 auto;">
+        <div style="font-size: 12px; color: #949ba4; margin-bottom: 8px;">Salon ticket : <strong>#ticket-0042</strong></div>
+        
+        <!-- Frappe de la commande avec autocomplétion -->
+        <div style="background-color: #2b2d31; border: 1px solid #3f4147; border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+            <span style="color: #22c55e; font-weight: bold;">/</span>
+            <span style="color: #ffffff; font-weight: 600;">bienvenue</span>
+            <span style="background-color: #383a40; color: #dbdee1; padding: 2px 6px; border-radius: 4px; font-size: 11px;">membre: @CandidatDofus</span>
+        </div>
+
+        <!-- Rendu Discord de la commande -->
+        <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #22c55e; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; shrink: 0;">S</div>
+            <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                    <span style="font-weight: bold; font-size: 13px;">SigilOS</span>
+                    <span style="background-color: #5865f2; font-size: 9px; font-weight: bold; padding: 1px 4px; border-radius: 4px;">APP</span>
+                </div>
+                <div style="font-size: 13px; color: #dbdee1; line-height: 1.5;">
+                    🎉 Félicitations <span style="background-color: rgba(88, 101, 242, 0.2); color: #c9cdfb; padding: 2px 6px; border-radius: 4px; font-weight: 500;">@CandidatDofus</span> ! Ta candidature sur <strong>Guilde SigilOS</strong> a été validée par <span style="background-color: rgba(88, 101, 242, 0.2); color: #c9cdfb; padding: 2px 6px; border-radius: 4px; font-weight: 500;">un membre du staff</span> !
+                </div>
+
+                <div style="margin-top: 8px; background-color: #2b2d31; border-left: 4px solid #22c55e; border-radius: 6px; padding: 10px 12px; font-size: 12px;">
+                    <div style="font-weight: bold; color: #ffffff; margin-bottom: 4px;">✨ Rôles Discord mis à jour :</div>
+                    <div style="color: #dbdee1;">• Ajouté : <span style="color: #22c55e; font-weight: 600;">+ Membre</span><br>• Retiré : <span style="color: #ed4245; font-weight: 600;">- Candidat</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Exécution en direct d'une commande slash personnalisée avec modification automatique de rôles.</figcaption>
+</figure>
+
+<h2>4. Commandes Slash Personnalisées (Exclusives aux Tickets)</h2>
+<p>Vous pouvez créer jusqu'à <strong>20 commandes slash Discord sur-mesure</strong> utilisables uniquement à l'intérieur des salons tickets :</p>
 <ul>
-    <li>Voyant un ticket : les <strong>rôles staff du parcours</strong>, ceux de son <strong>équipe</strong> (réutilisable par plusieurs parcours) et les membres qui ont la permission « Support & Tickets Discord » sur le site.</li>
-    <li><strong>Rôles mentionnés à l'ouverture</strong> : coche les rôles à prévenir (« @Candidatures ») ; si le parcours n'en définit aucun, le bot reprend ceux de l'équipe. Jamais <strong>@everyone</strong>, et 25 rôles au maximum.</li>
-    <li><strong>Notes internes</strong> : écrites depuis Discord ou le site, visibles par le staff seulement — elles ne sont jamais publiées dans le salon du demandeur.</li>
+    <li><strong>Modèles prêts à l'emploi :</strong> 4 modèles disponibles en 1 clic (<em>Validation Recrue</em>, <em>Promotion / Grade</em>, <em>Résolution & Clôture</em>, <em>Relance Inactivité</em>).</li>
+    <li><strong>Dictionnaire complet des balises dynamiques :</strong>
+        <ul>
+            <li><code>{demandeur}</code> : Ping Discord du créateur du ticket (ex: <code>@Joueur</code>).</li>
+            <li><code>{cible}</code> : Ping du membre ciblé par l'option ou le demandeur.</li>
+            <li><code>{pseudo}</code> : Pseudo brut sans arobase (idéal pour les titres d'embeds).</li>
+            <li><code>{staff}</code> : Ping du modérateur ayant exécuté la commande.</li>
+            <li><code>{motif}</code> : Nom du type de demande (ex: Recrutement).</li>
+            <li><code>{numero}</code> : Numéro unique du ticket (ex: #0042).</li>
+            <li><code>{salon}</code> : Lien cliquable vers le salon Discord actuel.</li>
+            <li><code>{serveur}</code> : Nom officiel de votre guilde.</li>
+        </ul>
+    </li>
+    <li><strong>Actions automatiques sur les rôles :</strong> Attribuez (ex: <em>Membre</em>) et retirez (ex: <em>Candidat</em>) des rôles Discord en un instant.</li>
+    <li><strong>Clôture automatique :</strong> Déclenchez l'archivage et la fermeture du salon dès que la commande est validée.</li>
 </ul>
 
-<h2>5. Le déroulé d'un ticket</h2>
+<h2>5. Archives & Transcripts Certifiés</h2>
+<p>Lors de la clôture d'un ticket, le système capture l'intégralité des échanges pour assurer la conformité et l'historique :</p>
 <ul>
-    <li>Étapes : <strong>en attente</strong> → <strong>pris en charge</strong> → <strong>fermé</strong>. Le demandeur peut noter la prise en charge (avis 1 à 5) à la clôture si l'option est active.</li>
-    <li>Côté staff : prendre en charge ou relâcher, note interne, renommer le salon, fermer. Côté demandeur : écrire dans son salon, et le fermer si le parcours le permet.</li>
-    <li>Après la clôture, le salon reste en place : l'archive est la preuve, la suppression se décide à part.</li>
+    <li><strong>Document Partageable (HTML) :</strong> Génère une copie propre et élégante contenant tous les messages publics, pièces jointes et avatars des intervenants. Les notes privées du staff n'y figurent jamais.</li>
+    <li><strong>Annexe Interne Staff :</strong> Document réservé au staff regroupant l'audit log complet, les temps de réponse et les notes privées.</li>
+    <li><strong>Rétention automatique :</strong> Vos archives sont conservées 365 jours par défaut (durée configurable) et peuvent être révoquées ou purgées à tout moment.</li>
 </ul>
 
-<h2>6. Archives et rétention</h2>
+<!-- ========================================================================= -->
+<!-- MOCKUP 3 : SONDAGE CSAT -->
+<!-- ========================================================================= -->
+<figure class="my-6">
+    <div style="background-color: #313338; border: 1px solid #3f4147; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #ffffff; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #2b2d31; border-left: 4px solid #f59e0b; border-radius: 6px; padding: 12px 14px; margin-bottom: 12px;">
+            <div style="font-size: 14px; font-weight: bold; color: #ffffff; margin-bottom: 4px;">⭐ Votre avis compte pour notre équipe</div>
+            <div style="font-size: 12.5px; color: #dbdee1;">
+                Votre ticket <strong>#ticket-0042</strong> a été résolu. Comment évaluez-vous l'accueil et l'efficacité de notre staff ?
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 6px;">
+            <div style="background-color: #4e5058; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">⭐ 1</div>
+            <div style="background-color: #4e5058; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">⭐ 2</div>
+            <div style="background-color: #4e5058; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">⭐ 3</div>
+            <div style="background-color: #4e5058; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">⭐ 4</div>
+            <div style="background-color: #f59e0b; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">⭐ 5</div>
+        </div>
+    </div>
+    <figcaption class="text-xs text-muted-foreground mt-2 text-center">Sondage de satisfaction (CSAT) avec verrou de vote unique.</figcaption>
+</figure>
+
+<h2>6. Avis & Satisfaction (CSAT)</h2>
+<p>Mesurez objectivement la qualité de réponse de votre modération :</p>
 <ul>
-    <li>Chaque clôture produit <strong>deux documents</strong> : un <strong>document partageable</strong> (sans les notes internes) et une <strong>annexe interne</strong> réservée au staff.</li>
-    <li>Le lien du document partageable expire selon la rétention configurée et peut être <strong>révoqué</strong> ; chaque accès est compté.</li>
-    <li>Rétention par type de donnée, en jours (0 = illimité) : archives 365, notes 365, journal d'actions 730 par défaut. C'est ce réglage qui est réellement appliqué, à la seconde où l'archive est créée.</li>
+    <li>Lors de la fermeture du ticket, le robot envoie automatiquement le sondage par message privé ou directement dans le salon avant suppression.</li>
+    <li><strong>Verrou de vote unique :</strong> Le membre ne peut voter qu'une seule et unique fois ; toute tentative ultérieure est neutralisée.</li>
+    <li><strong>Moyennes et statistiques :</strong> Retrouvez la moyenne globale de satisfaction (ex: 4.8 / 5) et le volume de retours dans l'onglet <em>Avis & Satisfaction</em>.</li>
 </ul>
 
-<h2>7. Prérequis côté Discord</h2>
+<h2>7. Configuration & Positionnement des Salons</h2>
 <ul>
-    <li>Le bot doit être présent, avec : voir les salons, gérer les salons, envoyer des messages, joindre des fichiers, et la permission de mentionner les rôles à prévenir.</li>
-    <li>La catégorie choisie dans le parcours doit exister et être accessible au bot — sinon le salon ne peut pas être créé.</li>
-    <li>Les rôles staff doivent être <strong>sous</strong> le rôle du bot dans la hiérarchie, sinon il ne peut ni les mentionner ni leur ouvrir le salon.</li>
-</ul>
-
-<h2>8. Limites connues aujourd'hui</h2>
-<ul>
-    <li>Pas encore actifs : les délais SLA (1ʳᵉ réponse, résolution) et l'auto-fermeture, l'approbation avant création du salon, les tickets en « fil privé », et le quota global de tickets du serveur.</li>
-    <li>L'écran « Parcours » (avec son assistant) n'est pas encore en ligne : la configuration actuelle se fait dans l'onglet « Catégories & Modals ».</li>
+    <li><strong>Position dans la catégorie Discord :</strong> Choisissez si les nouveaux salons tickets sont créés <strong>tout en haut (TOP)</strong> pour une visibilité immédiate du staff, ou <strong>en bas (BOTTOM)</strong> pour suivre l'ordre chronologique Discord classique.</li>
+    <li><strong>Salon de logs privé :</strong> Recevez une trace de chaque action importante (création, prise en charge, clôture, suppression).</li>
+    <li><strong>Plafonds anti-spam :</strong> Limitez le nombre de tickets actifs simultanés par utilisateur (1 à 5) pour préserver votre serveur.</li>
 </ul>
         `
     },

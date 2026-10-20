@@ -9,6 +9,7 @@ import {
     Sliders,
     FileText,
     BarChart3,
+    Terminal,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TicketInboxTab } from "./tabs/ticket-inbox-tab";
@@ -17,6 +18,8 @@ import { TicketMotifsTab } from "./tabs/ticket-motifs-tab";
 import { TicketSettingsTab } from "./tabs/ticket-settings-tab";
 import { TicketTranscriptsTab } from "./tabs/ticket-transcripts-tab";
 import { TicketAnalyticsTab } from "./tabs/ticket-analytics-tab";
+import { TicketCommandsTab } from "./tabs/ticket-commands-tab";
+import { readTicketCustomCommands } from "@/lib/tickets/custom-commands";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 
 interface TicketBotManagerProps {
@@ -37,6 +40,7 @@ type TicketManagerTabId =
     | "inbox"
     | "motifs"
     | "panels"
+    | "commands"
     | "settings"
     | "transcripts"
     | "analytics";
@@ -61,6 +65,8 @@ export function TicketBotManager({
     const openTicketsCount = tickets.filter(
         (t) => t.status === "OPEN" || t.status === "CLAIMED"
     ).length;
+
+    const customCommands = readTicketCustomCommands(config?.settingsJson);
 
     interface TabItem {
         id: TicketManagerTabId;
@@ -89,6 +95,12 @@ export function TicketBotManager({
             badge: panels.length > 0 ? panels.length : undefined,
         },
         {
+            id: "commands",
+            label: "Commandes Slash",
+            icon: Terminal,
+            badge: customCommands.length > 0 ? customCommands.length : undefined,
+        },
+        {
             id: "transcripts",
             label: "Archives & Transcripts",
             icon: FileText,
@@ -109,7 +121,7 @@ export function TicketBotManager({
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-                <div className="flex items-center gap-3">
+                <div data-tour="tickets-header" className="flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm">
                         <Ticket className="h-6 w-6" />
                     </div>
@@ -139,6 +151,7 @@ export function TicketBotManager({
                     return (
                         <button
                             key={tab.id}
+                            data-tour={`tickets-${tab.id}-tab`}
                             type="button"
                             onClick={() => setActiveTab(tab.id as any)}
                             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
@@ -193,6 +206,13 @@ export function TicketBotManager({
                         panels={panels}
                         journeys={journeys}
                         legacyCategoryCount={categories.length}
+                        onRefresh={onRefresh}
+                    />
+                )}
+                {activeTab === "commands" && (
+                    <TicketCommandsTab
+                        guildId={guildId}
+                        initialCommands={customCommands}
                         onRefresh={onRefresh}
                     />
                 )}

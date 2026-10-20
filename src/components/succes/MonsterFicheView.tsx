@@ -131,7 +131,7 @@ export function MonsterFicheView({
     // Onglets : **source unique** partagée (mêmes règles que les fiches boss / avis).
     const tabs = buildBossFicheTabs({
         entity: "monster",
-        counts: { grades: grades.length, roomMonsters: 0, monsters: 0, quests: 0, achievements: 0 },
+        counts: { grades: grades.length, roomMonsters: 0, quests: 0, achievements: 0 },
         hasMechanics: !!passive,
         locale,
     });

@@ -38,7 +38,7 @@ import {
     matchesLevelBracket,
 } from "@/lib/level-brackets";
 import { buildBossFicheTabs } from "@/lib/boss-fiche-tabs";
-import { listNormalMonsters, monsterFicheHref } from "@/lib/monster-fiche";
+import { monsterFicheHref } from "@/lib/monster-fiche";
 
 /**
  * Image de monstre avec fallback stylisé (icône Swords) si l'illustration DofusDB
@@ -290,18 +290,9 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
     const [selectedDrop, setSelectedDrop] = useState<any>(null);
     const [selectedSpellId, setSelectedSpellId] = useState<number | undefined>(undefined);
     const [familyByDungeon, setFamilyByDungeon] = useState<Record<string, DungeonFamily>>({});
-    /**
-     * Monstres **normaux** de la salle du donjon ouvert (hors boss / avis de recherche /
-     * anomalie / titan / boss de raid) : la règle pure vit dans `@/lib/monster-fiche` —
-     * eux seuls ont droit à leur propre fiche `/bestiaire/<slug>`.
-     */
-    const normalMonsterList = useMemo(
-        () => listNormalMonsters<any>(selected ? (familyByDungeon[selected.id]?.monsters ?? []) : []),
-        [selected, familyByDungeon]
-    );
     const [activeMonsterName, setActiveMonsterName] = useState<string | null>(null);
     const [activeGradeIndex, setActiveGradeIndex] = useState<number | null>(null);
-    const [detailTab, setDetailTab] = useState<"sorts" | "sim" | "strategy" | "grades" | "loot" | "family" | "monsters" | "quests" | "achievements">("sorts");
+    const [detailTab, setDetailTab] = useState<"sorts" | "sim" | "strategy" | "grades" | "loot" | "family" | "quests" | "achievements">("sorts");
     // Détail des sorts : chaque sort est replié par défaut (les mécaniques clés — le passif —
     // suffisent d'un coup d'œil). L'état est remis à zéro à chaque changement de fiche.
     // Deep-link `?onglet=quetes` (redirect de l'ancienne vue globale `?view=quetes`).
@@ -962,7 +953,6 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                             counts: {
                                 grades: currentStats?.grades?.length ?? 0,
                                 roomMonsters: roomMonsters.length,
-                                monsters: normalMonsterList.length,
                                 quests: selected?.isAnomalyBoss ? 0 : questCount,
                                 achievements: selected?.achievements?.length ?? 0,
                             },
@@ -995,56 +985,6 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                             </div>
                         );
                     })()}
-
-                    {/* Onglet : Tous les monstres normaux — chacun ouvre SA fiche
-                        (`/bestiaire/<slug>`, même règle et même slug que la fiche publique). */}
-                    {detailTab === "monsters" && (
-                        <div className="space-y-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-4 h-4 object-contain opacity-80" />
-                                <h4 className="text-sm font-bold text-foreground">Tous les monstres</h4>
-                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
-                                    {normalMonsterList.length} monstres
-                                </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                Monstres normaux uniquement — les boss de donjon, avis de recherche, gardiens
-                                d&apos;anomalie, titans et boss de raid ont leur propre fiche.
-                            </p>
-                            {normalMonsterList.length === 0 ? (
-                                <p className="py-8 text-center text-xs text-muted-foreground">
-                                    Aucun monstre normal rattaché à cette salle pour le moment.
-                                </p>
-                            ) : (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                                    {normalMonsterList.map((m: any) => {
-                                        const href = monsterFicheHref(m.name);
-                                        const card = (
-                                            <>
-                                                <div className="w-10 h-10 rounded-lg bg-background border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden">
-                                                    <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-full h-full object-contain" />
-                                                </div>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block truncate text-xs font-medium text-foreground">{m.name}</span>
-                                                    {m.level ? <span className="block text-[11px] text-muted-foreground">niv. {m.level}</span> : null}
-                                                </span>
-                                            </>
-                                        );
-                                        const className = "flex items-center gap-2.5 rounded-xl border border-border bg-surface/50 p-2 text-left transition-colors hover:border-border-strong";
-                                        return href ? (
-                                            <Link key={m.id} href={href} target="_blank" title={`Ouvrir la fiche de ${m.name}`} className={className}>
-                                                {card}
-                                            </Link>
-                                        ) : (
-                                            <div key={m.id} className={className}>{card}</div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
 
                     {/* Onglet dédié : Monstres de la salle + monstres de l'anomalie */}
                     {detailTab === "family" && (() => {
@@ -1122,6 +1062,21 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                                 >
                                                     <Target className="w-3 h-3" /> Simuler
                                                 </button>
+                                                {/* Lien vers la fiche publique (remplace l'ancien onglet
+                                                    « Monstres ») : monstres normaux uniquement. */}
+                                                {(() => {
+                                                    const href = m.isBoss ? null : monsterFicheHref(m.name);
+                                                    return href ? (
+                                                        <Link
+                                                            href={href}
+                                                            target="_blank"
+                                                            className="py-1 px-2.5 rounded-lg border border-border text-muted-foreground text-[11px] hover:text-foreground transition-colors text-center"
+                                                            title={`Ouvrir la fiche de ${m.name}`}
+                                                        >
+                                                            Fiche
+                                                        </Link>
+                                                    ) : null;
+                                                })()}
                                             </div>
                                         </div>
                                     );

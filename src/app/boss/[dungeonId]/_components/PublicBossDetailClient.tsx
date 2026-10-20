@@ -52,7 +52,7 @@ import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "
 import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
 import { DocContent } from "@/components/doc/doc-content";
 import { buildBossFicheTabs } from "@/lib/boss-fiche-tabs";
-import { listNormalMonsters, monsterFicheHref } from "@/lib/monster-fiche";
+import { monsterFicheHref } from "@/lib/monster-fiche";
 import { resolveDungeonBossPair } from "@/lib/dungeon-boss-pair";
 
 interface PublicDungeon {
@@ -509,15 +509,11 @@ export function PublicBossDetailClient({
   // Liste d'onglets : **source unique** partagée avec les fiches internes du module Succès
   // (`@/lib/boss-fiche-tabs`) — plus aucune définition locale, donc plus aucune divergence
   // possible entre la fiche publique et les fiches internes.
-  // Monstres normaux de la salle (hors boss / avis / anomalie / titan / raid) : ce sont eux
-  // qui ont droit à leur propre fiche `/bestiaire/<slug>` (onglet « Monstres »).
-  const normalMonsterList = listNormalMonsters(roomMonsters as any);
   const tabs = buildBossFicheTabs({
     entity: isRaid ? "raid" : isTitan ? "titan" : isBounty ? "bounty" : isAnomalyBoss ? "anomaly" : "dungeon",
     counts: {
       grades: grades.length,
       roomMonsters: hasRoomMonsters ? roomMonsters.length : 0,
-      monsters: normalMonsterList.length,
       quests: questCount,
       achievements: achievementCount,
     },
@@ -1177,6 +1173,13 @@ export function PublicBossDetailClient({
               activeGradeIndex={activeGradeIndex ?? (grades.length - 1)}
               onGradeChange={(idx) => setActiveGradeIndex(idx)}
               monsters={roomMonsters}
+              companion={(() => {
+                // Double boss : le second combattant de la salle est posé d'office sur une case
+                // de départ alliée (mesure du 20/10/2026 : un seul caster était modélisé).
+                if (!bossPair.isDoubleBoss || !bossPair.partner) return null;
+                const partner = roomMonsters.find((m) => m.name === bossPair.partner);
+                return { id: partner?.id, name: bossPair.partner, imageUrl: partner?.imageUrl ?? null };
+              })()}
               entityScale={isTitan ? 4 : 1}
               allowFreeCasterMove
             />
@@ -1297,52 +1300,6 @@ export function PublicBossDetailClient({
         </div>
       )}
 
-      {/* — TAB: TOUS LES MONSTRES NORMALUX (hors boss / avis / anomalie / titan / raid).
-          Chacun ouvre SA fiche (`/bestiaire/<slug>`, source unique `monsterFicheHref`). */}
-      {detailTab === "monsters" && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-4 h-4 object-contain opacity-80" />
-            <h4 className="text-sm font-bold text-foreground">
-              {locale === "en" ? "All monsters" : "Tous les monstres"}
-            </h4>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-border text-muted-foreground">
-              {normalMonsterList.length} {locale === "en" ? "monsters" : "monstres"}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {locale === "en"
-              ? "Normal monsters only — dungeon bosses, bounty monsters, anomaly guardians, titans and raid bosses have their own page."
-              : "Monstres normaux uniquement — les boss de donjon, avis de recherche, gardiens d'anomalie, titans et boss de raid ont leur propre fiche."}
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-            {normalMonsterList.map((m: any) => {
-              const href = monsterFicheHref(m.name);
-              const card = (
-                <>
-                  <div className="w-10 h-10 rounded-lg bg-background border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden">
-                    <MonsterImage src={m.imageUrl} alt={m.name} monsterId={m.id} className="w-full h-full object-contain" />
-                  </div>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium text-foreground">{m.name}</span>
-                    {m.level ? <span className="block text-[11px] text-muted-foreground">{t.bossPage.levelShort} {m.level}</span> : null}
-                  </span>
-                </>
-              );
-              const className = "flex items-center gap-2.5 rounded-xl border border-border/70 bg-surface/50 p-2 text-left transition-colors hover:border-border-strong";
-              return href ? (
-                <Link key={m.id} href={href} title={`${locale === "en" ? "Open the page of" : "Ouvrir la fiche de"} ${m.name}`} className={className}>
-                  {card}
-                </Link>
-              ) : (
-                <div key={m.id} className={className}>{card}</div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
 
       {/* ── TAB: MONSTRES DE LA SALLE ── */}
       {/* ── TAB: QUÊTES LIÉES (vrais donjons uniquement) ── */}
@@ -1414,6 +1371,20 @@ export function PublicBossDetailClient({
                     >
                       <Target className="w-3 h-3" /> {t.bossPage.simulateSpell}
                     </button>
+                    {/* Le lien vers la fiche publique remplace l'ancien onglet « Monstres » :
+                        il ne concerne que les monstres **normaux** (un boss a sa propre page). */}
+                    {(() => {
+                      const href = m.isBoss ? null : monsterFicheHref(m.name);
+                      return href ? (
+                        <Link
+                          href={href}
+                          className="py-1 px-2.5 rounded-lg border border-border text-muted-foreground text-[11px] hover:text-foreground transition-colors text-center"
+                          title={locale === "en" ? `Open ${m.name}'s page` : `Ouvrir la fiche de ${m.name}`}
+                        >
+                          {locale === "en" ? "Page" : "Fiche"}
+                        </Link>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               );

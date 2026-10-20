@@ -119,6 +119,12 @@ describe("slash commands — périmètre", () => {
         expect(route).not.toContain('{ name: "Niveau"');
     });
 
+    it("souveraineté (16/10/2026) : la commande /status n'existe plus côté Discord", () => {
+        const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
+        expect(route).not.toContain('commandName === "status"');
+        expect(route).not.toContain("SigilOS Status");
+    });
+
     it("/metiers pointe vers l'annuaire des membres (/members) et non annuaire-hub", () => {
         const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
         expect(route).toContain('url: `${appBaseUrl}/dashboard/${guild_id}/members`');

@@ -53,6 +53,20 @@
 }
 
 # =============================================================================
+# 🔗 www.sigilos.fr — redirection vers l'apex
+# =============================================================================
+# Mesure du 20/10/2026 (`openssl s_client` depuis le VPS) : `www.sigilos.fr` **résout** vers le
+# serveur (DNS OK) mais ne sert **aucun certificat** → « Could not read certificate » : un
+# visiteur qui tape « www.sigilos.fr » (favori, lien ancien) tombe sur une alerte de sécurité
+# **sans jamais atteindre la vitrine**.
+# Le `www` est une adresse que les gens tapent par réflexe ; on le redirige en **301** vers
+# l'apex, seule forme canonique (un nom indexable, pas deux).
+www.sigilos.fr {
+    import security_headers
+    redir https://sigilos.fr{uri} permanent
+}
+
+# =============================================================================
 # 🔴 PRODUCTION — Vitrine maintenance immersive (page d'attente, pas encore ouverte)
 # =============================================================================
 # La vitrine refaite (bg-guild, screenshots, modules). Les assets /assets/* sont

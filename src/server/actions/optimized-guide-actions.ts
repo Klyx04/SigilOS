@@ -3516,3 +3516,56 @@ export async function deleteRushSequence(sequenceId: string) {
   revalidatePath("/dashboard");
   return { success: true, alreadyDeleted: false };
 }
+
+/**
+ * **Lot 4 — God : route d'alignement.** Crée la **jumelle** d'une séquence : même jalon,
+ * même `order`, camp OPPOSÉ. C'est ce qui rend la saisie rapide : les deux branches se
+ * lisent ensuite en deux colonnes parallèles (slot miroir), sans dupliquer le guide.
+ *
+ * Fail-closed : une séquence sans `alignReq` exploitable est refusée (on ne devine pas
+ * un camp). L'alignement d'Ordre (`alignOrderReq`, un seuil de niveau) est recopié.
+ */
+export async function duplicateRushSequenceAsTwin(sequenceId: string) {
+  await requireRushAccess();
+
+  const source = await db.guideSequence.findUnique({ where: { id: sequenceId } });
+  if (!source) return { success: false as const, error: "Séquence introuvable" };
+
+  const camp = (source.alignReq ?? "").trim().toLowerCase();
+  if (camp !== "bontarien" && camp !== "brakmarien") {
+    return {
+      success: false as const,
+      error: "Cette séquence n'a pas de camp : renseigne d'abord Bontarien ou Brâkmarien",
+    };
+  }
+  const twinCamp = camp === "bontarien" ? "brakmarien" : "bontarien";
+
+  const twin = await db.guideSequence.create({
+    data: {
+      milestoneId: source.milestoneId,
+      order: source.order,
+      subGuideRef: `${source.subGuideRef} [${twinCamp}]`,
+      subGuideName: `${source.subGuideName} [${twinCamp}]`,
+      stepFrom: source.stepFrom,
+      stepTo: source.stepTo,
+      isPartial: source.isPartial,
+      isOptional: source.isOptional,
+      note: source.note,
+      isResume: source.isResume,
+      dofusdbUrl: source.dofusdbUrl,
+      dofuspourlesnoobsUrl: source.dofuspourlesnoobsUrl,
+      tips: source.tips,
+      alignReq: twinCamp,
+      alignOrderReq: source.alignOrderReq,
+      isSuccess: source.isSuccess,
+      icon: source.icon,
+      metamobMonsterId: source.metamobMonsterId,
+      activityTags: (source.activityTags ?? []) as never,
+      dungeonId: source.dungeonId,
+      dungeonIds: source.dungeonIds ?? [],
+    },
+    select: { id: true },
+  });
+
+  return { success: true as const, data: { id: twin.id, alignReq: twinCamp } };
+}

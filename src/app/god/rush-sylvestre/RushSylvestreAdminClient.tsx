@@ -32,6 +32,7 @@ import {
   updateRushUIConfig,
   reorderRushMilestones,
   reorderRushSequences,
+  duplicateRushSequenceAsTwin,
   seedRushSylvestreFromGuide,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
@@ -1802,6 +1803,48 @@ function SortableSequenceRow(props: { seq: Sequence; color: string; onEdit: () =
 }
 
 // ─── SequenceRowAdmin ─────────────────────────────────────────────────────────
+/**
+ * Bouton « Jumelle » (Lot 4) : crée la séquence du camp OPPOSÉ au même `order`.
+ * Le studio God est un formulaire : on ne touche pas à l'état de la ligne, on appelle
+ * l'action puis on rafraîchit les données serveur.
+ */
+function TwinButton({ sequenceId }: { sequenceId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const create = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await duplicateRushSequenceAsTwin(sequenceId);
+      if (res.success) {
+        router.refresh();
+      } else {
+        setError(res.error || "Échec de la création");
+      }
+    } catch {
+      setError("Échec de la création");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={create}
+      disabled={busy}
+      title={error || "Créer la jumelle du camp opposé (même ordre)"}
+      aria-label="Créer la jumelle du camp opposé"
+      className="inline-flex items-center gap-1 rounded border border-violet-500/30 bg-violet-500/10 px-1 py-0.5 text-caption font-semibold text-violet-300 transition-colors hover:bg-violet-500/20 disabled:opacity-50"
+    >
+      <Plus className="w-2.5 h-2.5" />
+      {busy ? "…" : "Jumelle"}
+    </button>
+  );
+}
+
 function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
   seq: Sequence; color: string; onEdit: () => void; onDelete: () => void; dragHandleProps?: any;
 }) {
@@ -1863,9 +1906,12 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
             </div>
           )}
           {seq.alignReq && (
-            <span className="px-1 py-0.5 rounded text-caption font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              {seq.alignReq}{seq.alignOrderReq ? ` lv.${seq.alignOrderReq}` : ""}
-            </span>
+            <>
+              <span className="px-1 py-0.5 rounded text-caption font-semibold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                {seq.alignReq}{seq.alignOrderReq ? ` lv.${seq.alignOrderReq}` : ""}
+              </span>
+              <TwinButton sequenceId={seq.id} />
+            </>
           )}
           {seq.tips && (
             <span title={seq.tips} className="flex-shrink-0">

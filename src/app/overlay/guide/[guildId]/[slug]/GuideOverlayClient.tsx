@@ -13,6 +13,7 @@ import {
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
 import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { collectCascadeUncheck } from "@/lib/rush-helpers";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -33,6 +34,8 @@ import { RushOverlayLiveToast } from "@/components/dofus-quests/rush/RushOverlay
 import { useGuidePresence } from "@/hooks/use-guide-presence";
 import { type OverlayBubbleMember } from "./components/RushOverlayMemberBubbles";
 import { RushOverlayOcreModal } from "./components/RushOverlayOcreModal";
+import { RushOverlayAlignmentModal } from "./components/RushOverlayAlignmentModal";
+import type { AlignmentMember } from "@/components/dofus-quests/rush/GuildAlignmentPanel";
 import { buildOcrePlan, type OcrePanelData } from "@/lib/ocre-soul-stones";
 import { RushOverlayTutorialModal } from "./components/RushOverlayTutorialModal";
 import { OverlayPinNotice } from "@/components/overlay-pin-notice";
@@ -43,6 +46,20 @@ import { dofusMetaIndex, type RushDofusMeta } from "@/lib/rush-dofus-meta";
 // (mesuré le 08/10/2026 : `argente` #a8c0d6 vs #a1a1aa, `pourpre` #ef4444 vs
 // #a855f7, `ebene` #6366f1 vs #52525b, `sylvestre` #39bc95 vs #d4a017).
 const DOFUS_DEFS: Record<string, RushDofusMeta> = dofusMetaIndex();
+
+/** Libellé court d'un membre : « Bontarien · Cœur Vaillant · T42 ». */
+function alignmentSummary(
+  camp: string,
+  orderId?: string | null,
+  level?: number | null
+): string {
+  const campLabel = ALIGNMENTS.find((a) => a.id === camp)?.name ?? camp;
+  if (!orderId) return level ? `${campLabel} · T${level}` : campLabel;
+  const orders = (ORDERS as unknown as Record<string, Array<Record<string, unknown>>>)[camp] || [];
+  const order = orders.find((o) => o.id === orderId);
+  const orderLabel = order ? String(order.name) : orderId;
+  return level ? `${campLabel} · ${orderLabel} · T${level}` : `${campLabel} · ${orderLabel}`;
+}
 
 type Props = {
   guildId?: string;
@@ -153,6 +170,8 @@ export default function GuideOverlayClient({
 
   const [showResources, setShowResources] = useState<boolean>(false);
   const [showOcre, setShowOcre] = useState<boolean>(false);
+  // Alignement (vue guilde + mon choix) : panneau maison, jamais un Dialog Radix en PiP.
+  const [showAlignment, setShowAlignment] = useState<boolean>(false);
   const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
 
@@ -195,10 +214,15 @@ export default function GuideOverlayClient({
     () =>
       guideLive.presence.map((m) => {
         const where = milestones.find((x) => x.id === m.milestoneId);
+        // Alignement (cité · Ordre · tranche) lu côté serveur, puis la position.
+        const parts = [
+          m.alignment ? alignmentSummary(m.alignment, m.alignmentOrder, m.alignmentLevel) : "",
+          where?.title ? `sur « ${where.title} »` : "",
+        ].filter(Boolean);
         return {
           name: m.userName,
           avatar: m.userAvatar,
-          subtitle: where?.title ? `sur « ${where.title} »` : undefined,
+          subtitle: parts.length ? parts.join(" · ") : undefined,
         };
       }),
     [guideLive.presence, milestones]
@@ -386,6 +410,27 @@ export default function GuideOverlayClient({
 
   // Ressources agrégées sur TOUT le guide (bouton "Ressources" du header).
   const allResources = useMemo(() => aggregateRushResources(milestones), [milestones]);
+
+  // Alignement de la guilde : `allProgress` porte déjà camp / Ordre / tranche
+  // (`GuideProgressRow`), et la présence live dit qui est connecté — zéro requête.
+  const alignmentMembers = useMemo<AlignmentMember[]>(() => {
+    const online = new Set(guideLive.presence.map((p) => p.profileId));
+    const byProfile = new Map<string, AlignmentMember>();
+    for (const row of allProgress) {
+      if (!row?.profileId || byProfile.has(row.profileId)) continue;
+      byProfile.set(row.profileId, {
+        profileId: row.profileId,
+        userName: row.userName || "Voyageur",
+        userAvatar: row.userAvatar,
+        alignment: row.alignment ?? null,
+        alignmentOrder: row.alignmentOrder ?? null,
+        alignmentLevel: row.alignmentLevel ?? 0,
+        isOnline: online.has(row.profileId),
+        isSelf: !!character?.pseudo && row.userName === character.pseudo,
+      });
+    }
+    return [...byProfile.values()];
+  }, [allProgress, guideLive.presence, character?.pseudo]);
 
   const currentMsSeqs = contentSeqs(currentMs?.sequences || []);
   const currentMsDoneSeqs = currentMs ? completedStepsByMs.get(currentMs.id) || new Set<string>() : new Set<string>();
@@ -997,6 +1042,7 @@ export default function GuideOverlayClient({
             isGuest={isGuest}
             ocre={ocreSummary}
             onOpenOcre={ocreEnabled ? () => setShowOcre(true) : undefined}
+            onOpenAlignment={!isGuest && guildId !== "public" ? () => setShowAlignment(true) : undefined}
           />
 
           {/* ══ RECHERCHE ══ */}
@@ -1231,6 +1277,19 @@ export default function GuideOverlayClient({
           initial={ocre}
           state={ocreState}
           onClose={() => setShowOcre(false)}
+        />
+      )}
+
+      {/* ══ MODALE ALIGNEMENT (vue guilde + mon choix) ══ */}
+      {showAlignment && (
+        <RushOverlayAlignmentModal
+          guildId={guildId}
+          members={alignmentMembers}
+          selfAlignment={alignmentMembers.find((m) => m.isSelf)?.alignment ?? null}
+          selfOrder={alignmentMembers.find((m) => m.isSelf)?.alignmentOrder ?? null}
+          selfLevel={alignmentMembers.find((m) => m.isSelf)?.alignmentLevel ?? 0}
+          mulePseudo={!character?.isMain ? character?.pseudo ?? null : null}
+          onClose={() => setShowAlignment(false)}
         />
       )}
     </div>

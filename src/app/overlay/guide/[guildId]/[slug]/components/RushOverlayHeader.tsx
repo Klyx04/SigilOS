@@ -40,6 +40,8 @@ interface RushOverlayHeaderProps {
   ocre?: { missing: number; percent: number } | null;
   /** Ouvre le panneau Quête Ocre. Sans ce callback, le bouton n'est jamais rendu. */
   onOpenOcre?: () => void;
+  /** Ouvre la modale d'alignement de la guilde (overlay interne uniquement). */
+  onOpenAlignment?: () => void;
 }
 
 /**
@@ -71,6 +73,7 @@ export function RushOverlayHeader({
   isGuest = false,
   ocre,
   onOpenOcre,
+  onOpenAlignment,
 }: RushOverlayHeaderProps) {
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
@@ -231,6 +234,25 @@ export function RushOverlayHeader({
               loading="lazy"
             />
           </button>
+
+          {/* Alignement de la guilde (camps + Ordres) — overlay interne uniquement */}
+          {onOpenAlignment && (
+            <button
+              type="button"
+              onClick={onOpenAlignment}
+              aria-label="Alignement de la guilde"
+              title="Qui est bontarien ou brâkmarien, par Ordre"
+              className={cn(
+                "p-1.5 rounded-lg border transition-colors",
+                isLightMode
+                  ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
+                  : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
+              )}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/ordres/neutre.png" alt="" className="w-3.5 h-3.5 object-contain" />
+            </button>
+          )}
 
           {/* Quête Ocre (Metamob) — overlay interne uniquement : pastille du reste à capturer */}
           {onOpenOcre && (

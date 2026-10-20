@@ -45,6 +45,8 @@ import {
   adoptAnonymousGuestProgress,
   guestProgressPrefix,
 } from "@/lib/guest-progress";
+import { resolveRushRoute } from "@/lib/rush-route";
+import { PublicRouteChoice } from "@/components/dofus-quests/rush/PublicRouteChoice";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { brandIconForUrl } from "@/lib/source-icons";
@@ -255,7 +257,7 @@ function ResetProgressButton({
   );
 }
 
-export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClientProps) {
+export function PublicRushGuideClient({ guide, milestones: rawMilestones }: PublicRushGuideClientProps) {
   const { t, locale } = useI18n();
   // ── Progression locale PAR PERSONNAGE ───────────────────────────────────────
   // Le visiteur peut déclarer son personnage (classe + pseudo + serveur — les trois
@@ -264,6 +266,38 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
   // aucun visiteur déjà en cours de rush ne perd sa progression.
   const [character, setCharacter] = useState<GuestCharacter | null>(() => readGuestCharacter(guide.slug));
   const storagePrefix = guestProgressPrefix(guide.slug, character);
+
+  // ── Route d'alignement (lot 5) ──────────────────────────────────────────────
+  // Guide PUBLIC et non connecté : le choix est purement LOCAL. Aucune donnée de
+  // guilde n'est lue ni affichée (pas de liste de membres, pas de progression d'autrui).
+  // Le filtre s'applique AVANT la vue, les prérequis et l'agrégation des ressources.
+  const routeStorageKey = `sigilos_rush_route_${guide.slug}`;
+  const [routeCamp, setRouteCamp] = useState<"bontarien" | "brakmarien" | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem(routeStorageKey);
+      return stored === "bontarien" || stored === "brakmarien" ? stored : null;
+    } catch {
+      return null;
+    }
+  });
+  const handleRouteChange = useCallback(
+    (value: "bontarien" | "brakmarien" | null) => {
+      setRouteCamp(value);
+      if (typeof window === "undefined") return;
+      try {
+        if (value) localStorage.setItem(routeStorageKey, value);
+        else localStorage.removeItem(routeStorageKey);
+      } catch {
+        /* stockage indisponible : le choix reste valable pour la session */
+      }
+    },
+    [routeStorageKey]
+  );
+  const milestones = useMemo(
+    () => resolveRushRoute(rawMilestones, { camp: routeCamp }),
+    [rawMilestones, routeCamp]
+  );
 
   // ── Coches MANUELLES de ressources (« déjà préparé ») ────────────────────────
   // Persistées LOCALEMENT (aucun compte requis), par personnage — même clé que le
@@ -957,6 +991,8 @@ export function PublicRushGuideClient({ guide, milestones }: PublicRushGuideClie
           scrollait. Le panneau défile donc avec la page ; c'est le rail qui reste
           affiché pendant la lecture du chapitre. */}
       <div className="mb-8 reg-panel bg-background p-4 sm:p-5 space-y-4">
+        {/* Route d'alignement : choix LOCAL du visiteur (aucune donnée de guilde). */}
+        <PublicRouteChoice value={routeCamp} onChange={handleRouteChange} />
         {/* Ligne 1 — progression + actions */}
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           {/* Progress summary */}

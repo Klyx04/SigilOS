@@ -10,6 +10,7 @@
 ## 0. Reprise immédiate
 
 - **Prochaine étape** : rang **3** (ouverture prod) ; les rangs **1** et **2** sont livrés (§5).
+- **Rush Sylvestre — reprise directe** : branche `feat/rush-alignement-one-shot` (11 commits, **PR à ouvrir**). Livrés : T-2c, V-G, tranches supprimées, reset en cascade, arbre **cité → Ordre**, verrou de palier, jumelles cité/Ordre. **Reste** : vue Branches 2 étages, édition des champs de route sur séquence existante, sélecteur d'Ordre (overlay/public), saisie du contenu. Détail et mesures : `docs/plans/MODULE-RUSH-SYLVESTRE.md` § **F2**.
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops en attente** : migrations `20270112000000` + `20270113000000` · redéploiement du bot · crontabs (sondages `* * * * *`, ancienneté `30 4 * * *`, 4 rappels).
 - **Mesures du 19/10** : 155 `console.*` hors tests · **0** import de `src/lib/env.ts` · **Grafana retiré** de l'exposition publique (God → Système & Infra).

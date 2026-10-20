@@ -215,3 +215,16 @@ function getStepQuests(step: RushStep, alignment: AlignmentChoice, order: OrderC
    (les deux camps sont **miroir par slot** — la source le donne déjà).
 6. **Le bord visible** : sélecteur de cité/ordre **commun** au guide interne, au guide public et à l'overlay
    (une seule implémentation, jamais une copie par surface).
+
+## 7. Révision du 20/10/2026 (mesurée aux sources — remplace les points 1 et 4 ci-dessus)
+
+1. **Deux étages, pas un** : la route filtre **la cité**, puis l'**Ordre** (`alignOrderCode`), puis la
+   **classe** (`classReq`). Les 5 quêtes d'Apprentissage ont un **nom propre par Ordre** ⇒ **30 quêtes
+   d'Ordre** (2 cités × 3 Ordres × 5), et non 6 × 5.
+2. **Le palier est un verrou calculé** (`alignLevelReq` = 20/40/60/80/100), pas un badge : il exige
+   **N quêtes de cité validées** (`alignmentCountForCamp`). La 100ᵉ quête de cité (« L'exorciste » /
+   « La danse macabre ») conditionne donc les quêtes d'Ordre au palier 100.
+3. **`alignOrderReq` était un seuil de niveau**, pas un Ordre (nom trompeur) : remplacé par
+   `alignLevelReq`, conservé en legacy le temps de la bascule.
+4. **La « tranche » disparaît** : plus de saisie ni d'affichage ; le compteur de quêtes de cité la remplace.
+5. Détail d'exécution et reste à faire : `docs/plans/MODULE-RUSH-SYLVESTRE.md` § **F2**.

@@ -733,10 +733,7 @@ export async function POST(request: NextRequest) {
                     });
                 } else if (action === "leave") {
                     const { internalLeaveDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                    // #26 — l'index du donjon est **transmis** (avant, `dj:leave:{postId}:{idx}`
-                    // l'ignorait : « Se désinscrire » sous le donjon 4 pouvait retirer la place
-                    // du donjon 2).
-                    result = await internalLeaveDjPost(entityId, profile.id, dungeonIndex);
+                    result = await internalLeaveDjPost(entityId, profile.id);
 
                     if (result?.success) {
                         return NextResponse.json({
@@ -3136,43 +3133,6 @@ export async function POST(request: NextRequest) {
                 }
             }
 
-            // ── /status ───────────────────────────────────────────────
-            if (commandName === "status") {
-                try {
-                    const baseUrl = getAppBaseUrl();
-                    const healthRes = await fetch(`${baseUrl}/api/health`);
-                    const health = await healthRes.json();
-
-                    const statusEmoji = health.status === "healthy" ? "🟢" : health.status === "degraded" ? "🟡" : "🔴";
-                    const dbStatus = health.services.database.status === "up" ? "🟢 Opérationnel" : "🔴 Hors ligne";
-                    const redisStatus = health.services.redis.status === "up" ? "🟢 Opérationnel" :
-                        health.services.redis.status === "not_configured" ? "⚪ Non configuré" : "🔴 Hors ligne";
-
-                    return NextResponse.json({
-                        type: 4,
-                        data: {
-                            embeds: [{
-                                title: "🏰 SigilOS Status",
-                                color: health.status === "healthy" ? 0x10b981 : health.status === "degraded" ? 0xf59e0b : 0xef4444,
-                                fields: [
-                                    { name: "État Global", value: `${statusEmoji} ${health.status === "healthy" ? "Opérationnel" : health.status === "degraded" ? "Dégradé" : "Critique"}`, inline: false },
-                                    { name: "Base de données", value: `${dbStatus}${health.services.database.latency ? ` (${health.services.database.latency}ms)` : ""}`, inline: true },
-                                    { name: "Cache Redis", value: `${redisStatus}${health.services.redis.latency ? ` (${health.services.redis.latency}ms)` : ""}`, inline: true },
-                                ],
-                                footer: { text: `Version: ${health.version || "unknown"}` },
-                                timestamp: new Date().toISOString()
-                            }]
-                        }
-                    });
-                } catch (error) {
-                    console.error("[Discord Status Command] Error:", error);
-                    return NextResponse.json({
-                        type: 4,
-                        data: { content: "❌ Impossible de récupérer le statut.", flags: 64 }
-                    });
-                }
-            }
-
             // ── /almanax ──────────────────────────────────────────────
             if (commandName === "almanax") {
                 const appBaseUrl = getAppBaseUrl();
@@ -3438,22 +3398,35 @@ export async function POST(request: NextRequest) {
                     });
                 }
 
-                const { getMonsterStats } = await import("@/server/actions/game-data-actions");
-                const res = await getMonsterStats(monsterName);
+                // ⚡ Discord impose une réponse < 3 s : lecture 100 % locale, ZÉRO réseau.
+                // L'ancien chemin réseau enchaînait jusqu'à ~6 fetch externes (8 s chacun)
+                // dès que le boss manquait en local ⇒ timeout systématique (« n'a pas répondu »).
+                const { getLocalMonsterFiche } = await import("@/lib/monster-stats-core");
+                const fiche = await getLocalMonsterFiche(monsterName);
 
-                if (!res.success || !res.data) {
+                if (!fiche?.data) {
                     return NextResponse.json({
                         type: 4,
                         data: {
-                            content: `❌ Boss « ${monsterName} » introuvable.\n💡 Tape les premières lettres et choisis dans la liste déroulante d'autocomplétion !`,
+                            content: `❌ Boss « ${monsterName} » introuvable en local.\n💡 Choisis un nom dans la liste d'autocomplétion, ou ouvre la fiche complète sur le site.`,
                             flags: 64
                         }
                     });
                 }
 
-                const mob = res.data;
-                const g = mob.grades?.[mob.grades.length - 1] || mob.grades?.[0];
+                const mob = fiche.data;
+                const grades = Array.isArray(mob.grades) ? mob.grades : [];
+                const g = grades[grades.length - 1] || grades[0];
                 const resists = g?.resists || {};
+                // Nom du donjon pour l'embed (la fiche Unity n'en porte pas).
+                let bossDungeonName: string | undefined = mob.dungeonName;
+                if (!bossDungeonName) {
+                    const dj = await db.dungeon.findFirst({
+                        where: { bossName: { equals: monsterName, mode: "insensitive" } },
+                        select: { name: true },
+                    });
+                    if (dj?.name) bossDungeonName = dj.name;
+                }
                 const succesUrl = guild_id
                     ? `${appBaseUrl}/dashboard/${guild_id}/succes`
                     : `${appBaseUrl}`;
@@ -3462,7 +3435,7 @@ export async function POST(request: NextRequest) {
                     { name: "❤️ PV", value: g?.lifePoints ? Number(g.lifePoints).toLocaleString("fr-FR") : "—", inline: true },
                     { name: "⚡ PA / PM", value: `${g?.actionPoints ?? "—"} / ${g?.movementPoints ?? "—"}`, inline: true },
                     { name: "📍 Coordonnées", value: mob.coordinates ? `[${mob.coordinates.x}, ${mob.coordinates.y}]` : "Donjon", inline: true },
-                    ...(mob.dungeonName ? [{ name: "🏰 Donjon", value: `${mob.dungeonName}`, inline: false }] : []),
+                    ...(bossDungeonName ? [{ name: "🏰 Donjon", value: `${bossDungeonName}`, inline: false }] : []),
                     {
                         name: "🛡️ Résistances",
                         value: `⚪ ${resists.neutral ?? 0}%  •  🟤 ${resists.earth ?? 0}%  •  🔴 ${resists.fire ?? 0}%\n🔵 ${resists.water ?? 0}%  •  🟢 ${resists.air ?? 0}%`,
@@ -3516,21 +3489,23 @@ export async function POST(request: NextRequest) {
                     });
                 }
 
-                const { getMonsterStats } = await import("@/server/actions/game-data-actions");
-                const res = await getMonsterStats(monsterName);
+                // ⚡ Même contrainte < 3 s que /boss : lecture 100 % locale, ZÉRO réseau.
+                const { getLocalMonsterFiche } = await import("@/lib/monster-stats-core");
+                const fiche = await getLocalMonsterFiche(monsterName);
 
-                if (!res.success || !res.data) {
+                if (!fiche?.data) {
                     return NextResponse.json({
                         type: 4,
                         data: {
-                            content: `❌ Monstre « ${monsterName} » introuvable.\n💡 Tape les premières lettres et choisis dans la liste déroulante d'autocomplétion !`,
+                            content: `❌ Monstre « ${monsterName} » introuvable en local.\n💡 Tape les premières lettres et choisis dans la liste déroulante d'autocomplétion !`,
                             flags: 64
                         }
                     });
                 }
 
-                const mob = res.data;
-                const g = mob.grades?.[mob.grades.length - 1] || mob.grades?.[0];
+                const mob = fiche.data;
+                const monsterGrades = Array.isArray(mob.grades) ? mob.grades : [];
+                const g = monsterGrades[monsterGrades.length - 1] || monsterGrades[0];
                 const resists = g?.resists || {};
                 const succesUrl = guild_id
                     ? `${appBaseUrl}/dashboard/${guild_id}/succes`

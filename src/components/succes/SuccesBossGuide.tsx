@@ -38,6 +38,7 @@ import {
     matchesLevelBracket,
 } from "@/lib/level-brackets";
 import { buildBossFicheTabs } from "@/lib/boss-fiche-tabs";
+import { resolveDungeonBossPair } from "@/lib/dungeon-boss-pair";
 import { monsterFicheHref } from "@/lib/monster-fiche";
 
 /**
@@ -281,6 +282,16 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [selected, setSelected] = useState<BossDungeon | null>(null);
+    /** Double boss : bossName porte le nom du donjon, pas un monstre. */
+    const pairOf = (d: BossDungeon) => resolveDungeonBossPair({
+        name: d.name,
+        bossName: d.bossName,
+        dofensiveMonsterName: d.dofensiveMonsterName,
+        dofensiveDungeonName: d.dofensiveDungeonName,
+    });
+    const focusOf = (d: BossDungeon) => pairOf(d).focus;
+    const selectedPair = selected ? pairOf(selected) : null;
+    const selectedFocus = selected ? pairOf(selected).focus : "";
     // Deep-link : l'overlay Rush ou un lien peut arriver sur `?dungeon={id}&view=boss`.
     // On lit le paramètre pour ouvrir directement la fiche du bon boss (sinon on reste
     // sur la liste de toutes les fiches).
@@ -366,7 +377,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
     useEffect(() => {
         const d = selected;
         if (!d) return;
-        const targetMonster = activeMonsterName ?? d.bossName;
+        const targetMonster = activeMonsterName ?? focusOf(d);
         const key = activeMonsterName ? `${d.id}::${activeMonsterName}` : d.id;
 
         if (!statsByBoss[key] && !loadingStatsByBoss[key]) {
@@ -432,7 +443,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
     useEffect(() => {
         const d = selected;
         if (!d) return;
-        const boss = activeMonsterName ?? d.bossName;
+        const boss = activeMonsterName ?? focusOf(d);
         if (!boss || dungeonMapsByBoss[boss] !== undefined) return;
         let cancelled = false;
         // On passe aussi le nom du donjon (`d.name`) : le resolver Dofensive a un
@@ -468,7 +479,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
         if (!grades || grades.length === 0) return;
         const gradeNumber = activeGradeIndex + 1; // grade ordinal Dofensive (1..N)
         let cancelled = false;
-        getBossDofensiveSpells(activeMonsterName ?? d.bossName, d.name, gradeNumber, false, {
+        getBossDofensiveSpells(activeMonsterName ?? focusOf(d), d.name, gradeNumber, false, {
             dofensiveMonsterName: d.dofensiveMonsterName,
             dofensiveDungeonName: d.dofensiveDungeonName,
         })
@@ -502,7 +513,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
         statsByBoss[activeMonsterName && d.id === selected?.id ? `${d.id}::${activeMonsterName}` : d.id];
 
     const selectMonster = (d: BossDungeon, m: FamilyMember) => {
-        if (m.isBoss || m.name === d.bossName) {
+        if (m.isBoss || m.name === focusOf(d)) {
             setActiveMonsterName(null);
             setActiveGradeIndex(null);
             setSelectedSpellId(undefined);
@@ -685,7 +696,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                         type="button"
                                         onClick={() => {
                                             openBossOverlay({
-                                                monsterName: activeMonsterName ?? selected.bossName,
+                                                monsterName: activeMonsterName ?? selectedFocus,
                                                 dungeonName: selected.name,
                                             });
                                         }}
@@ -719,7 +730,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                             <div className="w-16 h-16 rounded-xl border border-border bg-background/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden shadow-xs">
                                                 <MonsterImage
                                                     src={currentStats?.imageUrl ?? selected.imageUrl}
-                                                    alt={activeMonsterName ?? selected.bossName}
+                                                    alt={activeMonsterName ?? selectedFocus}
                                                     monsterId={currentStats?.id ?? selected.dofusdbId ?? undefined}
                                                     className="max-w-full max-h-full object-contain"
                                                 />
@@ -730,7 +741,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                                     <span className="font-mono normal-case">Niv. {selected.level ?? 200}</span>
                                                 </p>
                                                 <h3 className="mt-0.5 truncate text-2xl font-bold text-foreground">
-                                                    {activeMonsterName ?? selected.bossName}
+                                                    {activeMonsterName ?? (selectedPair?.isDoubleBoss ? selected.name : selectedFocus)}
                                                 </h3>
                                                 <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
                                                     <Compass className="w-3.5 h-3.5 opacity-70" />
@@ -744,6 +755,20 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                         </div>
 
                                         {/* Entrée du donjon : coordonnées copiables (clic) + zone. */}
+                                        {selectedPair?.isDoubleBoss && (
+                                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Double boss</span>
+                                                {[selectedPair.partner, selectedPair.focus].filter((n): n is string => !!n).map((name) => {
+                                                    const m = (familyByDungeon[selected.id]?.monsters ?? []).find((x) => x.name === name);
+                                                    const active = (activeMonsterName ?? selectedFocus) === name;
+                                                    return (
+                                                        <button key={name} type="button" onClick={() => m && selectMonster(selected, m)} className={cn("inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] transition-colors", active ? "border-border-strong bg-surface/80 text-foreground" : "border-border bg-surface/40 text-muted-foreground hover:text-foreground")}>
+                                                            {name}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                         {coords && (
                                             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
                                                 <button
@@ -784,7 +809,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                         {isLoadingCurrent ? (
                                             <div className="flex items-center gap-3 rounded-xl border border-border bg-surface/60 px-3.5 py-3 text-muted-foreground">
                                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? selected.bossName}…</span>
+                                                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? selectedFocus}…</span>
                                             </div>
                                         ) : (
                                             <>
@@ -1007,7 +1032,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                 {(family?.monsters || []).map((m) => {
-                                    const isActive = (activeMonsterName ?? selected.bossName) === m.name;
+                                    const isActive = (activeMonsterName ?? selectedFocus) === m.name;
                                     return (
                                         <div
                                             key={m.id}
@@ -1286,7 +1311,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                             Entité :
                                         </span>
                                         {familyByDungeon[selected.id].monsters.map((m) => {
-                                            const isActive = (activeMonsterName ?? selected.bossName) === m.name;
+                                            const isActive = (activeMonsterName ?? selectedFocus) === m.name;
                                             return (
                                                 <button
                                                     key={m.id}
@@ -1322,8 +1347,8 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                 bossName={selected.dofensiveMonsterName ?? (activeMonsterName ?? deriveDofensiveMonsterName(selected.bossName) ?? selected.bossName)}
                                 bossImageUrl={statsOf(selected)?.imageUrl}
                                 bossId={statsOf(selected)?.id ?? undefined}
-                                dungeonMaps={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.maps}
-                                dungeonName={dungeonMapsByBoss[activeMonsterName ?? selected.bossName]?.dungeonName}
+                                dungeonMaps={dungeonMapsByBoss[activeMonsterName ?? selectedFocus]?.maps}
+                                dungeonName={dungeonMapsByBoss[activeMonsterName ?? selectedFocus]?.dungeonName}
                                 grades={statsOf(selected)?.grades?.map((g) => ({ level: g.level })) ?? []}
                                 activeGradeIndex={activeGradeIndex ?? ((statsOf(selected)?.grades?.length ?? 1) - 1)}
                                 onGradeChange={(idx) => setActiveGradeIndex(idx)}

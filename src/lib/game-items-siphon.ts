@@ -16,6 +16,7 @@
  */
 
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 import { db } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { dofusDbFetch } from '@/lib/dofusdb-limiter';
@@ -39,10 +40,70 @@ import { diffFields, recordGameDataChanges, type GameDataChangeEntry } from '@/l
  * « qu'est-ce qui a changé sur cette fiche ? » (nom, niveau, description, type, effets…).
  */
 const ITEM_CHANGE_KEYS = [
-    'name', 'level', 'description', 'typeId', 'typeName', 'category', 'hasRecipe',
+    'name', 'level', 'description', 'typeId', 'typeName', 'category', 'hasRecipe', 'recipe',
     'realWeight', 'priceNpc', 'itemSetId', 'itemSetName', 'isLegendary', 'isSaleable',
     'superTypeId', 'superTypeName', 'effects',
 ] as const;
+
+/** Recette normalisée telle que persistée en `GameItem.recipe` (forme consommée par le panneau encyclopédie). */
+export interface SiphonedRecipe {
+    job: unknown;
+    resultLevel: number | null;
+    ingredients: Array<{ id: number; name: { fr: string }; img?: string }>;
+    quantities: number[];
+}
+
+/**
+ * 🧪 Recette d'un item (DofusDB `/recipes/{id}`) → forme persistée, `null` si aucune.
+ *
+ * Sémantique d'échec (même que le batch) : un 404 / une réponse invalide / une panne
+ * DofusDB rend `null` (l'item est persisté sans recette, reprise à la passe suivante) ;
+ * seul le **limiteur local** saturé lève (`LocalThrottleDeferredError` : passe différée,
+ * filigrane inchangé, BullMQ rejoue).
+ */
+export async function siphonGameItemRecipeCore(ankamaId: number): Promise<SiphonedRecipe | null> {
+    if (!Number.isInteger(ankamaId) || ankamaId <= 0) return null;
+    const res = await dofusDbFetch(`https://api.dofusdb.fr/recipes/${ankamaId}`, {
+        headers: {
+            Accept: 'application/json',
+            'User-Agent': 'SigilOS/1.0 (+https://sigilos.fr)',
+        },
+        signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) {
+        if (isLocalThrottle(res)) throw new LocalThrottleDeferredError(throttleWaitMs(res));
+        return null;
+    }
+    let raw: any = null;
+    try {
+        raw = await res.json();
+    } catch {
+        return null;
+    }
+    if (!raw || raw.error || !Array.isArray(raw.ingredients) || raw.ingredients.length === 0) return null;
+    const ingredients = raw.ingredients
+        .map((ing: any) => ({
+            id: Number(ing?.id),
+            name: { fr: typeof ing?.name?.fr === 'string' ? ing.name.fr : String(ing?.name ?? 'Ingrédient') },
+            ...(typeof ing?.img === 'string' && ing.img ? { img: ing.img } : {}),
+        }))
+        .filter((ing: { id: number }) => Number.isInteger(ing.id) && ing.id > 0);
+    if (ingredients.length === 0) return null;
+    const quantities: number[] = Array.isArray(raw.quantities)
+        ? raw.quantities.map((q: unknown) => Number(q) || 1)
+        : ingredients.map(() => 1);
+    return {
+        job: raw.job ?? null,
+        resultLevel:
+            raw.resultLevel != null
+                ? Number(raw.resultLevel)
+                : raw.result?.level != null
+                ? Number(raw.result.level)
+                : null,
+        ingredients,
+        quantities,
+    };
+}
 
 // La cadence vit dans `@/lib/game-items-cadence` (module PUR, client-safe) : ce cœur
 // importe `sharp`/`fs` via `dofus-asset-siphon` et ne doit donc jamais être tiré par un
@@ -83,6 +144,8 @@ export interface GameItemsSiphonTotals {
     /** Items réellement renvoyés par DofusDB (tous lots confondus). */
     processed: number;
     batches: number;
+    /** R-1 : recettes détaillées persistées par la phase dédiée (0 si non jouée). */
+    recipesFilled?: number;
 }
 
 /**
@@ -243,26 +306,6 @@ export async function siphonGameItemsBatchCore(
                 : 'resources';
 
 
-        // Source distante de l'image (elle décide aussi du WebP local). Sortie du bloc
-        // `create` pour entrer dans le hash : une icône changée est une modification réelle.
-        const imageSrc = raw.imgset?.[0]?.sd || raw.imgset?.[0]?.icon || raw.img || null;
-
-        // Calcul du Hash MD5 pour détecter les modifications réelles
-        // (inclut les champs S2 : les items existants se COMPLÈTENT au prochain passage)
-        //
-        // ⚠️ Mesure du 23/09/2026 : `description`, `typeId` et l'image étaient **stockés
-        // mais absents du hash** ⇒ un item dont seuls la description ou le visuel changeaient
-        // n'était JAMAIS réécrit. Ils y sont désormais : la détection couvre tout ce qu'on
-        // persiste. Conséquence assumée : la 1ʳᵉ passe suivant ce changement réécrit le
-        // catalogue **une fois** (le hash change de définition) sans retélécharger les WebP
-        // (l'image n'est siphonnée qu'à la création — le dataset ASSETS_WEBP s'en charge).
-        const hashPayload = JSON.stringify({
-            name, level, description, typeId, imageSrc, typeName, effects, hasRecipe,
-            realWeight, priceNpc, itemSetId, itemSetName,
-            isLegendary, isSaleable, superTypeId, superTypeName, nativeEffects,
-        });
-        const dataHash = crypto.createHash('md5').update(hashPayload).digest('hex');
-
         const existing = await db.gameItem.findUnique({
             where: { ankamaId },
             select: {
@@ -270,13 +313,43 @@ export async function siphonGameItemsBatchCore(
                 dataHash: true,
                 // 🔍 Champs comparés pour le journal des changements (« avant → après »).
                 name: true, level: true, description: true, typeId: true, typeName: true,
-                category: true, hasRecipe: true, realWeight: true, priceNpc: true,
+                category: true, hasRecipe: true, recipe: true, realWeight: true, priceNpc: true,
                 itemSetId: true, itemSetName: true, isLegendary: true, isSaleable: true,
                 superTypeId: true, superTypeName: true, effects: true,
             },
         });
 
         const localIconUrl = `/uploads/assets-dofus/items/${ankamaId}.webp`;
+
+        // ── R-1 (16/10/2026) — la recette détaillée est persistée par
+        // `fillMissingItemRecipesCore` (phase dédiée de la passe complète) et par le
+        // siphon à-la-demande, JAMAIS ici : ce lot reste à UNE requête (la page).
+        // Mesuré le 16/10 : ~50 fetches recettes par lot vidaient le budget partagé
+        // (30 req/min) avant la page suivante ⇒ passe calée à 300 items puis Échec.
+        // Ici on CONSERVE la recette déjà stockée (hash stable, pas de réécriture).
+        const existingRecipe = (existing as { recipe?: unknown } | null)?.recipe;
+        const recipe = (existingRecipe as SiphonedRecipe | null) ?? null;
+
+        // Source distante de l'image (elle décide aussi du WebP local). Sortie du bloc
+        // `create` pour entrer dans le hash : une icône changée est une modification réelle.
+        const imageSrc = raw.imgset?.[0]?.sd || raw.imgset?.[0]?.icon || raw.img || null;
+
+        // Calcul du Hash MD5 pour détecter les modifications réelles
+        // (inclut les champs S2 : les items existants se COMPLÈTENT au prochain passage ;
+        // R-1 : la recette aussi — la 1ʳᵉ passe suivant ce changement réécrit le
+        // catalogue **une fois** pour la persister, sans retélécharger les WebP
+        // (l'image n'est siphonnée qu'à la création — le dataset ASSETS_WEBP s'en charge).
+        //
+        // ⚠️ Mesure du 23/09/2026 : `description`, `typeId` et l'image étaient **stockés
+        // mais absents du hash** ⇒ un item dont seuls la description ou le visuel changeaient
+        // n'était JAMAIS réécrit. Ils y sont désormais : la détection couvre tout ce qu'on
+        // persiste.
+        const hashPayload = JSON.stringify({
+            name, level, description, typeId, imageSrc, typeName, effects, hasRecipe, recipe,
+            realWeight, priceNpc, itemSetId, itemSetName,
+            isLegendary, isSaleable, superTypeId, superTypeName, nativeEffects,
+        });
+        const dataHash = crypto.createHash('md5').update(hashPayload).digest('hex');
 
         // Champs communs create/update (évite toute divergence entre les deux branches)
         const enrichi = {
@@ -289,6 +362,7 @@ export async function siphonGameItemsBatchCore(
             superTypeId,
             superTypeName,
             nativeEffects: (nativeEffects ?? undefined) as any,
+            recipe: (recipe ?? undefined) as any,
         };
 
         if (!existing) {
@@ -343,7 +417,7 @@ export async function siphonGameItemsBatchCore(
             siphonAndCompressImage(imageSrc, 'items', ankamaId).catch(() => {});
             // 🔍 Détail du changement : « nom : avant → après », « level : … », etc.
             const changedFields = diffFields(existing, {
-                name, level, description, typeId, typeName, category, hasRecipe,
+                name, level, description, typeId, typeName, category, hasRecipe, recipe,
                 realWeight, priceNpc, itemSetId, itemSetName, isLegendary, isSaleable,
                 superTypeId, superTypeName, effects,
             }, ITEM_CHANGE_KEYS);
@@ -414,10 +488,99 @@ export async function siphonAllGameItemsCore(
         await new Promise((resolve) => setTimeout(resolve, GAME_ITEMS_BATCH_PAUSE_MS));
     }
 
+    // ── R-1 (16/10/2026) — phase recettes manquantes : remplit `GameItem.recipe`
+    // (jamais écrit avant) en attendant les fins de fenêtre au lieu d'abandonner.
+    // Mesuré le 16/10 : les fetches inline vidaient le budget (30 req/min partagées)
+    // avant la page suivante ⇒ passe calée à 300 items puis Échec. Ici 1 item = 1
+    // requête, pause sur limiteur, reprise au même point : la passe va au bout.
+    const recipes = await fillMissingItemRecipesCore();
+
     logger.info(
-        `[game-items-siphon] ${inserted} créé(s) · ${updated} mis à jour · ${processed} item(s) analysé(s) en ${batches} lot(s)`,
+        `[game-items-siphon] ${inserted} créé(s) · ${updated} mis à jour · ${processed} item(s) analysé(s) en ${batches} lot(s) · ${recipes.filled} recette(s) persistée(s)`,
     );
-    return { inserted, updated, processed, batches };
+    return { inserted, updated, processed, batches, recipesFilled: recipes.filled };
+}
+
+/**
+ * R-1 — remplit les recettes manquantes (`hasRecipe: true` mais `recipe` NULL).
+ *
+ * Rythme tenable : 1 item = 1 requête ; sur refus du limiteur local on ATTEND la
+ * fin de fenêtre (`retryAfterMs` porté par l'erreur) puis on rejoue le MÊME item —
+ * jamais d'abandon, jamais de lot perdu. Un 404 / une panne DofusDB sur un item
+ * est sauté (warn, retenté à la passe suivante) : un item ne bloque jamais la file.
+ * Sortie : file vide, ou tour complet sans aucun progrès (que des 404).
+ */
+export interface MissingRecipesResult {
+    filled: number;
+    remaining: number;
+    waitedMs: number;
+}
+
+export async function fillMissingItemRecipesCore(opts: { take?: number } = {}): Promise<MissingRecipesResult> {
+    const take = Math.min(Math.max(opts.take ?? 25, 1), 100);
+    // `recipe: null` direct est refusé par le typage (`JsonNullableFilter`) :
+    // `DbNull` = colonne SQL NULL (jamais siphonnée), distinct de `JsonNull`.
+    const where = { hasRecipe: true, recipe: { equals: Prisma.DbNull }, isDeprecated: false };
+    let filled = 0;
+    let waitedMs = 0;
+
+    for (;;) {
+        const missing = await db.gameItem.findMany({
+            where,
+            select: { ankamaId: true },
+            orderBy: { ankamaId: "asc" },
+            take,
+        });
+        if (missing.length === 0) return { filled, remaining: 0, waitedMs };
+
+        let filledRound = 0;
+        let waitedRound = 0;
+        for (const m of missing) {
+            let recipe: SiphonedRecipe | null = null;
+            try {
+                recipe = await siphonGameItemRecipeCore(m.ankamaId);
+            } catch (err) {
+                if (isLocalThrottleDeferred(err)) {
+                    const waitMs = (err as LocalThrottleDeferredError).retryAfterMs;
+                    await sleep(waitMs);
+                    waitedMs += waitMs;
+                    waitedRound += waitMs;
+                    try {
+                        recipe = await siphonGameItemRecipeCore(m.ankamaId);
+                    } catch (retryErr) {
+                        if (isLocalThrottleDeferred(retryErr)) {
+                            // Toujours saturé après l'attente : on s'arrête proprement,
+                            // reprise à la passe suivante (aucune perte, tout est rejouable).
+                            const remaining = await db.gameItem.count({ where });
+                            return { filled, remaining, waitedMs };
+                        }
+                        logger.warn("[fillMissingItemRecipesCore] Recette indisponible, item sauté", {
+                            ankamaId: m.ankamaId,
+                        });
+                        continue;
+                    }
+                } else {
+                    logger.warn("[fillMissingItemRecipesCore] Recette indisponible, item sauté", {
+                        ankamaId: m.ankamaId,
+                    });
+                    continue;
+                }
+            }
+            if (!recipe) continue;
+            await db.gameItem.update({
+                where: { ankamaId: m.ankamaId },
+                data: { recipe: recipe as any },
+            });
+            filled++;
+            filledRound++;
+        }
+
+        if (filledRound === 0 && waitedRound === 0) {
+            // Que des 404/pannes : les mêmes reviendraient en boucle — reprise passe suivante.
+            const remaining = await db.gameItem.count({ where });
+            return { filled, remaining, waitedMs };
+        }
+    }
 }
 
 export interface GameItemsIncrementalResult extends GameItemsSiphonTotals {

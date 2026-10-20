@@ -22,6 +22,24 @@ describe("supervision — détection d'une panne d'authentification", () => {
         expect(src).toMatch(/health\.status\s*=\s*"unhealthy"/);
     });
 
+    it("souveraineté (16/10/2026) : /api/health ne consulte plus DofusDB ni Dofensive", () => {
+        const src = readFileSync("src/app/api/health/route.ts", "utf8");
+        // Aucun appel sortant vers ces tiers (les commentaires peuvent les nommer).
+        expect(src).not.toContain("api.dofusdb.fr");
+        expect(src).not.toContain("dofensive.com");
+        // Restent : notre bot Discord + Metamob (partenaire Ocre).
+        expect(src).toContain("discordBot");
+        expect(src).toContain("metamob");
+    });
+
+    it("souveraineté (16/10/2026) : /status n'affiche plus que Site, Bot Discord et Metamob", () => {
+        const src = readFileSync("src/app/status/_components/status-client.tsx", "utf8");
+        expect(src).not.toContain('key: "dofusdb"');
+        expect(src).not.toContain('key: "dofensive"');
+        expect(src).toContain('key: "site"');
+        expect(src).toContain('key: "discord"');
+        expect(src).toContain('key: "metamob"');
+    });
     it("src/instrumentation.ts charge les configs Sentry et capture les erreurs de requête", () => {
         const path = "src/instrumentation.ts";
         expect(existsSync(path), `${path} absent ⇒ Sentry serveur inactif`).toBe(true);

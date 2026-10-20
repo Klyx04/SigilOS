@@ -153,6 +153,13 @@ export async function registerCommandsForGuild(
         return { ok: false, guildId: discordGuildId, error: "Missing AUTH_DISCORD_ID / DISCORD_CLIENT_ID or DISCORD_BOT_TOKEN" };
     }
 
+    // 🛡️ Garde anti-SSRF (CodeQL) : l'identifiant de guilde vient du CLIENT.
+    // Discord n'accepte que des « snowflakes » numériques : tout le reste est refusé
+    // AVANT de construire l'URL, et l'hôte reste constant (DISCORD_API_BASE).
+    if (!/^\d{17,20}$/.test(discordGuildId)) {
+        return { ok: false, guildId: discordGuildId, error: "Identifiant de guilde Discord invalide" };
+    }
+
     let customPayloads = customCommandsOverride;
     if (!customPayloads) {
         try {
@@ -177,7 +184,13 @@ export async function registerCommandsForGuild(
 
     const catalogPayloads = buildDiscordCommandPayloads();
     const payloads = [...catalogPayloads, ...(customPayloads || [])];
-    const url = `${DISCORD_API_BASE}/applications/${appId}/guilds/${discordGuildId}/commands`;
+    // \`new URL(path, base)\` garde l'hôte de la base ; le slash final est indispensable
+    // (sans lui, le dernier segment \`/v10\` serait remplacé).
+    const apiBase = new URL(`${DISCORD_API_BASE}/`);
+    const url = new URL(`applications/${appId}/guilds/${discordGuildId}/commands`, apiBase);
+    if (url.protocol !== "https:" || url.hostname !== apiBase.hostname) {
+        return { ok: false, guildId: discordGuildId, error: "Hôte Discord invalide" };
+    }
 
     try {
         const res = await fetch(url, {

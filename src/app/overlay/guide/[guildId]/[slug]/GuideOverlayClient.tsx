@@ -12,7 +12,7 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
-import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, deselectSequenceFromProgress, type RushPrereqRef } from "@/lib/rush-guide-utils";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { collectCascadeUncheck } from "@/lib/rush-helpers";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
@@ -237,49 +237,6 @@ export default function GuideOverlayClient({
   // PAR PERSONNAGE), sinon on retombe sur l'emplacement historique sans personnage.
   const storagePrefix = guestStoragePrefix || `sigil_guest_${guide.slug}_`;
 
-  // ── Donjons : coche par OCCURRENCE, depuis la pastille de la quête ─────────────
-  // Interne : états de la guilde (Server Actions, chargés à la 1ʳᵉ ouverture du panneau).
-  // Invité : `localStorage` de l'emplacement courant — aucune donnée de guilde, aucun serveur.
-  const guildDungeons = useRushDungeonStates({
-    guildId,
-    slug: guide.slug,
-    altPseudo: effectiveAltPseudo,
-    lazy: true,
-  });
-  const [guestDungeonStates, setGuestDungeonStates] = useState<RushDungeonStateMap>(() =>
-    isGuest ? readDungeonStates(storagePrefix) : {}
-  );
-  const dungeonActions = useMemo(() => {
-    if (isGuest) {
-      return {
-        states: guestDungeonStates,
-        busyKey: null as string | null,
-        others: [] as RushDungeonMemberState[],
-        onSet: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
-          setGuestDungeonStates(
-            writeDungeonState(storagePrefix, dungeonOccurrenceKey(sequenceId, dungeonKey), state)
-          );
-        },
-        ensureLoaded: () => setGuestDungeonStates(readDungeonStates(storagePrefix)),
-      };
-    }
-    return {
-      states: guildDungeons.states,
-      busyKey: guildDungeons.busyKey,
-      others: guildDungeons.others,
-      onSet: guildDungeons.setState,
-      ensureLoaded: guildDungeons.ensureLoaded,
-    };
-  }, [
-    isGuest,
-    guestDungeonStates,
-    storagePrefix,
-    guildDungeons.states,
-    guildDungeons.busyKey,
-    guildDungeons.others,
-    guildDungeons.setState,
-    guildDungeons.ensureLoaded,
-  ]);
 
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => {
     if (isGuest && typeof window !== "undefined") {
@@ -334,6 +291,77 @@ export default function GuideOverlayClient({
     });
     return m;
   });
+
+  // ── Donjons : coche par OCCURRENCE, depuis la pastille de la quête ─────────────
+  // Interne : états de la guilde (Server Actions, chargés à la 1ʳᵉ ouverture du panneau).
+  // Invité : `localStorage` de l'emplacement courant — aucune donnée de guilde, aucun serveur.
+  const guildDungeons = useRushDungeonStates({
+    guildId,
+    slug: guide.slug,
+    altPseudo: effectiveAltPseudo,
+    lazy: true,
+  });
+  const [guestDungeonStates, setGuestDungeonStates] = useState<RushDungeonStateMap>(() =>
+    isGuest ? readDungeonStates(storagePrefix) : {}
+  );
+  const dungeonActions = useMemo(() => {
+    if (isGuest) {
+      return {
+        states: guestDungeonStates,
+        busyKey: null as string | null,
+        others: [] as RushDungeonMemberState[],
+        onSet: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
+          setGuestDungeonStates(
+            writeDungeonState(storagePrefix, dungeonOccurrenceKey(sequenceId, dungeonKey), state)
+          );
+          // ── S0-7 : un donjon qui n'est plus « fait » DÉVALIDE la quête ──────────
+          // Aucun serveur côté invité : on retire la quête des étapes cochées ici.
+          if (state === "done") return;
+          const next = deselectSequenceFromProgress({
+            completedStepsByMs,
+            completedIds,
+            milestones,
+            sequenceId,
+          });
+          if (!next.changed) return;
+          setCompletedStepsByMs(next.completedStepsByMs);
+          setCompletedIds(next.completedIds);
+          try {
+            const stepsObj: Record<string, string[]> = {};
+            next.completedStepsByMs.forEach((set, k) => {
+              stepsObj[k] = Array.from(set);
+            });
+            localStorage.setItem(`${storagePrefix}steps`, JSON.stringify(stepsObj));
+            localStorage.setItem(
+              `${storagePrefix}completed_ms`,
+              JSON.stringify(Array.from(next.completedIds))
+            );
+          } catch {}
+          toast.info("Donjon décoché : la quête a été dévalidée.");
+        },
+        ensureLoaded: () => setGuestDungeonStates(readDungeonStates(storagePrefix)),
+      };
+    }
+    return {
+      states: guildDungeons.states,
+      busyKey: guildDungeons.busyKey,
+      others: guildDungeons.others,
+      onSet: guildDungeons.setState,
+      ensureLoaded: guildDungeons.ensureLoaded,
+    };
+  }, [
+    isGuest,
+    guestDungeonStates,
+    storagePrefix,
+    completedStepsByMs,
+    completedIds,
+    milestones,
+    guildDungeons.states,
+    guildDungeons.busyKey,
+    guildDungeons.others,
+    guildDungeons.setState,
+    guildDungeons.ensureLoaded,
+  ]);
 
   // ─── Synchro dashboard ↔ overlay (BroadcastChannel, même navigateur) ─────
   // Aligne « ce qui est coché » entre la fenêtre du module et l'overlay.

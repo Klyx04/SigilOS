@@ -88,7 +88,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress } from "@/lib/rush-guide-utils";
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
@@ -604,8 +604,34 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
       setDungeonStates(
         writeDungeonState(storagePrefix, dungeonOccurrenceKey(sequenceId, dungeonKey), state)
       );
+      // ── S0-7 : un donjon qui n'est plus « fait » DÉVALIDE la quête ────────────
+      // Pas de serveur ici : c'est la surface qui retire la quête de ses étapes cochées.
+      if (state === "done") return;
+      const next = deselectSequenceFromProgress({
+        completedStepsByMs,
+        completedIds,
+        milestones,
+        sequenceId,
+      });
+      if (!next.changed) return;
+      setCompletedStepsByMs(next.completedStepsByMs);
+      setCompletedIds(next.completedIds);
+      if (typeof window !== "undefined") {
+        try {
+          const stepsObj: Record<string, string[]> = {};
+          next.completedStepsByMs.forEach((set, k) => {
+            stepsObj[k] = Array.from(set);
+          });
+          localStorage.setItem(`${storagePrefix}steps`, JSON.stringify(stepsObj));
+          localStorage.setItem(
+            `${storagePrefix}completed_ms`,
+            JSON.stringify(Array.from(next.completedIds))
+          );
+        } catch {}
+      }
+      toast.info("Donjon décoché : la quête a été dévalidée.");
     },
-    [storagePrefix]
+    [storagePrefix, completedStepsByMs, completedIds, milestones]
   );
 
   const remainingResources = useMemo(

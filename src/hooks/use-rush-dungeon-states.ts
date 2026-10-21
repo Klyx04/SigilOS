@@ -30,11 +30,10 @@ export type RushDungeonStatesHandle = {
     sequenceId: string,
     dungeonKey: string,
     state: RushDungeonState | null
-  ) => Promise<void>;
+  ) => Promise<{ invalidatedSequenceId: string | null } | null>;
   /** Charge une fois (idempotent) — utile en mode `lazy`. */
   ensureLoaded: () => Promise<void>;
 };
-
 export function useRushDungeonStates({
   guildId,
   slug,
@@ -113,7 +112,10 @@ export function useRushDungeonStates({
             return next;
           });
           toast.error(res.error || "Échec de l'enregistrement");
+          return null;
         }
+        // S0-7 : le serveur dit si cette décoche a DÉVALIDÉ la quête.
+        return { invalidatedSequenceId: res.invalidatedSequenceId ?? null };
       } catch {
         setStates((current) => {
           const next = { ...current };
@@ -122,6 +124,7 @@ export function useRushDungeonStates({
           return next;
         });
         toast.error("Échec réseau");
+        return null;
       } finally {
         setBusyKey(null);
       }

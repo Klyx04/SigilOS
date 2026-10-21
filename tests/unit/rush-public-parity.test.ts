@@ -190,17 +190,13 @@ describe("Ressources — plus aucun nom tronqué dans les listes", () => {
   });
 });
 
-describe("Panneau public — les cinq actions sont alignées", () => {
-  it("une seule grille responsive porte les cinq boutons", () => {
-    // 21/10/2026 : « Donjons » rejoint les quatre actions (Ressources, Pense-bête,
-    // densité, overlay) → la grille passe de 4 à 5 colonnes en `xl`. L'intention de la
-    // garde est inchangée : UNE grille, aucune colonne qui déborde.
-    expect(PUB).toMatch(/grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-5/);
+describe("Panneau public — les quatre actions sont alignées", () => {
+  it("une seule grille responsive porte les quatre boutons", () => {
+    expect(PUB).toMatch(/grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-4/);
   });
 
   it("chaque bouton prend toute sa cellule (largeurs régulières, aucun débordement)", () => {
-    // 4 secondaires (Ressources, Pense-bête, Donjons, densité) + 1 primaire (overlay).
-    expect(PUB.match(/reg-btn reg-btn-secondary w-full/g)?.length).toBe(4);
+    expect(PUB.match(/reg-btn reg-btn-secondary w-full/g)?.length).toBe(3);
     expect(PUB.match(/reg-btn reg-btn-primary w-full/g)?.length).toBe(1);
   });
 });
@@ -286,30 +282,48 @@ describe("Guide interne — le masquage des étapes faites n'est plus enterré d
 // l'overlay — sans copie, et sans serveur côté public.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Donjons cochables — même coquille, même règle, verrou dans les écritures", () => {
-  const SHELL = "src/components/dofus-quests/rush/RushDungeonsModalShell.tsx";
+  const PANEL = "src/components/dofus-quests/rush/RushQuestDungeonsPanel.tsx";
+  const CARD = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonCard.tsx";
   const STORAGE = "src/lib/rush-dungeon-storage.ts";
   const ACTIONS = "src/server/actions/optimized-guide-actions.ts";
   const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+  const OVERLAY_HEADER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayHeader.tsx";
   const ACTIONS_CODE = codeOf(ACTIONS);
 
-  it("les surfaces partagent la même coquille et la même liste (aucune copie)", () => {
-    expect(existsSync(SHELL)).toBe(true);
-    expect(existsSync(STORAGE)).toBe(true);
+  it("les surfaces ouvrent le MÊME panneau depuis la pastille de la quête", () => {
+    expect(existsSync(PANEL)).toBe(true);
+    expect(existsSync(CARD)).toBe(true);
 
     for (const [name, code] of [["public", PUB], ["interne", DASH]] as const) {
-      expect(code, `${name} n'importe pas la coquille partagée`).toMatch(
-        /import \{ RushDungeonsModalShell \} from "@\/components\/dofus-quests\/rush\/RushDungeonsModalShell"/
+      expect(code, `${name} n'importe pas le panneau partagé`).toMatch(
+        /import \{ RushQuestDungeonsPanel \} from "@\/components\/dofus-quests\/rush\/RushQuestDungeonsPanel"/
       );
-      expect(code, `${name} ne la rend pas`).toMatch(/<RushDungeonsModalShell/);
-      // Aucune seconde liste : les boutons « Fait / À faire » vivent dans RushDungeonList.
-      expect(code, `${name} duplique la liste des donjons`).not.toMatch(/comme fait dans/);
+      expect(code, `${name} ne le rend pas`).toMatch(/<RushQuestDungeonsPanel/);
+      // La pastille porte le compteur, avec le même libellé partout.
+      expect(code, `${name} n'a pas la pastille donjon`).toMatch(/Donjon ×\{/);
+      // Aucune seconde liste : les coches vivent dans la carte donjon, une seule fois.
+      expect(code, `${name} duplique les coches`).not.toMatch(/comme fait dans cette quête/);
     }
 
-    // L'overlay passe par le wrapper guilde, qui délègue à la même coquille.
-    expect(codeOf(OVERLAY)).toMatch(/<RushDungeonsModal/);
-    expect(codeOf("src/components/dofus-quests/rush/RushDungeonsModal.tsx")).toMatch(
-      /<RushDungeonsModalShell/
-    );
+    // Overlay : pastille → popover → panneau (une seule coquille).
+    expect(codeOf(OVERLAY)).toMatch(/dungeonActions=\{dungeonActions\}/);
+    expect(
+      codeOf("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonPopover.tsx")
+    ).toMatch(/<RushQuestDungeonsPanel/);
+    expect(codeOf(CARD)).toMatch(/comme fait dans cette quête/);
+  });
+
+  it("aucun onglet ni fenêtre globale : la coche est DANS la quête", () => {
+    // L'overlay n'a plus de bouton donjon dans sa barre d'actions.
+    expect(codeOf(OVERLAY_HEADER)).not.toMatch(/onOpenDungeons/);
+    // Ni le dashboard ni le public n'ont de bouton / modale « Donjons du guide ».
+    expect(DASH).not.toMatch(/dungeonsModalOpen|RushDungeonsModalShell/);
+    expect(PUB).not.toMatch(/setShowDungeons|RushDungeonsModalShell/);
+    // L'ancienne liste globale a disparu (aucun code mort).
+    expect(existsSync("src/components/dofus-quests/rush/RushDungeonList.tsx")).toBe(false);
+    expect(existsSync("src/components/dofus-quests/rush/RushDungeonsModal.tsx")).toBe(false);
+    // La barre d'actions du public reste à quatre boutons.
+    expect(PUB).toMatch(/xl:grid-cols-4/);
   });
 
   it("le public n'importe AUCUN code serveur et persiste dans le navigateur", () => {
@@ -345,10 +359,12 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     expect(PUB).toMatch(/!isSeqBlockedByDungeon\(id\)/);
   });
 
-  it("le public nomme le donjon manquant et ouvre la fenêtre (pas un refus muet)", () => {
-    expect(PUB).toMatch(/Donjon requis non fait — coche-le dans « Donjons du guide »\./);
+  it("le public nomme le donjon manquant et ouvre le panneau de CETTE quête", () => {
+    expect(PUB).toMatch(/Donjon requis non fait — coche-le sur la pastille Donjon de cette quête\./);
     expect(PUB).toMatch(/\{prereqLocked \? "À terminer avant :" : "Donjon requis à faire :"\}/);
-    expect(PUB).toMatch(/onClick=\{\(\) => setShowDungeons\(true\)\}/);
+    // Le refus n'est pas muet : il mène au panneau de la quête concernée.
+    expect(PUB).toMatch(/onClick=\{\(\) => setOpenDungeonPanel\(seq\.id\)\}/);
+    expect(PUB).toMatch(/openDungeonPanel === seq\.id/);
   });
 
   it("le verrou est SERVEUR pour la guilde — y compris « valider tout le bloc »", () => {

@@ -12,6 +12,11 @@ import { safeExternalUrl, safeImageUrl } from "@/lib/security";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import type { RushSequence } from "@/types/rush-guide-types";
+import type {
+  RushDungeonMemberState,
+  RushDungeonState,
+  RushDungeonStateMap,
+} from "@/lib/rush-dungeons";
 
 interface RushOverlayQuestListItemProps {
   seq: RushSequence;
@@ -34,6 +39,18 @@ interface RushOverlayQuestListItemProps {
   onOpenBookmarkers?: () => void;
   /** Guilde de la surface : sert à construire le lien de la fiche donjon du module. */
   guildId?: string;
+  /**
+   * Coche des donjons, **par occurrence** : mêmes états que la surface (base pour la
+   * guilde, `localStorage` pour l'invité). Absent ⇒ la pastille ouvre la liste en
+   * lecture seule.
+   */
+  dungeonActions?: {
+    states: RushDungeonStateMap;
+    busyKey: string | null;
+    others: RushDungeonMemberState[];
+    onSet: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => void;
+    ensureLoaded: () => void;
+  };
 }
 
 /**
@@ -61,6 +78,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   onGoToPrereq,
   onOpenBookmarkers,
   guildId,
+  dungeonActions,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
   const itemTags = getItemTags(seq.activityTags);
@@ -224,8 +242,17 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 // Le badge n'était qu'un `title` natif : au survol (ou au clic), on montre les
                 // donjons requis — vignette du boss, nom, badge Ocre — et chaque ligne ouvre sa
                 // fiche (page publique pour l'overlay public, fiche boss du module sinon).
-                <RushOverlayDungeonPopover dungeons={dungeons} guildId={guildId}>
-                  <span className={cn(chip, "border-warning/40 text-warning")} title="Donjon requis — survoler pour le détail">
+                <RushOverlayDungeonPopover
+                  seq={seq}
+                  dungeons={dungeons}
+                  guildId={guildId}
+                  states={dungeonActions?.states}
+                  busyKey={dungeonActions?.busyKey}
+                  others={dungeonActions?.others}
+                  onSet={dungeonActions?.onSet}
+                  onEnsureLoaded={dungeonActions?.ensureLoaded}
+                >
+                  <span className={cn(chip, "border-warning/40 text-warning")} title="Donjon requis — cliquer pour cocher fait / à faire">
                     {/* Picto du donjon : l'asset du jeu, pas un glyphe d'interface. Le
                         compteur dit combien de donjons la quête demande (×1, ×2…). */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -17,7 +17,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getRushDungeonStates, setRushDungeonState } from "@/server/actions/optimized-guide-actions";
 import { dungeonOccurrenceKey, type RushDungeonState } from "@/lib/rush-dungeons";
-import type { RushDungeonMemberState } from "@/components/dofus-quests/rush/RushDungeonList";
+import type { RushDungeonMemberState } from "@/lib/rush-dungeons";
 
 export type RushDungeonStatesHandle = {
   /** États de ce joueur, clé = `sequenceId::dungeonKey`. */

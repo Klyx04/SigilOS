@@ -18,7 +18,7 @@
  * (localStorage côté public, base côté guilde) — ce module ne sait pas d'où il vient.
  */
 
-import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import type { RushSequence } from "@/types/rush-guide-types";
 import { getDungeons } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 
 /** Un donjon exigé par une quête, avec son état de coche. */
@@ -183,73 +183,18 @@ export function toggleDungeonKey(
 /** État manuel d'un donjon **dans une quête donnée** : « fait » ou « à faire ». */
 export type RushDungeonState = "done" | "todo";
 
-/** Un endroit du guide où le donjon apparaît. */
-export type RushDungeonOccurrence = {
-  milestoneId: string;
-  milestoneTitle: string;
-  chapter: number;
-  sequenceId: string;
-  sequenceName: string;
-  /** Dans CETTE quête, le donjon est optionnel. */
-  isOptional: boolean;
-};
-
-/** Entrée de l'index « tous les donjons du guide et leurs endroits ». */
-export type RushDungeonIndexEntry = {
-  key: string;
-  name: string;
-  isOcre: boolean;
-  occurrences: RushDungeonOccurrence[];
-  /** Nombre d'endroits (une quête = un endroit, jamais deux fois). */
-  places: number;
-  /** Endroits où le donjon est **requis** (c'est ce qui verrouille). */
-  requiredPlaces: number;
-};
-
 /**
- * Index des donjons du guide, **dédoublonné par clé stable**.
- *
- * ⚠️ Le donjon est global (il apparaît dans plusieurs quêtes), mais **la coche est par
- * occurrence** : la même caverne refaite pour deux quêtes se coche deux fois. L'index
- * sert donc uniquement à **lister les endroits**, pas à mutualiser l'état.
+ * L'état d'un **autre membre** sur une occurrence — sert à l'entraide :
+ * « à faire : Alice » sous le donjon de CETTE quête.
  */
-export function buildDungeonIndex(milestones: RushMilestone[]): RushDungeonIndexEntry[] {
-  const byKey = new Map<string, RushDungeonIndexEntry>();
-
-  for (const milestone of milestones ?? []) {
-    for (const sequence of milestone.sequences ?? []) {
-      const { requirements } = resolveSequenceDungeons(sequence);
-      for (const requirement of requirements) {
-        let entry = byKey.get(requirement.key);
-        if (!entry) {
-          entry = {
-            key: requirement.key,
-            name: requirement.name,
-            isOcre: requirement.isOcre,
-            occurrences: [],
-            places: 0,
-            requiredPlaces: 0,
-          };
-          byKey.set(requirement.key, entry);
-        }
-        // Une quête = un endroit : jamais deux lignes pour la même séquence.
-        if (entry.occurrences.some((o) => o.sequenceId === sequence.id)) continue;
-        entry.occurrences.push({
-          milestoneId: milestone.id,
-          milestoneTitle: milestone.title,
-          chapter: milestone.chapter,
-          sequenceId: sequence.id,
-          sequenceName: sequence.subGuideName || sequence.subGuideRef || milestone.title,
-          isOptional: requirement.isOptional,
-        });
-        entry.places += 1;
-        if (!requirement.isOptional) entry.requiredPlaces += 1;
-      }
-    }
-  }
-
-  return [...byKey.values()];
-}
+export type RushDungeonMemberState = {
+  sequenceId: string;
+  dungeonKey: string;
+  state: RushDungeonState;
+  profileId: string;
+  userName: string;
+  pseudoDofus: string | null;
+};
 
 /**
  * Clé d'une **occurrence** : un donjon dans une quête précise.
@@ -272,38 +217,6 @@ export function occurrenceState(
 ): RushDungeonState | null {
   if (!states) return null;
   return states[dungeonOccurrenceKey(sequenceId, dungeonKey)] ?? null;
-}
-
-/** Occurrence enrichie de son état — ce que l'écran « Donjons » affiche. */
-export type RushDungeonOccurrenceView = RushDungeonOccurrence & {
-  state: RushDungeonState | null;
-};
-
-export type RushDungeonEntryView = Omit<RushDungeonIndexEntry, "occurrences"> & {
-  occurrences: RushDungeonOccurrenceView[];
-  /** Endroits déjà cochés « fait ». */
-  donePlaces: number;
-  /** Endroits marqués « à faire ». */
-  todoPlaces: number;
-};
-
-/** Applique les états **par occurrence** à l'index. */
-export function applyDungeonStates(
-  index: RushDungeonIndexEntry[],
-  states: RushDungeonStateMap | null | undefined
-): RushDungeonEntryView[] {
-  return index.map((entry) => {
-    const occurrences = entry.occurrences.map((occurrence) => ({
-      ...occurrence,
-      state: occurrenceState(states, occurrence.sequenceId, entry.key),
-    }));
-    return {
-      ...entry,
-      occurrences,
-      donePlaces: occurrences.filter((o) => o.state === "done").length,
-      todoPlaces: occurrences.filter((o) => o.state === "todo").length,
-    };
-  });
 }
 
 /**

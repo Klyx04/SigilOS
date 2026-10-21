@@ -42,8 +42,6 @@ interface RushOverlayHeaderProps {
   onOpenOcre?: () => void;
   /** Ouvre la modale d'alignement de la guilde (overlay interne uniquement). */
   onOpenAlignment?: () => void;
-  /** Ouvre la liste des donjons du guide (« fait » / « à faire ») — overlay interne. */
-  onOpenDungeons?: () => void;
 }
 
 /**
@@ -76,7 +74,6 @@ export function RushOverlayHeader({
   ocre,
   onOpenOcre,
   onOpenAlignment,
-  onOpenDungeons,
 }: RushOverlayHeaderProps) {
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
@@ -254,25 +251,6 @@ export function RushOverlayHeader({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/ordres/neutre.png" alt="" className="w-3.5 h-3.5 object-contain" />
-            </button>
-          )}
-
-          {/* Donjons du guide (« fait » / « à faire ») — overlay interne uniquement */}
-          {onOpenDungeons && (
-            <button
-              type="button"
-              onClick={onOpenDungeons}
-              aria-label="Donjons du guide"
-              title="Tous les donjons et leurs endroits — fait / à faire"
-              className={cn(
-                "p-1.5 rounded-lg border transition-colors",
-                isLightMode
-                  ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                  : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-              )}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/dofus-ui/pictos/donjon.png" alt="" className="w-3.5 h-3.5 object-contain" />
             </button>
           )}
 

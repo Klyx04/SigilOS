@@ -1952,15 +1952,20 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                         )}
                                       </button>
 
-                                      {/* Bouton Détails (i) -> ouvre la modale dédiée */}
-                                      <button
-                                        type="button"
-                                        onClick={() => setDetailModalSeq({ milestone: ms, sequence: seq })}
-                                        className="p-1.5 rounded-[3px] text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors cursor-pointer"
-                                        title="Voir les détails complets de l'étape"
-                                      >
-                                        <Info className="w-3.5 h-3.5" />
-                                      </button>
+                                      {/* Bouton Détails (i) -> ouvre la modale dédiée.
+                                          Masqué quand la quête est verrouillée : la seule
+                                          action utile d'une carte bloquée est le lien vers
+                                          la quête à terminer (retour user 21/10/2026). */}
+                                      {!stepLocked && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setDetailModalSeq({ milestone: ms, sequence: seq })}
+                                          className="p-1.5 rounded-[3px] text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors cursor-pointer"
+                                          title="Voir les détails complets de l'étape"
+                                        >
+                                          <Info className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 </div>

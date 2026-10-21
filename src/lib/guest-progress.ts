@@ -30,8 +30,13 @@ export type GuestProgressSnapshot = {
   bookmarksByMs: Map<string, string>;
 };
 
-/** Les trois clés d'un emplacement de progression. */
-const PROGRESS_SUFFIXES = ["completed_ms", "steps", "bookmarks"] as const;
+/**
+ * Les clés d'un emplacement de progression. `dungeons` porte les coches de donjons
+ * (forme propre : `Record<"sequenceId::dungeonKey", "done" | "todo">`, lue et écrite par
+ * `src/lib/rush-dungeon-storage.ts`) — il est listé ici pour que l'adoption d'une
+ * progression anonyme et la détection « emplacement déjà utilisé » le couvrent aussi.
+ */
+const PROGRESS_SUFFIXES = ["completed_ms", "steps", "bookmarks", "dungeons"] as const;
 
 /** Au moins un champ renseigné ? (sinon c'est « pas de personnage ») */
 export function hasGuestCharacter(c: GuestCharacter | null | undefined): c is GuestCharacter {

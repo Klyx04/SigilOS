@@ -195,8 +195,14 @@ export async function getPublicGuideDetail(slug: string) {
     for (const ms of guide.milestones) {
       for (const seq of ms.sequences) {
         const ids = (seq as any).dungeonIds as string[] | undefined;
+        // Un donjon peut être OPTIONNEL (`dungeonOptionalIds`) : la surface doit le
+        // savoir, sinon elle verrouille une quête avec un donjon facultatif.
+        const optionalIds = new Set(((seq as any).dungeonOptionalIds as string[] | undefined) ?? []);
         if (ids && ids.length > 0) {
-          (seq as any).dungeons = ids.map((id) => dungeonMap.get(id)).filter(Boolean);
+          (seq as any).dungeons = ids
+            .map((id) => dungeonMap.get(id))
+            .filter(Boolean)
+            .map((d) => ({ ...d, isOptional: optionalIds.has(d!.id) }));
         }
       }
     }
@@ -255,8 +261,13 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string, alt
     for (const ms of guide.milestones) {
       for (const seq of ms.sequences) {
         const ids = (seq as any).dungeonIds as string[] | undefined;
+        // Idem côté dashboard : le drapeau « optionnel » voyage avec le donjon.
+        const optionalIds = new Set(((seq as any).dungeonOptionalIds as string[] | undefined) ?? []);
         if (ids && ids.length > 0) {
-          (seq as any).dungeons = ids.map(id => dungeonMap.get(id)).filter(Boolean);
+          (seq as any).dungeons = ids
+            .map(id => dungeonMap.get(id))
+            .filter(Boolean)
+            .map(d => ({ ...d, isOptional: optionalIds.has(d!.id) }));
         }
       }
     }
@@ -555,9 +566,44 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
       sequences: {
         select: { id: true }
       },
-      guide: { select: { slug: true } }
+      guide: { select: { id: true, slug: true } }
     }
   });
+
+  // ── Verrou de DONJONS (S0-5bis) ─────────────────────────────────────────────
+  // Cocher un BLOC entier ne doit pas contourner le verrou d'une quête : même règle
+  // que `setRushSequenceProgress` (source unique `rush-dungeons`), même fail-closed.
+  // Décocher reste toujours possible ; un donjon optionnel ne bloque jamais.
+  if (isCompleted) {
+    const before = await db.playerGuideProgress.findUnique({
+      where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
+      select: { isCompleted: true },
+    });
+    if (!before?.isCompleted && milestoneWithSequences?.guide?.id) {
+      const stateRows = await db.playerGuideDungeonState.findMany({
+        where: { profileId, guideId: milestoneWithSequences.guide.id, characterSlot },
+        select: { sequenceId: true, dungeonKey: true, state: true },
+      });
+      const dungeonStates: Record<string, "done" | "todo"> = {};
+      for (const row of stateRows) {
+        dungeonStates[dungeonOccurrenceKey(row.sequenceId, row.dungeonKey)] =
+          row.state === "DONE" ? "done" : "todo";
+      }
+      const blocked = await findSequenceBlockedByMissingDungeon(
+        milestoneWithSequences.guide.id,
+        (milestoneWithSequences.sequences ?? []).map((seq) => seq.id),
+        dungeonStates
+      );
+      if (blocked) {
+        return {
+          success: false as const,
+          error: `« ${blocked.name} » : ${blocked.missing.length} donjon(s) requis non fait(s)`,
+          blockedSequenceId: blocked.id,
+          missingDungeons: blocked.missing,
+        };
+      }
+    }
+  }
 
   const completedSteps = isCompleted ? (milestoneWithSequences?.sequences.map((seq) => seq.id) ?? []) : [];
 

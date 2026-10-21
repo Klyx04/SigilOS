@@ -190,13 +190,17 @@ describe("Ressources — plus aucun nom tronqué dans les listes", () => {
   });
 });
 
-describe("Panneau public — les quatre actions sont alignées", () => {
-  it("une seule grille responsive porte les quatre boutons", () => {
-    expect(PUB).toMatch(/grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-4/);
+describe("Panneau public — les cinq actions sont alignées", () => {
+  it("une seule grille responsive porte les cinq boutons", () => {
+    // 21/10/2026 : « Donjons » rejoint les quatre actions (Ressources, Pense-bête,
+    // densité, overlay) → la grille passe de 4 à 5 colonnes en `xl`. L'intention de la
+    // garde est inchangée : UNE grille, aucune colonne qui déborde.
+    expect(PUB).toMatch(/grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-5/);
   });
 
   it("chaque bouton prend toute sa cellule (largeurs régulières, aucun débordement)", () => {
-    expect(PUB.match(/reg-btn reg-btn-secondary w-full/g)?.length).toBe(3);
+    // 4 secondaires (Ressources, Pense-bête, Donjons, densité) + 1 primaire (overlay).
+    expect(PUB.match(/reg-btn reg-btn-secondary w-full/g)?.length).toBe(4);
     expect(PUB.match(/reg-btn reg-btn-primary w-full/g)?.length).toBe(1);
   });
 });
@@ -270,6 +274,106 @@ describe("Guide interne — le masquage des étapes faites n'est plus enterré d
     expect(DASH).toMatch(/Pense-bête[\s\S]{0,1200}aria-pressed=\{hideDone\}/);
     expect(DASH).toMatch(/aria-label=\{hideDone \? "Afficher les étapes terminées" : "Masquer les étapes terminées"\}/);
     expect(DASH).toMatch(/\{hideDone \? <Eye className="w-3\.5 h-3\.5" \/> : <EyeOff className="w-3\.5 h-3\.5" \/>\}/);
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Donjons — UNE fenêtre, UNE règle, un verrou dans les ÉCRITURES.
+// 🎯 Demande user (21/10/2026) : « pour une quête qui comporte au moins 1 donjon,
+// pouvoir cocher tel donjon est fait ; tant que ce donjon n'est pas fait, la quête ne
+// peut pas être validée ». Le dashboard et le guide public doivent s'aligner sur
+// l'overlay — sans copie, et sans serveur côté public.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("Donjons cochables — même coquille, même règle, verrou dans les écritures", () => {
+  const SHELL = "src/components/dofus-quests/rush/RushDungeonsModalShell.tsx";
+  const STORAGE = "src/lib/rush-dungeon-storage.ts";
+  const ACTIONS = "src/server/actions/optimized-guide-actions.ts";
+  const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+  const ACTIONS_CODE = codeOf(ACTIONS);
+
+  it("les surfaces partagent la même coquille et la même liste (aucune copie)", () => {
+    expect(existsSync(SHELL)).toBe(true);
+    expect(existsSync(STORAGE)).toBe(true);
+
+    for (const [name, code] of [["public", PUB], ["interne", DASH]] as const) {
+      expect(code, `${name} n'importe pas la coquille partagée`).toMatch(
+        /import \{ RushDungeonsModalShell \} from "@\/components\/dofus-quests\/rush\/RushDungeonsModalShell"/
+      );
+      expect(code, `${name} ne la rend pas`).toMatch(/<RushDungeonsModalShell/);
+      // Aucune seconde liste : les boutons « Fait / À faire » vivent dans RushDungeonList.
+      expect(code, `${name} duplique la liste des donjons`).not.toMatch(/comme fait dans/);
+    }
+
+    // L'overlay passe par le wrapper guilde, qui délègue à la même coquille.
+    expect(codeOf(OVERLAY)).toMatch(/<RushDungeonsModal/);
+    expect(codeOf("src/components/dofus-quests/rush/RushDungeonsModal.tsx")).toMatch(
+      /<RushDungeonsModalShell/
+    );
+  });
+
+  it("le public n'importe AUCUN code serveur et persiste dans le navigateur", () => {
+    expect(PUB).not.toMatch(/@\/server\//);
+    expect(PUB).toMatch(/readDungeonStates\(storagePrefix\)/);
+    expect(PUB).toMatch(
+      /writeDungeonState\(storagePrefix, dungeonOccurrenceKey\(sequenceId, dungeonKey\), state\)/
+    );
+    expect(PUB).toMatch(/clearDungeonStates\(storagePrefix\)/);
+    // Un visiteur (ou son personnage déclaré) = un emplacement de progression.
+    expect(PUB).toMatch(/const storagePrefix = guestProgressPrefix\(guide\.slug, character\)/);
+  });
+
+  it("la coche est PAR OCCURRENCE des deux côtés (jamais mutualisée par donjon)", () => {
+    for (const [name, code] of [["public", PUB], ["interne", DASH]] as const) {
+      // Le verrou ne voit QUE les donjons faits de la quête concernée.
+      expect(code, `${name} ne lit pas les donjons faits de la quête`).toMatch(
+        /doneDungeonKeysForSequence/
+      );
+    }
+    // Le public construit lui-même la clé de stockage (`sequenceId::dungeonKey`) ;
+    // le dashboard la reçoit déjà formée par le hook partagé.
+    expect(PUB).toMatch(/dungeonOccurrenceKey\(sequenceId, dungeonKey\)/);
+    expect(codeOf("src/hooks/use-rush-dungeon-states.ts")).toMatch(/dungeonOccurrenceKey/);
+  });
+
+  it("le verrou est appliqué dans les TROIS chemins d'écriture du public", () => {
+    // étape · chapitre entier · lot de quêtes
+    expect(PUB).toMatch(/if \(!was && isSeqBlockedByDungeon\(seqId\)\)/);
+    expect(PUB).toMatch(
+      /if \(completeAll && !current\.has\(s\.id\) && isSeqBlockedByDungeon\(s\.id\)\) return;/
+    );
+    expect(PUB).toMatch(/!isSeqBlockedByDungeon\(id\)/);
+  });
+
+  it("le public nomme le donjon manquant et ouvre la fenêtre (pas un refus muet)", () => {
+    expect(PUB).toMatch(/Donjon requis non fait — coche-le dans « Donjons du guide »\./);
+    expect(PUB).toMatch(/\{prereqLocked \? "À terminer avant :" : "Donjon requis à faire :"\}/);
+    expect(PUB).toMatch(/onClick=\{\(\) => setShowDungeons\(true\)\}/);
+  });
+
+  it("le verrou est SERVEUR pour la guilde — y compris « valider tout le bloc »", () => {
+    // Quête par quête (`setRushSequenceProgress`)…
+    expect(ACTIONS_CODE).toMatch(/findSequenceBlockedByMissingDungeon/);
+    expect(ACTIONS_CODE).toMatch(/blockedSequenceId: blocked\.id/);
+    // …ET le chemin du bloc entier (`toggleMilestoneProgress`), qui écrivait sans verrou :
+    // définition + 2 appels (quête, bloc).
+    const calls = ACTIONS_CODE.match(/findSequenceBlockedByMissingDungeon\(/g)?.length ?? 0;
+    expect(calls).toBeGreaterThanOrEqual(3);
+  });
+
+  it("le dashboard bloque AVANT l'aller-retour et charge l'état au montage", () => {
+    expect(DASH).toMatch(
+      /useRushDungeonStates\(\{guildId,slug:guide\.slug,altPseudo:effectiveAltPseudo\}\)/
+    );
+    expect(DASH).toMatch(/if\(sequenceDungeonProgress\(seqObj as any,doneKeys\)\.blocked\)/);
+    // Un refus serveur ne doit pas laisser un bloc marqué « terminé ».
+    expect(DASH).not.toMatch(/allChecked\?n\.delete\(ms\.id\):n\.add\(ms\.id\)/);
+    expect(DASH).toMatch(/wasMilestoneCompleted\?n\.add\(ms\.id\):n\.delete\(ms\.id\)/);
+  });
+
+  it("le reset du public efface aussi les coches de donjons", () => {
+    expect(codeOf(STORAGE)).toMatch(/removeItem\(dungeonStatesStorageKey\(progressPrefix\)\)/);
+    expect(codeOf("src/lib/guest-progress.ts")).toMatch(/"dungeons"/);
   });
 });
 

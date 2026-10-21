@@ -51,7 +51,8 @@ par donjon ; même règle avec plusieurs donjons.
 | **S0-2** | Flag **optionnel** par donjon : `RushDungeonRef.isOptional` (type + `getDungeons`) | ✅ **livré** (type) |
 | **S0-3** | **Persistance** : table `PlayerGuideDungeonState` — clé unique `(profileId, guideId, sequenceId, dungeonKey, characterSlot)` + enum `DONE/TODO` + colonne `GuideSequence.dungeonOptionalIds` (migration `20270115000000_rush_dungeon_state`) + actions `getRushDungeonStates` / `setRushDungeonState` (isolation guide, rate limit, upsert idempotent) | ✅ **livré** — migration **à jouer** (bêta puis prod) |
 | **S0-4** | **Verrou à la validation** : `setRushSequenceProgress` refuse une séquence **nouvellement cochée** dont un donjon requis n'est pas `DONE` (`success:false` + `blockedSequenceId` + `missingDungeons`) | ✅ **livré** (serveur, fail-closed) |
-| **S0-5** | **UI** : modale « Donjons du guide » (index global, `fait` / `à faire`, qui a marqué « à faire », recherche) + bouton dans l'en-tête de l'overlay interne | ✅ **livré** (overlay interne) — reste : dashboard + guide public (`localStorage`) |
+| **S0-5** | **UI** : modale « Donjons du guide » (index global, `fait` / `à faire`, qui a marqué « à faire », recherche) + bouton dans l'en-tête de l'overlay interne | ✅ **livré** (overlay interne) |
+| **S0-5bis** | **Les 2 autres surfaces** : la **même** coquille `RushDungeonsModalShell` + le **même** `RushDungeonList` ; dashboard en base (états chargés au montage, pré-contrôle local + verrou serveur) ; guide public en `localStorage` (`<préfixe personnage>dungeons`, fail-closed), verrou dans les **3** chemins d'écriture, donjons manquants nommés, reset de la 4ᵉ clé | ✅ **livré** (21/10) |
 | **S0-6** | **God** : case « optionnel » par donjon lié à la séquence | à faire |
 | **S0-7** | **Décoche en cascade** : décocher un donjon **dévalide** la quête (et remet à zéro ses coches de ressources) | à faire |
 
@@ -59,15 +60,16 @@ par donjon ; même règle avec plusieurs donjons.
 
 - **Deux états**, jamais une case binaire : `DONE` (fait) et `TODO` (à faire). L'absence de ligne = « pas encore décidé ».
 - ⚠️ **La coche est par OCCURRENCE (quête × donjon)**, jamais mutualisée par donjon : le même donjon demandé par trois quêtes se coche **trois fois**. `sequenceId` fait partie de la clé unique, et l'index (`buildDungeonIndex`) sert seulement à **lister les endroits** — pas à partager l'état.
-- Un donjon **optionnel** (`GuideSequence.dungeonOptionalIds`) s'affiche et se coche mais **ne bloque pas**.
+- Un donjon **optionnel** (`GuideSequence.dungeonOptionalIds`) s'affiche et se coche mais **ne bloque pas**. Le drapeau est propagé par **les trois** chargeurs (dashboard, public, God) depuis le 21/10 — sans lui, un donjon facultatif serait traité comme requis.
 - Le verrou est **serveur** : le client ne fait pas foi ; `doneDungeonKeysForSequence` ne rend que les clés `done` **de la quête concernée**. Un donjon **sans identité** (ni id, ni slug, ni nom) est signalé mais ne fige pas la quête (fail-open documenté, même doctrine que les prérequis).
+- **Deux chemins d'écriture** portent le verrou côté serveur : `setRushSequenceProgress` (une quête) **et** `toggleMilestoneProgress` (la case « valider tout le bloc », qui l'écrivait sans contrôle avant le 21/10).
+- **Guide public** : aucune donnée de guilde, aucun serveur. La coche vit dans `localStorage` sous `<préfixe personnage>dungeons` (même préfixe que les étapes cochées, donc par personnage déclaré) ; le verrou y est **local et fail-closed**, appliqué dans les **3** chemins d'écriture (étape, chapitre entier, lot de quêtes), et les donjons manquants sont **nommés** dans la carte.
 
-**Verrous de test** : `rush-dungeons` (**19** cas) · `rush-dungeons-ui` (**6** cas) · non-régression `rush-overlay-*`, `rush-public-parity`, `rush-god-studio-robustesse` → **179 tests verts**.
+**Verrous de test** : `rush-dungeons` (**19** cas) · `rush-dungeons-ui` (**6** cas) · `rush-dungeon-storage` (**12** cas, fail-closed du stockage local) · `rush-public-parity` (**8** cas donjons : même coquille, même règle, 3 chemins verrouillés, verrou serveur du bloc) · non-régression `rush-overlay-*`, `rush-god-studio-robustesse` → **86 tests verts** sur le périmètre donjons.
 
 **Ops (humain)** : `npx prisma migrate deploy` en **bêta puis prod** (migration additive : `CREATE TYPE`, `CREATE TABLE`, 3 index, 2 FK, 1 colonne `TEXT[]`).
 
-**Sans migration, ce qui marche déjà** : le verrou est calculable partout (`isSequenceBlockedByDungeons`) ;
-côté **externe**, l'état peut vivre dans le `localStorage` (comme la progression publique).
+**Sans serveur, ce qui marche déjà** : côté **externe** (guide public), la coche et le verrou vivent entièrement dans le `localStorage` — aucun compte n'est requis.
 
 **Verrous de test** : `tests/unit/rush-dungeons.test.ts` (12 cas, vert) · à compléter par
 `rush-dungeons-gate.test.ts` (l'action refuse, l'action accepte, idempotence) et un cas de parité.
@@ -146,7 +148,7 @@ un seed automatique. C'est un **brouillon de session** (règle `docs/agents/zone
 ## 8. Dépendances à ne pas inverser
 
 ```
-S0-1/2/3/4 (fait) ──► S0-5 (overlay fait) ──► S0-5bis (dashboard + public localStorage)
+S0-1/2/3/4 (fait) ──► S0-5 (overlay fait) ──► S0-5bis (dashboard + public, fait) ──► S0-5ter (overlay public, reste)
 S0-3 (migration) ──► S0-6 (case « optionnel » God) ──► S0-7 (décoche en cascade)
 S1 (contenu) ──► S4-1 (la vue Branches sert à saisir) ──► S1-1/S1-2/S1-3
 S1-3 ──► S2-1..S2-5 (les contraintes se posent sur des quêtes existantes)

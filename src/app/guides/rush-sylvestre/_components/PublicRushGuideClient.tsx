@@ -45,6 +45,23 @@ import {
   adoptAnonymousGuestProgress,
   guestProgressPrefix,
 } from "@/lib/guest-progress";
+// Coches de DONJONS du visiteur : même contrat LOCAL que le reste de sa progression
+// (préfixe par personnage), clé par OCCURRENCE (`sequenceId::dungeonKey`). Aucune
+// donnée de guilde, aucun serveur : le verrou est appliqué dans les écritures.
+import {
+  clearDungeonStates,
+  readDungeonStates,
+  writeDungeonState,
+  type LocalDungeonStates,
+} from "@/lib/rush-dungeon-storage";
+import {
+  dungeonOccurrenceKey,
+  doneDungeonKeysForSequence,
+  resolveSequenceDungeons,
+  sequenceDungeonProgress,
+  type RushDungeonState,
+} from "@/lib/rush-dungeons";
+import { RushDungeonsModalShell } from "@/components/dofus-quests/rush/RushDungeonsModalShell";
 import { resolveRushRoute } from "@/lib/rush-route";
 import { PublicRouteChoice } from "@/components/dofus-quests/rush/PublicRouteChoice";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
@@ -71,7 +88,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG } from "@/lib/rush-guide-utils";
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
@@ -447,6 +464,19 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
     return new Map<string, string>();
   });
 
+  // ── Donjons : coches LOCALES (sans compte, sans base) ─────────────────────────
+  // La fenêtre est la MÊME coquille que l'overlay et le dashboard ; seule la
+  // persistance change (ici : `localStorage`, emplacement du personnage déclaré).
+  const [dungeonStates, setDungeonStates] = useState<LocalDungeonStates>(() =>
+    readDungeonStates(storagePrefix)
+  );
+  const [showDungeons, setShowDungeons] = useState(false);
+  // Changement de personnage (ou adoption d'une progression anonyme) = changement
+  // d'emplacement : on relit SES coches de donjons, comme ses étapes cochées.
+  useEffect(() => {
+    setDungeonStates(readDungeonStates(storagePrefix));
+  }, [storagePrefix]);
+
   // Popup « Reprendre ? » : uniquement au retour sur le guide avec un repère
   // local pré-existant — jamais juste après avoir posé le repère soi-même.
   const [continueModalOpen, setContinueModalOpen] = useState(false);
@@ -554,6 +584,29 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
     [seqById, completedSeqIds, milestones]
   );
 
+  /**
+   * Verrou de DONJONS (même règle que l'interne et le serveur) : seuls les donjons
+   * REQUIS **de cette quête** comptent, d'où `doneDungeonKeysForSequence`.
+   */
+  const isSeqBlockedByDungeon = useCallback(
+    (seqId: string): boolean => {
+      const s = seqById.get(seqId);
+      if (!s || completedSeqIds.has(seqId)) return false;
+      return sequenceDungeonProgress(s, doneDungeonKeysForSequence(dungeonStates, seqId)).blocked;
+    },
+    [seqById, completedSeqIds, dungeonStates]
+  );
+
+  /** Coche / décoche une OCCURRENCE (re-cliquer retire l'état). */
+  const handleSetDungeonState = useCallback(
+    (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
+      setDungeonStates(
+        writeDungeonState(storagePrefix, dungeonOccurrenceKey(sequenceId, dungeonKey), state)
+      );
+    },
+    [storagePrefix]
+  );
+
   const remainingResources = useMemo(
     () => aggregateRushResources(milestones, completedSeqIds),
     [milestones, completedSeqIds]
@@ -618,6 +671,13 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         return;
       }
 
+      // 🚫 Même doctrine pour les DONJONS : un donjon requis non coché dans CETTE
+      // quête verrouille la validation. Ici le refus est local (aucun serveur).
+      if (!was && isSeqBlockedByDungeon(seqId)) {
+        toast.error("Donjon requis non fait — coche-le dans « Donjons du guide ».");
+        return;
+      }
+
       was ? current.delete(seqId) : current.add(seqId);
 
       setCompletedStepsByMs((prev) => {
@@ -653,7 +713,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix, isStepLocked]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon]
   );
 
   // Toggle whole chapter
@@ -667,6 +727,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
       // verrouillée : « Tout valider » ne contourne pas les prérequis.
       ms.sequences.filter((s) => !isInfoSequence(s)).forEach((s) => {
         if (completeAll && !current.has(s.id) && isStepLocked(s.id)) return;
+        // « Tout valider » ne contourne pas non plus un donjon requis non coché.
+        if (completeAll && !current.has(s.id) && isSeqBlockedByDungeon(s.id)) return;
         completeAll ? current.add(s.id) : current.delete(s.id);
       });
 
@@ -696,7 +758,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         return next;
       });
     },
-    [completedStepsByMs, milestones, storagePrefix, isStepLocked]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon]
   );
 
   // Toggle all steps of one quest block (comme le guide interne)
@@ -708,7 +770,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         ? seqIds.filter((id) => {
             const s = seqById.get(id);
             if (!s || completedSeqIds.has(id)) return true;
-            return !isSequenceBlockedByPrereqs(s, completedSeqIds, milestones);
+            return (
+              !isSequenceBlockedByPrereqs(s, completedSeqIds, milestones) &&
+              !isSeqBlockedByDungeon(id)
+            );
           })
         : seqIds;
       setCompletedStepsByMs((prev) => {
@@ -752,7 +817,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds]
+    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds, isSeqBlockedByDungeon]
   );
 
   // Personnage déclaré → libellé affiché (icône de classe + pseudo + serveur) et
@@ -764,10 +829,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         .join(" · ")
     : null;
 
-  // Remise à zéro : les TROIS clés de progression partent ensemble (étapes
-  // cochées, blocs terminés, repères). Un reset partiel laisserait un guide à
-  // moitié coché — et une fenêtre d'overlay ouverte se réaligne seule (le
-  // BroadcastChannel republie l'état vide).
+  // Remise à zéro : les QUATRE clés de progression partent ensemble (étapes
+  // cochées, blocs terminés, repères, coches de donjons). Un reset partiel
+  // laisserait un guide à moitié coché — et une fenêtre d'overlay ouverte se
+  // réaligne seule (le BroadcastChannel republie l'état vide).
   const handleResetProgress = useCallback(() => {
     if (typeof window !== "undefined") {
       try {
@@ -776,9 +841,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         localStorage.removeItem(`${storagePrefix}bookmarks`);
       } catch {}
     }
+    clearDungeonStates(storagePrefix);
     setCompletedIds(new Set());
     setCompletedStepsByMs(new Map());
     setBookmarksByMs(new Map());
+    setDungeonStates({});
     setExpandedMs(new Set(milestones[0]?.id ? [milestones[0].id] : []));
     setHideDone(false);
     setSearchQuery("");
@@ -786,8 +853,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
     resumeShownThisSession.current = true;
     toast.success("Progression remise à zéro", {
       description: characterLabel
-        ? `Étapes cochées, blocs terminés et repères de ${characterLabel} ont été effacés.`
-        : "Étapes cochées, blocs terminés et repères ont été effacés.",
+        ? `Étapes cochées, blocs terminés, repères et donjons de ${characterLabel} ont été effacés.`
+        : "Étapes cochées, blocs terminés, repères et donjons ont été effacés.",
     });
   }, [storagePrefix, milestones, characterLabel]);
 
@@ -1027,7 +1094,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
           {/* Boutons d'action : TOUS sur la même ligne (4 colonnes) dès qu'il y a la
               place, 2 par ligne sur tablette, empilés sur mobile — largeurs égales,
               aucun bouton qui déborde du cadre. */}
-          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-4">
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-5">
             <button
               type="button"
               onClick={() => setShowResources(true)}
@@ -1050,6 +1117,20 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
             >
               <ClipboardList className="w-4 h-4" aria-hidden="true" />
               <span>{locale === "en" ? "Checklist" : "Pense-bête"}</span>
+            </button>
+
+            {/* Donjons — la MÊME fenêtre que l'interne et l'overlay ; seule la
+                persistance diffère (localStorage, préfixé par personnage). */}
+            <button
+              type="button"
+              onClick={() => setShowDungeons(true)}
+              className="reg-btn reg-btn-secondary w-full"
+              title={locale === "en" ? "Dungeons: mark done / to do, quest by quest" : "Donjons : cocher « fait » / « à faire », quête par quête"}
+            >
+              {/* Picto RÉEL du jeu : le MÊME asset que le tag « Donjon requis ». */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath} alt="" aria-hidden="true" loading="lazy" className="w-4 h-4 object-contain" />
+              <span>{locale === "en" ? "Dungeons" : "Donjons"}</span>
             </button>
 
             {/* Le seul interrupteur de densité : son interrupteur d'origine vivait
@@ -1568,8 +1649,17 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                             const stepDone = doneSteps.has(seq.id);
                             // Verrou de prérequis (même règle que le guide interne) : la case
                             // devient inerte, la carte passe en danger, le prérequis est nommé.
-                            const stepLocked = !stepDone && isStepLocked(seq.id);
-                            const prereqRefs = stepLocked ? getPrereqRefs(seq, milestones) : [];
+                            const prereqLocked = !stepDone && isStepLocked(seq.id);
+                            const dungeonLocked = !stepDone && isSeqBlockedByDungeon(seq.id);
+                            const stepLocked = prereqLocked || dungeonLocked;
+                            const prereqRefs = prereqLocked ? getPrereqRefs(seq, milestones) : [];
+                            // Donjons REQUIS manquants de CETTE quête (nommés, cliquables).
+                            const missingDungeons = dungeonLocked
+                              ? resolveSequenceDungeons(
+                                  seq,
+                                  doneDungeonKeysForSequence(dungeonStates, seq.id)
+                                ).requirements.filter((r) => !r.isOptional && !r.isDone)
+                              : [];
                             const parsedCoord = getSequenceCoord(seq);
 
                             // Encart informatif : jamais cochable, aucune progression — le
@@ -1649,8 +1739,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                       type="button"
                                       onClick={() => handleToggleStep(ms.id, seq.id)}
                                       disabled={stepLocked}
-                                      aria-label={stepDone ? "Décocher" : stepLocked ? "Quête verrouillée par un prérequis" : "Valider cette étape"}
-                                      title={stepLocked ? "Prérequis non terminé — valide d'abord les quêtes citées sous la ligne." : undefined}
+                                      aria-label={stepDone ? "Décocher" : stepLocked ? "Quête verrouillée" : "Valider cette étape"}
+                                      title={
+                                        prereqLocked
+                                          ? "Prérequis non terminé — valide d'abord les quêtes citées sous la ligne."
+                                          : dungeonLocked
+                                            ? "Donjon requis non fait — coche-le dans « Donjons du guide »."
+                                            : undefined
+                                      }
                                       className={cn(
                                         "w-5 h-5 rounded-[3px] border flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 transition-colors",
                                         stepLocked ? "border-danger/40 text-danger cursor-not-allowed" : "cursor-pointer",
@@ -1856,9 +1952,18 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                   <div className="flex flex-wrap items-center gap-1.5 border-t border-danger/20 pt-2">
                                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
                                       <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                      À terminer avant :
+                                      {prereqLocked ? "À terminer avant :" : "Donjon requis à faire :"}
                                     </span>
-                                    {prereqRefs.length === 0 ? (
+                                    {!prereqLocked ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowDungeons(true)}
+                                        className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20 cursor-pointer"
+                                        title="Ouvrir les donjons du guide"
+                                      >
+                                        {missingDungeons.map((d) => d.name).join(", ") || "Donjon requis"}
+                                      </button>
+                                    ) : prereqRefs.length === 0 ? (
                                       <span className="text-[11px] text-muted-foreground">
                                         quête prérequis non listée dans ce guide
                                       </span>
@@ -2038,6 +2143,19 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
           onToggleCheck={handleToggleResourceCheck}
           hideProvidedResources={hideDone}
           onClose={() => setShowResources(false)}
+        />
+      )}
+
+      {/* ── DONJONS DU GUIDE (état par OCCURRENCE, 100 % local) ── */}
+      {showDungeons && (
+        <RushDungeonsModalShell
+          milestones={milestones}
+          states={dungeonStates}
+          others={[]}
+          busyKey={null}
+          note="Progression enregistrée dans ce navigateur — aucune donnée de guilde."
+          onSet={handleSetDungeonState}
+          onClose={() => setShowDungeons(false)}
         />
       )}
 

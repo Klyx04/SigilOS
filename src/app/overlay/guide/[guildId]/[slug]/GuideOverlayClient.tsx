@@ -617,9 +617,14 @@ export default function GuideOverlayClient({
         return;
       }
       setLoadingIds((prev) => new Set([...prev, ms.id]));
+      let refusal: string | null = null;
       try {
         const res = await toggleMilestoneProgress(guildId, ms.id, !was, effectiveAltPseudo);
-        if (!(res as any)?.success) throw new Error("Échec mutation");
+        if (!(res as any)?.success) {
+          // Refus serveur (ex. donjon requis non fait) : on affiche SA raison, pas « Erreur ».
+          refusal = (res as any)?.error || null;
+          throw new Error("Échec mutation");
+        }
         // Chapitre validé d'un coup → son repère est retiré (soit validé, soit repère).
         if (!was && bookmarksByMs.get(ms.id)) {
           setBookmarksByMs((prev) => {
@@ -638,7 +643,7 @@ export default function GuideOverlayClient({
           was ? n.add(ms.id) : n.delete(ms.id);
           return n;
         });
-        toast.error("Erreur de synchronisation");
+        toast.error(refusal ?? "Erreur de synchronisation");
       } finally {
         setLoadingIds((prev) => {
           const n = new Set(prev);

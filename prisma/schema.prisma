@@ -834,6 +834,8 @@ model UserProfile {
   playerGuideProgress        PlayerGuideProgress[]
   /** Coches manuelles de ressources du Rush (par personnage) — cf. PlayerGuideResourceCheck. */
   rushResourceChecks         PlayerGuideResourceCheck[]
+  /** États manuels des donjons du Rush (« fait » / « à faire ») — cf. PlayerGuideDungeonState. */
+  rushDungeonStates          PlayerGuideDungeonState[]
   guild                      GuildConfig                @relation(fields: [guildId], references: [id], onDelete: Cascade)
   user                       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   skins                      UserSkin[]
@@ -2969,6 +2971,7 @@ model OptimizedGuide {
   steps               OptimizedGuideStep[]
   milestones          GuideMilestone[]
   resourceChecks      PlayerGuideResourceCheck[]
+  dungeonStates       PlayerGuideDungeonState[]
 }
 
 model OptimizedGuideStep {
@@ -3052,6 +3055,9 @@ model GuideSequence {
 
   // Donjons requis (Plusieurs IDs stockés dans un tableau JSON ou de chaînes)
   dungeonIds   String[] @default([]) // Liste d'IDs de Dungeon pour supporter plusieurs donjons à la fois
+  /// Donjons **optionnels** parmi `dungeonIds` : affichés dans la quête, mais ils ne
+  /// bloquent pas sa validation (voir `src/lib/rush-dungeons.ts`).
+  dungeonOptionalIds String[] @default([])
 
   // Lien historique vers un donjon principal
   dungeonId    String?
@@ -3071,6 +3077,8 @@ model GuideSequence {
 
   createdAt   DateTime      @default(now())
   milestone   GuideMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  /// États manuels des donjons **de cette quête** (« fait » / « à faire »).
+  dungeonStates PlayerGuideDungeonState[]
 
   @@index([milestoneId])
   @@index([milestoneId, order])
@@ -3121,6 +3129,46 @@ model PlayerGuideResourceCheck {
   @@unique([profileId, guideId, resourceKey, characterSlot])
   @@index([guideId, characterSlot])
   @@index([profileId])
+}
+
+/// État MANUEL d'un donjon du guide (Rush Sylvestre) : « fait » ou « à faire ».
+///
+/// Le donjon est une entité **globale du guide** : le même donjon apparaît dans
+/// plusieurs quêtes (ex. « Cour du Bouftou Royal »). La clé est donc `dungeonKey`
+/// (`id` > `slug` > nom normalisé — voir `src/lib/rush-dungeons.ts`), **jamais** la
+/// séquence : cocher le donjon le coche partout, et la liste de ses emplacements se
+/// déduit du guide (`buildDungeonIndex`).
+///
+/// Une quête dont un donjon **requis** n'est pas `DONE` ne peut pas être validée
+/// (verrou serveur dans `setRushSequenceProgress`).
+model PlayerGuideDungeonState {
+  id            String            @id @default(cuid())
+  profileId     String
+  guideId       String
+  /// La **quête** concernée : la coche est par OCCURRENCE, pas globale au donjon.
+  /// Le même donjon demandé par deux quêtes se coche deux fois.
+  sequenceId    String
+  characterSlot String            @default("PRINCIPAL") // "PRINCIPAL" = main, pseudo = mule
+  /// Clé STABLE du donjon (voir `dungeonKeyOf` dans `src/lib/rush-dungeons.ts`).
+  dungeonKey    String
+  state         GuideDungeonState
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  profile       UserProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  guide         OptimizedGuide    @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  sequence      GuideSequence     @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, guideId, sequenceId, dungeonKey, characterSlot])
+  @@index([guideId, sequenceId])
+  @@index([guideId, state])
+  @@index([profileId])
+}
+
+/// Deux états seulement. L'absence de ligne = « pas encore décidé ».
+enum GuideDungeonState {
+  DONE
+  TODO
 }
 
 enum GuideMilestoneType {

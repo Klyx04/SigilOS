@@ -29,6 +29,9 @@ import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal
 import MapPositionPopover from "@/components/dofus-quests/MapPositionPopover";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
 import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
+// Fenêtre « Donjons du guide » : coquille PARTAGÉE (dashboard ↔ overlay ↔ guide public),
+// état par OCCURRENCE (quête × donjon). Ici, la persistance est celle de la guilde.
+import { RushDungeonsModalShell } from "@/components/dofus-quests/rush/RushDungeonsModalShell";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
@@ -69,7 +72,10 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG } from "@/lib/rush-guide-utils";
+// Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
+import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress } from "@/lib/rush-dungeons";
+import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
 import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { metierIds } from "@/lib/metiers";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
@@ -87,7 +93,7 @@ import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { brandIconForUrl } from "@/lib/source-icons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type DungeonRef = { id: string; name: string; bossName: string; imageUrl?: string|null };
+type DungeonRef = { id: string; name: string; bossName: string; imageUrl?: string|null; isOptional?: boolean };
 type ActivityTag = { type: string; name?: string; level?: number; count?: number; color?: string; url?: string };
 /**
  * Durée de la surbrillance de la quête CIBLÉE (clic sur un prérequis, « Reprendre »,
@@ -1251,6 +1257,12 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // sur la page Profil ; une quête d'alignement cochée met le profil à jour via
   // `applyRushAlignmentFromSequence` (jamais un écran d'édition ici).
   const effectiveAltPseudo=useMemo(()=>{if(!altPseudo)return undefined;const mp=localProfile?.pseudoDofus;if(mp&&altPseudo===mp)return undefined;return altPseudo;},[altPseudo,localProfile?.pseudoDofus]);
+  // ── Donjons du guide : états par OCCURRENCE, chargés au montage ──────────────
+  // Chargés ici (et pas à l'ouverture de la fenêtre) parce qu'une coche de quête doit
+  // être bloquée AVANT l'aller-retour serveur. Le serveur reste l'autorité : ce n'est
+  // qu'une anticipation du refus (`setRushSequenceProgress` / `toggleMilestoneProgress`).
+  const dungeonsState=useRushDungeonStates({guildId,slug:guide.slug,altPseudo:effectiveAltPseudo});
+  const [dungeonsModalOpen,setDungeonsModalOpen]=useState(false);
   // Alignement de la guilde : `guildProgress` porte DÉJÀ alignment / ordre / tranche
   // (shape `GuideProgressRow`) — une ligne par jalon, donc on déduplique par membre.
   const alignmentMembers=useMemo<AlignmentMember[]>(()=>{
@@ -1457,6 +1469,21 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     const cur=new Set(completedStepsByMs.get(ms.id)||[]);
     const was=cur.has(seqId);
     if(!was&&blockedSeqIds.has(seqId)){toast.warning("Terminez d'abord les prérequis de cette quête.");return;}
+    // Verrou de DONJONS (même règle que le serveur) : seuls les donjons REQUIS de CETTE
+    // quête comptent — un optionnel ne bloque jamais, et la coche d'une autre quête
+    // demandant le même donjon ne vaut pas ici (clé par occurrence).
+    if(!was){
+      const seqObj=ms.sequences.find((s:any)=>s.id===seqId);
+      if(seqObj){
+        const doneKeys=doneDungeonKeysForSequence(dungeonsState.states,seqId);
+        if(sequenceDungeonProgress(seqObj as any,doneKeys).blocked){
+          const names=resolveSequenceDungeons(seqObj as any,doneKeys)
+            .requirements.filter(r=>!r.isOptional&&!r.isDone).map(r=>r.name);
+          toast.error(names.length>0?`Donjon requis non fait : ${names.join(", ")}`:"Donjon requis non fait");
+          return;
+        }
+      }
+    }
     was?cur.delete(seqId):cur.add(seqId);
     const arr=Array.from(cur);
     const regularSeqs=ms.sequences.filter((s:any)=>!isInfoSequence(s));
@@ -1530,15 +1557,18 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}
       }else{
         setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});
-        setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});
-        toast.error("Erreur");
+        // Retour arrière sur l'état AVANT le geste : `allChecked` est calculé APRÈS la
+        // mutation, il ne peut donc pas servir de référence (un refus serveur — donjon
+        // requis manquant — marquait sinon le bloc comme terminé).
+        setCompletedIds(prev=>{const n=new Set(prev);wasMilestoneCompleted?n.add(ms.id):n.delete(ms.id);return n;});
+        toast.error((res as any)?.error||"Erreur");
       }
     }catch{
       setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});
-      setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});
+      setCompletedIds(prev=>{const n=new Set(prev);wasMilestoneCompleted?n.add(ms.id):n.delete(ms.id);return n;});
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
-  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones]);
+  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states]);
   const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);setCelebrate({msId:ms.id,title:isChapterEnd?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:isChapterEnd?"#56d4ad":"#e6b96b"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); }}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
 
@@ -1935,6 +1965,20 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             >
               <ClipboardList className="w-3.5 h-3.5 text-muted-foreground" />
               Pense-bête
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDungeonsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border border-border text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/20"
+              title="Donjons du guide — cocher « fait » / « à faire », quête par quête"
+              aria-label="Ouvrir les donjons du guide"
+            >
+              {/* Picto RÉEL du jeu : le MÊME asset que le tag « Donjon requis »
+                  (`RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath`), pas de glyphe générique. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath} alt="" loading="lazy" className="w-3.5 h-3.5 object-contain" />
+              Donjons
             </button>
 
             {/* Interrupteur de densité — SORTI du menu « Options » : il pilote à la fois les
@@ -2510,6 +2554,19 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       sections={rushUIConfig?.penseBete}
       storageKey={`rush-sylvestre-pense-bete-${guide.id}`}
     />
+
+    {/* ══ DONJONS DU GUIDE — état PAR OCCURRENCE (quête × donjon) ══ */}
+    {dungeonsModalOpen && (
+      <RushDungeonsModalShell
+        milestones={milestones as unknown as RushMilestone[]}
+        states={dungeonsState.states}
+        others={dungeonsState.others}
+        busyKey={dungeonsState.busyKey}
+        loading={dungeonsState.loading}
+        onSet={dungeonsState.setState}
+        onClose={() => setDungeonsModalOpen(false)}
+      />
+    )}
    </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></GuildIdCtx.Provider>
 
 

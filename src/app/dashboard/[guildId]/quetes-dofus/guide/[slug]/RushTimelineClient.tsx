@@ -1326,8 +1326,20 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // être bloquée AVANT l'aller-retour serveur. Le serveur reste l'autorité : ce n'est
   // qu'une anticipation du refus (`setRushSequenceProgress` / `toggleMilestoneProgress`).
   const dungeonsState=useRushDungeonStates({guildId,slug:guide.slug,altPseudo:effectiveAltPseudo});
+  // S0-7 : une décoche de donjon peut DÉVALIDER la quête côté serveur. On la décoche ici
+  // aussi — l'état optimiste du guide ne doit pas afficher « validée » si la base ne l'a plus.
+  const handleSetDungeon=useCallback(async(sequenceId:string,dungeonKey:string,state:RushDungeonState|null)=>{
+    const res=await dungeonsState.setState(sequenceId,dungeonKey,state);
+    const invalidated=res?.invalidatedSequenceId;
+    if(!invalidated)return;
+    const owner=milestones.find(m=>m.sequences.some(s=>s.id===invalidated));
+    if(!owner)return;
+    setCompletedStepsByMs(prev=>{const n=new Map(prev);const set=new Set(n.get(owner.id)||[]);set.delete(invalidated);n.set(owner.id,set);return n;});
+    setCompletedIds(prev=>{const n=new Set(prev);n.delete(owner.id);return n;});
+    toast.info("Donjon décoché : la quête a été dévalidée.");
+  },[dungeonsState.setState,milestones]);
   // Une seule valeur pour toute la timeline : pastilles ET panneaux de quête lisent ici.
-  const dungeonActionsValue=useMemo(()=>({states:dungeonsState.states,busyKey:dungeonsState.busyKey,others:dungeonsState.others,onSet:dungeonsState.setState}),[dungeonsState.states,dungeonsState.busyKey,dungeonsState.others,dungeonsState.setState]);
+  const dungeonActionsValue=useMemo(()=>({states:dungeonsState.states,busyKey:dungeonsState.busyKey,others:dungeonsState.others,onSet:handleSetDungeon}),[dungeonsState.states,dungeonsState.busyKey,dungeonsState.others,handleSetDungeon]);
   // Alignement de la guilde : `guildProgress` porte DÉJÀ alignment / ordre / tranche
   // (shape `GuideProgressRow`) — une ligne par jalon, donc on déduplique par membre.
   const alignmentMembers=useMemo<AlignmentMember[]>(()=>{

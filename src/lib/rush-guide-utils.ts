@@ -677,3 +677,60 @@ export function cascadeResetIds(
   }
   return toReset;
 }
+
+/**
+ * **S0-7 (surfaces locales) — décocher un donjon dévalide la quête.**
+ *
+ * Le guide public et l'overlay invité n'ont pas de serveur pour corriger l'état : c'est
+ * la surface qui doit retirer la quête de ses étapes cochées. Règle pure, une seule fois
+ * pour les deux surfaces (aucune copie), et sans mutation des entrées.
+ *
+ * Le bloc redevient « non terminé » dès qu'une de ses quêtes cochables manque — les
+ * encarts informatifs (`info_sequence`) ne comptent jamais comme une étape à cocher.
+ */
+export function deselectSequenceFromProgress(input: {
+  completedStepsByMs: Map<string, Set<string>>;
+  completedIds: Set<string>;
+  milestones: Array<{ id: string; sequences?: Array<{ id: string; activityTags?: unknown }> }>;
+  sequenceId: string;
+}): {
+  completedStepsByMs: Map<string, Set<string>>;
+  completedIds: Set<string>;
+  /** Bloc propriétaire de la quête (`null` si la quête n'est pas dans le guide). */
+  milestoneId: string | null;
+  /** `false` = rien à faire (quête inconnue ou déjà décochée). */
+  changed: boolean;
+} {
+  const { completedStepsByMs, completedIds, milestones, sequenceId } = input;
+
+  const owner = milestones.find((m) => (m.sequences ?? []).some((s) => s.id === sequenceId));
+  if (!owner) {
+    return { completedStepsByMs, completedIds, milestoneId: null, changed: false };
+  }
+
+  const steps = new Set(completedStepsByMs.get(owner.id) ?? []);
+  if (!steps.has(sequenceId)) {
+    return { completedStepsByMs, completedIds, milestoneId: owner.id, changed: false };
+  }
+
+  steps.delete(sequenceId);
+  const nextSteps = new Map(completedStepsByMs);
+  nextSteps.set(owner.id, steps);
+
+  const contentIds = (owner.sequences ?? [])
+    .filter((s) => !isInfoSequence(s as { activityTags?: Array<{ type?: string | null }> }))
+    .map((s) => s.id);
+  const allDone = contentIds.length > 0 && contentIds.every((id) => steps.has(id));
+
+  const nextIds = new Set(completedIds);
+  if (allDone) nextIds.add(owner.id);
+  else nextIds.delete(owner.id);
+
+  return {
+    completedStepsByMs: nextSteps,
+    completedIds: nextIds,
+    milestoneId: owner.id,
+    changed: true,
+  };
+}
+

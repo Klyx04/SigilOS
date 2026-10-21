@@ -80,6 +80,7 @@ import type { RushUIConfig } from "@/lib/rush-ui-config";
 import { safeImageUrl } from "@/lib/security";
 import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
+import { mergeChapterPages } from "@/lib/rush-guide-pages";
 import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
@@ -1281,6 +1282,11 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // Chapitre actif partagé : sélectionnable depuis le feed (clic sur un header de
   // chapitre) ET depuis la sidebar « Chapitres ». `null` = auto (défaut sidebar).
   const [activeChapter,setActiveChapter]=useState<number|"ALL"|null>(null);
+  // Page courante du paginateur. Un chapitre peut porter PLUSIEURS libellés (chapitre 0 :
+  // un « Obtention : Dofus X » par Dofus) : l'index de page est nécessaire, un numéro ne
+  // suffit pas — sinon « Suiv. » retombait sur la première page du même numéro.
+  const [pageIdx,setPageIdx]=useState<number|null>(null);
+  useEffect(()=>{setPageIdx(null);},[activeChapter]);
   // Ambiance du hero : teinte du Dofus actif (filtre > chapitre courant > émeraude).
   // 100 % CSS statique : un seul repaint au changement, aucun coût continu,
   // `prefers-reduced-motion` respecté par construction (aucune animation).
@@ -1324,8 +1330,20 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // être bloquée AVANT l'aller-retour serveur. Le serveur reste l'autorité : ce n'est
   // qu'une anticipation du refus (`setRushSequenceProgress` / `toggleMilestoneProgress`).
   const dungeonsState=useRushDungeonStates({guildId,slug:guide.slug,altPseudo:effectiveAltPseudo});
+  // S0-7 : une décoche de donjon peut DÉVALIDER la quête côté serveur. On la décoche ici
+  // aussi — l'état optimiste du guide ne doit pas afficher « validée » si la base ne l'a plus.
+  const handleSetDungeon=useCallback(async(sequenceId:string,dungeonKey:string,state:RushDungeonState|null)=>{
+    const res=await dungeonsState.setState(sequenceId,dungeonKey,state);
+    const invalidated=res?.invalidatedSequenceId;
+    if(!invalidated)return;
+    const owner=milestones.find(m=>m.sequences.some(s=>s.id===invalidated));
+    if(!owner)return;
+    setCompletedStepsByMs(prev=>{const n=new Map(prev);const set=new Set(n.get(owner.id)||[]);set.delete(invalidated);n.set(owner.id,set);return n;});
+    setCompletedIds(prev=>{const n=new Set(prev);n.delete(owner.id);return n;});
+    toast.info("Donjon décoché : la quête a été dévalidée.");
+  },[dungeonsState.setState,milestones]);
   // Une seule valeur pour toute la timeline : pastilles ET panneaux de quête lisent ici.
-  const dungeonActionsValue=useMemo(()=>({states:dungeonsState.states,busyKey:dungeonsState.busyKey,others:dungeonsState.others,onSet:dungeonsState.setState}),[dungeonsState.states,dungeonsState.busyKey,dungeonsState.others,dungeonsState.setState]);
+  const dungeonActionsValue=useMemo(()=>({states:dungeonsState.states,busyKey:dungeonsState.busyKey,others:dungeonsState.others,onSet:handleSetDungeon}),[dungeonsState.states,dungeonsState.busyKey,dungeonsState.others,handleSetDungeon]);
   // Alignement de la guilde : `guildProgress` porte DÉJÀ alignment / ordre / tranche
   // (shape `GuideProgressRow`) — une ligne par jalon, donc on déduplique par membre.
   const alignmentMembers=useMemo<AlignmentMember[]>(()=>{
@@ -1369,7 +1387,22 @@ const lastMsOfChapterIds = useMemo(() => {
   }
   return out;
 }, [contentMilestones]);
-const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.order);type TI={kind:"separator";ms:Milestone}|{kind:"info";ms:Milestone}|{kind:"chapter";chapterNum:number;label:string;showHeader:boolean;milestoneList:Milestone[]};const r:TI[]=[];let b:Milestone[]=[];let bc:number|null=null;let bl="";let bsh=true;let lch:number|null=null;const f=()=>{if(b.length){r.push({kind:"chapter",chapterNum:bc!,label:bl,showHeader:bsh,milestoneList:b});b=[];bc=null;bl="";bsh=true;}};for(const ms of s){if(ms.type==="SEPARATEUR"){f();r.push({kind:"separator",ms});continue;}if(ms.type==="INFO"||ms.type==="DOFUS_OBTAINED"){f();r.push({kind:"info",ms});continue;}if(dofusFilter&&ms.dofusId!==dofusFilter)continue;const nh=ms.chapter!==lch;if(bc===null||bc!==ms.chapter){f();bc=ms.chapter;bl=ms.chapterLabel;bsh=nh;if(nh)lch=ms.chapter;}b.push(ms);}f();return r;},[milestones,dofusFilter]);
+const timelineItems=useMemo(()=>{
+  const s=[...milestones].sort((a,b)=>a.order-b.order);
+  // `key` : une bannière coupe un chapitre en plusieurs blocs de MÊME numéro — la clé
+  // React ne peut donc pas être `ch-<numero>` (collision ⇒ blocs fusionnés/perdus).
+  type TI={key:string;kind:"separator";ms:Milestone}|{key:string;kind:"info";ms:Milestone}|{key:string;kind:"chapter";chapterNum:number;label:string;showHeader:boolean;milestoneList:Milestone[]};
+  const r:TI[]=[];let b:Milestone[]=[];let bc:number|null=null;let bl="";let bsh=true;let lch:number|null=null;
+  const f=()=>{if(b.length){r.push({key:`ch-${bc}-${r.length}`,kind:"chapter",chapterNum:bc!,label:bl,showHeader:bsh,milestoneList:b});b=[];bc=null;bl="";bsh=true;}};
+  for(const ms of s){
+    if(ms.type==="SEPARATEUR"){f();r.push({key:`ms-${ms.id}`,kind:"separator",ms});continue;}
+    if(ms.type==="INFO"||ms.type==="DOFUS_OBTAINED"){f();r.push({key:`ms-${ms.id}`,kind:"info",ms});continue;}
+    if(dofusFilter&&ms.dofusId!==dofusFilter)continue;
+    const nh=ms.chapter!==lch;
+    if(bc===null||bc!==ms.chapter){f();bc=ms.chapter;bl=ms.chapterLabel;bsh=nh;if(nh)lch=ms.chapter;}
+    b.push(ms);
+  }
+  f();return r;},[milestones,dofusFilter]);
   // ─── Pagination par chapitre ────────────────────────────────────────────────
   // Le guide fait 57 chapitres / 379 étapes : tout rendre — même replié — donnait un
   // mur de plusieurs milliers de pixels qui ne fera qu'empirer. Une page = UN chapitre.
@@ -1392,7 +1425,8 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       if (out.length) out[out.length - 1].items.push(...pending);
       else out.push({ chapterNum: null, label: "", items: pending });
     }
-    return out;
+    // Une bannière coupe un chapitre en deux morceaux : on les remet sur UNE page.
+    return mergeChapterPages(out);
   }, [timelineItems]);
   // seq/bloc → chapitre : pour SAUTER au bon chapitre avant de scroller (repère,
   // reprise, prérequis, « Je suis ici »).
@@ -1952,14 +1986,15 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
   const defaultChapter = bookmarkedMsId ? msToChapter.get(bookmarkedMsId) ?? null : null;
   const currentChapter = activeChapter ?? defaultChapter ?? chapterPages[0]?.chapterNum ?? null;
   const isAllChapters = currentChapter === "ALL";
-  const pageIndex = isAllChapters ? -1 : Math.max(0, chapterPages.findIndex(p => p.chapterNum === currentChapter));
+  const pageIndex = isAllChapters ? -1 : (pageIdx != null && chapterPages[pageIdx] ? pageIdx : Math.max(0, chapterPages.findIndex(p => p.chapterNum === currentChapter)));
   const currentPage = isAllChapters ? null : chapterPages[pageIndex] ?? chapterPages[0] ?? null;
   const showEveryChapter = isAllChapters || !!searchResults || !!dofusFilter;
   const visibleItems = showEveryChapter ? timelineItems : (currentPage?.items ?? timelineItems);
   const goToPage = (idx: number) => {
     const page = chapterPages[idx];
-    if (!page || page.chapterNum == null) return;
-    setActiveChapter(page.chapterNum);
+    if (!page) return;
+    setPageIdx(idx);
+    if (page.chapterNum != null) setActiveChapter(page.chapterNum);
     scrollToTop();
   };
 
@@ -2377,9 +2412,8 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     <div className="rush-content-grid">
       <div className="min-w-0">
         {/* ── Pagination par chapitre ──────────────────────────────────────────
-            Un guide Rush = 57 chapitres / 379 étapes : tout rendre (même replié)
-            faisait un mur de scroll. Une page = UN chapitre. Le sommaire reste à
-            portée : rail à droite sur grand écran, repliable ici sur mobile. */}
+            Une page = UN chapitre (ou un libellé de chapitre). Le rail de droite
+            (`RushChapterSidebar`) porte le sommaire : plus de liste dépliante ici. */}
         {chapterPages.length > 1 && !searchResults && !dofusFilter && (
           <div className="mb-3 space-y-2">
             <div className="flex items-center gap-2">
@@ -2404,20 +2438,6 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                 {isAllChapters ? "Paginé" : "Tout"}
               </button>
             </div>
-            <details className="group/som">
-              <summary className="cursor-pointer select-none font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground">
-                Sommaire — {chapterPages.length} chapitres
-              </summary>
-              <div className="mt-2 grid max-h-72 grid-cols-1 gap-1 overflow-y-auto border border-border p-1.5 sm:grid-cols-2 xl:grid-cols-3">
-                {chapterPages.map((p, i) => p.chapterNum == null ? null : (
-                  <button key={`som-${p.chapterNum}-${i}`} type="button" onClick={() => goToPage(i)}
-                    className={`flex items-baseline gap-2 rounded-[4px] px-2 py-1.5 text-left transition-colors cursor-pointer ${!isAllChapters && i === pageIndex ? "bg-success/10 text-success" : "text-muted-foreground hover:bg-elevated hover:text-foreground"}`}>
-                    <span className="font-mono text-[11px] tabular-nums shrink-0">{p.chapterNum}</span>
-                    <span className="truncate text-[12px] font-semibold">{p.label || `Chapitre ${p.chapterNum}`}</span>
-                  </button>
-                ))}
-              </div>
-            </details>
           </div>
         )}
         {(searchResults || dofusFilter) && chapterPages.length > 1 && (
@@ -2425,7 +2445,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             {searchResults ? "résultats" : "filtre Dofus"} — les {chapterPages.length} chapitres sont affichés
           </p>
         )}
-        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.ms.id} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor}/>:item.kind==="info"?<div key={item.ms.id}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor}/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} onChapterClick={(c: number)=>setActiveChapter(c)} searchFilter={searchResults} forceOpen={!showEveryChapter && currentPage?.chapterNum === item.chapterNum}/>)}</div>}
         {/* Pager de bas de page : on enchaîne les chapitres sans remonter. */}
         {chapterPages.length > 1 && !searchResults && !dofusFilter && !isAllChapters && (
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">

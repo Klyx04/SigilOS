@@ -1402,6 +1402,81 @@ export async function getRushDungeonStates(guildId: string, slug: string, altPse
 }
 
 /**
+ * **S0-7 — décocher un donjon DÉVALIDE la quête.**
+ *
+ * Un donjon qui n'est plus « fait » (passé à « à faire », ou retiré) doit sortir la quête
+ * des étapes cochées du bloc : sinon une quête reste validée alors qu'une de ses
+ * conditions ne l'est plus (mesuré le 21/10 : 1 quête validée avec 3 donjons faits sur 4).
+ *
+ * Même effet de bord que `setRushSequenceProgress` sur une étape invalidée : les coches
+ * manuelles de ressources de la quête repartent à zéro.
+ *
+ * 🛡️ Garde d'état : on n'écrit que si la ligne de progression n'a pas bougé depuis la
+ * lecture (`updatedAt` dans le WHERE) — une écriture concurrente gagne, on ne l'écrase pas.
+ * Idempotent : une quête déjà décochée n'est pas réécrite (`null`).
+ */
+async function invalidateSequenceProgress(params: {
+  profileId: string;
+  characterSlot: string;
+  guideId: string;
+  sequenceId: string;
+}): Promise<{ milestoneId: string } | null> {
+  const { profileId, characterSlot, guideId, sequenceId } = params;
+
+  const sequence = await db.guideSequence.findFirst({
+    where: { id: sequenceId, milestone: { guideId } },
+    select: {
+      milestoneId: true,
+      activityTags: true,
+      milestone: { select: { sequences: { select: { id: true, activityTags: true } } } },
+    },
+  });
+  if (!sequence) return null;
+
+  const isInfo = (s: { activityTags?: unknown }) =>
+    Array.isArray(s.activityTags) &&
+    (s.activityTags as Array<{ type?: string }>).some((t) => t?.type === "info_sequence");
+  const contentIds = (sequence.milestone?.sequences ?? [])
+    .filter((s) => !isInfo(s))
+    .map((s) => s.id);
+
+  const before = await db.playerGuideProgress.findUnique({
+    where: {
+      profileId_milestoneId_characterSlot: {
+        profileId,
+        milestoneId: sequence.milestoneId,
+        characterSlot,
+      },
+    },
+    select: { id: true, completedSteps: true, updatedAt: true },
+  });
+  const checked = Array.isArray(before?.completedSteps) ? (before!.completedSteps as string[]) : [];
+  if (!before || !checked.includes(sequenceId)) return null;
+
+  const next = checked.filter((id) => id !== sequenceId);
+  const isCompleted = contentIds.length > 0 && contentIds.every((id) => next.includes(id));
+
+  const updated = await db.playerGuideProgress.updateMany({
+    where: { id: before.id, updatedAt: before.updatedAt },
+    data: { completedSteps: next, isCompleted, completedAt: isCompleted ? undefined : null },
+  });
+  if (updated.count === 0) return null; // écriture concurrente : on ne force pas
+
+  // Ressources : la quête n'est plus préparée (même règle que la dévalidation d'étape).
+  const resourceKeys = new Set<string>();
+  for (const tag of (sequence.activityTags as any[]) || []) {
+    if (tag?.type === "item" && tag.name) resourceKeys.add(rushResourceKey(tag));
+  }
+  if (resourceKeys.size > 0) {
+    await db.playerGuideResourceCheck.deleteMany({
+      where: { profileId, characterSlot, resourceKey: { in: [...resourceKeys] } },
+    });
+  }
+
+  return { milestoneId: sequence.milestoneId };
+}
+
+/**
  * États MANUELS des donjons du Rush — **écriture** d'UNE clé.
  *
  * `state` vaut `DONE`, `TODO`, ou `null` (retire la ligne). Idempotent : deux clics
@@ -1440,6 +1515,20 @@ export async function setRushDungeonState(
   });
   if (!sequence) return { success: false as const, error: "Quête introuvable dans ce guide" };
 
+  // État AVANT écriture : seule une coche encore « faite » peut déclencher S0-7.
+  const previous = await db.playerGuideDungeonState.findUnique({
+    where: {
+      profileId_guideId_sequenceId_dungeonKey_characterSlot: {
+        profileId,
+        guideId: guide.id,
+        sequenceId: parsed.data.sequenceId,
+        characterSlot,
+        dungeonKey: parsed.data.dungeonKey,
+      },
+    },
+    select: { state: true },
+  });
+
   if (parsed.data.state === null) {
     await db.playerGuideDungeonState.deleteMany({
       where: {
@@ -1473,6 +1562,20 @@ export async function setRushDungeonState(
     });
   }
 
+  // ── S0-7 : un donjon qui n'est plus « fait » DÉVALIDE la quête ───────────────
+  // (passage à « à faire » ou retrait de la coche). Le client ne fait pas foi : la
+  // quête sort des étapes cochées ici, et ses ressources repartent à zéro.
+  let invalidatedSequenceId: string | null = null;
+  if (previous?.state === "DONE" && parsed.data.state !== "DONE") {
+    const invalidated = await invalidateSequenceProgress({
+      profileId,
+      characterSlot,
+      guideId: guide.id,
+      sequenceId: parsed.data.sequenceId,
+    });
+    if (invalidated) invalidatedSequenceId = parsed.data.sequenceId;
+  }
+
   try {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${slug}`);
   } catch { /* revalidation best-effort */ }
@@ -1482,6 +1585,8 @@ export async function setRushDungeonState(
     sequenceId: parsed.data.sequenceId,
     dungeonKey: parsed.data.dungeonKey,
     state: parsed.data.state,
+    /** Quête dévalidée par cette décoche (S0-7), sinon `null`. */
+    invalidatedSequenceId,
   };
 }
 

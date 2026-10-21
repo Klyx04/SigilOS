@@ -14,8 +14,6 @@
 import { describe, it, expect } from "vitest";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import {
-  applyDungeonStates,
-  buildDungeonIndex,
   doneDungeonKeysForSequence,
   dungeonKeyOf,
   dungeonOccurrenceKey,
@@ -134,115 +132,26 @@ describe("resolveSequenceDungeons — clés stables et doublons", () => {
   });
 });
 
-describe("buildDungeonIndex — tous les donjons du guide et leurs endroits", () => {
-  /** Fabrique de jalon minimal. */
-  const ms = (
-    id: string,
-    title: string,
-    sequences: RushSequence[],
-    over: Partial<RushMilestone> = {}
-  ): RushMilestone => ({
-    id,
-    chapter: 1,
-    chapterLabel: "Chapitre 1",
-    title,
-    isOptional: false,
-    order: 0,
-    sequences,
-    ...over,
-  });
-
-  it("le même donjon dans deux quêtes = une entrée, deux endroits", () => {
-    const index = buildDungeonIndex([
-      ms("m1", "Bloc A", [seq({ id: "s1", dungeon: dj("dj-1") as never })]),
-      ms("m2", "Bloc B", [seq({ id: "s2", dungeons: [dj("dj-1")] as never })]),
-    ]);
-    expect(index).toHaveLength(1);
-    expect(index[0].key).toBe("dj-1");
-    expect(index[0].places).toBe(2);
-    expect(index[0].occurrences.map((o) => o.sequenceId)).toEqual(["s1", "s2"]);
-    expect(index[0].occurrences.map((o) => o.milestoneTitle)).toEqual(["Bloc A", "Bloc B"]);
-  });
-
-  it("optionnel dans une quête, requis dans une autre : les deux endroits comptent", () => {
-    const index = buildDungeonIndex([
-      ms("m1", "A", [seq({ id: "s1", dungeons: [dj("dj-1", { isOptional: true })] as never })]),
-      ms("m2", "B", [seq({ id: "s2", dungeons: [dj("dj-1")] as never })]),
-    ]);
-    expect(index[0].places).toBe(2);
-    expect(index[0].requiredPlaces).toBe(1);
-    expect(index[0].occurrences[0].isOptional).toBe(true);
-  });
-
-  it("un donjon répété dans la même quête ne crée pas deux endroits", () => {
-    const index = buildDungeonIndex([
-      ms("m1", "A", [
-        seq({ id: "s1", dungeon: dj("dj-1") as never, dungeons: [dj("dj-1"), dj("dj-2")] as never }),
-      ]),
-    ]);
-    const entry = index.find((e) => e.key === "dj-1");
-    expect(entry?.places).toBe(1);
-    expect(index.map((e) => e.key)).toEqual(["dj-1", "dj-2"]);
-  });
-
-  it("l'index suit l'ordre du guide", () => {
-    const index = buildDungeonIndex([
-      ms("m1", "A", [seq({ id: "s1", dungeons: [dj("zebre"), dj("arbre")] as never })]),
-      ms("m2", "B", [seq({ id: "s2", dungeons: [dj("maison")] as never })]),
-    ]);
-    expect(index.map((e) => e.key)).toEqual(["zebre", "arbre", "maison"]);
-  });
-
-  it("un guide sans donjon donne un index vide", () => {
-    expect(buildDungeonIndex([ms("m1", "A", [seq({ id: "s1" })])])).toEqual([]);
-  });
-});
-
 describe("états par OCCURRENCE — le même donjon dans deux quêtes", () => {
-  const milestone = (id: string, sequenceId: string): RushMilestone => ({
-    id,
-    chapter: 1,
-    chapterLabel: "Chapitre 1",
-    title: `Bloc ${id}`,
-    isOptional: false,
-    order: 0,
-    sequences: [seq({ id: sequenceId, subGuideName: `Quête ${sequenceId}`, dungeons: [dj("dj-1")] as never })],
-  });
+  const states = {
+    [dungeonOccurrenceKey("s1", "dj-1")]: "done" as const,
+    [dungeonOccurrenceKey("s2", "dj-1")]: "todo" as const,
+  };
 
-  const index = buildDungeonIndex([milestone("m1", "s1"), milestone("m2", "s2")]);
-
-  it("cocher le donjon dans une quête ne coche PAS l'autre", () => {
-    const states = { [dungeonOccurrenceKey("s1", "dj-1")]: "done" as const };
-    const out = applyDungeonStates(index, states);
-    expect(out).toHaveLength(1);
-    expect(out[0].occurrences[0].state).toBe("done");
-    expect(out[0].occurrences[1].state).toBeNull();
-    expect(out[0].donePlaces).toBe(1);
-    expect(out[0].todoPlaces).toBe(0);
-  });
-
-  it("« à faire » est aussi propre à l'occurrence", () => {
-    const states = { [dungeonOccurrenceKey("s2", "dj-1")]: "todo" as const };
-    const out = applyDungeonStates(index, states);
-    expect(out[0].occurrences[0].state).toBeNull();
-    expect(out[0].occurrences[1].state).toBe("todo");
-    expect(out[0].todoPlaces).toBe(1);
-  });
-
-  it("l'état d'une occurrence est lu par sa clé, jamais par le nom du donjon", () => {
-    const states = { [dungeonOccurrenceKey("s1", "dj-1")]: "done" as const };
+  it("l'état est lu par sa clé d'occurrence, jamais par le nom du donjon", () => {
     expect(occurrenceState(states, "s1", "dj-1")).toBe("done");
-    expect(occurrenceState(states, "s2", "dj-1")).toBeNull();
+    expect(occurrenceState(states, "s2", "dj-1")).toBe("todo");
+    // Le même donjon dans une TROISIÈME quête n'a aucun état.
+    expect(occurrenceState(states, "s3", "dj-1")).toBeNull();
     expect(occurrenceState(null, "s1", "dj-1")).toBeNull();
   });
 
   it("le verrou d'une quête ne voit QUE ses propres donjons faits", () => {
-    const states = {
-      [dungeonOccurrenceKey("s1", "dj-1")]: "done" as const,
-      [dungeonOccurrenceKey("s2", "dj-1")]: "todo" as const,
-    };
     expect(doneDungeonKeysForSequence(states, "s1")).toEqual(["dj-1"]);
+    // « à faire » n'est PAS « fait » : la quête s2 reste bloquée.
     expect(doneDungeonKeysForSequence(states, "s2")).toEqual([]);
+    const s2 = seq({ id: "s2", dungeons: [dj("dj-1")] as never });
+    expect(isSequenceBlockedByDungeons(s2, doneDungeonKeysForSequence(states, "s2"))).toBe(true);
     expect(doneDungeonKeysForSequence(null, "s1")).toEqual([]);
   });
 });

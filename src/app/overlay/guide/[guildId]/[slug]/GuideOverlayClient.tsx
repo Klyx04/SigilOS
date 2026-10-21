@@ -18,7 +18,14 @@ import { collectCascadeUncheck } from "@/lib/rush-helpers";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { RushOverlayHeader } from "./components/RushOverlayHeader";
-import { RushDungeonsModal } from "@/components/dofus-quests/rush/RushDungeonsModal";
+import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
+import { readDungeonStates, writeDungeonState } from "@/lib/rush-dungeon-storage";
+import {
+  dungeonOccurrenceKey,
+  type RushDungeonMemberState,
+  type RushDungeonState,
+  type RushDungeonStateMap,
+} from "@/lib/rush-dungeons";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
@@ -171,8 +178,6 @@ export default function GuideOverlayClient({
   const [showAlignment, setShowAlignment] = useState<boolean>(false);
   const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
-  // Donjons du guide (« fait » / « à faire ») — overlay interne uniquement.
-  const [showDungeons, setShowDungeons] = useState<boolean>(false);
 
   // Détection fiable de la taille RÉELLE du panneau overlay (le `matchMedia` sur
   // `window` ne reflète pas toujours la largeur d'un PiP / panneau redimensionnable).
@@ -231,6 +236,50 @@ export default function GuideOverlayClient({
   // Le préfixe vient de l'appelant quand il est fourni (page publique : progression
   // PAR PERSONNAGE), sinon on retombe sur l'emplacement historique sans personnage.
   const storagePrefix = guestStoragePrefix || `sigil_guest_${guide.slug}_`;
+
+  // ── Donjons : coche par OCCURRENCE, depuis la pastille de la quête ─────────────
+  // Interne : états de la guilde (Server Actions, chargés à la 1ʳᵉ ouverture du panneau).
+  // Invité : `localStorage` de l'emplacement courant — aucune donnée de guilde, aucun serveur.
+  const guildDungeons = useRushDungeonStates({
+    guildId,
+    slug: guide.slug,
+    altPseudo: effectiveAltPseudo,
+    lazy: true,
+  });
+  const [guestDungeonStates, setGuestDungeonStates] = useState<RushDungeonStateMap>(() =>
+    isGuest ? readDungeonStates(storagePrefix) : {}
+  );
+  const dungeonActions = useMemo(() => {
+    if (isGuest) {
+      return {
+        states: guestDungeonStates,
+        busyKey: null as string | null,
+        others: [] as RushDungeonMemberState[],
+        onSet: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
+          setGuestDungeonStates(
+            writeDungeonState(storagePrefix, dungeonOccurrenceKey(sequenceId, dungeonKey), state)
+          );
+        },
+        ensureLoaded: () => setGuestDungeonStates(readDungeonStates(storagePrefix)),
+      };
+    }
+    return {
+      states: guildDungeons.states,
+      busyKey: guildDungeons.busyKey,
+      others: guildDungeons.others,
+      onSet: guildDungeons.setState,
+      ensureLoaded: guildDungeons.ensureLoaded,
+    };
+  }, [
+    isGuest,
+    guestDungeonStates,
+    storagePrefix,
+    guildDungeons.states,
+    guildDungeons.busyKey,
+    guildDungeons.others,
+    guildDungeons.setState,
+    guildDungeons.ensureLoaded,
+  ]);
 
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => {
     if (isGuest && typeof window !== "undefined") {
@@ -1047,7 +1096,6 @@ export default function GuideOverlayClient({
             ocre={ocreSummary}
             onOpenOcre={ocreEnabled ? () => setShowOcre(true) : undefined}
             onOpenAlignment={!isGuest && guildId !== "public" ? () => setShowAlignment(true) : undefined}
-            onOpenDungeons={!isGuest && guildId !== "public" ? () => setShowDungeons(true) : undefined}
           />
 
           {/* ══ RECHERCHE ══ */}
@@ -1153,6 +1201,7 @@ export default function GuideOverlayClient({
                       <RushOverlayQuestListItem
                         seq={seq}
                         guildId={guildId}
+                        dungeonActions={dungeonActions}
                         isDone={isSeqDone}
                         isBookmarked={bookmarksByMs.get(ms.id) === seq.id}
                         isLightMode={isLightMode}
@@ -1197,6 +1246,7 @@ export default function GuideOverlayClient({
                     <RushOverlayQuestListItem
                       seq={seq}
                       guildId={guildId}
+                      dungeonActions={dungeonActions}
                       isDone={isSeqDone}
                       isBookmarked={isBookmarked}
                       isLightMode={isLightMode}
@@ -1294,16 +1344,6 @@ export default function GuideOverlayClient({
           selfOrder={alignmentMembers.find((m) => m.isSelf)?.alignmentOrder ?? null}
           mulePseudo={!character?.isMain ? character?.pseudo ?? null : null}
           onClose={() => setShowAlignment(false)}
-        />
-      )}
-      {/* ══ MODALE DONJONS (fait / à faire, tous les endroits) ══ */}
-      {showDungeons && (
-        <RushDungeonsModal
-          guildId={guildId}
-          slug={guide.slug}
-          milestones={milestones}
-          altPseudo={effectiveAltPseudo ?? undefined}
-          onClose={() => setShowDungeons(false)}
         />
       )}
     </div>

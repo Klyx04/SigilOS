@@ -1,126 +1,113 @@
 /**
- * Gardes — **liste des donjons du guide** (`RushDungeonList`), état **par occurrence**.
+ * Gardes — **panneau « Donjons de la quête »**, état **par occurrence**.
  *
- * 🎯 Correction user (21/10/2026, verbatim) : « même donjon dans 3 quêtes = une seule
- * coche qui vaut partout : totalement faux ! un même dj peut être présent dans des
- * quêtes différentes mais la coche de celui-ci ne vaut que pour sa quête cochée ! ».
+ * 🎯 Correction user (21/10/2026, verbatim) : « au clic sur l'icône donjon la mini modale
+ * reste dispo ouverte (avec une croix de fermeture) avec une 2 coche à coté de chaque
+ * donjon : fait / à faire, pas besoin d'une nouvelle icône en haut de l'overlay ».
  *
- * 🛡️ Ce que ce test verrouille : un état PAR QUÊTE (jamais mutualisé par donjon),
- * le compteur d'endroits, la mention « optionnel » par endroit, et les noms des membres
- * qui ont marqué « à faire » pour l'endroit précis.
+ * 🛡️ Ce que ce test verrouille :
+ *  · une ligne par donjon de la quête, avec les DEUX états (jamais une case binaire) ;
+ *  · l'état d'une AUTRE quête n'allume rien ici (clé `sequenceId::dungeonKey`) ;
+ *  · « optionnel » est signalé, et « à faire : X » ne cite que les membres de CETTE quête ;
+ *  · la croix de fermeture existe (le panneau ne se referme pas au survol) ;
+ *  · sans `onSet`, le panneau est en lecture seule (aucun bouton inerte).
  */
 
 import { describe, it, expect } from "vitest";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RushDungeonList } from "@/components/dofus-quests/rush/RushDungeonList";
-import type { RushDungeonEntryView, RushDungeonState } from "@/lib/rush-dungeons";
+import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
+import type { RushDungeonMemberState, RushDungeonStateMap } from "@/lib/rush-dungeons";
 
-const occurrence = (
+const SEQ = {
+  id: "s1",
+  subGuideName: "Quête A",
+  dungeon: null,
+  dungeons: [
+    { id: "dj-1", name: "Donjon du Bouftou", bossName: "Bouftou Royal" },
+    { id: "dj-2", name: "Donjon des Larves", bossName: "Larve Saignante", isOptional: true },
+  ],
+  activityTags: [],
+} as never;
+
+const member = (
   sequenceId: string,
-  over: { sequenceName?: string; milestoneTitle?: string; isOptional?: boolean; state?: RushDungeonState | null } = {}
-) => ({
-  milestoneId: "m1",
-  milestoneTitle: over.milestoneTitle ?? "Bloc A",
-  chapter: 1,
+  dungeonKey: string,
+  name: string
+): RushDungeonMemberState => ({
   sequenceId,
-  sequenceName: over.sequenceName ?? `Quête ${sequenceId}`,
-  isOptional: over.isOptional ?? false,
-  state: over.state ?? null,
+  dungeonKey,
+  state: "todo",
+  profileId: `p-${name}`,
+  userName: name,
+  pseudoDofus: null,
 });
 
-const entry = (
-  key: string,
-  occurrences: ReturnType<typeof occurrence>[],
-  over: { name?: string; isOcre?: boolean } = {}
-): RushDungeonEntryView => ({
-  key,
-  name: over.name ?? `Donjon ${key}`,
-  isOcre: over.isOcre ?? false,
-  occurrences,
-  places: occurrences.length,
-  requiredPlaces: occurrences.filter((o) => !o.isOptional).length,
-  donePlaces: occurrences.filter((o) => o.state === "done").length,
-  todoPlaces: occurrences.filter((o) => o.state === "todo").length,
-});
-
-const render = (props: {
-  entries: RushDungeonEntryView[];
-  others?: Parameters<typeof RushDungeonList>[0]["others"];
-  busyKey?: string | null;
-}) =>
+const render = ({
+  states = {},
+  others = [],
+  withOnSet = true,
+}: {
+  states?: RushDungeonStateMap;
+  others?: RushDungeonMemberState[];
+  withOnSet?: boolean;
+} = {}) =>
   renderToStaticMarkup(
-    React.createElement(RushDungeonList, {
-      entries: props.entries,
-      others: props.others ?? [],
-      busyKey: props.busyKey ?? null,
-      onSet: () => {},
+    React.createElement(RushQuestDungeonsPanel, {
+      seq: SEQ,
+      guildId: "1290442961380835451",
+      states,
+      busyKey: null,
+      others,
+      onSet: withOnSet ? () => {} : undefined,
+      onClose: () => {},
     })
   );
 
-describe("RushDungeonList — un état par quête", () => {
-  it("affiche le donjon, ses deux endroits et le compteur", () => {
-    const out = render({
-      entries: [
-        entry("dj-1", [
-          occurrence("s1", { sequenceName: "Quête A" }),
-          occurrence("s2", { sequenceName: "Quête B" }),
-        ], { name: "Cour du Bouftou Royal" }),
-      ],
-    });
-    expect(out).toContain("Cour du Bouftou Royal");
-    expect(out).toContain("Quête A");
-    expect(out).toContain("Quête B");
-    expect(out).toContain("2 endroits");
-    expect(out).toContain("0/2 fait");
+const activeCount = (out: string) => out.split('aria-pressed="true"').length - 1;
+
+describe("RushQuestDungeonsPanel — les deux coches, par quête", () => {
+  it("affiche chaque donjon de la quête avec Fait / À faire", () => {
+    const out = render();
+    expect(out).toContain("Bouftou Royal");
+    expect(out).toContain("Larve Saignante");
+    // Deux donjons × deux états = quatre boutons, aucun actif au départ.
+    expect(out.match(/aria-pressed="false"/g)?.length).toBe(4);
+    expect(activeCount(out)).toBe(0);
   });
 
-  it("cocher une quête ne marque QUE cette occurrence", () => {
-    const out = render({
-      entries: [
-        entry("dj-1", [
-          occurrence("s1", { state: "done" }),
-          occurrence("s2", { state: null }),
-        ]),
-      ],
-    });
-    // Un seul bouton « Fait » actif, et le compteur le dit.
-    expect(out.split('aria-pressed="true"').length - 1).toBe(1);
-    expect(out).toContain("1/2 fait");
-  });
-
-  it("« à faire » est propre à l'endroit", () => {
-    const out = render({
-      entries: [
-        entry("dj-1", [occurrence("s1", { state: "todo" }), occurrence("s2")]),
-      ],
-    });
-    expect(out.split('aria-pressed="true"').length - 1).toBe(1);
-  });
-
-  it("signale un endroit où le donjon est optionnel", () => {
-    const out = render({
-      entries: [entry("dj-1", [occurrence("s1"), occurrence("s2", { isOptional: true })])],
-    });
+  it("dit où en est la quête (compteur) et signale l'optionnel", () => {
+    const out = render({ states: { "s1::dj-1": "done" } });
+    expect(out).toContain("Donjons de la quête · 1/2 fait");
+    // « dj-2 » est optionnel : il ne bloque rien, donc aucun requis restant.
+    expect(out).not.toContain("requis restant");
     expect(out).toContain("optionnel");
-    expect(out).toContain("2 endroits");
+    // Sans coche, c'est le donjon REQUIS qui manque (l'optionnel ne compte pas).
+    expect(render()).toContain("1 requis restant");
   });
 
-  it("affiche les membres « à faire » de l'endroit concerné, pas des autres", () => {
+  it("l'état d'une AUTRE quête n'allume rien ici (par occurrence)", () => {
+    // Le même donjon coché dans la quête s2 ne vaut pas pour s1.
+    expect(activeCount(render({ states: { "s2::dj-1": "done" } }))).toBe(0);
+    expect(activeCount(render({ states: { "s1::dj-1": "done" } }))).toBe(1);
+  });
+
+  it("« à faire » ne cite que les membres de CETTE quête", () => {
     const out = render({
-      entries: [
-        entry("dj-1", [occurrence("s1", { sequenceName: "Quête A" }), occurrence("s2", { sequenceName: "Quête B" })]),
-      ],
-      others: [
-        { sequenceId: "s1", dungeonKey: "dj-1", state: "todo", profileId: "p1", userName: "Alice", pseudoDofus: null },
-        { sequenceId: "s2", dungeonKey: "dj-1", state: "todo", profileId: "p2", userName: "Bob", pseudoDofus: "Bobby" },
-      ],
+      others: [member("s1", "dj-1", "Alice"), member("s2", "dj-1", "Bob")],
     });
     expect(out).toContain("à faire : Alice");
-    expect(out).toContain("à faire : Bobby");
+    expect(out).not.toContain("Bob");
   });
 
-  it("un guide sans donjon affiche un message, pas une liste vide", () => {
-    expect(render({ entries: [] })).toContain("Aucun donjon dans ce guide.");
+  it("a une croix de fermeture (le panneau ne se referme pas tout seul)", () => {
+    expect(render()).toMatch(/aria-label="Fermer les donjons de cette quête"/);
+  });
+
+  it("reste en lecture seule sans callback d'écriture (aucun bouton inerte)", () => {
+    const out = render({ withOnSet: false });
+    expect(out).toContain("Bouftou Royal");
+    expect(out.includes("aria-pressed")).toBe(false);
   });
 });
+

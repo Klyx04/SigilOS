@@ -29,9 +29,6 @@ import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal
 import MapPositionPopover from "@/components/dofus-quests/MapPositionPopover";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
 import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
-// Fenêtre « Donjons du guide » : coquille PARTAGÉE (dashboard ↔ overlay ↔ guide public),
-// état par OCCURRENCE (quête × donjon). Ici, la persistance est celle de la guilde.
-import { RushDungeonsModalShell } from "@/components/dofus-quests/rush/RushDungeonsModalShell";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
 import LiveActivityTicker from "@/components/dofus-quests/LiveActivityTicker";
 import OcreProgressModal, { type OcreMonsterLite } from "@/components/dofus-quests/OcreProgressModal";
@@ -74,8 +71,9 @@ import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
-import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress } from "@/lib/rush-dungeons";
+import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
+import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { metierIds } from "@/lib/metiers";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
@@ -268,6 +266,12 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const [detailOpen, setDetailOpen] = useState(false);
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
   const allDungeons=seq.dungeons&&seq.dungeons.length>0?seq.dungeons:(seq.dungeon?[seq.dungeon]:[]);
+  // Donjons : coche par OCCURRENCE (quête × donjon), ouverte depuis la pastille.
+  const dungeonActions = React.useContext(RushDungeonActionsCtx);
+  const [dungeonsOpen, setDungeonsOpen] = useState(false);
+  const doneDungeonsForSeq = allDungeons.length > 0
+    ? resolveSequenceDungeons(seq as any, doneDungeonKeysForSequence(dungeonActions.states, seq.id)).requirements.filter(r => r.isDone).length
+    : 0;
   const dbUrl=seq.dofusdbUrl, noobsUrl=seq.dofuspourlesnoobsUrl;
   const hasAlignment=!!(seq.alignReq&&seq.alignOrderReq);
   let isReqMet=false;let alignInfo:any=null;
@@ -385,6 +389,26 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             <span className="text-[13px] font-semibold leading-snug break-words min-w-0 text-foreground">
               {questName}
             </span>
+            {/* Pastille donjon : ouvre les DEUX coches (fait / à faire) de CETTE quête.
+                Même geste que l'overlay et le guide public — jamais un onglet global. */}
+            {allDungeons.length > 0 && (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setDungeonsOpen(v => !v); }}
+                aria-expanded={dungeonsOpen}
+                aria-label={`Donjons de cette quête (${doneDungeonsForSeq}/${allDungeons.length} faits)`}
+                title="Donjons de cette quête — cliquer pour cocher fait / à faire"
+                className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-warning/40 px-1.5 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
+              >
+                {/* Picto RÉEL du jeu (même asset que le tag « Donjon requis »). */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath} alt="" aria-hidden="true" loading="lazy" className="h-3 w-3 object-contain" />
+                Donjon ×{allDungeons.length}
+                {doneDungeonsForSeq > 0 && (
+                  <span className="text-[10px] font-mono text-success">{doneDungeonsForSeq}/{allDungeons.length}</span>
+                )}
+              </button>
+            )}
             {(() => {
               const npc = getSequenceNpc(seq);
               if (!npc || (!npc.name && npc.id === null)) return null;
@@ -535,7 +559,30 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           if (!t?.name) return null;
           return <div><TougliCallout text={t.name} colorStyle={t.color || "emerald"} /></div>;
         })()}
-        {/* ── Donjon(s) ── */}
+        {/* ── Donjon(s) : coche par OCCURRENCE, panneau ouvert depuis la pastille ── */}
+        {dungeonsOpen && allDungeons.length > 0 && (
+          <RushQuestDungeonsPanel
+            seq={seq as any}
+            guildId={guildId}
+            states={dungeonActions.states}
+            busyKey={dungeonActions.busyKey}
+            others={dungeonActions.others}
+            onSet={dungeonActions.onSet}
+            onClose={() => setDungeonsOpen(false)}
+            footer={
+              allDungeons[0] ? (
+                <button
+                  type="button"
+                  onClick={() => onDungeonClick(allDungeons[0].id, questName)}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Users className="h-3 w-3" aria-hidden="true" />
+                  Chercher un groupe
+                </button>
+              ) : undefined
+            }
+          />
+        )}
 
         {/* ── Tips & Note — dépliables ── */}
         {(() => {
@@ -992,6 +1039,17 @@ const ScrollToPrereqCtx=React.createContext<(name:string)=>void>(()=>{});
 const AllMilestonesCtx=React.createContext<Milestone[]>([]);
 const CompletedStepsCtx=React.createContext<Set<string>>(new Set);
 const AllCompletedSeqIdsCtx=React.createContext<Set<string>>(new Set);
+/**
+ * Coche des donjons **par occurrence**, disponible dans toute la timeline (une seule
+ * source : le hook du haut de page). `SequenceRow` n'a donc rien à faire remonter.
+ */
+type RushDungeonActions = {
+  states: Record<string, RushDungeonState>;
+  busyKey: string | null;
+  others: RushDungeonMemberState[];
+  onSet: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => void;
+};
+const RushDungeonActionsCtx=React.createContext<RushDungeonActions>({states:{},busyKey:null,others:[],onSet:()=>{}});
 const ContextualHelpCtx=React.createContext<boolean>(true);
 const ActiveSeqIdCtx=React.createContext<string|null>(null);
 const NextSeqIdCtx=React.createContext<string|null>(null);
@@ -1257,12 +1315,13 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // sur la page Profil ; une quête d'alignement cochée met le profil à jour via
   // `applyRushAlignmentFromSequence` (jamais un écran d'édition ici).
   const effectiveAltPseudo=useMemo(()=>{if(!altPseudo)return undefined;const mp=localProfile?.pseudoDofus;if(mp&&altPseudo===mp)return undefined;return altPseudo;},[altPseudo,localProfile?.pseudoDofus]);
-  // ── Donjons du guide : états par OCCURRENCE, chargés au montage ──────────────
+  // ── Donjons : états par OCCURRENCE, chargés au montage (pastilles + panneaux) ──
   // Chargés ici (et pas à l'ouverture de la fenêtre) parce qu'une coche de quête doit
   // être bloquée AVANT l'aller-retour serveur. Le serveur reste l'autorité : ce n'est
   // qu'une anticipation du refus (`setRushSequenceProgress` / `toggleMilestoneProgress`).
   const dungeonsState=useRushDungeonStates({guildId,slug:guide.slug,altPseudo:effectiveAltPseudo});
-  const [dungeonsModalOpen,setDungeonsModalOpen]=useState(false);
+  // Une seule valeur pour toute la timeline : pastilles ET panneaux de quête lisent ici.
+  const dungeonActionsValue=useMemo(()=>({states:dungeonsState.states,busyKey:dungeonsState.busyKey,others:dungeonsState.others,onSet:dungeonsState.setState}),[dungeonsState.states,dungeonsState.busyKey,dungeonsState.others,dungeonsState.setState]);
   // Alignement de la guilde : `guildProgress` porte DÉJÀ alignment / ordre / tranche
   // (shape `GuideProgressRow`) — une ligne par jalon, donc on déduplique par membre.
   const alignmentMembers=useMemo<AlignmentMember[]>(()=>{
@@ -1901,7 +1960,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
   };
 
 
-  return(<><GuildIdCtx.Provider value={guildId}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
+  return(<><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   <div className="flex flex-col gap-5">
     {/* Braises d'ambiance teintées au Dofus actif (désactivable via Options) */}
     <GuideParticles active={rushParticlesEnabled} colors={particlePalette} haloColor={ambientDofusColor} />
@@ -1965,20 +2024,6 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             >
               <ClipboardList className="w-3.5 h-3.5 text-muted-foreground" />
               Pense-bête
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDungeonsModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border border-border text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/20"
-              title="Donjons du guide — cocher « fait » / « à faire », quête par quête"
-              aria-label="Ouvrir les donjons du guide"
-            >
-              {/* Picto RÉEL du jeu : le MÊME asset que le tag « Donjon requis »
-                  (`RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath`), pas de glyphe générique. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath} alt="" loading="lazy" className="w-3.5 h-3.5 object-contain" />
-              Donjons
             </button>
 
             {/* Interrupteur de densité — SORTI du menu « Options » : il pilote à la fois les
@@ -2554,20 +2599,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       sections={rushUIConfig?.penseBete}
       storageKey={`rush-sylvestre-pense-bete-${guide.id}`}
     />
-
-    {/* ══ DONJONS DU GUIDE — état PAR OCCURRENCE (quête × donjon) ══ */}
-    {dungeonsModalOpen && (
-      <RushDungeonsModalShell
-        milestones={milestones as unknown as RushMilestone[]}
-        states={dungeonsState.states}
-        others={dungeonsState.others}
-        busyKey={dungeonsState.busyKey}
-        loading={dungeonsState.loading}
-        onSet={dungeonsState.setState}
-        onClose={() => setDungeonsModalOpen(false)}
-      />
-    )}
-   </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></GuildIdCtx.Provider>
+   </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider>
 
 
 </>);}

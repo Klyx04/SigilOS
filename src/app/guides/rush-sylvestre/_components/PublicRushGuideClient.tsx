@@ -61,7 +61,7 @@ import {
   sequenceDungeonProgress,
   type RushDungeonState,
 } from "@/lib/rush-dungeons";
-import { RushDungeonsModalShell } from "@/components/dofus-quests/rush/RushDungeonsModalShell";
+import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { resolveRushRoute } from "@/lib/rush-route";
 import { PublicRouteChoice } from "@/components/dofus-quests/rush/PublicRouteChoice";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
@@ -470,7 +470,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
   const [dungeonStates, setDungeonStates] = useState<LocalDungeonStates>(() =>
     readDungeonStates(storagePrefix)
   );
-  const [showDungeons, setShowDungeons] = useState(false);
+  // Quelle quête a SON panneau donjon ouvert (`null` = aucun). Aucune fenêtre globale.
+  const [openDungeonPanel, setOpenDungeonPanel] = useState<string | null>(null);
   // Changement de personnage (ou adoption d'une progression anonyme) = changement
   // d'emplacement : on relit SES coches de donjons, comme ses étapes cochées.
   useEffect(() => {
@@ -674,7 +675,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
       // 🚫 Même doctrine pour les DONJONS : un donjon requis non coché dans CETTE
       // quête verrouille la validation. Ici le refus est local (aucun serveur).
       if (!was && isSeqBlockedByDungeon(seqId)) {
-        toast.error("Donjon requis non fait — coche-le dans « Donjons du guide ».");
+        toast.error("Donjon requis non fait — coche-le sur la pastille Donjon de cette quête.");
         return;
       }
 
@@ -1094,7 +1095,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
           {/* Boutons d'action : TOUS sur la même ligne (4 colonnes) dès qu'il y a la
               place, 2 par ligne sur tablette, empilés sur mobile — largeurs égales,
               aucun bouton qui déborde du cadre. */}
-          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-5">
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-4">
             <button
               type="button"
               onClick={() => setShowResources(true)}
@@ -1117,20 +1118,6 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
             >
               <ClipboardList className="w-4 h-4" aria-hidden="true" />
               <span>{locale === "en" ? "Checklist" : "Pense-bête"}</span>
-            </button>
-
-            {/* Donjons — la MÊME fenêtre que l'interne et l'overlay ; seule la
-                persistance diffère (localStorage, préfixé par personnage). */}
-            <button
-              type="button"
-              onClick={() => setShowDungeons(true)}
-              className="reg-btn reg-btn-secondary w-full"
-              title={locale === "en" ? "Dungeons: mark done / to do, quest by quest" : "Donjons : cocher « fait » / « à faire », quête par quête"}
-            >
-              {/* Picto RÉEL du jeu : le MÊME asset que le tag « Donjon requis ». */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath} alt="" aria-hidden="true" loading="lazy" className="w-4 h-4 object-contain" />
-              <span>{locale === "en" ? "Dungeons" : "Donjons"}</span>
             </button>
 
             {/* Le seul interrupteur de densité : son interrupteur d'origine vivait
@@ -1653,12 +1640,16 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                             const dungeonLocked = !stepDone && isSeqBlockedByDungeon(seq.id);
                             const stepLocked = prereqLocked || dungeonLocked;
                             const prereqRefs = prereqLocked ? getPrereqRefs(seq, milestones) : [];
+                            // Donjons : pastille + panneau local, état par OCCURRENCE.
+                            const seqDungeonReqs = resolveSequenceDungeons(
+                              seq,
+                              doneDungeonKeysForSequence(dungeonStates, seq.id)
+                            ).requirements;
+                            const seqDungeonCount = seqDungeonReqs.length;
+                            const doneDungeonsForSeq = seqDungeonReqs.filter((r) => r.isDone).length;
                             // Donjons REQUIS manquants de CETTE quête (nommés, cliquables).
                             const missingDungeons = dungeonLocked
-                              ? resolveSequenceDungeons(
-                                  seq,
-                                  doneDungeonKeysForSequence(dungeonStates, seq.id)
-                                ).requirements.filter((r) => !r.isOptional && !r.isDone)
+                              ? seqDungeonReqs.filter((r) => !r.isOptional && !r.isDone)
                               : [];
                             const parsedCoord = getSequenceCoord(seq);
 
@@ -1744,7 +1735,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                         prereqLocked
                                           ? "Prérequis non terminé — valide d'abord les quêtes citées sous la ligne."
                                           : dungeonLocked
-                                            ? "Donjon requis non fait — coche-le dans « Donjons du guide »."
+                                            ? "Donjon requis non fait — coche-le sur la pastille Donjon de cette quête."
                                             : undefined
                                       }
                                       className={cn(
@@ -1797,6 +1788,37 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                               return <span className={`${cls} text-foreground`}>{block.questName}</span>;
                                             })()}
                                           </>
+                                        )}
+                                        {/* Pastille donjon : ouvre les DEUX coches de CETTE quête.
+                                            Même geste que l'overlay et le dashboard interne. */}
+                                        {seqDungeonCount > 0 && (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setOpenDungeonPanel((cur) => (cur === seq.id ? null : seq.id));
+                                            }}
+                                            aria-expanded={openDungeonPanel === seq.id}
+                                            aria-label={`Donjons de cette quête (${doneDungeonsForSeq}/${seqDungeonCount} faits)`}
+                                            title="Donjons de cette quête — cliquer pour cocher fait / à faire"
+                                            className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-warning/40 px-1.5 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
+                                          >
+                                            {/* Picto RÉEL du jeu (même asset que le tag « Donjon requis »). */}
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                              src={RUSH_ACTIVITY_TAG_CONFIG.donjon.imagePath}
+                                              alt=""
+                                              aria-hidden="true"
+                                              loading="lazy"
+                                              className="h-3 w-3 object-contain"
+                                            />
+                                            Donjon ×{seqDungeonCount}
+                                            {doneDungeonsForSeq > 0 && (
+                                              <span className="font-mono text-[10px] text-success">
+                                                {doneDungeonsForSeq}/{seqDungeonCount}
+                                              </span>
+                                            )}
+                                          </button>
                                         )}
                                         {parsedCoord && (
                                           <RushCoordinateChip coordText={parsedCoord.raw} showZaap={isZaapCopyEnabled(seq as any)} manualZaap={getSequenceManualZaap(seq as any)} />
@@ -1957,7 +1979,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                     {!prereqLocked ? (
                                       <button
                                         type="button"
-                                        onClick={() => setShowDungeons(true)}
+                                        onClick={() => setOpenDungeonPanel(seq.id)}
                                         className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20 cursor-pointer"
                                         title="Ouvrir les donjons du guide"
                                       >
@@ -1981,6 +2003,19 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                       ))
                                     )}
                                   </div>
+                                )}
+
+                                {/* ── DONJONS DE LA QUÊTE : panneau local, ouvert depuis la
+                                    pastille. Aucune fenêtre globale, aucun onglet dans la barre. ── */}
+                                {openDungeonPanel === seq.id && seqDungeonCount > 0 && (
+                                  <RushQuestDungeonsPanel
+                                    seq={seq}
+                                    guildId="public"
+                                    states={dungeonStates}
+                                    busyKey={null}
+                                    onSet={handleSetDungeonState}
+                                    onClose={() => setOpenDungeonPanel(null)}
+                                  />
                                 )}
 
                                 {/* Conseils & notes dépliables (comme le guide interne) */}
@@ -2143,19 +2178,6 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
           onToggleCheck={handleToggleResourceCheck}
           hideProvidedResources={hideDone}
           onClose={() => setShowResources(false)}
-        />
-      )}
-
-      {/* ── DONJONS DU GUIDE (état par OCCURRENCE, 100 % local) ── */}
-      {showDungeons && (
-        <RushDungeonsModalShell
-          milestones={milestones}
-          states={dungeonStates}
-          others={[]}
-          busyKey={null}
-          note="Progression enregistrée dans ce navigateur — aucune donnée de guilde."
-          onSet={handleSetDungeonState}
-          onClose={() => setShowDungeons(false)}
         />
       )}
 

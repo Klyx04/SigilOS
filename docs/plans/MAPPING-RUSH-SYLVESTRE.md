@@ -9,13 +9,13 @@
 | Indicateur | Dofusyelle (Laniyelle & Marcellusito) | Tougli RSA (Barbofus) | Trame Fusionnée SigilOS |
 |---|:---:|:---:|:---:|
 | **Format** | 57 étapes chronologiques de Rush | 35 chapitres thématiques linéaires | **57 jalons chronologiques avec sous-branches** |
-| **Nombre total de quêtes** | 346 quêtes uniques référencées | 529 quêtes uniques référencées | **346 quêtes rush (socle commun) + 140 alternatives** |
+| **Nombre total de quêtes** | **360** quêtes distinctes (384 lignes) | **529** quêtes distinctes (530 occurrences) | **Trame Dofusyelle + référentiel Tougli** |
 | **Quêtes communes** | 341 quêtes (98.5% du guide Yelle) | 341 quêtes | **100% du parcours optimal** |
 | **Alignement Cité** | 🔴 **Bonta imposé** (+ protecteur Djaul) | 🟢 **Arborescence Bonta OU Brâkmar** | 🟢 **Sélecteur dynamique Bonta / Brâkmar** |
 | **Ordres de Cité** | Ordre non paramétrable | 🟢 **6 Ordres complets** (rangs 1 à 5) | 🟢 **Sélecteur dynamique d'Ordre (1 à 6)** |
 | **Mutualisation Donjons** | 🟢 **40 saves de donjons calculées** | 🔴 Aucune mutualisation (donjons en fin de Dofus) | 🟢 **Saves & Arrêts stratégiques intégrés** |
 | **Préparation en amont** | 🟢 **21 points clés** (métiers, dalles Henual, items) | 🔴 Aucune checklist pré-rush | 🟢 **Checklist Pré-Rush intégrée** |
-| **Ressources globales** | 531 ressources avec multiplicateur perso | 376 items de craft/drop | **Ressources agrégées par étape & personnage** |
+| **Ressources globales** | 531 lignes / **472** ids distincts | **520** ids (dont Kamas) | **union 584 ids** (408 communs) |
 
 ---
 
@@ -145,37 +145,177 @@ Dofusyelle ne suit **PAS** l'ordre des Dofus un par un. Il les découpe pour mut
 
 ---
 
-## 4. L'Arbre des Alignements & Ordres (Issu de Tougli)
+## 4. L'Arbre des Alignements & Ordres (mesuré le 21/10/2026)
+
+> **Correction du 21/10/2026** — cette section annonçait « Bonta (70 quêtes) / Brâkmar (70) » et des
+> tranches `1-33 / 34-65 / 66-85 / 86-100`. **Les deux sont faux** : mesuré aux sources (API Tougli
+> `100-quetes-alignement-bontarien` / `-brakmarien`, Dofusyelle, pages NOOBS), c'est **100 / 102** et
+> les paliers sont **20 / 40 / 60 / 80 / 100** (ils ne découpent pas la liste : ils verrouillent les
+> quêtes d'Ordre).
 
 Dans SigilOS, la trame permet à l'utilisateur de basculer dynamiquement son Alignement (**Bonta** ou **Brâkmar**) et son **Ordre** (1 à 6) :
 
 ```mermaid
 graph TD
-    A["Choix de Cité"] -->|Bontarien| B["Bonta (70 quêtes)"]
-    A -->|Brâkmarien| C["Brâkmar (70 quêtes)"]
+    A["Choix de Cité"] -->|Bontarien| B["Bonta — série de 100 quêtes"]
+    A -->|Brâkmarien| C["Brâkmar — série de 102 quêtes"]
 
-    B --> B1["Alignement 1-33 (Tarche...)"]
-    B --> B2["Alignement 34-65"]
-    B --> B3["Alignement 66-85"]
-    B --> B4["Alignement 86-100"]
+    B --> B0["Prérequis communs (11 lignes) : 1958 → 1959 → 2009 → [classe] → 1960 → 1962 → 2149 → 827 → 703 → 1858 → 1859"]
+    C --> C0["Les MÊMES 11 prérequis, y compris le choix de classe"]
 
-    C --> C1["Alignement 1-33 (Oto Mustam...)"]
-    C --> C2["Alignement 34-65"]
-    C --> C3["Alignement 66-85"]
-    C --> C4["Alignement 86-100"]
+    B --> O_B["Choix Ordre Bonta (palier 20)"]
+    O_B --> CV["Cœur Vaillant — 433 · 109 · 120 · 421 · 1916"]
+    O_B --> OA["Œil Attentif — 435 · 110 · 122 · 425 · 1918"]
+    O_B --> ES["Esprit Salvateur — 434 · 111 · 121 · 423 · 1917"]
 
-    B --> O_B["Choix Ordre Bonta"]
-    O_B --> CV["Cœur Vaillant (Quêtes 433, 109, 120, 421, 1916)"]
-    O_B --> OA["Œil Attentif (Quêtes 435, 110, 122, 425, 1918)"]
-    O_B --> ES["Esprit Salvateur (Quêtes 434, 111, 121, 423, 1917)"]
-
-    C --> O_C["Choix Ordre Brâkmar"]
-    O_C --> CS["Cœur Saignant (Quêtes 436, 112, 123, 422, 1919)"]
-    O_C --> OP["Œil Putride (Quêtes 438, 113, 125, 426, 1921)"]
-    O_C --> EM["Esprit Malsain (Quêtes 437, 114, 124, 424, 1920)"]
+    C --> O_C["Choix Ordre Brâkmar (palier 20)"]
+    O_C --> CS["Cœur Saignant — 436 · 112 · 123 · 422 · 1919"]
+    O_C --> OP["Œil Putride — 438 · 113 · 125 · 426 · 1921"]
+    O_C --> EM["Esprit Malsain — 437 · 114 · 124 · 424 · 1920"]
 ```
 
+**Le palier n'est pas une tranche de la liste** : chaque branche d'Ordre contient **5 quêtes, dans
+l'ordre des paliers** (20 → 100). Il se **dérive par position**, jamais par comparaison de libellé
+(« Espion Silencieux » côté Tougli vs « Espion silencieux » dans `ORDERS`).
+
+
 ---
+
+### 4.1 Les 19 variantes de classe (une seule substitution dans tout le guide)
+
+Le seul point de variation de classe est un nœud `choice id=16` sous le titre **« Astrub »** :
+19 branches `Classe=` → **1 quête remplacée**. Vérifié : aucun autre `Classe=` dans les 678 nœuds.
+
+| Classe | Quête substituée |
+|---|---|
+| Féca | `[1963] Tournée d'inspection` |
+| Osamodas | `[1964] Série animalière` |
+| Enutrof | `[1965] La fête de la chocopépite` |
+| Sram | `[1966] Crime et châtiment` |
+| Xélor | `[1967] Tarot, t'es très fort` |
+| Écaflip | `[1968] Au petit malheur la chance` |
+| Eniripsa | `[1969] Piques de solution` |
+| Iop | `[1970] Iop et hop` |
+| Crâ | `[1971] C'est pour ta pomme` |
+| Sadida | `[1972] C'est pourtant naturel` |
+| Sacrieur | `[1973] Souffre-douleur` |
+| Pandawa | `[1974] Trempette dans un verre d'eau` |
+| Roublard | `[704] Braquage à la Roublard` |
+| Zobal | `[716] Zobal Hibaba et les 40 Roublards` |
+| Steamer | `[938] L'étrange créature de l'étang bleu` |
+| Eliotrope | `[1615] Un rayon de soleil` |
+| Huppermage | `[1677] Les paroles s'envolent, les aigris restent` (niv. **12**) |
+| Ouginak | `[1841] Une vie de milichien` |
+| Forgelance | `[2470] La routine anodine du chevalier citadin` |
+
+⚠️ Les 100-guides écrivent `Classe=panda` (minuscule) quand le RSA écrit `Classe=Panda` ⇒ toute
+comparaison de classe doit être **normalisée** (déjà le cas dans `resolveRushRoute`).
+
+### 4.2 Les 30 quêtes d'Ordre et leur palier (dérivé par position)
+
+| Ordre | 20 | 40 | 60 | 80 | 100 |
+|---|---|---|---|---|---|
+| Cœur Vaillant | 433 | 109 | 120 | 421 | 1916 |
+| Œil Attentif | 435 | 110 | 122 | 425 | 1918 |
+| Esprit Salvateur | 434 | 111 | 121 | 423 | 1917 |
+| Cœur Saignant | 436 | 112 | 123 | 422 | 1919 |
+| Œil Putride | 438 | 113 | 125 | 426 | 1921 |
+| Esprit Malsain | 437 | 114 | 124 | 424 | 1920 |
+
+**5 des 30 exigent d'autres joueurs** (mesuré, type `needPlayer`) : `1916`, `1917`, `1918`, `1919`,
+`1921` — les paliers **80/100** se jouent **en guilde** (« un membre de chaque ordre », « 2 joueurs
+pour réunir tous les ordres »). Ce n'est pas du solo.
+
+### 4.3 Prérequis : le piège `1960`
+
+Les deux camps partagent **11 lignes** de prérequis :
+`1958` → `1959` → `2009` (Conseil de classe) → **[quête de classe]** → `1960` → `1962` → `2149` →
+`827` → `703` → `1858` → `1859`.
+
+⚠️ `1960` « Ça sent le gaz » porte **19 prérequis = les 19 quêtes de classe**. C'est un **OU**
+implicite (la sienne), pas un ET. Importer ces liens tels quels bloquerait la quête à vie :
+ils sont **écartés**, et c'est `classReq` + `resolveRushRoute` qui font le travail.
+
+
+
+### 4.4 Concordance Tougli × Dofusyelle — la série Bonta
+
+| Source | Quêtes | Détail |
+|---|---:|---|
+| Tougli `100-quetes-alignement-bontarien` | **100** | `[55] Tarche` → `[1903] L'exorciste` |
+| Tougli `100-quetes-alignement-brakmarien` | **102** | `[375] Cliquetis fou` → `[1904] La danse macabre` |
+| Dofusyelle (7 étapes « Alignement Bonta ») | **99** | `[55] Tarche` → `[1901] Fée d'hiver` |
+
+**Mesure position par position : `0` différence sur 99.** Dofusyelle est un **préfixe exact** de
+Tougli ; il lui manque le **100ᵉ** (`L'exorciste`). Le doublon « Entrainement avec Tarche » de
+l'étape 3 est une coquille (même quête que la #2).
+
+⇒ **Tougli est la référence des listes**, **Dofusyelle la référence de la trame**. On empile,
+on ne fusionne pas. L'écart **100 / 102** vient des quêtes **Dofus Turquoise** (6 côté Bonta,
+7 côté Brâkmar) : le « miroir par position » ne vaut **pas** pour le total de la série.
+
+### 4.5 Ressources, donjons, succès — l'union mesurée
+
+| Domaine | Dofusyelle | Tougli | Communs | Union |
+|---|---:|---:|---:|---:|
+| Ressources (id DofusDB) | **472** distincts (531 lignes) | **520** | **408** | **584** |
+| Donjons (slug DPLN) | 83 | 99 | **67** | ≈ 115, dont **16 alias** à cartographier |
+| Succès | **62** distincts (80 lignes) | 2 | 2 | **62** — Dofusyelle est la seule source |
+
+Rappel : notre guide porte **391** ids de ressources ⇒ **V-D** doit viser **584**, pas « ~609 »
+(ce chiffre additionnait des lignes, pas des ids distincts).
+
+Les 16 alias de donjons (même donjon, slug différent) sont à trancher une fois pour toutes dans
+une table de correspondance — ex. `caverne-de-kolosso` ↔ `caverne-du-koulosse`,
+`repaire-du-skeunk` ↔ `antre-du-skeunk`, `caverne-de-cire-momore`, `antre-du-crocabulia`.
+
+
+
+### 4.6 Contraintes par quête — inventaire exhaustif (Tougli, 1 085 entrées)
+
+| Type | n | Payload | Sens | Chez nous |
+|---|---:|---|---|---|
+| `combat` | 726 | `{type, payload[{count, monster}], detail}` | 5 modes : solo 380 · groupe 298 · tactique 18 · soloV 18 · groupeV 12 | tag `combat_*`, **sans composition** |
+| `dungeon` | 168 | donjon + boss inline | donjon requis | ✅ `dungeonIds` |
+| `bashMobs` | 81 | `[{monster}]` | **espèces** à tuer (pas une quantité) | ❌ |
+| `needPlayer` | 38 | **texte libre** | effectif / rôles / dalles | tag `plusieurs_personnes`, sans structure |
+| `job` | 37 | `{job, detail}` | métier + niveau **en texte** | ✅ tag `metier` |
+| `url` | 9 | `{url, text}` | outil externe (simulateur) | ❌ |
+| `hours` | 7 | **texte** | **2 natures mélangées** (voir ci-dessous) | ❌ / `contrainte_horaire` trop grossier |
+| `dungeonChoice` | 7 | `{dungeons[], note}` | donjon **au choix selon le niveau** | ❌ |
+| `note` | 4 | i18n | condition libre | ❌ |
+| `songe` | 3 | texte | palier de Rêve | ✅ tag `songes` |
+| `spell` | 3 | texte | sort requis | ✅ tag `sort` |
+| `achievement` | 2 | succès | prérequis de succès | ❌ |
+
+**`hours` — le point dur** : 4 **fenêtres** (« entre 20h00 et 8h00 », « >20h00 ») et 3 **attentes**
+(« attendre 3 minutes », « attendre auprès d'un PNJ »). Un seul tag ne permet pas à l'overlay de dire
+*« reviens à 20 h »* ou *« attends 3 min »* ⇒ champ à structurer (`kind: window | wait`, `from`, `to`, `minutes`).
+
+**`needPlayer`** n'est pas normalisable (`3 x Alchimiste >80 + 3 x Paysan >40`, `4 joueurs pour des
+dalles`, `12 classes ou 120 000 kamas`) : à afficher en **texte**, jamais à utiliser comme règle de blocage.
+
+### 4.7 Structures non modélisées + pièges de données
+
+| Structure | Occurrences | Sens | Impact |
+|---|---:|---|---|
+| `group` | **16** | quêtes **parallèles simultanées** (2 à 6) | l'ordre intra-groupe n'a pas de sens |
+| `take_quests` | 74 nœuds, **53 vides** → **49 quêtes** | **prendre à l'avance** (anti-blocage) | aucun équivalent chez nous |
+| `choice` | 11 | 1 classe (19 branches) + 8 alignement/ordre | route couverte à 2/3 |
+| `title` | 35 | chapitres | `chapter` |
+| `note` | 10 | avertissement éditorial | `tips` |
+
+**9 pièges mesurés** (à ne jamais « réparer » silencieusement à l'import) :
+
+1. **93 / 530** fiches ont `objectives: []` alors que `verified: true` — le drapeau ne prouve rien.
+2. **9** compositions de combat vides ; **38 / 726** seulement ont un `detail` non vide.
+3. **162** quêtes multi-combats (jusqu'à **14**) : ne jamais fusionner.
+4. Deux combats **solo du même nom** avec des ids différents (`Mercenaire d'Astrub` 5295 / 5294).
+5. **7** liens de prérequis non résolus (`1988`, `272`, `274`, `626`, `710`, `711`).
+6. **Kamas = id `10000000001`** (> Int32) : pseudo-ressource, **250 049 unités** demandées, jusqu'à 35 000 par quête.
+7. **520** ids d'objets inline vs **384** au catalogue (158 communs) ; union **584** avec Dofusyelle.
+8. `allQuestIds` (429) ≠ arbre (529) ; `1845` a une fiche **sans nœud** ; `1962` est en **double**.
+9. Casses incohérentes : `panda`, « Espion Silencieux ».
 
 ## 5. La Checklist Pré-Rush (Les 21 Piliers Dofusyelle)
 

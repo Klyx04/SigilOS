@@ -141,7 +141,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
   - **changement de cité = logique jeu** : **reset** de l'alignement (+ `alignmentBefore`) et **retour à la 1ʳᵉ quête** de la nouvelle cité ; quêtes communes conservées ;
   - **résolution** : `resolveRushRoute` **filtre**, puis `buildRushGuideView` / `isSequenceBlockedByPrereqs` / `aggregateRushResources` **calculent sur le set filtré** (un prérequis masqué ne bloque pas) ;
   - **God** : marquage par séquence + action de masse par bloc + vue « Branches » + « créer la jumelle » (miroir par slot).
-- **État mesuré** : nos 66 tags `alignment_set` sont **tous `bontarien`** · `alignReq` / `alignOrderReq` **null** partout · **Bonta 98/100** (`Bandanarthrie`, `Le subterfuge de la corne` manquantes) · **Brâkmar 0/102** · **6 ordres × 5 rangs**, 2 slots multi-quêtes.
+- **État mesuré** : nos 66 tags `alignment_set` sont **tous `bontarien`** · `alignReq` / `alignOrderReq` **null** partout · **100 quêtes de cité côté Bonta** (source, dont 66 portées par notre seed) · **102 côté Brâkmar** · **6 ordres × 5 rangs** · 19 variantes de classe (1 substitution à Astrub).
 - **Dépendances** : **D** (même import NOOBS / Tougli) · **Statut** : **à faire**.
 
 ### F2 — Arbre d'alignement à DEUX étages (état mesuré et livré le 20/10/2026)
@@ -150,7 +150,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 > Elle est plus riche que « deux colonnes » : **cité**, puis **Ordre**.
 
 **Structure réelle (mesurée)**
-- **2 séries de 100 quêtes de cité**, miroir **par position** : Bonta (100ᵉ = « L'exorciste ») ↔ Brâkmar (100ᵉ = « La danse macabre »). Même emplacement dans le déroulé, contenu différent.
+- **2 séries de quêtes de cité**, **100** côté Bontarien (100ᵉ = « L'exorciste ») et **102** côté Brâkmarien (102ᵉ = « La danse macabre »). Le miroir vaut **par position tant que les deux séries avancent ensemble** ; il ne vaut pas pour le total (6 quêtes Turquoise côté Bonta, **7** côté Brâkmar). Dofusyelle n'en liste que **99** (préfixe exact de la liste Tougli, mesuré le 21/10).
 - **3 Ordres par cité**, **5 quêtes d'Apprentissage** chacun, seuils **> 20 / 40 / 60 / 80 / 100**.
 - Les **5 quêtes ont un nom propre par Ordre** (ex. Ménalt / Silvosse / Jiva) ⇒ **30 quêtes d'Ordre** au total, pas 6 × 5.
 - Le palier 100 exige donc **les 100 quêtes de cité** (dont la 100ᵉ) : c'est un **verrou**, pas un badge.
@@ -181,7 +181,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Non copié** : le DSL en texte (fragile). On garde des champs typés.
 
 **Reste à faire (dans cet ordre)**
-1. **Vue Branches à 2 étages** dans God (cité → Ordre, paires alignées, manques signalés).
+1. **Vue Branches à 2 étages** dans God (cité → Ordre, paires alignées, manques signalés) — cible **100 / 102** (mesuré). Organisation de la suite, blocs S0→S5 : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
 2. **Édition** des champs de route sur une séquence **existante** (aujourd'hui : création seulement).
 3. Sélecteur d'**Ordre** dans l'overlay et le guide public (aujourd'hui : cité seule).
 4. Saisie du contenu : 2 × 100 quêtes de cité + 30 quêtes d'Ordre.

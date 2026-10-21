@@ -1503,6 +1503,8 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     setLoading(ms.id,true);
     try{
       const res=await setRushSequenceProgress(guildId,ms.id,arr,effectiveAltPseudo);
+      // Verrou de donjons : le serveur refuse (donjon requis non fait) → on l'explique.
+      if(!(res as any).success){ toast.error((res as any)?.error || "Quête verrouillée par un donjon"); return; }
       if((res as any).success){
         // Validation → le repère de cette quête est retiré (soit validée, soit repère).
         if(!was && bookmarksByMs.get(ms.id)===seqId){

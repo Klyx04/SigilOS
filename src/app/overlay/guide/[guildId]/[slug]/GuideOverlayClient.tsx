@@ -18,6 +18,7 @@ import { collectCascadeUncheck } from "@/lib/rush-helpers";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { RushOverlayHeader } from "./components/RushOverlayHeader";
+import { RushDungeonsModal } from "@/components/dofus-quests/rush/RushDungeonsModal";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
@@ -170,6 +171,8 @@ export default function GuideOverlayClient({
   const [showAlignment, setShowAlignment] = useState<boolean>(false);
   const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
+  // Donjons du guide (« fait » / « à faire ») — overlay interne uniquement.
+  const [showDungeons, setShowDungeons] = useState<boolean>(false);
 
   // Détection fiable de la taille RÉELLE du panneau overlay (le `matchMedia` sur
   // `window` ne reflète pas toujours la largeur d'un PiP / panneau redimensionnable).
@@ -1039,6 +1042,7 @@ export default function GuideOverlayClient({
             ocre={ocreSummary}
             onOpenOcre={ocreEnabled ? () => setShowOcre(true) : undefined}
             onOpenAlignment={!isGuest && guildId !== "public" ? () => setShowAlignment(true) : undefined}
+            onOpenDungeons={!isGuest && guildId !== "public" ? () => setShowDungeons(true) : undefined}
           />
 
           {/* ══ RECHERCHE ══ */}
@@ -1285,6 +1289,16 @@ export default function GuideOverlayClient({
           selfOrder={alignmentMembers.find((m) => m.isSelf)?.alignmentOrder ?? null}
           mulePseudo={!character?.isMain ? character?.pseudo ?? null : null}
           onClose={() => setShowAlignment(false)}
+        />
+      )}
+      {/* ══ MODALE DONJONS (fait / à faire, tous les endroits) ══ */}
+      {showDungeons && (
+        <RushDungeonsModal
+          guildId={guildId}
+          slug={guide.slug}
+          milestones={milestones}
+          altPseudo={effectiveAltPseudo ?? undefined}
+          onClose={() => setShowDungeons(false)}
         />
       )}
     </div>

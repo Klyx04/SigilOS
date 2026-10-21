@@ -21,6 +21,7 @@ import { z } from "zod";
 import { findSequenceHelpers, type RushHelperProfile, type RushHelperMetier } from "@/lib/rush-helpers";
 import { normalizeMetiers } from "@/lib/metiers";
 import { rushResourceKey } from "@/lib/rush-guide-utils";
+import { doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -936,6 +937,70 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
 }
 
 /**
+ * Verrou de DONJONS (S0-4) — première séquence **nouvellement cochée** dont un donjon
+ * **requis** n'est pas marqué « fait » par ce personnage.
+ *
+ * Les donjons sont une entité globale du guide (`dungeonKey` = id > slug > nom), la coche
+ * vit dans `PlayerGuideDungeonState`. Un donjon **optionnel** (`dungeonOptionalIds`),
+ * même non coché, ne bloque jamais.
+ */
+async function findSequenceBlockedByMissingDungeon(
+  guideId: string,
+  sequenceIds: string[],
+  states: RushDungeonStateMap
+): Promise<{ id: string; name: string; missing: string[] } | null> {
+  if (!guideId || sequenceIds.length === 0) return null;
+
+  const rows = await db.guideSequence.findMany({
+    where: { id: { in: sequenceIds.slice(0, 500) }, milestone: { guideId } },
+    select: {
+      id: true,
+      subGuideName: true,
+      dungeonId: true,
+      dungeonIds: true,
+      dungeonOptionalIds: true,
+      dungeon: { select: { id: true, name: true, slug: true, bossName: true } },
+    },
+  });
+  if (rows.length === 0) return null;
+
+  const allIds = new Set<string>();
+  for (const row of rows) {
+    if (row.dungeonId) allIds.add(row.dungeonId);
+    for (const id of row.dungeonIds ?? []) allIds.add(id);
+  }
+  if (allIds.size === 0) return null;
+
+  const dungeons = await db.dungeon.findMany({
+    where: { id: { in: [...allIds] } },
+    select: { id: true, name: true, slug: true, bossName: true },
+  });
+  const byId = new Map(dungeons.map((d) => [d.id, d]));
+
+  for (const row of rows) {
+    const optional = new Set(row.dungeonOptionalIds ?? []);
+    const refs: Array<{ id: string; name: string; slug: string; bossName: string; isOptional: boolean }> = [];
+    for (const id of row.dungeonIds ?? []) {
+      const dungeon = byId.get(id);
+      if (dungeon) refs.push({ ...dungeon, isOptional: optional.has(id) });
+    }
+    if (row.dungeon && !refs.some((r) => r.id === row.dungeon?.id)) {
+      refs.unshift({ ...row.dungeon, isOptional: optional.has(row.dungeon.id) });
+    }
+
+    const progress = sequenceDungeonProgress(
+      { dungeons: refs } as unknown as RushSequence,
+      doneDungeonKeysForSequence(states, row.id)
+    );
+    if (progress.blocked) {
+      return { id: row.id, name: row.subGuideName, missing: progress.missingRequired };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Action Rush dédiée : valide des séquences par leur ID (pas par step-keys Ganymède).
  * Le module Rush stocke les séquences par `seq.id` ; `updateStepProgress` (partagé avec
  * Duffus) filtre en `GPx-N` et casserait la persistance. Ici on écrit les seq-ids bruts
@@ -957,7 +1022,7 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
     select: {
       title: true,
       type: true,
-      guide: { select: { slug: true } },
+      guide: { select: { id: true, slug: true } },
       sequences: { select: { id: true, activityTags: true } },
     },
   });
@@ -987,6 +1052,36 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
     ? (before!.completedSteps as string[])
     : [];
   const unvalidatedSeqIds = previouslyChecked.filter((id) => !checkedSet.has(id));
+
+  // ── Verrou de DONJONS (S0-4) ────────────────────────────────────────────────
+  // Une quête **nouvellement** cochée dont un donjon **requis** n'est pas marqué
+  // « fait » est refusée : le client ne fait pas foi, la règle est ici. Un donjon
+  // optionnel ne bloque jamais, et décocher reste toujours possible.
+  const newlyChecked = incoming.filter((id) => !previouslyChecked.includes(id));
+  if (newlyChecked.length > 0) {
+    const stateRows = await db.playerGuideDungeonState.findMany({
+      where: { profileId, guideId: milestone.guide.id, characterSlot },
+      select: { sequenceId: true, dungeonKey: true, state: true },
+    });
+    const dungeonStates: Record<string, "done" | "todo"> = {};
+    for (const row of stateRows) {
+      dungeonStates[dungeonOccurrenceKey(row.sequenceId, row.dungeonKey)] =
+        row.state === "DONE" ? "done" : "todo";
+    }
+    const blocked = await findSequenceBlockedByMissingDungeon(
+      milestone.guide.id,
+      newlyChecked,
+      dungeonStates
+    );
+    if (blocked) {
+      return {
+        success: false as const,
+        error: `« ${blocked.name} » : ${blocked.missing.length} donjon(s) requis non fait(s)`,
+        blockedSequenceId: blocked.id,
+        missingDungeons: blocked.missing,
+      };
+    }
+  }
 
   const progress = await db.playerGuideProgress.upsert({
     where: { profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot } },
@@ -1192,6 +1287,156 @@ export async function setRushResourceChecks(
   } catch { /* revalidation best-effort */ }
 
   return { success: true as const, keys: wanted };
+}
+
+/** Entrée bornée : état manuel d'un donjon **dans une quête** (`null` = effacer). */
+const rushDungeonStateSchema = z.object({
+  sequenceId: z.string().min(1).max(64),
+  dungeonKey: z.string().min(1).max(120),
+  state: z.enum(["DONE", "TODO"]).nullable(),
+});
+
+/**
+ * États MANUELS des donjons du Rush — **lecture** (moi + les autres membres de la guilde).
+ *
+ * Le donjon est une entité **globale au guide** : la clé est `dungeonKey`, jamais la
+ * séquence. `others` sert à voir **qui** a marqué « à faire » (entraide), et ne sort
+ * jamais du périmètre de la guilde.
+ */
+export async function getRushDungeonStates(guildId: string, slug: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  const guide = await db.optimizedGuide.findUnique({ where: { slug }, select: { id: true } });
+  if (!guide) return { success: false as const, error: "Guide introuvable", mine: {}, others: [] };
+
+  const [mineRows, otherRows] = await Promise.all([
+    db.playerGuideDungeonState.findMany({
+      where: { profileId, guideId: guide.id, characterSlot },
+      select: { sequenceId: true, dungeonKey: true, state: true },
+      take: 2000,
+    }),
+    db.playerGuideDungeonState.findMany({
+      where: {
+        guideId: guide.id,
+        profileId: { not: profileId },
+        profile: { guild: { discordGuildId: guildId } },
+      },
+      select: {
+        sequenceId: true,
+        dungeonKey: true,
+        state: true,
+        profileId: true,
+        profile: { select: { pseudoDofus: true, user: { select: { name: true } } } },
+      },
+      take: 3000,
+    }),
+  ]);
+
+  // La clé est **par occurrence** : `sequenceId::dungeonKey`.
+  const mine: Record<string, "done" | "todo"> = {};
+  for (const row of mineRows) {
+    mine[dungeonOccurrenceKey(row.sequenceId, row.dungeonKey)] =
+      row.state === "DONE" ? "done" : "todo";
+  }
+
+  const others = otherRows.map((row) => ({
+    sequenceId: row.sequenceId,
+    dungeonKey: row.dungeonKey,
+    state: row.state === "DONE" ? ("done" as const) : ("todo" as const),
+    profileId: row.profileId,
+    userName: row.profile?.user?.name ?? "Membre",
+    pseudoDofus: row.profile?.pseudoDofus ?? null,
+  }));
+
+  return { success: true as const, mine, others };
+}
+
+/**
+ * États MANUELS des donjons du Rush — **écriture** d'UNE clé.
+ *
+ * `state` vaut `DONE`, `TODO`, ou `null` (retire la ligne). Idempotent : deux clics
+ * simultanés convergent. Une clé de donjon n'est pas validée contre le guide (coût
+ * d'un parcours complet) : c'est une donnée **personnelle**, bornée, sans effet si le
+ * donjon n'existe pas dans le guide.
+ */
+export async function setRushDungeonState(
+  guildId: string,
+  slug: string,
+  sequenceId: string,
+  dungeonKey: string,
+  state: "DONE" | "TODO" | null,
+  altPseudo?: string
+) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+
+  // 🛡️ RATE LIMIT (P0) : 120 changements d'état de donjon/min par membre.
+  const { success: rateOk } = await rateLimit(`guide-dungeon-state:${ctx.profileId}`, 120, 60_000);
+  if (!rateOk) return { success: false as const, error: "Trop de requêtes, veuillez patienter." };
+
+  const parsed = rushDungeonStateSchema.safeParse({ sequenceId, dungeonKey, state });
+  if (!parsed.success) return { success: false as const, error: "Données invalides" };
+
+  const guide = await db.optimizedGuide.findUnique({ where: { slug }, select: { id: true } });
+  if (!guide) return { success: false as const, error: "Guide introuvable" };
+
+  // 🛡️ Isolation : la quête doit appartenir à CE guide (jamais une clé arbitraire).
+  const sequence = await db.guideSequence.findFirst({
+    where: { id: parsed.data.sequenceId, milestone: { guideId: guide.id } },
+    select: { id: true },
+  });
+  if (!sequence) return { success: false as const, error: "Quête introuvable dans ce guide" };
+
+  if (parsed.data.state === null) {
+    await db.playerGuideDungeonState.deleteMany({
+      where: {
+        profileId,
+        guideId: guide.id,
+        sequenceId: parsed.data.sequenceId,
+        characterSlot,
+        dungeonKey: parsed.data.dungeonKey,
+      },
+    });
+  } else {
+    await db.playerGuideDungeonState.upsert({
+      where: {
+        profileId_guideId_sequenceId_dungeonKey_characterSlot: {
+          profileId,
+          guideId: guide.id,
+          sequenceId: parsed.data.sequenceId,
+          characterSlot,
+          dungeonKey: parsed.data.dungeonKey,
+        },
+      },
+      update: { state: parsed.data.state },
+      create: {
+        profileId,
+        guideId: guide.id,
+        sequenceId: parsed.data.sequenceId,
+        characterSlot,
+        dungeonKey: parsed.data.dungeonKey,
+        state: parsed.data.state,
+      },
+    });
+  }
+
+  try {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${slug}`);
+  } catch { /* revalidation best-effort */ }
+
+  return {
+    success: true as const,
+    sequenceId: parsed.data.sequenceId,
+    dungeonKey: parsed.data.dungeonKey,
+    state: parsed.data.state,
+  };
 }
 
 /**
@@ -2721,8 +2966,14 @@ export async function getOrCreateRushSylvestreGuide() {
       for (const ms of guide.milestones) {
         for (const seq of ms.sequences) {
           const ids = (seq as any).dungeonIds as string[] | undefined;
+          // Un donjon peut être OPTIONNEL (sous-ensemble de `dungeonIds`) : la surface a
+          // besoin du drapeau pour ne pas verrouiller la quête avec un donjon facultatif.
+          const optionalIds = new Set(((seq as any).dungeonOptionalIds as string[] | undefined) ?? []);
           if (ids && ids.length > 0) {
-            (seq as any).dungeons = ids.map(id => dungeonMap.get(id)).filter(Boolean);
+            (seq as any).dungeons = ids
+              .map(id => dungeonMap.get(id))
+              .filter(Boolean)
+              .map(d => ({ ...d, isOptional: optionalIds.has(d!.id) }));
           }
         }
       }

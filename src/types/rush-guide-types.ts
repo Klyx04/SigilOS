@@ -46,6 +46,8 @@ export type RushDungeonRef = {
   name: string;
   bossName?: string;
   imageUrl?: string | null;
+  /** Optionnel : affiché dans la quête, mais ne bloque pas sa validation. */
+  isOptional?: boolean;
 };
 
 export type RushSequence = {

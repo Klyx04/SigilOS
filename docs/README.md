@@ -66,6 +66,7 @@ docs/
 │   ├── PLAN-REFONTE-RUSH-SYLVESTRE.md  refonte du rush Sylvestre (T-1 → T-6)
 │   ├── ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md  rush : architecture d'alignement
 │   ├── MAPPING-RUSH-SYLVESTRE.md  rush : mapping des données
+│   ├── RUSH-DEVELOPPEMENT-SUITE.md  rush : organisation de la suite (4 surfaces, blocs S0→S5)
 │   ├── PLAN-SUCCES-SPECIAUX.md     succès spéciaux (données + fiches)
 │   ├── PLAN-SOLVEURS-TACTIQUES.md solveurs tactiques (à cadrer)
 

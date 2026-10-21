@@ -274,6 +274,8 @@ export type DungeonInfo = {
   bossName: string | undefined;
   imageUrl: string | undefined;
   isOcre: boolean;
+  /** Optionnel : ne bloque pas la validation de la quête (verrou `rush-dungeons`). */
+  isOptional?: boolean;
 };
 
 export function getDungeons(seq: RushSequence): DungeonInfo[] {
@@ -289,6 +291,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
       bossName: seq.dungeon.bossName,
       imageUrl: seq.dungeon.imageUrl ?? undefined,
       isOcre: false,
+      isOptional: seq.dungeon.isOptional === true,
     });
   }
 
@@ -303,6 +306,7 @@ export function getDungeons(seq: RushSequence): DungeonInfo[] {
           bossName: d.bossName,
           imageUrl: d.imageUrl,
           isOcre: !!(seq.activityTags?.some((t) => t.type === "ocre_dungeon")),
+          isOptional: (d as any).isOptional === true,
         });
       }
     }

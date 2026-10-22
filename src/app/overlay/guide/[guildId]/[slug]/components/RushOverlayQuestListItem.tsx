@@ -311,15 +311,6 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20"
                   title={`Aller à : ${p.name}`}
                 >
-                  {/* Le picto de QUÊTE sur chaque prérequis : on voit tout de suite que
-                      ce sont des quêtes, pas des étapes de donjon ou des ressources. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/assets/icons/icone-quete.png"
-                    alt=""
-                    className="h-3 w-3 shrink-0 object-contain"
-                    aria-hidden="true"
-                  />
                   {p.name}
                 </button>
               ))}
@@ -355,6 +346,14 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                         alt=""
                         className="h-4 w-4 rounded-[2px] object-cover"
                         loading="lazy"
+                        onError={(e) => {
+                          // Vignette absente côté assets : on retombe sur le picto du jeu
+                          // plutôt que de laisser un carré vide (mesuré le 22/10/2026).
+                          const img = e.currentTarget;
+                          img.onerror = null;
+                          img.src = "/assets/dofus-ui/pictos/donjon.png";
+                          img.className = "h-4 w-4 object-contain";
+                        }}
                       />
                     ) : (
                       /* Repli : le picto DONJON du jeu (jamais un glyphe d'interface — la

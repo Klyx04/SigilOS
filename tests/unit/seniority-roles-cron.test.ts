@@ -260,6 +260,59 @@ describe("Y-2 — passe du cron : éligibilité, marqueur d'activation, rôles",
         expect(removeRoleFromMember).toHaveBeenCalledTimes(1);
         expect(result.rolesRemoved).toBe(1);
     });
+
+    it("ne pose aucun rôle et retire les rôles gérés pour un membre portant un rôle exclu (blacklist)", async () => {
+        const ROLE_EXCLUDED = snowflake(99);
+        guildConfigFindMany.mockResolvedValue([
+            guildRow({
+                seniorityRolesAnnouncement: {
+                    excludedRoleIds: [ROLE_EXCLUDED],
+                },
+            }),
+        ]);
+        userProfileFindMany.mockResolvedValue([profileRow()]);
+        fetchAllGuildMembersDetailed.mockResolvedValue(
+            memberList([
+                discordMember({
+                    roles: [ROLE_EXCLUDED, ROLE_A],
+                }),
+            ]),
+        );
+
+        const result = await syncSeniorityRolesCore({ now: NOW });
+
+        // Membre exclu : aucun rôle ajouté, le ROLE_A déjà porté est retiré
+        expect(addRoleToMember).not.toHaveBeenCalled();
+        expect(removeRoleFromMember).toHaveBeenCalledWith("1290442961380835451", DISCORD_ID, ROLE_A);
+        expect(result.rolesRemoved).toBe(1);
+        expect(result.announcementsSent).toBe(0);
+    });
+
+    it("ne pose aucun rôle pour un membre qui n'a pas de rôle autorisé (whitelist)", async () => {
+        const ROLE_ALLOWED = snowflake(88);
+        guildConfigFindMany.mockResolvedValue([
+            guildRow({
+                seniorityRolesAnnouncement: {
+                    allowedRoleIds: [ROLE_ALLOWED],
+                },
+            }),
+        ]);
+        userProfileFindMany.mockResolvedValue([profileRow()]);
+        fetchAllGuildMembersDetailed.mockResolvedValue(
+            memberList([
+                discordMember({
+                    roles: [snowflake(77)], // rôle quelconque, hors whitelist
+                }),
+            ]),
+        );
+
+        const result = await syncSeniorityRolesCore({ now: NOW });
+
+        expect(addRoleToMember).not.toHaveBeenCalled();
+        expect(removeRoleFromMember).not.toHaveBeenCalled();
+        expect(result.rolesAdded).toBe(0);
+        expect(result.announcementsSent).toBe(0);
+    });
 });
 
 describe("Y-2 — annonces : une fois, et seulement pour un vrai franchissement", () => {

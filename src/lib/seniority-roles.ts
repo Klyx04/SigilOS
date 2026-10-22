@@ -56,6 +56,9 @@ export const SENIORITY_EMBED_FIELD_VALUE_MAX_LENGTH = 1024;
  */
 export const SENIORITY_MAX_RETRO_ANNOUNCEMENTS_PER_PASS = 10;
 
+/** Plafond de rôles autorisés ou exclus dans les filtres d'éligibilité. */
+export const SENIORITY_FILTER_ROLES_MAX = 50;
+
 // ── Forme des réglages ───────────────────────────────────────────────────────
 
 /** Surcharge **du texte** d'un palier : un champ absent hérite du message global. */
@@ -96,6 +99,10 @@ export interface GuildSeniorityRolesConfig {
     channelId: string | null;
     tiers: SeniorityTier[];
     announcement: SeniorityAnnouncementConfig;
+    /** Rôles Discord autorisés à recevoir des rôles d'ancienneté (vide = tout le monde). */
+    allowedRoleIds: string[];
+    /** Rôles Discord exclus/blacklistés (ne reçoivent jamais de rôles d'ancienneté). */
+    excludedRoleIds: string[];
 }
 
 /** Annonce telle qu'elle part par défaut : mention du membre, rôle obtenu, ancienneté. */
@@ -114,6 +121,8 @@ export const DEFAULT_SENIORITY_ROLES_CONFIG: GuildSeniorityRolesConfig = {
     channelId: null,
     tiers: [],
     announcement: DEFAULT_SENIORITY_ANNOUNCEMENT,
+    allowedRoleIds: [],
+    excludedRoleIds: [],
 };
 
 // ── Paliers : normalisation (un JSON stocké ne vaut rien tant qu'il n'est pas relu) ──
@@ -309,6 +318,46 @@ export function resolveTierAnnouncement(input: {
     };
 }
 
+// ── Éligibilité & Filtrage de rôles (Whitelist / Blacklist) ───────────────────
+
+/**
+ * Normalise une liste de rôles Discord (snowflakes uniques, non vides, bornés).
+ */
+export function normalizeSeniorityRoleIds(raw: unknown): string[] {
+    if (!Array.isArray(raw)) return [];
+    const valid = raw.filter((id): id is string => typeof id === "string" && isDiscordSnowflake(id));
+    return [...new Set(valid)].slice(0, SENIORITY_FILTER_ROLES_MAX);
+}
+
+/**
+ * Un membre est-il éligible à recevoir des rôles d'ancienneté ?
+ *
+ * 1. Blacklist (rôles exclus) : si le membre possède au moins un rôle exclu, il est écarté.
+ * 2. Whitelist (rôles autorisés) : si non vide, le membre doit posséder au moins un rôle autorisé.
+ * 3. Défaut : si aucune whitelist n'est définie et aucun rôle exclu porté, il est éligible.
+ */
+export function isMemberEligibleForSeniority(input: {
+    memberRoleIds: readonly string[];
+    allowedRoleIds?: readonly string[] | null;
+    excludedRoleIds?: readonly string[] | null;
+}): boolean {
+    const memberRoles = new Set(input.memberRoleIds);
+
+    // 1. Blacklist : prioritaire
+    if (input.excludedRoleIds && input.excludedRoleIds.length > 0) {
+        if (input.excludedRoleIds.some((roleId) => memberRoles.has(roleId))) {
+            return false;
+        }
+    }
+
+    // 2. Whitelist : condition nécessaire si configurée
+    if (input.allowedRoleIds && input.allowedRoleIds.length > 0) {
+        return input.allowedRoleIds.some((roleId) => memberRoles.has(roleId));
+    }
+
+    return true;
+}
+
 // ── Diff à appliquer ─────────────────────────────────────────────────────────
 
 /** Ce que la synchronisation fera pour **un** membre : rien, ajouter, retirer. */
@@ -332,6 +381,7 @@ export interface SeniorityRoleDiff {
  *
  * Invariants :
  * - module éteint ou aucun palier configuré ⇒ diff vide (fail-closed) ;
+ * - non éligible (rôle exclu ou hors rôles autorisés) ⇒ aucun rôle dû, rôles gérés retirés ;
  * - `toAdd` = rôles dus − rôles courants ;
  * - `toRemove` = rôles courants **∩ rôles déclarés** − rôles dus : un rôle que la guilde
  *   n'a pas déclaré dans un palier n'est jamais retiré, même s'il ressemble à un grade ;
@@ -354,6 +404,27 @@ export function computeSeniorityRoleDiff(input: {
     };
 
     if (!input.config.enabled || input.config.tiers.length === 0) return idle;
+
+    // 🔒 Filtre d'éligibilité (rôles autorisés / blacklistés)
+    const isEligible = isMemberEligibleForSeniority({
+        memberRoleIds: input.currentRoleIds,
+        allowedRoleIds: input.config.allowedRoleIds,
+        excludedRoleIds: input.config.excludedRoleIds,
+    });
+    if (!isEligible) {
+        // Non éligible : aucun rôle dû, aucun palier atteint. Si des rôles gérés sont déjà portés, on les retire.
+        const current = new Set(input.currentRoleIds.filter((roleId) => isDiscordSnowflake(roleId)));
+        const managed = new Set(resolveSeniorityManagedRoleIds(input.config.tiers));
+        const toRemove = [...current].filter((roleId) => managed.has(roleId));
+        return {
+            seniorityDays,
+            targetTierIndex: -1,
+            targetRoleIds: [],
+            toAdd: [],
+            toRemove,
+            changed: toRemove.length > 0,
+        };
+    }
 
     const targetTierIndex = resolveSeniorityRoleTier(input.config.tiers, seniorityDays);
     if (targetTierIndex < 0) return idle;
@@ -634,10 +705,18 @@ export function mergeSeniorityRolesConfig(
     raw: SeniorityRolesConfigSource | null | undefined,
 ): GuildSeniorityRolesConfig {
     const channelId = raw?.seniorityRolesChannelId;
+    const announcementRaw =
+        raw?.seniorityRolesAnnouncement && typeof raw.seniorityRolesAnnouncement === "object"
+            ? (raw.seniorityRolesAnnouncement as Record<string, unknown>)
+            : null;
     return {
         enabled: raw?.seniorityRolesEnabled === true,
         channelId: isDiscordSnowflake(channelId) ? channelId : null,
         tiers: normalizeSeniorityTiers(raw?.seniorityRolesTiers),
         announcement: mergeSeniorityAnnouncement(raw?.seniorityRolesAnnouncement),
+        allowedRoleIds: normalizeSeniorityRoleIds(announcementRaw?.allowedRoleIds),
+        excludedRoleIds: normalizeSeniorityRoleIds(
+            announcementRaw?.excludedRoleIds ?? announcementRaw?.blacklistedRoleIds
+        ),
     };
 }

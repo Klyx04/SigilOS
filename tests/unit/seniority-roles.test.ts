@@ -16,8 +16,10 @@ import {
     SENIORITY_ROLES_MAX_TIERS,
     buildSeniorityAnnouncementValues,
     computeSeniorityRoleDiff,
+    isMemberEligibleForSeniority,
     mergeSeniorityAnnouncement,
     mergeSeniorityRolesConfig,
+    normalizeSeniorityRoleIds,
     normalizeSeniorityTiers,
     renderSeniorityAnnouncement,
     renderSeniorityAnnouncementText,
@@ -46,6 +48,8 @@ const config = (overrides: Partial<GuildSeniorityRolesConfig> = {}): GuildSenior
         { days: 365, roleIds: [ROLE_C] },
     ],
     announcement: DEFAULT_SENIORITY_ANNOUNCEMENT,
+    allowedRoleIds: [],
+    excludedRoleIds: [],
     ...overrides,
 });
 
@@ -316,5 +320,99 @@ describe("annonce personnalisable (aperçu et envoi réel : le même texte)", ()
             color: 0x00ff00,
             thumbnail: "guild",
         });
+    });
+});
+
+describe("filtres d'éligibilité — rôles autorisés (whitelist) et exclus (blacklist)", () => {
+    const ROLE_MEMBER = snowflake(10);
+    const ROLE_BOT = snowflake(11);
+    const ROLE_GUEST = snowflake(12);
+
+    it("normalise une liste de rôles (snowflakes valides, sans doublons, bornée)", () => {
+        expect(normalizeSeniorityRoleIds(null)).toEqual([]);
+        expect(normalizeSeniorityRoleIds(undefined)).toEqual([]);
+        expect(normalizeSeniorityRoleIds("pas-un-tableau")).toEqual([]);
+        expect(normalizeSeniorityRoleIds(["invalide", ROLE_A, ROLE_A, "@everyone"])).toEqual([ROLE_A]);
+    });
+
+    it("isMemberEligibleForSeniority : éligible par défaut si aucun filtre", () => {
+        expect(isMemberEligibleForSeniority({ memberRoleIds: [ROLE_FREE] })).toBe(true);
+        expect(isMemberEligibleForSeniority({ memberRoleIds: [], allowedRoleIds: [], excludedRoleIds: [] })).toBe(true);
+    });
+
+    it("isMemberEligibleForSeniority : la blacklist écarte toujours le membre", () => {
+        expect(
+            isMemberEligibleForSeniority({
+                memberRoleIds: [ROLE_MEMBER, ROLE_BOT],
+                allowedRoleIds: [ROLE_MEMBER],
+                excludedRoleIds: [ROLE_BOT],
+            })
+        ).toBe(false);
+    });
+
+    it("isMemberEligibleForSeniority : la whitelist exige au moins un rôle autorisé", () => {
+        expect(
+            isMemberEligibleForSeniority({
+                memberRoleIds: [ROLE_FREE],
+                allowedRoleIds: [ROLE_MEMBER],
+            })
+        ).toBe(false);
+
+        expect(
+            isMemberEligibleForSeniority({
+                memberRoleIds: [ROLE_FREE, ROLE_MEMBER],
+                allowedRoleIds: [ROLE_MEMBER],
+            })
+        ).toBe(true);
+    });
+
+    it("computeSeniorityRoleDiff : un membre exclu ne reçoit aucun rôle et perd les rôles gérés qu'il portait", () => {
+        const diff = computeSeniorityRoleDiff({
+            config: config({ excludedRoleIds: [ROLE_GUEST] }),
+            seniorityDays: 200,
+            currentRoleIds: [ROLE_GUEST, ROLE_A, ROLE_FREE],
+        });
+        expect(diff.targetTierIndex).toBe(-1);
+        expect(diff.toAdd).toEqual([]);
+        expect(diff.toRemove).toEqual([ROLE_A]);
+        expect(diff.changed).toBe(true);
+    });
+
+    it("computeSeniorityRoleDiff : un membre hors whitelist ne reçoit rien", () => {
+        const diff = computeSeniorityRoleDiff({
+            config: config({ allowedRoleIds: [ROLE_MEMBER] }),
+            seniorityDays: 200,
+            currentRoleIds: [ROLE_FREE],
+        });
+        expect(diff.targetTierIndex).toBe(-1);
+        expect(diff.toAdd).toEqual([]);
+        expect(diff.toRemove).toEqual([]);
+        expect(diff.changed).toBe(false);
+    });
+
+    it("computeSeniorityRoleDiff : un membre conforme à la whitelist reçoit ses rôles normalement", () => {
+        const diff = computeSeniorityRoleDiff({
+            config: config({ allowedRoleIds: [ROLE_MEMBER] }),
+            seniorityDays: 200,
+            currentRoleIds: [ROLE_MEMBER],
+        });
+        expect(diff.targetTierIndex).toBe(1);
+        expect(diff.toAdd).toEqual([ROLE_A, ROLE_B]);
+        expect(diff.changed).toBe(true);
+    });
+
+    it("mergeSeniorityRolesConfig relit allowedRoleIds et excludedRoleIds depuis seniorityRolesAnnouncement", () => {
+        const merged = mergeSeniorityRolesConfig({
+            seniorityRolesEnabled: true,
+            seniorityRolesChannelId: CHANNEL,
+            seniorityRolesTiers: [{ days: 30, roleIds: [ROLE_A] }],
+            seniorityRolesAnnouncement: {
+                messageTemplate: "Bravo !",
+                allowedRoleIds: [ROLE_MEMBER],
+                excludedRoleIds: [ROLE_BOT],
+            },
+        });
+        expect(merged.allowedRoleIds).toEqual([ROLE_MEMBER]);
+        expect(merged.excludedRoleIds).toEqual([ROLE_BOT]);
     });
 });

@@ -223,3 +223,13 @@ describe("tickets v2 — l'acteur est normalisé (MP et salon)", () => {
         expect(actor).toContain("DISCORD_ADMINISTRATOR_BIT");
     });
 });
+
+describe("tickets v2 — ouverture sans compte SigilOS préalable", () => {
+    it("n'exige aucun compte SigilOS pour les interactions de tickets (tb, tb_pick, ticket)", () => {
+        const route = codeOnly(read(ROUTE));
+        expect(route).toContain("isTicketCustomId(custom_id)");
+        expect(route).toMatch(
+            /if\s*\(!account\s*&&\s*!isTicketInteraction\s*&&\s*prefix\s*!==\s*"rr"\)/
+        );
+    });
+});

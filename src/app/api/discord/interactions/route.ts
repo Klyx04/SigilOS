@@ -17,7 +17,11 @@ import {
     buildTicketTunnelReply,
     type TicketStepReply,
 } from "@/lib/tickets/journey-dispatch";
-import { TICKET_PICK_PREFIX, parseTicketCustomId } from "@/lib/tickets/interaction-routing";
+import {
+    TICKET_PICK_PREFIX,
+    parseTicketCustomId,
+    isTicketCustomId,
+} from "@/lib/tickets/interaction-routing";
 
 // ============================================
 // DOFUS CLASSES for Modal validation
@@ -328,8 +332,11 @@ export async function POST(request: NextRequest) {
             // #26 multi-donjons : custom_id = dj:join:{postId}:{idx} → index du donjon
             const dungeonIndex = extra !== undefined && extra !== "" ? Number(extra) : undefined;
 
+            // Les tickets (v1 `ticket:`, v2 `tb:` et `tb_pick:`) et les rôles-réactions (`rr:`)
+            // ne requièrent aucun compte SigilOS (un candidat ou visiteur doit pouvoir postuler/ouvrir un ticket).
+            const isTicketInteraction = isTicketCustomId(custom_id) || prefix === "ticket";
             const account = await findUserByDiscordId(member.user.id);
-            if (!account && prefix !== "ticket" && prefix !== "rr") {
+            if (!account && !isTicketInteraction && prefix !== "rr") {
                 return ephemeralDiscordRefusal(DISCORD_ACCOUNT_REQUIRED);
             }
 

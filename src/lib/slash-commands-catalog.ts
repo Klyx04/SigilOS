@@ -95,3 +95,27 @@ export const SLASH_COMMANDS_CATALOG: SlashCommandDefinition[] = [
     }
 ];
 
+/**
+ * Vérifie si l'utilisateur a accès à l'administration des commandes slash Discord.
+ * Accessible aux administrateurs (Discord, God) ainsi qu'au staff de la guilde ayant des droits de gestion.
+ */
+export function canManageSlashCommands(u: {
+    isAdmin?: boolean;
+    isDiscordAdmin?: boolean;
+    canManageRBAC?: boolean;
+    canViewSettings?: boolean;
+    canManageTickets?: boolean;
+    canManageMembers?: boolean;
+    canManageMissions?: boolean;
+}): boolean {
+    return Boolean(
+        u.isAdmin ||
+        u.isDiscordAdmin ||
+        u.canManageRBAC ||
+        u.canViewSettings ||
+        u.canManageTickets ||
+        u.canManageMembers ||
+        u.canManageMissions
+    );
+}
+

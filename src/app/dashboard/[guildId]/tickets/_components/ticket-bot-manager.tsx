@@ -213,6 +213,8 @@ export function TicketBotManager({
                     <TicketCommandsTab
                         guildId={guildId}
                         initialCommands={customCommands}
+                        staffRoleIds={config?.staffRoleIds || []}
+                        journeys={journeys}
                         onRefresh={onRefresh}
                     />
                 )}

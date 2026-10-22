@@ -109,11 +109,20 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
         const actualGuildId = config.discordGuildId || (typeof guildId === "string" && /^\d+$/.test(guildId) ? guildId : undefined);
         const user = await getUserContext(actualGuildId);
 
-        // Pilotage natif uniquement : ni les dieux délégués ni les gestionnaires
-        // RBAC ne touchent aux commandes slash (décision produit — les commandes
-        // engagent le bot sur Discord).
-        if (!user.isAuthenticated || !user.isDiscordAdmin) {
-            return { success: false, error: "Forbidden: Discord admin required" };
+        // Accès étendu au staff : toute permission de gestion permet de
+        // configurer les commandes slash de la guilde (RBAC, tickets, membres…).
+        // Les Discord Admin natifs conservent toujours l'accès.
+        const hasAccess =
+            user.isAuthenticated &&
+            (user.isDiscordAdmin ||
+                user.isAdmin ||
+                user.canManageRBAC ||
+                user.canViewSettings ||
+                user.canManageTickets ||
+                user.canManageMembers ||
+                user.canManageMissions);
+        if (!hasAccess) {
+            return { success: false, error: "Forbidden: insufficient permissions" };
         }
 
         const updated = await db.guildSlashCommandPermission.upsert({

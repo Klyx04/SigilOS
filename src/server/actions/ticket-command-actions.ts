@@ -3,6 +3,7 @@
 import { getUserContext } from "@/server/actions/user-actions";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/ratelimit";
 import { SLASH_COMMANDS_CATALOG } from "@/lib/slash-commands-catalog";
 import {
     TicketCustomCommandSaveSchema,
@@ -61,6 +62,11 @@ export async function saveTicketCustomCommandAction(
         const ctx = await getUserContext(guildId);
         if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
         if (!ctx.canManageTickets) return { success: false, error: "Action réservée aux gestionnaires de tickets" };
+
+        const rl = await rateLimit(`ticket-cmd:save:${ctx.id}:${guildId}`, 15, 60_000);
+        if (!rl.success) {
+            return { success: false, error: "Trop de modifications rapprochées. Veuillez patienter un instant." };
+        }
 
         const parsed = TicketCustomCommandSaveSchema.safeParse(rawInput);
         if (!parsed.success) {
@@ -184,6 +190,11 @@ export async function deleteTicketCustomCommandAction(
         if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
         if (!ctx.canManageTickets) return { success: false, error: "Action réservée aux gestionnaires de tickets" };
 
+        const rl = await rateLimit(`ticket-cmd:delete:${ctx.id}:${guildId}`, 15, 60_000);
+        if (!rl.success) {
+            return { success: false, error: "Trop de suppressions rapprochées. Veuillez patienter un instant." };
+        }
+
         const guildConfig = await db.guildConfig.findFirst({
             where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
             select: { id: true, discordGuildId: true },
@@ -233,6 +244,11 @@ export async function toggleTicketCustomCommandAction(
         const ctx = await getUserContext(guildId);
         if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
         if (!ctx.canManageTickets) return { success: false, error: "Action réservée aux gestionnaires de tickets" };
+
+        const rl = await rateLimit(`ticket-cmd:toggle:${ctx.id}:${guildId}`, 30, 60_000);
+        if (!rl.success) {
+            return { success: false, error: "Trop d'actions rapprochées. Veuillez patienter un instant." };
+        }
 
         const guildConfig = await db.guildConfig.findFirst({
             where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },

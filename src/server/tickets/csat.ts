@@ -133,12 +133,15 @@ export async function sendTicketCsatSurvey(input: {
     const creatorDiscordId = String(input.ticket.creatorDiscordId ?? "").trim();
     if (!DISCORD_SNOWFLAKE.test(creatorDiscordId)) return { sent: false, reason: "no_creator" };
 
-    const { csatDestination, ticketLanguage } = readTicketMessagingSettings(input.settingsJson);
+    const { csatDestination, ticketLanguage, csatTitle, csatDescription } = readTicketMessagingSettings(input.settingsJson);
     const embed = buildTicketCsatEmbed({
         ticketNumber: input.ticket.ticketNumber,
         motifName: input.motifName,
         guildName: input.guildName,
         lang: resolveTicketLang(ticketLanguage),
+        customTitle: csatTitle,
+        customDescription: csatDescription,
+        creatorDiscordId,
     });
     const components = buildCsatRows(input.ticket.id);
     const channelId = input.ticket.discordChannelId;

@@ -4,7 +4,6 @@ import AccessDenied from "@/components/access-denied";
 import { getUserContext } from "@/server/actions/user-actions";
 import { db } from "@/lib/prisma";
 import { fetchGuildRoles, fetchGuildChannels } from "@/server/discord";
-import { getGuildSlashCommandPermissionsAction } from "@/server/actions/slash-command-actions";
 import { SlashCommandsRbacPanel } from "@/components/admin/SlashCommandsRbacPanel";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Terminal, Eye } from "lucide-react";
@@ -29,8 +28,16 @@ export default async function AdminCommandesPage({ params }: Props) {
     }
 
     const user = await getUserContext(guildId);
-    // Admin SigilOS (rôle configuré dans Pilotage OU Discord Admin / Owner / God).
-    if (!user.isAuthenticated || !user.isAdmin) {
+    // Accès : admins SigilOS OU staff ayant au moins une permission de gestion active.
+    const hasAccess = user.isAuthenticated && (
+        user.isAdmin ||
+        user.canManageRBAC ||
+        user.canViewSettings ||
+        user.canManageTickets ||
+        user.canManageMembers ||
+        user.canManageMissions
+    );
+    if (!hasAccess) {
         return <AccessDenied />;
     }
 

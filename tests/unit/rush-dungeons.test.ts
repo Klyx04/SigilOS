@@ -14,6 +14,7 @@
 import { describe, it, expect } from "vitest";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import {
+  boundOptionalDungeonIds,
   doneDungeonKeysForSequence,
   dungeonKeyOf,
   dungeonOccurrenceKey,
@@ -166,5 +167,61 @@ describe("toggleDungeonKey — coche idempotente", () => {
   it("décocher une clé absente ne change rien", () => {
     expect(toggleDungeonKey(["a"], "z")).toEqual(["a", "z"]);
     expect(toggleDungeonKey(null, "z")).toEqual(["z"]);
+  });
+});
+
+/**
+ * S0-6 ÔÇö le studio God ├®crit `dungeonOptionalIds`. L'action serveur ne doit jamais faire
+ * confiance ├á cette liste : c'est l'intersection avec les donjons de la s├®quence qui part
+ * en base, born├®e en nombre et en longueur.
+ */
+describe("boundOptionalDungeonIds ÔÇö S0-6, borne du drapeau ┬½ optionnel ┬╗", () => {
+  it("garde les ids qui font partie des donjons li├®s", () => {
+    expect(
+      boundOptionalDungeonIds({ dungeonIds: ["a", "b", "c"], optionalIds: ["b"] })
+    ).toEqual(["b"]);
+  });
+
+  it("├®carte un id ├®tranger ├á la s├®quence (donn├®e morte venue du client)", () => {
+    expect(
+      boundOptionalDungeonIds({ dungeonIds: ["a"], optionalIds: ["a", "inconnu"] })
+    ).toEqual(["a"]);
+  });
+
+  it("accepte le donjon unique historique (`dungeonId`) comme li├®", () => {
+    expect(
+      boundOptionalDungeonIds({ dungeonIds: null, dungeonId: "seul", optionalIds: ["seul"] })
+    ).toEqual(["seul"]);
+  });
+
+  it("d├®duplique sans r├®ordonner", () => {
+    expect(
+      boundOptionalDungeonIds({ dungeonIds: ["a", "b"], optionalIds: ["b", "a", "b"] })
+    ).toEqual(["b", "a"]);
+  });
+
+  it("borne le nombre d'ids ├®crits", () => {
+    const linked = Array.from({ length: 10 }, (_, i) => `d${i}`);
+    expect(
+      boundOptionalDungeonIds({ dungeonIds: linked, optionalIds: linked, maxIds: 3 })
+    ).toEqual(["d0", "d1", "d2"]);
+  });
+
+  it("borne la longueur d'un id et ignore les entr├®es vides", () => {
+    const long = "x".repeat(65);
+    expect(
+      boundOptionalDungeonIds({ dungeonIds: [long, "", "ok"], optionalIds: [long, "", "ok"] })
+    ).toEqual(["ok"]);
+  });
+
+  it("renvoie une liste vide quand rien n'est li├® (aucun donjon)", () => {
+    expect(boundOptionalDungeonIds({ dungeonIds: [], optionalIds: ["a"] })).toEqual([]);
+  });
+
+  it("n'├®crit jamais un donjon optionnel sans donjon li├®", () => {
+    // Cas limite du studio : la liste ┬½ optionnel ┬╗ survit ├á la suppression du donjon.
+    expect(
+      boundOptionalDungeonIds({ dungeonIds: ["a"], optionalIds: ["a", "b"] })
+    ).toEqual(["a"]);
   });
 });

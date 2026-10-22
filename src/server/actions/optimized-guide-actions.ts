@@ -19,7 +19,7 @@ import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuid
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { z } from "zod";
 import { rushResourceKey } from "@/lib/rush-guide-utils";
-import { doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
+import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -3710,6 +3710,8 @@ export async function upsertRushSequence(data: {
   subGuideRef: string;
   dungeonId?: string | null;
   dungeonIds?: string[];
+  /** Sous-ensemble de `dungeonIds` : ces donjons ne bloquent pas la validation. */
+  dungeonOptionalIds?: string[];
   dofusdbUrl?: string | null;
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
@@ -3726,6 +3728,21 @@ export async function upsertRushSequence(data: {
   activityTags?: Array<{ type: string; name?: string; level?: number }>;
 }) {
   await requireRushAccess();
+
+  /**
+   * Bornage du drapeau « optionnel » — fait **ici**, jamais dans l'éditeur : un id qui
+   * ne fait pas partie des donjons de la séquence est une donnée morte (et un moyen de
+   * gonfler la colonne depuis le client). La règle pure `boundOptionalDungeonIds` borne
+   * l'intersection, en nombre comme en longueur ; le studio consomme la même règle.
+   */
+  const dungeonOptionalIds =
+    data.dungeonOptionalIds === undefined
+      ? undefined
+      : boundOptionalDungeonIds({
+          dungeonIds: data.dungeonIds,
+          dungeonId: data.dungeonId,
+          optionalIds: data.dungeonOptionalIds,
+        });
 
   let seq;
   // Champs communs (sans dungeonId — géré différemment selon create/update)
@@ -3747,6 +3764,8 @@ export async function upsertRushSequence(data: {
     metamobMonsterId: data.metamobMonsterId ?? null,
     activityTags: data.activityTags ?? [],
     dungeonIds: data.dungeonIds ?? undefined,
+    // Absent ÔçÆ la colonne n'est pas touch├®e (on ne ┬½ d├®-optionnalise ┬╗ pas par oubli).
+    ...(dungeonOptionalIds !== undefined ? { dungeonOptionalIds } : {}),
   };
 
   if (data.id) {

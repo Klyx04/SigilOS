@@ -234,3 +234,44 @@ export function doneDungeonKeysForSequence(
     .map(([key]) => key.slice(prefix.length))
     .sort();
 }
+
+/**
+ * Borne le drapeau ┬½ optionnel ┬╗ d'une s├®quence avant ├®criture (S0-6).
+ *
+ * Le studio God envoie deux listes qui doivent rester **coh├®rentes** : `dungeonIds` (les
+ * donjons li├®s) et `dungeonOptionalIds` (ceux qui ne bloquent pas la validation). Un id
+ * ┬½ optionnel ┬╗ qui ne fait pas partie des donjons de la s├®quence est une donn├®e morte ÔÇö
+ * et, c├┤t├® client, un moyen de gonfler la colonne. La r├¿gle vit ici (pure) pour que
+ * l'├®diteur et l'action serveur ne puissent pas diverger.
+ *
+ * Born├®e aussi en nombre (`maxIds`) et en longueur d'id (`maxLength`) : le champ vient
+ * du client, il ne doit pas pouvoir ├®crire un tableau arbitraire.
+ */
+export function boundOptionalDungeonIds(args: {
+  /** Donjons li├®s ├á la s├®quence (apr├¿s ├®criture). */
+  dungeonIds?: readonly string[] | null;
+  /** Donjon unique historique (`dungeonId`), partie du m├¬me ensemble. */
+  dungeonId?: string | null;
+  /** Ids marqu├®s ┬½ optionnel ┬╗ par l'├®diteur. */
+  optionalIds: readonly string[];
+  maxIds?: number;
+  maxLength?: number;
+}): string[] {
+  const maxIds = args.maxIds ?? 200;
+  const maxLength = args.maxLength ?? 64;
+  const linked = new Set<string>();
+  for (const id of args.dungeonIds ?? []) {
+    if (typeof id === "string" && id) linked.add(id);
+  }
+  if (args.dungeonId) linked.add(args.dungeonId);
+
+  const bounded: string[] = [];
+  for (const id of args.optionalIds) {
+    if (typeof id !== "string" || id.length === 0 || id.length > maxLength) continue;
+    if (!linked.has(id)) continue;
+    if (bounded.includes(id)) continue;
+    bounded.push(id);
+    if (bounded.length >= maxIds) break;
+  }
+  return bounded;
+}

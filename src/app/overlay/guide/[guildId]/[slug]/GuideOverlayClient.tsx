@@ -1133,23 +1133,7 @@ export default function GuideOverlayClient({
       }`}
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
-      <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }
-      /* Barre de défilement de l'OVERLAY : le .custom-scrollbar global fait 5 px avec un
-         pouce à 10 % de blanc — impossible à attraper à la souris, surtout dans une fenêtre
-         PiP (retour user du 22/10/2026 : « on ne peut pas la déplacer »). Ici : 10 px, pouce
-         lisible, piste transparente, et une variante claire (le blanc à 28 % disparaîtrait
-         sur le thème clair). Le global n'est pas touché : il sert partout ailleurs. */
-      .rush-overlay .custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
-      .rush-overlay .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-      .rush-overlay .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.28);
-        border-radius: 999px;
-        border: 2px solid transparent;
-        background-clip: padding-box;
-      }
-      .rush-overlay .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.45); background-clip: padding-box; }
-      .rush-overlay.light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.28); background-clip: padding-box; }
-      .rush-overlay.light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(15, 23, 42, 0.45); background-clip: padding-box; }`}</style>
+      <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }`}</style>
 
       {/* Navigateur sans Document PiP (ex. Opera GX) : la fenêtre n'est pas épinglée */}
       {!pinned && <OverlayPinNotice />}
@@ -1254,7 +1238,7 @@ export default function GuideOverlayClient({
           )}
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
-          <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-2 custom-scrollbar">
+          <main className="flex-1 min-h-0 p-3 space-y-2 overlay-scroll">
             {/* Bannières qui INTRODUISENT ce chapitre — leur place chronologique dans le
                 flux. Elles suivent le chapitre, donc on les retrouve dès qu'on l'ouvre
                 (dropdown, précédent/suivant, repère) : c'est ce qui manquait. */}

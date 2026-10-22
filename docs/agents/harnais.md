@@ -54,6 +54,7 @@ AGENTS.md                         contrat court, lu automatiquement (~11 Ko)
 ├── 02-ui.md                      règles UI (paths: src/components/**, src/app/**/*.tsx)
 ├── 03-tests.md                   règles tests (paths: tests/**)
 ├── 04-docs.md                    règles doc (paths: docs/**, AGENTS.md)
+├── 05-runtime.md                 règles runtime Node (paths: .nvmrc, package.json, Dockerfile*, workflows)
 └── hooks/
     ├── PreToolUse.ps1            bloque les gestes irréversibles
     ├── TaskStart.ps1             injecte SHA + prochaine étape
@@ -64,7 +65,8 @@ AGENTS.md                         contrat court, lu automatiquement (~11 Ko)
 ├── cron-task/SKILL.md
 ├── sentry-triage/SKILL.md
 ├── route-securite/SKILL.md
-└── doc-session/SKILL.md
+├── doc-session/SKILL.md
+└── node-runtime/SKILL.md
 .clineignore                      sort les binaires et les builds de l'index
 
 Mémoire chaude   : docs/ROADMAP.md (~200 lignes) + activeContext.md (6 blocs)
@@ -93,6 +95,7 @@ Un hook est du **code exécutable** : il se relit, il ne contient aucun secret, 
 | `sentry-triage` | « erreur Sentry », « 500 en prod », « régression » | le tri manuel via MCP |
 | `route-securite` | nouvelle page/action, revue de code | la checklist auth / `guildId` / Zod / fail-closed |
 | `doc-session` | fin de session | ROADMAP + activeContext sans doublon |
+| `node-runtime` | avis de sécurité Node, conteneur plus vieux que `.nvmrc` | la procédure `.nvmrc` → images → rebuild bêta/prod |
 
 Emplacement : **`.cline/skills/<nom>/SKILL.md`** (versionné). Le `name` doit être **identique au nom du
 dossier** ; la `description` (≤ 1 024 caractères) est ce qui déclenche le skill. Un skill global du même

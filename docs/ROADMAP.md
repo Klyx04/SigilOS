@@ -12,7 +12,7 @@
 - **Prochaine étape** : rang **3** (ouverture prod) ; les rangs **1** et **2** sont livrés (§5).
 - **Rush Sylvestre — coche donjon + guide réparé (21/10/2026)** : les deux sources sont mesurées et figées (Tougli **100 / 102** séries + 30 Ordres + 19 classes ; Dofusyelle **57 étapes / 21 prépa / 40 saves / 62 succès**) · **union ressources 584**, donjons 99 + 83 (67 slugs identiques) · **verrou de donjons livré de bout en bout** : règle pure, table `PlayerGuideDungeonState` (**une coche par quête × donjon**), refus à la validation (quête **et** bloc), coche **DANS la quête** (pastille `Donjon ×N` → panneau ouvert) sur l'overlay (interne et invité), le dashboard et le guide public, **décocher un donjon dévalide la quête** (S0-7) · **guide interne réparé** : pagination par chapitre (23 pages fantômes → une page par chapitre/libellé), sommaire retiré, rail de droite réellement collant, prérequis ciblé visible. **Ops** : jouer la migration `20270115000000` en bêta puis prod (déjà en local). **Prochain lot** : `S0-6` (case « optionnel » par donjon dans God — sans elle tout donjon est requis) → `S4-1` (vue Branches 2 étages) → `S1` (contenu). Organisation complète : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
-- **Ops en attente** : migrations `20270112000000` + `20270113000000` · redéploiement du bot · crontabs (sondages `* * * * *`, ancienneté `30 4 * * *`, 4 rappels).
+- **Ops en attente** : migrations `20270112000000` + `20270113000000` · redéploiement du bot · crontabs (sondages `* * * * *`, ancienneté `30 4 * * *`, 4 rappels) · **rebuild des images** (Node `22.23.4`, voir `docs/agents/node-runtime.md`).
 - **Mesures du 19/10** : 155 `console.*` hors tests · **0** import de `src/lib/env.ts` · **Grafana retiré** de l'exposition publique (God → Système & Infra).
 - **Bêta** : déployée en `5b31ad0` (19/10/2026) — 6 conteneurs `Healthy`, pages **200**, `monitor.sigilos.fr` **inaccessible** (voulu).
 
@@ -115,6 +115,7 @@
 | `codeql` | XSS overlay + SSRF `redirect: error` | 19/10/2026 |
 | `env-validation` (F8) | Validation d'environnement au démarrage (`instrumentation.ts`), fail-closed en prod, avertissement CSP | 19/10/2026 |
 | `monitor-private` (F9) | Grafana retiré de l'exposition publique et du compose ; Prometheus interne épinglé v3.15.0 ; accès God — **déployé bêta `5b31ad0`** | 19/10/2026 |
+| `node-runtime` | Runtime Node **épinglé** (`22.23.4`) : `.nvmrc` = source unique, `engines.node`, les 3 `FROM node:` des images, CI sur `.nvmrc`, verrou `node-runtime-pin`, procédure `docs/agents/node-runtime.md` + règle + skill | 21/10/2026 |
 | `god-system` | God → Système & Infra : CPU, RAM, disque, Redis, PostgreSQL, conteneurs, crons — **déployé bêta `5b31ad0`** | 19/10/2026 |
 | `harnais H0-H7` | Roadmap unique, journal archivé, zone temp unique, 4 règles, 6 skills, 3 hooks, `.clineignore`, garde | 19/10/2026 |
 | `seo-extraits-serp` | Extraits SERP bornés (`src/lib/seo.ts`, 60/155) : fiches boss, hub `/almanax`, 7 guides FR + garde `seo-serp-extraits` — **mesuré** : 6 156 impr. / 109 clics, guides = 44 % des clics | 20/10/2026 |

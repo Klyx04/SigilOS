@@ -954,6 +954,7 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
         const nextStartMs = updateData.startDate ? new Date(updateData.startDate).getTime() : null;
         if (prevStartMs !== null && nextStartMs !== null && prevStartMs !== nextStartMs) {
             delete (finalMetadata as any).raidReminderSentAt;
+            delete (finalMetadata as any).raidReminder24hSentAt;
             delete (finalMetadata as any).eventReminderSentAt;
         }
 

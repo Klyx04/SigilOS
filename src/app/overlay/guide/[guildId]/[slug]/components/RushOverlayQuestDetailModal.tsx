@@ -8,9 +8,8 @@ import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
-import { QuestHelpersSection } from "@/components/dofus-quests/rush/QuestHelpersSection";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushRichText";
-import { classifyTags, getDungeons, getItemTags, getSequenceCoord, isPublicOverlay, type TagClassification } from "./overlay-utils";
+import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type TagClassification } from "./overlay-utils";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";
@@ -87,9 +86,6 @@ export function RushOverlayQuestDetailModal({
   const seqIcon = safeImageUrl(resolveRushSeqIcon(seq.icon));
   // PNJ donneur (tag God) : nom + portrait par convention.
   const seqNpc = getSequenceNpc(seq);
-  // Guilde RÉELLE pour la section « Qui peut aider » : `null` quand la fiche est celle
-  // du guide public ou de son overlay PiP (`guildId` absent ou sentinelle `"public"`).
-  const helpersGuildId = isPublicOverlay(guildId) ? null : guildId ?? null;
 
   // Échap ferme le panneau : cette modale remplace un `Dialog` Radix, qui gérait
   // la touche pour nous.
@@ -233,19 +229,6 @@ export function RushOverlayQuestDetailModal({
               <section className="py-3">
                 <p className={sectionLabel}>Badges</p>
                 <RushOverlayTagSection tags={badgesTags} />
-              </section>
-            )}
-
-            {/* « Qui peut aider » est **guild-scopé** (action `getSequenceHelpers` +
-                membres de la guilde) : la règle partagée `isPublicOverlay` couvre
-                l'absence de guilde **et** la sentinelle `"public"` — que
-                `GuideOverlayClient` pose par défaut, donc pour le guide public ET son
-                overlay PiP. Sans cette garde, la fiche publique appelait une action de
-                guilde et affichait « Aucun membre ne correspond pour l'instant »
-                (mesuré le 08/10/2026). Même traitement que `RushOverlayDungeonCard`. */}
-            {helpersGuildId && (
-              <section className="py-3">
-                <QuestHelpersSection guildId={helpersGuildId} seq={seq} />
               </section>
             )}
 

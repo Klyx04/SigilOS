@@ -12,9 +12,8 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
-import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, deselectSequenceFromProgress, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef } from "@/lib/rush-guide-utils";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
-import { collectCascadeUncheck } from "@/lib/rush-helpers";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { RushOverlayHeader } from "./components/RushOverlayHeader";

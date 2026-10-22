@@ -15,6 +15,11 @@ import {
   Flame,
   Swords,
   Languages,
+  HelpCircle,
+  Lock,
+  Target,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +46,7 @@ import {
 } from "@/server/actions/monster-spell-actions";
 import {
   getRaidLiveSession,
+  setRaidLiveObjective,
   type RaidLiveSessionView,
 } from "@/server/actions/raid-live-actions";
 import {
@@ -217,7 +223,7 @@ function TextWithCoords({
         }}
         title={isEn ? `Click to copy ${travelCmd}` : `Cliquer pour copier ${travelCmd}`}
         className={cn(
-          "inline-flex items-center gap-0.5 px-1.5 py-0.5 mx-0.5 rounded font-mono text-[10.5px] font-semibold transition-all cursor-pointer select-none align-baseline border",
+          "inline-flex items-center gap-0.5 px-1.5 py-0.5 mx-0.5 rounded font-mono text-xs font-semibold transition-all cursor-pointer select-none align-baseline border",
           isCopied
             ? "bg-emerald-500 text-black border-emerald-400 font-bold scale-105"
             : "bg-cyan-500/10 hover:bg-cyan-500/25 text-cyan-300 hover:text-cyan-100 border-cyan-500/30 hover:border-cyan-400/60"
@@ -266,7 +272,7 @@ export function RaidOverlayClient({
   const lightScale = useMemo(() => getLightScale(isEn), [isEn]);
 
   // Onglets principaux : texte pur, simple soulignement
-  const [mainView, setMainView] = useState<"step" | "statues" | "safe_travel" | "light" | "burst" | "enigmes" | "bestiaire">("step");
+  const [mainView, setMainView] = useState<"step" | "statues" | "safe_travel" | "light" | "burst" | "enigmes" | "bestiaire" | "objectifs">("step");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [zoomedImage, setZoomedImage] = useState<{ src: string; title: string } | null>(null);
   const [imageCollapsed, setImageCollapsed] = useState(false);
@@ -286,13 +292,53 @@ export function RaidOverlayClient({
   const [liveSession, setLiveSession] = useState<RaidLiveSessionView | null>(null);
   const [liveNow, setLiveNow] = useState(() => Date.now());
 
+  const prevObjectivesRef = useRef<RaidLiveObjective[]>([]);
+
+  const showToast = (msg: string, durationMs = 3500) => {
+    if (pipToastTimerRef.current) clearTimeout(pipToastTimerRef.current);
+    setPipToast(msg);
+    pipToastTimerRef.current = setTimeout(() => setPipToast(null), durationMs);
+  };
+
   const fetchLiveSession = async () => {
     if (!liveEventId || !liveGuildId) return;
     try {
       const res = await getRaidLiveSession(liveGuildId, liveEventId);
-      if (res.success) setLiveSession(res.data ?? null);
+      if (res.success && res.data) {
+        // Alerte toast temps réel pour tous les membres ayant l'overlay ouvert lorsqu'un objectif est validé
+        const newlyDone = ((res.data.objectives ?? []) as RaidLiveObjective[]).filter(
+          (curr: RaidLiveObjective) => curr.done && !prevObjectivesRef.current.some((prev: RaidLiveObjective) => prev.id === curr.id && prev.done)
+        );
+        if (newlyDone.length > 0 && prevObjectivesRef.current.length > 0) {
+          const last = newlyDone[newlyDone.length - 1];
+          const ptsTxt = last.points > 0 ? ` (+${last.points.toLocaleString(isEn ? "en-US" : "fr-FR")} pts)` : "";
+          showToast(`✓ ${isEn ? "Objective cleared: " : "Objectif validé : "}${last.label}${ptsTxt}`);
+        }
+        prevObjectivesRef.current = res.data.objectives ?? [];
+        setLiveSession(res.data);
+      } else if (res.success) {
+        setLiveSession(null);
+      }
     } catch {
       // Fail-soft : l'overlay statique reste affiché.
+    }
+  };
+
+  const handleToggleObjective = async (objectiveId: string, currentDone: boolean) => {
+    if (!liveGuildId || !liveEventId || !liveSession?.isLead) return;
+    try {
+      const res = await setRaidLiveObjective(liveGuildId, {
+        eventId: liveEventId,
+        objectiveId,
+        done: !currentDone,
+      });
+      if (res.success && res.data) {
+        setLiveSession(res.data);
+      } else if (res.error) {
+        showToast(`✕ ${res.error}`);
+      }
+    } catch {
+      showToast("✕ Erreur de mise à jour");
     }
   };
 
@@ -335,6 +381,71 @@ export function RaidOverlayClient({
     : "ok";
   const liveRemaining = liveSession ? formatLiveRemaining(new Date(liveSession.endsAt).getTime(), liveNow) : "";
   const liveObjectives: RaidLiveObjective[] = liveSession?.objectives ?? [];
+  const maxLiveScore = useMemo(
+    () => liveObjectives.reduce((acc, o) => acc + (o.points || 0), 0),
+    [liveObjectives]
+  );
+  const doneObjectivesCount = useMemo(
+    () => liveObjectives.filter((o) => o.done).length,
+    [liveObjectives]
+  );
+
+  // Mini-guide (tour) de l'overlay : rejouable et mémorisable
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const seen = localStorage.getItem("sigilos_raid_overlay_tour_completed");
+        if (!seen) {
+          setIsTourOpen(true);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  const closeTour = () => {
+    setIsTourOpen(false);
+    try {
+      localStorage.setItem("sigilos_raid_overlay_tour_completed", "true");
+    } catch {
+      // ignore
+    }
+  };
+
+  const tourSteps = [
+    {
+      title: isEn ? "Welcome to Raid Overlay" : "Bienvenue sur l'Overlay de Raid",
+      desc: isEn
+        ? "Your real-time tactical assistant for Dofus raids. Designed to remain floating above your game (Document PiP) without interfering with your windows."
+        : "Votre copilote tactique en direct pour les raids Dofus. Conçu pour flotter au-dessus de votre jeu (Document PiP) sans altérer vos fenêtres.",
+      icon: "🎯",
+    },
+    {
+      title: isEn ? "Rooms & Travel Coordinates" : "Salles & Coordonnées /travel",
+      desc: isEn
+        ? "Follow the raid floor by floor. Click on any coordinate to copy the /travel command straight into your Dofus game chat, with boss positioning and safe travel routes."
+        : "Suivez la descente étage par étage. Cliquez sur n'importe quelle coordonnée pour copier la commande /travel directement dans votre chat de jeu Dofus, avec plans et chemins sûrs.",
+      icon: "🗺️",
+    },
+    {
+      title: isEn ? "Live Session & Objectives" : "Session Live & Objectifs",
+      desc: isEn
+        ? "When started by the captain, the 60-min server timer and step progress sync in real time. The captain checks validated objectives, updating the live score and triggering toast notifications for everyone."
+        : "Quand le raid est lancé par le capitaine, le compte à rebours 60 min et l'étape suivie sont synchronisés en direct. Le capitaine valide les objectifs au fur et à mesure, avec calcul du score et alertes toasts instantanées.",
+      icon: "⚡",
+    },
+    {
+      title: isEn ? "Bestiary & Burst Tactics" : "Bestiaire & Optimisation Burst",
+      desc: isEn
+        ? "Browse monster sheets with official Dofus stats and spells. Open the Burst tab to see optimal class compositions and weapon setups to crush the Gigalodon."
+        : "Consultez les fiches des monstres avec stats et sorts officiels. Ouvrez l'onglet Burst pour retrouver les compos optimisées et maximiser votre score sur le Gigalodon.",
+      icon: "⚔️",
+    },
+  ];
 
   // Lot 5 — modale bestiaire (onglet + boss cliquables des étapes).
   const [bestiarySlug, setBestiarySlug] = useState<string | null>(null);
@@ -511,7 +622,7 @@ export function RaidOverlayClient({
                 currentRaidSlug === "jardin-eternel" ? "bg-emerald-400" : "bg-cyan-400"
               )}
             />
-            <span className="text-[11.5px] font-semibold tracking-tight text-white group-hover:text-cyan-300 transition-colors truncate">
+            <span className="text-xs font-semibold tracking-tight text-white group-hover:text-cyan-300 transition-colors truncate">
               {currentRaidSlug === "gigalodon"
                 ? (isEn ? "The Gigalodon Abyss" : "Gouffre Gigalodon")
                 : (isEn ? "Eternal Gardens Sanctuary" : "Jardin Éternel")}
@@ -566,7 +677,7 @@ export function RaidOverlayClient({
                       <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", r.color)} />
                       <div className="min-w-0">
                         <p className="text-[11px] font-medium truncate leading-tight">{r.title}</p>
-                        <p className="text-[9.5px] text-white/40 truncate leading-tight mt-0.5">{r.subtitle}</p>
+                        <p className="text-xs text-white/40 truncate leading-tight mt-0.5">{r.subtitle}</p>
                       </div>
                     </div>
                     {isSelected && <Check size={12} className="text-cyan-400 shrink-0 ml-1" />}
@@ -577,8 +688,19 @@ export function RaidOverlayClient({
           )}
         </div>
 
-        {/* Boutons actions droite : Switch langue, Studio 3.6 & Guide */}
+        {/* Boutons actions droite : Switch langue, Tour guide & Guide */}
         <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setTourStep(0);
+              setIsTourOpen(true);
+            }}
+            title={isEn ? "Overlay guide" : "Mini-guide de l'overlay"}
+            className="p-1 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          >
+            <HelpCircle size={14} />
+          </button>
           <button
             type="button"
             onClick={() => setLocale(isEn ? "fr" : "en")}
@@ -634,9 +756,23 @@ export function RaidOverlayClient({
                 {liveRemaining}
               </span>
               <span className="text-white/30">·</span>
-              <span className="font-semibold tabular-nums">
-                {(liveSession.score ?? 0).toLocaleString(isEn ? "en-US" : "fr-FR")} pts
-              </span>
+              <button
+                type="button"
+                onClick={() => setMainView("objectifs")}
+                className="font-bold tabular-nums hover:text-white transition-colors cursor-pointer"
+                title={isEn ? "View objectives" : "Voir les objectifs"}
+              >
+                {(liveSession.score ?? 0).toLocaleString(isEn ? "en-US" : "fr-FR")}
+                {maxLiveScore > 0 ? ` / ${maxLiveScore.toLocaleString(isEn ? "en-US" : "fr-FR")}` : ""} pts
+              </button>
+              <button
+                type="button"
+                onClick={() => setMainView("objectifs")}
+                className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-xs font-semibold text-cyan-300 transition-colors cursor-pointer"
+                title={isEn ? "View objectives list" : "Afficher la liste des objectifs"}
+              >
+                🎯 {doneObjectivesCount}/{liveObjectives.length}
+              </button>
               {livePresence.length > 0 && (
                 <>
                   <span className="text-white/30">·</span>
@@ -658,13 +794,14 @@ export function RaidOverlayClient({
       )}
 
       {/* ── 2. NAVIGATION ÉPURÉE (1 SEULE RANGÉE DE TEXTE, DYNAMIQUE PAR RAID) ── */}
-      <nav className="flex items-center justify-between shrink-0 bg-[#14161d] border-b border-white/[0.14] px-3 text-[11px]">
+      <nav className="flex items-center justify-between shrink-0 bg-[#14161d] border-b border-white/[0.14] px-3 text-xs">
         {(currentRaidSlug === "jardin-eternel"
           ? ([
               { id: "step", label: isEn ? "Rooms" : "Salles" },
               { id: "enigmes", label: isEn ? "Puzzles" : "Énigmes" },
               { id: "trajets", label: isEn ? "Routes" : "Trajets" },
               { id: "burst", label: isEn ? "Boss & Setup" : "Boss & Compo" },
+              ...(liveSession ? [{ id: "objectifs", label: `🎯 ${isEn ? "Objectives" : "Objectifs"} (${doneObjectivesCount}/${liveObjectives.length})` }] : []),
             ] as const)
           : ([
               { id: "step", label: isEn ? "Rooms" : "Salles" },
@@ -673,6 +810,7 @@ export function RaidOverlayClient({
               { id: "light", label: isEn ? "Light" : "Lumière" },
               { id: "burst", label: isEn ? "Burst" : "Burst" },
               { id: "bestiaire", label: isEn ? "Bestiary" : "Bestiaire" },
+              ...(liveSession ? [{ id: "objectifs", label: `🎯 ${isEn ? "Objectives" : "Objectifs"} (${doneObjectivesCount}/${liveObjectives.length})` }] : []),
             ] as const)
         ).map((tab) => {
           const tabKey = tab.id === "trajets" ? "safe_travel" : tab.id;
@@ -728,7 +866,7 @@ export function RaidOverlayClient({
                 data-step-idx={idx}
                 onClick={() => setActiveStep(idx)}
                 className={cn(
-                  "px-2 py-0.5 rounded text-[10.5px] shrink-0 transition-colors whitespace-nowrap",
+                  "px-2 py-0.5 rounded text-xs shrink-0 transition-colors whitespace-nowrap",
                   isActive
                     ? "bg-white/[0.16] text-white font-semibold border border-white/30"
                     : "text-white/60 hover:text-white hover:bg-white/[0.06] border border-transparent"
@@ -771,7 +909,7 @@ export function RaidOverlayClient({
                     )}
                   </h2>
                   {currentStep.bossHp && (
-                    <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-white/5 text-rose-300 border border-rose-500/20">
+                    <span className="text-xs font-mono px-1.5 py-0.2 rounded bg-white/5 text-rose-300 border border-rose-500/20">
                       {currentStep.bossHp}
                     </span>
                   )}
@@ -784,7 +922,7 @@ export function RaidOverlayClient({
               <button
                 onClick={() => handleCopy(currentStep.coords, `travel-${currentStep.id}`)}
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded font-mono text-[10.5px] transition-colors shrink-0 border",
+                  "flex items-center gap-1 px-2 py-1 rounded font-mono text-xs transition-colors shrink-0 border",
                   copiedKey === `travel-${currentStep.id}`
                     ? "bg-emerald-500 text-black border-emerald-400 font-bold"
                     : "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
@@ -817,7 +955,7 @@ export function RaidOverlayClient({
                   </div>
                 )}
 
-                <div className="flex items-center justify-between gap-1 flex-wrap text-[10.5px]">
+                <div className="flex items-center justify-between gap-1 flex-wrap text-xs">
                   <div className="flex items-center gap-1 flex-wrap">
                     {currentStep.secondaryImages?.map((img, i) => (
                       <button
@@ -850,7 +988,7 @@ export function RaidOverlayClient({
 
             {/* Puces essentielles (lecture en 5-8 mots par puce avec positions cliquables) */}
             <div className="pt-1">
-              <ul className="space-y-1.5 text-[11.5px] text-white/80">
+              <ul className="space-y-1.5 text-xs text-white/80">
                 {currentStep.bullets?.map((bullet, idx) => (
                   <li key={idx} className="flex items-start gap-1.5 leading-snug">
                     <span className="text-white/30 shrink-0 select-none mt-0.5">•</span>
@@ -980,7 +1118,7 @@ export function RaidOverlayClient({
                       setActiveTravelRouteId(linkedRoute.id);
                       setMainView("safe_travel");
                     }}
-                    className="mt-1.5 inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/[0.08] px-2 py-1 text-[10.5px] font-semibold text-white transition-colors hover:bg-white/[0.14]"
+                    className="mt-1.5 inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/[0.08] px-2 py-1 text-xs font-semibold text-white transition-colors hover:bg-white/[0.14]"
                   >
                     <MapPin size={11} className="shrink-0" />
                     <span>{isEn ? `View route: ${linkedRoute.title}` : `Voir le trajet : ${linkedRoute.title}`}</span>
@@ -1085,7 +1223,7 @@ export function RaidOverlayClient({
                     <div className="flex items-center gap-2">
                       <span style={{ color: form.color }}>{form.icon}</span>
                       <div className="text-left">
-                        <p className="text-[11.5px] font-semibold text-white">{form.label}</p>
+                        <p className="text-xs font-semibold text-white">{form.label}</p>
                         <p className="text-[9px] text-white/40">{form.element}</p>
                       </div>
                     </div>
@@ -1191,11 +1329,11 @@ export function RaidOverlayClient({
                     <div className="space-y-2">
                       <div className="pb-1 border-b border-white/[0.06]">
                         <h3 className="text-[12px] font-semibold text-white">{currentRoute.title}</h3>
-                        <p className="text-[10.5px] text-white/50">{currentRoute.subtitle}</p>
+                        <p className="text-xs text-white/50">{currentRoute.subtitle}</p>
                       </div>
 
                       {currentRoute.dangerWarning && (
-                        <div className="p-2 rounded border-l-2 border-l-amber-500 bg-amber-500/[0.06] text-[10.5px] text-amber-200/90">
+                        <div className="p-2 rounded border-l-2 border-l-amber-500 bg-amber-500/[0.06] text-xs text-amber-200/90">
                           <TextWithCoords text={currentRoute.dangerWarning} onCopy={handleCopy} copiedKey={copiedKey} isEn={isEn} />
                         </div>
                       )}
@@ -1220,7 +1358,7 @@ export function RaidOverlayClient({
                                 <button
                                   onClick={() => handleCopy(st.coords!, `route-cmd-${st.stepNum}`)}
                                   className={cn(
-                                    "px-1.5 py-0.5 rounded font-mono text-[9.5px] transition-colors flex items-center gap-1 border",
+                                    "px-1.5 py-0.5 rounded font-mono text-xs transition-colors flex items-center gap-1 border",
                                     copiedKey === `route-cmd-${st.stepNum}`
                                       ? "bg-emerald-500 text-black border-emerald-400 font-bold"
                                       : "bg-white/[0.04] hover:bg-white/[0.08] text-white/80 border-white/10"
@@ -1236,7 +1374,7 @@ export function RaidOverlayClient({
                                 </button>
                               )}
                             </div>
-                            <p className="text-[10.5px] text-white/60">
+                            <p className="text-xs text-white/60">
                               <TextWithCoords text={st.action} onCopy={handleCopy} copiedKey={copiedKey} isEn={isEn} />
                             </p>
                             {st.warning && (
@@ -1256,7 +1394,7 @@ export function RaidOverlayClient({
             {/* Sous-onglet : Gisements de Sel */}
             {hasSalts && travelSubTab === "salts" && (
               <div className="space-y-2">
-                <p className="text-[10.5px] text-white/50">
+                <p className="text-xs text-white/50">
                   {isEn
                     ? "Click on a position to copy the /travel x,y command :"
                     : "Cliquez sur une position pour copier la commande /travel x,y :"}
@@ -1368,7 +1506,7 @@ export function RaidOverlayClient({
               ))}
             </div>
 
-            <div className="p-2 rounded border-l-2 border-l-rose-500 bg-rose-500/[0.06] text-[10.5px] text-rose-200/90">
+            <div className="p-2 rounded border-l-2 border-l-rose-500 bg-rose-500/[0.06] text-xs text-rose-200/90">
               {isEn
                 ? "⚠️ Salt achievement = 100 salts SHOWN in the raid UI (spent salts don't count). Hoarding is not darkness — spending is. Skip it on score runs!"
                 : "⚠️ Succès Sel = 100 sels AFFICHÉS dans l'interface (les dépensés ne comptent pas). Thésauriser n'éteint rien — dépenser, si. À ignorer en run de score !"}
@@ -1419,7 +1557,7 @@ export function RaidOverlayClient({
                   ? (isEn ? "Progression Milestones ➔ Score" : "Paliers de Progression ➔ Score")
                   : (isEn ? "Damage Scale ➔ Bonus Score" : "Barème Dégâts ➔ Score Bonus")}
               </span>
-              <div className="grid grid-cols-2 gap-1 font-mono text-[10.5px]">
+              <div className="grid grid-cols-2 gap-1 font-mono text-xs">
                 {raid.burstOpti?.scale.map((row) => (
                   <div
                     key={row.dmg}
@@ -1438,7 +1576,7 @@ export function RaidOverlayClient({
                 <span className="text-[10px] font-medium uppercase tracking-wider text-white/40">
                   {isEn ? "Key Classes & Synergies" : "Classes Clés & Synergies"}
                 </span>
-                <span className="text-[9.5px] text-white/40">
+                <span className="text-xs text-white/40">
                   {currentRaidSlug === "jardin-eternel"
                     ? (isEn ? "MP Drain & Roles" : "Entrave & Rôles")
                     : (isEn ? "Pure Single-Target" : "Mono-cible pur")}
@@ -1492,9 +1630,9 @@ export function RaidOverlayClient({
                 <div className="text-[10px] text-white/40 font-medium">
                   {isEn ? "Key Equipment :" : "Équipements Clés :"}
                 </div>
-                <div className="space-y-0.5 text-[10.5px]">
+                <div className="space-y-0.5 text-xs">
                     {raid.burstOpti?.keyItems.map((item) => (
-                      <div key={item.name} className="flex items-start gap-1.5 text-[10.5px]">
+                      <div key={item.name} className="flex items-start gap-1.5 text-xs">
                         <span className="font-semibold text-white whitespace-nowrap shrink-0">• {item.name} :</span>
                         <span className="text-white/50 min-w-0 leading-snug">{item.desc}</span>
                       </div>
@@ -1507,6 +1645,115 @@ export function RaidOverlayClient({
         {/* ════════════════════════════════════════════════════════════════════ */}
         {/* VUE BESTIAIRE : LOT 5 — ENCYCLOPÉDIE DU RAID (GIGALODON)          */}
         {/* ════════════════════════════════════════════════════════════════════ */}
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {/* VUE OBJECTIFS LIVE (COTABLE PAR LE LEAD, SYNCHRO TEMPS RÉEL)       */}
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {mainView === "objectifs" && (
+          <div className="rounded-md border border-white/[0.08] bg-[#121319] p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <Target size={16} className="text-cyan-400" />
+                  <span>{isEn ? "Raid Objectives" : "Objectifs du Raid"}</span>
+                </h2>
+                <p className="text-xs text-white/50">
+                  {liveSession?.isLead
+                    ? (isEn ? "Leader controls: check completed objectives in real time" : "Contrôle Lead : cochez les objectifs validés en direct")
+                    : (isEn ? "Real-time squad objectives (checked by the captain)" : "Objectifs synchronisés en direct (cochés par le capitaine)")}
+                </p>
+              </div>
+              <span className={cn(
+                "text-xs font-bold px-2 py-0.5 rounded border shrink-0",
+                liveSession?.isLead
+                  ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                  : "bg-white/[0.05] text-white/60 border-white/10"
+              )}>
+                {liveSession?.isLead ? "👑 Lead" : "👁️ Membre"}
+              </span>
+            </div>
+
+            {/* Score summary card */}
+            <div className="p-3 rounded-lg border border-white/10 bg-white/[0.03] space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-white/60 font-medium">{isEn ? "Calculated Live Score" : "Score calculé en direct"} :</span>
+                <span className="font-mono font-black text-amber-300 text-sm">
+                  {(liveSession?.score ?? 0).toLocaleString(isEn ? "en-US" : "fr-FR")} / {maxLiveScore.toLocaleString(isEn ? "en-US" : "fr-FR")} pts
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-black/40 border border-white/10 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-cyan-500 to-amber-400 transition-all duration-300 rounded-full"
+                  style={{
+                    width: `${maxLiveScore > 0 ? Math.min(100, Math.round(((liveSession?.score ?? 0) / maxLiveScore) * 100)) : 0}%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-xs text-white/40 font-mono">
+                <span>{doneObjectivesCount} / {liveObjectives.length} validés</span>
+                <span>{maxLiveScore > 0 ? Math.round(((liveSession?.score ?? 0) / maxLiveScore) * 100) : 0}%</span>
+              </div>
+            </div>
+
+            {/* Objectives list */}
+            <div className="space-y-1.5">
+              {liveObjectives.map((obj) => {
+                const canCheck = Boolean(liveSession?.isLead);
+                return (
+                  <div
+                    key={obj.id}
+                    onClick={() => {
+                      if (canCheck) {
+                        void handleToggleObjective(obj.id, obj.done);
+                      }
+                    }}
+                    className={cn(
+                      "p-2.5 rounded-lg border flex items-center justify-between gap-3 transition-all",
+                      obj.done
+                        ? "bg-emerald-950/20 border-emerald-500/30 text-white"
+                        : "bg-white/[0.02] border-white/[0.06] text-white/70 hover:bg-white/[0.05]",
+                      canCheck ? "cursor-pointer select-none" : "cursor-default"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={cn(
+                          "w-5 h-5 rounded flex items-center justify-center border shrink-0 transition-colors",
+                          obj.done
+                            ? "bg-emerald-500 border-emerald-400 text-black font-bold"
+                            : "bg-black/40 border-white/20 text-transparent"
+                        )}
+                      >
+                        {obj.done ? <Check size={13} strokeWidth={3} /> : null}
+                      </div>
+                      <span className={cn(
+                        "text-xs font-medium leading-snug",
+                        obj.done && "line-through text-white/50"
+                      )}>
+                        {obj.label}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {obj.points > 0 ? (
+                        <span className="font-mono text-xs font-bold text-amber-300/90 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                          +{obj.points.toLocaleString(isEn ? "en-US" : "fr-FR")} pts
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-white/40 px-1.5 py-0.5 rounded border border-white/5">
+                          Jalon
+                        </span>
+                      )}
+                      {!canCheck && (
+                        <Lock size={12} className="text-white/30" />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {mainView === "bestiaire" && (
           <div className="rounded-md border border-white/[0.08] bg-[#121319] p-3 space-y-3">
             <div>
@@ -1526,29 +1773,37 @@ export function RaidOverlayClient({
                   key={entry.slug}
                   type="button"
                   onClick={() => setBestiarySlug(entry.slug)}
-                  className="p-2 rounded border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] flex items-center justify-between gap-2 text-left transition-colors"
+                  className="p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] flex items-center justify-between gap-3 text-left transition-colors cursor-pointer"
                 >
-                  <div className="min-w-0">
-                    <p className="text-[12px] font-semibold text-white truncate">{entry.name}</p>
-                    <p className="text-[10px] text-white/40">
-                      {entry.role === "boss"
-                        ? (isEn ? "Boss" : "Boss")
-                        : entry.role === "invocation"
-                        ? (isEn ? "Summon" : "Invocation")
-                        : (isEn ? "Monster" : "Monstre")}
-                      {" · "}
-                      {entry.floors}
-                      {entry.scorePts ? ` · +${entry.scorePts.toLocaleString(isEn ? "en-US" : "fr-FR")} pts` : ""}
-                    </p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img
+                      src={`/api/assets-dofus/monsters/${entry.monsterId || 8314}`}
+                      alt={entry.name}
+                      className="w-10 h-10 rounded-md border border-white/10 object-contain bg-black/40 shrink-0"
+                      loading="lazy"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{entry.name}</p>
+                      <p className="text-xs text-white/50">
+                        {entry.role === "boss"
+                          ? (isEn ? "Boss" : "Boss")
+                          : entry.role === "invocation"
+                          ? (isEn ? "Summon" : "Invocation")
+                          : (isEn ? "Monster" : "Monstre")}
+                        {" · "}
+                        {entry.floors}
+                        {entry.scorePts ? ` · +${entry.scorePts.toLocaleString(isEn ? "en-US" : "fr-FR")} pts` : ""}
+                      </p>
+                    </div>
                   </div>
                   <span
                     className={cn(
-                      "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0",
+                      "text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded border shrink-0",
                       entry.role === "boss"
                         ? "text-amber-300 border-amber-500/30 bg-amber-500/10"
                         : entry.role === "invocation"
                         ? "text-violet-300 border-violet-500/30 bg-violet-500/10"
-                        : "text-white/60 border-white/10 bg-white/[0.04]"
+                        : "text-white/70 border-white/10 bg-white/[0.04]"
                     )}
                   >
                     {isEn ? "Sheet" : "Fiche"}
@@ -1625,74 +1880,135 @@ export function RaidOverlayClient({
                 </p>
               ) : (
                 <>
-                  <div className="flex items-center gap-2.5">
+                  {/* Fiche d'identité & Stats officielles */}
+                  <div className="p-3 rounded-lg border border-white/10 bg-white/[0.03] flex items-center gap-3.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={bestiaryEntry.imageUrl}
                       alt={bestiaryEntry.name}
-                      className="w-12 h-12 object-contain rounded border border-white/10 bg-black/40 shrink-0"
+                      className="w-16 h-16 object-contain rounded-md border border-white/15 bg-black/60 shrink-0 shadow"
                       loading="lazy"
                     />
-                    <div className="text-[11px] text-white/70 space-y-0.5">
-                      {bestiaryEntry.lifePoints !== null && (
-                        <p>
-                          <span className="font-mono font-bold text-rose-300">{bestiaryEntry.lifePoints.toLocaleString(isEn ? "en-US" : "fr-FR")}</span>{" "}
-                          PV
-                          {bestiaryEntry.actionPoints !== null && (
-                            <span className="text-white/40"> · {bestiaryEntry.actionPoints} PA</span>
-                          )}
-                          {bestiaryEntry.movementPoints !== null && (
-                            <span className="text-white/40"> · {bestiaryEntry.movementPoints} PM</span>
-                          )}
-                        </p>
-                      )}
-                      <p className="font-mono text-[10px] text-white/50">
-                        {[
-                          bestiaryEntry.resistances.neutral !== null ? `${bestiaryEntry.resistances.neutral}% N` : null,
-                          bestiaryEntry.resistances.earth !== null ? `${bestiaryEntry.resistances.earth}% T` : null,
-                          bestiaryEntry.resistances.fire !== null ? `${bestiaryEntry.resistances.fire}% F` : null,
-                          bestiaryEntry.resistances.water !== null ? `${bestiaryEntry.resistances.water}% E` : null,
-                          bestiaryEntry.resistances.air !== null ? `${bestiaryEntry.resistances.air}% A` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {bestiaryEntry.lifePoints !== null && (
+                          <span className="inline-flex items-center gap-1 font-mono font-bold text-rose-300 text-xs">
+                            <img src="/assets/dofus/stats/pv.png" alt="PV" className="w-3.5 h-3.5 object-contain" />
+                            {bestiaryEntry.lifePoints.toLocaleString(isEn ? "en-US" : "fr-FR")}
+                          </span>
+                        )}
+                        {bestiaryEntry.actionPoints !== null && (
+                          <span className="inline-flex items-center gap-1 font-mono font-semibold text-amber-200 text-xs">
+                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3.5 h-3.5 object-contain" />
+                            {bestiaryEntry.actionPoints}
+                          </span>
+                        )}
+                        {bestiaryEntry.movementPoints !== null && (
+                          <span className="inline-flex items-center gap-1 font-mono font-semibold text-emerald-300 text-xs">
+                            <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-3.5 h-3.5 object-contain" />
+                            {bestiaryEntry.movementPoints}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Résistances officielles Dofus */}
+                      <div className="flex items-center gap-2.5 flex-wrap text-xs font-mono text-white/80 pt-0.5">
+                        {bestiaryEntry.resistances.neutral !== null && (
+                          <span className="inline-flex items-center gap-0.5" title="Neutre">
+                            <img src="/assets/dofus/stats/resNeutre.png" alt="Neutre" className="w-3.5 h-3.5 object-contain" />
+                            {bestiaryEntry.resistances.neutral}%
+                          </span>
+                        )}
+                        {bestiaryEntry.resistances.earth !== null && (
+                          <span className="inline-flex items-center gap-0.5" title="Terre">
+                            <img src="/assets/dofus/stats/resTerre.png" alt="Terre" className="w-3.5 h-3.5 object-contain" />
+                            {bestiaryEntry.resistances.earth}%
+                          </span>
+                        )}
+                        {bestiaryEntry.resistances.fire !== null && (
+                          <span className="inline-flex items-center gap-0.5" title="Feu">
+                            <img src="/assets/dofus/stats/resFeu.png" alt="Feu" className="w-3.5 h-3.5 object-contain" />
+                            {bestiaryEntry.resistances.fire}%
+                          </span>
+                        )}
+                        {bestiaryEntry.resistances.water !== null && (
+                          <span className="inline-flex items-center gap-0.5" title="Eau">
+                            <img src="/assets/dofus/stats/resEau.png" alt="Eau" className="w-3.5 h-3.5 object-contain" />
+                            {bestiaryEntry.resistances.water}%
+                          </span>
+                        )}
+                        {bestiaryEntry.resistances.air !== null && (
+                          <span className="inline-flex items-center gap-0.5" title="Air">
+                            <img src="/assets/dofus/stats/resAir.png" alt="Air" className="w-3.5 h-3.5 object-contain" />
+                            {bestiaryEntry.resistances.air}%
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Esquives */}
                       {(bestiaryEntry.dodgeAp !== null || bestiaryEntry.dodgeMp !== null) && (
-                        <p className="font-mono text-[10px] text-white/40">
-                          {isEn ? "Dodge" : "Esquive"}
-                          {bestiaryEntry.dodgeAp !== null ? ` PA ${bestiaryEntry.dodgeAp}` : ""}
-                          {bestiaryEntry.dodgeMp !== null ? ` · PM ${bestiaryEntry.dodgeMp}` : ""}
-                        </p>
+                        <div className="flex items-center gap-3 text-xs font-mono text-white/60">
+                          {bestiaryEntry.dodgeAp !== null && (
+                            <span className="inline-flex items-center gap-1" title="Esquive PA">
+                              <img src="/assets/dofus/stats/esquivePA.png" alt="Esq PA" className="w-3.5 h-3.5 object-contain" />
+                              {bestiaryEntry.dodgeAp}
+                            </span>
+                          )}
+                          {bestiaryEntry.dodgeMp !== null && (
+                            <span className="inline-flex items-center gap-1" title="Esquive PM">
+                              <img src="/assets/dofus/stats/esquivePM.png" alt="Esq PM" className="w-3.5 h-3.5 object-contain" />
+                              {bestiaryEntry.dodgeMp}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="p-2 rounded border-l-2 border-l-cyan-500 bg-cyan-500/[0.06] text-[10.5px] text-cyan-200/90">
-                    {isEn
-                      ? "Tactical summary (official spell texts unavailable)."
-                      : "Résumé tactique (textes officiels des sorts indisponibles)."}
-                  </div>
-
-                  <div className="space-y-1.5">
+                  {/* Liste des Sorts avec vrais assets */}
+                  <div className="space-y-2">
                     {bestiaryEntry.spells.map((spell) => {
                       const lookup = (id: number): string | null => bestiarySummons[id] ?? null;
                       return (
-                        <div key={spell.id} className="p-2 rounded border border-white/[0.06] bg-white/[0.02] text-[11px]">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-white">{spell.name}</span>
-                            <span className="font-mono text-[10px] text-white/40">
-                              {spell.apCost} PA · {spell.minRange === spell.range ? spell.range : `${spell.minRange}-${spell.range}`} PO
-                            </span>
+                        <div key={spell.id} className="p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02] text-xs">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {spell.iconId ? (
+                                <img
+                                  src={`/api/assets-dofus/spells/${spell.iconId}`}
+                                  alt={spell.name}
+                                  className="w-7 h-7 rounded border border-white/10 bg-black/40 object-contain shrink-0"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="w-7 h-7 rounded border border-white/10 bg-white/5 flex items-center justify-center shrink-0 text-cyan-400 font-bold text-xs">
+                                  ✦
+                                </div>
+                              )}
+                              <span className="font-bold text-white text-xs">{spell.name}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2.5 font-mono text-xs text-white/70">
+                              <span className="inline-flex items-center gap-1" title="Coût PA">
+                                <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3.5 h-3.5 object-contain" />
+                                {spell.apCost}
+                              </span>
+                              <span className="inline-flex items-center gap-1" title="Portée">
+                                <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3.5 h-3.5 object-contain" />
+                                {spell.minRange === spell.range ? spell.range : `${spell.minRange}-${spell.range}`}
+                              </span>
+                            </div>
                           </div>
+
                           {(bestiaryConditions[spell.id] ?? []).length > 0 && (
-                            <p className="text-[10px] text-cyan-300/80 mt-0.5">
+                            <p className="text-xs text-cyan-300/90 mt-1 pl-9">
                               {(bestiaryConditions[spell.id] ?? []).join(" · ")}
                             </p>
                           )}
                           {spell.effects.length > 0 && (
-                            <ul className="mt-1 space-y-0.5 text-white/60">
+                            <ul className="mt-1 space-y-0.5 text-white/70 pl-9">
                               {spell.effects.map((effect, i) => (
-                                <li key={i} className="text-[10.5px]">
+                                <li key={i} className="text-xs leading-relaxed">
                                   {scaleUnityDamageLine(
                                     resolveInvocationLabel(String(effect), lookup),
                                     bestiaryEntry.damageStats
@@ -1707,7 +2023,7 @@ export function RaidOverlayClient({
                   </div>
 
                   {bestiaryEntry.passiveName && (
-                    <p className="text-[10.5px] text-white/50">
+                    <p className="text-xs text-white/50">
                       <span className="font-semibold text-white/70">{bestiaryEntry.passiveName}</span>
                       {" — "}
                       {isEn ? "start-of-fight passive" : "passif de début de combat"}
@@ -1725,6 +2041,88 @@ export function RaidOverlayClient({
                   </a>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODALE TOUR GUIDE INTERACTIF (REJOUABLE VIA ?) ── */}
+      {isTourOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={closeTour}
+        >
+          <div
+            className="w-full max-w-sm bg-[#12141c] border border-cyan-500/30 rounded-xl overflow-hidden shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 py-3 bg-white/[0.04] border-b border-white/10 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base">{tourSteps[tourStep]?.icon}</span>
+                <span className="text-xs font-bold text-white">
+                  {isEn ? "Overlay Quick Guide" : "Mini-Guide de l'Overlay"} ({tourStep + 1}/{tourSteps.length})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={closeTour}
+                className="p-1 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <h3 className="text-sm font-bold text-cyan-200">
+                {tourSteps[tourStep]?.title}
+              </h3>
+              <p className="text-xs text-white/70 leading-relaxed">
+                {tourSteps[tourStep]?.desc}
+              </p>
+
+              {/* Step indicator dots */}
+              <div className="flex items-center justify-center gap-1.5 pt-2">
+                {tourSteps.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setTourStep(i)}
+                    className={cn(
+                      "w-2 h-2 rounded-full transition-all cursor-pointer",
+                      i === tourStep ? "bg-cyan-400 w-5" : "bg-white/20 hover:bg-white/40"
+                    )}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setTourStep((prev) => Math.max(0, prev - 1))}
+                  disabled={tourStep === 0}
+                  className="px-3 py-1.5 rounded text-xs font-medium text-white/60 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                >
+                  {isEn ? "Previous" : "Précédent"}
+                </button>
+
+                {tourStep < tourSteps.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setTourStep((prev) => Math.min(tourSteps.length - 1, prev + 1))}
+                    className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-bold transition-colors shadow cursor-pointer"
+                  >
+                    {isEn ? "Next" : "Suivant"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={closeTour}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-colors shadow cursor-pointer"
+                  >
+                    {isEn ? "Got it!" : "Compris !"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

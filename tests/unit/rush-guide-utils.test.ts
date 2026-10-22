@@ -19,6 +19,9 @@ import {
   getSequenceManualZaap,
   RUSH_ACTIVITY_TAG_CONFIG,
   findMilestoneInsertIndex,
+  blockHeaderCoord,
+  getAlignmentSet,
+  collectCascadeUncheck,
 } from "@/lib/rush-guide-utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
@@ -518,5 +521,160 @@ describe("rush-guide-utils", () => {
       }
       expect(findMilestoneInsertIndex([], { type: "ZONE", chapter: 1 })).toBe(0);
     });
+  });
+});
+
+/**
+ * En-tête de bloc du guide interne — la position s'affiche comme côté public.
+ *
+ * Défaut mesuré le 22/10/2026 : le guide interne ne lisait la position que dans
+ * `pos_tags` (regex locale), alors que le public passe par `getSequenceCoord` (qui lit
+ * aussi le titre, les tips et la note). Une quête dont la position est écrite dans son
+ * nom n'affichait donc RIEN en interne. Le bloc replié, lui, n'affichait rien du tout.
+ */
+describe("blockHeaderCoord — position d'un bloc à une seule quête", () => {
+  const seq = (over: Record<string, unknown> = {}) => ({
+    id: "s1",
+    subGuideRef: "Q1",
+    subGuideName: "Q1",
+    isOptional: false,
+    order: 0,
+    activityTags: [],
+    ...over,
+  });
+
+  it("rend la position d'une quête qui la porte dans `pos_tags`", () => {
+    const coord = blockHeaderCoord([
+      seq({ activityTags: [{ type: "pos_tags", name: "-60, -57" }] }),
+    ]);
+    expect(coord).toMatchObject({ x: -60, y: -57 });
+  });
+
+  it("lit une position écrite dans le NOM de la quête (parité guide public)", () => {
+    const coord = blockHeaderCoord([seq({ subGuideName: "La font de glaces [-60, -57]" })]);
+    expect(coord).toMatchObject({ x: -60, y: -57, raw: "[-60, -57]" });
+  });
+
+  it("lit une position écrite dans les conseils (tips)", () => {
+    const coord = blockHeaderCoord([seq({ tips: "Aller en /travel -64,-55" })]);
+    expect(coord).toMatchObject({ x: -64, y: -55 });
+  });
+
+  it("n'invente pas de position pour un bloc à plusieurs quêtes", () => {
+    expect(
+      blockHeaderCoord([
+        seq({ id: "s1", activityTags: [{ type: "pos_tags", name: "1, 2" }] }),
+        seq({ id: "s2", activityTags: [{ type: "pos_tags", name: "3, 4" }] }),
+      ])
+    ).toBeNull();
+  });
+
+  it("ignore les bandeaux informatifs : ils ne comptent pas comme une quête", () => {
+    const coord = blockHeaderCoord([
+      seq({ id: "info", activityTags: [{ type: "info_sequence" }] }),
+      seq({ id: "s2", activityTags: [{ type: "pos_tags", name: "10, 20" }] }),
+    ]);
+    expect(coord).toMatchObject({ x: 10, y: 20 });
+  });
+
+  it("rend null pour une quête sans aucune position", () => {
+    expect(blockHeaderCoord([seq({ subGuideName: "Quête sans repère" })])).toBeNull();
+  });
+
+  it("rend null pour un bloc vide ou absent", () => {
+    expect(blockHeaderCoord([])).toBeNull();
+    expect(blockHeaderCoord(null)).toBeNull();
+    expect(blockHeaderCoord(undefined)).toBeNull();
+  });
+});
+
+/**
+ * Règles d'alignement — rapatriées de `src/lib/rush-helpers.ts` le 22/10/2026, quand le
+ * matching « qui peut aider » a été retiré (le badge n'existait que côté interne et
+ * coûtait un appel serveur par quête). `getAlignmentSet` et `collectCascadeUncheck`
+ * n'ont rien à voir avec l'entraide : ce sont des règles du guide, testées ici.
+ */
+describe("getAlignmentSet — camp donné par une quête d'alignement", () => {
+  const seq = (over: Partial<RushSequence> = {}): RushSequence => ({
+    id: "seq-1",
+    subGuideRef: "q1",
+    subGuideName: "Quête 1",
+    isOptional: false,
+    order: 1,
+    ...over,
+  });
+
+  it("renvoie null si aucun tag alignment_set", () => {
+    expect(getAlignmentSet(seq())).toBeNull();
+  });
+
+  it("lit le camp + niveau du tag", () => {
+    expect(
+      getAlignmentSet(seq({ activityTags: [{ type: "alignment_set", name: "bontarien", level: 38 }] }))
+    ).toEqual({ camp: "bontarien", level: 38 });
+  });
+
+  it("borne le niveau entre 0 et 100", () => {
+    expect(
+      getAlignmentSet(seq({ activityTags: [{ type: "alignment_set", name: "brakmarien", level: 120 }] }))
+    ).toEqual({ camp: "brakmarien", level: 100 });
+  });
+
+  it("retourne niveau 0 si le tag n'a pas de niveau", () => {
+    expect(
+      getAlignmentSet(seq({ activityTags: [{ type: "alignment_set", name: "bontarien" }] }))
+    ).toEqual({ camp: "bontarien", level: 0 });
+  });
+
+  it("renvoie null si le tag est sans nom", () => {
+    expect(getAlignmentSet(seq({ activityTags: [{ type: "alignment_set" }] }))).toBeNull();
+  });
+});
+
+describe("collectCascadeUncheck — décocher un prérequis dévalide ses dépendantes", () => {
+  const milestones: RushMilestone[] = [
+    {
+      id: "ms-1",
+      chapter: 1,
+      chapterLabel: "Ch1",
+      title: "Prérequis Incarnam",
+      order: 1,
+      isOptional: false,
+      sequences: [
+        {
+          id: "q1",
+          subGuideRef: "q1",
+          subGuideName: "L'anneau de tous les dangers",
+          isOptional: false,
+          order: 1,
+          activityTags: [{ type: "alignment_set", name: "bontarien", level: 1 }],
+        },
+        {
+          id: "q2",
+          subGuideRef: "q2",
+          subGuideName: "Sous le regard des dieux",
+          isOptional: false,
+          order: 2,
+          activityTags: [
+            { type: "prereq_text", name: "L'anneau de tous les dangers" },
+            { type: "alignment_set", name: "bontarien", level: 2 },
+          ],
+        },
+      ],
+    },
+  ];
+
+  it("décoche la cible et ses dépendantes (transitives)", () => {
+    const cascade = collectCascadeUncheck("q1", milestones, new Set<string>(["q1", "q2"]));
+    expect(cascade.has("q1")).toBe(true);
+    expect(cascade.has("q2")).toBe(true);
+  });
+
+  it("ne cascade pas si aucune dépendante n'est cochée", () => {
+    expect(collectCascadeUncheck("q1", milestones, new Set<string>(["q1"]))).toEqual(new Set(["q1"]));
+  });
+
+  it("décocher une feuille n'entraîne rien de plus", () => {
+    expect(collectCascadeUncheck("q2", milestones, new Set<string>(["q1", "q2"]))).toEqual(new Set(["q2"]));
   });
 });

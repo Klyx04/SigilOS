@@ -20,13 +20,13 @@
 
 import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { ALIGNMENTS, type AlignmentId } from "@/lib/dofus-assets";
-import { getAlignmentSet } from "@/lib/rush-helpers";
 import {
   findNextActionableSequence,
   formatProgressLabel,
   getGuideMetiersRequires,
   getPrereqRefs,
   getSequenceCoord,
+  getAlignmentSet,
   isInfoSequence,
   isSequenceBlockedByPrereqs,
   type RushPrereqRef,

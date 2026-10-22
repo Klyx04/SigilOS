@@ -863,25 +863,101 @@ export function EventDetailModal({
                                         </div>
                                     )}
 
-                                    {/* Guide du raid + overlay : on retrouve la strat depuis l'event */}
+                                    {/* Guide du raid + assistant overlay */}
                                     {raidMeta?.raidType && RAID_GUIDE_LINKS[raidMeta.raidType] && (
-                                        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                                            <Link
-                                                href={RAID_GUIDE_LINKS[raidMeta.raidType].guideHref}
-                                                title={RAID_GUIDE_LINKS[raidMeta.raidType].guideLabel}
-                                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
-                                            >
-                                                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                                                Voir le guide du raid
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                onClick={() => openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug, eventId: event.id, guildId })}
-                                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
-                                            >
-                                                <Tv2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                                Overlay
-                                            </button>
+                                        <div className="space-y-2 border-t border-border pt-3">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Link
+                                                    href={RAID_GUIDE_LINKS[raidMeta.raidType].guideHref}
+                                                    title={RAID_GUIDE_LINKS[raidMeta.raidType].guideLabel}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
+                                                >
+                                                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                                                    Voir le guide du raid
+                                                </Link>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug, eventId: event.id, guildId })}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-bold text-cyan-300 transition-colors hover:bg-cyan-500/20"
+                                                >
+                                                    <Tv2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                                    Ouvrir l'overlay
+                                                </button>
+                                            </div>
+
+                                            {/* Bannière d'incitation à l'overlay pour le Capitaine */}
+                                            {isLead && (
+                                                <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/[0.08] p-3 space-y-2">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Tv2 className="h-4 w-4 text-cyan-400" />
+                                                            <span className="text-xs font-black text-cyan-200 uppercase tracking-wider">
+                                                                Assistant de Raid en Direct (Overlay)
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                                            Capitaine
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                                        Pilotez la squad avec l'overlay flottant au-dessus du jeu : chrono serveur 60 min, plans des étages, trajets sûrs et validation des objectifs en direct.
+                                                    </p>
+                                                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={async () => {
+                                                                if (!liveSession || liveSession.status !== "LIVE") {
+                                                                    await handleLiveAction(() => startRaidLiveSession(guildId, event.id));
+                                                                }
+                                                                openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug, eventId: event.id, guildId });
+                                                            }}
+                                                            disabled={liveLoading || isLoading}
+                                                            className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs"
+                                                        >
+                                                            {liveLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
+                                                            {liveSession?.status === "LIVE" ? "Rejoindre l'overlay en direct" : "Lancer le raid & Ouvrir l'overlay"}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Bannière d'incitation à l'overlay pour les Membres Inscrits */}
+                                            {!isLead && isRegistered && (
+                                                <div className="rounded-lg border border-primary/25 bg-primary/5 p-3 space-y-2">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Tv2 className="h-4 w-4 text-primary" />
+                                                            <span className="text-xs font-black text-foreground uppercase tracking-wider">
+                                                                Overlay d'assistance en jeu disponible
+                                                            </span>
+                                                        </div>
+                                                        {liveSession?.status === "LIVE" && (
+                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                                                En Direct
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                                        {liveSession?.status === "LIVE"
+                                                            ? "La session de raid est lancée ! Ouvrez la mini-fenêtre flottante (PiP) pour suivre le chrono, les étages et les objectifs validés par le lead."
+                                                            : "Inscrit à ce raid ? Ouvrez la mini-fenêtre flottante (PiP) au-dessus de votre jeu Dofus pour retrouver toutes les étapes, trajets sécurisés et le bestiaire."}
+                                                    </p>
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => openRaidOverlay({ raidSlug: RAID_GUIDE_LINKS[raidMeta.raidType].overlaySlug, eventId: event.id, guildId })}
+                                                        className={cn(
+                                                            "text-xs font-bold",
+                                                            liveSession?.status === "LIVE"
+                                                                ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                                                                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                                                        )}
+                                                    >
+                                                        <Tv2 className="h-3.5 w-3.5 mr-1.5" />
+                                                        {liveSession?.status === "LIVE" ? "Rejoindre la session dans l'overlay" : "Ouvrir l'overlay de raid"}
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 

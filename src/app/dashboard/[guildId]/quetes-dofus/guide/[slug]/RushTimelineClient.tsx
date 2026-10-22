@@ -69,7 +69,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
@@ -78,10 +78,8 @@ import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { metierIds } from "@/lib/metiers";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
 import { safeImageUrl } from "@/lib/security";
-import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import { mergeChapterPages } from "@/lib/rush-guide-pages";
-import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText, RushTipLines } from "@/components/dofus-quests/rush/RushRichText";
@@ -422,26 +420,21 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             {isNext && !isSeqCompleted && (
               <span className="font-mono shrink-0 text-[11px] text-muted-foreground">à faire</span>
             )}
-            {/* Position GPS — chip mono bleu */}
+            {/* Position — MÊME résolveur que le guide public et l'overlay
+                (`getSequenceCoord`) : `pos_tags` d'abord, puis le titre, les tips et la
+                note. La regex locale d'avant ne lisait QUE `pos_tags` : une quête dont la
+                position est écrite dans son nom (`La font de glaces [-60, -57]`) ou dans
+                ses conseils n'affichait rien ici alors qu'elle l'affiche côté public
+                (mesure du 22/10/2026). Chip mono NEUTRE partagée (clic = copie /travel,
+                survol = carte) : les coordonnées sont une donnée, pas une décoration. */}
             {(() => {
-              const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t: any) => t.type === "pos_tags") : null;
-              if (!posTag?.name) return null;
-              const posStr = String(posTag.name);
-              const worldId = (posTag as any).worldId ?? undefined;
-              const coords = posStr.match(/(-?\d+)\s*[,;]\s*(-?\d+)/);
-              if (!coords) return null;
-              const x = parseInt(coords[1], 10);
-              const y = parseInt(coords[2], 10);
-              // La commande /travel Dofus est 2D (x,y). Le worldId (dimension World)
-              // sert uniquement à la carte/popover, jamais à la commande chat.
-              // Chip mono NEUTRE partagée avec le guide public (RushCoordinateChip) :
-              // clic = copie /travel, survol = carte (MapPositionPopover). Le bleu
-              // « info » d'avant faisait couleur-décoration : les coordonnées sont
-              // une donnée, pas un état.
-              const chip = <RushCoordinateChip coordText={`${x}, ${y}`} showIcon showZaap={isZaapCopyEnabled(seq)} manualZaap={getSequenceManualZaap(seq)} className="shrink-0" />;
+              const coord = getSequenceCoord(seq);
+              if (!coord) return null;
+              const zaapEnabled = isZaapCopyEnabled(seq);
+              const manualZaap = getSequenceManualZaap(seq);
               return (
-                <MapPositionPopover posX={x} posY={y} worldId={worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`} zaapEnabled={isZaapCopyEnabled(seq)} manualZaap={getSequenceManualZaap(seq)}>
-                  {chip}
+                <MapPositionPopover posX={coord.x} posY={coord.y} worldId={coord.worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`} zaapEnabled={zaapEnabled} manualZaap={manualZaap}>
+                  <RushCoordinateChip coordText={coord.raw} showIcon showZaap={zaapEnabled} manualZaap={manualZaap} className="shrink-0" />
                 </MapPositionPopover>
               );
             })()}
@@ -461,7 +454,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 </span>
               );
             })()}
-            <RushHelperBadge guildId={guildId} seq={seq} />
             {seq.isSuccess && (
               <span className="shrink-0 text-[11px] font-semibold text-warning">Succès</span>
             )}
@@ -844,6 +836,12 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const nonInfoSeqs = ms.sequences.filter((s:any)=>!isInfoSequence(s));
   const cs=nonInfoSeqs.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
   const totalQuests=nonInfoSeqs.length;
+  // Bloc à UNE seule quête : sa position s'affiche dès l'en-tête replié, comme côté
+  // public où chaque quête porte la sienne. Bloc à plusieurs quêtes : aucune (on
+  // n'invente pas « une » position de bloc). Règle pure : `blockHeaderCoord`.
+  const soloQuest = nonInfoSeqs.length === 1 ? nonInfoSeqs[0] : null;
+  const headerCoord = blockHeaderCoord(nonInfoSeqs as any[]);
+  const guildId = React.useContext(GuildIdCtx);
   const all=isCompleted||(totalQuests>0&&cs===totalQuests);
   const pct = totalQuests>0?Math.round((cs/totalQuests)*100):0;
   const c=accentColor||"#10b981";
@@ -902,6 +900,28 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           )}
           <div className="text-muted-foreground shrink-0">{expanded?<ChevronUp className="w-5 h-5"/>:<ChevronDown className="w-5 h-5"/>}</div>
           </button>
+          {/* Position de la quête quand le bloc n'en porte qu'une : visible SANS déplier,
+              comme dans le guide public. Hors du bouton d'accordéon — `RushCoordinateChip`
+              est un bouton, et un bouton ne peut pas en contenir un autre. */}
+          {headerCoord && (
+            <MapPositionPopover
+              posX={headerCoord.x}
+              posY={headerCoord.y}
+              worldId={headerCoord.worldId}
+              guildId={guildId}
+              contextLabel={ms.title}
+              zaapEnabled={!!soloQuest && isZaapCopyEnabled(soloQuest)}
+              manualZaap={soloQuest ? getSequenceManualZaap(soloQuest) : null}
+            >
+              <RushCoordinateChip
+                coordText={headerCoord.raw}
+                showIcon
+                showZaap={!!soloQuest && isZaapCopyEnabled(soloQuest)}
+                manualZaap={soloQuest ? getSequenceManualZaap(soloQuest) : null}
+                className="shrink-0"
+              />
+            </MapPositionPopover>
+          )}
           {/* Actions du bloc — hors de la zone de bascule, comme côté public */}
           <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">
             {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-success hover:border-success/50" title="Valider tout le bloc"><Check className="w-3.5 h-3.5"/>Valider</button>}

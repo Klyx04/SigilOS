@@ -21,7 +21,7 @@ interface RushOverlayMembersModalProps {
 }
 
 /**
- * Modale liste de membres (présence / « je suis ici » / « qui peut aider »).
+ * Modale liste de membres (présence / « je suis ici »).
  * Même grammaire que les autres modales du rush : rayon 6 px, filets, jetons de
  * thème — l'overlay pose `.light` sur sa racine en thème clair.
  */

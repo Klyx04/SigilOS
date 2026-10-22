@@ -42,9 +42,10 @@ doivent la suivre — un seul oubli = un correctif appliqué à moitié :
 ## 3. Après le merge — **humain, obligatoire**
 
 - **Poste** : `nvm install && nvm use` (sinon npm affiche `EBADENGINE`).
-- **Bêta** : `./scripts/deploy-cd.sh beta`, puis `docker exec sigilos-app node -v` doit
-  afficher la version du `.nvmrc` ; idem pour le conteneur du bot.
-- **Prod** : même contrôle à l'ouverture.
+- **Bêta** : `./scripts/deploy-cd.sh beta`, puis `docker exec sigilos-beta node -v` doit
+  afficher la version du `.nvmrc` — idem `sigilos-discord-bot-beta` (noms donnés par
+  `docker ps` ; il n'y a **pas** de conteneur `sigilos-app`).
+- **Prod** : mêmes contrôles sur `sigilos-prod` et `sigilos-discord-bot-prod` à l'ouverture.
 
 ⚠️ **Pourquoi le rebuild est obligatoire** : une image Docker fige son runtime. Mesuré le
 21/10/2026 : `sigilos-app` tournait depuis **8 mois** avec un Node d'avant plusieurs vagues

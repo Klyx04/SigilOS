@@ -74,6 +74,42 @@ export function getDiscordApiStatus(error: unknown): number {
     return typeof status === "number" && Number.isFinite(status) ? status : 0;
 }
 
+/**
+ * Un `404` Discord à l'édition signifie que **le message n'existe plus** (supprimé à la
+ * main, post forum fermé, salon recréé) : il faut alors **recréer** au lieu de réécrire
+ * un embed fantôme — sans quoi la synchronisation échoue à chaque passe.
+ *
+ * Correctif du 22/10/2026 (Sentry `JAVASCRIPT-NEXTJS-23`) : le classifieur ne lisait que
+ * le **texte** (`/Discord Update Error: 404/`, `/Unknown Message/`). Or
+ * `updateChannelMessage` lève désormais un `DiscordApiError` dont le message est
+ * « Salon ou message introuvable » **sans le 404** : un message d'objet supprimé à la
+ * main n'était donc pas reconnu, faisait échouer **tout** le lot et rejouait l'erreur à
+ * chaque passe du cron. La règle lit maintenant le **statut porté par l'erreur** (source
+ * de vérité), et retombe sur le texte pour les chemins qui n'ont que la chaîne
+ * (`MarketDiscordResult.error`).
+ *
+ * Pur (aucune I/O) → verrou `tests/unit/market-discord-gone-error.test.ts`.
+ */
+export function isDiscordMessageGoneError(error: unknown): boolean {
+    if (error === null || error === undefined) return false;
+
+    if (getDiscordApiStatus(error) === 404) return true;
+
+    const message =
+        typeof error === "string"
+            ? error
+            : typeof (error as { message?: unknown }).message === "string"
+                ? ((error as { message: string }).message)
+                : "";
+    if (!message) return false;
+
+    return (
+        /Discord Update Error:\s*404\b/.test(message) ||
+        /Unknown Message/i.test(message) ||
+        /Salon ou message introuvable/i.test(message)
+    );
+}
+
 /** `code` d'erreur Discord porté par une erreur (undefined si inconnu). */
 export function getDiscordApiCode(error: unknown): number | undefined {
     const code = (error as { discordCode?: unknown } | null)?.discordCode;

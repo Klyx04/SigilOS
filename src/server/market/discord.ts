@@ -15,6 +15,7 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { getAppBaseUrl } from "@/lib/utils";
 import { redis } from "@/lib/redis";
+import { isDiscordMessageGoneError } from "@/lib/discord-api-errors";
 import {
     createForumPost,
     deleteChannel,
@@ -865,11 +866,11 @@ export async function syncBundleComponentMessages(
                         // d'échouer à chaque passe (l'ancien comportement laissait une annonce
                         // `FAILED` définitivement irréconciliable). Même règle que §13.6 pour le
                         // message d'annonce, portée ici pour les messages par objet.
-                        const detail = editError instanceof Error ? editError.message : String(editError);
-                        // Import **paresseux** : `maintenance.ts` importe ce module (aucun
-                        // cycle à l'évaluation), et la garde pure n'est nécessaire qu'ici.
-                        const { isDiscordMessageGoneError } = await import("@/server/market/maintenance");
-                        if (!isDiscordMessageGoneError(detail)) throw editError;
+                        // Règle pure et **statique** : elle lit le statut HTTP porté par
+                        // l'erreur (`DiscordApiError.status`), pas seulement son texte — un
+                        // « Salon ou message introuvable » (404) doit être reconnu comme un
+                        // message disparu, sinon tout le lot échoue à chaque passe.
+                        if (!isDiscordMessageGoneError(editError)) throw editError;
 
                         await db.marketListingComponent.update({
                             where: { id: component.id },

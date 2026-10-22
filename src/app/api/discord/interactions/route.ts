@@ -4028,8 +4028,22 @@ export async function POST(request: NextRequest) {
                             });
                         }
 
+                        // Verrou anti-spam : max 3 exécutions par 5s par utilisateur
+                        if (!checkRateLimit(`ticket-cmd:${discordUserId}:${channelId}`, 3, 5_000)) {
+                            return NextResponse.json({
+                                type: 4,
+                                data: {
+                                    content: "⏳ Merci de patienter quelques secondes avant de réutiliser une commande sur ce ticket.",
+                                    flags: 64,
+                                },
+                            });
+                        }
+
                         // Verrou 2 : Whitelist & Autorisations
                         const isGuildAdmin = (BigInt(member?.permissions || "0") & BigInt(0x8)) === BigInt(0x8);
+                        const motifStaff = ticket.journey?.staffRoleIds || [];
+                        const globalStaff = ticketConfig.staffRoleIds || [];
+                        const allStaffRoleIds = [...new Set([...motifStaff, ...globalStaff])];
                         let isAllowed = isGuildAdmin;
 
                         if (!isAllowed) {
@@ -4040,10 +4054,7 @@ export async function POST(request: NextRequest) {
                                 isAllowed = allowed.length === 0 || userRoleIds.some((r) => allowed.includes(r));
                             } else {
                                 // STAFF_ONLY
-                                const motifStaff = ticket.journey?.staffRoleIds || [];
-                                const globalStaff = ticketConfig.staffRoleIds || [];
-                                const allStaff = [...new Set([...motifStaff, ...globalStaff])];
-                                isAllowed = allStaff.length === 0 || userRoleIds.some((r) => allStaff.includes(r));
+                                isAllowed = allStaffRoleIds.length === 0 || userRoleIds.some((r) => allStaffRoleIds.includes(r));
                             }
                         }
 
@@ -4091,6 +4102,7 @@ export async function POST(request: NextRequest) {
                             targetAvatar,
                             staffId: discordUserId,
                             staffPseudo: member?.user?.global_name || member?.user?.username || member?.nick || "Staff",
+                            staffRoleIds: allStaffRoleIds,
                             ticketNumero: ticket.ticketNumber,
                             ticketMotif: ticket.journey?.name || "Support",
                             channelId,

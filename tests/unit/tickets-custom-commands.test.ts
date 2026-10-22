@@ -102,6 +102,17 @@ describe("2. Moteur d'interpolation des variables ({demandeur}, {cible}, {pseudo
         expect(result).toBe("Staff : <@555666777888999000> (ChefDeGuilde) | Ticket #0042 (Candidature) dans <#111222333444555> sur STELLIUM");
     });
 
+    it("supporte les alias {moderateur} et {equipe}/{roles} pour mentionner l'équipe", () => {
+        const contextWithRoles: TicketCommandContext = {
+            ...context,
+            staffRoleIds: ["111222", "333444"],
+        };
+        const template = "Validé par {moderateur} pour l'équipe {equipe} ({roles})";
+        const result = interpolateTicketCommandTokens(template, contextWithRoles);
+
+        expect(result).toBe("Validé par <@555666777888999000> pour l'équipe <@&111222> <@&333444> (<@&111222> <@&333444>)");
+    });
+
     it("retombe sur le demandeur si aucune cible spécifique n'est définie", () => {
         const noTargetContext: TicketCommandContext = {
             ...context,

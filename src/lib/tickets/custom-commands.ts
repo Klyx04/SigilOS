@@ -101,6 +101,7 @@ export interface TicketCommandContext {
     targetAvatar?: string;
     staffId: string;
     staffPseudo?: string;
+    staffRoleIds?: string[];
     ticketNumero?: number | string;
     ticketMotif?: string;
     channelId: string;
@@ -123,23 +124,36 @@ export function interpolateTicketCommandTokens(
             ? `#${String(ctx.ticketNumero).padStart(4, "0")}`
             : String(ctx.ticketNumero || "");
 
+    const staffRoleMentions =
+        ctx.staffRoleIds && ctx.staffRoleIds.length > 0
+            ? ctx.staffRoleIds.map((id) => `<@&${id}>`).join(" ")
+            : "@Staff";
+
     let res = text
-        // Demandeur
+        // Demandeur (créateur du ticket)
         .replace(/\{demandeur\}/gi, `<@${ctx.demandeurId}>`)
         .replace(/\{demandeur\.id\}/gi, ctx.demandeurId)
         .replace(/\{demandeur\.pseudo\}/gi, ctx.demandeurPseudo || "Demandeur")
         .replace(/\{demandeur\.avatar\}/gi, ctx.demandeurAvatar || "")
-        // Cible / User
+        // Cible / User (membre visé par l'option ou créateur par défaut)
         .replace(/\{cible\}/gi, `<@${targetId}>`)
         .replace(/\{user\}/gi, `<@${targetId}>`)
         .replace(/\{membre\}/gi, `<@${targetId}>`)
         .replace(/\{pseudo\}/gi, targetPseudo)
         .replace(/\{cible\.id\}/gi, targetId)
         .replace(/\{cible\.avatar\}/gi, ctx.targetAvatar || ctx.demandeurAvatar || "")
-        // Staff / Auteur
+        // Modérateur exécutant (la personne du staff qui tape la commande)
         .replace(/\{staff\}/gi, `<@${ctx.staffId}>`)
+        .replace(/\{moderateur\}/gi, `<@${ctx.staffId}>`)
+        .replace(/\{modérateur\}/gi, `<@${ctx.staffId}>`)
         .replace(/\{auteur\}/gi, `<@${ctx.staffId}>`)
         .replace(/\{staff\.pseudo\}/gi, ctx.staffPseudo || "Staff")
+        .replace(/\{moderateur\.pseudo\}/gi, ctx.staffPseudo || "Staff")
+        // Équipe staff assignée au ticket (ping tous les rôles staff du ticket)
+        .replace(/\{roles\}/gi, staffRoleMentions)
+        .replace(/\{rôles\}/gi, staffRoleMentions)
+        .replace(/\{equipe\}/gi, staffRoleMentions)
+        .replace(/\{équipe\}/gi, staffRoleMentions)
         // Ticket
         .replace(/\{numero\}/gi, numeroFormatted)
         .replace(/\{ticket\.numero\}/gi, numeroFormatted)

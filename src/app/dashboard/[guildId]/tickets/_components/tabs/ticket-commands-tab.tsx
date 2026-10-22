@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import {
     Terminal,
@@ -16,27 +16,23 @@ import {
     UserMinus,
     Lock,
     Sparkles,
-    Image as ImageIcon,
     Sliders,
     MessageSquare,
-    ExternalLink,
     HelpCircle,
     ChevronRight,
     ChevronLeft,
     BookOpen,
     Info,
     Lightbulb,
-    AtSign,
     Hash,
-    Layers,
-    Check,
+    Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { TicketRolesPicker } from "../ticket-discord-pickers";
+import { TicketRolesPicker, useDiscordRoles } from "../ticket-discord-pickers";
 import {
     TICKET_CUSTOM_COMMANDS_MAX,
     type TicketCustomCommand,
@@ -51,6 +47,8 @@ import {
 interface TicketCommandsTabProps {
     guildId: string;
     initialCommands: TicketCustomCommand[];
+    staffRoleIds?: string[];
+    journeys?: any[];
     onRefresh: () => void;
 }
 
@@ -61,7 +59,8 @@ interface TicketCommandsTabProps {
 interface VariableDoc {
     token: string;
     label: string;
-    category: "Membres" | "Ticket" | "Serveur";
+    badge: string;
+    category: "Membres" | "Staff" | "Ticket" | "Serveur";
     summary: string;
     detail: string;
     previewOutput: string;
@@ -73,59 +72,76 @@ const DETAILED_VARIABLES: VariableDoc[] = [
     {
         token: "{demandeur}",
         label: "Demandeur",
+        badge: "@Créateur",
         category: "Membres",
-        summary: "Ping du créateur du ticket (@Joueur)",
-        detail: "Mentionne directement le membre qui a ouvert le ticket avec une notification sonore et visuelle. Idéal pour lui demander une réponse.",
-        previewOutput: "@Aventurier",
+        summary: "Ping du créateur du ticket (@Jean)",
+        detail: "Mentionne directement la personne qui a cliqué sur le bouton pour ouvrir le ticket. Envoie une notification Discord au créateur.",
+        previewOutput: "@Jean",
         isMention: true,
     },
     {
         token: "{cible}",
         label: "Cible",
+        badge: "@Membre visé",
         category: "Membres",
-        summary: "Ping du membre ciblé par l'option ou le demandeur",
-        detail: "Si vous tapez `/{nom} membre:@Pierre`, mentionne Pierre. Si vous n'avez pas précisé de membre, cible automatiquement l'auteur du ticket !",
-        previewOutput: "@Aventurier",
+        summary: "Ping du membre visé par la commande (@Pierre ou @Jean)",
+        detail: "Si vous tapez `/{nom} membre:@Pierre`, mentionne Pierre. Si vous ne spécifiez aucun membre lors de la commande, mentionne automatiquement le créateur du ticket !",
+        previewOutput: "@Pierre",
         isMention: true,
     },
     {
         token: "{pseudo}",
         label: "Pseudo",
+        badge: "Nom sans @",
         category: "Membres",
-        summary: "Nom brut sans arobase (texte lisible)",
-        detail: "Le nom d'affichage du joueur sans @ ni notification sonore. Indispensable pour les titres d'embeds où les mentions ne fonctionnent pas.",
-        previewOutput: "Aventurier",
+        summary: "Nom texte lisible sans arobase (Pierre)",
+        detail: "Le nom d'affichage brut du membre sans notification sonore ni mention @. Indispensable pour les titres d'embeds où les mentions @ ne fonctionnent pas.",
+        previewOutput: "Pierre",
     },
     {
         token: "{staff}",
-        label: "Staff",
-        category: "Membres",
-        summary: "Ping du modérateur qui exécute la commande",
-        detail: "Mentionne le membre du staff qui vient de taper la commande slash. Permet au joueur de savoir qui a validé son ticket.",
-        previewOutput: "@Modérateur",
+        label: "Modérateur",
+        badge: "@Vous",
+        category: "Staff",
+        summary: "Ping de la personne du staff qui a tapé la commande (@Wylan)",
+        detail: "Mentionne UNIQUEMENT le membre du staff qui vient de valider la commande slash. Permet au demandeur de voir qui a traité sa demande.",
+        previewOutput: "@Wylan",
+        isMention: true,
+    },
+    {
+        token: "{equipe}",
+        label: "Équipe Staff",
+        badge: "@Rôles Staff",
+        category: "Staff",
+        summary: "Ping de tous les rôles staff assignés au ticket (@Modérateurs @Officiers)",
+        detail: "Mentionne l'ensemble des rôles staff configurés pour ce ticket (les rôles de l'onglet Configuration + ceux du motif en cours). Idéal pour notifier tout le staff.",
+        previewOutput: "@Modérateurs @Officiers",
         isMention: true,
     },
     {
         token: "{motif}",
         label: "Motif",
+        badge: "Type de ticket",
         category: "Ticket",
-        summary: "Nom du motif du ticket (ex: Recrutement)",
-        detail: "Le titre de la catégorie ou du parcours sélectionné à l'ouverture du ticket (ex: Recrutement, Demande d'aide, Plainte).",
+        summary: "Nom du type de demande (ex: Recrutement)",
+        detail: "Le titre de la catégorie ou du parcours sélectionné à l'ouverture du ticket (ex: Recrutement, Demande d'aide, Plainte, Craft).",
         previewOutput: "Recrutement",
     },
     {
         token: "{numero}",
         label: "Numéro",
+        badge: "#0042",
         category: "Ticket",
-        summary: "Numéro formaté du ticket (#0042)",
-        detail: "Le numéro d'ordre unique du ticket, très utile pour les références d'archives et le suivi d'équipe.",
+        summary: "Numéro séquentiel formaté du ticket (#0042)",
+        detail: "Le numéro d'ordre unique du ticket sur 4 chiffres, très utile pour les références d'archives et le suivi d'équipe.",
         previewOutput: "#0042",
     },
     {
         token: "{salon}",
         label: "Salon",
+        badge: "#ticket-0042",
         category: "Ticket",
-        summary: "Lien cliquable vers le salon Discord",
+        summary: "Lien cliquable vers le salon Discord (#ticket-0042)",
         detail: "Génère un lien Discord cliquable (#ticket-0042). Les membres peuvent cliquer dessus pour naviguer directement dans le salon.",
         previewOutput: "#ticket-0042",
         isChannel: true,
@@ -133,10 +149,11 @@ const DETAILED_VARIABLES: VariableDoc[] = [
     {
         token: "{serveur}",
         label: "Serveur",
+        badge: "Nom guilde",
         category: "Serveur",
-        summary: "Nom de votre serveur / guilde",
+        summary: "Nom officiel de votre serveur / guilde",
         detail: "Le nom officiel de votre guilde configuré dans SigilOS.",
-        previewOutput: "SigilOS Guilde",
+        previewOutput: "Guilde SigilOS",
     },
 ];
 
@@ -275,7 +292,7 @@ function DiscordTextRenderer({ text }: { text: string }) {
     const lines = text.split("\n");
 
     return (
-        <div className="space-y-1">
+        <div className="space-y-1 break-words [overflow-wrap:anywhere]">
             {lines.map((line, lineIdx) => {
                 let isQuote = false;
                 let isH1 = false;
@@ -293,8 +310,8 @@ function DiscordTextRenderer({ text }: { text: string }) {
                     lineContent = lineContent.slice(3);
                 }
 
-                // Découpage des jetons : mentions <@id>, canaux <#id>, gras **...**, italique *...*, code `...`
-                const parts = lineContent.split(/(<@[0-9]+>|<#[0-9]+>|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+                // Découpage des jetons : mentions rôles <@&id>, mentions membres <@id>, canaux <#id>, gras **...**, italique *...*, code `...`
+                const parts = lineContent.split(/(<@&[0-9a-zA-Z_-]+>|<@[0-9]+>|<#[0-9]+>|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
 
                 const renderedLine = parts.map((part, partIdx) => {
                     if (!part) return null;
@@ -304,7 +321,7 @@ function DiscordTextRenderer({ text }: { text: string }) {
                         return (
                             <span
                                 key={partIdx}
-                                className="inline-flex items-center gap-0.5 bg-[#3c4270]/60 hover:bg-[#3c4270]/80 text-[#c9cdfb] font-semibold px-1.5 py-0.2 rounded text-[11px] align-baseline transition-colors select-none"
+                                className="inline-flex items-center gap-0.5 bg-[#3c4270]/60 hover:bg-[#3c4270]/80 text-[#c9cdfb] font-semibold px-1.5 py-0.5 rounded text-[11px] align-baseline transition-colors select-none"
                             >
                                 <Hash className="h-3 w-3 inline text-[#c9cdfb]" />
                                 ticket-0042
@@ -312,14 +329,30 @@ function DiscordTextRenderer({ text }: { text: string }) {
                         );
                     }
 
-                    // Mention Discord <@id>
-                    if (part.startsWith("<@") && part.endsWith(">")) {
-                        const isStaff = part.includes("987654321");
-                        const label = isStaff ? "@Modérateur" : "@Aventurier";
+                    // Mention Rôle Discord <@&id>
+                    if (part.startsWith("<@&") && part.endsWith(">")) {
+                        const isOfficer = part.includes("role-staff-2") || part.includes("officier");
+                        const label = isOfficer ? "@Officiers" : "@Modérateurs";
                         return (
                             <span
                                 key={partIdx}
-                                className="inline-flex items-center gap-0.5 bg-[#5865F2]/25 hover:bg-[#5865F2]/40 text-[#c9cdfb] font-medium px-1.5 py-0.2 rounded text-[11px] align-baseline transition-colors select-none"
+                                className="inline-flex items-center gap-0.5 bg-[#5865F2]/25 hover:bg-[#5865F2]/40 text-[#c9cdfb] font-semibold px-1.5 py-0.5 rounded text-[11px] align-baseline transition-colors select-none"
+                            >
+                                <Shield className="h-3 w-3 inline text-[#5865F2]" />
+                                {label}
+                            </span>
+                        );
+                    }
+
+                    // Mention Utilisateur Discord <@id>
+                    if (part.startsWith("<@") && part.endsWith(">")) {
+                        const isStaff = part.includes("987654321");
+                        const isTarget = part.includes("111222333");
+                        const label = isStaff ? "@Wylan" : isTarget ? "@Pierre" : "@Jean";
+                        return (
+                            <span
+                                key={partIdx}
+                                className="inline-flex items-center gap-0.5 bg-[#5865F2]/25 hover:bg-[#5865F2]/40 text-[#c9cdfb] font-medium px-1.5 py-0.5 rounded text-[11px] align-baseline transition-colors select-none"
                             >
                                 {label}
                             </span>
@@ -339,7 +372,7 @@ function DiscordTextRenderer({ text }: { text: string }) {
                     // Code en ligne `code`
                     if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
                         return (
-                            <code key={partIdx} className="bg-[#2b2d31] text-[#e0e1e5] px-1 py-0.5 rounded font-mono text-[11px]">
+                            <code key={partIdx} className="bg-[#2b2d31] text-[#e0e1e5] px-1 py-0.5 rounded font-mono text-[11px] break-all">
                                 {part.slice(1, -1)}
                             </code>
                         );
@@ -350,28 +383,28 @@ function DiscordTextRenderer({ text }: { text: string }) {
 
                 if (isQuote) {
                     return (
-                        <div key={lineIdx} className="border-l-4 border-[#4e5058] pl-2 text-[#949ba4] italic my-0.5">
+                        <div key={lineIdx} className="border-l-4 border-[#4e5058] pl-2 text-[#949ba4] italic my-0.5 break-words [overflow-wrap:anywhere]">
                             {renderedLine}
                         </div>
                     );
                 }
                 if (isH1) {
                     return (
-                        <div key={lineIdx} className="text-sm font-bold text-white mt-1 mb-0.5">
+                        <div key={lineIdx} className="text-sm font-bold text-white mt-1 mb-0.5 break-words [overflow-wrap:anywhere]">
                             {renderedLine}
                         </div>
                     );
                 }
                 if (isH2) {
                     return (
-                        <div key={lineIdx} className="text-xs font-bold text-white mt-1 mb-0.5">
+                        <div key={lineIdx} className="text-xs font-bold text-white mt-1 mb-0.5 break-words [overflow-wrap:anywhere]">
                             {renderedLine}
                         </div>
                     );
                 }
 
                 return (
-                    <div key={lineIdx} className="min-h-[1.15rem]">
+                    <div key={lineIdx} className="min-h-[1.15rem] break-words [overflow-wrap:anywhere]">
                         {renderedLine}
                     </div>
                 );
@@ -384,10 +417,39 @@ function DiscordTextRenderer({ text }: { text: string }) {
 // COMPOSANT PRINCIPAL
 // =============================================================================
 
-export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: TicketCommandsTabProps) {
+export function TicketCommandsTab({
+    guildId,
+    initialCommands,
+    staffRoleIds = [],
+    journeys = [],
+    onRefresh,
+}: TicketCommandsTabProps) {
     const [commands, setCommands] = useState<TicketCustomCommand[]>(initialCommands);
     const [search, setSearch] = useState("");
     const [isPending, startTransition] = useTransition();
+
+    // Rôles Discord et rôles staff synchronisés
+    const { roles: guildRoles } = useDiscordRoles(guildId);
+
+    const allSyncStaffRoleIds = useMemo(() => {
+        const set = new Set<string>();
+        for (const id of staffRoleIds) {
+            if (id) set.add(id);
+        }
+        for (const j of journeys) {
+            if (Array.isArray(j?.staffRoleIds)) {
+                for (const id of j.staffRoleIds) {
+                    if (id) set.add(id);
+                }
+            }
+        }
+        return Array.from(set);
+    }, [staffRoleIds, journeys]);
+
+    const syncStaffRoles = useMemo(() => {
+        return allSyncStaffRoleIds
+            .map((id) => guildRoles.find((r) => r.id === id) || { id, name: `Rôle (${id})`, color: "#5865F2" });
+    }, [allSyncStaffRoleIds, guildRoles]);
 
     // État du modal d'édition / création
     const [modalOpen, setModalOpen] = useState(false);
@@ -417,8 +479,23 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
     const [permissionMode, setPermissionMode] = useState<"STAFF_ONLY" | "CUSTOM_ROLES" | "ALL">("STAFF_ONLY");
     const [allowedRoleIds, setAllowedRoleIds] = useState<string[]>([]);
 
-    // Focus tracking pour l'insertion de variables
+    // Focus & Cursor tracking pour l'insertion de variables à l'emplacement exact du curseur
     const [lastActiveInput, setLastActiveInput] = useState<"content" | "embedDesc" | "embedTitle">("content");
+    const contentRef = useRef<HTMLTextAreaElement>(null);
+    const embedTitleRef = useRef<HTMLInputElement>(null);
+    const embedDescRef = useRef<HTMLTextAreaElement>(null);
+
+    const cursorPositions = useRef({
+        content: 0,
+        embedDesc: 0,
+        embedTitle: 0,
+    });
+
+    const updateCursor = (field: "content" | "embedDesc" | "embedTitle", el: HTMLTextAreaElement | HTMLInputElement | null) => {
+        if (!el) return;
+        const pos = el.selectionStart ?? el.value.length;
+        cursorPositions.current[field] = pos;
+    };
 
     const filteredCommands = useMemo(() => {
         if (!search.trim()) return commands;
@@ -503,14 +580,48 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
     };
 
     const insertVariable = (token: string) => {
+        let targetEl: HTMLTextAreaElement | HTMLInputElement | null = null;
+        let currentValue = "";
+        let setValue: (val: string) => void = () => {};
+        let fieldKey: "content" | "embedDesc" | "embedTitle" = "content";
+
         if (lastActiveInput === "content") {
-            setContent((prev) => prev + token);
+            targetEl = contentRef.current;
+            currentValue = content;
+            setValue = setContent;
+            fieldKey = "content";
         } else if (lastActiveInput === "embedDesc") {
-            setEmbedDescription((prev) => prev + token);
+            targetEl = embedDescRef.current;
+            currentValue = embedDescription;
+            setValue = setEmbedDescription;
+            fieldKey = "embedDesc";
         } else if (lastActiveInput === "embedTitle") {
-            setEmbedTitle((prev) => prev + token);
+            targetEl = embedTitleRef.current;
+            currentValue = embedTitle;
+            setValue = setEmbedTitle;
+            fieldKey = "embedTitle";
         }
-        toast.info(`Variable ${token} insérée.`);
+
+        const start = targetEl?.selectionStart ?? cursorPositions.current[fieldKey] ?? currentValue.length;
+        const end = targetEl?.selectionEnd ?? cursorPositions.current[fieldKey] ?? currentValue.length;
+
+        const before = currentValue.slice(0, start);
+        const after = currentValue.slice(end);
+        const nextValue = before + token + after;
+        setValue(nextValue);
+
+        const newPos = start + token.length;
+        cursorPositions.current[fieldKey] = newPos;
+
+        // Repositionne le curseur dans l'élément actif juste après la balise
+        requestAnimationFrame(() => {
+            if (targetEl) {
+                targetEl.focus();
+                targetEl.setSelectionRange(newPos, newPos);
+            }
+        });
+
+        toast.info(`Balise ${token} insérée au curseur.`);
     };
 
     const handleSave = () => {
@@ -616,11 +727,12 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
     // Contexte d'aperçu réaliste
     const previewContext = {
         demandeurId: "123456789012345678",
-        demandeurPseudo: "Aventurier",
-        targetId: "123456789012345678",
-        targetPseudo: "Aventurier",
+        demandeurPseudo: "Jean",
+        targetId: "111222333444555666",
+        targetPseudo: "Pierre",
         staffId: "987654321098765432",
-        staffPseudo: "Modérateur",
+        staffPseudo: "Wylan",
+        staffRoleIds: allSyncStaffRoleIds.length > 0 ? allSyncStaffRoleIds : ["role-mod", "role-officier"],
         ticketNumero: 42,
         ticketMotif: "Recrutement",
         channelId: "555666777888999",
@@ -816,7 +928,7 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
 
             {/* Modal d'édition / création */}
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-5xl xl:max-w-6xl w-[96vw] max-h-[92vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Terminal className="h-5 w-5 text-emerald-400" />
@@ -911,34 +1023,36 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 py-2 text-xs">
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] gap-6 py-2 text-xs min-w-0 overflow-x-hidden">
                         {/* Volet formulaire avec documentation contextualisée */}
-                        <div className="space-y-4">
+                        <div className="space-y-4 min-w-0 overflow-x-hidden">
                             {/* ========================================================= */}
                             {/* ÉTAPE 1 : DÉCLENCHEUR & VISIBILITÉ */}
                             {/* ========================================================= */}
                             {activeModalTab === "general" && (
                                 <div className="space-y-4">
                                     {/* Guide vulgarisé Étape 1 */}
-                                    <div className="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-start gap-2.5">
+                                    <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-start gap-2.5">
                                         <Lightbulb className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                                        <div className="space-y-0.5">
-                                            <div className="font-semibold text-foreground text-xs">Étape 1 : Définir le nom et les options de la commande</div>
+                                        <div className="space-y-1">
+                                            <div className="font-semibold text-foreground text-xs">
+                                                Étape 1 : Nom, déclencheur et portée sur Discord
+                                            </div>
                                             <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                                Le <strong>nom</strong> est le mot-clé que le staff tapera sur Discord précédé de <code className="bg-surface px-1 py-0.5 rounded font-mono text-emerald-400">/</code> (ex: <code className="bg-surface px-1 py-0.5 rounded font-mono text-foreground">/bienvenue</code>). La <strong>description</strong> aide à comprendre son utilité dans le menu Discord.
+                                                Chaque commande slash personnalisée de SigilOS est <strong>exclusivement disponible dans les salons de tickets ouverts</strong> de votre guilde. Définissez son mot-clé d&apos;appel, sa description et ses options d&apos;exécution.
                                             </p>
                                         </div>
                                     </div>
 
                                     <div className="space-y-1.5">
                                         <label className="font-semibold text-foreground flex items-center justify-between">
-                                            <span>Nom de la commande Discord</span>
-                                            <span className="text-[10px] text-muted-foreground font-mono">1 à 32 lettres minuscules</span>
+                                            <span>Nom de la commande slash</span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">1 à 32 minuscules, sans espaces</span>
                                         </label>
                                         <div className="relative">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold font-mono">/</span>
                                             <Input
-                                                placeholder="gardien, bienvenue, candidat, resoudre..."
+                                                placeholder="ex : bienvenue, gardien, candidat, resoudre..."
                                                 value={name}
                                                 onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
                                                 maxLength={32}
@@ -946,7 +1060,7 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                             />
                                         </div>
                                         <p className="text-[10px] text-muted-foreground">
-                                            💡 <em>Astuce :</em> Les espaces, majuscules et accents sont interdits par Discord. Utilisez des tirets (ex: <code className="font-mono text-foreground">valider-candidat</code>).
+                                            💡 <em>Règle Discord :</em> Les espaces, majuscules et accents sont interdits. Utilisez des tirets pour séparer plusieurs mots (ex: <code className="font-mono text-foreground">accepter-recrue</code>).
                                         </p>
                                     </div>
 
@@ -956,49 +1070,68 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                             <span className="text-[10px] text-muted-foreground">1-100 caractères</span>
                                         </label>
                                         <Input
-                                            placeholder="ex : Souhaite la bienvenue et donne le rôle Membre"
+                                            placeholder="ex : Valide la recrue, donne les rôles et souhaite la bienvenue"
                                             value={description}
                                             onChange={(e) => setDescription(e.target.value)}
                                             maxLength={100}
                                             className="text-xs"
                                         />
                                         <p className="text-[10px] text-muted-foreground">
-                                            Cette description apparaît directement sous la commande lorsque vous tapez <code className="font-mono text-foreground">/</code> dans Discord.
+                                            Cette explication courte s&apos;affiche sous le nom de la commande dès que vous ou votre staff tapez <code className="font-mono text-foreground">/</code> dans Discord.
                                         </p>
                                     </div>
 
-                                    {/* Options avancées d'interaction */}
-                                    <div className="p-3.5 rounded-xl border border-border bg-surface/40 space-y-3">
-                                        <label className="flex items-start gap-2.5 cursor-pointer">
+                                    {/* Options de ciblage et visibilité avec explications pédagogiques */}
+                                    <div className="space-y-2.5 pt-1">
+                                        <div className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                                            <Sliders className="h-3.5 w-3.5 text-emerald-400" />
+                                            Options d&apos;exécution sur Discord :
+                                        </div>
+
+                                        {/* Option Cible membre */}
+                                        <label className="flex items-start gap-3 p-3 rounded-xl border border-border bg-surface/40 hover:bg-surface/60 cursor-pointer transition-colors">
                                             <input
                                                 type="checkbox"
                                                 checked={allowTargetMember}
                                                 onChange={(e) => setAllowTargetMember(e.target.checked)}
-                                                className="mt-0.5 rounded border-border"
+                                                className="mt-1 rounded border-border"
                                             />
-                                            <div>
-                                                <div className="font-semibold text-foreground">Ajouter l&apos;option membre cible (Recommandé)</div>
-                                                <div className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                                                    Permet de taper <code className="bg-surface px-1 py-0.5 rounded font-mono text-foreground">/{name || "commande"} membre:@pseudo</code> pour cibler un joueur précis.
+                                            <div className="space-y-1 flex-1">
+                                                <div className="font-semibold text-foreground flex items-center gap-1.5">
+                                                    <UserPlus className="h-3.5 w-3.5 text-emerald-400" />
+                                                    Permettre de cibler un membre spécifique (`membre:`)
+                                                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                                                        Recommandé
+                                                    </Badge>
                                                 </div>
-                                                <div className="mt-1 p-2 rounded-lg bg-surface/80 border border-border/60 text-[10px] text-emerald-400">
-                                                    ✨ <strong>Autocomplétion intelligente :</strong> Si vous omettez l&apos;option dans Discord, le robot ciblera automatiquement le créateur du ticket ! Vous n&apos;avez donc pas besoin de retaper son pseudo.
+                                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                                    Permet d&apos;ajouter un paramètre facultatif <code className="bg-surface px-1 py-0.5 rounded font-mono text-foreground">membre:@pseudo</code> lors de la saisie sur Discord (ex : <code className="bg-surface px-1 py-0.5 rounded font-mono text-foreground">/{name || "commande"} membre:@Pierre</code>).
+                                                </p>
+                                                <div className="p-2 rounded-lg bg-surface/80 border border-border/60 text-[10.5px] text-muted-foreground space-y-0.5">
+                                                    <span className="text-emerald-400 font-semibold">✨ Repli automatique intelligent :</span> Si vous exécutez la commande sans spécifier de membre (juste <code className="font-mono text-foreground">/{name || "commande"}</code>), le robot cible <strong>automatiquement le créateur du ticket</strong>. Vous n&apos;avez donc jamais besoin de retaper son pseudo !
                                                 </div>
                                             </div>
                                         </label>
 
-                                        <label className="flex items-start gap-2.5 cursor-pointer border-t border-border/50 pt-3">
+                                        {/* Option Éphémère */}
+                                        <label className="flex items-start gap-3 p-3 rounded-xl border border-border bg-surface/40 hover:bg-surface/60 cursor-pointer transition-colors">
                                             <input
                                                 type="checkbox"
                                                 checked={ephemeral}
                                                 onChange={(e) => setEphemeral(e.target.checked)}
-                                                className="mt-0.5 rounded border-border"
+                                                className="mt-1 rounded border-border"
                                             />
-                                            <div>
-                                                <div className="font-semibold text-foreground">Réponse discrète (Éphémère — seul vous voyez la réponse)</div>
-                                                <div className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                                                    Si coché, le message Discord ne sera visible que par la personne qui a lancé la commande. Idéal pour des commandes internes de vérification ou de modération.
+                                            <div className="space-y-1 flex-1">
+                                                <div className="font-semibold text-foreground flex items-center gap-1.5">
+                                                    <EyeOff className="h-3.5 w-3.5 text-amber-400" />
+                                                    Réponse discrète (Éphémère — visible uniquement par vous)
                                                 </div>
+                                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                                    <strong>Décoché (par défaut) :</strong> Le message et l&apos;embed s&apos;affichent publiquement dans le salon du ticket, visible par le joueur et toute l&apos;équipe.
+                                                </p>
+                                                <p className="text-[10.5px] text-muted-foreground leading-relaxed">
+                                                    <strong>Coché :</strong> Seule la personne qui tape la commande voit la réponse dans Discord (« Seul vous pouvez voir ce message »). Idéal pour des commandes de diagnostic, de vérification ou des notes internes.
+                                                </p>
                                             </div>
                                         </label>
                                     </div>
@@ -1016,8 +1149,66 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                         <div className="space-y-0.5">
                                             <div className="font-semibold text-foreground text-xs">Étape 2 : Rédiger le message et insérer des variables</div>
                                             <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                                Composez le texte envoyé par le bot. Vous pouvez utiliser du texte simple (avec mentions) et/ou un encadré visuel (Embed). Cliquez sur les balises ci-dessous pour insérer dynamiquement le pseudo du joueur, le staff ou le numéro du ticket !
+                                                Composez le texte envoyé par le bot. Vous pouvez combiner un message texte classique (avec mentions pings) et un encadré visuel (Embed). Cliquez sur les balises ci-dessous pour insérer dynamiquement les informations du ticket !
                                             </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Comparatif synthétique vulgarisé des variables */}
+                                    <div className="p-3 rounded-xl border border-border/80 bg-surface/50 space-y-2">
+                                        <div className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                                            <span className="flex items-center gap-1.5">
+                                                <Info className="h-3.5 w-3.5 text-emerald-400" />
+                                                Guide rapide des balises dynamiques (comparatif) :
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">remplacées automatiquement à l&apos;envoi</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10.5px]">
+                                            <div className="p-2 rounded-lg bg-card border border-border/60 space-y-1">
+                                                <div className="font-semibold text-foreground flex items-center gap-1">
+                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{demandeur}`}</code>
+                                                    <span className="text-muted-foreground">vs</span>
+                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{cible}`}</code>
+                                                </div>
+                                                <p className="text-muted-foreground text-[10px] leading-relaxed">
+                                                    <strong className="text-foreground">{`{demandeur}`}</strong> mentionne le créateur (<span className="text-emerald-400 font-medium">@Jean</span>).
+                                                    <br />
+                                                    <strong className="text-foreground">{`{cible}`}</strong> mentionne le joueur ciblé (<span className="text-emerald-400 font-medium">@Pierre</span>), ou replie sur Jean si aucun membre n&apos;est spécifié.
+                                                </p>
+                                            </div>
+                                            <div className="p-2 rounded-lg bg-card border border-border/60 space-y-1">
+                                                <div className="font-semibold text-foreground flex items-center gap-1">
+                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{staff}`}</code>
+                                                    <span className="text-muted-foreground">vs</span>
+                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{equipe}`}</code>
+                                                </div>
+                                                <p className="text-muted-foreground text-[10px] leading-relaxed">
+                                                    <strong className="text-foreground">{`{staff}`}</strong> mentionne <strong>le modérateur unique</strong> qui tape la commande (<span className="text-emerald-400 font-medium">@Wylan</span>).
+                                                    <br />
+                                                    <strong className="text-foreground">{`{equipe}`}</strong> mentionne <strong>tous les rôles staff</strong> configurés (<span className="text-emerald-400 font-medium">@Modérateurs @Officiers</span>).
+                                                </p>
+                                            </div>
+                                            <div className="p-2 rounded-lg bg-card border border-border/60 space-y-1">
+                                                <div className="font-semibold text-foreground flex items-center gap-1">
+                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{pseudo}`}</code>
+                                                    <span className="text-muted-foreground">(texte brut)</span>
+                                                </div>
+                                                <p className="text-muted-foreground text-[10px] leading-relaxed">
+                                                    Le nom sans arrobase (<span className="text-foreground font-semibold">Pierre</span>). Indispensable dans le <strong>Titre de l&apos;Embed</strong> car Discord n&apos;autorise pas les pings @ dans les titres.
+                                                </p>
+                                            </div>
+                                            <div className="p-2 rounded-lg bg-card border border-border/60 space-y-1">
+                                                <div className="font-semibold text-foreground flex items-center gap-1">
+                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{motif}`}</code>
+                                                    <span className="text-muted-foreground">&</span>
+                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{numero}`}</code>
+                                                </div>
+                                                <p className="text-muted-foreground text-[10px] leading-relaxed">
+                                                    <strong className="text-foreground">{`{motif}`}</strong> : type de ticket (<span className="text-foreground font-medium">Recrutement</span>).
+                                                    <br />
+                                                    <strong className="text-foreground">{`{numero}`}</strong> : référence unique sur 4 chiffres (<span className="text-foreground font-medium">#0042</span>).
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1043,9 +1234,10 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                                 <button
                                                     key={v.token}
                                                     type="button"
+                                                    onMouseDown={(e) => e.preventDefault()}
                                                     onClick={() => insertVariable(v.token)}
-                                                    className="px-2 py-1 rounded-lg bg-card hover:bg-surface border border-border text-[11px] font-mono text-emerald-400 hover:text-emerald-300 transition-colors shadow-xs flex items-center gap-1 group"
-                                                    title={`${v.summary} • Cliquez pour insérer`}
+                                                    className="px-2 py-1 rounded-lg bg-card hover:bg-surface border border-border text-[11px] font-mono text-emerald-400 hover:text-emerald-300 transition-colors shadow-xs flex items-center gap-1 group cursor-pointer"
+                                                    title={`${v.summary} • Cliquez pour insérer au curseur`}
                                                 >
                                                     <span className="font-bold">+{v.label}</span>
                                                     <span className="text-[9px] text-muted-foreground opacity-75 group-hover:opacity-100 font-sans">
@@ -1089,8 +1281,9 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                                                 type="button"
                                                                 size="sm"
                                                                 variant="outline"
+                                                                onMouseDown={(e) => e.preventDefault()}
                                                                 onClick={() => insertVariable(v.token)}
-                                                                className="h-6 px-2 text-[10px] shrink-0 font-semibold text-emerald-400 hover:text-emerald-300"
+                                                                className="h-6 px-2 text-[10px] shrink-0 font-semibold text-emerald-400 hover:text-emerald-300 cursor-pointer"
                                                             >
                                                                 Insérer
                                                             </Button>
@@ -1130,10 +1323,20 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                         )}
 
                                         <Textarea
+                                            ref={contentRef}
                                             placeholder="# Bienvenue {cible} !&#10;Félicitations pour ton avancée au sein de {serveur}..."
                                             value={content}
-                                            onChange={(e) => setContent(e.target.value)}
-                                            onFocus={() => setLastActiveInput("content")}
+                                            onChange={(e) => {
+                                                setContent(e.target.value);
+                                                updateCursor("content", e.target);
+                                            }}
+                                            onSelect={(e) => updateCursor("content", e.currentTarget)}
+                                            onClick={(e) => updateCursor("content", e.currentTarget)}
+                                            onKeyUp={(e) => updateCursor("content", e.currentTarget)}
+                                            onFocus={(e) => {
+                                                setLastActiveInput("content");
+                                                updateCursor("content", e.currentTarget);
+                                            }}
                                             rows={5}
                                             className="text-xs font-mono resize-y"
                                         />
@@ -1167,10 +1370,20 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                                         <span className="text-[10px] text-muted-foreground">ex: Félicitations {"{pseudo}"} !</span>
                                                     </label>
                                                     <Input
+                                                        ref={embedTitleRef}
                                                         placeholder="ex : Félicitations {pseudo} !"
                                                         value={embedTitle}
-                                                        onChange={(e) => setEmbedTitle(e.target.value)}
-                                                        onFocus={() => setLastActiveInput("embedTitle")}
+                                                        onChange={(e) => {
+                                                            setEmbedTitle(e.target.value);
+                                                            updateCursor("embedTitle", e.target);
+                                                        }}
+                                                        onSelect={(e) => updateCursor("embedTitle", e.currentTarget)}
+                                                        onClick={(e) => updateCursor("embedTitle", e.currentTarget)}
+                                                        onKeyUp={(e) => updateCursor("embedTitle", e.currentTarget)}
+                                                        onFocus={(e) => {
+                                                            setLastActiveInput("embedTitle");
+                                                            updateCursor("embedTitle", e.currentTarget);
+                                                        }}
                                                         className="text-xs h-8"
                                                     />
                                                 </div>
@@ -1178,10 +1391,20 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                                 <div className="space-y-1">
                                                     <label className="font-semibold text-foreground text-[11px]">Description de l&apos;encadré</label>
                                                     <Textarea
+                                                        ref={embedDescRef}
                                                         placeholder="Texte mis en valeur dans l'encadré Discord..."
                                                         value={embedDescription}
-                                                        onChange={(e) => setEmbedDescription(e.target.value)}
-                                                        onFocus={() => setLastActiveInput("embedDesc")}
+                                                        onChange={(e) => {
+                                                            setEmbedDescription(e.target.value);
+                                                            updateCursor("embedDesc", e.target);
+                                                        }}
+                                                        onSelect={(e) => updateCursor("embedDesc", e.currentTarget)}
+                                                        onClick={(e) => updateCursor("embedDesc", e.currentTarget)}
+                                                        onKeyUp={(e) => updateCursor("embedDesc", e.currentTarget)}
+                                                        onFocus={(e) => {
+                                                            setLastActiveInput("embedDesc");
+                                                            updateCursor("embedDesc", e.currentTarget);
+                                                        }}
                                                         rows={3}
                                                         className="text-xs resize-y"
                                                     />
@@ -1335,12 +1558,14 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                             {activeModalTab === "permissions" && (
                                 <div className="space-y-4">
                                     {/* Guide vulgarisé Étape 4 */}
-                                    <div className="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-start gap-2.5">
+                                    <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-start gap-2.5">
                                         <Shield className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                                        <div className="space-y-0.5">
-                                            <div className="font-semibold text-foreground text-xs">Étape 4 : Définir qui a le droit d&apos;utiliser cette commande</div>
+                                        <div className="space-y-1">
+                                            <div className="font-semibold text-foreground text-xs">
+                                                Étape 4 : Définir qui a l&apos;autorisation d&apos;utiliser cette commande
+                                            </div>
                                             <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                                Ces commandes ne fonctionnent <strong>jamais</strong> dans les salons publics de votre serveur : elles sont <strong>strictement restreintes</strong> aux salons de tickets ouverts. Choisissez qui peut les exécuter.
+                                                Ces commandes ne fonctionnent <strong>jamais</strong> dans les salons publics de votre serveur : elles sont <strong>strictement restreintes</strong> aux salons de tickets ouverts de votre guilde. Choisissez ici qui a le droit de les exécuter.
                                             </p>
                                         </div>
                                     </div>
@@ -1363,13 +1588,52 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                                     onChange={() => setPermissionMode("STAFF_ONLY")}
                                                     className="mt-1"
                                                 />
-                                                <div>
+                                                <div className="flex-1 space-y-1">
                                                     <div className="font-semibold text-foreground flex items-center gap-1.5">
                                                         <Shield className="h-4 w-4 text-emerald-400" />
                                                         Staff du ticket uniquement (Recommandé)
                                                     </div>
-                                                    <div className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                                                        Seuls les administrateurs et les rôles configurés comme staff sur ce type de ticket peuvent exécuter la commande. Les membres normaux ne peuvent pas l&apos;utiliser.
+                                                    <div className="text-[11px] text-muted-foreground leading-relaxed">
+                                                        Accessible aux modérateurs et officiers assignés aux tickets, ainsi qu&apos;aux Administrateurs Discord.
+                                                    </div>
+
+                                                    {/* Liste des rôles staff synchronisés */}
+                                                    <div className="mt-2.5 p-2.5 rounded-lg bg-surface/70 border border-border/80 space-y-1.5">
+                                                        <div className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                                                            <span className="flex items-center gap-1.5">
+                                                                <Shield className="h-3.5 w-3.5 text-emerald-400" />
+                                                                Rôles staff actuellement synchronisés ({syncStaffRoles.length}) :
+                                                            </span>
+                                                            <span className="text-[10px] text-muted-foreground">onglet Configuration</span>
+                                                        </div>
+
+                                                        {syncStaffRoles.length > 0 ? (
+                                                            <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                                                {syncStaffRoles.map((role) => (
+                                                                    <span
+                                                                        key={role.id}
+                                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border"
+                                                                        style={{
+                                                                            backgroundColor: `${role.color || "#5865F2"}20`,
+                                                                            color: role.color && role.color !== "#000000" ? role.color : "#c9cdfb",
+                                                                            borderColor: `${role.color || "#5865F2"}40`,
+                                                                        }}
+                                                                    >
+                                                                        <Shield className="h-3 w-3" />
+                                                                        {role.name}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 p-2 rounded-md leading-relaxed">
+                                                                ⚠️ Aucun rôle staff n&apos;est encore assigné dans l&apos;onglet Configuration générale ou dans les motifs de tickets. Seuls les <strong>Administrateurs Discord</strong> peuvent utiliser la commande tant qu&apos;aucun rôle n&apos;est déclaré.
+                                                            </div>
+                                                        )}
+
+                                                        <div className="text-[10px] text-muted-foreground pt-1 flex items-center gap-1">
+                                                            <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+                                                            Les membres avec la permission Discord <strong>Administrateur</strong> ont également accès d&apos;office.
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1394,8 +1658,8 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                                 />
                                                 <div className="flex-1">
                                                     <div className="font-semibold text-foreground flex items-center gap-1.5">
-                                                        <UsersIcon className="h-4 w-4 text-purple-400" />
-                                                        Rôles Discord spécifiques
+                                                        <Users className="h-4 w-4 text-purple-400" />
+                                                        Rôles Discord spécifiques (Personnalisé)
                                                     </div>
                                                     <div className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
                                                         Vous sélectionnez précisément quels rôles Discord ont l&apos;autorisation d&apos;utiliser cette commande.
@@ -1451,18 +1715,22 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                         </div>
 
                         {/* Volet Aperçu Discord réaliste */}
-                        <div className="rounded-xl border border-border bg-[#313338] p-3.5 space-y-3 h-fit text-white">
+                        <div className="rounded-xl border border-border bg-[#313338] p-4 space-y-3 h-fit text-white min-w-0 w-full overflow-hidden shrink-0">
                             <div className="text-[10px] font-bold text-[#949ba4] uppercase tracking-wider flex items-center justify-between">
                                 <span>Aperçu Discord réaliste</span>
-                                {ephemeral && <span className="text-[9px] text-amber-400">Éphémère</span>}
+                                {ephemeral && (
+                                    <span className="text-[9px] text-amber-400 font-medium bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                                        Éphémère
+                                    </span>
+                                )}
                             </div>
 
                             {/* En-tête message Discord */}
-                            <div className="flex items-start gap-2.5">
+                            <div className="flex items-start gap-2.5 min-w-0">
                                 <div className="h-8 w-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs shrink-0 select-none">
                                     S
                                 </div>
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 space-y-1">
                                     <div className="flex items-center gap-1.5 leading-none mb-1">
                                         <span className="font-bold text-xs text-white">SigilOS</span>
                                         <span className="bg-[#5865F2] text-white text-[9px] font-bold px-1 rounded select-none">APP</span>
@@ -1471,7 +1739,7 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
 
                                     {/* Texte Markdown avec rendu des mentions et canaux */}
                                     {renderedPreviewContent && (
-                                        <div className="text-xs text-[#dbdee1] leading-relaxed break-words font-sans">
+                                        <div className="text-xs text-[#dbdee1] leading-relaxed break-words [overflow-wrap:anywhere] font-sans">
                                             <DiscordTextRenderer text={renderedPreviewContent} />
                                         </div>
                                     )}
@@ -1479,18 +1747,18 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                     {/* Embed Discord */}
                                     {embedEnabled && (
                                         <div
-                                            className="mt-2 rounded bg-[#2b2d31] p-3 text-xs border-l-4 space-y-2 max-w-full"
+                                            className="mt-2 rounded bg-[#2b2d31] p-3 text-xs border-l-4 space-y-2 w-full min-w-0 max-w-full overflow-hidden break-words"
                                             style={{ borderLeftColor: embedColor }}
                                         >
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="min-w-0 space-y-1">
+                                            <div className="flex items-start justify-between gap-2 min-w-0">
+                                                <div className="min-w-0 flex-1 space-y-1 break-words [overflow-wrap:anywhere]">
                                                     {renderedEmbedTitle && (
-                                                        <div className="font-bold text-sm text-white">
+                                                        <div className="font-bold text-sm text-white break-words">
                                                             {renderedEmbedTitle}
                                                         </div>
                                                     )}
                                                     {renderedEmbedDesc && (
-                                                        <div className="text-[#dbdee1] text-xs">
+                                                        <div className="text-[#dbdee1] text-xs break-words">
                                                             <DiscordTextRenderer text={renderedEmbedDesc} />
                                                         </div>
                                                     )}
@@ -1506,16 +1774,18 @@ export function TicketCommandsTab({ guildId, initialCommands, onRefresh }: Ticke
                                             </div>
 
                                             {embedImageUrl && (
-                                                <img
-                                                    src={embedImageUrl}
-                                                    alt="Embed"
-                                                    className="rounded max-h-36 w-full object-cover"
-                                                    onError={(e) => ((e.target as HTMLElement).style.display = "none")}
-                                                />
+                                                <div className="overflow-hidden rounded">
+                                                    <img
+                                                        src={embedImageUrl}
+                                                        alt="Embed"
+                                                        className="rounded max-h-36 w-full object-cover"
+                                                        onError={(e) => ((e.target as HTMLElement).style.display = "none")}
+                                                    />
+                                                </div>
                                             )}
 
                                             {renderedEmbedFooter && (
-                                                <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147]">
+                                                <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147] break-words">
                                                     {renderedEmbedFooter}
                                                 </div>
                                             )}

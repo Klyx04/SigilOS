@@ -285,8 +285,12 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     const totalPrereqs = prereqTags.length;
     const singleName = totalPrereqs === 1 ? prereqTags[0]?.name : null;
     return (
-      <div data-seq-id={seq.id} className={`rounded-[4px] border bg-danger/[0.05] border-danger/30 hover:border-danger/50 scroll-mt-24 transition-colors ${focusedSeqId===seq.id?"ring-1 ring-success/60":""}`}>
-        <div className="px-3 pt-3 pb-0">
+      <div data-seq-id={seq.id} className={`rounded-[4px] border bg-danger/[0.05] border-danger/30 hover:border-danger/50 scroll-mt-24 transition-colors ${focusedSeqId===seq.id?"ring-2 ring-success ring-offset-2 ring-offset-background bg-success/[0.06]":""}`}>
+        <div className="flex items-center gap-2 px-3 pt-3 pb-0">
+          {/* MÊME icône de quête que la carte normale : une carte bloquée reste une quête,
+              elle doit se reconnaître d'un coup d'œil dans la liste. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={seq.icon ? safeImageUrl(resolveRushSeqIcon(seq.icon) as string) : "/assets/icons/icone-quete.png"} alt="" className="w-4 h-4 shrink-0 object-contain opacity-90" loading="lazy" />
           <p className="text-[13px] font-semibold text-muted-foreground truncate">{questName}</p>
         </div>
         {totalPrereqs === 1 && singleName ? (
@@ -340,7 +344,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             : isThisBookmarked
               ? "border-warning/40 bg-warning/10"
               : "border-border bg-elevated hover:bg-surface"}
-          ${focusedSeqId === seq.id ? "ring-1 ring-success/60" : ""}
+          ${focusedSeqId === seq.id ? "ring-2 ring-success ring-offset-2 ring-offset-background" : ""}
         `}
       >
         {/* ── Ligne principale ── */}
@@ -2390,7 +2394,11 @@ const timelineItems=useMemo(()=>{
         display: grid;
         grid-template-columns: minmax(0, 1fr) 260px;
         gap: 24px;
-        align-items: start;
+        /* ⚠️ PAS de align-items: start : il réduit la zone du rail à sa propre hauteur,
+           et position: sticky n'a alors PLUS de course (le panneau restait figé pendant
+           que les étapes défilaient). L'item est étiré à la hauteur de la ligne, et c'est
+           le bloc INTERNE qui est sticky. */
+        align-items: stretch;
       }
       @media (max-width: 900px) {
         .rush-content-grid {
@@ -2462,15 +2470,19 @@ const timelineItems=useMemo(()=>{
           `100dvh − 5,5 rem` (3,5 topnav + 1 rem de haut + 1 rem d'air) ⇒ bas du rail à
           884 px pour un scrollport de 900 ✓. Le rail est masqué sous 900 px par
           `.rush-content-grid`, d'où le `custom-scrollbar` desktop. */}
-      <div className="rush-sidebar sticky top-4 max-h-[calc(100dvh-5.5rem)] overflow-y-auto custom-scrollbar pr-1">
-        <RushChapterSidebar
-          milestones={contentMilestones as any}
-          completedSeqIds={allCompletedSeqIds}
-          activeMilestoneId={(() => { for (const [msId] of bookmarksByMs) { return msId; } return null; })()}
-          selectedChapter={(isAllChapters ? "ALL" : currentPage?.chapterNum ?? undefined) as any}
-          onSelectChapter={setActiveChapter}
-          hideProvidedResources={hideDone}
-        />
+      <div className="rush-sidebar pr-1">
+        {/* Sticky sur un bloc INTERNE : l'item de grille est étiré (voir le CSS ci-dessus),
+            donc ce bloc a la hauteur de la colonne pour se déplacer. */}
+        <div className="sticky top-4 max-h-[calc(100dvh-5.5rem)] overflow-y-auto custom-scrollbar">
+          <RushChapterSidebar
+            milestones={contentMilestones as any}
+            completedSeqIds={allCompletedSeqIds}
+            activeMilestoneId={(() => { for (const [msId] of bookmarksByMs) { return msId; } return null; })()}
+            selectedChapter={(isAllChapters ? "ALL" : currentPage?.chapterNum ?? undefined) as any}
+            onSelectChapter={setActiveChapter}
+            hideProvidedResources={hideDone}
+          />
+        </div>
       </div>
     </div>
     {/* ── Navigation flottante ───────────────────────────────────────────── */}

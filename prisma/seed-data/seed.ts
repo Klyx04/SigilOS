@@ -17,6 +17,7 @@ import { join } from 'path';
 import 'dotenv/config';
 import { legendaryItems } from './legendary-items';
 import { getIgnoredChallenges, getIgnoredDungeons, isIgnoredChallenge, isIgnoredDungeon } from '@/lib/game-data-ignores';
+import { resolveUniqueDungeonSlug } from '@/server/game/dungeon-slug';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -319,6 +320,12 @@ async function main() {
                         create: {
                             name: dungeon.name,
                             bossName: dungeon.bossName,
+                            /* Slug public `/boss/<slug>` — colonne REQUISE et UNIQUE : sans lui,
+                               Prisma rejette l'upsert AVANT de savoir si la ligne existe
+                               (« Argument `slug` is missing ») et la transaction annule TOUTE
+                               la synchronisation (mesure prod du 22/10/2026 sur un donjon neuf).
+                               Même règle que le God, le siphon et le backfill : une seule. */
+                            slug: await resolveUniqueDungeonSlug(dungeon.bossName, { client: tx }),
                             level: dungeon.level,
                             dpnlUrl: dungeon.dpnlUrl,
                             imageUrl: dungeon.imageUrl,

@@ -275,3 +275,26 @@ export function boundOptionalDungeonIds(args: {
   }
   return bounded;
 }
+
+/**
+ * Donjons **requis manquants** d'une quête (noms lisibles, optionnels exclus).
+ *
+ * Sert au **verrou client** des surfaces : tant qu'il reste un nom ici, la quête ne doit
+ * pas être cochable. Sans ce verrou, le bouton reste actif, le clic part au serveur (qui
+ * refuse, fail-closed) et l'utilisateur reçoit une « erreur de synchronisation » au lieu
+ * de comprendre ce qui manque — mesuré le 22/10/2026 : l'overlay ne testait que les
+ * prérequis, pas les donjons.
+ */
+/** Un donjon requis **non coché** : sa clé (pour cibler le panneau) et son nom. */
+export type RushMissingDungeon = { key: string; name: string };
+
+export function missingRequiredDungeons(
+  seq: RushSequence | null | undefined,
+  doneKeys: readonly string[] | null | undefined
+): RushMissingDungeon[] {
+  if (!seq) return [];
+  const done = new Set(doneKeys ?? []);
+  return resolveSequenceDungeons(seq, done)
+    .requirements.filter((req) => !req.isOptional && !req.isDone)
+    .map((req) => ({ key: req.key, name: req.name }));
+}

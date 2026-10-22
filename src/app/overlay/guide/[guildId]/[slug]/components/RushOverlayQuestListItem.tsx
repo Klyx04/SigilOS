@@ -1,14 +1,15 @@
 "use client";
 
-import React, { memo } from "react";
-import { Check, Flag, BookmarkCheck, Lock, Info } from "lucide-react";
+import React, { memo, useState } from "react";
+import { Check, Flag, BookmarkCheck, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSequenceCoord, getDungeons, getItemTags, isDungeonSequence } from "./overlay-utils";
+import { getSequenceCoord, getDungeons, isDungeonSequence } from "./overlay-utils";
+import { RushOverlayPrereqModal } from "./RushOverlayPrereqModal";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverlayMemberBubbles";
 import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
 import { safeExternalUrl, safeImageUrl } from "@/lib/security";
-import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, getAlignmentSet } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, getAlignmentSet } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import type { RushSequence } from "@/types/rush-guide-types";
 import type {
@@ -16,6 +17,43 @@ import type {
   RushDungeonState,
   RushDungeonStateMap,
 } from "@/lib/rush-dungeons";
+import { dungeonKeyOf, type RushMissingDungeon } from "@/lib/rush-dungeons";
+
+/**
+ * Vignette cliquable d'un donjon **manquant** : la vraie image du donjon, ou **rien**.
+ * Aucun picto générique de repli — il se répétait à l'identique et donnait l'impression
+ * d'une icône factice (retour user du 22/10/2026). Le nom reste en infobulle.
+ */
+function MissingDungeonThumb({
+  name,
+  imageUrl,
+  onOpen,
+}: {
+  name: string;
+  imageUrl?: string | null;
+  onOpen: () => void;
+}) {
+  const [broken, setBroken] = useState(false);
+  if (!imageUrl || broken) return null;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title={`Cocher : ${name}`}
+      aria-label={`Ouvrir ${name} dans les donjons de cette quête`}
+      className="rounded-[3px] border border-danger/40 p-0.5 transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-danger"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={imageUrl}
+        alt=""
+        className="h-4 w-4 rounded-[2px] object-cover"
+        loading="lazy"
+        onError={() => setBroken(true)}
+      />
+    </button>
+  );
+}
 
 interface RushOverlayQuestListItemProps {
   seq: RushSequence;
@@ -33,6 +71,12 @@ interface RushOverlayQuestListItemProps {
   isLocked?: boolean;
   /** Quêtes prérequis (cliquables pour y sauter) */
   prereqs?: { seqId: string; milestoneId: string; name: string }[];
+  /**
+   * Donjons **requis** de la quête qui ne sont pas encore cochés (noms lisibles).
+   * Non vide ⇒ la quête est verrouillée : on dit **quoi cocher** au lieu de laisser
+   * partir un clic que le serveur refusera (mesure du 22/10/2026).
+   */
+  missingDungeons?: RushMissingDungeon[];
   onGoToPrereq?: (seqId: string, milestoneId: string) => void;
   /** Ouvre la modale listant les membres en attente ici (avatars cliquables). */
   onOpenBookmarkers?: () => void;
@@ -74,13 +118,20 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   bookmarkers = [],
   isLocked = false,
   prereqs = [],
+  missingDungeons = [],
   onGoToPrereq,
   onOpenBookmarkers,
   guildId,
   dungeonActions,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
-  const itemTags = getItemTags(seq.activityTags);
+  // Panneau donjon piloté par la ligne : la pastille l'ouvre, les icônes des donjons
+  // manquants l'ouvrent **en ciblant** le donjon cliqué (`targetKey`).
+  const [dungeonPanelOpen, setDungeonPanelOpen] = useState(false);
+  const [dungeonTarget, setDungeonTarget] = useState<string | null>(null);
+  // Mini-modale des prérequis (un seul encadré dans la ligne, la liste s'ouvre au clic).
+  const [prereqsOpen, setPrereqsOpen] = useState(false);
+  // (le chip « ressources » a été retiré : le détail vit dans la fiche « i »)
   const hasDungeon = isDungeonSequence(seq);
   // Donjons requis, extraits UNE fois : le badge en affiche le nombre, la popover le détail.
   const dungeons = React.useMemo(() => (hasDungeon ? getDungeons(seq) : []), [hasDungeon, seq]);
@@ -162,7 +213,12 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             {isDone ? (
               <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
             ) : isLocked ? (
-              <Lock className="h-2.5 w-2.5 stroke-[2.5]" aria-hidden="true" />
+              <img
+                src="/assets/dofus-ui/pictos/verrou.png"
+                alt=""
+                aria-hidden="true"
+                className="h-2.5 w-2.5 shrink-0 object-contain"
+              />
             ) : null}
           </span>
         </button>
@@ -216,7 +272,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           </div>
 
           {/* 2e ligne : indicateurs (chips harmonisés) — toute la largeur de la ligne */}
-          {(parsedCoord || hasDungeon || itemTags.length > 0 || bookmarkers.length > 0 || alignmentSet) && (
+          {(parsedCoord || hasDungeon || bookmarkers.length > 0 || alignmentSet) && (
             <div className="flex flex-wrap items-center gap-1">
               {alignmentSet && alignLabel && (
                 <span className={chip} title={`Quête d'alignement → ${alignLabel} ${alignmentSet.level}`}>
@@ -245,6 +301,12 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   seq={seq}
                   dungeons={dungeons}
                   guildId={guildId}
+                  open={dungeonPanelOpen}
+                  onOpenChange={(next) => {
+                    setDungeonPanelOpen(next);
+                    if (!next) setDungeonTarget(null);
+                  }}
+                  targetKey={dungeonTarget}
                   states={dungeonActions?.states}
                   busyKey={dungeonActions?.busyKey}
                   others={dungeonActions?.others}
@@ -265,12 +327,6 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   </span>
                 </RushOverlayDungeonPopover>
               )}
-              {itemTags.length > 0 && (
-                <span className={chip} title={`${itemTags.length} ressource${itemTags.length > 1 ? "s" : ""} à prévoir`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={RUSH_RESOURCES_PICTO} alt="" aria-hidden="true" loading="lazy" className="h-3 w-3 object-contain" />×{itemTags.length}
-                </span>
-              )}
               {!isDone && bookmarkers.length > 0 && (
                 <RushOverlayMemberBubbles
                   members={bookmarkers}
@@ -281,21 +337,66 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             </div>
           )}
           {isLocked && prereqs.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1">
+            /* UN SEUL encadré (retour user du 22/10/2026 : « si on a plusieurs prérequis
+               on empile plusieurs blocs rouges, c'est moche ») → ouvre la liste. */
+            <button
+              type="button"
+              onClick={() => setPrereqsOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={prereqsOpen}
+              title={`Aller à : ${prereqs.map((p) => p.name).join(", ")}`}
+              className="inline-flex items-center gap-1 rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-semibold text-danger transition-colors hover:bg-danger/20"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/dofus-ui/pictos/verrou.png"
+                alt=""
+                aria-hidden="true"
+                className="h-3 w-3 shrink-0 object-contain"
+              />
+              {prereqs.length > 1
+                ? `${prereqs.length} quêtes à terminer avant`
+                : "Quête à terminer avant"}
+            </button>
+          )}
+          {prereqsOpen && (
+            <RushOverlayPrereqModal
+              prereqs={prereqs}
+              onGoTo={(seqId, milestoneId) => onGoToPrereq?.(seqId, milestoneId)}
+              onClose={() => setPrereqsOpen(false)}
+            />
+          )}
+          {missingDungeons.length > 0 && (
+            /* Une seule mention + les **vignettes** des donjons manquants : chacune ouvre
+               le panneau de la quête en ciblant SON donjon (anneau + mise en vue). Les
+               noms restent en infobulle — la liste en texte alourdissait la ligne
+               (retour user du 22/10/2026). */
+            <div className="flex items-center gap-1">
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
-                <Lock className="h-3 w-3" aria-hidden="true" /> À terminer avant :
+                <img
+                  src="/assets/dofus-ui/pictos/verrou.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-3 w-3 shrink-0 object-contain"
+                /> Donjons requis non validés
               </span>
-              {prereqs.map((p) => (
-                <button
-                  key={p.seqId}
-                  type="button"
-                  onClick={() => onGoToPrereq?.(p.seqId, p.milestoneId)}
-                  className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20"
-                  title={`Aller à : ${p.name}`}
-                >
-                  {p.name}
-                </button>
-              ))}
+              {missingDungeons.map((d) => {
+                const info = dungeons.find((dj) => dungeonKeyOf(dj) === d.key);
+                // VRAIE vignette du donjon uniquement : sans image (ou image 404), on
+                // n'affiche RIEN — un picto générique répété 3 fois faisait « faux »
+                // (retour user du 22/10/2026).
+                return (
+                  <MissingDungeonThumb
+                    key={d.key}
+                    name={d.name}
+                    imageUrl={info?.imageUrl ?? null}
+                    onOpen={() => {
+                      setDungeonTarget(d.key);
+                      setDungeonPanelOpen(true);
+                    }}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
@@ -321,7 +422,12 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           {isBookmarked && !isDone ? (
             <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
           ) : isLocked ? (
-            <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+            <img
+              src="/assets/dofus-ui/pictos/verrou.png"
+              alt=""
+              aria-hidden="true"
+              className="h-3.5 w-3.5 shrink-0 object-contain"
+            />
           ) : (
             <Flag className="h-3.5 w-3.5" aria-hidden="true" />
           )}

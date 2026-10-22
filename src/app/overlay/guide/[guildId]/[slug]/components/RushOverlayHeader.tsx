@@ -6,7 +6,7 @@ import { RushOverlayFeedbackPanel } from "./RushOverlayFeedbackPanel";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 
-import { toast } from "sonner";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
 
 interface RushOverlayHeaderProps {
   guideName: string;
@@ -75,6 +75,8 @@ export function RushOverlayHeader({
   onOpenOcre,
   onOpenAlignment,
 }: RushOverlayHeaderProps) {
+  // Toaster de l'overlay quand il y en a un (PiP), global sinon.
+  const toast = useOverlayToast();
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
   // Panneau de retour intégré à l'overlay (jamais la modale dashboard).

@@ -18,6 +18,42 @@ import type {
 } from "@/lib/rush-dungeons";
 import { dungeonKeyOf, type RushMissingDungeon } from "@/lib/rush-dungeons";
 
+/**
+ * Vignette cliquable d'un donjon **manquant** : la vraie image du donjon, ou **rien**.
+ * Aucun picto générique de repli — il se répétait à l'identique et donnait l'impression
+ * d'une icône factice (retour user du 22/10/2026). Le nom reste en infobulle.
+ */
+function MissingDungeonThumb({
+  name,
+  imageUrl,
+  onOpen,
+}: {
+  name: string;
+  imageUrl?: string | null;
+  onOpen: () => void;
+}) {
+  const [broken, setBroken] = useState(false);
+  if (!imageUrl || broken) return null;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title={`Cocher : ${name}`}
+      aria-label={`Ouvrir ${name} dans les donjons de cette quête`}
+      className="rounded-[3px] border border-danger/40 p-0.5 transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-danger"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={imageUrl}
+        alt=""
+        className="h-4 w-4 rounded-[2px] object-cover"
+        loading="lazy"
+        onError={() => setBroken(true)}
+      />
+    </button>
+  );
+}
+
 interface RushOverlayQuestListItemProps {
   seq: RushSequence;
   isDone: boolean;
@@ -327,46 +363,19 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               </span>
               {missingDungeons.map((d) => {
                 const info = dungeons.find((dj) => dungeonKeyOf(dj) === d.key);
+                // VRAIE vignette du donjon uniquement : sans image (ou image 404), on
+                // n'affiche RIEN — un picto générique répété 3 fois faisait « faux »
+                // (retour user du 22/10/2026).
                 return (
-                  <button
+                  <MissingDungeonThumb
                     key={d.key}
-                    type="button"
-                    onClick={() => {
+                    name={d.name}
+                    imageUrl={info?.imageUrl ?? null}
+                    onOpen={() => {
                       setDungeonTarget(d.key);
                       setDungeonPanelOpen(true);
                     }}
-                    title={`Cocher : ${d.name}`}
-                    aria-label={`Ouvrir ${d.name} dans les donjons de cette quête`}
-                    className="rounded-[3px] border border-danger/40 p-0.5 transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-danger"
-                  >
-                    {info?.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={info.imageUrl}
-                        alt=""
-                        className="h-4 w-4 rounded-[2px] object-cover"
-                        loading="lazy"
-                        onError={(e) => {
-                          // Vignette absente côté assets : on retombe sur le picto du jeu
-                          // plutôt que de laisser un carré vide (mesuré le 22/10/2026).
-                          const img = e.currentTarget;
-                          img.onerror = null;
-                          img.src = "/assets/dofus-ui/pictos/donjon.png";
-                          img.className = "h-4 w-4 object-contain";
-                        }}
-                      />
-                    ) : (
-                      /* Repli : le picto DONJON du jeu (jamais un glyphe d'interface — la
-                         garde `rush-overlay-dungeons` l'impose). */
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src="/assets/dofus-ui/pictos/donjon.png"
-                        alt=""
-                        className="h-4 w-4 object-contain"
-                        aria-hidden="true"
-                      />
-                    )}
-                  </button>
+                  />
                 );
               })}
             </div>

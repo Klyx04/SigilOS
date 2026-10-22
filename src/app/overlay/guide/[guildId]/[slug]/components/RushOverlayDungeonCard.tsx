@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { DoorOpen, ExternalLink } from "lucide-react";
+import { Check, DoorOpen, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DungeonInfo } from "./overlay-utils";
 import { isPublicOverlay } from "./overlay-utils";
@@ -56,6 +56,8 @@ interface RushOverlayDungeonCardProps {
   others?: RushDungeonMemberState[];
   /** Sans ce callback, la carte reste en lecture seule (fiche détail, public sans état). */
   onSet?: (dungeonKey: string, state: RushDungeonState | null) => void;
+  /** Donjon à mettre en avant (celui qu'on vient de cliquer dans la ligne de quête). */
+  highlightKey?: string | null;
 }
 
 /** Un bouton d'état, style commun aux deux valeurs. */
@@ -74,10 +76,13 @@ function StateButton({
   disabled: boolean;
   onClick: () => void;
 }) {
+  // Actif = **aplat** (on lit l'état d'un coup d'œil dans une petite fenêtre de jeu),
+  // inactif = contour discret. Deux teintes sémantiques seulement : vert = fait,
+  // ambre = à faire.
   const activeCls =
     tone === "emerald"
-      ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-      : "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400";
+      ? "border-emerald-500 bg-emerald-500 text-white"
+      : "border-amber-500 bg-amber-500 text-black";
   return (
     <button
       type="button"
@@ -85,11 +90,12 @@ function StateButton({
       aria-pressed={active}
       aria-label={ariaLabel}
       onClick={onClick}
-      className={
+      className={cn(
+        "rounded-md border px-2 py-1 text-[10px] font-bold transition-colors disabled:opacity-50",
         active
-          ? `rounded-lg border px-2 py-1 text-[10px] font-semibold ${activeCls}`
-          : "rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground"
-      }
+          ? activeCls
+          : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
+      )}
     >
       {label}
     </button>
@@ -106,6 +112,7 @@ export function RushOverlayDungeonCard({
   busyKey = null,
   others = [],
   onSet,
+  highlightKey = null,
 }: RushOverlayDungeonCardProps) {
   if (dungeons.length === 0) return null;
   const isPublic = isPublicOverlay(guildId);
@@ -144,6 +151,7 @@ export function RushOverlayDungeonCard({
               state={state}
               busy={!!key && busyKey === `${sequenceId}::${key}`}
               todo={key ? todoByKey.get(key) ?? [] : []}
+              highlighted={!!key && key === highlightKey}
               onSet={onSet && key ? (next) => onSet(key, next) : undefined}
             />
           );
@@ -161,6 +169,7 @@ function DungeonRow({
   state,
   busy,
   todo,
+  highlighted = false,
   onSet,
 }: {
   dj: DungeonInfo;
@@ -170,13 +179,32 @@ function DungeonRow({
   busy: boolean;
   todo: string[];
   onSet?: (state: RushDungeonState | null) => void;
+  /** Cible d'une ouverture depuis la ligne de quête : anneau + mise en vue. */
+  highlighted?: boolean;
 }) {
   const [imgError, setImgError] = useState(false);
+  const rowRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!highlighted) return;
+    // `block: "nearest"` : on ne fait pas sauter la fenêtre de jeu, on amène juste la
+    // ligne dans le champ (le panneau peut être plus haut que le viewport du PiP).
+    rowRef.current?.scrollIntoView({ block: "nearest" });
+  }, [highlighted]);
   const rawName = dj?.name || "Donjon";
   const bossDisplayName = dj?.bossName || rawName.replace(/^Donjon (du |de la |de l'|de |des )/i, "");
   const inner = (
     <>
-      <span className="relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-[4px] border border-border bg-elevated">
+      <span
+        className={cn(
+          "relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-[5px] border bg-elevated",
+          // Le liseré dit l'état sans lire le texte : vert = fait, ambre = à faire.
+          state === "done"
+            ? "border-emerald-500/70"
+            : state === "todo"
+              ? "border-amber-500/70"
+              : "border-border"
+        )}
+      >
         {dj.imageUrl && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -194,12 +222,17 @@ function DungeonRow({
             Ocre
           </span>
         )}
+        {state === "done" && (
+          <span className="absolute right-0 bottom-0 grid h-3.5 w-3.5 place-items-center rounded-tl-[4px] bg-emerald-500 text-white">
+            <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
+          </span>
+        )}
       </span>
       <span className="min-w-0 flex-1 text-left">
         <span className="block truncate text-[13px] font-semibold text-foreground">
           {bossDisplayName}
           {dj.isOptional ? (
-            <span className="ml-1 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+            <span className="ml-1 rounded-[3px] border border-border px-1 align-middle text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
               optionnel
             </span>
           ) : null}
@@ -216,7 +249,14 @@ function DungeonRow({
     </>
   );
   return (
-    <div className="flex items-center gap-2 rounded-[4px] px-2 py-1.5 transition-colors hover:bg-elevated">
+    <div
+      ref={rowRef}
+      className={cn(
+        "flex items-center gap-2 rounded-[5px] px-2 py-2 transition-colors",
+        state === "done" ? "bg-emerald-500/5" : "hover:bg-elevated",
+        highlighted && "ring-2 ring-danger/50"
+      )}
+    >
       {href ? (
         <a
           href={href}

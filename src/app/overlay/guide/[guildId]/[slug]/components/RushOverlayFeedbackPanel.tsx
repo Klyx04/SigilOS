@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useTransition } from "react";
 import { Bug, X, Send, MapPin } from "lucide-react";
-import { toast } from "sonner";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
 import { submitQuestFeedbackAction } from "@/server/actions/feedback-actions";
 import { FEEDBACK_TYPES, FEEDBACK_LABELS, type FeedbackType } from "@/lib/feedback-types";
@@ -35,6 +35,8 @@ export function RushOverlayFeedbackPanel({
   context,
   onClose,
 }: RushOverlayFeedbackPanelProps) {
+  // Toaster de l'overlay quand il y en a un (PiP), global sinon.
+  const toast = useOverlayToast();
   const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
   const [description, setDescription] = useState("");
   const [isPending, startTransition] = useTransition();

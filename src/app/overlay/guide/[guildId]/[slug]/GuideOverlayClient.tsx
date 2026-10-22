@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { CheckCircle2, Users } from "lucide-react";
-import { toast } from "sonner";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
 import {
   toggleMilestoneProgress,
   setRushSequenceProgress,
@@ -21,9 +21,12 @@ import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
 import { readDungeonStates, writeDungeonState } from "@/lib/rush-dungeon-storage";
 import {
   dungeonOccurrenceKey,
+  doneDungeonKeysForSequence,
+  missingRequiredDungeons,
   type RushDungeonMemberState,
   type RushDungeonState,
   type RushDungeonStateMap,
+  type RushMissingDungeon,
 } from "@/lib/rush-dungeons";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
@@ -113,6 +116,8 @@ export default function GuideOverlayClient({
   ocreState = "ready",
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
+  // Notifications : Toaster de l'overlay quand il y en a un (PiP), sinon le global.
+  const toast = useOverlayToast();
   // Repli si le personnage n'est pas fourni (accès direct à la page overlay).
   const overlayCharacter = useMemo(
     () =>
@@ -166,7 +171,7 @@ export default function GuideOverlayClient({
       try {
         localStorage.setItem("sigil_overlay_theme", next ? "light" : "dark");
       } catch {}
-      toast(next ? "☀️ Mode Clair activé" : "🌙 Mode Sombre activé", { duration: 1200 });
+      toast.info(next ? "☀️ Mode Clair activé" : "🌙 Mode Sombre activé", { duration: 1200 });
       return next;
     });
   }, []);
@@ -298,7 +303,10 @@ export default function GuideOverlayClient({
     guildId,
     slug: guide.slug,
     altPseudo: effectiveAltPseudo,
-    lazy: true,
+    // **Eager** : le verrou de quête a besoin des donjons cochés dès l'ouverture, sinon
+    // une quête dont un donjon requis manque reste « cochable » jusqu'à ce qu'on ouvre
+    // un panneau donjon (mesure du 22/10/2026 : clic → refus serveur → toast d'erreur).
+    lazy: false,
   });
   const [guestDungeonStates, setGuestDungeonStates] = useState<RushDungeonStateMap>(() =>
     isGuest ? readDungeonStates(storagePrefix) : {}
@@ -381,7 +389,7 @@ export default function GuideOverlayClient({
   const toggleHideCompleted = useCallback(() => {
     setHideCompleted((prev) => {
       const next = !prev;
-      toast(next ? "👁️ Quêtes faites masquées" : "👁️ Toutes les quêtes affichées", { duration: 1200 });
+      toast.info(next ? "👁️ Quêtes faites masquées" : "👁️ Toutes les quêtes affichées", { duration: 1200 });
       return next;
     });
   }, []);
@@ -605,11 +613,23 @@ export default function GuideOverlayClient({
   }, [currentMs, milestones]);
 
   const getSeqGate = useCallback(
-    (seqId: string): { locked: boolean; prereqs: RushPrereqRef[] } => {
-      const refs = prereqBySeq.get(seqId) || [];
-      return { locked: refs.some((r) => !gateAllCompleted.has(r.seqId)), prereqs: refs };
+    (seq: RushSequence): { locked: boolean; prereqs: RushPrereqRef[]; missingDungeons: RushMissingDungeon[] } => {
+      const refs = prereqBySeq.get(seq.id) || getPrereqRefs(seq, milestones);
+      // Même règle que le serveur (`setRushSequenceProgress`) : un donjon **requis** non
+      // coché verrouille la quête. Sans ce test, le bouton restait cliquable et le clic
+      // partait au serveur — qui refuse — d'où une « erreur de synchronisation » au lieu
+      // d'une explication (mesure du 22/10/2026).
+      const missingDungeons = missingRequiredDungeons(
+        seq,
+        doneDungeonKeysForSequence(dungeonActions.states, seq.id)
+      );
+      return {
+        locked: refs.some((r) => !gateAllCompleted.has(r.seqId)) || missingDungeons.length > 0,
+        prereqs: refs,
+        missingDungeons,
+      };
     },
-    [prereqBySeq, gateAllCompleted]
+    [prereqBySeq, gateAllCompleted, milestones, dungeonActions.states]
   );
 
   const handleGoToPrereq = useCallback(
@@ -735,9 +755,21 @@ export default function GuideOverlayClient({
     async (ms: RushMilestone, seqId: string) => {
       const cur = new Set(completedStepsByMs.get(ms.id) || []);
       const was = cur.has(seqId);
-      if (!was && getSeqGate(seqId).locked) {
-        toast.warning("Terminez d'abord les prérequis de cette quête.");
-        return;
+      if (!was) {
+        const seqObj = ms.sequences.find((s) => s.id === seqId);
+        const gate = seqObj
+          ? getSeqGate(seqObj)
+          : { locked: false, prereqs: [] as RushPrereqRef[], missingDungeons: [] as RushMissingDungeon[] };
+        if (gate.locked) {
+          // On dit **ce qui manque** dans la fenêtre de l'overlay (jamais une erreur de
+          // synchronisation : le clic ne doit même pas partir au serveur).
+          toast.warning(
+            gate.missingDungeons.length > 0
+              ? `Donjons requis à cocher d'abord : ${gate.missingDungeons.map((d) => d.name).join(", ")}.`
+              : "Terminez d'abord les prérequis de cette quête."
+          );
+          return;
+        }
       }
       was ? cur.delete(seqId) : cur.add(seqId);
       const contentSeqs = ms.sequences.filter((s) => !isInfoSequence(s));
@@ -916,11 +948,17 @@ export default function GuideOverlayClient({
     async (ms: RushMilestone, seqId: string) => {
       const isAlready = bookmarksByMs.get(ms.id) === seqId;
       // Une quête validée ne peut pas porter de repère : soit validée, soit repère.
-      if (!isAlready && (completedStepsByMs.get(ms.id)?.has(seqId) || getSeqGate(seqId).locked)) {
+      const seqObj = ms.sequences.find((s) => s.id === seqId);
+      const gate = seqObj
+        ? getSeqGate(seqObj)
+        : { locked: false, prereqs: [] as RushPrereqRef[], missingDungeons: [] as RushMissingDungeon[] };
+      if (!isAlready && (completedStepsByMs.get(ms.id)?.has(seqId) || gate.locked)) {
         toast.info(
           completedStepsByMs.get(ms.id)?.has(seqId)
             ? "Cette quête est déjà validée."
-            : "Terminez d'abord les prérequis de cette quête."
+            : gate.missingDungeons.length > 0
+              ? `Donjons requis à cocher d'abord : ${gate.missingDungeons.map((d) => d.name).join(", ")}.`
+              : "Terminez d'abord les prérequis de cette quête."
         );
         return;
       }
@@ -1216,7 +1254,7 @@ export default function GuideOverlayClient({
                 globalResults.map(({ ms, seq }, i) => {
                   const showMsHeader = i === 0 || globalResults[i - 1].ms.id !== ms.id;
                   const isSeqDone = (completedStepsByMs.get(ms.id) || new Set<string>()).has(seq.id);
-                  const gate = getSeqGate(seq.id);
+                  const gate = getSeqGate(seq);
                   return (
                     <React.Fragment key={seq.id}>
                       {showMsHeader && (
@@ -1234,6 +1272,7 @@ export default function GuideOverlayClient({
                         isLightMode={isLightMode}
                         isLocked={gate.locked}
                         prereqs={gate.prereqs}
+                        missingDungeons={gate.missingDungeons}
                         onGoToPrereq={handleGoToPrereq}
                         onToggle={() => handleToggleSeq(ms, seq.id)}
                         onBookmark={() => handleBookmark(ms, seq.id)}
@@ -1266,7 +1305,7 @@ export default function GuideOverlayClient({
                   );
                 }
                 const isSeqDone = currentMsDoneSeqs.has(seq.id);
-                const gate = getSeqGate(seq.id);
+                const gate = getSeqGate(seq);
                 const isBookmarked = bookmarkSeqId === seq.id;
                 return (
                   <React.Fragment key={seq.id}>
@@ -1279,6 +1318,7 @@ export default function GuideOverlayClient({
                       isLightMode={isLightMode}
                       isLocked={gate.locked}
                       prereqs={gate.prereqs}
+                      missingDungeons={gate.missingDungeons}
                       onGoToPrereq={handleGoToPrereq}
                       onToggle={() => handleToggleSeq(currentMs, seq.id)}
                       onBookmark={() => handleBookmark(currentMs, seq.id)}

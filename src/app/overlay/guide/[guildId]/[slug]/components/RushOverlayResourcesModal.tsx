@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { X, Search, Check } from "lucide-react";
-import { toast } from "sonner";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import type { RushResourceAgg } from "./overlay-utils";
@@ -63,6 +63,7 @@ export function RushOverlayResourcesModal({
   onToggleCheck,
   hideProvidedResources = false,
 }: RushOverlayResourcesModalProps) {
+  const toast = useOverlayToast();
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"restantes" | "toutes">("restantes");
   const checked = checkedKeys ?? EMPTY_KEYS;

@@ -39,6 +39,9 @@ export function RushOverlayDungeonPopover({
   others = [],
   onSet,
   onEnsureLoaded,
+  open: openProp,
+  onOpenChange,
+  targetKey = null,
   children,
 }: {
   /** La quête de la ligne — porte l'identité de l'occurrence. */
@@ -53,9 +56,26 @@ export function RushOverlayDungeonPopover({
   onSet?: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => void;
   /** Chargement paresseux des états (une requête, à la première ouverture). */
   onEnsureLoaded?: () => void;
+  /**
+   * Ouverture **contrôlée** : les icônes des donjons manquants de la ligne de quête
+   * ouvrent CE panneau en ciblant leur donjon. Sans cette prop, l'état reste interne
+   * (la pastille `Donjon ×N` continue de fonctionner seule).
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Donjon à mettre en avant à l'ouverture. */
+  targetKey?: string | null;
   children: React.ReactNode;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = openProp ?? internalOpen;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (openProp === undefined) setInternalOpen(next);
+      onOpenChange?.(next);
+    },
+    [openProp, onOpenChange]
+  );
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLSpanElement>(null);
   // Document (et fenêtre) du nœud : ceux de la PiP quand l'overlay y tourne.
@@ -78,20 +98,20 @@ export function RushOverlayDungeonPopover({
 
   const open = useCallback(() => {
     onEnsureLoaded?.();
-    setIsOpen(true);
+    setOpen(true);
     requestAnimationFrame(() => requestAnimationFrame(updatePosition));
-  }, [onEnsureLoaded, updatePosition]);
+  }, [onEnsureLoaded, setOpen, updatePosition]);
 
   const toggle = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
       if (isOpen) {
-        setIsOpen(false);
+        setOpen(false);
         return;
       }
       open();
     },
-    [isOpen, open]
+    [isOpen, open, setOpen]
   );
 
   useEffect(() => {
@@ -133,8 +153,9 @@ export function RushOverlayDungeonPopover({
               states={states}
               busyKey={busyKey}
               others={others}
+              highlightKey={targetKey}
               onSet={onSet}
-              onClose={() => setIsOpen(false)}
+              onClose={() => setOpen(false)}
             />
           </div>
         </div>,

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import { Check, Flag, BookmarkCheck, Lock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSequenceCoord, getDungeons, getItemTags, isDungeonSequence } from "./overlay-utils";
@@ -16,6 +16,7 @@ import type {
   RushDungeonState,
   RushDungeonStateMap,
 } from "@/lib/rush-dungeons";
+import { dungeonKeyOf, type RushMissingDungeon } from "@/lib/rush-dungeons";
 
 interface RushOverlayQuestListItemProps {
   seq: RushSequence;
@@ -33,6 +34,12 @@ interface RushOverlayQuestListItemProps {
   isLocked?: boolean;
   /** Quêtes prérequis (cliquables pour y sauter) */
   prereqs?: { seqId: string; milestoneId: string; name: string }[];
+  /**
+   * Donjons **requis** de la quête qui ne sont pas encore cochés (noms lisibles).
+   * Non vide ⇒ la quête est verrouillée : on dit **quoi cocher** au lieu de laisser
+   * partir un clic que le serveur refusera (mesure du 22/10/2026).
+   */
+  missingDungeons?: RushMissingDungeon[];
   onGoToPrereq?: (seqId: string, milestoneId: string) => void;
   /** Ouvre la modale listant les membres en attente ici (avatars cliquables). */
   onOpenBookmarkers?: () => void;
@@ -74,12 +81,17 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   bookmarkers = [],
   isLocked = false,
   prereqs = [],
+  missingDungeons = [],
   onGoToPrereq,
   onOpenBookmarkers,
   guildId,
   dungeonActions,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
+  // Panneau donjon piloté par la ligne : la pastille l'ouvre, les icônes des donjons
+  // manquants l'ouvrent **en ciblant** le donjon cliqué (`targetKey`).
+  const [dungeonPanelOpen, setDungeonPanelOpen] = useState(false);
+  const [dungeonTarget, setDungeonTarget] = useState<string | null>(null);
   const itemTags = getItemTags(seq.activityTags);
   const hasDungeon = isDungeonSequence(seq);
   // Donjons requis, extraits UNE fois : le badge en affiche le nombre, la popover le détail.
@@ -245,6 +257,12 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   seq={seq}
                   dungeons={dungeons}
                   guildId={guildId}
+                  open={dungeonPanelOpen}
+                  onOpenChange={(next) => {
+                    setDungeonPanelOpen(next);
+                    if (!next) setDungeonTarget(null);
+                  }}
+                  targetKey={dungeonTarget}
                   states={dungeonActions?.states}
                   busyKey={dungeonActions?.busyKey}
                   others={dungeonActions?.others}
@@ -293,9 +311,65 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   className="rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-medium text-danger transition-colors hover:bg-danger/20"
                   title={`Aller à : ${p.name}`}
                 >
+                  {/* Le picto de QUÊTE sur chaque prérequis : on voit tout de suite que
+                      ce sont des quêtes, pas des étapes de donjon ou des ressources. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/assets/icons/icone-quete.png"
+                    alt=""
+                    className="h-3 w-3 shrink-0 object-contain"
+                    aria-hidden="true"
+                  />
                   {p.name}
                 </button>
               ))}
+            </div>
+          )}
+          {missingDungeons.length > 0 && (
+            /* Une seule mention + les **vignettes** des donjons manquants : chacune ouvre
+               le panneau de la quête en ciblant SON donjon (anneau + mise en vue). Les
+               noms restent en infobulle — la liste en texte alourdissait la ligne
+               (retour user du 22/10/2026). */
+            <div className="flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
+                <Lock className="h-3 w-3" aria-hidden="true" /> Donjons requis non validés
+              </span>
+              {missingDungeons.map((d) => {
+                const info = dungeons.find((dj) => dungeonKeyOf(dj) === d.key);
+                return (
+                  <button
+                    key={d.key}
+                    type="button"
+                    onClick={() => {
+                      setDungeonTarget(d.key);
+                      setDungeonPanelOpen(true);
+                    }}
+                    title={`Cocher : ${d.name}`}
+                    aria-label={`Ouvrir ${d.name} dans les donjons de cette quête`}
+                    className="rounded-[3px] border border-danger/40 p-0.5 transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-danger"
+                  >
+                    {info?.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={info.imageUrl}
+                        alt=""
+                        className="h-4 w-4 rounded-[2px] object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      /* Repli : le picto DONJON du jeu (jamais un glyphe d'interface — la
+                         garde `rush-overlay-dungeons` l'impose). */
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src="/assets/dofus-ui/pictos/donjon.png"
+                        alt=""
+                        className="h-4 w-4 object-contain"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

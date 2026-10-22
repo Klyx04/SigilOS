@@ -833,7 +833,11 @@ deploy() {
     [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
     local ENV_FILE=".env.prod"; [[ "$TARGET" == "beta" ]] && ENV_FILE=".env.beta"
     local GIT_SHORT; GIT_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+    # prod se sert sur le domaine apex : `prod.sigilos.fr` n'existe pas (NXDOMAIN) et une
+    # sonde sur un hôte inexistant rendait les contrôles post-déploiement menteurs (000 sur
+    # `/`, `robots.txt` et `sitemap.xml`) alors que le site répondait 200 (mesure du 22/10/2026).
     local URL="https://${TARGET}.sigilos.fr"
+    [[ "$TARGET" == "prod" ]] && URL="https://sigilos.fr"
     local MODE_LABEL="bêta — branche dev"; [[ "$TARGET" == "prod" ]] && MODE_LABEL="production — branche main"
 
     # ── Pré-vol ──────────────────────────────────────────────────────────────

@@ -5,14 +5,15 @@
 > **Mémoire.** 6 dernières sessions : `docs/agents/activeContext.md`.
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
-> **Dernière MàJ** : 21/10/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 22/10/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 
 - **Prochaine étape** : rang **3** (ouverture prod) ; les rangs **1** et **2** sont livrés (§5).
+- **Prod 22/10/2026 — remise en état** : l'ordre des migrations était faux depuis le 10/10 (`add_component_stats` altérait une table créée un mois plus tard) → **32 migrations appliquées** avec succès sur la prod, 6 conteneurs `Healthy` en **Node 24.22.1**, `api/health` **200**. Deux correctifs sont poussés mais **pas encore actifs en prod** : le seed des donjons (colonne `slug` requise) et la vitrine Caddy (les `/images/*` répondaient `200 text/html` → carrés blancs). **Op** : `./scripts/deploy-cd.sh prod 6604005`, puis `curl -I https://sigilos.fr/images/songes-bosses/3828_Protozorreur.png` = `200 image/png`.
 - **Rush Sylvestre — coche donjon + guide réparé (21/10/2026)** : les deux sources sont mesurées et figées (Tougli **100 / 102** séries + 30 Ordres + 19 classes ; Dofusyelle **57 étapes / 21 prépa / 40 saves / 62 succès**) · **union ressources 584**, donjons 99 + 83 (67 slugs identiques) · **verrou de donjons livré de bout en bout** : règle pure, table `PlayerGuideDungeonState` (**une coche par quête × donjon**), refus à la validation (quête **et** bloc), coche **DANS la quête** (pastille `Donjon ×N` → panneau ouvert) sur l'overlay (interne et invité), le dashboard et le guide public, **décocher un donjon dévalide la quête** (S0-7) · **guide interne réparé** : pagination par chapitre (23 pages fantômes → une page par chapitre/libellé), sommaire retiré, rail de droite réellement collant, prérequis ciblé visible. **Ops** : jouer la migration `20270115000000` en bêta puis prod (déjà en local). **Prochain lot** : `S0-6` (case « optionnel » par donjon dans God — sans elle tout donjon est requis) → `S4-1` (vue Branches 2 étages) → `S1` (contenu). Organisation complète : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
-- **Ops en attente** : migrations `20270112000000` + `20270113000000` · redéploiement du bot · crontabs (sondages `* * * * *`, ancienneté `30 4 * * *`, 4 rappels) · **rebuild des images** (Node `24.22.1`, voir `docs/agents/node-runtime.md`).
+- **Ops en attente** : migrations `20270112000000` + `20270113000000` · redéploiement du bot · crontabs (sondages `* * * * *`, ancienneté `30 4 * * *`, 4 rappels) · **redéploiement bêta** (image Node `24.22.1` + migration renumérotée, voir `docs/agents/node-runtime.md`).
 - **Mesures du 19/10** : 155 `console.*` hors tests · **0** import de `src/lib/env.ts` · **Grafana retiré** de l'exposition publique (God → Système & Infra).
 - **Bêta** : déployée en `5b31ad0` (19/10/2026) — 6 conteneurs `Healthy`, pages **200**, `monitor.sigilos.fr` **inaccessible** (voulu).
 

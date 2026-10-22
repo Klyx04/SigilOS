@@ -320,14 +320,11 @@ async function main() {
                         create: {
                             name: dungeon.name,
                             bossName: dungeon.bossName,
-                            /* Slug public `/boss/<slug>` — colonne REQUISE et UNIQUE depuis la
-                               migration `20260919130000_add_dungeon_slug`. Sans lui, Prisma
-                               rejette l'upsert AVANT même de savoir si la ligne existe
-                               (« Argument `slug` is missing ») : le seed de déploiement
-                               sortait en exit 1 et la transaction annulait TOUTE la
-                               synchronisation (mesure bêta du 16/10/2026). La règle est
-                               celle du God, du siphon et du backfill SQL — jamais une
-                               deuxième : `resolveUniqueDungeonSlug`. */
+                            /* Slug public `/boss/<slug>` — colonne REQUISE et UNIQUE : sans lui,
+                               Prisma rejette l'upsert AVANT de savoir si la ligne existe
+                               (« Argument `slug` is missing ») et la transaction annule TOUTE
+                               la synchronisation (mesure prod du 22/10/2026 sur un donjon neuf).
+                               Même règle que le God, le siphon et le backfill : une seule. */
                             slug: await resolveUniqueDungeonSlug(dungeon.bossName, { client: tx }),
                             level: dungeon.level,
                             dpnlUrl: dungeon.dpnlUrl,

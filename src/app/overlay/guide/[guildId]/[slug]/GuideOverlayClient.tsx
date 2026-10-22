@@ -1128,12 +1128,28 @@ export default function GuideOverlayClient({
     // `.dark` et une modale sortie de l'arbre (portail) resterait sombre.
     <div
       ref={rootRef}
-      className={`relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} ${
+      className={`rush-overlay relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} ${
         isLightMode ? "bg-[#f8fafc] text-[#0f172a]" : "bg-[#090b0e] text-[#f2f0e9]"
       }`}
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
-      <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }`}</style>
+      <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }
+      /* Barre de défilement de l'OVERLAY : le .custom-scrollbar global fait 5 px avec un
+         pouce à 10 % de blanc — impossible à attraper à la souris, surtout dans une fenêtre
+         PiP (retour user du 22/10/2026 : « on ne peut pas la déplacer »). Ici : 10 px, pouce
+         lisible, piste transparente, et une variante claire (le blanc à 28 % disparaîtrait
+         sur le thème clair). Le global n'est pas touché : il sert partout ailleurs. */
+      .rush-overlay .custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+      .rush-overlay .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .rush-overlay .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.28);
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+      .rush-overlay .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.45); background-clip: padding-box; }
+      .rush-overlay.light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.28); background-clip: padding-box; }
+      .rush-overlay.light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(15, 23, 42, 0.45); background-clip: padding-box; }`}</style>
 
       {/* Navigateur sans Document PiP (ex. Opera GX) : la fenêtre n'est pas épinglée */}
       {!pinned && <OverlayPinNotice />}

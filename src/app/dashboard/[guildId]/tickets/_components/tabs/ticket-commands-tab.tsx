@@ -100,17 +100,7 @@ const DETAILED_VARIABLES: VariableDoc[] = [
     },
     {
         token: "{staff}",
-        label: "Modérateur",
-        badge: "@Vous",
-        category: "Staff",
-        summary: "Ping de la personne du staff qui a tapé la commande (@Wylan)",
-        detail: "Mentionne UNIQUEMENT le membre du staff qui vient de valider la commande slash. Permet au demandeur de voir qui a traité sa demande.",
-        previewOutput: "@Wylan",
-        isMention: true,
-    },
-    {
-        token: "{equipe}",
-        label: "Équipe Staff",
+        label: "Rôles Staff",
         badge: "@Rôles Staff",
         category: "Staff",
         summary: "Ping de tous les rôles staff assignés au ticket (@Modérateurs @Officiers)",
@@ -119,13 +109,14 @@ const DETAILED_VARIABLES: VariableDoc[] = [
         isMention: true,
     },
     {
-        token: "{motif}",
-        label: "Motif",
-        badge: "Type de ticket",
-        category: "Ticket",
-        summary: "Nom du type de demande (ex: Recrutement)",
-        detail: "Le titre de la catégorie ou du parcours sélectionné à l'ouverture du ticket (ex: Recrutement, Demande d'aide, Plainte, Craft).",
-        previewOutput: "Recrutement",
+        token: "{moderateur}",
+        label: "Modérateur",
+        badge: "@Vous",
+        category: "Staff",
+        summary: "Ping de la personne du staff qui a tapé la commande (@Wylan)",
+        detail: "Mentionne UNIQUEMENT le membre du staff qui vient de valider la commande slash. Permet au demandeur de voir qui a traité sa demande.",
+        previewOutput: "@Wylan",
+        isMention: true,
     },
     {
         token: "{numero}",
@@ -198,7 +189,7 @@ const COMMAND_PRESETS: CommandPreset[] = [
             content: "🎉 Bienvenue dans nos rangs {cible} ! Ta candidature sur **{serveur}** a été acceptée avec succès par {staff}.\n\nPrends un instant pour consulter les salons importants et poser tes questions !",
             embedEnabled: true,
             embedTitle: "✨ Nouveau membre : {pseudo}",
-            embedDescription: "Le joueur {cible} a été officiellement intégré à la guilde !\n\n• **Dossier :** #{numero} ({motif})\n• **Validé par :** {staff}\n• **Salon :** {salon}",
+            embedDescription: "Le joueur {cible} a été officiellement intégré à la guilde !\n\n• **Dossier :** #{numero}\n• **Validé par :** {moderateur}\n• **Salon :** {salon}",
             embedColor: "#22C55E",
             embedFooter: "{serveur} • Recrutement validé",
             autoCloseTicket: false,
@@ -219,7 +210,7 @@ const COMMAND_PRESETS: CommandPreset[] = [
             content: "🛡️ Félicitations {cible} pour ton engagement constant au sein de **{serveur}** !",
             embedEnabled: true,
             embedTitle: "🎖️ Promotion au rang supérieur",
-            embedDescription: "Félicitations à {cible} qui passe au grade supérieur sur le serveur !\n\nAttribué par {staff}.",
+            embedDescription: "Félicitations à {cible} qui passe au grade supérieur sur le serveur !\n\nAttribué par {moderateur}.",
             embedColor: "#F59E0B",
             embedFooter: "{serveur} • Gestion des rangs",
             autoCloseTicket: false,
@@ -237,7 +228,7 @@ const COMMAND_PRESETS: CommandPreset[] = [
             description: "Indique que la demande est résolue et clôture le ticket",
             allowTargetMember: false,
             ephemeral: false,
-            content: "✅ Merci {demandeur} ! Ton ticket #{numero} concernant **{motif}** a été entièrement traité par {staff}.\n\nLe salon va maintenant être archivé et fermé automatiquement. Bon jeu sur Dofus !",
+            content: "✅ Merci {demandeur} ! Ton ticket #{numero} a été entièrement traité par {moderateur}.\n\nLe salon va maintenant être archivé et fermé automatiquement. Bon jeu sur Dofus !",
             embedEnabled: false,
             embedTitle: "",
             embedDescription: "",
@@ -258,7 +249,7 @@ const COMMAND_PRESETS: CommandPreset[] = [
             description: "Relance poliment le créateur du ticket resté inactif",
             allowTargetMember: false,
             ephemeral: false,
-            content: "👋 Bonjour {demandeur},\n\nNous sommes en attente de ton retour concernant ton ticket #{numero} ({motif}).\n\nEs-tu toujours disponible ? N'hésite pas à répondre directement ici !",
+            content: "👋 Bonjour {demandeur},\n\nNous sommes en attente de ton retour concernant ton ticket #{numero}.\n\nEs-tu toujours disponible ? N'hésite pas à répondre directement ici !",
             embedEnabled: false,
             embedTitle: "",
             embedDescription: "",
@@ -292,7 +283,7 @@ function DiscordTextRenderer({ text }: { text: string }) {
     const lines = text.split("\n");
 
     return (
-        <div className="space-y-1 break-words [overflow-wrap:anywhere]">
+        <div className="space-y-1 break-words break-all [overflow-wrap:anywhere] w-full min-w-0">
             {lines.map((line, lineIdx) => {
                 let isQuote = false;
                 let isH1 = false;
@@ -321,10 +312,10 @@ function DiscordTextRenderer({ text }: { text: string }) {
                         return (
                             <span
                                 key={partIdx}
-                                className="inline-flex items-center gap-0.5 bg-[#3c4270]/60 hover:bg-[#3c4270]/80 text-[#c9cdfb] font-semibold px-1.5 py-0.5 rounded text-[11px] align-baseline transition-colors select-none"
+                                className="inline-flex items-center gap-0.5 bg-[#3c4270]/60 hover:bg-[#3c4270]/80 text-[#c9cdfb] font-semibold px-1.5 py-0.5 rounded text-[11px] align-baseline transition-colors select-none max-w-full"
                             >
-                                <Hash className="h-3 w-3 inline text-[#c9cdfb]" />
-                                ticket-0042
+                                <Hash className="h-3 w-3 inline text-[#c9cdfb] shrink-0" />
+                                <span className="truncate max-w-[160px]">ticket-0042</span>
                             </span>
                         );
                     }
@@ -336,10 +327,10 @@ function DiscordTextRenderer({ text }: { text: string }) {
                         return (
                             <span
                                 key={partIdx}
-                                className="inline-flex items-center gap-0.5 bg-[#5865F2]/25 hover:bg-[#5865F2]/40 text-[#c9cdfb] font-semibold px-1.5 py-0.5 rounded text-[11px] align-baseline transition-colors select-none"
+                                className="inline-flex items-center gap-0.5 bg-[#5865F2]/25 hover:bg-[#5865F2]/40 text-[#c9cdfb] font-semibold px-1.5 py-0.5 rounded text-[11px] align-baseline transition-colors select-none max-w-full"
                             >
-                                <Shield className="h-3 w-3 inline text-[#5865F2]" />
-                                {label}
+                                <Shield className="h-3 w-3 inline text-[#5865F2] shrink-0" />
+                                <span className="truncate max-w-[160px]">{label}</span>
                             </span>
                         );
                     }
@@ -352,21 +343,21 @@ function DiscordTextRenderer({ text }: { text: string }) {
                         return (
                             <span
                                 key={partIdx}
-                                className="inline-flex items-center gap-0.5 bg-[#5865F2]/25 hover:bg-[#5865F2]/40 text-[#c9cdfb] font-medium px-1.5 py-0.5 rounded text-[11px] align-baseline transition-colors select-none"
+                                className="inline-flex items-center gap-0.5 bg-[#5865F2]/25 hover:bg-[#5865F2]/40 text-[#c9cdfb] font-medium px-1.5 py-0.5 rounded text-[11px] align-baseline transition-colors select-none max-w-full"
                             >
-                                {label}
+                                <span className="truncate max-w-[160px]">{label}</span>
                             </span>
                         );
                     }
 
                     // Gras **texte**
                     if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
-                        return <strong key={partIdx} className="font-bold text-white">{part.slice(2, -2)}</strong>;
+                        return <strong key={partIdx} className="font-bold text-white break-words break-all [overflow-wrap:anywhere]">{part.slice(2, -2)}</strong>;
                     }
 
                     // Italique *texte*
                     if (part.startsWith("*") && part.endsWith("*") && part.length >= 2) {
-                        return <em key={partIdx} className="italic text-[#dbdee1]">{part.slice(1, -1)}</em>;
+                        return <em key={partIdx} className="italic text-[#dbdee1] break-words break-all [overflow-wrap:anywhere]">{part.slice(1, -1)}</em>;
                     }
 
                     // Code en ligne `code`
@@ -378,33 +369,33 @@ function DiscordTextRenderer({ text }: { text: string }) {
                         );
                     }
 
-                    return <span key={partIdx}>{part}</span>;
+                    return <span key={partIdx} className="break-words break-all [overflow-wrap:anywhere]">{part}</span>;
                 });
 
                 if (isQuote) {
                     return (
-                        <div key={lineIdx} className="border-l-4 border-[#4e5058] pl-2 text-[#949ba4] italic my-0.5 break-words [overflow-wrap:anywhere]">
+                        <div key={lineIdx} className="border-l-4 border-[#4e5058] pl-2 text-[#949ba4] italic my-0.5 break-words break-all [overflow-wrap:anywhere]">
                             {renderedLine}
                         </div>
                     );
                 }
                 if (isH1) {
                     return (
-                        <div key={lineIdx} className="text-sm font-bold text-white mt-1 mb-0.5 break-words [overflow-wrap:anywhere]">
+                        <div key={lineIdx} className="text-sm font-bold text-white mt-1 mb-0.5 break-words break-all [overflow-wrap:anywhere]">
                             {renderedLine}
                         </div>
                     );
                 }
                 if (isH2) {
                     return (
-                        <div key={lineIdx} className="text-xs font-bold text-white mt-1 mb-0.5 break-words [overflow-wrap:anywhere]">
+                        <div key={lineIdx} className="text-xs font-bold text-white mt-1 mb-0.5 break-words break-all [overflow-wrap:anywhere]">
                             {renderedLine}
                         </div>
                     );
                 }
 
                 return (
-                    <div key={lineIdx} className="min-h-[1.15rem] break-words [overflow-wrap:anywhere]">
+                    <div key={lineIdx} className="min-h-[1.15rem] break-words break-all [overflow-wrap:anywhere]">
                         {renderedLine}
                     </div>
                 );
@@ -1199,14 +1190,14 @@ export function TicketCommandsTab({
                                             </div>
                                             <div className="p-2 rounded-lg bg-card border border-border/60 space-y-1">
                                                 <div className="font-semibold text-foreground flex items-center gap-1">
-                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{motif}`}</code>
+                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{staff}`}</code>
                                                     <span className="text-muted-foreground">&</span>
-                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{numero}`}</code>
+                                                    <code className="text-emerald-400 font-mono text-[11px]">{`{moderateur}`}</code>
                                                 </div>
                                                 <p className="text-muted-foreground text-[10px] leading-relaxed">
-                                                    <strong className="text-foreground">{`{motif}`}</strong> : type de ticket (<span className="text-foreground font-medium">Recrutement</span>).
+                                                    <strong className="text-foreground">{`{staff}`}</strong> : ping tous les rôles staff assignés (<span className="text-foreground font-medium">@Modérateurs @Officiers</span>).
                                                     <br />
-                                                    <strong className="text-foreground">{`{numero}`}</strong> : référence unique sur 4 chiffres (<span className="text-foreground font-medium">#0042</span>).
+                                                    <strong className="text-foreground">{`{moderateur}`}</strong> : ping la personne du staff qui valide la commande (<span className="text-foreground font-medium">@Wylan</span>).
                                                 </p>
                                             </div>
                                         </div>
@@ -1747,18 +1738,18 @@ export function TicketCommandsTab({
                                     {/* Embed Discord */}
                                     {embedEnabled && (
                                         <div
-                                            className="mt-2 rounded bg-[#2b2d31] p-3 text-xs border-l-4 space-y-2 w-full min-w-0 max-w-full overflow-hidden break-words"
+                                            className="mt-2 rounded bg-[#2b2d31] p-3 text-xs border-l-4 space-y-2 w-full min-w-0 max-w-full overflow-hidden break-words break-all [overflow-wrap:anywhere]"
                                             style={{ borderLeftColor: embedColor }}
                                         >
                                             <div className="flex items-start justify-between gap-2 min-w-0">
-                                                <div className="min-w-0 flex-1 space-y-1 break-words [overflow-wrap:anywhere]">
+                                                <div className="min-w-0 flex-1 space-y-1 break-words break-all [overflow-wrap:anywhere] overflow-hidden">
                                                     {renderedEmbedTitle && (
-                                                        <div className="font-bold text-sm text-white break-words">
+                                                        <div className="font-bold text-sm text-white break-words break-all [overflow-wrap:anywhere]">
                                                             {renderedEmbedTitle}
                                                         </div>
                                                     )}
                                                     {renderedEmbedDesc && (
-                                                        <div className="text-[#dbdee1] text-xs break-words">
+                                                        <div className="text-[#dbdee1] text-xs break-words break-all [overflow-wrap:anywhere]">
                                                             <DiscordTextRenderer text={renderedEmbedDesc} />
                                                         </div>
                                                     )}
@@ -1785,7 +1776,7 @@ export function TicketCommandsTab({
                                             )}
 
                                             {renderedEmbedFooter && (
-                                                <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147] break-words">
+                                                <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147] break-words break-all [overflow-wrap:anywhere]">
                                                     {renderedEmbedFooter}
                                                 </div>
                                             )}

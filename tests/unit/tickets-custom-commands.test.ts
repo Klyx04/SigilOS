@@ -96,21 +96,21 @@ describe("2. Moteur d'interpolation des variables ({demandeur}, {cible}, {pseudo
     });
 
     it("remplace les variables du staff, du ticket et du serveur", () => {
-        const template = "Staff : {staff} ({staff.pseudo}) | Ticket {numero} ({motif}) dans {salon} sur {serveur}";
+        const template = "Staff : {staff} ({staff.pseudo}) | Modérateur : {moderateur} | Ticket {numero} ({motif}) dans {salon} sur {serveur}";
         const result = interpolateTicketCommandTokens(template, context);
 
-        expect(result).toBe("Staff : <@555666777888999000> (ChefDeGuilde) | Ticket #0042 (Candidature) dans <#111222333444555> sur STELLIUM");
+        expect(result).toBe("Staff : @Staff (ChefDeGuilde) | Modérateur : <@555666777888999000> | Ticket #0042 (Candidature) dans <#111222333444555> sur STELLIUM");
     });
 
-    it("supporte les alias {moderateur} et {equipe}/{roles} pour mentionner l'équipe", () => {
+    it("supporte les alias {moderateur} et {staff}/{equipe}/{roles} pour mentionner l'équipe", () => {
         const contextWithRoles: TicketCommandContext = {
             ...context,
             staffRoleIds: ["111222", "333444"],
         };
-        const template = "Validé par {moderateur} pour l'équipe {equipe} ({roles})";
+        const template = "Validé par {moderateur} pour l'équipe {staff} ({equipe}) ({roles})";
         const result = interpolateTicketCommandTokens(template, contextWithRoles);
 
-        expect(result).toBe("Validé par <@555666777888999000> pour l'équipe <@&111222> <@&333444> (<@&111222> <@&333444>)");
+        expect(result).toBe("Validé par <@555666777888999000> pour l'équipe <@&111222> <@&333444> (<@&111222> <@&333444>) (<@&111222> <@&333444>)");
     });
 
     it("retombe sur le demandeur si aucune cible spécifique n'est définie", () => {
@@ -229,5 +229,34 @@ describe("4. Construction des Options Discord Slash Command", () => {
         };
 
         expect(buildTicketSlashCommandOptions(cmd)).toBeUndefined();
+    });
+});
+
+describe("5. Personnalisation de l'Embed de Satisfaction (CSAT)", () => {
+    it("utilise les textes par défaut si aucun texte personnalisé n'est fourni", async () => {
+        const { buildTicketCsatEmbed } = await import("@/lib/tickets/embeds");
+        const embed = buildTicketCsatEmbed({
+            ticketNumber: 42,
+            motifName: "Recrutement",
+            guildName: "Guilde SigilOS",
+        });
+
+        expect(embed.title).toBe("⭐ Votre avis sur le Ticket #42");
+        expect(embed.description).toContain("Votre ticket concernant **Recrutement** sur **Guilde SigilOS** vient d'être clôturé.");
+    });
+
+    it("interpole les balises dynamiques dans le titre et la description personnalisés", async () => {
+        const { buildTicketCsatEmbed } = await import("@/lib/tickets/embeds");
+        const embed = buildTicketCsatEmbed({
+            ticketNumber: 42,
+            motifName: "Aide Quête",
+            guildName: "STELLIUM",
+            customTitle: "🌟 Évaluation de votre demande #{numero}",
+            customDescription: "Bonjour {demandeur}, votre ticket de type {motif} sur {serveur} est clos. Satisfait ?",
+            creatorDiscordId: "123456789012345678",
+        });
+
+        expect(embed.title).toBe("🌟 Évaluation de votre demande #0042");
+        expect(embed.description).toBe("Bonjour <@123456789012345678>, votre ticket de type Aide Quête sur STELLIUM est clos. Satisfait ?");
     });
 });

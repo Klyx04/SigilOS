@@ -351,6 +351,8 @@ export type TicketCsatDestination = (typeof TICKET_CSAT_DESTINATIONS)[number];
 export type TicketMessagingSettings = {
     csatDestination: TicketCsatDestination;
     ticketLanguage: "fr" | "en";
+    csatTitle?: string;
+    csatDescription?: string;
 };
 
 /** Valeurs sûres : en privé, en français (le créateur vote même salon fermé). */
@@ -362,6 +364,8 @@ export function readTicketMessagingSettings(raw: unknown): TicketMessagingSettin
     return {
         csatDestination: input.csatDestination === "TICKET" ? "TICKET" : "DM",
         ticketLanguage: input.ticketLanguage === "en" ? "en" : "fr",
+        csatTitle: typeof input.csatTitle === "string" ? input.csatTitle.slice(0, 256) : undefined,
+        csatDescription: typeof input.csatDescription === "string" ? input.csatDescription.slice(0, 2048) : undefined,
     };
 }
 
@@ -376,6 +380,8 @@ export function writeTicketPermissionSettings(
         category: { id: string; override: TicketCategoryPermissionOverride };
         csatDestination: TicketCsatDestination;
         ticketLanguage: "fr" | "en";
+        csatTitle?: string;
+        csatDescription?: string;
     }>
 ): Record<string, unknown> {
     const base = (current && typeof current === "object" && !Array.isArray(current)
@@ -394,6 +400,12 @@ export function writeTicketPermissionSettings(
     }
     if (patch.ticketLanguage === "fr" || patch.ticketLanguage === "en") {
         base.ticketLanguage = patch.ticketLanguage;
+    }
+    if (patch.csatTitle !== undefined) {
+        base.csatTitle = typeof patch.csatTitle === "string" ? patch.csatTitle.slice(0, 256) : "";
+    }
+    if (patch.csatDescription !== undefined) {
+        base.csatDescription = typeof patch.csatDescription === "string" ? patch.csatDescription.slice(0, 2048) : "";
     }
     if (patch.category) {
         const categories =

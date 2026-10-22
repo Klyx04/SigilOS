@@ -128,7 +128,7 @@ function buildSections(guildId: string): AdminSection[] {
                     title: "Commandes slash Discord",
                     description: "Gestion des commandes bot : restrictions par salon Discord, rôles autorisés et activation.",
                     accent: "emerald",
-                    permission: (u) => u.canManageRBAC || u.isAdmin,
+                    permission: (u) => u.canManageRBAC || u.isAdmin || u.canViewSettings || u.canManageTickets || u.canManageMembers || u.canManageMissions,
                     tourId: "admin-overview-card-slash-commands",
                     dofusAsset: "/assets/dofus/modules/chat.png",
                 },

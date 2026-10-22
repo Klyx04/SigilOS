@@ -310,18 +310,37 @@ export function buildTicketCsatEmbed(input: {
     motifName: string;
     guildName: string;
     lang?: TicketLang;
+    customTitle?: string | null;
+    customDescription?: string | null;
+    creatorDiscordId?: string | null;
 }): { title: string; description: string; color: number; footer: { text: string } } {
-    if (input.lang === "en") {
-        return {
-            title: `⭐ Your feedback on Ticket #${input.ticketNumber}`,
-            description: `Your ticket about **${input.motifName}** on **${input.guildName}** has just been closed.\n\nHow would you rate the handling of your request?`,
-            color: 0x5865f2,
-            footer: { text: "SigilOS Feedback" },
-        };
-    }
+    const isEn = input.lang === "en";
+    const defaultTitle = isEn
+        ? `⭐ Your feedback on Ticket #${input.ticketNumber}`
+        : `⭐ Votre avis sur le Ticket #${input.ticketNumber}`;
+    const defaultDescription = isEn
+        ? `Your ticket about **${input.motifName}** on **${input.guildName}** has just been closed.\n\nHow would you rate the handling of your request?`
+        : `Votre ticket concernant **${input.motifName}** sur **${input.guildName}** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?`;
+
+    const interpolate = (tpl: string): string => {
+        const numeroFormatted = `#${String(input.ticketNumber).padStart(4, "0")}`;
+        return tpl
+            .replace(/#\{numero\}/gi, numeroFormatted)
+            .replace(/\{numero\}/gi, numeroFormatted)
+            .replace(/#\{ticket\.numero\}/gi, numeroFormatted)
+            .replace(/\{ticket\.numero\}/gi, numeroFormatted)
+            .replace(/\{motif\}/gi, input.motifName || "Ticket")
+            .replace(/\{serveur\}/gi, input.guildName || "Serveur")
+            .replace(/\{guilde\}/gi, input.guildName || "Serveur")
+            .replace(/\{demandeur\}/gi, input.creatorDiscordId ? `<@${input.creatorDiscordId}>` : "@Demandeur");
+    };
+
+    const finalTitle = input.customTitle?.trim() ? interpolate(input.customTitle.trim()) : defaultTitle;
+    const finalDescription = input.customDescription?.trim() ? interpolate(input.customDescription.trim()) : defaultDescription;
+
     return {
-        title: `⭐ Votre avis sur le Ticket #${input.ticketNumber}`,
-        description: `Votre ticket concernant **${input.motifName}** sur **${input.guildName}** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?`,
+        title: finalTitle,
+        description: finalDescription,
         color: 0x5865f2,
         footer: { text: "SigilOS Feedback" },
     };

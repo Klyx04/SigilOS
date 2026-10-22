@@ -32,6 +32,7 @@ import {
 } from "@/lib/tickets/channel-permissions";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
     TICKET_BUTTON_ACCESS,
@@ -98,6 +99,8 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
         initialPermissions.blacklistRoleIds
     );
     const [csatDestination, setCsatDestination] = useState<TicketCsatDestination>(initialMessaging.csatDestination);
+    const [csatTitle, setCsatTitle] = useState<string>(initialMessaging.csatTitle ?? "");
+    const [csatDescription, setCsatDescription] = useState<string>(initialMessaging.csatDescription ?? "");
     // 🆕 Boutons du salon : nom affiché, icône et droit (RBAC) de chacun.
     const [buttonSettings, setButtonSettings] = useState<TicketButtonSettings>(
         readTicketButtonSettings(config?.settingsJson)
@@ -148,6 +151,8 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 channelPermissions: matrix,
                 csatDestination,
                 ticketLanguage,
+                csatTitle,
+                csatDescription,
                 buttons: buttonSettings,
             });
 
@@ -208,16 +213,77 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                             </div>
 
                             {enableCsat && (
-                                <div className="space-y-1.5 pl-3 border-l-2 border-emerald-500/30 pt-1">
-                                    <label className="font-semibold text-foreground text-[11px]">Envoi de l&apos;enquête</label>
-                                    <select
-                                        value={csatDestination}
-                                        onChange={(e) => setCsatDestination(e.target.value as TicketCsatDestination)}
-                                        className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
-                                    >
-                                        <option value="TICKET">Dans le salon du ticket fermé (recommandé)</option>
-                                        <option value="DM">En message privé Discord (DM)</option>
-                                    </select>
+                                <div className="space-y-3 pl-3 border-l-2 border-emerald-500/30 pt-1">
+                                    <div className="space-y-1.5">
+                                        <label className="font-semibold text-foreground text-[11px]">Envoi de l&apos;enquête</label>
+                                        <select
+                                            value={csatDestination}
+                                            onChange={(e) => setCsatDestination(e.target.value as TicketCsatDestination)}
+                                            className="w-full h-8 px-2 text-xs rounded-lg border border-border bg-background text-foreground"
+                                        >
+                                            <option value="TICKET">Dans le salon du ticket fermé (recommandé)</option>
+                                            <option value="DM">En message privé Discord (DM)</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Personnalisation du texte de l'embed CSAT */}
+                                    <div className="space-y-2.5 pt-1">
+                                        <div className="space-y-1">
+                                            <label className="font-semibold text-foreground text-[11px] flex items-center justify-between">
+                                                <span>Titre de l&apos;encadré (Embed)</span>
+                                                <span className="text-[10px] text-muted-foreground font-normal">Défaut si vide</span>
+                                            </label>
+                                            <Input
+                                                value={csatTitle}
+                                                onChange={(e) => setCsatTitle(e.target.value)}
+                                                placeholder="⭐ Votre avis sur le Ticket #{numero}"
+                                                maxLength={256}
+                                                className="text-xs h-8"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="font-semibold text-foreground text-[11px] flex items-center justify-between">
+                                                <span>Texte & Question de satisfaction</span>
+                                                <span className="text-[10px] text-muted-foreground font-normal">Défaut si vide</span>
+                                            </label>
+                                            <Textarea
+                                                value={csatDescription}
+                                                onChange={(e) => setCsatDescription(e.target.value)}
+                                                placeholder={"Votre ticket concernant **{motif}** sur **{serveur}** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?"}
+                                                rows={3}
+                                                maxLength={2048}
+                                                className="text-xs resize-y"
+                                            />
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Balises disponibles : <code className="text-emerald-400 font-mono text-[10px]">{`{numero}`}</code>, <code className="text-emerald-400 font-mono text-[10px]">{`{motif}`}</code>, <code className="text-emerald-400 font-mono text-[10px]">{`{serveur}`}</code>, <code className="text-emerald-400 font-mono text-[10px]">{`{demandeur}`}</code>.
+                                            </p>
+                                        </div>
+
+                                        {/* Aperçu Discord réaliste CSAT */}
+                                        <div className="mt-2 rounded-xl bg-[#2b2d31] p-3 text-xs border-l-4 border-[#5865F2] space-y-2">
+                                            <div className="font-bold text-sm text-white break-words">
+                                                {csatTitle.trim()
+                                                    ? csatTitle.replace(/\{numero\}/gi, "#0042").replace(/\{motif\}/gi, "Recrutement").replace(/\{serveur\}/gi, "Guilde SigilOS")
+                                                    : "⭐ Votre avis sur le Ticket #0042"}
+                                            </div>
+                                            <div className="text-[#dbdee1] text-xs whitespace-pre-line break-words">
+                                                {csatDescription.trim()
+                                                    ? csatDescription.replace(/\{numero\}/gi, "#0042").replace(/\{motif\}/gi, "Recrutement").replace(/\{serveur\}/gi, "Guilde SigilOS").replace(/\{demandeur\}/gi, "@Demandeur")
+                                                    : "Votre ticket concernant **Recrutement** sur **Guilde SigilOS** vient d'être clôturé.\n\nComment évaluez-vous la prise en charge de votre demande ?"}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                    <span key={star} className="px-2 py-1 bg-[#4e5058]/40 hover:bg-[#4e5058]/60 text-amber-300 font-bold rounded text-[11px] select-none cursor-default border border-[#4e5058]/40">
+                                                        {"⭐".repeat(star)}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            <div className="text-[10px] text-[#949ba4] pt-1 border-t border-[#3f4147]">
+                                                SigilOS Feedback
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>

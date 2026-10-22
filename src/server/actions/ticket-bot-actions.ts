@@ -265,6 +265,10 @@ export async function saveTicketGuildPermissionsAction(
         channelPermissions?: TicketChannelMatrix;
         /** Enquête de satisfaction : en privé ou dans le salon fermé. */
         csatDestination?: TicketCsatDestination;
+        /** Titre personnalisé de l'embed CSAT. */
+        csatTitle?: string;
+        /** Description personnalisée de l'embed CSAT. */
+        csatDescription?: string;
         /** Langue du bot sur Discord (une seule, jamais doublée). */
         ticketLanguage?: "fr" | "en";
         /**
@@ -298,6 +302,8 @@ export async function saveTicketGuildPermissionsAction(
             blacklistRoleIds: patch.blacklistRoleIds,
             csatDestination: patch.csatDestination,
             ticketLanguage: patch.ticketLanguage,
+            csatTitle: patch.csatTitle,
+            csatDescription: patch.csatDescription,
         });
         if (patch.channelPermissions) {
             // Relecture stricte : seules les 3 groupes modifiables, booléens exigés.

@@ -18,8 +18,6 @@ import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { z } from "zod";
-import { findSequenceHelpers, type RushHelperProfile, type RushHelperMetier } from "@/lib/rush-helpers";
-import { normalizeMetiers } from "@/lib/metiers";
 import { rushResourceKey } from "@/lib/rush-guide-utils";
 import { doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
 import type { RushSequence } from "@/types/rush-guide-types";
@@ -1841,121 +1839,11 @@ export async function resetRushAlignment(guildId: string, altPseudo?: string) {
   return { success: true };
 }
 
-// ===========================================================================
-// S4 « qui peut aider » — badges membre (INFORMATIF : aucune invitation)
-// ===========================================================================
-
-const getSequenceHelpersSchema = z.object({
-  guildId: z.string().min(1),
-  sequenceId: z.string().min(1),
-});
-
-/**
- * ── S4 « qui peut aider » — retourne les membres capables d'aider une séquence ──
- * Résout en BULK les profils ACTIFS de la guilde (métiers + alignment) et leur
- * progression donjons (`UserDungeonProgress`), puis délègue à `findSequenceHelpers`
- * (helper pur, déjÀ testé). Garde guilde + Zod + rate-limit (fail-closed).
- */
-export async function getSequenceHelpers(guildId: string, sequenceId: string) {
-  const parsed = getSequenceHelpersSchema.safeParse({ guildId, sequenceId });
-  if (!parsed.success) return { success: false, error: "Paramètres invalides" };
-
-  const ctx = await getUserContext(guildId);
-  if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
-  if (!ctx.profileId) return { success: false, error: "Profile ID manquant" };
-
-  const { success: rateOk } = await rateLimit(`guide-helpers:${ctx.profileId}`, 30, 60_000);
-  if (!rateOk) return { success: false, error: "Trop de requêtes, veuillez patienter." };
-
-  const sequence = await db.guideSequence.findUnique({
-    where: { id: sequenceId },
-    select: {
-      id: true,
-      subGuideRef: true,
-      subGuideName: true,
-      dungeonId: true,
-      dungeonIds: true,
-      alignReq: true,
-      alignOrderReq: true,
-      activityTags: true,
-      dungeon: { select: { id: true, name: true, bossName: true, imageUrl: true } },
-    },
-  });
-  if (!sequence) return { success: false, error: "Séquence introuvable" };
-
-  const [profiles, progress] = await Promise.all([
-    db.userProfile.findMany({
-      where: { guild: { discordGuildId: guildId }, status: "ACTIVE" },
-      select: {
-        id: true,
-        pseudoDofus: true,
-        discordNickname: true,
-        classe: true,
-        dofusLevel: true,
-        alignment: true,
-        alignmentOrder: true,
-        alignmentLevel: true,
-        metiers: true,
-        user: { select: { name: true, image: true } },
-      },
-    }),
-    db.userDungeonProgress.findMany({
-      where: { profile: { guild: { discordGuildId: guildId }, status: "ACTIVE" } },
-      select: { profileId: true, dungeonId: true },
-    }),
-  ]);
-
-  const dungeonIdsByProfile = new Map<string, Set<string>>();
-  for (const p of progress) {
-    if (!dungeonIdsByProfile.has(p.profileId)) dungeonIdsByProfile.set(p.profileId, new Set());
-    dungeonIdsByProfile.get(p.profileId)!.add(p.dungeonId);
-  }
-
-  const resolveMetiers = (metiers: unknown): RushHelperMetier[] =>
-    normalizeMetiers(metiers).map((m) => ({ name: m.name, level: m.level }));
-
-  const members: RushHelperProfile[] = profiles.map((p) => ({
-    profileId: p.id,
-    name: p.pseudoDofus || p.discordNickname || p.user?.name || "Membre",
-    avatar: p.user?.image || undefined,
-    classe: p.classe ?? null,
-    dofusLevel: p.dofusLevel ?? null,
-    alignment: p.alignment ?? null,
-    alignmentOrder: p.alignmentOrder ?? null,
-    alignmentLevel: p.alignmentLevel ?? null,
-    metiers: resolveMetiers(p.metiers),
-    completedDungeonIds: Array.from(dungeonIdsByProfile.get(p.id) || []),
-  }));
-
-  // Résolution des `dungeonIds` en objets { id, name } (le helper pur a besoin du nom).
-  const dungeonIdList = (sequence.dungeonIds || []).filter((id): id is string => typeof id === "string");
-  let dungeons: RushSequence["dungeons"] = [];
-  if (dungeonIdList.length > 0) {
-    const rows = await db.dungeon.findMany({
-      where: { id: { in: dungeonIdList } },
-      select: { id: true, name: true, bossName: true, imageUrl: true },
-    });
-    dungeons = rows;
-  }
-
-  const seqForHelpers: RushSequence = {
-    id: sequence.id,
-    subGuideRef: sequence.subGuideRef,
-    subGuideName: sequence.subGuideName,
-    isOptional: false,
-    order: 0,
-    dungeonId: sequence.dungeonId ?? null,
-    dungeonIds: dungeonIdList,
-    dungeon: sequence.dungeon ?? undefined,
-    dungeons: dungeons.length > 0 ? dungeons : undefined,
-    alignReq: sequence.alignReq ?? null,
-    alignOrderReq: sequence.alignOrderReq ?? null,
-    activityTags: Array.isArray(sequence.activityTags) ? (sequence.activityTags as any[]) : [],
-  };
-
-  const helpers = findSequenceHelpers(seqForHelpers, members);
-  return { success: true, ...helpers };
-}
+// S4 « qui peut aider » retiré le 22/10/2026 (demande user : feature incomprise et
+// jugée inutile). Le badge n'existait que côté interne, affichait « 0 peut aider »
+// quand personne ne correspondait, et coûtait **un appel serveur par quête** au
+// chargement du guide. Le suivi entre membres reviendra comme un onglet dédié
+// (tracé dans `docs/ROADMAP.md`), pas comme une pastille par quête.
 
 // ===========================================================================
 // GOD-SIDE ADMIN ACTIONS

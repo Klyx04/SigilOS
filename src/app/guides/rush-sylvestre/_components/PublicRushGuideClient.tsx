@@ -88,11 +88,10 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress, getAlignmentSet } from "@/lib/rush-guide-utils";
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
-import { getAlignmentSet } from "@/lib/rush-helpers";
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 import { resolveDofusLocalImage } from "@/lib/dofus-image-url";

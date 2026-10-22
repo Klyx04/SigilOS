@@ -273,6 +273,61 @@ export function blockHeaderCoord(
   return getSequenceCoord(quests[0]);
 }
 
+// ─── Alignement : camp « donné » par une quête + cascade de décoche ───────────
+// Ces deux règles vivaient dans `src/lib/rush-helpers.ts`, avec le matching
+// « qui peut aider » retiré le 22/10/2026 (badge interne jugé inutile, à remplacer
+// plus tard par un vrai onglet de suivi entre membres). Elles n'ont rien à voir avec
+// l'entraide : elles restent, au même endroit que les autres règles du guide.
+
+/** Camp + niveau définis par une quête d'alignement (tag `alignment_set`). */
+export type RushAlignmentSet = { camp: string; level: number };
+
+/**
+ * Lit le tag `alignment_set` d'une séquence : la quête « donne » cet alignement
+ * (camp + niveau) quand elle est cochée. `null` si ce n'est pas une quête d'alignement.
+ */
+export function getAlignmentSet(seq: RushSequence | null | undefined): RushAlignmentSet | null {
+  if (!seq || !Array.isArray(seq.activityTags)) return null;
+  const tag = seq.activityTags.find((t) => t.type === "alignment_set");
+  if (!tag || !tag.name) return null;
+  return {
+    camp: tag.name,
+    level: typeof tag.level === "number" ? Math.max(0, Math.min(100, tag.level)) : 0,
+  };
+}
+
+/**
+ * Cascade décoche : quand on décoche `targetSeqId`, on décoche aussi TOUTES les quêtes
+ * qui en dépendent (directement ou transitivement via les prérequis).
+ * Retourne l'ensemble des ids à décocher (cible incluse). Point fixe : tant qu'une
+ * quête cochée redevient « bloquée », on la décoche.
+ */
+export function collectCascadeUncheck(
+  targetSeqId: string,
+  milestones: RushMilestone[],
+  allCompletedSeqIds: Set<string>
+): Set<string> {
+  const completed = new Set(allCompletedSeqIds);
+  completed.delete(targetSeqId);
+  const cascade = new Set<string>([targetSeqId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const ms of milestones) {
+      if (!ms || ms.type === "SEPARATEUR" || ms.type === "INFO" || ms.type === "DOFUS_OBTAINED") continue;
+      for (const seq of ms.sequences) {
+        if (!seq || cascade.has(seq.id) || !completed.has(seq.id)) continue;
+        if (isSequenceBlockedByPrereqs(seq, completed, milestones)) {
+          completed.delete(seq.id);
+          cascade.add(seq.id);
+          changed = true;
+        }
+      }
+    }
+  }
+  return cascade;
+}
+
 /**
  * Analyse et extrait les coordonnées Dofus d'un texte.
  *

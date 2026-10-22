@@ -69,7 +69,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
@@ -78,10 +78,8 @@ import { toOcrePanelData } from "@/lib/ocre-soul-stones";
 import { metierIds } from "@/lib/metiers";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
 import { safeImageUrl } from "@/lib/security";
-import { getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-helpers";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import { mergeChapterPages } from "@/lib/rush-guide-pages";
-import { RushHelperBadge } from "@/components/rush/RushHelperBadge";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText, RushTipLines } from "@/components/dofus-quests/rush/RushRichText";
@@ -456,7 +454,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 </span>
               );
             })()}
-            <RushHelperBadge guildId={guildId} seq={seq} />
             {seq.isSuccess && (
               <span className="shrink-0 text-[11px] font-semibold text-warning">Succès</span>
             )}

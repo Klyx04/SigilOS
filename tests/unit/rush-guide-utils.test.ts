@@ -20,6 +20,8 @@ import {
   RUSH_ACTIVITY_TAG_CONFIG,
   findMilestoneInsertIndex,
   blockHeaderCoord,
+  getAlignmentSet,
+  collectCascadeUncheck,
 } from "@/lib/rush-guide-utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
@@ -583,5 +585,96 @@ describe("blockHeaderCoord — position d'un bloc à une seule quête", () => {
     expect(blockHeaderCoord([])).toBeNull();
     expect(blockHeaderCoord(null)).toBeNull();
     expect(blockHeaderCoord(undefined)).toBeNull();
+  });
+});
+
+/**
+ * Règles d'alignement — rapatriées de `src/lib/rush-helpers.ts` le 22/10/2026, quand le
+ * matching « qui peut aider » a été retiré (le badge n'existait que côté interne et
+ * coûtait un appel serveur par quête). `getAlignmentSet` et `collectCascadeUncheck`
+ * n'ont rien à voir avec l'entraide : ce sont des règles du guide, testées ici.
+ */
+describe("getAlignmentSet — camp donné par une quête d'alignement", () => {
+  const seq = (over: Partial<RushSequence> = {}): RushSequence => ({
+    id: "seq-1",
+    subGuideRef: "q1",
+    subGuideName: "Quête 1",
+    isOptional: false,
+    order: 1,
+    ...over,
+  });
+
+  it("renvoie null si aucun tag alignment_set", () => {
+    expect(getAlignmentSet(seq())).toBeNull();
+  });
+
+  it("lit le camp + niveau du tag", () => {
+    expect(
+      getAlignmentSet(seq({ activityTags: [{ type: "alignment_set", name: "bontarien", level: 38 }] }))
+    ).toEqual({ camp: "bontarien", level: 38 });
+  });
+
+  it("borne le niveau entre 0 et 100", () => {
+    expect(
+      getAlignmentSet(seq({ activityTags: [{ type: "alignment_set", name: "brakmarien", level: 120 }] }))
+    ).toEqual({ camp: "brakmarien", level: 100 });
+  });
+
+  it("retourne niveau 0 si le tag n'a pas de niveau", () => {
+    expect(
+      getAlignmentSet(seq({ activityTags: [{ type: "alignment_set", name: "bontarien" }] }))
+    ).toEqual({ camp: "bontarien", level: 0 });
+  });
+
+  it("renvoie null si le tag est sans nom", () => {
+    expect(getAlignmentSet(seq({ activityTags: [{ type: "alignment_set" }] }))).toBeNull();
+  });
+});
+
+describe("collectCascadeUncheck — décocher un prérequis dévalide ses dépendantes", () => {
+  const milestones: RushMilestone[] = [
+    {
+      id: "ms-1",
+      chapter: 1,
+      chapterLabel: "Ch1",
+      title: "Prérequis Incarnam",
+      order: 1,
+      isOptional: false,
+      sequences: [
+        {
+          id: "q1",
+          subGuideRef: "q1",
+          subGuideName: "L'anneau de tous les dangers",
+          isOptional: false,
+          order: 1,
+          activityTags: [{ type: "alignment_set", name: "bontarien", level: 1 }],
+        },
+        {
+          id: "q2",
+          subGuideRef: "q2",
+          subGuideName: "Sous le regard des dieux",
+          isOptional: false,
+          order: 2,
+          activityTags: [
+            { type: "prereq_text", name: "L'anneau de tous les dangers" },
+            { type: "alignment_set", name: "bontarien", level: 2 },
+          ],
+        },
+      ],
+    },
+  ];
+
+  it("décoche la cible et ses dépendantes (transitives)", () => {
+    const cascade = collectCascadeUncheck("q1", milestones, new Set<string>(["q1", "q2"]));
+    expect(cascade.has("q1")).toBe(true);
+    expect(cascade.has("q2")).toBe(true);
+  });
+
+  it("ne cascade pas si aucune dépendante n'est cochée", () => {
+    expect(collectCascadeUncheck("q1", milestones, new Set<string>(["q1"]))).toEqual(new Set(["q1"]));
+  });
+
+  it("décocher une feuille n'entraîne rien de plus", () => {
+    expect(collectCascadeUncheck("q2", milestones, new Set<string>(["q1", "q2"]))).toEqual(new Set(["q2"]));
   });
 });

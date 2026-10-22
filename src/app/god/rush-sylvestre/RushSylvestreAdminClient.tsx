@@ -99,7 +99,8 @@ type Sequence = {
   classReq?: string | null;
   alignOrderReq?: number | null;
   dungeon?: { id: string; name: string; bossName: string; imageUrl?: string | null } | null;
-  dungeons?: { id: string; name: string; bossName: string; imageUrl?: string | null }[];
+  /** Donjons li├®s ; `isOptional` = affich├® mais non bloquant (S0-6). */
+  dungeons?: { id: string; name: string; bossName: string; imageUrl?: string | null; isOptional?: boolean }[];
   isSuccess?: boolean;
   icon?: string | null;
   metamobMonsterId?: number | null;
@@ -2519,6 +2520,21 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<any>(null);
 
+  // Donjons marqu├®s ┬½ optionnels ┬╗ : affich├®s dans la qu├¬te, mais ils ne bloquent pas sa
+  // validation (verrou `isSequenceBlockedByDungeons`). Toujours un sous-ensemble de
+  // `selectedDungeons` ÔÇö le serveur re-borne l'intersection de son c├┤t├®.
+  const [optionalDungeonIds, setOptionalDungeonIds] = useState<string[]>(
+    () => (seq.dungeons ?? []).filter(d => d.isOptional).map(d => d.id)
+  );
+
+  const isDungeonOptional = (dungeonId: string) => optionalDungeonIds.includes(dungeonId);
+
+  const toggleDungeonOptional = (dungeonId: string) => {
+    setOptionalDungeonIds(prev =>
+      prev.includes(dungeonId) ? prev.filter(id => id !== dungeonId) : [...prev, dungeonId]
+    );
+  };
+
   const isDungeonOcre = (dungeonId: string) => {
     return activityTags.some((t: any) => t.type === "ocre_dungeon" && t.name === dungeonId);
   };
@@ -2563,6 +2579,9 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
 
   const removeDungeon = (id: string) => {
     setSelectedDungeons(prev => prev.filter(d => d.id !== id));
+    // Un donjon retir├® ne peut plus ├¬tre ┬½ optionnel ┬╗ : on ne laisse pas d'id orphelin
+    // dans le payload (le serveur le filtrerait, autant ne pas l'envoyer).
+    setOptionalDungeonIds(prev => prev.filter(optionalId => optionalId !== id));
     setActivityTags(prev => prev.filter((t: any) => !(t.type === "ocre_dungeon" && t.name === id)));
   };
 
@@ -2577,9 +2596,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       note !== (seq.note || "") ||
       isSuccess !== (seq.isSuccess ?? false) ||
       icon !== (seq.icon || "") ||
-      metamobMonsterId !== (seq.metamobMonsterId ? String(seq.metamobMonsterId) : "")
+      metamobMonsterId !== (seq.metamobMonsterId ? String(seq.metamobMonsterId) : "") ||
+      // Le drapeau « optionnel » fait partie de la donnée enregistrée : le modifier doit
+      // armer le bouton « Enregistrer » comme n'importe quel autre champ.
+      optionalDungeonIds.slice().sort().join(",") !==
+        (seq.dungeons ?? []).filter((d: any) => d.isOptional).map((d: any) => d.id).sort().join(",")
     );
-  }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderReq, note, isSuccess, icon, metamobMonsterId, seq]);
+  }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderReq, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
 
   // ── Aperçu « côté membre » (`E5`) ──────────────────────────────────────────
   // ⚠️ On ne réinvente PAS une vignette : la ligne de quête et la fiche « Détails » rendues plus
@@ -2595,7 +2618,15 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     order: seq.order,
     dungeonId: selectedDungeons[0]?.id ?? null,
     dungeonIds: selectedDungeons.map(d => d.id),
-    dungeons: selectedDungeons.map(d => ({ id: d.id, name: d.name, bossName: d.bossName, imageUrl: d.imageUrl ?? null })),
+    // L'aper├ºu doit montrer **exactement** ce que le joueur verra : le donjon optionnel
+    // reste list├®, mais il ne verrouille pas la validation.
+    dungeons: selectedDungeons.map(d => ({
+      id: d.id,
+      name: d.name,
+      bossName: d.bossName,
+      imageUrl: d.imageUrl ?? null,
+      isOptional: isDungeonOptional(d.id),
+    })),
     dofusdbUrl: dofusdbUrl.trim() || null,
     dofuspourlesnoobsUrl: noobsUrl.trim() || null,
     tips: tips.trim() || null,
@@ -2636,6 +2667,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       subGuideRef: name.trim(),
       dungeonId: selectedDungeons[0]?.id ?? null,
       dungeonIds: selectedDungeons.map(d => d.id),
+      // Seuls les donjons encore s├®lectionn├®s partent (le serveur re-borne l'intersection).
+      dungeonOptionalIds: optionalDungeonIds.filter(id => selectedDungeons.some(d => d.id === id)),
       dofusdbUrl: dofusdbUrl.trim() || null,
       dofuspourlesnoobsUrl: noobsUrl.trim() || null,
       tips: tips.trim() || null,
@@ -3442,6 +3475,18 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                         <span className="text-caption font-bold text-white truncate">{d.name}</span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <label
+                          className="flex items-center gap-1 text-caption font-bold text-zinc-400 cursor-pointer select-none"
+                          title="Optionnel : le donjon reste affich├®, mais il ne bloque pas la validation de la qu├¬te"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isDungeonOptional(d.id)}
+                            onChange={() => toggleDungeonOptional(d.id)}
+                            className="w-3 h-3 accent-indigo-500 cursor-pointer"
+                          />
+                          Optionnel
+                        </label>
                         <button
                           type="button"
                           onClick={() => toggleOcreForDungeon(d.id)}
@@ -3605,6 +3650,21 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [note, setNote] = useState("");
   const [activityTags, setActivityTags] = useState<ActivityTag[]>([]);
   const [selectedDungeons, setSelectedDungeons] = useState<DungeonResult[]>([]);
+  // M├¬mes r├¿gles que l'├®diteur d'une qu├¬te existante : sous-ensemble des donjons li├®s.
+  const [optionalDungeonIds, setOptionalDungeonIds] = useState<string[]>([]);
+
+  const isDungeonOptional = (dungeonId: string) => optionalDungeonIds.includes(dungeonId);
+
+  const toggleDungeonOptional = (dungeonId: string) => {
+    setOptionalDungeonIds(prev =>
+      prev.includes(dungeonId) ? prev.filter(id => id !== dungeonId) : [...prev, dungeonId]
+    );
+  };
+
+  const removeDungeon = (dungeonId: string) => {
+    setSelectedDungeons(prev => prev.filter(d => d.id !== dungeonId));
+    setOptionalDungeonIds(prev => prev.filter(id => id !== dungeonId));
+  };
   const [dungeonQuery, setDungeonQuery] = useState("");
   const [dungeonResults, setDungeonResults] = useState<DungeonResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -3698,6 +3758,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
       subGuideRef: name.trim(),
       dungeonId: selectedDungeons[0]?.id ?? null,
       dungeonIds: selectedDungeons.map(d => d.id),
+      dungeonOptionalIds: optionalDungeonIds.filter(id => selectedDungeons.some(d => d.id === id)),
       dofusdbUrl: dofusdbUrl.trim() || null,
       dofuspourlesnoobsUrl: noobsUrl.trim() || null,
       tips: tips.trim() || null,
@@ -3711,7 +3772,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
     });
     setName(""); setDofusdbUrl(""); setNoobsUrl(""); setTips(""); setAlignReq("");
     setAlignOrderReq(""); setAlignOrderCode(""); setAlignLevelReq(""); setClassReq("");
-    setNote(""); setActivityTags([]); setSelectedDungeons([]); setDungeonQuery("");
+    setNote(""); setActivityTags([]); setSelectedDungeons([]); setOptionalDungeonIds([]); setDungeonQuery("");
     setSelectedDofusId(""); setPrereqs([]); setPrereqQuery("");
     setExpanded(false);
   };
@@ -3938,7 +3999,19 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                     {selectedDungeons.map(d => (
                       <div key={d.id} className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded text-caption text-white font-bold">
                         {d.name}
-                        <button onClick={() => setSelectedDungeons(p => p.filter(sd => sd.id !== d.id))} className="text-zinc-500 hover:text-red-400"><X className="w-2 h-2" /></button>
+                        <label
+                          className="flex items-center gap-1 text-caption font-bold text-zinc-400 cursor-pointer select-none"
+                          title="Optionnel : le donjon reste affich├®, mais il ne bloque pas la validation de la qu├¬te"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isDungeonOptional(d.id)}
+                            onChange={() => toggleDungeonOptional(d.id)}
+                            className="w-3 h-3 accent-indigo-500 cursor-pointer"
+                          />
+                          Optionnel
+                        </label>
+                        <button onClick={() => removeDungeon(d.id)} className="text-zinc-500 hover:text-red-400"><X className="w-2 h-2" /></button>
                       </div>
                     ))}
                   </div>

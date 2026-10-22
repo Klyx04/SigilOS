@@ -214,3 +214,49 @@ describe("E5 — l'aperçu live rend les composants du MEMBRE", () => {
     expect(out).toContain("Copier la commande /travel -55,15");
   });
 });
+
+/**
+ * S0-6 ÔÇö **case ┬½ optionnel ┬╗ par donjon** dans l'├®diteur God.
+ *
+ * Mesure du 22/10/2026 : `GuideSequence.dungeonOptionalIds` ├®tait **lu** ├á quatre endroits
+ * mais **jamais ├®crit** ÔçÆ aucune s├®quence ne marquait un donjon optionnel, donc **tout
+ * donjon ├®tait requis**. Ce verrou tient les deux bouts du c├óblage : le studio envoie la
+ * liste (├®dition **et** cr├®ation), et l'action serveur la borne par la r├¿gle pure.
+ */
+describe("S0-6 ÔÇö case ┬½ optionnel ┬╗ par donjon (studio God)", () => {
+  it("le studio envoie `dungeonOptionalIds` dans les deux payloads (├®dition et cr├®ation)", () => {
+    const payloads = ADMIN.match(/dungeonOptionalIds\s*:/g) ?? [];
+    expect(payloads.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("l'aper├ºu membre re├ºoit le drapeau du donjon (`isOptional`)", () => {
+    expect(ADMIN).toMatch(/isOptional:\s*isDungeonOptional\(d\.id\)/);
+  });
+
+  it("l'├®tat est amorc├® depuis la donn├®e enregistr├®e (├®dition), pas remis ├á z├®ro", () => {
+    expect(ADMIN).toMatch(/seq\.dungeons \?\? \[\]\)\.filter\(d => d\.isOptional\)\.map\(d => d\.id\)/);
+  });
+
+  it("retirer un donjon retire aussi son drapeau optionnel", () => {
+    const purges = ADMIN.match(/setOptionalDungeonIds\(prev => prev\.filter/g) ?? [];
+    expect(purges.length).toBeGreaterThanOrEqual(2); // ├®dition + cr├®ation
+  });
+
+  it("la case est accessible (case ├á cocher + libell├®, pas un div cliquable)", () => {
+    expect(ADMIN).toContain('type="checkbox"');
+    expect(ADMIN).toContain("Optionnel");
+  });
+
+  it("l'action serveur borne la liste par la r├¿gle pure", () => {
+    expect(ACTIONS).toContain("boundOptionalDungeonIds");
+    expect(ACTIONS).toMatch(/optionalIds: data\.dungeonOptionalIds/);
+  });
+
+  it("l'action ├®crit la colonne quand la liste est fournieÔÇª", () => {
+    expect(ACTIONS).toContain("{ dungeonOptionalIds }");
+  });
+
+  it("ÔÇªet ne la touche pas quand le client ne l'envoie pas", () => {
+    expect(ACTIONS).toMatch(/dungeonOptionalIds === undefined/);
+  });
+});

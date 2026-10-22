@@ -172,7 +172,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     const routeMilestones = resolveRushRoute((guide.milestones as any[]) || [], { camp: routeCamp });
 
     return (
-        <div className="flex flex-col w-full h-full overflow-hidden">
+        <div className="flex flex-col w-full h-full">
 
             <Suspense fallback={
                 <div className="flex items-center justify-center w-full h-full">
@@ -180,7 +180,15 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 </div>
             }>
                 {isTimeline ? (
-                    <div className="flex-1 overflow-y-auto" style={{ padding: "0 clamp(20px, 3vw, 48px)" }}>
+                    /* ⚠️ Aucun conteneur de défilement ici : le rail de droite
+                       (`RushChapterSidebar`, `position: sticky`) doit se caler sur le
+                       VRAI scrolleur de l'application, `<main data-scroll-container>`.
+                       Deux `overflow` intermédiaires (`overflow-hidden` + `overflow-y-auto`
+                       sur une colonne de hauteur automatique) créaient une boîte de
+                       défilement **qui ne défile jamais** : le `sticky` n'avait plus
+                       aucune course et le panneau partait avec la page (mesure du
+                       22/10/2026 — même règle que le guide public, qui n'a aucun wrapper). */
+                    <div className="flex-1" style={{ padding: "0 clamp(20px, 3vw, 48px)" }}>
                         <div style={{ maxWidth: 1360, marginInline: "auto" }}>
                         <RushTimelineClient
                             key={character}

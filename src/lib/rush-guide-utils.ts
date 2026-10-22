@@ -257,6 +257,23 @@ export function getSequenceCoord(seq: RushSequence | null | undefined) {
 }
 
 /**
+ * Coordonnée à afficher sur l'en-tête d'un **bloc** du guide interne.
+ *
+ * Parité guide public : côté public, chaque quête porte sa position à côté de son nom.
+ * Côté interne, un bloc replié ne montrait que son titre et `0 / 1 étapes` — impossible
+ * de savoir où aller sans déplier. Règle : un bloc à **une seule quête** affiche la
+ * position de cette quête ; un bloc à plusieurs quêtes n'en affiche aucune (il n'existe
+ * pas « une » position de bloc, on n'en invente pas).
+ */
+export function blockHeaderCoord(
+  sequences: readonly RushSequence[] | null | undefined
+): ReturnType<typeof getSequenceCoord> {
+  const quests = (sequences ?? []).filter((seq) => !isInfoSequence(seq));
+  if (quests.length !== 1) return null;
+  return getSequenceCoord(quests[0]);
+}
+
+/**
  * Analyse et extrait les coordonnées Dofus d'un texte.
  *
  * Formes reconnues (dans cet ordre) :

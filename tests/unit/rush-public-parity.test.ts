@@ -393,3 +393,28 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
   });
 });
 
+/**
+ * Position d'une quête — **le même résolveur** des deux côtés.
+ *
+ * Mesure du 22/10/2026 : l'interne lisait la position avec une regex locale sur
+ * `pos_tags` seulement, alors que le public passe par `getSequenceCoord` (qui lit aussi
+ * le titre, les tips et la note). Résultat : une quête dont la position est écrite dans
+ * son nom (`La font de glaces [-60, -57]`) affichait son chip côté public et **rien** côté
+ * interne. Une seule règle, deux surfaces.
+ */
+describe("Parité — la position d'une quête (une seule règle)", () => {
+  it("le guide interne résout la position par `getSequenceCoord`", () => {
+    expect(DASH).toContain("getSequenceCoord(seq)");
+  });
+
+  it("le guide interne ne re-parse plus `pos_tags` à la main", () => {
+    expect(DASH).not.toMatch(/posStr\.match\(/);
+  });
+
+  it("le guide public et l'overlay utilisent la même règle", () => {
+    expect(codeOf("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem.tsx")).toMatch(
+      /getSequenceCoord\(seq\)/
+    );
+  });
+});
+

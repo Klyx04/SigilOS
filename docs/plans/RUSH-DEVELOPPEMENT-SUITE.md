@@ -53,8 +53,43 @@ par donjon ; même règle avec plusieurs donjons.
 | **S0-4** | **Verrou à la validation** : `setRushSequenceProgress` refuse une séquence **nouvellement cochée** dont un donjon requis n'est pas `DONE` (`success:false` + `blockedSequenceId` + `missingDungeons`) | ✅ **livré** (serveur, fail-closed) |
 | **S0-5** | **UI** : les donjons d'une quête, cochables **DANS la quête** — la pastille `Donjon ×N` ouvre un panneau qui **reste ouvert** (croix de fermeture) avec deux coches par donjon (`Fait` / `À faire`) | ✅ **livré** (overlay, dashboard, guide public) |
 | **S0-5bis** | **Persistance des 3 surfaces** : dashboard en base (états chargés au montage, pré-contrôle local + verrou serveur) ; guide public en `localStorage` (`<préfixe personnage>dungeons`, fail-closed), verrou dans les **3** chemins d'écriture, donjons manquants nommés, reset de la 4ᵉ clé ; overlay public (invité) en `localStorage` | ✅ **livré** (21/10) |
-| **S0-6** | **God** : case « optionnel » par donjon lié à la séquence | à faire |
-| **S0-7** | **Décoche en cascade** : décocher un donjon **dévalide** la quête (et remet à zéro ses coches de ressources) | à faire |
+| **S0-6** | **God** : case « optionnel » par donjon lié à la séquence | **prochain lot** — voir « Reprise exacte » ci-dessous |
+| **S0-7** | **Décoche en cascade** : décocher un donjon **dévalide** la quête (et remet à zéro ses coches de ressources) | ✅ **livré** — serveur, dashboard, guide public/overlay invité ; **9 cas** dans `tests/unit/rush-dungeon-invalidation.test.ts` |
+
+**Reprise exacte (mesurée le 22/10/2026) — le prochain lot est S0-6.**
+
+État du code aujourd'hui : `GuideSequence.dungeonOptionalIds` est **lu** à trois endroits
+(`optimized-guide-actions.ts` l. 198-200, 265 et 3122 : `const optionalIds = new Set(...)`) et **jamais
+écrit** ⇒ **aucune** séquence ne marque un donjon optionnel, donc **tout donjon est requis**. Le type
+`RushDungeonRef.isOptional` (S0-2) et sa propagation sont déjà en place : il ne manque que le chemin
+d'écriture et la case.
+
+Ce qu'il faut toucher, dans cet ordre :
+
+1. **Serveur** — `src/server/actions/optimized-guide-actions.ts` : `upsertRushSequence` (l. **3819**) écrit
+   déjà `dungeonIds` (l. 3861, 3870) ; ajouter `dungeonOptionalIds?: string[]` à la signature **et** à
+   `commonFields`, borné (ids appartenant à `dungeonIds` de la même séquence). Garder `requireRushAccess()`
+   et le `logGodWrite` de l'action.
+2. **Éditeur God** — `src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx` : l'état `selectedDungeons`
+   alimente les payloads aux l. **2597** (aperçu membre `previewSeq`), **2638** (`handleSubmit` → `onSave`)
+   et **3700** (sauvegarde du bloc). Ajouter une case « optionnel » **par donjon**, envoyée en
+   `dungeonOptionalIds`, et la refléter dans `previewSeq` (`dungeons[i].isOptional`) pour que l'aperçu montre
+   exactement ce que le joueur verra.
+3. **Lecture** — rien à écrire : les trois chargeurs (dashboard, overlay, guide public) lisent déjà
+   `dungeonOptionalIds`. Vérifier au test qu'un donjon optionnel coché/décoché **ne bloque plus** la
+   validation (`sequenceDungeonProgress` / `isSequenceBlockedByDungeons`), alors qu'un requis manquant bloque
+   toujours.
+4. **Tests** — nouveau `tests/unit/rush-dungeons-optional.test.ts` (la règle ignore les optionnels, le requis
+   manquant bloque) + un cas d'UI dans `rush-dungeons-ui.test.ts`. **Ne pas affaiblir**
+   `rush-dungeon-invalidation.test.ts` (verrou S0-7) ni `rush-public-parity.test.ts`.
+
+**DoD S0-6** : depuis God, cocher « optionnel » sur un donjon d'une séquence → enregistrer → rouvrir la
+séquence (la case est toujours cochée) → côté dashboard, la quête se valide **sans** ce donjon et **refuse**
+toujours sans un donjon resté requis. **Aucune migration** : la colonne existe depuis
+`20270115000000_rush_dungeon_state`, **appliquée en prod le 22/10/2026** (281 migrations, `Base à jour`).
+
+**Après S0-6** : **S4-1** (vue Branches 2 étages) → **S1** (contenu 100/102 séries + 30 Ordres + 19 classes,
+voir §3 et `MAPPING-RUSH-SYLVESTRE.md`).
 
 **Modèle retenu (mesuré, 21/10)** :
 

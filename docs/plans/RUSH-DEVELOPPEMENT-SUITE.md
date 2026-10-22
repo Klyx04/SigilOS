@@ -53,18 +53,20 @@ par donjon ; même règle avec plusieurs donjons.
 | **S0-4** | **Verrou à la validation** : `setRushSequenceProgress` refuse une séquence **nouvellement cochée** dont un donjon requis n'est pas `DONE` (`success:false` + `blockedSequenceId` + `missingDungeons`) | ✅ **livré** (serveur, fail-closed) |
 | **S0-5** | **UI** : les donjons d'une quête, cochables **DANS la quête** — la pastille `Donjon ×N` ouvre un panneau qui **reste ouvert** (croix de fermeture) avec deux coches par donjon (`Fait` / `À faire`) | ✅ **livré** (overlay, dashboard, guide public) |
 | **S0-5bis** | **Persistance des 3 surfaces** : dashboard en base (états chargés au montage, pré-contrôle local + verrou serveur) ; guide public en `localStorage` (`<préfixe personnage>dungeons`, fail-closed), verrou dans les **3** chemins d'écriture, donjons manquants nommés, reset de la 4ᵉ clé ; overlay public (invité) en `localStorage` | ✅ **livré** (21/10) |
-| **S0-6** | **God** : case « optionnel » par donjon lié à la séquence | **prochain lot** — voir « Reprise exacte » ci-dessous |
+| **S0-6** | **God** : case « optionnel » par donjon lié à la séquence | ✅ **livré** (22/10, PR #1091) — règle pure `boundOptionalDungeonIds` (intersection, dédoublonnage, bornes), colonne écrite **seulement si la liste est fournie**, case dans l'éditeur **et** la création, aperçu membre fidèle ; **16 cas** (`rush-dungeons` 22, `rush-god-studio-robustesse` 26) |
 | **S0-7** | **Décoche en cascade** : décocher un donjon **dévalide** la quête (et remet à zéro ses coches de ressources) | ✅ **livré** — serveur, dashboard, guide public/overlay invité ; **9 cas** dans `tests/unit/rush-dungeon-invalidation.test.ts` |
 
-**Reprise exacte (mesurée le 22/10/2026) — le prochain lot est S0-6.**
+**S0-6 — livré le 22/10/2026 (PR #1091).** Ce paragraphe est conservé comme mesure de
+référence : `GuideSequence.dungeonOptionalIds` était **lu** à trois endroits et **jamais écrit**,
+donc **tout donjon était requis**. Le chemin d'écriture et la case existent désormais
+(`boundOptionalDungeonIds` côté règle, `upsertRushSequence` côté serveur, case dans l'éditeur God
+pour l'édition **et** la création). **Prochain lot : S4-1** (vue Branches à 2 étages).
 
-État du code aujourd'hui : `GuideSequence.dungeonOptionalIds` est **lu** à trois endroits
-(`optimized-guide-actions.ts` l. 198-200, 265 et 3122 : `const optionalIds = new Set(...)`) et **jamais
-écrit** ⇒ **aucune** séquence ne marque un donjon optionnel, donc **tout donjon est requis**. Le type
-`RushDungeonRef.isOptional` (S0-2) et sa propagation sont déjà en place : il ne manque que le chemin
-d'écriture et la case.
+État du code au moment de la mesure : le type
+`RushDungeonRef.isOptional` (S0-2) et sa propagation étaient déjà en place ; il ne manquait que le
+chemin d'écriture et la case.
 
-Ce qu'il faut toucher, dans cet ordre :
+Ce qu'il fallait toucher, dans cet ordre :
 
 1. **Serveur** — `src/server/actions/optimized-guide-actions.ts` : `upsertRushSequence` (l. **3819**) écrit
    déjà `dungeonIds` (l. 3861, 3870) ; ajouter `dungeonOptionalIds?: string[]` à la signature **et** à

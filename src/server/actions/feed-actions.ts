@@ -4,6 +4,7 @@
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { fetchDofusNews, fetchTwitchLiveStreams, fetchYouTubeLatestVideos, fetchDPLNNews, ExtractedContent } from "@/lib/feed-aggregators";
+import { FEED_CACHE_PURGE_WHERE, dedupeFeedCacheRows } from "@/lib/feed-cache";
 import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
 import { redis } from "@/lib/redis";
@@ -116,52 +117,35 @@ export async function getAggregatedFeed(guildId: string, forceRefresh = false) {
 
             const allContent: ExtractedContent[] = [...news, ...streams, ...videos, ...dpln];
 
-            // Update Database (Upsert based on unique constraint)
+            // Update Database (purge + réinsertion en **lot**)
             if (allContent.length > 0) {
+                // Le cache du feed est une **image** : on purge les familles dont le feed
+                // est propriétaire (règle unique `FEED_CACHE_PURGE_WHERE`), puis on
+                // réinsère un lot dédupliqué en **une** écriture.
+                //
+                // Correctif du 22/10/2026 (Sentry `JAVASCRIPT-NEXTJS-24`) : l'ancien code
+                // purgeait TWITCH / Ankama / DPLN mais **pas** YouTube, puis faisait un
+                // `upsert` par contenu (`Promise.all`, 1 requête par ligne). YouTube sort
+                // donc de la purge, et l'écriture redevient un seul `INSERT` idempotent.
                 // @ts-ignore
-                await db.contentCache.deleteMany({
-                    where: {
-                        OR: [
-                            { type: "TWITCH" },
-                            { creatorId: "DPLN" },
-                            { creatorId: "Ankama" }
-                        ]
-                    }
+                await db.contentCache.deleteMany({ where: FEED_CACHE_PURGE_WHERE });
+
+                // `createMany` refuse deux lignes de même clé dans la même instruction :
+                // la déduplication est faite par la règle pure, pas par la base.
+                // @ts-ignore
+                await db.contentCache.createMany({
+                    data: dedupeFeedCacheRows(allContent).map((item) => ({
+                        type: item.type,
+                        creatorId: item.creatorId,
+                        title: item.title,
+                        url: item.url,
+                        thumbnail: item.thumbnail,
+                        description: item.description || null,
+                        published: item.published,
+                        fetchedAt: now,
+                    })),
+                    skipDuplicates: true,
                 });
-
-                // Insert/Update new content
-                // Prisma currently doesn't have an easy upsertMany without extensions, so we'll do individual upset tasks
-                const upsertPromises = allContent.map(item =>
-                    // @ts-ignore
-                    db.contentCache.upsert({
-                        where: {
-                            type_creatorId_url: {
-                                type: item.type,
-                                creatorId: item.creatorId,
-                                url: item.url
-                            }
-                        },
-                        update: {
-                            title: item.title,
-                            thumbnail: item.thumbnail,
-                            description: item.description || null,
-                            published: item.published,
-                            fetchedAt: now
-                        },
-                        create: {
-                            type: item.type,
-                            creatorId: item.creatorId,
-                            title: item.title,
-                            url: item.url,
-                            thumbnail: item.thumbnail,
-                            description: item.description || null,
-                            published: item.published,
-                            fetchedAt: now
-                        }
-                    })
-                );
-
-                await Promise.all(upsertPromises);
             }
         }
 

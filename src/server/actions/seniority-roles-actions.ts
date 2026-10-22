@@ -27,6 +27,7 @@ import {
     SENIORITY_ANNOUNCEMENT_TITLE_MAX_LENGTH,
     SENIORITY_ANNOUNCEMENT_VARIABLE_ALIASES,
     SENIORITY_ANNOUNCEMENT_VARIABLES,
+    SENIORITY_FILTER_ROLES_MAX,
     SENIORITY_ROLES_MAX_DAYS,
     SENIORITY_ROLES_MAX_ROLES_PER_TIER,
     SENIORITY_ROLES_MAX_TIERS,
@@ -34,6 +35,7 @@ import {
     SENIORITY_UPCOMING_WINDOW_DAYS,
     findUnknownAnnouncementVariables,
     mergeSeniorityRolesConfig,
+    normalizeSeniorityRoleIds,
     normalizeSeniorityTiers,
     resolveSeniorityRoleTier,
     resolveUpcomingTierChange,
@@ -107,6 +109,8 @@ const SETTINGS_SCHEMA = z
             color: z.number().int().min(0).max(0xffffff),
             thumbnail: z.enum(["avatar", "guild", "none"]),
         }),
+        allowedRoleIds: z.array(SNOWFLAKE).max(SENIORITY_FILTER_ROLES_MAX).default([]),
+        excludedRoleIds: z.array(SNOWFLAKE).max(SENIORITY_FILTER_ROLES_MAX).default([]),
     })
     .strict();
 
@@ -126,6 +130,8 @@ export interface SeniorityRolesSettingsPayload {
     channelId: string | null;
     tiers: SeniorityTier[];
     announcement: SeniorityAnnouncementConfig;
+    allowedRoleIds: string[];
+    excludedRoleIds: string[];
     /** Marqueur d'activation : `null` tant que le module n'a jamais été mis en service. */
     activatedAt: string | null;
     /** Nom de la guilde — sert l'aperçu du message (variable `{guilde}`). */
@@ -329,7 +335,11 @@ export async function updateSeniorityRolesSettings(guildId: string, input: unkno
                 // On stocke **normalisé** (trié, dédoublonné, borné) : la base ne contient
                 // jamais une config que la règle devrait ensuite rattraper.
                 seniorityRolesTiers: normalizeSeniorityTiers(parsed.data.tiers) as unknown as Prisma.InputJsonValue,
-                seniorityRolesAnnouncement: parsed.data.announcement as unknown as Prisma.InputJsonValue,
+                seniorityRolesAnnouncement: {
+                    ...parsed.data.announcement,
+                    allowedRoleIds: normalizeSeniorityRoleIds(parsed.data.allowedRoleIds),
+                    excludedRoleIds: normalizeSeniorityRoleIds(parsed.data.excludedRoleIds),
+                } as unknown as Prisma.InputJsonValue,
                 seniorityRolesActivatedAt: activatedAt,
             },
         });

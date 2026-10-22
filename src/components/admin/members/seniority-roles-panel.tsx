@@ -102,6 +102,8 @@ interface Draft {
     /** Couleur `#rrggbb` : l'action serveur attend un entier (converti à l'enregistrement). */
     color: string;
     thumbnail: SeniorityThumbnailSource;
+    allowedRoleIds: string[];
+    excludedRoleIds: string[];
 }
 
 const hexFromColor = (value: number) => `#${value.toString(16).padStart(6, "0")}`;
@@ -129,6 +131,8 @@ const draftFrom = (data: SeniorityRolesSettingsPayload): Draft => ({
     embedDescription: data.announcement.embedDescription,
     color: hexFromColor(data.announcement.color),
     thumbnail: data.announcement.thumbnail,
+    allowedRoleIds: [...(data.allowedRoleIds ?? [])],
+    excludedRoleIds: [...(data.excludedRoleIds ?? [])],
 });
 
 /** Vue comparable pour le garde « modifications non enregistrées » : l'ordre des rôles ne compte pas. */
@@ -140,6 +144,8 @@ const comparable = (draft: Draft) => ({
         // On compare **ce qui partira** : un champ vidé n'est pas une surcharge.
         announcement: compactTierAnnouncement(tier.announcement),
     })),
+    allowedRoleIds: [...draft.allowedRoleIds].sort(),
+    excludedRoleIds: [...draft.excludedRoleIds].sort(),
 });
 
 const formatDate = (iso: string | null) =>
@@ -178,10 +184,12 @@ function TierRolesSelector({
     value,
     onChange,
     roles,
+    placeholder = "Choisir les rôles de ce palier…",
 }: {
     value: string[];
     onChange: (next: string[]) => void;
     roles: DiscordRoleOption[];
+    placeholder?: string;
 }) {
     const [open, setOpen] = useState(false);
     const selected = roles.filter((role) => value.includes(role.id));
@@ -199,7 +207,7 @@ function TierRolesSelector({
                 >
                     <span className="flex flex-wrap items-center gap-1.5">
                         {selected.length === 0 ? (
-                            <span className="text-muted-foreground">Choisir les rôles de ce palier…</span>
+                            <span className="text-muted-foreground">{placeholder}</span>
                         ) : (
                             selected.map((role) => {
                                 const cssColor = roleColorToCss(role.color);
@@ -349,6 +357,8 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                     color: colorFromHex(draft.color),
                     thumbnail: draft.thumbnail,
                 },
+                allowedRoleIds: draft.allowedRoleIds,
+                excludedRoleIds: draft.excludedRoleIds,
             });
 
             if (result.success) {
@@ -507,6 +517,50 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                             <p className="text-xs text-muted-foreground">
                                 Les rôles sont posés même sans salon : l&apos;annonce est la seule chose qui en dépend.
                             </p>
+                        </div>
+
+                        {/* ── Filtre de rôles (Éligibilité) ─────────────────────────── */}
+                        <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
+                            <div>
+                                <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                                    Éligibilité des membres (Filtres de rôles)
+                                </Label>
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                    Définis quels membres sur Discord peuvent recevoir des rôles via le robot d&apos;ancienneté.
+                                </p>
+                            </div>
+
+                            {/* Rôles autorisés (Whitelist) */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-medium">
+                                    Rôles autorisés (Whitelist)
+                                </Label>
+                                <TierRolesSelector
+                                    value={draft.allowedRoleIds}
+                                    onChange={(value) => patch({ allowedRoleIds: value })}
+                                    roles={roles}
+                                    placeholder="Tous les membres sont autorisés (aucun filtre)…"
+                                />
+                                <p className="text-[11px] text-muted-foreground">
+                                    Si spécifié, seuls les membres ayant au moins l&apos;un de ces rôles reçoivent des rôles d&apos;ancienneté. Laisser vide pour inclure tout le monde.
+                                </p>
+                            </div>
+
+                            {/* Rôles exclus (Blacklist) */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-medium">
+                                    Rôles exclus / Blacklistés
+                                </Label>
+                                <TierRolesSelector
+                                    value={draft.excludedRoleIds}
+                                    onChange={(value) => patch({ excludedRoleIds: value })}
+                                    roles={roles}
+                                    placeholder="Aucun rôle exclu…"
+                                />
+                                <p className="text-[11px] text-muted-foreground">
+                                    Les membres portant l&apos;un de ces rôles ne recevront jamais de rôles d&apos;ancienneté (ex: bots, invités, rôles spéciaux). Prioritaire sur la liste blanche.
+                                </p>
+                            </div>
                         </div>
 
                         {/* ── Paliers ──────────────────────────────────────────── */}

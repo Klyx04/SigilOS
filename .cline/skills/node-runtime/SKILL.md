@@ -14,6 +14,6 @@ description: Utiliser quand une version de Node doit bouger — avis de sécurit
    `npx tsc --noEmit` · `npm run lint`.
 5. PR → `dev` (skill `lot-pr`) ; documenter les CVE qui nous touchent réellement (TLS sortant,
    Brotli/undici, keep-alive).
-6. **Ops humain** : `./scripts/deploy-cd.sh beta` puis `docker exec sigilos-app node -v` =
-   version du `.nvmrc` (idem bot) ; prod à l'ouverture. Sans rebuild, le conteneur garde son
-   ancien Node.
+6. **Ops humain** : `./scripts/deploy-cd.sh beta` puis `docker exec sigilos-beta node -v` =
+   version du `.nvmrc` (idem `sigilos-discord-bot-beta` ; aucun conteneur `sigilos-app`) ;
+   prod sur `sigilos-prod` à l'ouverture. Sans rebuild, le conteneur garde son ancien Node.

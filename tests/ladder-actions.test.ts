@@ -22,6 +22,15 @@ vi.mock('@/lib/prisma', () => ({
     }
 }));
 
+// Le classement est mis en cache Redis (10 min, même clé pour toute la guilde de
+// test). Sans ce court-circuit, le cas « aucun point de contribution » met `[]` en
+// cache et les cas suivants relisent cette entrée au lieu d'interroger leurs propres
+// données — 4 cas rouges sur `dev` (mesuré le 22/10/2026). On teste la **règle**,
+// pas le cache : chaque cas doit exécuter son propre jeu de données.
+vi.mock('@/lib/cache', () => ({
+    withCache: async (_key: string, _ttlSeconds: number, fetcher: () => Promise<unknown>) => fetcher(),
+}));
+
 describe('getContributionLadder', () => {
     const mockGuildId = 'test-guild-123';
     const mockUserId = 'user-123';

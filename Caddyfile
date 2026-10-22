@@ -127,10 +127,17 @@ ROBOTS 200
         respond 404
     }
 
-    # 🎨 Assets de la vitrine (fond bg-guild, screenshots, icônes, logo) — file_server
-    # ⚠️ Le rewrite maintenance ne doit JAMAIS avaler /assets/* (sinon images cassées).
-    handle /assets/* {
-        root * /srv/static
+    # ============================================================================
+    # Fichiers STATIQUES de la vitrine (assets, images, module-dofus, logo...) -- file_server
+    # Le rewrite maintenance ne doit JAMAIS avaler un fichier REEL. Mesure du 22/10/2026 :
+    # seul /assets/* etait exclu, donc /images/songes-bosses/*.png (references par
+    # maintenance.html) renvoyait la page dattente en 200 text/html -> carres blancs.
+    # Le matcher file couvre TOUS les dossiers presents sous /srv/static (= ./public),
+    # sans liste a maintenir quand la vitrine gagne un dossier.
+    # ============================================================================
+    root * /srv/static
+    @vitrineFichier file
+    handle @vitrineFichier {
         file_server
     }
 

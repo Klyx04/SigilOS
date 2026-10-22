@@ -52,6 +52,7 @@ import { TelemetryDashboard } from "./components/telemetry-dashboard";
 import { CronStatusTabs } from "./components/cron-status-tabs";
 import { GodSlashCommandsPanel } from "./components/god-slash-commands-panel";
 import { getGodRoute } from "@/lib/god-route";
+import { toGodLiveStats } from "@/lib/god-live-stats";
 
 
 export default async function SuperAdminPage(props: {
@@ -400,24 +401,9 @@ export default async function SuperAdminPage(props: {
 async function LiveStatsServer() {
     try {
         const stats = await getPlatformStats();
-        return (
-            <LiveStats
-                initialStats={{
-                    guilds: stats.allowedGuilds,
-                    guildsTrend: stats.guildsTrend,
-                    activeGuilds: stats.activeGuilds,
-                    users: stats.totalUsers,
-                    usersTrend: stats.usersTrend,
-                    profiles: stats.totalProfiles,
-                    activeProfiles: stats.activeProfiles,
-                    missions: stats.totalMissions,
-                    missionsTrend: stats.missionsTrend,
-                    weeklyActiveUsers: stats.weeklyActiveUsers,
-                    retentionRate: stats.retentionRate,
-                    density: stats.density
-                }}
-            />
-        );
+        // Même règle de forme que le flux SSE (`toGodLiveStats`) : le client remplace
+        // son état par chaque trame, les deux chemins doivent porter les mêmes champs.
+        return <LiveStats initialStats={toGodLiveStats(stats)} />;
     } catch { return <div>Error stats</div> }
 }
 

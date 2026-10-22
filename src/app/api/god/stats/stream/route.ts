@@ -6,9 +6,13 @@
 import { NextRequest } from 'next/server';
 import { canGodAccess, getPlatformStats } from '@/server/actions/super-admin-actions';
 import { logger } from '@/lib/logger';
+import { createSseChannel, sseFrame } from '@/lib/sse';
+import { toGodLiveStats } from '@/lib/god-live-stats';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const STATS_INTERVAL_MS = 5000;
 
 export async function GET(request: NextRequest) {
     // R3 : lecture des stats = scope "guilds" (cohérent R1).
@@ -17,58 +21,39 @@ export async function GET(request: NextRequest) {
         return new Response('Unauthorized', { status: 401 });
     }
 
-    // Create SSE stream
-    const encoder = new TextEncoder();
-
-    const stream = new ReadableStream({
+    const stream = new ReadableStream<Uint8Array>({
         async start(controller) {
-            // Send initial stats immediately
-            try {
-                const platformStats = await getPlatformStats();
-                const stats = {
-                    guilds: platformStats.allowedGuilds,
-                    guildsTrend: platformStats.guildsTrend || 0,
-                    activeGuilds: platformStats.activeGuilds,
-                    users: platformStats.totalUsers,
-                    usersTrend: platformStats.usersTrend || 0,
-                    profiles: platformStats.totalProfiles,
-                    activeProfiles: platformStats.activeProfiles,
-                    missions: platformStats.totalMissions,
-                    missionsTrend: platformStats.missionsTrend || 0
-                };
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(stats)}\n\n`));
-            } catch (error) {
-                logger.error('[SSE] Error fetching stats', { error: String(error) });
-            }
+            // Le canal possède l'état « fermé » : `abort`, erreur de lecture et arrêt
+            // normal ferment **une seule fois** (Sentry 1T/1V — « Controller is already
+            // closed » venait d'un second `close()` après l'abort).
+            const channel = createSseChannel(controller);
 
-            // Update every 5 seconds
-            const interval = setInterval(async () => {
+            const pushStats = async () => {
+                if (!channel.open) return;
                 try {
                     const platformStats = await getPlatformStats();
-                    const stats = {
-                        guilds: platformStats.allowedGuilds,
-                        guildsTrend: platformStats.guildsTrend || 0,
-                        activeGuilds: platformStats.activeGuilds,
-                        users: platformStats.totalUsers,
-                        usersTrend: platformStats.usersTrend || 0,
-                        profiles: platformStats.totalProfiles,
-                        activeProfiles: platformStats.activeProfiles,
-                        missions: platformStats.totalMissions,
-                        missionsTrend: platformStats.missionsTrend || 0
-                    };
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(stats)}\n\n`));
+                    // Le client a pu partir pendant l'attente : on ne pousse pas dans le vide.
+                    if (!channel.open) return;
+                    // Même forme que `initialStats` (page God) : sinon la trame effaçait
+                    // `weeklyActiveUsers` / `retentionRate` / `density` côté client.
+                    channel.send(sseFrame(toGodLiveStats(platformStats)));
                 } catch (error) {
                     logger.error('[SSE] Error fetching stats', { error: String(error) });
-                    clearInterval(interval);
-                    controller.close();
+                    channel.close();
                 }
-            }, 5000);
+            };
 
-            // Cleanup on client disconnect
-            request.signal.addEventListener('abort', () => {
-                clearInterval(interval);
-                controller.close();
-            });
+            // Envoi initial immédiat, puis battement régulier.
+            await pushStats();
+            if (!channel.open) return;
+
+            const interval = setInterval(() => {
+                void pushStats();
+            }, STATS_INTERVAL_MS);
+            channel.onClose(() => clearInterval(interval));
+
+            // Nettoyage sur déconnexion du client.
+            request.signal.addEventListener('abort', () => channel.close());
         }
     });
 
@@ -80,3 +65,4 @@ export async function GET(request: NextRequest) {
         },
     });
 }
+

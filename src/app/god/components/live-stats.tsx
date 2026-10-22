@@ -7,21 +7,9 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import type { GodLiveStats } from '@/lib/god-live-stats';
 
-interface PlatformStats {
-    guilds: number;
-    guildsTrend: number;
-    activeGuilds: number;
-    users: number;
-    usersTrend: number;
-    profiles: number;
-    activeProfiles: number;
-    missions: number;
-    missionsTrend: number;
-    weeklyActiveUsers: number;
-    retentionRate: number;
-    density: number;
-}
+type PlatformStats = GodLiveStats;
 
 interface StatCardProps {
     label: string;

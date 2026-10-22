@@ -10,7 +10,8 @@ description: Runtime Node — version unique (.nvmrc), mise à jour de sécurit�
 
 ## 0. La source unique
 
-**`.nvmrc`** porte la version **exacte** (`22.23.4` au 21/10/2026). Quatre consommateurs
+**`.nvmrc`** porte la version **exacte** (`24.22.1`, LTS actif, depuis le 22/10/2026 ; le correctif
+de sécurité du 21/10 était `22.23.4`, même doctrine). Quatre consommateurs
 doivent la suivre — un seul oubli = un correctif appliqué à moitié :
 
 | Consommateur | Fichier | Forme attendue |

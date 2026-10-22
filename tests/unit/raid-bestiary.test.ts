@@ -35,6 +35,24 @@ describe("lot 5 — bestiaire du raid gigalodon", () => {
         expect(scores).toMatchObject({ mureine: 1000, execrabe: 5000, willorque: 10000 });
     });
 
+    it("toutes les 11 entrées portent un monsterId Unity officiel pour les icônes", () => {
+        for (const entry of index) {
+            expect(entry.monsterId, `monsterId pour ${entry.slug}`).toBeDefined();
+            expect(entry.monsterId).toBeGreaterThan(0);
+        }
+    });
+
+    it("burstOpti gigalodon : forgelance, ecaflip, sacrieur, enutrof présents, roublard retiré", () => {
+        for (const data of [RAIDS_DATA.gigalodon, RAIDS_DATA_EN.gigalodon]) {
+            const classIds = (data.burstOpti?.classes ?? []).map((c) => c.classId);
+            expect(classIds).not.toContain("roublard");
+            expect(classIds).toContain("forgelance");
+            expect(classIds).toContain("ecaflip");
+            expect(classIds).toContain("sacrieur");
+            expect(classIds).toContain("enutrof");
+        }
+    });
+
     it("chaque étape à boss (FR + EN) pointe une entrée valide", () => {
         for (const data of [RAIDS_DATA.gigalodon, RAIDS_DATA_EN.gigalodon]) {
             const slugs = new Set(index.map((e) => e.slug));

@@ -1,10 +1,14 @@
 /**
- * Rappel automatique des **raids** : ping des **inscrits**, 1 h avant le départ.
+ * Rappel automatique des **raids** : ping des **inscrits**, 1 h avant le départ (H-1)
+ * et 24 h avant (J-1 si le raid a été programmé au moins 48 h à l'avance).
  * Module **pur** (aucune I/O) — toute la décision vit ici, donc testable.
  *
  * Demande user (19/09/2026) : « un ping qui ping uniquement les membres inscrits
  * (et pas les rôles mentionnés dans l'embed) 1 h avant un raid, un ping
  * automatique de rappel ».
+ *
+ * Demande user (22/10/2026) : « rajouter un rappel raid 24h avant si il est programmé
+ * dans au moins 48h , même rappel que le rappel 1h avant ».
  *
  * Trois invariants verrouillés par ce module :
  *  1. **Ping = inscrits uniquement.** `buildRaidReminderMentions` ne produit que
@@ -13,10 +17,11 @@
  *     rôles (`metadata.mentionRoleIds`) — le rappel ne les reprend **jamais**.
  *     (Discord ne déclenche un ping que depuis le `content` du message, et
  *     `sendChannelMessage` n'autorise que les mentions qu'il y trouve.)
- *  2. **Un seul rappel par raid.** Marqueur `metadata.raidReminderSentAt` ; un
- *     rappel MANUEL récent (`lastRemindedAt`) met le rappel auto en silence.
- *  3. **Jamais hors fenêtre** : pas avant `notifyBefore` (défaut 60 min, borné
- *     5 min → 24 h), jamais une fois le raid commencé.
+ *  2. **Un seul rappel par type de jalon.** Marqueurs `metadata.raidReminder24hSentAt`
+ *     (J-1) et `metadata.raidReminderSentAt` (H-1) ; un rappel MANUEL récent (`lastRemindedAt`)
+ *     met le rappel auto en silence.
+ *  3. **Jamais hors fenêtre** : pas avant le délai (24 h pour J-1, `notifyBefore` pour H-1),
+ *     jamais une fois le raid commencé.
  */
 
 import { isDiscordSnowflake } from "@/lib/discord-ids";
@@ -58,7 +63,7 @@ export function resolveRaidReminderLeadMinutes(raw: unknown): number {
 }
 
 /**
- * Faut-il envoyer le rappel automatique ? `reason` explique chaque refus (journal
+ * Faut-il envoyer le rappel automatique H-1 ? `reason` explique chaque refus (journal
  * du cron + télémétrie God), `leadMinutes` est le délai appliqué.
  */
 export function shouldSendRaidReminder(args: {
@@ -94,6 +99,82 @@ export function shouldSendRaidReminder(args: {
     const msUntilStart = args.startDate.getTime() - args.now.getTime();
     if (msUntilStart <= 0) return { send: false, reason: "already-started", leadMinutes };
     if (msUntilStart > leadMinutes * 60 * 1000) return { send: false, reason: "too-early", leadMinutes };
+
+    return { send: true, leadMinutes };
+}
+
+// ---------------------------------------------------------------------------
+// RAPPEL J-1 (H-24) — pour les raids programmés au moins 48 h à l'avance
+// ---------------------------------------------------------------------------
+/** Délai nominal du rappel 24 h avant le départ (en minutes). */
+export const RAID_REMINDER_24H_LEAD_MIN = 24 * 60;
+/** Délai nominal en millisecondes (24 h). */
+export const RAID_REMINDER_24H_LEAD_MS = RAID_REMINDER_24H_LEAD_MIN * 60 * 1000;
+/** Préavis minimum requis entre la programmation (createdAt) et le départ (48 h). */
+export const RAID_REMINDER_24H_MIN_ADVANCE_MS = 48 * 60 * 60 * 1000;
+/** Fenêtre de tolérance pour le tir du rappel 24 h (4 h : entre H-24 et H-20). */
+export const RAID_REMINDER_24H_TOLERANCE_MS = 4 * 60 * 60 * 1000;
+export const RAID_REMINDER_24H_MIN_LEAD_MS = RAID_REMINDER_24H_LEAD_MS - RAID_REMINDER_24H_TOLERANCE_MS;
+
+export type Raid24hReminderSkipReason =
+    | "not-raid"
+    | "not-published"
+    | "no-channel"
+    | "no-participants"
+    | "already-sent"
+    | "manual-recent"
+    | "too-early"
+    | "too-late"
+    | "insufficient-advance-notice"
+    | "already-started";
+
+export type Raid24hReminderDecision =
+    | { send: true; leadMinutes: number }
+    | { send: false; reason: Raid24hReminderSkipReason; leadMinutes: number };
+
+/**
+ * Faut-il envoyer le rappel automatique J-1 (24 h avant le raid) ?
+ * Règle demandée (22/10/2026) :
+ *  - Uniquement pour les raids programmés au moins 48 h à l'avance (startDate - createdAt >= 48 h).
+ *  - Fenêtre de tir à H-24 (tolérance 4 h pour absorber les délais de crontab).
+ *  - Idempotent via `metadata.raidReminder24hSentAt` (indépendant du rappel H-1).
+ */
+export function shouldSendRaid24hReminder(args: {
+    type: string;
+    status: string;
+    startDate: Date;
+    createdAt: Date;
+    now: Date;
+    channelId: string | null | undefined;
+    registeredCount: number;
+    autoReminder24hSentAt?: string | Date | null;
+    manualReminderAt?: Date | null;
+}): Raid24hReminderDecision {
+    const leadMinutes = RAID_REMINDER_24H_LEAD_MIN;
+
+    if (args.type !== "RAID_OFFICIAL") return { send: false, reason: "not-raid", leadMinutes };
+    if (args.status !== "PUBLISHED") return { send: false, reason: "not-published", leadMinutes };
+    if (!args.channelId) return { send: false, reason: "no-channel", leadMinutes };
+    if (args.registeredCount === 0) return { send: false, reason: "no-participants", leadMinutes };
+    if (args.autoReminder24hSentAt) return { send: false, reason: "already-sent", leadMinutes };
+
+    if (args.manualReminderAt) {
+        const sinceManual = args.now.getTime() - new Date(args.manualReminderAt).getTime();
+        if (sinceManual >= 0 && sinceManual < RAID_REMINDER_MANUAL_MUTE_MS) {
+            return { send: false, reason: "manual-recent", leadMinutes };
+        }
+    }
+
+    const msUntilStart = args.startDate.getTime() - args.now.getTime();
+    if (msUntilStart <= 0) return { send: false, reason: "already-started", leadMinutes };
+
+    const scheduledAdvanceMs = args.startDate.getTime() - args.createdAt.getTime();
+    if (scheduledAdvanceMs < RAID_REMINDER_24H_MIN_ADVANCE_MS) {
+        return { send: false, reason: "insufficient-advance-notice", leadMinutes };
+    }
+
+    if (msUntilStart > RAID_REMINDER_24H_LEAD_MS) return { send: false, reason: "too-early", leadMinutes };
+    if (msUntilStart < RAID_REMINDER_24H_MIN_LEAD_MS) return { send: false, reason: "too-late", leadMinutes };
 
     return { send: true, leadMinutes };
 }
@@ -141,7 +222,7 @@ export function pickRaidReminderChannelId(config: RaidChannelConfig, raidType: u
     return config.raidNotifyChannelId || null;
 }
 
-/** Libellé humain du délai (« 45 min », « 1 h », « 1 h 30 »). */
+/** Libellé humain du délai (« 45 min », « 1 h », « 1 h 30 », « 24 h »). */
 export function raidReminderLeadLabel(leadMinutes: number): string {
     if (leadMinutes < 60) return `${leadMinutes} min`;
     const hours = Math.floor(leadMinutes / 60);
@@ -149,8 +230,6 @@ export function raidReminderLeadLabel(leadMinutes: number): string {
     if (rest === 0) return hours === 1 ? "1 h" : `${hours} h`;
     return `${hours} h ${rest}`;
 }
-
-
 
 // ---------------------------------------------------------------------------
 // RAPPEL DE CLÔTURE (post-raid) — 24 h après la fin, UNE seule fois

@@ -80,7 +80,7 @@ async function requireLead(
     return { event, meta };
 }
 
-function serializeSession(row: any) {
+function serializeSession(row: any, isLead = false) {
     const objectives = Array.isArray(row.objectives) ? row.objectives.filter(isValidObjective) : [];
     return {
         id: row.id as string,
@@ -93,6 +93,7 @@ function serializeSession(row: any) {
         objectives,
         score: liveScoreOf(objectives),
         endedAt: row.endedAt ? (row.endedAt as Date).toISOString() : null,
+        isLead,
     };
 }
 
@@ -106,11 +107,19 @@ export async function getRaidLiveSession(
     const ctx = await resolveCtx(discordGuildId);
     if ("error" in ctx) return { success: false, error: ctx.error };
     try {
-        const row = await db.raidLiveSession.findFirst({
-            where: { eventId, guildId: ctx.guildConfigId },
-        });
+        const [row, event] = await Promise.all([
+            db.raidLiveSession.findFirst({
+                where: { eventId, guildId: ctx.guildConfigId },
+            }),
+            db.guildEvent.findFirst({
+                where: { id: eventId, guildId: ctx.guildConfigId },
+                select: { creatorId: true, metadata: true },
+            }),
+        ]);
         if (!row) return { success: true, data: null };
-        return { success: true, data: serializeSession(row) };
+        const meta = (event?.metadata as Record<string, unknown> | null) || {};
+        const isLead = Boolean(event && (event.creatorId === ctx.userId || meta.raidCaptainId === ctx.userId));
+        return { success: true, data: serializeSession(row, isLead) };
     } catch (error) {
         logger.warn("[raid-live] lecture impossible", { error: String(error) });
         return { success: false, error: "Session indisponible" };
@@ -135,7 +144,7 @@ export async function startRaidLiveSession(
     try {
         const existing = await db.raidLiveSession.findUnique({ where: { eventId } });
         if (existing && existing.status === "LIVE") {
-            return { success: true, data: serializeSession(existing) };
+            return { success: true, data: serializeSession(existing, true) };
         }
         const now = new Date();
         const row = await db.raidLiveSession.upsert({
@@ -163,7 +172,7 @@ export async function startRaidLiveSession(
             },
         });
         await publishLiveUpdate(eventId, "started", discordGuildId);
-        return { success: true, data: serializeSession(row) };
+        return { success: true, data: serializeSession(row, true) };
     } catch (error) {
         logger.error("[raid-live] lancement impossible", { error: String(error) });
         return { success: false, error: "Lancement impossible" };
@@ -193,7 +202,7 @@ export async function endRaidLiveSession(
         if (row.count === 0) return { success: false, error: "Aucune session en cours" };
         const updated = await db.raidLiveSession.findUnique({ where: { eventId } });
         await publishLiveUpdate(eventId, "ended", discordGuildId);
-        return { success: true, data: updated ? serializeSession(updated) : undefined };
+        return { success: true, data: updated ? serializeSession(updated, true) : undefined };
     } catch (error) {
         logger.error("[raid-live] clôture impossible", { error: String(error) });
         return { success: false, error: "Clôture impossible" };
@@ -229,7 +238,7 @@ export async function setRaidLiveStep(
         if (row.count === 0) return { success: false, error: "Aucune session en cours" };
         const updated = await db.raidLiveSession.findUnique({ where: { eventId: parsed.data.eventId } });
         await publishLiveUpdate(parsed.data.eventId, "step", discordGuildId);
-        return { success: true, data: updated ? serializeSession(updated) : undefined };
+        return { success: true, data: updated ? serializeSession(updated, true) : undefined };
     } catch (error) {
         logger.error("[raid-live] étape impossible", { error: String(error) });
         return { success: false, error: "Mise à jour impossible" };
@@ -279,7 +288,7 @@ export async function setRaidLiveObjective(
             data: { objectives: next as unknown as object },
         });
         await publishLiveUpdate(parsed.data.eventId, "objectives", discordGuildId);
-        return { success: true, data: serializeSession(updated) };
+        return { success: true, data: serializeSession(updated, true) };
     } catch (error) {
         logger.error("[raid-live] objectif impossible", { error: String(error) });
         return { success: false, error: "Mise à jour impossible" };

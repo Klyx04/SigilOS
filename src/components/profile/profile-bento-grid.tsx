@@ -21,7 +21,6 @@ import { SkinLibrary } from "./skin-library";
 import { AlignmentSection } from "./alignment-section";
 import { LegendaryCrafting } from "./legendary-crafting";
 import { LegendaryPetToggle } from "./legendary-pet-toggle";
-import { BadgesVitrine } from "./badges-vitrine";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
 import type { ContributorTier } from "@/server/actions/profile-actions";
@@ -29,9 +28,7 @@ import { toast } from "sonner";
 import { UserCircle, LayoutDashboard, Settings, Hammer, Wrench, Activity, ChevronLeft, ChevronRight, Palette } from "lucide-react";
 import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
 import Link from "next/link";
-import { ProfileReminderBanner } from "./profile-reminder-banner";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/lib/dofus-assets";
 import { metierIds, type MetierEntry } from "@/lib/metiers";
 import { useTour } from "@/components/tour/tour-provider";
@@ -450,13 +447,8 @@ export function ProfileBentoGrid({
 
     return (
         <div className="flex flex-col gap-6">
-            {/* Monthly Profile Reminder — only for profile owner */}
-            {!readOnly && (
-                <ProfileReminderBanner guildId={guildId} onSelectTab={setActiveTab} />
-            )}
-
             {/* Hero Header (Glass) */}
-            <div data-tour="profile-header" className="rounded-3xl overflow-hidden border border-border shadow-2xl bg-muted/40 backdrop-blur-md">
+            <div data-tour="profile-header">
                 <HeroHeader
                     avatarUrl={user.image}
                     displayName={displayName}
@@ -522,13 +514,13 @@ export function ProfileBentoGrid({
                                 { id: "intro",         label: "Présentation",  iconType: "lucide",  LucideIcon: LayoutDashboard,activeColor: "text-sky-400",     bgActive: "bg-sky-500/20 border-sky-500/40 text-sky-300 shadow-sm shadow-sky-500/15" },
                                 { id: "dofus",         label: "Quêtes",        iconType: "dofus",   dofusIcon: "quest",         activeColor: "text-amber-400",  bgActive: "bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-sm shadow-amber-500/15" },
                                 { id: "combat",        label: "Stuffs",        iconType: "dofus",   dofusIcon: "dungeon",       activeColor: "text-rose-400",   bgActive: "bg-rose-500/20 border-rose-500/40 text-rose-300 shadow-sm shadow-rose-500/15" },
-                                { id: "skins",         label: "Skins",         iconType: "lucide",  LucideIcon: Palette,        activeColor: "text-pink-400",   bgActive: "bg-pink-500/20 border-pink-500/40 text-pink-300 shadow-sm shadow-pink-500/15" },
-                                { id: "mules",         label: "Mules",         iconType: "dofus",   dofusIcon: "player",        activeColor: "text-cyan-400",   bgActive: "bg-cyan-500/20 border-cyan-500/40 text-cyan-300 shadow-sm shadow-cyan-500/15" },
+                                { id: "skins",         label: "Skins",         iconType: "lucide",  LucideIcon: Palette,        activeColor: "text-accent",     bgActive: "bg-accent/15 border-accent/30 text-accent shadow-xs" },
+                                { id: "mules",         label: "Mules",         iconType: "dofus",   dofusIcon: "player",        activeColor: "text-accent",     bgActive: "bg-accent/15 border-accent/30 text-accent shadow-xs" },
                                 { id: "achievements",  label: "Succès",        iconType: "dofus",   dofusIcon: "success",       activeColor: "text-yellow-400", bgActive: "bg-yellow-500/20 border-yellow-500/40 text-yellow-300 shadow-sm shadow-yellow-500/15" },
                                 { id: "metiers",       label: "Métiers",       iconType: "lucide",  LucideIcon: Hammer,         activeColor: "text-orange-400", bgActive: "bg-orange-500/20 border-orange-500/40 text-orange-300 shadow-sm shadow-orange-500/15" },
                                 { id: "artisanat",     label: "Légendaire",    iconType: "dofus",   dofusIcon: "chest",         activeColor: "text-fuchsia-400",bgActive: "bg-fuchsia-500/20 border-fuchsia-500/40 text-fuchsia-300 shadow-sm shadow-fuchsia-500/15" },
                                 { id: "activity",      label: "Activité",      iconType: "lucide",  LucideIcon: Activity,       activeColor: "text-indigo-400", bgActive: "bg-indigo-500/20 border-indigo-500/40 text-indigo-300 shadow-sm shadow-indigo-500/15" },
-                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", iconType: "dofus" as const, dofusIcon: "calendar" as DofusUiIconName, activeColor: "text-blue-400", bgActive: "bg-blue-500/20 border-blue-500/40 text-blue-300 shadow-sm shadow-blue-500/15" }] : []),
+                                ...(canViewPlanning ? [{ id: "planning", label: "Planning", iconType: "dofus" as const, dofusIcon: "calendar" as DofusUiIconName, activeColor: "text-teal-400", bgActive: "bg-teal-500/20 border-teal-500/40 text-teal-300 shadow-sm shadow-teal-500/15" }] : []),
                                 ...(hasServices ? [{ id: "services", label: "Services", iconType: "lucide" as const, LucideIcon: Wrench, activeColor: "text-orange-400", bgActive: "bg-orange-500/20 border-orange-500/40 text-orange-300 shadow-sm shadow-orange-500/15" }] : []),
                                 ...(canEdit ? [{ id: "settings", label: "Réglages", iconType: "lucide" as const, LucideIcon: Settings, activeColor: "text-foreground", bgActive: "bg-elevated border-border-strong text-foreground shadow-sm" }] : []),
                             ].filter(t => !isEmpty[t.id]) as TabDef[];
@@ -619,13 +611,6 @@ export function ProfileBentoGrid({
                             />
                         )}
 
-                        {/* Badges & Achievements Vitrine (#198.2) */}
-                        <div className="sm:col-span-2">
-                            <BadgesVitrine
-                                profileId={profile.id}
-                                displayName={displayName}
-                            />
-                        </div>
                     </div>
                 </TabsContent>
 

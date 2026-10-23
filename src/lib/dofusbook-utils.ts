@@ -26,6 +26,13 @@ export type DofusbookItem = {
     typeName?: string;
     /** Effets au meilleur jet (pour la modale interne, sans appel réseau). */
     effects?: DofusbookItemEffect[];
+    /**
+     * Icône **locale** de l'objet (asset `/uploads/…` du catalogue) — utilisée en priorité par
+     * `ItemIcon`. Indispensable aux objets **variantes** : Dofusbook n'en fournit pas l'`iconId`
+     * (namespace d'icônes distinct), et utiliser l'id Ankama affichait l'icône d'un AUTRE objet
+     * (constat user du 23/10/2026 : « Prycipithon Iridescente » rendue avec une baguette).
+     */
+    iconUrl?: string;
 };
 
 /**

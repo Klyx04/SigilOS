@@ -71,6 +71,8 @@ export function GalleryClient({
     const [sortBy, setSortBy] = useState<"newest" | "votes">("newest");
     
     const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
+    /** Builds affichés avec leur **variante** (bascule Stuff ⇄ Variante de la carte). */
+    const [variantViews, setVariantViews] = useState<Set<string>>(new Set());
     const [votingIds, setVotingIds] = useState<Set<string>>(new Set());
     const [sharingIds, setSharingIds] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
@@ -146,6 +148,16 @@ export function GalleryClient({
 
     const handleSearchChange = (value: string) => {
         setSearchQuery(value);
+    };
+
+    /** Bascule l'affichage « stuff d'origine ⇄ variante » d'une carte de la galerie. */
+    const toggleVariantView = (buildId: string) => {
+        setVariantViews((prev) => {
+            const next = new Set(prev);
+            if (next.has(buildId)) next.delete(buildId);
+            else next.add(buildId);
+            return next;
+        });
     };
 
     // Use debounced search and active filter changes to trigger unique re-fetch
@@ -594,10 +606,30 @@ export function GalleryClient({
                         stuffBuilds.map((build) => (
                             <div key={build.id} className="group/card flex flex-col gap-3">
                                 <div className="relative">
-                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} savedVariants={build.variants} variantBuildId={build.id} canPersistVariant={currentProfileId === build.author.id} />
+                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} savedVariants={build.variants} variantBuildId={build.id} canPersistVariant={currentProfileId === build.author.id} variantView={variantViews.has(build.id) ? "variant" : "base"} onVariantViewChange={() => toggleVariantView(build.id)} />
                                     
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent transition-all duration-300 rounded-[2.5rem] flex flex-col justify-end p-4 z-10 pointer-events-none opacity-90 group-hover/card:opacity-100">
                                         <div className="flex items-center justify-end gap-1.5 backdrop-blur-md bg-black/40 p-1.5 rounded-2xl border border-white/10 w-fit ml-auto shadow-lg">
+                                            {/* Bascule Stuff ⇄ Variante — visible par TOUT LE MONDE dès que
+                                                l'auteur a publié une variante. Elle vit dans le voile (et non
+                                                dans la carte) : le voile `z-10` est un frère qui recouvre le
+                                                `z-30` interne, qui restait donc invisible en galerie. */}
+                                            {build.variants && Object.keys(build.variants).length > 0 && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); toggleVariantView(build.id); }}
+                                                    aria-pressed={variantViews.has(build.id)}
+                                                    className={cn(
+                                                        "px-2 py-1 rounded-xl text-[10px] font-bold transition-colors pointer-events-auto",
+                                                        variantViews.has(build.id)
+                                                            ? "bg-warning text-warning-foreground shadow-sm"
+                                                            : "bg-white/10 text-foreground hover:bg-white/20",
+                                                    )}
+                                                    title={variantViews.has(build.id) ? "Revenir au stuff Dofusbook d'origine" : "Afficher la variante proposée"}
+                                                    aria-label={variantViews.has(build.id) ? "Afficher le stuff d'origine" : "Afficher la variante proposée"}
+                                                >
+                                                    Variante
+                                                </button>
+                                            )}
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleRefresh(build); }}
                                                 disabled={refreshingIds.has(build.id)}

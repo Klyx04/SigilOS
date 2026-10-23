@@ -61,6 +61,14 @@ interface DofusbookPreviewProps {
     variantBuildId?: string;
     /** Vrai pour l'auteur du build : affiche « Enregistrer la variante ». */
     canPersistVariant?: boolean;
+    /**
+     * Affichage **contrôlé** de la variante (`base` = stuff Dofusbook, `variant` = variante).
+     * Utile aux surfaces qui portent leur propre bouton (galerie) : le badge interne est alors
+     * masqué pour éviter un doublon.
+     */
+    variantView?: "base" | "variant";
+    /** Appelé quand le membre bascule (mode contrôlé). */
+    onVariantViewChange?: (next: "base" | "variant") => void;
 }
 
 const parseDofusbookSmithmagic = (smithmagic: any, items: any) => {
@@ -149,12 +157,15 @@ const SLOT_LABELS: Record<string, string> = {
  * ni l'id Ankama, qui produisaient des icônes d'autres items (voir `dofusbookItemIconId`).
  */
 function ItemIcon({ item, size = 44, className }: { item: DofusbookItem; size?: number; className?: string }) {
+    // Priorité à l'asset **local** porté par l'objet (variantes du catalogue) : Dofusbook n'expose
+    // pas d'`iconId` pour ces objets, et l'id Ankama tombait sur l'icône d'un autre item.
+    const localIcon = typeof item.iconUrl === "string" && item.iconUrl.startsWith("/") ? item.iconUrl : null;
     const iconId = dofusbookItemIconId(item);
-    if (!iconId) return null;
+    if (!localIcon && !iconId) return null;
     return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-            src={dofusbookItemIconUrl(iconId)}
+            src={localIcon ?? dofusbookItemIconUrl(iconId as number)}
             alt={item.name}
             width={size}
             height={size}
@@ -468,7 +479,7 @@ function GearSlotItem({
     );
 }
 
-export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData, guildId, savedVariants, variantBuildId, canPersistVariant = false }: DofusbookPreviewProps) {
+export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData, guildId, savedVariants, variantBuildId, canPersistVariant = false, variantView, onVariantViewChange }: DofusbookPreviewProps) {
     const [data, setData] = useState<DofusbookPreviewData | null>(initialData || null);
     const [loading, setLoading] = useState(!initialData);
     const [lastRefresh, setLastRefresh] = useState(0);
@@ -576,12 +587,20 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
 
     const hasVariant = Object.keys(variants).length > 0;
 
+    /** Affichage piloté par la surface (galerie) ou par l'état interne (profil, fiche). */
+    const controlledVariantView = variantView !== undefined;
+    const variantShown = controlledVariantView ? variantView === "variant" : showVariant;
+    const setVariantView = (next: boolean) => {
+        if (controlledVariantView) onVariantViewChange?.(next ? "variant" : "base");
+        else setShowVariant(next);
+    };
+
     /** Build effectif avec les variantes appliquées (données Dofusbook d'origine préservées). */
     const effectiveData = useMemo(() => {
         if (!data) return null;
-        if (!showVariant || !hasVariant) return data;
+        if (!variantShown || !hasVariant) return data;
         return applyVariantsToBuild(data, variants) ?? data;
-    }, [data, variants, showVariant, hasVariant]);
+    }, [data, variants, variantShown, hasVariant]);
 
     /**
      * Stats du build pour les sorts & la simulation — recalculées instantanément avec les variantes.
@@ -749,20 +768,21 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
         <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-surface border border-border rounded-[4px] p-5 sm:p-6 transition-colors hover:border-border-strong cursor-pointer", className)}>
 
             {/* Bascule Stuff ⇄ Variante (miniature) — n'apparaît que si une variante existe.
+                Masquée quand la surface pilote elle-même l'affichage (galerie : bouton dans le voile).
                 `stopPropagation` : le bouton ne doit PAS ouvrir la fiche (DialogTrigger). */}
-            {hasVariant && (
+            {hasVariant && !controlledVariantView && (
                 <button
                     type="button"
-                    aria-pressed={showVariant}
+                    aria-pressed={variantShown}
                     onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        setShowVariant((v) => !v);
+                        setVariantView(!variantShown);
                     }}
-                    title={showVariant ? "Revenir au stuff Dofusbook d'origine" : "Afficher la variante proposée par le joueur"}
+                    title={variantShown ? "Revenir au stuff Dofusbook d'origine" : "Afficher la variante proposée"}
                     className={cn(
                         "absolute top-2 right-2 z-30 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors",
-                        showVariant
+                        variantShown
                             ? "border-warning/50 bg-warning/20 text-warning"
                             : "border-border bg-background/80 text-muted-foreground hover:text-foreground",
                     )}
@@ -954,22 +974,22 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         <div className="flex items-center rounded-xl border border-warning/30 bg-warning/10 p-0.5" role="group" aria-label="Stuff d'origine ou variante proposée">
                                             <button
                                                 type="button"
-                                                aria-pressed={!showVariant}
-                                                onClick={() => setShowVariant(false)}
+                                                aria-pressed={!variantShown}
+                                                onClick={() => setVariantView(false)}
                                                 className={cn(
                                                     "px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors",
-                                                    !showVariant ? "bg-background text-foreground" : "text-warning",
+                                                    !variantShown ? "bg-background text-foreground" : "text-warning",
                                                 )}
                                             >
                                                 Stuff
                                             </button>
                                             <button
                                                 type="button"
-                                                aria-pressed={showVariant}
-                                                onClick={() => setShowVariant(true)}
+                                                aria-pressed={variantShown}
+                                                onClick={() => setVariantView(true)}
                                                 className={cn(
                                                     "px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors",
-                                                    showVariant ? "bg-warning text-black" : "text-warning",
+                                                    variantShown ? "bg-warning text-black" : "text-warning",
                                                 )}
                                             >
                                                 Variante ({Object.keys(variants).length})
@@ -1013,7 +1033,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         )}
                                         <button
                                             type="button"
-                                            onClick={() => { variantEditedRef.current = true; setVariants({}); setShowVariant(false); }}
+                                            onClick={() => { variantEditedRef.current = true; setVariants({}); setVariantView(false); }}
                                             className="text-[10px] font-black text-foreground hover:underline cursor-pointer"
                                             title="Rétablir le build d'origine"
                                         >

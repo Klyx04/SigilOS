@@ -1683,8 +1683,8 @@ export function SpellRangeGrid({
                 </div>
                 <p className={cn("text-[9px] leading-snug", dim)}>
                     {paintMode
-                        ? "Clique une case pour la peindre (re-clic = effacer). Un mur bloque la ligne de vue, un trou bloque les poussées."
-                        : "Pose des murs ou des trous pour reproduire ta situation réelle."}
+                        ? "Clique une case pour la peindre (re-clic = effacer). Un mur bloque la ligne de vue, un trou bloque les poussées. Les cases peintes sont cerclées en pointillé."
+                        : "Pose des murs ou des trous pour reproduire ta situation réelle — les cases peintes restent visibles (pointillés ambre = mur, blanc = trou)."}
                 </p>
             </div>
         );
@@ -2933,6 +2933,27 @@ export function SpellRangeGrid({
                                     }
                                 }
                                 return null;
+                            }),
+                            /* Passe 3 — PEINTURE : surlignage **toujours** visible.
+                               Avant, un trou peint était noir (`#050505`) sur un fond noir, et une
+                               case peinte hors du sol ne montrait rien : « Vider (6) » sans rien à
+                               l'écran (constat user du 23/10/2026). */
+                            Object.entries(paintedCells).map(([key, mode]) => {
+                                const [pc, pr] = key.split(",").map(Number);
+                                if (!Number.isInteger(pc) || !Number.isInteger(pr)) return null;
+                                const { sx, sy } = cellToScreen(pc, pr, tileW, tileH);
+                                const hole = mode === "hole";
+                                return (
+                                    <polygon
+                                        key={`paint-${key}`}
+                                        points={`${sx},${sy} ${sx + tileHalfW},${sy + tileHalfH} ${sx},${sy + tileH} ${sx - tileHalfW},${sy + tileHalfH}`}
+                                        fill={hole ? "rgba(255, 255, 255, 0.10)" : "rgba(255, 207, 94, 0.22)"}
+                                        stroke={hole ? "#ffffff" : "#ffcf5e"}
+                                        strokeWidth={1.4}
+                                        strokeDasharray="4 3"
+                                        pointerEvents="none"
+                                    />
+                                );
                             }),
                         ];
                     })()

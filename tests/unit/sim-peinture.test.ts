@@ -5,10 +5,13 @@
  *  · la peinture est **cloisonnée par carte** (peindre sur A ne salit pas B) ;
  *  · re-cliquer efface, changer de mode remplace ;
  *  · une case **hors grille** est écartée (sinon « Vider (2) » sans rien à l'écran) ;
- *  · l'ancien stockage plat est migré sans perte.
+ *  · l'ancien stockage plat est migré sans perte ;
+ *  · le rendu **surligne** les cases peintes (un trou noir sur fond noir ne montrait rien).
  */
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import {
     clearPaintedCells,
     countPaintedCells,
@@ -77,5 +80,22 @@ describe("peinture de cases — entrées non fiables", () => {
     it("relit le nouveau format tel quel", () => {
         const stored = { paintedByMap: { "map-a": { "1,2": "hole" } } };
         expect(migrateStoredPaint(stored, "map-a")).toEqual({ "map-a": { "1,2": "hole" } });
+    });
+});
+
+describe("rendu — une case peinte reste visible", () => {
+    const GRID = readFileSync(path.join(process.cwd(), "src/components/succes/SpellRangeGrid.tsx"), "utf8");
+
+    it("surlligne toute case peinte, indépendamment du terrain", () => {
+        // Constat user : « Vider (6) » et rien à l'écran (trou noir sur fond noir, ou hors sol).
+        expect(GRID).toContain("Passe 3 — PEINTURE");
+        expect(GRID).toContain("key={`paint-${key}`}");
+        expect(GRID).toContain('strokeDasharray="4 3"');
+        expect(GRID).toContain('stroke={hole ? "#ffffff" : "#ffcf5e"}');
+    });
+
+    it("une case peinte hors du sol d'origine est tout de même rendue", () => {
+        expect(GRID).toContain("const isPaintedCell = (cc: number, rr: number) => !!paintedCells[`${cc},${rr}`];");
+        expect(GRID).toContain("if (cellState(c, r) === CellState.VOID && !isPaintedCell(c, r)) continue;");
     });
 });

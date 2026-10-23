@@ -20,7 +20,7 @@ import type { BuildStatsForSpells } from "@/lib/dofus-spells";
 import { getRuneForStat } from "@/lib/dofus-runes";
 import { ItemVariantModal } from "@/components/dofus/item-variant-modal";
 import { applyVariantsToBuild } from "@/lib/dofus-variant-utils";
-import { getPassiveDescription } from "@/lib/dofus-passives";
+import { resolveItemPassive } from "@/lib/dofus-passives";
 
 /** Icônes des onglets : vrais assets du jeu (aucune illustration IA). */
 const BUILD_TABS = [
@@ -201,22 +201,29 @@ function ItemDetailModal({
                 </div>
 
                 {(() => {
-                    const passiveDesc = getPassiveDescription(item.name);
+                    const passive = resolveItemPassive(item);
+                    const hasSp = (item.effects || []).some((fx) => fx.code === "sp");
                     const regularEffects = (item.effects || []).filter((fx) => fx.code !== "sp");
-                    const hasPassive = !!passiveDesc || (item.effects || []).some((fx) => fx.code === "sp");
+                    const hasPassive = !!passive || hasSp;
 
                     return (
                         <div className="flex flex-col gap-2.5 border-t border-border pt-3">
-                            {/* Pouvoir Passif Officiel (Dofus, Prymaradites, etc.) */}
+                            {/* Pouvoir Passif — texte OFFICIEL (catalogue DofusDB), jamais inventé. */}
                             {hasPassive && (
                                 <div className="flex flex-col gap-1.5 p-3 rounded-[6px] bg-warning/10 border border-warning/25">
                                     <div className="flex items-center gap-1.5 text-xs font-black text-warning uppercase tracking-wide">
                                         <Sparkles className="w-3.5 h-3.5 shrink-0" />
                                         <span>Pouvoir Passif</span>
                                     </div>
-                                    <p className="text-caption font-medium text-foreground leading-relaxed">
-                                        {passiveDesc || "Effet passif unique déclenché en combat."}
-                                    </p>
+                                    {passive ? (
+                                        <p className="text-caption font-medium text-foreground leading-relaxed whitespace-pre-line">
+                                            {passive.text}
+                                        </p>
+                                    ) : (
+                                        <p className="text-caption font-medium text-muted-foreground leading-relaxed">
+                                            Effet passif officiel non disponible pour cet objet.
+                                        </p>
+                                    )}
                                 </div>
                             )}
 

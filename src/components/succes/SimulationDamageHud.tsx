@@ -26,6 +26,7 @@ import { EyeOff, Move, Swords, Target, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/client";
 import { formatDamageRange, type SpellDamageLine, type SpellElementKey } from "@/lib/dofus-spells";
+import { effectShortLabel, EFFECT_KIND_COLOR, EFFECT_KIND_ICON, type ClassifiedEffect, type SpellEffectKind } from "@/lib/dofus-spell-effects";
 import { DOFUS_STAT_ASSET_BASE, STAT_THEMES, dofusStatHex } from "@/lib/dofus-stats-theme";
 
 /** Élément → entrée du thème de stats (icône locale + couleur réelle du jeu). */
@@ -36,6 +37,28 @@ const ELEMENT_STAT_KEY: Record<SpellElementKey, keyof typeof STAT_THEMES> = {
     air: "airDamage",
     neutre: "neutralDamage",
 };
+
+/** Effet **positionnel** qui s'applique à UNE cible (poussée, attirance, échange, TP…). */
+export interface SimulationDamageHudTargetEffect {
+    kind: SpellEffectKind;
+    /** Déplacement réellement parcouru (cases) — absent pour un TP. */
+    cases?: number;
+    /** Vrai quand l'effet est arrêté avant la distance demandée (obstacle/bord). */
+    blocked?: boolean;
+}
+
+/** Badge d'un effet positionnel : icône du jeu + distance réelle, jamais une valeur inventée. */
+function positionalBadge(effect: SimulationDamageHudTargetEffect): string {
+    const icon = EFFECT_KIND_ICON[effect.kind] ?? "•";
+    if (effect.kind === "push" || effect.kind === "pull") {
+        const cases = effect.cases ?? 0;
+        const base = `${icon} ${cases} case${cases > 1 ? "s" : ""}`;
+        return effect.blocked ? `${base} ⛔` : base;
+    }
+    if (effect.kind === "swap") return `${icon} échange`;
+    if (effect.kind.startsWith("tp")) return `${icon} TP`;
+    return icon;
+}
 
 /** Une cible prise dans la zone d'effet : son repère, son éloignement et ses jets corrigés. */
 export interface SimulationDamageHudTarget {
@@ -49,6 +72,8 @@ export interface SimulationDamageHudTarget {
     falloff: number;
     lines: SpellDamageLine[];
     total: { min: number; max: number; critMin: number | null; critMax: number | null };
+    /** Effets positionnels subis par CETTE cible (poussée de N cases, attirance, TP…). */
+    effects?: SimulationDamageHudTargetEffect[];
 }
 
 /** Identité du sort simulé (bandeau du panneau) — tout est optionnel. */
@@ -58,6 +83,10 @@ export interface SimulationDamageHudSpell {
     apCost?: number;
     minRange?: number;
     maxRange?: number;
+    /** Description officielle du sort (DofusDB) — affichée sous le nom. */
+    description?: string;
+    /** Sort **à charge** : les dégâts dépendent des charges accumulées (signalé, non chiffré). */
+    chargeBased?: boolean;
 }
 
 /**
@@ -165,6 +194,14 @@ interface SimulationDamageHudProps {
      * (mergé par `cn`, donc la dernière classe gagne). Aucune géométrie recopiée.
      */
     className?: string;
+    /** Cle de la cible survolee sur la carte (x,y) => ligne mise en surbrillance. */
+    hoveredTargetKey?: string | null;
+    /** Callback entre/sort d une ligne perTarget => synchronise le halo sur la carte SVG. */
+    onHoverTarget?: (key: string | null) => void;
+    /** Icone ennemi (ex. /assets/icons/poutch.png) affichee dans la ligne survolee. */
+    enemyIconUrl?: string;
+    /** Effets classifiés du sort actif — états, PA/PM, poussée, tp… (hors "unknown"). */
+    spellEffects?: ClassifiedEffect[];
 }
 
 /**
@@ -182,6 +219,25 @@ export function damageRangeWithCrit(
 /** Le couple critique d'un total, sous la forme attendue par `damageRangeWithCrit`. */
 function critPair(total: { critMin: number | null; critMax: number | null }): { min: number; max: number } | null {
     return total.critMin !== null && total.critMax !== null ? { min: total.critMin, max: total.critMax } : null;
+}
+
+/**
+ * Pastille **critique officielle** (asset du jeu) — affichée devant toute valeur qui publie
+ * un jet CC. Constat user du 23/10/2026 : les valeurs entre parenthèses existaient, mais rien
+ * ne disait qu'il s'agissait des coups critiques.
+ */
+function CritMark({ show }: { show: boolean }) {
+    if (!show) return null;
+    return (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+            src={`${DOFUS_STAT_ASSET_BASE}/critique.png`}
+            alt=""
+            aria-hidden="true"
+            title="Coups critiques"
+            className="mr-0.5 inline-block h-3 w-3 shrink-0 object-contain align-[-2px]"
+        />
+    );
 }
 
 /** Une ligne dessinée dans une pastille de dégâts (voir `damageBadgeWidth`). */
@@ -288,6 +344,10 @@ export function SimulationDamageHud({
     spell = null,
     onClose,
     className,
+    hoveredTargetKey = null,
+    onHoverTarget,
+    enemyIconUrl,
+    spellEffects,
 }: SimulationDamageHudProps) {
     const { t } = useI18n();
     const simT = t.tacticalSim;
@@ -367,6 +427,41 @@ export function SimulationDamageHud({
                 </div>
             )}
 
+            {/* Description officielle du sort (sous le nom) — même source que la fiche. */}
+            {spell?.description ? (
+                <p className={cn("text-[10px] leading-snug", isBoard ? "text-zinc-400" : "text-muted-foreground")}>
+                    {spell.description}
+                </p>
+            ) : null}
+
+            {/* Sort à charge : le jeu fait varier les dégâts selon les charges — on le dit. */}
+            {spell?.chargeBased ? (
+                <p className={cn("text-[10px] leading-snug italic", isBoard ? "text-zinc-400" : "text-muted-foreground")}>
+                    Sort à charge : les dégâts réels dépendent des charges accumulées (non chiffré ici).
+                </p>
+            ) : null}
+
+            {/* Section 0 — effets non-dégâts du sort : états, PA/PM, poussée, tp… */}
+            {spellEffects && spellEffects.filter(e => e.kind !== "unknown").length > 0 && (
+                <div className={cn("space-y-1 pb-1.5", divider)}>
+                    <p className={section}>Effets du sort</p>
+                    {spellEffects.filter(e => e.kind !== "unknown").map((eff, i) => {
+                        const col = EFFECT_KIND_COLOR[eff.kind];
+                        const lbl = effectShortLabel(eff) + (eff.duration ? " " + eff.duration : "");
+                        return (
+                            <div key={i} className="flex min-w-0 items-center gap-1.5">
+                                <span
+                                    className="shrink-0 rounded px-1 py-0.5 text-[9px] font-black"
+                                    style={{ background: col.bg, color: col.text, border: "1px solid " + col.border }}
+                                >
+                                    {lbl}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
             {/* Section ① — les jets RÉELS du sort, un par élément (icône + couleur du jeu). */}
             <p className={section}>{simT.damageHudElements}</p>
             {lines.map((line) => {
@@ -382,7 +477,7 @@ export function SimulationDamageHud({
                             className="shrink-0 whitespace-nowrap text-[11px] font-black tabular-nums"
                             style={{ color: dofusStatHex(theme.asset) }}
                         >
-                            {damageRangeWithCrit(line, line.crit)}
+                            <CritMark show={!!line.crit} />{damageRangeWithCrit(line, line.crit)}
                         </span>
                     </div>
                 );
@@ -399,10 +494,35 @@ export function SimulationDamageHud({
                         {simT.damageHudEmpty}
                     </p>
                 ) : (
-                    perTarget.map((target) => (
-                        <div key={target.key} className={row}>
+                    perTarget.map((target) => {
+                        const isHovered = hoveredTargetKey === target.key;
+                        return (
+                        <div
+                            key={target.key}
+                            className={cn(
+                                "cursor-default rounded-lg px-1.5 py-0.5 transition-colors duration-100",
+                                isHovered
+                                    ? isBoard
+                                        ? "bg-amber-500/20 ring-1 ring-amber-400/50"
+                                        : "bg-warning/10 ring-1 ring-warning/40"
+                                    : "hover:bg-white/5"
+                            )}
+                            onMouseEnter={() => onHoverTarget?.(target.key)}
+                            onMouseLeave={() => onHoverTarget?.(null)}
+                        >
+                          <div className={row}>
+                            {/* Icône ennemi — visible uniquement sur la ligne survolée */}
+                            {isHovered && enemyIconUrl && (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img
+                                    src={enemyIconUrl}
+                                    alt=""
+                                    className="h-4 w-4 shrink-0 object-contain"
+                                    aria-hidden="true"
+                                />
+                            )}
                             <span
-                                className={rowText}
+                                className={cn(rowText, isHovered && (isBoard ? "text-amber-200" : "text-warning-foreground"))}
                                 title={`${target.label} · ${simT.damageOffsetShort.replace("{count}", String(target.offset))}`}
                             >
                                 {target.label}
@@ -412,9 +532,28 @@ export function SimulationDamageHud({
                                     {simT.damageFalloffShort.replace("{percent}", String(100 - target.falloff))}
                                 </span>
                             )}
-                            <span className={valueLabel}>{damageRangeWithCrit(target.total, critPair(target.total))}</span>
+                            <span className={cn(valueLabel, isHovered && "text-amber-300")}><CritMark show={!!critPair(target.total)} />{damageRangeWithCrit(target.total, critPair(target.total))}</span>
+                          </div>
+                          {/* Effets positionnels de CETTE cible (poussée de N cases, attirance, TP…) */}
+                          {target.effects && target.effects.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-0.5 pl-5">
+                                  {target.effects.map((effect, i) => {
+                                      const col = EFFECT_KIND_COLOR[effect.kind];
+                                      return (
+                                          <span
+                                              key={i}
+                                              className="rounded px-1 py-0.5 text-[9px] font-black"
+                                              style={{ background: col.bg, color: col.text, border: "1px solid " + col.border }}
+                                          >
+                                              {positionalBadge(effect)}
+                                          </span>
+                                      );
+                                  })}
+                              </div>
+                          )}
                         </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
 
@@ -422,7 +561,7 @@ export function SimulationDamageHud({
             <div className={cn("space-y-1 pt-1.5", divider)}>
                 <div className={row}>
                     <span className={rowLabel}>{simT.damageHudPerTarget}</span>
-                    <span className={valueLabel}>{damageRangeWithCrit(total, critPair(total))}</span>
+                    <span className={valueLabel}><CritMark show={!!critPair(total)} />{damageRangeWithCrit(total, critPair(total))}</span>
                 </div>
 
                 <div className={row}>
@@ -436,7 +575,7 @@ export function SimulationDamageHud({
                             targets.count === 0 && (isBoard ? "text-zinc-500" : "text-muted-foreground")
                         )}
                     >
-                        {damageRangeWithCrit(targets.total, critPair(targets.total))}
+                        <CritMark show={!!critPair(targets.total)} />{damageRangeWithCrit(targets.total, critPair(targets.total))}
                     </span>
                 </div>
 

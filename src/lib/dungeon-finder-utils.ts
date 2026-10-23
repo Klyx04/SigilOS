@@ -65,12 +65,21 @@ export interface MultiDungeonItem {
     level: number;
     imageUrl: string | null;
     wantedAchievementIds?: string[];
-    achievements?: { id: string; name: string; iconUrl: string | null }[];
+    achievements?: { id: string; name: string; iconUrl: string | null; slug?: string | null }[];
     message?: string | null;
     targetDate?: Date | string | null;
     maxMembers?: number;
     /** #26 — classes recherchées **de ce donjon** (absent = post créé avant la fonctionnalité). */
     requiredClasses?: string[];
+    /**
+     * Clôture **unitaire** de ce donjon (ISO) — un post multi peut fermer ses donjons un par
+     * un. Absent = donjon encore ouvert. Le post lui-même ne passe `CLOSED` que lorsque
+     * **tous** les donjons sont clôturés.
+     */
+    closedAt?: string | null;
+    /** Rappel H-1 **de ce donjon** (le post multi n'a pas de `targetDate` global). */
+    _h1SentAt?: string | null;
+    _h1For?: string | null;
 }
 
 /**
@@ -522,5 +531,129 @@ export function withMultiMessageIds(dungeonsJson: unknown, ids: string[]): {
         ? { ...(dungeonsJson as Record<string, unknown>) }
         : {};
     return { ...env, _items: getMultiDungeons(dungeonsJson), _messageIds: ids };
+}
+
+/**
+ * Clôture **unitaire** d'un donjon dans un post multi.
+ *
+ * Décision produit du 23/10/2026 : le créateur ferme les donjons **un par un** (avec la
+ * validation des succès de CE donjon), l'embed de ce donjon disparaît du message Discord,
+ * les autres restent ouverts. Le post ne passe `CLOSED` que quand tous sont clôturés.
+ *
+ * L'état vit dans l'enveloppe `dungeonsJson` (`_items[i].closedAt`) — aucune migration,
+ * et les merges existants (`_creatorClass`, `_messageIds`, rappels) préservent la clé.
+ */
+export function isDjDungeonClosed(item: unknown): boolean {
+    if (!item || typeof item !== "object") return false;
+    const value = (item as { closedAt?: unknown }).closedAt;
+    return typeof value === "string" && value.trim().length > 0;
+}
+
+/** Index (0-based) des donjons **encore ouverts**. Post simple ⇒ `[]`. */
+export function openDjDungeonIndexes(dungeonsJson: unknown): number[] {
+    return getMultiDungeons(dungeonsJson)
+        .map((item, index) => (isDjDungeonClosed(item) ? -1 : index))
+        .filter((index) => index >= 0);
+}
+
+/**
+ * Vrai quand un post multi n'a **plus aucun** donjon ouvert.
+ * Un post simple (aucun item) renvoie `false` : sa clôture passe par `status`.
+ */
+export function areAllDjDungeonsClosed(dungeonsJson: unknown): boolean {
+    const items = getMultiDungeons(dungeonsJson);
+    return items.length > 0 && items.every((item) => isDjDungeonClosed(item));
+}
+
+/**
+ * Réécrit l'enveloppe en marquant les donjons `indexes` comme clôturés (idempotent :
+ * un donjon déjà clôturé garde sa première date). Les index hors bornes sont ignorés.
+ * Retourne `null` si l'enveloppe n'a pas d'items (post simple).
+ */
+export function withDjDungeonsClosed(
+    dungeonsJson: unknown,
+    indexes: number[],
+    closedAt: string = new Date().toISOString()
+): Record<string, unknown> | null {
+    const items = getMultiDungeons(dungeonsJson);
+    if (items.length === 0) return null;
+
+    const targets = new Set(indexes.filter((n) => Number.isInteger(n) && n >= 0 && n < items.length));
+    if (targets.size === 0) return null;
+
+    const next = items.map((item, index) => {
+        if (!targets.has(index) || isDjDungeonClosed(item)) return item;
+        return { ...item, closedAt };
+    });
+
+    const env: Record<string, unknown> =
+        dungeonsJson && typeof dungeonsJson === "object" && !Array.isArray(dungeonsJson)
+            ? { ...(dungeonsJson as Record<string, unknown>) }
+            : {};
+    return { ...env, _items: next };
+}
+
+/**
+ * Réécrit l'enveloppe en posant les marqueurs de rappel H-1 **d'un** donjon.
+ * Le rappel d'un post multi est par donjon : le post n'a pas de `targetDate` global.
+ */
+export function withDjDungeonReminder(
+    dungeonsJson: unknown,
+    index: number,
+    sentAtIso: string,
+    forDateIso: string
+): Record<string, unknown> | null {
+    const items = getMultiDungeons(dungeonsJson);
+    if (items.length === 0 || !Number.isInteger(index) || index < 0 || index >= items.length) return null;
+
+    const next = items.map((item, i) => (i === index ? { ...item, _h1SentAt: sentAtIso, _h1For: forDateIso } : item));
+    const env: Record<string, unknown> =
+        dungeonsJson && typeof dungeonsJson === "object" && !Array.isArray(dungeonsJson)
+            ? { ...(dungeonsJson as Record<string, unknown>) }
+            : {};
+    return { ...env, _items: next };
+}
+
+/**
+ * Classe choisie par le **créateur** d'un post Donjons & Quêtes.
+ *
+ * `DjSearchPost` n'a pas de colonne dédiée et le créateur n'est pas un participant :
+ * le choix vit dans l'enveloppe `dungeonsJson` (clé `_creatorClass`), à côté de
+ * `_items` / `_messageIds` — aucune migration, et les merges existants préservent
+ * les clés qu'ils ne connaissent pas.
+ */
+export function getDjCreatorClass(dungeonsJson: unknown): string | null {
+    if (!dungeonsJson || typeof dungeonsJson !== "object" || Array.isArray(dungeonsJson)) {
+        return null;
+    }
+    const value = (dungeonsJson as { _creatorClass?: unknown })._creatorClass;
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Réécrit l'enveloppe avec la classe du créateur (`null` ⇒ clé retirée).
+ * Retourne `null` quand il ne resterait rien : la colonne redevient vide au lieu
+ * de stocker un objet creux.
+ */
+export function withDjCreatorClass(
+    dungeonsJson: unknown,
+    classe: string | null
+): Record<string, unknown> | null {
+    const env: Record<string, unknown> =
+        dungeonsJson && typeof dungeonsJson === "object" && !Array.isArray(dungeonsJson)
+            ? { ...(dungeonsJson as Record<string, unknown>) }
+            : Array.isArray(dungeonsJson)
+              ? { _items: dungeonsJson }
+              : {};
+
+    const clean = typeof classe === "string" ? classe.trim().slice(0, 30) : "";
+    if (clean) {
+        env._creatorClass = clean;
+    } else {
+        delete env._creatorClass;
+    }
+    return Object.keys(env).length > 0 ? env : null;
 }
 

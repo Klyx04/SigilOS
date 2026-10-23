@@ -2,10 +2,9 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, ChevronsUpDown, Check, Hash, ChevronRight, AlertTriangle, X, User, Moon } from "lucide-react";
-import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
-import NextImage from "next/image";
+import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, ChevronsUpDown, Check, Hash, ChevronRight, AlertTriangle, X, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreatorClassSelector } from "@/components/shared/creator-class-selector";
 import {
     Dialog,
     DialogContent,
@@ -91,10 +90,9 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     const [isLoadingRoles, setIsLoadingRoles] = useState(false);
     const [roleOpen, setRoleOpen] = useState(false);
     const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
-    // Leader class selection
+    // Classe du meneur : le roster (main + mules) est chargé par le sélecteur partagé,
+    // qui pré-sélectionne le personnage principal. Aucun défaut inventé côté écran.
     const [leaderClass, setLeaderClass] = useState<string | null>(null);
-    const [userMules, setUserMules] = useState<{ pseudo: string; classe: string }[]>([]);
-    const [userMainClass, setUserMainClass] = useState<string | null>(null);
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
@@ -138,20 +136,9 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     if (res.success && res.data && userCtx.profileId) {
                         setStuffs(res.data.builds.filter(s => s.author.id === userCtx.profileId));
                     }
-                    // Populate user characters for class selection
-                    if (userCtx && userCtx.profileId) {
-                        const mainCls = (userCtx as any).classe || null;
-                        setUserMainClass(mainCls);
-                        const alts = ((userCtx as any).altPseudos as any[] || []).map((a: any) => ({
-                            pseudo: typeof a === 'string' ? a : a.pseudo,
-                            classe: typeof a === 'string' ? 'cra' : (a.classe || 'cra'),
-                        }));
-                        setUserMules(alts);
-                        // Pre-select main class if no selection yet
-                        if (!leaderClass && mainCls) {
-                            setLeaderClass(mainCls);
-                        }
-                    }
+                    // Roster du profil : c'est le sélecteur partagé qui le lit (main + mules).
+                    // L'ancien repli `'cra'` pour une mule sans classe inventait une classe
+                    // que le membre ne possède pas — il est supprimé.
                 });
             }
         }
@@ -499,112 +486,19 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         </p>
                     )}
 
-                    {/* CLASS SELECTION (Lead) */}
-                    <div className="space-y-3 pt-2 border-t border-border">
-                        <Label className="text-sm font-bold text-foreground flex items-center gap-2">
-                            ⚔️ Ta Classe pour cette Run
-                        </Label>
-
-                        {/* Mes Personnages (main + mules) */}
-                        {(userMainClass || userMules.length > 0) && (
-                            <div className="space-y-1.5">
-                                <p className="text-caption text-foreground/35 uppercase font-bold tracking-wider flex items-center gap-1.5">
-                                    <User className="w-3 h-3" /> Mes Personnages
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {/* Main character */}
-                                    {userMainClass && (() => {
-                                        const cls = getClass(userMainClass);
-                                        if (!cls) return null;
-                                        const isSelected = leaderClass === cls.id;
-                                        return (
-                                            <button
-                                                key="main"
-                                                type="button"
-                                                onClick={() => setLeaderClass(cls.id)}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition-all",
-                                                    isSelected
-                                                        ? "border-info/60 bg-info/15 text-info "
-                                                        : "border-border bg-surface/40 text-muted-foreground hover:border-border-strong hover:text-foreground"
-                                                )}
-                                            >
-                                                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${cls.color}20` }}>
-                                                    <NextImage src={cls.icon} alt={cls.name} width={18} height={18} className="object-contain" unoptimized />
-                                                </div>
-                                                <span>{cls.name}</span>
-                                                <span className="text-caption text-foreground/25 uppercase">Main</span>
-                                                {isSelected && <Check className="w-3 h-3 text-info" />}
-                                            </button>
-                                        );
-                                    })()}
-                                    {/* Mules */}
-                                    {userMules.map((mule, i) => {
-                                        const cls = getClass(mule.classe);
-                                        if (!cls) return null;
-                                        const isSelected = leaderClass === cls.id;
-                                        return (
-                                            <button
-                                                key={i}
-                                                type="button"
-                                                onClick={() => setLeaderClass(cls.id)}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition-all",
-                                                    isSelected
-                                                        ? "border-info/60 bg-info/15 text-info "
-                                                        : "border-border bg-surface/40 text-muted-foreground hover:border-border-strong hover:text-foreground"
-                                                )}
-                                            >
-                                                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${cls.color}20` }}>
-                                                    <NextImage src={cls.icon} alt={cls.name} width={18} height={18} className="object-contain" unoptimized />
-                                                </div>
-                                                <span>{mule.pseudo}</span>
-                                                {isSelected && <Check className="w-3 h-3 text-info" />}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Toutes les classes */}
-                        <div className="space-y-1.5">
-                            <p className="text-caption text-foreground/35 uppercase font-bold tracking-wider">Toutes les Classes</p>
-                            <div className="flex flex-wrap gap-1.5 bg-surface/40 rounded-lg p-2 border border-border">
-                                {DOFUS_CLASSES.map((cls) => {
-                                    const isSelected = leaderClass === cls.id;
-                                    return (
-                                        <button
-                                            key={cls.id}
-                                            type="button"
-                                            title={cls.name}
-                                            onClick={() => setLeaderClass(cls.id)}
-                                            className={cn(
-                                                "w-9 h-9 rounded-lg flex items-center justify-center transition-all border shrink-0",
-                                                isSelected
-                                                    ? "border-border-strong z-10"
-                                                    : "border-border bg-elevated/60 opacity-50 hover:opacity-100 hover:bg-surface"
-                                            )}
-                                            style={{
-                                                backgroundColor: isSelected ? `${cls.color}20` : undefined,
-                                                boxShadow: isSelected ? `0 0 12px ${cls.color}40, inset 0 0 0 1px ${cls.color}50` : 'none'
-                                            }}
-                                        >
-                                            <NextImage src={cls.icon} alt={cls.name} width={22} height={22} className="object-contain" unoptimized />
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            {leaderClass && (() => {
-                                const cls = getClass(leaderClass);
-                                return cls ? (
-                                    <p className="text-caption text-center font-bold" style={{ color: cls.color }}>
-                                        {cls.name} sélectionné(e)
-                                    </p>
-                                ) : null;
-                            })()}
-                        </div>
+                    {/* CLASS SELECTION (Lead) — un seul endroit pour la règle « main + mules » */}
+                    <div className="pt-2 border-t border-border">
+                        <CreatorClassSelector
+                            guildId={guildId}
+                            value={leaderClass}
+                            onChange={setLeaderClass}
+                            label="Ta classe pour cette run"
+                            description="Seuls ton personnage principal et tes mules du profil SigilOS sont proposés : une classe que tu ne possèdes pas ne peut pas être choisie."
+                        />
                     </div>
+
+                    {/* Les classes non possédées ne sont plus proposées ici : le roster du
+                        profil (et sa validation serveur) est la seule source. */}
 
                     {/* Submit Step 1 */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">

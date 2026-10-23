@@ -6,6 +6,7 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { sendChannelMessage, deleteChannelMessage, deleteChannel } from "@/server/discord";
 import { createNotification } from "@/server/actions/notification-actions";
 import { deleteDiscordRunEmbed } from "@/server/songes-service";
+import { getMultiDungeons } from "@/lib/dungeon-finder-utils";
 
 export interface InactivePostsConfig {
     inactivityDays: number;     // Jours d'inactivité avant premier rappel / entre rappels (défaut: 3)
@@ -119,7 +120,13 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             const existingRemindersCount = (post.dungeonsJson as any)?._autoReminderCount ?? 0;
             const authorDiscordId = await getDiscordIdByUserId(post.profile.userId);
             const authorMention = authorDiscordId ? `<@${authorDiscordId}>` : post.profile.discordNickname || "Créateur";
-            const postTitle = post.questName || post.titanName || post.dungeon?.name || "Groupe Donjon/Quête";
+            // Un post multi n'a ni `questName` ni `titanName` : sans ce repli, les trois rappels
+            // d'inactivité parlaient d'un « Groupe Donjon/Quête » anonyme (mesure du 23/10/2026).
+            const multiEntries = getMultiDungeons(post.dungeonsJson);
+            const multiLabel = multiEntries.length > 0
+                ? `${multiEntries.length} donjons (${multiEntries.slice(0, 3).map((e) => e.name).join(", ")}${multiEntries.length > 3 ? "…" : ""})`
+                : null;
+            const postTitle = post.questName || post.titanName || post.dungeon?.name || multiLabel || "Groupe Donjon/Quête";
             // Lien direct vers le module + jours restants avant clôture auto (J+21)
             const postLink = `${getAppBaseUrl()}/dashboard/${post.guild.discordGuildId}/donjons-et-quetes`;
             const daysLeft = Math.max(0, 21 - daysSinceUpdate);

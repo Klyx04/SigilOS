@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
 
-import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { achievementIconCandidates } from "@/lib/achievement-icon";
 import { cn } from "@/lib/utils";
 
 /**
@@ -47,10 +47,17 @@ export function AchievementIcon({
     /** Classes du glyphe de repli (couleur). */
     fallbackClassName?: string;
 }) {
-    const src = getAchievementIconUrl(slug, iconUrl ?? null);
-    const [broken, setBroken] = useState(false);
+    const candidates = achievementIconCandidates(iconUrl ?? null, slug);
+    const [attempt, setAttempt] = useState(0);
 
-    if (!src || broken) {
+    // Nouvelle valeur ⇒ on repart du premier candidat (jamais un repli collé d'un autre succès).
+    useEffect(() => {
+        setAttempt(0);
+    }, [iconUrl, slug]);
+
+    const src = candidates[attempt] ?? null;
+
+    if (!src) {
         return (
             <Trophy
                 aria-hidden
@@ -65,7 +72,8 @@ export function AchievementIcon({
             src={src}
             alt={label ?? ""}
             loading="lazy"
-            onError={() => setBroken(true)}
+            // ② Candidat suivant (asset local d'après le slug), puis repli visuel.
+            onError={() => setAttempt((current) => current + 1)}
             className={cn("shrink-0 object-contain", className)}
             style={{ width: size, height: size }}
         />

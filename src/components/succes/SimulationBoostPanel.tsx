@@ -37,6 +37,17 @@ const CUSTOM_ROWS = [
 
 type CustomKey = (typeof CUSTOM_ROWS)[number];
 
+const CUSTOM_ROW_ASSETS: Record<CustomKey, string> = {
+    puissance: "/assets/dofus/stats/puissance.png",
+    pctSorts: "/assets/dofus/stats/dmgSort.png",
+    pctMelee: "/assets/dofus/stats/dmgMelee.png",
+    pctDistance: "/assets/dofus/stats/dmgDistance.png",
+    dommagesGeneraux: "/assets/dofus/stats/dommages.png",
+    dommagesCritiques: "/assets/dofus/stats/dmgCritique.png",
+    pctFinaux: "/assets/dofus/stats/erosion.png",
+    targetDamageTaken: "/assets/dofus/stats/bouclier.png",
+};
+
 /** Valeur saisie d'une ligne personnalisée (0 = ligne inactive, donc absente de la liste). */
 function customValue(boosts: DamageBoost[], key: CustomKey): number {
     const boost = boosts.find((b) => b.id === `custom:${key}`);
@@ -97,7 +108,7 @@ export function SimulationBoostPanel({ value, onChange }: SimulationBoostPanelPr
 
             <div className="space-y-1.5">
                 <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">{boostsT.presets}</p>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                     {BOOST_PRESETS.map((preset) => {
                         const active = value.some((b) => b.id === preset.id);
                         const label = boostsT.presetLabels[preset.id as keyof typeof boostsT.presetLabels] ?? preset.label;
@@ -117,13 +128,23 @@ export function SimulationBoostPanel({ value, onChange }: SimulationBoostPanelPr
                                         : preset.label
                                 }
                                 className={cn(
-                                    "cursor-pointer rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition-colors",
+                                    "cursor-pointer rounded-xl border px-3 py-1.5 text-[11px] font-bold transition-all flex items-center gap-2 shadow-2xs",
                                     active
-                                        ? "border-accent/40 bg-accent/10 text-foreground"
-                                        : "border-border bg-background text-muted-foreground hover:text-foreground"
+                                        ? "border-warning/60 bg-warning/15 text-foreground ring-1 ring-warning/40 shadow-xs"
+                                        : "border-border bg-background/80 text-muted-foreground hover:text-foreground hover:bg-elevated hover:border-border-strong"
                                 )}
                             >
-                                {label}
+                                {preset.iconUrl && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={preset.iconUrl}
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="w-4 h-4 object-contain shrink-0"
+                                        loading="lazy"
+                                    />
+                                )}
+                                <span>{label}</span>
                             </button>
                         );
                     })}
@@ -132,10 +153,20 @@ export function SimulationBoostPanel({ value, onChange }: SimulationBoostPanelPr
 
             <div className="space-y-1.5">
                 <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">{boostsT.custom}</p>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {CUSTOM_ROWS.map((key) => (
-                        <label key={key} className="flex flex-col gap-1">
-                            <span className="truncate text-[10px] font-bold text-muted-foreground">{boostsT.labels[key]}</span>
+                        <label key={key} className="flex flex-col gap-1 p-2 rounded-xl bg-background/60 border border-border/80 hover:border-border transition-colors">
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground truncate">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={CUSTOM_ROW_ASSETS[key]}
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="w-3.5 h-3.5 object-contain shrink-0"
+                                    loading="lazy"
+                                />
+                                <span className="truncate">{boostsT.labels[key]}</span>
+                            </span>
                             <input
                                 type="number"
                                 min={0}
@@ -145,7 +176,7 @@ export function SimulationBoostPanel({ value, onChange }: SimulationBoostPanelPr
                                     onChange(withCustomValue(value, key, Number(e.target.value), boostsT.labels[key]))
                                 }
                                 placeholder="0"
-                                className="w-full rounded-lg border border-border bg-background px-2 py-1 text-[11px] font-bold tabular-nums text-foreground"
+                                className="w-full rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-bold tabular-nums text-foreground focus:outline-none focus:border-success/50 transition-colors"
                             />
                         </label>
                     ))}

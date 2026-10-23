@@ -1,6 +1,33 @@
 import { internalDofusDbImageUrl } from "@/lib/dofus-image-url";
 
 /**
+ * Candidats d'icône, **dans l'ordre d'essai** — un succès n'est jamais laissé vide :
+ *   ① la valeur **stockée** (chemin local `/game-data/…` ou URL DofusDB → proxy interne) ;
+ *   ② l'asset **local** déduit du slug (`/game-data/achievements/<slug>.png`) ;
+ *   ③ (rien : l'appelant rend le glyphe de repli).
+ *
+ * 🐛 Mesure du 23/10/2026 (captures user : « Nomade », « Trio », « En ligne de mire » en
+ * trophée gris dans la création DJ, le détail ET la clôture, alors que les trois PNG
+ * répondaient **200** et que la base portait le bon chemin) : un seul candidat était tenté.
+ * Un 404 mis en cache par le navigateur — ou une valeur pré-résolue par un loader — suffisait
+ * à figer le repli pour la session. Deux essais, deux sources : le rendu se répare seul.
+ *
+ * Dédupliqué : deux fois la même URL ne sert à rien et provoquerait deux `onError`.
+ */
+export function achievementIconCandidates(
+    iconUrl: string | null | undefined,
+    slug: string | null | undefined
+): string[] {
+    const out: string[] = [];
+    const push = (value: string | null) => {
+        if (value && !out.includes(value)) out.push(value);
+    };
+    push(getAchievementIconUrl(slug, iconUrl ?? null));
+    push(getAchievementIconUrl(slug, null));
+    return out;
+}
+
+/**
  * Ramène un chemin d'asset à sa forme **ASCII** : « spécial » → `special.png`.
  *
  * 🐛 Mesure du 16/10/2026 : le succès « Spécial » restait **noir** dans les fiches interne

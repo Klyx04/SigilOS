@@ -641,11 +641,15 @@ describe("module Donjons & Quêtes — l'icône passe par LA règle, jamais le c
 
     it("le composant partagé résout la règle ET replie sur le glyphe (jamais d'image cassée)", () => {
         const src = readFileSync("src/components/ui/achievement-icon.tsx", "utf8");
-        expect(src).toContain("getAchievementIconUrl(");
+        // La règle est **une seule** : `achievementIconCandidates` (asset local par slug, puis
+        // repli ASCII, puis proxy interne). Le composant ne recompose aucun chemin à la main.
+        expect(src).toContain("achievementIconCandidates(");
         expect(src).toContain("onError");
         expect(src).toContain("<Trophy");
-        // Le repli est rendu quand il n'y a rien à charger OU que l'image a échoué.
-        expect(src).toMatch(/if \(!src \|\| broken\)/);
+        // Le repli est rendu quand il n'y a plus de candidat à charger : `onError` avance dans
+        // `candidates` (asset local → repli ASCII → proxy) et `if (!src)` rend le glyphe.
+        expect(src).toMatch(/if \(!src\) \{/);
+        expect(src).toContain("setAttempt((current) => current + 1)");
     });
 
     it("la liste de clôture tolère l'enveloppe `{ _items }` (sinon zéro icône)", () => {

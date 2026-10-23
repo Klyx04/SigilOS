@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo, useTransition } from "react";
 import { Check, Search, ShieldCheck, ExternalLink, ChevronDown, Loader2, RefreshCw, ChevronRight, Copy, Star, Sword, Sparkles, Info, Mars, Venus, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,8 @@ export function GalleryClient({
     const [votingIds, setVotingIds] = useState<Set<string>>(new Set());
     const [sharingIds, setSharingIds] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [isPending, startTransition] = useTransition();
     const [loadError, setLoadError] = useState<string | null>(null);
     const [selectedSkin, setSelectedSkin] = useState<GallerySkin | null>(null);
 
@@ -96,7 +98,7 @@ export function GalleryClient({
     // Evite un refetch redondant au montage : la page 1 est deja rendue par le serveur.
     const didMountRef = useRef(false);
 
-    // Reset and re-fetch from page 1 when filters change
+    // Reset and re-fetch from page 1 when filters change (unique porte d'accès au fetch)
     const applyFilters = useCallback((
         query: string,
         tags: string[],
@@ -146,76 +148,78 @@ export function GalleryClient({
         setSearchQuery(value);
     };
 
-    // Use debounced search to trigger filtering
+    // Use debounced search and active filter changes to trigger unique re-fetch
     useEffect(() => {
         if (!didMountRef.current) {
             didMountRef.current = true;
             return;
         }
-        if (debouncedSearch !== undefined) {
-            applyFilters(debouncedSearch, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
-        }
+        applyFilters(debouncedSearch, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
     }, [debouncedSearch, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource, applyFilters]);
 
     const handleElementChange = (element: string | null) => {
-        setSelectedElement(element);
-        applyFilters(searchQuery, element ? [element, ...selectedTags] : selectedTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
+        startTransition(() => {
+            setSelectedElement(element);
+        });
     };
 
     const handleToggleAdvancedTag = (tagId: string) => {
-        const nextTags = selectedTags.includes(tagId)
-            ? selectedTags.filter(t => t !== tagId)
-            : [...selectedTags, tagId];
-        setSelectedTags(nextTags);
-        applyFilters(searchQuery, selectedElement ? [selectedElement, ...nextTags] : nextTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
+        startTransition(() => {
+            setSelectedTags(prev => prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId]);
+        });
     };
 
     const handleClassChange = (classId: string | number | null) => {
         const idStr = classId !== null ? String(classId) : null;
-        setSelectedClass(idStr);
-        applyFilters(searchQuery, activeTags, idStr, selectedGender, sortBy, activeTab, selectedSource);
+        startTransition(() => {
+            setSelectedClass(idStr);
+        });
     };
 
     const handleGenderChange = (gender: string | null) => {
-        setSelectedGender(gender);
-        applyFilters(searchQuery, activeTags, selectedClass, gender, sortBy, activeTab, selectedSource);
+        startTransition(() => {
+            setSelectedGender(gender);
+        });
     };
 
     const handleSourceChange = (source: "dofusbook" | null) => {
-        setSelectedSource(source);
-        applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, activeTab, source);
+        startTransition(() => {
+            setSelectedSource(source);
+        });
     };
     
     const handleSortChange = (newSort: "newest" | "votes") => {
-        setSortBy(newSort);
-        applyFilters(searchQuery, activeTags, selectedClass, selectedGender, newSort, activeTab, selectedSource);
+        startTransition(() => {
+            setSortBy(newSort);
+        });
     };
 
     const handleTabChange = (newTab: "STUFF" | "SKIN") => {
-        setActiveTab(newTab);
-        // Reseting filters when changing tab to avoid confusing state
-        setSelectedElement(null);
-        setSelectedTags([]);
-        setSelectedClass(null);
-        setSelectedGender(null);
-        setSelectedSource(null);
-        applyFilters(searchQuery, [], null, null, sortBy, newTab, null);
+        startTransition(() => {
+            setActiveTab(newTab);
+            setSelectedElement(null);
+            setSelectedTags([]);
+            setSelectedClass(null);
+            setSelectedGender(null);
+            setSelectedSource(null);
+        });
     };
 
     const handleResetFilters = () => {
-        setSearchQuery("");
-        setSelectedElement(null);
-        setSelectedTags([]);
-        setSelectedClass(null);
-        setSelectedGender(null);
-        setSelectedSource(null);
-        applyFilters("", [], null, null, sortBy, activeTab, null);
+        startTransition(() => {
+            setSearchQuery("");
+            setSelectedElement(null);
+            setSelectedTags([]);
+            setSelectedClass(null);
+            setSelectedGender(null);
+            setSelectedSource(null);
+        });
     };
 
-    // Infinite scroll: load next page
+    // Infinite scroll: load next page (sans bloquer toute l'interface)
     const loadMore = () => {
         const runLoadMore = async () => {
-            setIsLoading(true);
+            setIsLoadingMore(true);
             setLoadError(null);
             try {
                 if (activeTab === "STUFF") {
@@ -257,7 +261,7 @@ export function GalleryClient({
             } catch {
                 setLoadError("Erreur réseau lors du chargement de la suite.");
             } finally {
-                setIsLoading(false);
+                setIsLoadingMore(false);
             }
         };
         runLoadMore();

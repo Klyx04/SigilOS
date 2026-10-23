@@ -136,9 +136,12 @@ describe("option « Dégâts estimés » — allumée par défaut, interrupteur 
 
     it("aucun badge de dégâts tant que l'option est éteinte", () => {
         // La couche de badges est gardée par l'option ET par l'existence de jets réels.
-        expect(GRID).toMatch(/\{showDamage && damageInfo\.lines\.length > 0 && zonePreview && \(/);
+        // ⚠️ 23/10/2026 : la garde porte en plus l'option d'affichage « masquer les pastilles
+        // sur la carte » (`!hideMapDamageBadges`) — ajoutée après ce verrou. L'intention ne
+        // change pas : sans `showDamage`, rien n'est rendu.
+        expect(GRID).toMatch(/\{showDamage && (?:!hideMapDamageBadges && )?damageInfo\.lines\.length > 0 && zonePreview && \(/);
         // …et elle ne rend QUE les cibles calculées par `damageTargets`.
-        const layer = GRID.slice(GRID.indexOf("{showDamage && damageInfo.lines.length > 0 && zonePreview"), GRID.indexOf("</svg>"));
+        const layer = GRID.slice(GRID.indexOf("{showDamage &&"), GRID.indexOf("</svg>"));
         expect(layer).toMatch(/damageTargets\.map/);
     });
 
@@ -159,7 +162,10 @@ describe("option « Dégâts estimés » — allumée par défaut, interrupteur 
         // Priorité : effectDetails (jets calculés côté serveur / Dofensive) ??
         // repli unityEffects ?? effects (libellés Unity bruts — sorts Kwakwa sans jet Dofensive encore calculé).
         // La garde Math.floor(stat) (calcul côté client) ne doit JAMAIS apparaître.
-        expect(GRID).toMatch(/damageLinesFromEffects\(currentSpell\?\.effectDetails/);
+        // ⚠️ 23/10/2026 : l'appel est désormais multiligne (option `keepHits` — une ligne par
+        // coup). L'intention est inchangée : la source reste `effectDetails` fourni par le
+        // serveur, et aucun calcul de dégâts n'est fait ici.
+        expect(GRID).toMatch(/damageLinesFromEffects\(\s*currentSpell\?\.effectDetails/);
         expect(GRID).not.toMatch(/Math\.floor\([^)]*stat[^)]*\)/);
     });
 });

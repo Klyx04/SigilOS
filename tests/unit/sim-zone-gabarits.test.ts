@@ -141,10 +141,10 @@ describe("géométrie — « Ligne perpendiculaire » : 3 cases pour `param1: 1`
 
 describe("simulation tactique — vraie modale plein écran + fenêtre de jeu PiP", () => {
     it("le plateau s'ouvre dans une boîte `Dialog` dimensionnée et titrée", () => {
-        expect(GRID).toMatch(/const \[fullscreen, setFullscreen\] = useState<boolean>\(false\);/);
+        expect(GRID).toMatch(/const \[fullscreen, setFullscreen\] = useState<boolean>\(defaultFullscreen\);/);
         expect(GRID).toMatch(/<Dialog\r?\n\s*open\r?\n\s*onOpenChange=\{\(next\) => \{/);
         expect(GRID).toMatch(
-            /className="flex h-\[min\(94vh,64rem\)\] w-\[min\(97vw,96rem\)\] max-w-none flex-col gap-0 overflow-hidden p-0"/
+            /className="flex h-\[97dvh\] w-\[99vw\] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 shadow-2xl"/
         );
         expect(GRID).toMatch(/showCloseButton=\{false\}/);
         expect(GRID).toMatch(/<DialogTitle/);
@@ -161,7 +161,7 @@ describe("simulation tactique — vraie modale plein écran + fenêtre de jeu Pi
     it("prévisu de dégâts ET légende passent dans un rail — plus rien de superposé au plateau", () => {
         expect(GRID).toMatch(/\{damagePanel\(true\)\}/);
         expect(GRID).toMatch(/\{legendPanel\(true\)\}/);
-        expect(GRID).toMatch(/lg:w-80/);
+        expect(GRID).toMatch(/lg:w-96/);
         // La rangée des deux panneaux n'existe QUE dans la fenêtre de jeu PiP : partout ailleurs
         // ils sont dans un rail (modale plein écran **et** mise en page en ligne).
         expect(GRID).toMatch(/\{compact && !fullscreen && \(\r?\n\s*<div\r?\n\s*data-no-drag\r?\n\s*className="flex w-full min-w-0 shrink-0 flex-wrap/);

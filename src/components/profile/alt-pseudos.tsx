@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Users, Plus, X, Save, Edit2, AlertCircle, Copy, Shield, Trash2, Check, Sparkles, Info, Search, Loader2, UserCheck } from "lucide-react";
+import { Users, Plus, X, Save, Edit2, AlertCircle, Copy, Shield, Trash2, Check, Sparkles, Search, Loader2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { DOFUS_CLASSES, getClass, ALIGNMENTS, ORDERS, getAlignment, getOrder } from "@/lib/dofus-assets";
 import NextImage from "next/image";
 import { verifyDofusPseudo, isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
+import { logger } from "@/lib/logger";
 
 export type Mule = {
     id?: string;
@@ -22,8 +23,8 @@ export type Mule = {
 };
 
 interface AltPseudosProps {
-    altPseudos?: any[];
-    onSave?: (pseudos: Mule[]) => Promise<any>;
+    altPseudos?: (Mule | string)[];
+    onSave?: (pseudos: Mule[]) => Promise<unknown>;
     readOnly?: boolean;
     maxPseudos?: number;
     guildId?: string;
@@ -47,7 +48,7 @@ export function AltPseudos({
     const [newOrder, setNewOrder] = useState<string | null>(null);
     const [newAlignmentLevel, setNewAlignmentLevel] = useState<number>(0);
 
-    // Vérification du pseudo (loupe) + fallback God : même logique que l'identité.
+    // Vérification du pseudo (loupe) + fallback God
     const [newPseudoVerified, setNewPseudoVerified] = useState(false);
     const [isVerifyingMule, setIsVerifyingMule] = useState(false);
     const [manualFallback, setManualFallback] = useState(false);
@@ -135,19 +136,18 @@ export function AltPseudos({
     const handleStartEditMule = (mule: Mule) => {
         setEditingMuleId(mule.id || null);
         setNewPseudo(mule.pseudo);
-        setNewPseudoVerified(true); // pseudo déjà validé à l'ajout ; re-saisie → reset via handleInputChange
+        setNewPseudoVerified(true);
         setNewClass(mule.classe || "cra");
         setNewLevel(mule.level?.toString() || "200");
         setNewAlignment(mule.alignment || "neutre");
         setNewOrder(mule.alignmentOrder || null);
         setNewAlignmentLevel(mule.alignmentLevel || 0);
 
-        // Smooth scroll to form
         setTimeout(() => {
             formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 80);
 
-        toast.info(`Modification de ${mule.pseudo} chargée dans le formulaire ci-dessous`);
+        toast.info(`Modification de ${mule.pseudo} chargée dans le formulaire`);
     };
 
     // Reset/Cancel form inputs back to default "Add" mode
@@ -172,7 +172,6 @@ export function AltPseudos({
             return;
         }
 
-        // Vérif « loupe » requise (sauf si le fallback manuel God est actif).
         if (!newPseudoVerified && !manualFallback) {
             toast.error("Veuillez vérifier ce pseudo avec la loupe avant de l'ajouter.");
             return;
@@ -182,7 +181,6 @@ export function AltPseudos({
         if (isNaN(lvl) || lvl < 0 || lvl > 200) lvl = 200;
 
         if (editingMuleId) {
-            // Update existing mule
             setLocalPseudos(prev => prev.map(p => {
                 if (p.id === editingMuleId) {
                     return {
@@ -200,7 +198,6 @@ export function AltPseudos({
             toast.success(`Personnage ${trimmed} mis à jour localement`);
             handleCancelFormEdit();
         } else {
-            // Add new mule
             if (localPseudos.length >= maxPseudos) {
                 toast.error(`Maximum ${maxPseudos} personnages`);
                 return;
@@ -237,7 +234,6 @@ export function AltPseudos({
         try {
             const finalPseudos = [...localPseudos];
 
-            // If there's content left in the input, auto-commit it first if valid
             const trimmed = newPseudo.trim();
             if (trimmed && !editingMuleId) {
                 if (!newPseudoVerified && !manualFallback) {
@@ -273,7 +269,7 @@ export function AltPseudos({
             setIsEditing(false);
             toast.success("Mules sauvegardées avec succès");
         } catch (error) {
-            console.error("Save alt pseudos error:", error);
+            logger.error("Save alt pseudos error", { err: error });
             toast.error("Erreur lors de la sauvegarde");
         } finally {
             setIsSubmitting(false);
@@ -306,46 +302,52 @@ export function AltPseudos({
     };
 
     return (
-        <Card className="bg-background/80 backdrop-blur-md border border-border relative overflow-hidden group h-full flex flex-col rounded-3xl shadow-2xl p-6">
-            <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-info/15 border border-info/30 flex items-center justify-center">
-                        <Users className="w-5 h-5 text-info" />
+        <Card className="bg-surface/40 backdrop-blur-md border border-border relative overflow-hidden h-full flex flex-col rounded-2xl shadow-xs p-5 sm:p-6 gap-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
+                <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-xl bg-accent/10 border border-accent/25 flex items-center justify-center text-accent shrink-0">
+                        <Users className="w-5 h-5" />
                     </div>
                     <div>
-                        <h3 className="text-base font-black text-foreground uppercase tracking-wider flex items-center gap-2">
-                            Mes Mules & Alts
+                        <div className="flex items-center gap-2.5">
+                            <h3 className="text-lg font-bold text-foreground">
+                                Mes Mules & Personnages
+                            </h3>
                             {!readOnly && (
-                                <span className="text-caption text-info bg-info/10 border border-info/20 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/25">
                                     {localPseudos.length}/{maxPseudos}
                                 </span>
                             )}
-                        </h3>
-                        <p className="text-caption text-muted-foreground uppercase tracking-widest font-bold">Personnages secondaires de guilde</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Personnages secondaires et rerolls pour faciliter les contacts en jeu.
+                        </p>
                     </div>
                 </div>
 
                 {!readOnly && (
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => isEditing ? handleCancel() : setIsEditing(true)}
                         className={cn(
-                            "h-9 px-4 text-xs font-black uppercase tracking-wider transition-all border shadow-md rounded-xl cursor-pointer",
+                            "h-9 px-3.5 text-xs font-medium transition-all rounded-xl border",
                             isEditing
-                                ? "bg-elevated text-foreground border-border hover:bg-muted"
-                                : "bg-info/10 text-info border-info/30 hover:bg-info/20 hover:text-info"
+                                ? "bg-surface text-foreground border-border hover:bg-surface/80"
+                                : "border-border hover:border-accent/40 text-foreground hover:bg-surface"
                         )}
                     >
-                        {isEditing ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Edit2 className="w-3.5 h-3.5 mr-1.5" strokeWidth={2.5} />}
-                        {isEditing ? "Fermer" : "Gérer mes Mules"}
+                        {isEditing ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Edit2 className="w-3.5 h-3.5 mr-1.5" />}
+                        {isEditing ? "Fermer l'édition" : "Gérer mes mules"}
                     </Button>
                 )}
             </div>
 
             <CardContent className="p-0 space-y-6 relative flex-1">
+                {/* Mules Grid */}
                 {localPseudos.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
                         {localPseudos.map((mule) => {
                             const cls = getClass(mule.classe || "cra") || DOFUS_CLASSES[0];
                             const alignData = mule.alignment ? getAlignment(mule.alignment) : null;
@@ -355,86 +357,74 @@ export function AltPseudos({
                                 <div
                                     key={mule.id}
                                     className={cn(
-                                        "relative flex flex-col justify-between p-4 rounded-2xl bg-black/60 border transition-all group/item overflow-hidden space-y-3",
+                                        "relative flex flex-col justify-between p-3.5 rounded-xl bg-surface/50 hover:bg-surface/80 border transition-all space-y-3",
                                         editingMuleId === mule.id 
-                                            ? "border-info/50 bg-info/20 "
-                                            : "border-border hover:border-info/40 hover:bg-black/80"
+                                            ? "border-accent/60 bg-accent/10 shadow-xs" 
+                                            : "border-border hover:border-accent/30"
                                     )}
                                 >
-                                    <div
-                                        className="absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl pointer-events-none opacity-25"
-                                        style={{ backgroundColor: cls.color }}
-                                    />
-
-                                    {/* Top Row: Class Icon + Pseudo + Level Badge */}
-                                    <div className="flex items-start justify-between gap-3 z-10">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center shrink-0 p-1 shadow-md" style={{ borderColor: `${cls.color}50` }}>
-                                                <NextImage
-                                                    src={cls.icon}
-                                                    alt={cls.name}
-                                                    width={36}
-                                                    height={36}
-                                                    className="object-contain"
-                                                    unoptimized
-                                                />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="text-sm font-black text-foreground truncate" title={mule.pseudo}>
-                                                        {mule.pseudo}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    <span className="text-caption font-extrabold uppercase tracking-wider" style={{ color: cls.color }}>
-                                                        {cls.name}
-                                                    </span>
-                                                    <span className="text-caption font-black text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full font-mono">
-                                                        Nv. {mule.level !== undefined ? mule.level : 200}
-                                                    </span>
-                                                </div>
+                                    {/* Top Row: Class Icon + Pseudo + Level */}
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-10 h-10 rounded-xl bg-surface border border-border flex items-center justify-center shrink-0 p-1">
+                                            <NextImage
+                                                src={cls.icon}
+                                                alt={cls.name}
+                                                width={30}
+                                                height={30}
+                                                className="object-contain"
+                                                unoptimized
+                                            />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-bold text-foreground truncate" title={mule.pseudo}>
+                                                {mule.pseudo}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[11px] font-semibold text-muted-foreground truncate" style={{ color: cls.color }}>
+                                                    {cls.name}
+                                                </span>
+                                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface border border-border text-muted-foreground">
+                                                    Nv. {mule.level !== undefined ? mule.level : 200}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Middle Row: Alignment & Order Badges */}
-                                    <div className="flex flex-wrap items-center gap-1.5 z-10 pt-1 border-t border-border">
+                                    <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/60">
                                         {alignData && alignData.id !== "neutre" ? (
-                                            <div className={cn(
-                                                "flex items-center gap-1.5 bg-black/60 border rounded-xl px-2.5 py-1 text-caption font-bold uppercase tracking-wider",
-                                                alignData.id === "bontarien" ? "border-info/30 text-info" : "border-danger/30 text-danger"
-                                            )}>
-                                                <div className="relative w-4 h-4 shrink-0 rounded-full overflow-hidden">
+                                            <div className="flex items-center gap-1.5 bg-surface/80 border border-border rounded-lg px-2 py-0.5 text-[11px] font-medium text-foreground">
+                                                <div className="relative w-3.5 h-3.5 shrink-0 rounded-full overflow-hidden">
                                                     <NextImage src={alignData.icon} alt={alignData.name} fill className="object-cover scale-110" unoptimized />
                                                 </div>
                                                 <span>{alignData.name}</span>
                                             </div>
                                         ) : (
-                                            <span className="text-caption text-muted-foreground font-bold italic">Neutre</span>
+                                            <span className="text-[11px] text-muted-foreground italic">Neutre</span>
                                         )}
 
                                         {orderData && (
-                                            <div className="flex items-center gap-1.5 bg-black/60 border border-warning/30 rounded-xl px-2.5 py-1 text-caption font-bold text-warning uppercase tracking-wider">
-                                                <div className="relative w-4 h-4 shrink-0">
+                                            <div className="flex items-center gap-1.5 bg-surface/80 border border-border rounded-lg px-2 py-0.5 text-[11px] font-medium text-foreground">
+                                                <div className="relative w-3.5 h-3.5 shrink-0">
                                                     <NextImage src={orderData.icon} alt={orderData.name} fill className="object-contain" unoptimized />
                                                 </div>
-                                                <span className="truncate max-w-[120px]" title={orderData.name}>
+                                                <span className="truncate max-w-[110px]" title={orderData.name}>
                                                     {orderData.name.replace("Ordre de l'", "").replace("Ordre du ", "")}
                                                 </span>
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* Bottom Row: Actions */}
-                                    <div className="flex items-center justify-between z-10 pt-2 border-t border-border">
+                                    {/* Bottom Row: /w Action and Edit controls */}
+                                    <div className="flex items-center justify-between pt-1 border-t border-border/60">
                                         <button
                                             type="button"
                                             onClick={() => {
                                                 navigator.clipboard.writeText(`/w ${mule.pseudo} `);
                                                 toast.success("Commande copiée !", { description: `/w ${mule.pseudo}` });
                                             }}
-                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-info/10 hover:bg-info/20 text-info border border-info/25 text-caption font-black uppercase tracking-wider transition-all cursor-pointer"
-                                            title="Copier /w dans Dofus"
+                                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface hover:bg-surface/80 hover:text-accent border border-border text-[11px] font-medium text-muted-foreground transition-colors cursor-pointer"
+                                            title="Copier le message chuchoté"
                                         >
                                             <Copy className="w-3 h-3" /> /w {mule.pseudo}
                                         </button>
@@ -446,22 +436,24 @@ export function AltPseudos({
                                                     size="icon"
                                                     onClick={() => handleStartEditMule(mule)}
                                                     className={cn(
-                                                        "h-7 w-7 transition-all bg-black/40 rounded-lg border cursor-pointer",
+                                                        "h-7 w-7 rounded-lg border",
                                                         editingMuleId === mule.id
-                                                            ? "border-info text-info bg-info/10"
+                                                            ? "border-accent text-accent bg-accent/10"
                                                             : "border-border text-muted-foreground hover:text-foreground hover:bg-surface"
                                                     )}
-                                                    title="Modifier cette mule"
+                                                    title="Modifier"
                                                 >
-                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                    <Edit2 className="w-3 h-3" />
                                                 </Button>
-                                                <button
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
                                                     onClick={() => handleRemovePseudo(mule.id!)}
-                                                    className="h-7 w-7 flex items-center justify-center text-danger hover:text-danger-foreground hover:bg-danger/80 rounded-lg transition-all bg-danger/10 border border-danger/20 cursor-pointer"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-lg border border-border"
                                                     title="Supprimer"
                                                 >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
+                                                    <Trash2 className="w-3 h-3" />
+                                                </Button>
                                             </div>
                                         )}
                                     </div>
@@ -470,25 +462,25 @@ export function AltPseudos({
                         })}
                     </div>
                 ) : (
-                    <div className="text-xs font-bold text-muted-foreground italic py-12 border border-dashed border-border rounded-2xl flex flex-col items-center justify-center bg-muted/40 gap-3">
-                        <Users className="w-8 h-8 text-muted-foreground" />
-                        Aucune mule enregistrée pour le moment.
+                    <div className="text-xs text-muted-foreground py-10 border border-dashed border-border rounded-xl flex flex-col items-center justify-center bg-surface/20 gap-2.5">
+                        <Users className="w-6 h-6 text-muted-foreground opacity-50" />
+                        <span>Aucun personnage secondaire enregistré pour le moment.</span>
                     </div>
                 )}
 
-                {/* Edit Mode Panel (Addition & Modification Form) */}
+                {/* Edit Mode Panel */}
                 {isEditing && (
-                    <div ref={formRef} className="p-4 sm:p-5 bg-background/60 border border-border rounded-2xl animate-in fade-in duration-200 space-y-5">
+                    <div ref={formRef} className="p-4 sm:p-5 bg-surface/30 border border-border rounded-2xl space-y-4">
                         <div className="flex items-center justify-between">
-                            <h4 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-wide">
+                            <h4 className="text-xs font-bold text-foreground flex items-center gap-2 uppercase tracking-wider">
                                 {editingMuleId ? (
                                     <>
-                                        <Edit2 className="w-4 h-4 text-info" />
-                                        Modifier le personnage : <span className="text-info italic font-black">{newPseudo}</span>
+                                        <Edit2 className="w-3.5 h-3.5 text-accent" />
+                                        Modifier : <span className="text-accent">{newPseudo}</span>
                                     </>
                                 ) : (
                                     <>
-                                        <Plus className="w-4 h-4 text-success" />
+                                        <Plus className="w-3.5 h-3.5 text-accent" />
                                         Ajouter un personnage
                                     </>
                                 )}
@@ -498,41 +490,38 @@ export function AltPseudos({
                                     variant="ghost" 
                                     size="sm" 
                                     onClick={handleCancelFormEdit}
-                                    className="h-6 px-2 text-caption font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-surface rounded-md"
+                                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
                                 >
-                                    Mode Ajout
+                                    Annuler la sélection
                                 </Button>
                             )}
                         </div>
 
                         {localPseudos.length < maxPseudos || editingMuleId ? (
-                            <div className="flex flex-col gap-5">
-                                {/* 1. Class Selection Grid */}
-                                <div className="grid gap-2 w-full">
-                                    <label className="text-caption text-muted-foreground font-black uppercase tracking-wider ml-1">Sélectionner une classe</label>
-                                    <div className="flex bg-background/40 p-2 rounded-xl border border-border overflow-x-auto gap-2 custom-scrollbar pb-3 snap-x">
+                            <div className="flex flex-col gap-4">
+                                {/* 1. Class Selection */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-muted-foreground">Classe du personnage</label>
+                                    <div className="flex bg-surface/60 p-2 rounded-xl border border-border overflow-x-auto gap-2">
                                         {DOFUS_CLASSES.map((cls) => (
                                             <button
                                                 key={cls.id}
                                                 type="button"
                                                 onClick={() => setNewClass(cls.id)}
                                                 className={cn(
-                                                    "h-12 w-12 rounded-xl shrink-0 flex items-center justify-center transition-all border snap-center",
+                                                    "h-10 w-10 rounded-xl shrink-0 flex items-center justify-center transition-all border",
                                                     newClass === cls.id
-                                                        ? "bg-elevated/80 border-border-strong scale-105 z-10"
-                                                        : "bg-black/20 border-border opacity-50 hover:opacity-100 hover:bg-elevated/50"
+                                                        ? "bg-accent/15 border-accent text-accent shadow-xs scale-105"
+                                                        : "bg-surface border-border opacity-60 hover:opacity-100 hover:bg-surface/80"
                                                 )}
-                                                style={{
-                                                    boxShadow: newClass === cls.id ? `0 0 15px ${cls.color}30, inset 0 0 0 1px ${cls.color}50` : 'none'
-                                                }}
                                                 title={cls.name}
                                             >
                                                 <NextImage
                                                     src={cls.icon}
                                                     alt={cls.name}
-                                                    width={28}
-                                                    height={28}
-                                                    className="object-contain drop-shadow-md animate-in fade-in"
+                                                    width={24}
+                                                    height={24}
+                                                    className="object-contain"
                                                     unoptimized
                                                 />
                                             </button>
@@ -541,9 +530,9 @@ export function AltPseudos({
                                 </div>
 
                                 {/* 2. Pseudo & Level Fields */}
-                                <div className="flex flex-col sm:flex-row gap-4 items-end">
-                                    <div className="grid gap-1.5 flex-[2] w-full relative">
-                                        <label className="text-caption text-muted-foreground font-black uppercase tracking-wider ml-1">Pseudo</label>
+                                <div className="flex flex-col sm:flex-row gap-3 items-start">
+                                    <div className="flex-1 w-full space-y-1.5">
+                                        <label className="text-xs font-semibold text-muted-foreground">Pseudo en jeu</label>
                                         <div className="flex gap-2 items-center">
                                             <div className="relative flex-1">
                                                 <Input
@@ -552,12 +541,12 @@ export function AltPseudos({
                                                     onKeyDown={handleKeyDown}
                                                     placeholder="Ex: Darksasuke"
                                                     className={cn(
-                                                        "bg-surface/80 border-border h-10 pl-10 focus-visible:ring-ring/50 font-medium",
+                                                        "bg-surface border-border h-9 pl-9 text-xs font-medium rounded-xl focus:border-accent/50",
                                                         newPseudoVerified && "border-success/50"
                                                     )}
                                                     maxLength={20}
                                                 />
-                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-mono pointer-events-none">
+                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-mono pointer-events-none">
                                                     /w
                                                 </div>
                                                 {newPseudoVerified && (
@@ -570,31 +559,31 @@ export function AltPseudos({
                                                 onClick={handleVerifyMule}
                                                 disabled={!newPseudo.trim() || isVerifyingMule || newPseudo.trim().length < 3}
                                                 className={cn(
-                                                    "h-10 w-10 shrink-0 bg-surface/80 border-border px-0",
+                                                    "h-9 w-9 shrink-0 bg-surface border-border p-0 rounded-xl",
                                                     newPseudoVerified && "text-success border-success/30 bg-success/10"
                                                 )}
-                                                title="Vérifier le pseudo sur le ladder Ankama"
+                                                title="Vérifier sur Ankama"
                                             >
-                                                {isVerifyingMule ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                                {isVerifyingMule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
                                             </Button>
                                         </div>
-                                        <p className="text-caption leading-relaxed text-muted-foreground ml-1">
+                                        <p className="text-[11px] leading-relaxed text-muted-foreground">
                                             {newPseudoVerified ? (
-                                                <span className="text-success font-bold flex items-center gap-1.5">
+                                                <span className="text-success font-semibold flex items-center gap-1.5">
                                                     <UserCheck className="w-3 h-3" /> Pseudo validé sur le ladder Ankama.
                                                 </span>
                                             ) : manualFallback ? (
-                                                <span className="text-warning/90 font-semibold">
-                                                    Saisie manuelle autorisée (fallback actif) — vérification Ankama désactivée.
+                                                <span className="text-muted-foreground">
+                                                    Saisie manuelle autorisée (fallback actif).
                                                 </span>
                                             ) : (
-                                                <span>Vérification requise : cliquez sur la loupe <Search className="inline w-3 h-3 mb-0.5" /> pour valider le pseudo avant de l'ajouter.</span>
+                                                <span>Cliquez sur la loupe pour valider le pseudo avant de l&apos;ajouter.</span>
                                             )}
                                         </p>
                                     </div>
 
-                                    <div className="grid gap-1.5 w-full sm:w-28">
-                                        <label className="text-caption text-muted-foreground font-black uppercase tracking-wider ml-1">Niveau</label>
+                                    <div className="w-full sm:w-28 space-y-1.5">
+                                        <label className="text-xs font-semibold text-muted-foreground">Niveau</label>
                                         <Input
                                             type="number"
                                             min={0}
@@ -612,17 +601,17 @@ export function AltPseudos({
                                             }}
                                             onKeyDown={handleKeyDown}
                                             placeholder="200"
-                                            className="bg-surface/80 border-border h-10 focus-visible:ring-ring/50 font-mono text-center font-bold"
+                                            className="bg-surface border-border h-9 font-mono text-center text-xs font-bold rounded-xl"
                                         />
                                     </div>
                                 </div>
 
                                 {/* 3. Optional Alignment & Order Selection */}
-                                <div className="grid gap-4 bg-background/45 p-4 rounded-xl border border-border">
-                                    <div className="flex flex-col gap-2">
+                                <div className="space-y-3 bg-surface/50 p-3.5 rounded-xl border border-border">
+                                    <div className="space-y-2">
                                         <div className="flex items-center gap-1.5">
-                                            <Shield className="w-3.5 h-3.5 text-info" />
-                                            <label className="text-caption text-foreground font-black uppercase tracking-wider">Alignement (Optionnel)</label>
+                                            <Shield className="w-3.5 h-3.5 text-accent" />
+                                            <label className="text-xs font-semibold text-foreground">Alignement (optionnel)</label>
                                         </div>
                                         
                                         <div className="flex flex-wrap gap-2">
@@ -638,23 +627,21 @@ export function AltPseudos({
                                                             if (align.id === "neutre") {
                                                                 setNewOrder(null);
                                                             } else {
-                                                                const available = (ORDERS as any)[align.id];
+                                                                const available = ORDERS[align.id as keyof typeof ORDERS];
                                                                 if (available && available.length > 0) {
                                                                     setNewOrder(available[0].id);
                                                                 }
                                                             }
                                                         }}
                                                         className={cn(
-                                                            "h-12 px-4 rounded-xl flex items-center gap-3 transition-all border text-xs font-bold uppercase tracking-wider relative overflow-hidden",
+                                                            "h-9 px-3 rounded-lg flex items-center gap-2 transition-all border text-xs font-medium",
                                                             isSel 
-                                                                ? align.id === "bontarien" ? "bg-info/10 border-info/40 text-info font-black " :
-                                                                  align.id === "brakmarien" ? "bg-danger/10 border-danger/40 text-danger font-black " :
-                                                                  "bg-elevated border-border-strong text-foreground "
-                                                                : "bg-muted/20 border-border text-muted-foreground hover:text-foreground"
+                                                                ? "bg-accent/15 border-accent text-accent font-semibold"
+                                                                : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-surface/80"
                                                         )}
                                                     >
-                                                        <div className="relative w-7 h-7 rounded-full overflow-hidden shrink-0 border border-border shadow-md">
-                                                            <NextImage src={align.icon} alt={align.name} fill className="object-cover scale-[1.25]" unoptimized />
+                                                        <div className="relative w-4 h-4 rounded-full overflow-hidden shrink-0 border border-border">
+                                                            <NextImage src={align.icon} alt={align.name} fill className="object-cover scale-110" unoptimized />
                                                         </div>
                                                         {align.name}
                                                     </button>
@@ -665,14 +652,14 @@ export function AltPseudos({
 
                                     {/* Dependent Order Specialization List */}
                                     {newAlignment !== "neutre" && (
-                                        <div className="flex flex-col gap-2 pt-2 border-t border-border animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <div className="space-y-2 pt-2 border-t border-border">
                                             <div className="flex items-center gap-1.5">
-                                                <Sparkles className="w-3.5 h-3.5 text-warning" />
-                                                <label className="text-caption text-foreground font-black uppercase tracking-wider">Ordre / Spécialisation</label>
+                                                <Sparkles className="w-3.5 h-3.5 text-accent" />
+                                                <label className="text-xs font-semibold text-foreground">Ordre</label>
                                             </div>
                                             
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                                {(ORDERS as any)[newAlignment].map((order: any) => {
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                {(ORDERS[newAlignment as keyof typeof ORDERS] || []).map((order) => {
                                                     const isSel = newOrder === order.id;
                                                     return (
                                                         <button
@@ -680,16 +667,16 @@ export function AltPseudos({
                                                             type="button"
                                                             onClick={() => { setNewOrder(order.id); setNewAlignmentLevel(0); }}
                                                             className={cn(
-                                                                "h-14 px-4 rounded-xl flex items-center gap-3 transition-all border text-left text-caption font-black uppercase tracking-widest relative overflow-hidden",
+                                                                "h-9 px-2.5 rounded-lg flex items-center gap-2 transition-all border text-left text-xs font-medium",
                                                                 isSel
-                                                                    ? "bg-warning/10 border-warning/40 text-warning "
-                                                                    : "bg-muted/20 border-border text-muted-foreground hover:text-foreground"
+                                                                    ? "bg-accent/15 border-accent text-accent font-semibold"
+                                                                    : "bg-surface border-border text-muted-foreground hover:text-foreground hover:bg-surface/80"
                                                             )}
                                                         >
-                                                            <div className="relative w-9 h-9 shrink-0 bg-black/60 rounded-lg border border-border flex items-center justify-center p-1 overflow-hidden shadow-inner">
-                                                                <NextImage src={order.icon} alt={order.name} fill className="object-contain p-0.5" unoptimized />
+                                                            <div className="relative w-5 h-5 shrink-0 bg-black/40 rounded flex items-center justify-center p-0.5 border border-border overflow-hidden">
+                                                                <NextImage src={order.icon} alt={order.name} fill className="object-contain" unoptimized />
                                                             </div>
-                                                            <span className="truncate max-w-[140px]" title={order.name}>
+                                                            <span className="truncate" title={order.name}>
                                                                 {order.name.replace("Ordre de l'", "").replace("Ordre du ", "")}
                                                             </span>
                                                         </button>
@@ -698,49 +685,49 @@ export function AltPseudos({
                                             </div>
                                         </div>
                                     )}
-
                                 </div>
 
-                                {/* Form Submission Action Row */}
-                                <div className="flex gap-2 justify-end pt-2">
+                                {/* Form Submission Action */}
+                                <div className="flex justify-end pt-1">
                                     <Button
-                                        variant="sigil-emerald"
                                         onClick={handleAddOrUpdatePseudo}
                                         disabled={!newPseudo.trim()}
-                                        className="h-10 px-6 w-full sm:w-auto font-black uppercase tracking-widest text-caption"
+                                        className="h-9 px-4 text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 border border-accent/80 rounded-xl"
                                     >
                                         {editingMuleId ? (
                                             <>
-                                                <Check className="w-4 h-4 mr-2" /> Valider les Modifs
+                                                <Check className="w-3.5 h-3.5 mr-1.5" /> Mettre à jour
                                             </>
                                         ) : (
                                             <>
-                                                <Plus className="w-4 h-4 mr-2" /> Ajouter
+                                                <Plus className="w-3.5 h-3.5 mr-1.5" /> Ajouter à la liste
                                             </>
                                         )}
                                     </Button>
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-xs text-warning/90 flex items-center gap-2 bg-warning/10 p-3 rounded-lg border border-warning/20">
-                                <AlertCircle className="w-4 h-4" />
+                            <p className="text-xs text-warning flex items-center gap-2 bg-warning/10 p-2.5 rounded-lg border border-warning/20">
+                                <AlertCircle className="w-4 h-4 shrink-0" />
                                 Limite de {maxPseudos} personnages atteinte.
                             </p>
                         )}
 
-                        <div className="flex justify-end pt-4 mt-5 border-t border-border">
+                        <div className="flex justify-end pt-3 border-t border-border">
                             <Button
                                 onClick={handleSave}
                                 disabled={isSubmitting}
-                                variant="sigil"
-                                className="h-10 px-8 w-full sm:w-auto"
+                                className="h-9 px-5 text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 border border-accent/80 rounded-xl"
                             >
                                 {isSubmitting ? (
-                                    <Save className="w-4 h-4 mr-2 animate-spin" />
+                                    <>
+                                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Enregistrement...
+                                    </>
                                 ) : (
-                                    <Save className="w-4 h-4 mr-2" />
+                                    <>
+                                        <Save className="w-3.5 h-3.5 mr-1.5" /> Enregistrer les modifications
+                                    </>
                                 )}
-                                {isSubmitting ? "Enregistrement..." : "Enregistrer les Mules"}
                             </Button>
                         </div>
                     </div>

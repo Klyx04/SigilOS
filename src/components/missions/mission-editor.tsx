@@ -8,13 +8,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { createWeekMissions, resetMission, resetWeek, getWeekMissions, updateWeekTier, isWeekPublished } from "@/server/actions/mission-actions";
 import { getDofusConfig, updateGuildHallConfig } from "@/server/actions/admin-actions";
 import { toast } from "sonner";
-import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send, Swords, Sparkles, Home, ChevronDown, MapPin, X } from "lucide-react";
+import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send, Swords, Sparkles, Home, ChevronDown, MapPin, X, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@/lib/mission-config";
 import { getDofusWeek } from "@/lib/date-utils";
 import { useRouter } from "next/navigation";
 import { BonusMenuButton } from "@/components/admin/BonusMenuButton";
 import { MissionPublishFlowDialog } from "./mission-publish-flow-dialog";
+import { MissionOfficialSearch } from "./MissionOfficialSearch";
+import { MissionLivePreview } from "./MissionLivePreview";
+import { mapOfficialToDraftMission } from "@/lib/game-data/guild-missions-catalog";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
 import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import {
@@ -65,6 +68,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
     const [globalTier, setGlobalTier] = useState<number>(3);
     const [guildDefaultTier, setGuildDefaultTier] = useState<number>(3);
     const [editingSlot, setEditingSlot] = useState<number | null>(null);
+    const [editorMode, setEditorMode] = useState<'CATALOG' | 'CUSTOM'>('CATALOG');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
@@ -422,16 +426,30 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
                     <div className="w-px h-6 bg-surface mx-1" />
 
-                    <Button 
-                        onClick={() => setConfirmPublishOpen(true)} 
-                        variant="sigil" 
-                        className="h-9 px-6 shadow-lg shadow-indigo-500/20" 
-                        size="sm"
-                        disabled={isLoading}
-                    >
-                        <Save className="w-4 h-4 mr-2" />
-                        TOUT PUBLIER
-                    </Button>
+                    {(() => {
+                        const isPoolPublished = missionPool === 'CLASSIQUES' ? publishedState.classiques : publishedState.speciales;
+                        return (
+                            <Button 
+                                onClick={() => setConfirmPublishOpen(true)} 
+                                variant="sigil" 
+                                className="h-9 px-6 shadow-lg shadow-indigo-500/20 font-bold" 
+                                size="sm"
+                                disabled={isLoading}
+                            >
+                                {isPoolPublished ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                        METTRE À JOUR
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send className="w-4 h-4 mr-2" />
+                                        TOUT PUBLIER
+                                    </>
+                                )}
+                            </Button>
+                        );
+                    })()}
                 </div>
             </div>
 
@@ -572,6 +590,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 {poolMissions.map((mission) => {
                     const isEmpty = !mission.title;
                     const config = CATEGORY_CONFIG[mission.category] || CATEGORY_CONFIG.DONJON;
+                    const CategoryIcon = config.icon || Swords;
                     const borderColor = isEmpty ? "border-border" : config.borderColor;
                     const glowColor = isEmpty ? "rgba(255,255,255,0.1)" : config.glowColor;
                     const badgeStyle = isEmpty ? "" : `${config.color} ${config.borderColor} ${config.bgColor}`;
@@ -583,48 +602,56 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 const name = payload.dungeonName;
                                 const boss = payload.bossName;
                                 return name ? (
-                                    <span className="text-violet-300 font-medium">
-                                        {name}{boss ? <span className="text-muted-foreground font-normal"> · {boss}</span> : null}
+                                    <span className="text-violet-300 font-medium truncate">
+                                        🏰 {name}{boss && boss !== name ? <span className="text-muted-foreground font-normal"> · {boss}</span> : null}
                                     </span>
                                 ) : null;
                             }
                             case 'ANOMALIE': {
-                                const typeLabel = payload.type === 'BOSS' ? '🐉 Gardien' : payload.type === 'ZONE' ? '⚔️ Zone' : payload.type;
-                                const level = payload.levelRange ? `Niv. ${payload.levelRange}` : null;
-                                return <span className="text-fuchsia-300">{[typeLabel, level].filter(Boolean).join(' · ')}</span>;
+                                const typeLabel = payload.type === 'BOSS' ? '🐉 Gardien' : payload.type === 'ZONE' ? '⚔️ Zone' : (payload.type || 'Anomalie');
+                                const level = payload.levelRange ? `Niv. ${payload.levelRange}` : null;
+                                return <span className="text-fuchsia-300 font-medium truncate">⚡ {[typeLabel, level].filter(Boolean).join(' · ')}</span>;
                             }
                             case 'REGULATION': {
                                 const zone = payload.zoneName;
                                 const monster = payload.monsterName || payload.familyName;
-                                return <span className="text-warning">{[zone, monster].filter(Boolean).join(' · ')}</span>;
+                                const count = payload.targetCount ? `x${payload.targetCount}` : null;
+                                return <span className="text-warning font-medium truncate">⚔️ {[count, monster, zone].filter(Boolean).join(' · ')}</span>;
                             }
                             case 'SONGES': {
                                 const diff = payload.difficulty;
-                                const lvl = payload.level ? `Niv. ${payload.level}` : null;
-                                return <span className="text-info">{[diff, lvl].filter(Boolean).join(' ')}</span>;
+                                const lvl = payload.level ? `Niv. ${payload.level}` : null;
+                                return <span className="text-info font-medium truncate">🌙 {[diff, lvl].filter(Boolean).join(' ')}</span>;
                             }
                             case 'EXPEDITION': {
                                 const name = payload.dungeonName;
                                 const modeLabels: Record<string, string> = { bravoure: 'Bravoure', audace: 'Audace', aucun: 'Sans modif.' };
                                 const mode = payload.mode ? modeLabels[payload.mode] || payload.mode : null;
-                                return <span className="text-success">{[name, mode].filter(Boolean).join(' · ')}</span>;
+                                return <span className="text-success font-medium truncate">⏱️ {[name, mode].filter(Boolean).join(' · ')}</span>;
                             }
                             case 'EVENT': {
                                 if (payload.eventType === 'FRAGMENTS_ANOMALIE') {
                                     return <span className="text-fuchsia-300 font-medium">⚡ 20 Fragments d'anomalie</span>;
                                 }
-                                if (payload.eventType === 'OBJECTIF') {
-                                    return payload.description ? <span className="text-info truncate font-medium">📜 {payload.description}</span> : null;
+                                const desc = payload.description || payload.officialObjectiveText;
+                                if (desc) {
+                                    return <span className="text-warning truncate font-medium">📜 {desc}</span>;
                                 }
-                                return payload.description ? <span className="text-danger truncate">{payload.description}</span> : null;
+                                return null;
                             }
                             default: {
+                                const text = payload.officialObjectiveText || payload.description;
+                                if (text) return <span className="text-muted-foreground truncate">{text}</span>;
                                 const first = Object.values(payload).find(v => v && typeof v === 'string');
-                                return first ? <span className="text-muted-foreground">{String(first)}</span> : null;
+                                return first ? <span className="text-muted-foreground truncate">{String(first)}</span> : null;
                             }
                         }
                     };
                     const payloadPreview = mission.title ? getPayloadPreview(mission.category, mission.payload) : null;
+                    const imageUrl = mission.payload?.imageUrl 
+                        || (mission.payload?.monsterId ? `/uploads/assets-dofus/monsters/${mission.payload.monsterId}.webp` : null)
+                        || (mission.category === 'ANOMALIE' ? '/assets/missions/ano1.png' : null)
+                        || (mission.category === 'SONGES' ? '/assets/missions/songes.png' : null);
 
                     return (
                         <Card
@@ -638,7 +665,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             )}
                             style={{ "--glow-color": glowColor } as React.CSSProperties}
                         >
-                            <CardHeader className="p-4 flex flex-row items-center justify-between pb-2 space-y-0 relative z-10">
+                            <CardHeader className="p-3.5 flex flex-row items-center justify-between pb-2 space-y-0 relative z-10">
                                 <div className="flex items-center gap-2">
                                     <span className={cn(
                                         "text-caption font-black px-1.5 py-0.5 rounded transition-colors",
@@ -673,30 +700,62 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 </div>
                             </CardHeader>
 
-                            <CardContent className="p-4 pt-1 cursor-pointer flex-grow relative z-10" onClick={() => setEditingSlot(mission.slotIndex)}>
-                                <div className="h-full flex flex-col">
+                            <CardContent className="p-3.5 pt-1 cursor-pointer flex-grow relative z-10" onClick={() => setEditingSlot(mission.slotIndex)}>
+                                <div className="h-full flex flex-col justify-between gap-2.5">
                                     {isEmpty ? (
-                                        <div className="flex flex-col items-center justify-center h-20 gap-2.5">
-                                            <div className="w-10 h-10 rounded-xl bg-surface/50 border border-border flex items-center justify-center group- transition-transform duration-300 shadow-inner">
+                                        <div className="flex flex-col items-center justify-center py-6 gap-2">
+                                            <div className="w-10 h-10 rounded-xl bg-surface/50 border border-border flex items-center justify-center group-hover:scale-105 transition-transform duration-200 shadow-inner">
                                                 <Edit2 className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                                             </div>
-                                            <span className="text-caption font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">Configurer</span>
+                                            <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">Configurer</span>
                                         </div>
                                     ) : (
                                         <>
-                                            <h4 className="text-base font-bold text-foreground truncate leading-tight transition-all">
-                                                {mission.title}
-                                            </h4>
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 mb-2">
-                                                <Badge variant="secondary" className="text-caption h-5 px-1.5 bg-elevated hover:bg-muted text-foreground">
-                                                    Rang {mission.rank}
-                                                </Badge>
-                                                <span className="w-0.5 h-3 bg-elevated" />
-                                                <span className="text-info font-bold">{mission.xpReward} XP</span>
+                                            <div className="flex items-start gap-3">
+                                                {/* Asset Thumbnail */}
+                                                <div className={cn(
+                                                    "w-12 h-12 rounded-xl border shrink-0 overflow-hidden flex items-center justify-center relative bg-background/60 shadow-sm transition-transform duration-200 group-hover:scale-105",
+                                                    config.borderColor
+                                                )}>
+                                                    {imageUrl ? (
+                                                        <img
+                                                            src={imageUrl}
+                                                            alt={mission.title}
+                                                            className="w-full h-full object-cover"
+                                                            onError={(e) => {
+                                                                (e.target as HTMLElement).style.display = 'none';
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <div className={cn("w-full h-full flex items-center justify-center", config.bgColor)}>
+                                                            <CategoryIcon className={cn("w-6 h-6", config.color)} />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Title & Badges */}
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="text-sm font-bold text-foreground truncate leading-snug group-hover:text-primary transition-colors" title={mission.title}>
+                                                        {mission.title}
+                                                    </h4>
+                                                    <div className="flex items-center flex-wrap gap-1.5 mt-1">
+                                                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-bold font-mono border-border bg-background/50">
+                                                            R{mission.rank}
+                                                        </Badge>
+                                                        <span className="text-[11px] font-bold text-info">
+                                                            {mission.xpReward} XP
+                                                        </span>
+                                                        {mission.guildatonsReward > 0 && (
+                                                            <span className="text-[11px] font-bold text-warning">
+                                                                · {mission.guildatonsReward} 🪙
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             {payloadPreview && (
-                                                <div className="mt-auto flex items-center gap-1.5 text-caption px-2 py-1 bg-black/30 rounded border border-border group-hover:border-border transition-colors">
+                                                <div className="mt-auto flex items-center gap-1.5 text-[11px] px-2.5 py-1 bg-black/40 rounded-md border border-border/80 group-hover:border-border transition-colors truncate">
                                                     {payloadPreview}
                                                 </div>
                                             )}
@@ -711,168 +770,269 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
             {/* Editing Dialog */}
             <Dialog open={editingSlot !== null} onOpenChange={(open) => !open && setEditingSlot(null)}>
-                <DialogContent className="bg-surface border-border text-foreground sm:max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
-                    <DialogHeader className="shrink-0">
-                        <DialogTitle className="text-xl font-black flex items-center gap-2">
-                            {editingSlot !== null && editingSlot >= 12
-                                ? <><Sparkles className="w-4 h-4 text-warning" /> Éditer Slot Spécial #{editingSlot - 11}</>
-                                : <>Éditer Slot #{editingSlot !== null ? editingSlot + 1 : ''}</>}
-                        </DialogTitle>
+                <DialogContent className="bg-surface border-border text-foreground sm:max-w-4xl lg:max-w-5xl shadow-2xl max-h-[92vh] flex flex-col p-6 overflow-hidden">
+                    <DialogHeader className="shrink-0 pb-3 border-b border-border/60">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <DialogTitle className="text-xl font-black flex items-center gap-2">
+                                {editingSlot !== null && editingSlot >= 12
+                                    ? <><Sparkles className="w-5 h-5 text-warning" /> Éditer Slot Spécial #{editingSlot - 11}</>
+                                    : <>Éditer Slot #{editingSlot !== null ? editingSlot + 1 : ''}</>}
+                                {currentMission?.payload?.officialMissionId && (
+                                    <Badge variant="outline" className="text-caption py-0.5 px-2 border-warning/40 text-warning bg-warning/10 font-bold ml-2">
+                                        ⚡ Officiel Dofus (#{currentMission.payload.officialMissionId})
+                                    </Badge>
+                                )}
+                            </DialogTitle>
+
+                            {/* Bascule Mode Catalogue vs Personnalisé */}
+                            <div className="flex items-center gap-1 bg-background/80 p-1 rounded-xl border border-border shrink-0 self-start sm:self-auto">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditorMode('CATALOG')}
+                                    className={cn(
+                                        "px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5",
+                                        editorMode === 'CATALOG'
+                                            ? "bg-warning/20 border border-warning/40 text-warning shadow-sm font-black"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    <Sparkles className="w-3.5 h-3.5" /> Catalogue Officiel (468)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditorMode('CUSTOM')}
+                                    className={cn(
+                                        "px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5",
+                                        editorMode === 'CUSTOM'
+                                            ? "bg-muted text-foreground border border-border/80 font-black"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    <Edit2 className="w-3.5 h-3.5" /> Personnalisé
+                                </button>
+                            </div>
+                        </div>
                     </DialogHeader>
 
                     {currentMission && (
-                        <div className="overflow-y-auto pr-1 flex-1 py-2 space-y-4">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Catégorie</label>
-                                    {missionPool === 'SPECIALES' ? (
-                                        // Special pool: locked to EVENT
-                                        <div className="h-9 w-full rounded-md border border-warning/30 bg-warning/10 px-3 flex items-center gap-2 text-sm text-warning font-bold">
-                                            <Sparkles className="w-3.5 h-3.5" /> Événement
+                        <div className="flex-1 overflow-hidden py-3">
+                            {/* Grille 2 colonnes sans scrollbar parent qui bloque */}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-full items-start">
+                                {/* COLONNE GAUCHE (5 cols) : Paramètres clés + Live Preview */}
+                                <div className="lg:col-span-5 space-y-4 bg-background/40 p-4 rounded-2xl border border-border h-full flex flex-col justify-between overflow-y-auto max-h-[500px]">
+                                    <div className="space-y-3.5">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                                                Configuration du Slot
+                                            </h3>
+                                            <span className="text-[10px] text-muted-foreground font-mono">
+                                                Slot #{currentMission.slotIndex + 1}
+                                            </span>
+                                        </div>
+
+                                        {/* Catégorie */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Catégorie</label>
+                                            <select
+                                                className="h-9 w-full rounded-xl border border-border bg-background px-3 py-1 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/50 font-medium"
+                                                value={currentMission.category}
+                                                onChange={(e) => updateMission(currentMission.slotIndex, {
+                                                    category: e.target.value as MissionCategoryType,
+                                                    title: "",
+                                                    payload: {}
+                                                })}
+                                            >
+                                                {MISSION_CATEGORIES.map(c => (
+                                                    <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Rang (Difficulté 1 à 5) */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Rang (Difficulté)</label>
+                                            <div className="grid grid-cols-5 gap-1.5">
+                                                {[1, 2, 3, 4, 5].map(r => (
+                                                    <button
+                                                        key={r}
+                                                        type="button"
+                                                        onClick={() => updateMission(currentMission.slotIndex, { rank: r })}
+                                                        className={cn(
+                                                            "py-1.5 text-xs font-bold rounded-xl border transition-all text-center",
+                                                            currentMission.rank === r
+                                                                ? "bg-warning/20 border-warning text-warning shadow-sm"
+                                                                : "bg-background border-border text-muted-foreground hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        R{r}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* XP & Guildatons */}
+                                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[11px] font-black uppercase tracking-widest text-cyan-400">XP Guilde</label>
+                                                <input
+                                                    type="number"
+                                                    className="h-9 w-full rounded-xl border border-border bg-background px-3 py-1 text-xs text-foreground font-mono font-bold outline-none focus:ring-2 focus:ring-cyan-500/30"
+                                                    value={currentMission.xpReward}
+                                                    onChange={(e) => updateMission(currentMission.slotIndex, { xpReward: parseInt(e.target.value) || 0 })}
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[11px] font-black uppercase tracking-widest text-amber-400">Guildatons</label>
+                                                <input
+                                                    type="number"
+                                                    className="h-9 w-full rounded-xl border border-border bg-background px-3 py-1 text-xs text-foreground font-mono font-bold outline-none focus:ring-2 focus:ring-amber-500/30"
+                                                    value={currentMission.guildatonsReward}
+                                                    onChange={(e) => updateMission(currentMission.slotIndex, { guildatonsReward: parseInt(e.target.value) || 0 })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Aperçu en direct (Live Preview) */}
+                                    <div className="pt-3 border-t border-border/50">
+                                        <MissionLivePreview
+                                            category={currentMission.category}
+                                            rank={currentMission.rank}
+                                            title={currentMission.title}
+                                            xpReward={currentMission.xpReward}
+                                            guildatonsReward={currentMission.guildatonsReward}
+                                            payload={currentMission.payload}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* COLONNE DROITE (7 cols) : Soit Catalogue Inline, Soit Formulaire Personnalisé */}
+                                <div className="lg:col-span-7 bg-background/30 p-4 rounded-2xl border border-border h-full overflow-hidden flex flex-col justify-between">
+                                    {editorMode === 'CATALOG' ? (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                                    <Sparkles className="w-3.5 h-3.5 text-warning" />
+                                                    Sélectionner parmi les 468 missions officielles
+                                                </h3>
+                                                <span className="text-[10px] text-muted-foreground font-mono">
+                                                    Dofus Unity
+                                                </span>
+                                            </div>
+
+                                            {/* Navigateur de Catalogue INLINE */}
+                                            <MissionOfficialSearch
+                                                currentCategory={currentMission.category}
+                                                selectedMissionId={currentMission.payload?.officialMissionId}
+                                                onSelectMission={(official) => {
+                                                    const mapped = mapOfficialToDraftMission(official);
+                                                    updateMission(currentMission.slotIndex, mapped);
+                                                    toast.success(`Mission sélectionnée : ${official.title}`);
+                                                }}
+                                            />
                                         </div>
                                     ) : (
-                                        // Classic pool: all categories except EVENT
-                                        <select
-                                            className="h-9 w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/50"
-                                            value={currentMission.category}
-                                            onChange={(e) => updateMission(currentMission.slotIndex, {
-                                                category: e.target.value as MissionCategoryType,
-                                                title: "",
-                                                payload: {}
-                                            })}
-                                        >
-                                            {MISSION_CATEGORIES.filter(c => c !== 'EVENT').map(c => (
-                                                <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
-                                            ))}
-                                        </select>
+                                        <div className="space-y-4 overflow-y-auto max-h-[480px] pr-1">
+                                            <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                                <span>Configuration Manuelle</span>
+                                                <span className="text-[10px] text-muted-foreground font-normal">
+                                                    Créez votre objectif sur-mesure
+                                                </span>
+                                            </h3>
+
+                                            {currentMission.category === 'DONJON' && (
+                                                <DungeonForm
+                                                    payload={currentMission.payload}
+                                                    onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                                    onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                                    onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
+                                                />
+                                            )}
+                                            {currentMission.category === 'REGULATION' && (
+                                                <RegulationForm
+                                                    payload={currentMission.payload}
+                                                    onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                                    onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                                    onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
+                                                />
+                                            )}
+                                            {currentMission.category === 'ANOMALIE' && (
+                                                <AnomalieForm
+                                                    payload={currentMission.payload}
+                                                    onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                                    onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                                    onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
+                                                />
+                                            )}
+                                            {currentMission.category === 'SONGES' && (
+                                                <>
+                                                    <div className="flex items-center gap-2 mb-4 bg-elevated/30 rounded-xl p-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateMission(currentMission.slotIndex, { 
+                                                                payload: { difficulty: 'Paradoxe', level: 'I', tier: 2 },
+                                                                title: ''
+                                                            })}
+                                                            className={cn(
+                                                                "flex-1 py-2 rounded-lg text-caption font-black uppercase tracking-wider transition-all",
+                                                                !currentMission.payload?.epreuve
+                                                                    ? "bg-info/20 text-info border border-info/30"
+                                                                    : "text-muted-foreground hover:text-foreground"
+                                                            )}
+                                                        >
+                                                            Songes Classiques
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateMission(currentMission.slotIndex, { 
+                                                                payload: { epreuve: 'Fonsocac' },
+                                                                title: ''
+                                                            })}
+                                                            className={cn(
+                                                                "flex-1 py-2 rounded-lg text-caption font-black uppercase tracking-wider transition-all",
+                                                                currentMission.payload?.epreuve
+                                                                    ? "bg-info/20 text-info border border-info/30"
+                                                                    : "text-muted-foreground hover:text-foreground"
+                                                            )}
+                                                        >
+                                                            Épreuve Songe
+                                                        </button>
+                                                    </div>
+                                                    {currentMission.payload?.epreuve ? (
+                                                        <SongesEpreuveForm
+                                                            payload={currentMission.payload}
+                                                            onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                                            onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                                        />
+                                                    ) : (
+                                                        <SongesForm
+                                                            payload={currentMission.payload}
+                                                            onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                                            onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                                            onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
+                                                        />
+                                                    )}
+                                                </>
+                                            )}
+                                            {currentMission.category === 'EXPEDITION' && (
+                                                <ExpeditionForm
+                                                    payload={currentMission.payload}
+                                                    onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                                    onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                                    onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
+                                                />
+                                            )}
+                                            {currentMission.category === 'EVENT' && (
+                                                <EventForm
+                                                    payload={currentMission.payload}
+                                                    onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                                    onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                                    onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
+                                                />
+                                            )}
+                                        </div>
                                     )}
                                 </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Rang (Difficulté)</label>
-                                    <select
-                                        className="h-9 w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/50"
-                                        value={currentMission.rank}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { rank: parseInt(e.target.value) })}
-                                    >
-                                        {[1, 2, 3, 4, 5].map(r => (
-                                            <option key={r} value={r}>Rang {r}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">XP Guilde</label>
-                                    <input
-                                        type="number"
-                                        className="h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/50"
-                                        value={currentMission.xpReward}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { xpReward: parseInt(e.target.value) || 0 })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Guildatons</label>
-                                    <input
-                                        type="number"
-                                        className="h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/50"
-                                        value={currentMission.guildatonsReward}
-                                        onChange={(e) => updateMission(currentMission.slotIndex, { guildatonsReward: parseInt(e.target.value) || 0 })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="pt-3 border-t border-border">
-                                {currentMission.category === 'DONJON' && (
-                                    <DungeonForm
-                                        payload={currentMission.payload}
-                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
-                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
-                                    />
-                                )}
-                                {currentMission.category === 'REGULATION' && (
-                                    <RegulationForm
-                                        payload={currentMission.payload}
-                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
-                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
-                                    />
-                                )}
-                                {currentMission.category === 'ANOMALIE' && (
-                                    <AnomalieForm
-                                        payload={currentMission.payload}
-                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
-                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
-                                    />
-                                )}
-                                {currentMission.category === 'SONGES' && (
-                                    <>
-                                        <div className="flex items-center gap-2 mb-4 bg-elevated/30 rounded-xl p-1">
-                                            <button
-                                                type="button"
-                                                onClick={() => updateMission(currentMission.slotIndex, { 
-                                                    payload: { difficulty: 'Paradoxe', level: 'I', tier: 2 },
-                                                    title: ''
-                                                })}
-                                                className={cn(
-                                                    "flex-1 py-2 rounded-lg text-caption font-black uppercase tracking-wider transition-all",
-                                                    !currentMission.payload?.epreuve
-                                                        ? "bg-info/20 text-info border border-info/30"
-                                                        : "text-muted-foreground hover:text-foreground"
-                                                )}
-                                            >
-                                                Songes Classiques
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => updateMission(currentMission.slotIndex, { 
-                                                    payload: { epreuve: 'Fonsocac' },
-                                                    title: ''
-                                                })}
-                                                className={cn(
-                                                    "flex-1 py-2 rounded-lg text-caption font-black uppercase tracking-wider transition-all",
-                                                    currentMission.payload?.epreuve
-                                                        ? "bg-info/20 text-info border border-info/30"
-                                                        : "text-muted-foreground hover:text-foreground"
-                                                )}
-                                            >
-                                                Épreuve Songe
-                                            </button>
-                                        </div>
-                                        {currentMission.payload?.epreuve ? (
-                                            <SongesEpreuveForm
-                                                payload={currentMission.payload}
-                                                onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
-                                                onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                            />
-                                        ) : (
-                                            <SongesForm
-                                                payload={currentMission.payload}
-                                                onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
-                                                onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                                onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
-                                            />
-                                        )}
-                                    </>
-                                )}
-                                {currentMission.category === 'EXPEDITION' && (
-                                    <ExpeditionForm
-                                        payload={currentMission.payload}
-                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
-                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
-                                    />
-                                )}
-                                {currentMission.category === 'EVENT' && (
-                                    <EventForm
-                                        payload={currentMission.payload}
-                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
-                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                    />
-                                )}
                             </div>
                         </div>
                     )}
@@ -896,7 +1056,6 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             Enregistrer
                         </Button>
                     </DialogFooter>
-
                 </DialogContent>
             </Dialog>
 

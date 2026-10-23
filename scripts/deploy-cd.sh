@@ -147,6 +147,11 @@ EXEMPLES
   ./scripts/deploy-cd.sh beta                  # déploie latest en bêta
   ./scripts/deploy-cd.sh prod 3f2a9c1          # déploie le SHA 3f2a9c1 en prod
 
+SHA7 (⚠️ sept caractères, pas huit)
+  SHA=$(git rev-parse --short=7 origin/dev)    # prod : origin/main
+  `git rev-parse --short` rend 8 caractères dans ce dépôt (git allonge le SHA
+  court quand le dépôt grossit) ; la CI, elle, publie les 7 premiers.
+
 PRÉREQUIS (à définir une fois)
   export GHCR_TOKEN=...                # token GHCR (read:packages)
   export GHCR_TOKEN_EXPIRY=AAAA-MM-JJ  # pour l'avertissement d'expiration
@@ -177,6 +182,26 @@ show_token_expiry() {
     else
         ok "GHCR_TOKEN valide ($DAYS jours restants)."
     fi
+}
+
+# -----------------------------------------------------------------------------
+# Garde : un tag GHCR fait SEPT caractères
+# -----------------------------------------------------------------------------
+# 📏 Mesure du 23/10/2026 : `list beta 689667a0` répondait « tag absent : la CI ne
+# l'a pas publié » alors que le build du commit était vert — la CI avait publié
+# `689667a` (`SHA_SHORT=${SHA:0:7}`). `git rev-parse --short` rend ici 8 caractères
+# (git allonge le SHA court quand le dépôt grossit) ⇒ l'opérateur cherchait une
+# panne GitHub inexistante. Le refus a lieu AVANT le token et le registre.
+require_sha7() {
+    local sha="$1"
+    [[ -z "$sha" || "$sha" == "latest" ]] && return 0
+    [[ "$sha" =~ ^[0-9a-f]{7}$ ]] && return 0
+    err "SHA « ${sha} » : ${#sha} caractère(s) — un tag GHCR en fait 7."
+    dim '  La CI publie les 7 premiers caractères (SHA_SHORT=${SHA:0:7}) : un SHA de'
+    dim "  8 caractères n'existe pas côté registre, même si le build est vert."
+    dim "  Corrige  : SHA=\$(git rev-parse --short=7 origin/dev)   # prod : origin/main"
+    dim "  Vérifie  : ./scripts/deploy-cd.sh list <beta|prod> \"\$SHA\""
+    fail "Rien n'a été touché (ni token, ni image, ni conteneur)."
 }
 
 # -----------------------------------------------------------------------------
@@ -256,6 +281,9 @@ list_handler() {
         err "Usage : ./scripts/deploy-cd.sh list {beta|prod} [sha7]"
         exit 1
     fi
+    # Longueur du SHA d'abord : sans token, on peut donc le mesurer (et le message
+    # ne peut plus accuser la CI d'un tag qu'elle a publié).
+    require_sha7 "$sha"
     [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
     banner "Versions disponibles — $target ($GHCR_REG)"
     horiz
@@ -294,6 +322,7 @@ list_handler() {
         horiz
         if [[ "$MISSING" == "1" ]]; then
             err "Tag $sha incomplet : la CI ne l'a pas publié (onglet Actions → Build & Push)."
+            dim "  Rappel : la CI tague 7 caractères — git rev-parse --short=7 origin/dev"
         else
             ok "Tag $sha publié sur les 4 images — déployable et rollback-able."
         fi
@@ -830,9 +859,13 @@ seo_check() {
 deploy() {
     local TARGET="$1"
     local SHA="${2:-latest}"
+    # Longueur du SHA AVANT tout : le refus ne dépend ni du token ni du registre.
+    require_sha7 "$SHA"
     [ -n "${GHCR_TOKEN:-}" ] || fail "GHCR_TOKEN non défini. Exportez : export GHCR_TOKEN=<token read:packages>"
     local ENV_FILE=".env.prod"; [[ "$TARGET" == "beta" ]] && ENV_FILE=".env.beta"
-    local GIT_SHORT; GIT_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+    # --short=7 : la même longueur que les tags publiés par la CI, pour que le SHA
+    # affiché soit déployable tel quel (rollback / re-deploy pinné).
+    local GIT_SHORT; GIT_SHORT="$(git rev-parse --short=7 HEAD 2>/dev/null || echo '?')"
     # prod se sert sur le domaine apex : `prod.sigilos.fr` n'existe pas (NXDOMAIN) et une
     # sonde sur un hôte inexistant rendait les contrôles post-déploiement menteurs (000 sur
     # `/`, `robots.txt` et `sitemap.xml`) alors que le site répondait 200 (mesure du 22/10/2026).

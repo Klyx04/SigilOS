@@ -27,7 +27,21 @@ que les télécharger. **Aucun build sur le serveur.**
 cd ~/SigilOS
 ./scripts/deploy-cd.sh list beta     # versions publiées sur GHCR
 ./scripts/deploy-cd.sh beta          # déploie `latest`
-./scripts/deploy-cd.sh beta <sha>    # déploie un commit précis (rollback propre)
+./scripts/deploy-cd.sh beta <sha7>   # déploie un commit précis (rollback propre)
+```
+
+⚠️ **`<sha7>` = 7 caractères, pas 8.** La CI tague `${SHA:0:7}` ; or
+`git rev-parse --short` rend **8** caractères dans ce dépôt (git allonge le SHA
+court quand le dépôt grossit). Un SHA de 8 caractères n'existe pas côté registre
+et, avant le 23/10/2026, le script répondait alors « la CI ne l'a pas publié » —
+un faux diagnostic. Le script refuse maintenant la mauvaise longueur avant tout
+accès registre. Règle : `--short=7` toujours, `origin/dev` pour la bêta,
+`origin/main` pour la prod (les images `-prod` ne sont construites que sur `main`).
+
+```bash
+SHA=$(git rev-parse --short=7 origin/dev)   # prod : origin/main
+./scripts/deploy-cd.sh list beta "$SHA"     # ✓ publié ? (lecture seule)
+./scripts/deploy-cd.sh beta "$SHA"
 ```
 
 Le script fait, dans l'ordre : `git fetch` → `git pull --autostash` → `prisma migrate
@@ -268,6 +282,7 @@ imprime la cause probable. Il ne modifie rien.
 | ⚠️ « Des fichiers suivis modifiés hors des classes connues » à **chaque** déploiement, **toujours les mêmes** | fichier **binaire** suivi modifié côté serveur : `--autostash` ne peut **pas** le résorber | géré par `git_fetch` (classes `GENERATED`/`REPO_OWNED` restaurées **avant** le pull) — voir § L'arbre de travail du serveur |
 | `git stash push` répond « No local changes to save » **puis** le merge refuse | bits `assume-unchanged` / `skip-worktree` → git aveugle | `git update-index --no-assume-unchanged --no-skip-worktree -- <fichier>` (voir juste au-dessus) |
 | Le deploy s'arrête à l'étape **1.5 « Vérification du tag »** | le tag n'a jamais été publié par la CI | regarder **Build & Push** dans Actions, relancer après le vert |
+| `✗ tag absent` alors que **Build & Push** est **vert** | SHA passé sur **8** caractères : `git rev-parse --short` rend 8 dans ce dépôt, la CI tague `${SHA:0:7}` (mesure du 23/10/2026) | `SHA=$(git rev-parse --short=7 origin/dev)` — le script refuse désormais toute autre longueur, avant tout accès registre |
 | `no space left on device` pendant le pull | disque plein | `sudo docker system prune -af --volumes` |
 | `denied` / `unauthorized` / `403` | token GHCR expiré | rafraîchir le secret `GHCR_TOKEN` puis re-relancer **Build & Push** |
 | `manifest unknown` / `not found` | tag jamais publié (CI rouge) | attendre/relancer **Build & Push**, vérifier le nom du tag |

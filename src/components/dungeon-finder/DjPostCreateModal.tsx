@@ -16,6 +16,7 @@ import {
     Users, CheckCircle2, X, ChevronsUpDown, Check, ChevronRight, ScrollText, Hash, AlertTriangle, Layers
 } from "lucide-react";
 import { createDjPost, createDjPosts } from "@/server/actions/dungeon-finder-actions";
+import { CreatorClassSelector } from "@/components/shared/creator-class-selector";
 import { DjMultiDungeonModal, type MultiDungeonSelection } from "./DjMultiDungeonModal";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { AchievementIcon } from "@/components/ui/achievement-icon";
@@ -78,7 +79,7 @@ interface Dungeon {
     achievements: {
         id: string;
         points: number;
-        challenge: { id: string; name: string; iconUrl?: string | null };
+        challenge: { id: string; name: string; iconUrl?: string | null; slug?: string | null };
     }[];
 }
 
@@ -185,6 +186,9 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
     const [message, setMessage] = useState("");
     const [targetDate, setTargetDate] = useState("");
     const [requiredClasses, setRequiredClasses] = useState<string[]>([]);
+    // Classe du CRÉATEUR (main ou mule) : le sélecteur partagé charge le roster et
+    // pré-sélectionne le personnage principal. Ce n'est PAS « les classes recherchées ».
+    const [creatorClass, setCreatorClass] = useState<string | null>(null);
     const [isDiscordPublished, setIsDiscordPublished] = useState(false);
     const [mentionRoleIds, setMentionRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
@@ -488,6 +492,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                 })),
                 maxMembers,
                 requiredClasses,
+                creatorClass: creatorClass ?? undefined,
                 isDiscordPublished,
                 mentionRoleIds,
             };
@@ -545,6 +550,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
             message: message ? message : null,
             targetDate: targetDate ? new Date(targetDate) : null,
             requiredClasses,
+            creatorClass: creatorClass ?? undefined,
             isDiscordPublished,
             mentionRoleIds,
         };
@@ -1016,7 +1022,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                             }`}
                                                     >
                                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${selected ? "bg-warning/20 border-warning/20" : "bg-background border-border"}`}>
-                                                            <AchievementIcon iconUrl={a.challenge.iconUrl} size={20} />
+                                                            <AchievementIcon iconUrl={a.challenge.iconUrl} slug={a.challenge.slug ?? null} size={20} />
                                                         </div>
                                                         <span className="flex-1 text-left truncate">{a.challenge.name}</span>
                                                         {selected && <CheckCircle2 className="w-3.5 h-3.5 text-warning" />}
@@ -1137,6 +1143,16 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Ma classe (créateur) — indépendante des classes recherchées */}
+                                <CreatorClassSelector
+                                    guildId={guildId}
+                                    value={creatorClass}
+                                    onChange={setCreatorClass}
+                                    label="Ma classe pour ce groupe"
+                                    description="Ton personnage principal et tes mules du profil SigilOS. Une classe que tu ne possèdes pas ne peut pas être choisie."
+                                />
+
 
                                 {/* Classes Requises */}
                                 <div className="space-y-3">

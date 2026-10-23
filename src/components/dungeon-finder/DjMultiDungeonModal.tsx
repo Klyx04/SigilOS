@@ -20,7 +20,7 @@ type Dungeon = {
     achievements: {
         id: string;
         points: number;
-        challenge: { id: string; name: string; iconUrl?: string | null };
+        challenge: { id: string; name: string; iconUrl?: string | null; slug?: string | null };
     }[];
 };
 
@@ -252,7 +252,7 @@ export function DjMultiDungeonModal({ isOpen, onClose, initial, onConfirm }: DjM
                                                                             : "bg-surface border-border text-muted-foreground hover:border-border-strong"
                                                                     }`}
                                                                 >
-                                                                    <AchievementIcon iconUrl={a.challenge.iconUrl} size={14} className="rounded" />
+                                                                    <AchievementIcon iconUrl={a.challenge.iconUrl} slug={a.challenge.slug ?? null} size={14} className="rounded" />
                                                                     {a.challenge.name}
                                                                 </button>
                                                             );

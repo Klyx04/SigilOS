@@ -121,8 +121,15 @@ describe("chaîne serveur → galerie (verrous de source)", () => {
         expect(gallery).toContain("canPersistVariant={currentProfileId === build.author.id}");
     });
 
+    it("le toggle d'affichage est dans le VOILE de la carte (visible pour tout le monde)", () => {
+        // Le voile `z-10` recouvre la carte : un badge interne restait invisible en galerie.
+        expect(gallery).toContain("toggleVariantView(build.id)");
+        expect(gallery).toContain("aria-pressed={variantViews.has(build.id)}");
+        expect(gallery).toContain('variantView={variantViews.has(build.id) ? "variant" : "base"}');
+    });
+
     it("la bascule Stuff ⇄ Variante existe dans la miniature ET la modale", () => {
-        expect(preview).toContain("aria-pressed={showVariant}");
+        expect(preview).toContain("aria-pressed={variantShown}");
         expect(preview).toContain("applyVariantsToBuild(data, variants)");
         expect(preview).toContain("saveBuildVariant(guildId, variantBuildId, variants)");
         expect(preview).toContain("Stuff");

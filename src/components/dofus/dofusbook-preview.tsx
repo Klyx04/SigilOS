@@ -157,12 +157,15 @@ const SLOT_LABELS: Record<string, string> = {
  * ni l'id Ankama, qui produisaient des icônes d'autres items (voir `dofusbookItemIconId`).
  */
 function ItemIcon({ item, size = 44, className }: { item: DofusbookItem; size?: number; className?: string }) {
+    // Priorité à l'asset **local** porté par l'objet (variantes du catalogue) : Dofusbook n'expose
+    // pas d'`iconId` pour ces objets, et l'id Ankama tombait sur l'icône d'un autre item.
+    const localIcon = typeof item.iconUrl === "string" && item.iconUrl.startsWith("/") ? item.iconUrl : null;
     const iconId = dofusbookItemIconId(item);
-    if (!iconId) return null;
+    if (!localIcon && !iconId) return null;
     return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-            src={dofusbookItemIconUrl(iconId)}
+            src={localIcon ?? dofusbookItemIconUrl(iconId as number)}
             alt={item.name}
             width={size}
             height={size}

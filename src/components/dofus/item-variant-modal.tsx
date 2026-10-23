@@ -95,10 +95,13 @@ export function ItemVariantModal({
         const dofusbookItem: DofusbookItem = {
             id: item.ankamaId,
             name: item.name,
+            // `picture` est un **iconId DofusDB** : y mettre l'id Ankama affichait l'icône d'un
+            // autre objet dans le build. On transporte donc l'asset **local** du catalogue.
             picture: item.ankamaId,
             official: item.ankamaId,
             level: item.level,
             typeName: item.typeName,
+            ...(item.iconUrl ? { iconUrl: item.iconUrl } : {}),
             effects: item.stats.map((s) => ({
                 code: s.code,
                 min: s.min,

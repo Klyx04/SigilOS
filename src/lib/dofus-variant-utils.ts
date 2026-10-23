@@ -439,6 +439,19 @@ const SAVED_VARIANT_MAX_NAME = 120;
 const SAVED_VARIANT_MAX_STAT = 1_000_000;
 
 /**
+ * Icône **locale** acceptée pour un objet variante : chemin relatif servi par l'application
+ * (`/uploads/…`, `/assets/…`, `/api/assets-dofus/…`). Toute URL externe est refusée
+ * (pas de hotlink, pas d'`http`, pas de `//host`).
+ */
+export function safeVariantIconUrl(raw: unknown): string | undefined {
+    if (typeof raw !== "string") return undefined;
+    const value = raw.trim().slice(0, 200);
+    if (!value.startsWith("/") || value.startsWith("//")) return undefined;
+    if (!/^\/(uploads|assets|api\/assets-dofus)\//.test(value)) return undefined;
+    return value;
+}
+
+/**
  * Variante proposée par le joueur, **stockée dans `dofusBookLinks[].variants`** (JSON, aucune
  * migration) : une entrée par slot, au format `DofusbookItem` (le même que `applyVariantsToBuild`).
  *
@@ -497,6 +510,7 @@ export function normalizeSavedVariants(raw: unknown): SavedVariant {
             level: Math.max(1, Math.min(200, boundedInt(item.level, 1))),
             typeName: typeof item.typeName === "string" ? item.typeName.trim().slice(0, 40) : slotInfo.slotName,
             effects,
+            ...(safeVariantIconUrl(item.iconUrl) ? { iconUrl: safeVariantIconUrl(item.iconUrl) } : {}),
         };
         slots += 1;
     }

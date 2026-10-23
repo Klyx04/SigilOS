@@ -15,6 +15,7 @@ import {
     normalizeSavedVariants,
     hasSavedVariant,
     sameSavedVariant,
+    safeVariantIconUrl,
     SAVED_VARIANT_MAX_SLOTS,
 } from "@/lib/dofus-variant-utils";
 import type { DofusbookItem } from "@/lib/dofusbook-utils";
@@ -95,6 +96,40 @@ describe("comparaison de variantes", () => {
         expect(sameSavedVariant({ d1: item(1) }, {})).toBe(false);
     });
 });
+
+describe("icône d'un objet variante", () => {
+    it("accepte un asset local et refuse toute URL externe", () => {
+        expect(safeVariantIconUrl("/uploads/assets-dofus/items/22013.webp")).toBe("/uploads/assets-dofus/items/22013.webp");
+        expect(safeVariantIconUrl("/api/assets-dofus/item/22013?icon=1")).toBe("/api/assets-dofus/item/22013?icon=1");
+        expect(safeVariantIconUrl("https://static.dofusbook.net/x.png")).toBeUndefined();
+        expect(safeVariantIconUrl("//evil.example/x.png")).toBeUndefined();
+        expect(safeVariantIconUrl("javascript:alert(1)")).toBeUndefined();
+        expect(safeVariantIconUrl(null)).toBeUndefined();
+    });
+
+    it("la variante normalisée conserve l'icône locale (et rien d'autre)", () => {
+        const kept = normalizeSavedVariants({ d1: { ...item(22013), iconUrl: "/uploads/assets-dofus/items/22013.webp" } });
+        expect(kept.d1.iconUrl).toBe("/uploads/assets-dofus/items/22013.webp");
+
+        const dropped = normalizeSavedVariants({ d1: { ...item(22013), iconUrl: "https://evil.example/x.png" } });
+        expect(dropped.d1.iconUrl).toBeUndefined();
+    });
+
+    it("l'affichage du build préfère l'asset local à l'iconId Dofusbook", () => {
+        // Sans ça, `picture` (id Ankama) tombait sur l'icône d'un AUTRE objet.
+        expect(previewSource()).toContain('const localIcon = typeof item.iconUrl === "string" && item.iconUrl.startsWith("/")');
+        expect(previewSource()).toContain("src={localIcon ?? dofusbookItemIconUrl(iconId as number)}");
+        expect(selfSource()).toContain("...(item.iconUrl ? { iconUrl: item.iconUrl } : {})");
+    });
+});
+
+function previewSource(): string {
+    return read("src/components/dofus/dofusbook-preview.tsx");
+}
+
+function selfSource(): string {
+    return read("src/components/dofus/item-variant-modal.tsx");
+}
 
 describe("chaîne serveur → galerie (verrous de source)", () => {
     const actions = read("src/server/actions/gallery-actions.ts");

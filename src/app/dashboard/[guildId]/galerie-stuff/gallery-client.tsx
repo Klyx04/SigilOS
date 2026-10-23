@@ -594,7 +594,7 @@ export function GalleryClient({
                         stuffBuilds.map((build) => (
                             <div key={build.id} className="group/card flex flex-col gap-3">
                                 <div className="relative">
-                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} />
+                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} savedVariants={build.variants} variantBuildId={build.id} canPersistVariant={currentProfileId === build.author.id} />
                                     
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent transition-all duration-300 rounded-[2.5rem] flex flex-col justify-end p-4 z-10 pointer-events-none opacity-90 group-hover/card:opacity-100">
                                         <div className="flex items-center justify-end gap-1.5 backdrop-blur-md bg-black/40 p-1.5 rounded-2xl border border-white/10 w-fit ml-auto shadow-lg">

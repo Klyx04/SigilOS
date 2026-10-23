@@ -6,6 +6,8 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { canonicalClassId, getClassName, isUsableDofusbookRawPayload, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { hasSavedVariant, normalizeSavedVariants, type SavedVariant } from "@/lib/dofus-variant-utils";
+import { z } from "zod";
 import { rateLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
 import { getGameDisplayName } from "@/lib/display-name";
@@ -51,6 +53,11 @@ export type GalleryBuild = {
     tags?: string[];
     classId?: string | number; // stored as string ("cra", "roublard") or number from legacy data
     previewData?: any; // Cached build info
+    /**
+     * Variante **proposée par le joueur** (JSON `dofusBookLinks[].variants`, assainie).
+     * Le build Dofusbook d'origine reste intact : la variante s'applique à l'affichage.
+     */
+    variants?: SavedVariant;
     source?: "dofusbook";
     author: {
         id: string;
@@ -198,6 +205,9 @@ export async function getStuffGalleryPage(
                         profile.classe
                     ) || undefined;
 
+                    // Variante proposée par le joueur (assainie : entrée non fiable).
+                    const savedVariant = normalizeSavedVariants(link.variants);
+
                     allBuilds.push({
                         id: buildId,
                         name: link.name,
@@ -209,6 +219,7 @@ export async function getStuffGalleryPage(
                             ...link.previewData,
                             thumbnail
                         },
+                        ...(hasSavedVariant(savedVariant) ? { variants: savedVariant } : {}),
                         author: {
                             id: profile.id,
                             name: getGameDisplayName(profile),
@@ -437,6 +448,84 @@ export async function storeClientDofusbookPreview(
     } catch (error) {
         logger.error("[Dofusbook] Client bake storage error:", { error });
         return { success: false, error: "Erreur serveur lors de l'enregistrement" };
+    }
+}
+
+/**
+ * Enregistre la **variante proposée par le joueur** sur un de ses builds.
+ *
+ * Pourquoi (demande user du 23/10/2026) : la variante (trophée/dofus/objet remplacé) doit être
+ * **visible dans la galerie** par les autres membres, sans toucher au stuff Dofusbook d'origine.
+ *
+ * Persistance : `UserProfile.dofusBookLinks[].variants` (JSON) — **aucune migration**, et tous les
+ * chemins de rafraîchissement Dofusbook font `{ ...link, previewData }`, donc la variante survit.
+ *
+ * Gardes : `getUserContext` (auth + membre), build **du profil courant** (isolation de la cible),
+ * rate limit Redis, assainissement borné (`normalizeSavedVariants`).
+ */
+const SaveBuildVariantSchema = z.object({
+    guildId: z.string().min(1).max(32),
+    buildId: z.string().min(1).max(80),
+    variants: z.unknown(),
+});
+
+export async function saveBuildVariant(
+    rawGuildId: string,
+    rawBuildId: string,
+    rawVariants: unknown,
+): Promise<ActionResponse<{ variants: SavedVariant }>> {
+    const parsed = SaveBuildVariantSchema.safeParse({
+        guildId: rawGuildId,
+        buildId: rawBuildId,
+        variants: rawVariants,
+    });
+    if (!parsed.success) return { success: false, error: "Données invalides" };
+    const { guildId, buildId } = parsed.data;
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.isMember || !user.profileId) {
+        return { success: false, error: "Non autorisé" };
+    }
+
+    const limited = await rateLimit(`gallery-variant:${user.profileId}`, 30, 60_000);
+    if (!limited.success) return { success: false, error: "Trop d'enregistrements — réessaie dans une minute." };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findFirst({
+            where: { id: user.profileId, guildId: guildConfig.id },
+            select: { id: true, dofusBookLinks: true },
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        const links = ((profile.dofusBookLinks as any[]) || []);
+        const index = links.findIndex((link) => link?.id === buildId);
+        if (index < 0) return { success: false, error: "Build introuvable" };
+
+        const variants = normalizeSavedVariants(parsed.data.variants);
+        const now = new Date().toISOString();
+        const updatedLinks = links.map((link, i) =>
+            i === index ? { ...link, variants, updatedAt: now } : link,
+        );
+
+        await db.userProfile.update({
+            where: { id: profile.id },
+            data: { dofusBookLinks: updatedLinks as any },
+        });
+
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath(`/dashboard/${guildId}/galerie-stuff`);
+        revalidatePath(`/dashboard/${guildId}/profile`);
+
+        return { success: true, data: { variants } };
+    } catch (error) {
+        logger.error("[saveBuildVariant] Erreur", { error });
+        return { success: false, error: "Impossible d'enregistrer la variante" };
     }
 }
 

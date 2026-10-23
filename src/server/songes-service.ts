@@ -7,6 +7,8 @@ import { loadEmojiResolver } from "@/server/discord-app-emojis";
 import { getEpreuve, OBJECTIVES, type ObjectiveKey } from "@/lib/songes/types";
 import { resolveSongesForumTag, songesLevelTagName } from "@/lib/songes/forum-tags";
 import { logger } from "@/lib/logger";
+import { resolveOwnedClass } from "@/lib/user-character-classes";
+import { loadClassProfileByUserId } from "@/server/character-class-profile";
 
 // ============================================
 // CONSTANTS
@@ -669,12 +671,46 @@ export async function updateRunCandidateClass(
         if (run.status !== "RECRUITING" && run.status !== "IN_PROGRESS") {
             return { success: false, error: "Cette run n'accepte plus de candidatures" };
         }
-        if (run.leaderId === userId) {
-            return { success: false, error: "Tu es le leader de cette run !" };
-        }
+        // Classe choisie : validée contre le roster du clic (main + mules) — vaut pour le
+        // meneur comme pour un candidat. Fail-closed : jamais une classe non possédée.
+        const ownedClass = resolveOwnedClass(
+            classe,
+            await loadClassProfileByUserId(userId, guildId)
+        );
+        if (!ownedClass.success) return { success: false, error: ownedClass.error };
+        if (!ownedClass.classe) return { success: false, error: "Classe inconnue" };
 
-        const cleanClasse = classe.trim().slice(0, 30);
+        const cleanClasse = ownedClass.classe;
         const isMember = run.members.some((m) => m.userId === userId);
+
+        // ── Le MENEUR change SA classe : elle vit dans SA demande ACCEPTED (la source que
+        //    lit l'embed). Avant, le menu lui répondait « Tu es le leader de cette run ! »
+        //    alors qu'il lui était proposé dans l'embed.
+        if (run.leaderId === userId) {
+            const leaderRequest = await db.dreamJoinRequest.findFirst({
+                where: { runId: run.id, userId, status: "ACCEPTED" },
+                orderBy: { createdAt: "desc" },
+                select: { id: true },
+            });
+            if (leaderRequest) {
+                await db.dreamJoinRequest.update({
+                    where: { id: leaderRequest.id },
+                    data: { classe: cleanClasse },
+                });
+            } else {
+                await db.dreamJoinRequest.create({
+                    data: {
+                        runId: run.id,
+                        userId,
+                        classe: cleanClasse,
+                        status: "ACCEPTED",
+                        message: "Meneur de la run",
+                    },
+                });
+            }
+            await updateDiscordRunEmbed(guildId, runId).catch(() => { });
+            return { success: true, updated: true };
+        }
 
         const latestRequest = await db.dreamJoinRequest.findFirst({
             where: { runId: run.id, userId },

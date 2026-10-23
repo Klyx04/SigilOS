@@ -528,9 +528,16 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                 </DialogContent>
             </Dialog>
 
+            {/* Classe ACTUELLE du meneur (demande ACCEPTED, la source qu'affiche l'embed) :
+                sans elle, le sélecteur repartirait sur la classe principale et l'édition
+                changerait silencieusement la classe de la run. */}
             <RunEditModal
                 isOpen={editModalOpen}
                 onClose={() => setEditModalOpen(false)}
+                initialLeaderClass={
+                    run.joinRequests?.find(r => r.userId === run.leaderId && r.status === "ACCEPTED")?.classe ?? null
+                }
+
                 guildId={guildId}
                 run={run}
                 onUpdated={() => { router.refresh(); onRefresh?.(); }}

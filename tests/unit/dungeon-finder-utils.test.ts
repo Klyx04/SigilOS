@@ -11,6 +11,13 @@
 import { describe, it, expect } from "vitest";
 
 import {
+    getDjCreatorClass,
+    withDjCreatorClass,
+    isDjDungeonClosed,
+    openDjDungeonIndexes,
+    areAllDjDungeonsClosed,
+    withDjDungeonsClosed,
+    withDjDungeonReminder,
     getMultiDungeons,
     getDjPostTitle,
     getDjPostSubtitle,
@@ -561,4 +568,104 @@ describe("mergeMultiDungeonRequiredClasses", () => {
         expect(mergeMultiDungeonRequiredClasses(null, [["Iop"]])).toBeNull();
     });
 });
+
+
+describe("classe du créateur — enveloppe `dungeonsJson._creatorClass`", () => {
+    it("lit la classe choisie, seule ou à côté des donjons multi", () => {
+        expect(getDjCreatorClass({ _creatorClass: "Cra" })).toBe("Cra");
+        expect(getDjCreatorClass({ _items: [{ dungeonId: "1" }], _creatorClass: "Eniripsa" })).toBe("Eniripsa");
+    });
+
+    it("n'invente rien quand la clé est absente, vide ou d'un autre type", () => {
+        expect(getDjCreatorClass(null)).toBeNull();
+        expect(getDjCreatorClass(undefined)).toBeNull();
+        expect(getDjCreatorClass([{ dungeonId: "1" }])).toBeNull();
+        expect(getDjCreatorClass({ _creatorClass: "   " })).toBeNull();
+        expect(getDjCreatorClass({ _creatorClass: 42 })).toBeNull();
+    });
+
+    it("écrit la classe SANS perdre l'enveloppe (donjons, messages, rappels H-1)", () => {
+        const before = {
+            _items: [{ dungeonId: "1" }],
+            _messageIds: ["m1"],
+            _h1ReminderSentAt: "2026-10-01T10:00:00.000Z",
+        };
+        const after = withDjCreatorClass(before, "Iop");
+        expect(after).toEqual({ ...before, _creatorClass: "Iop" });
+        expect(getDjCreatorClass(after)).toBe("Iop");
+    });
+
+    it("retire la clé sur `null` et n'écrit jamais une enveloppe creuse", () => {
+        expect(withDjCreatorClass({ _items: [{ dungeonId: "1" }], _creatorClass: "Cra" }, null))
+            .toEqual({ _items: [{ dungeonId: "1" }] });
+        expect(withDjCreatorClass({ _creatorClass: "Cra" }, null)).toBeNull();
+        expect(withDjCreatorClass(null, "Cra")).toEqual({ _creatorClass: "Cra" });
+        expect(withDjCreatorClass(null, null)).toBeNull();
+    });
+
+    it("convertit un tableau en enveloppe, toujours lisible par `getMultiDungeons`", () => {
+        const after = withDjCreatorClass([{ dungeonId: "1" }], "Cra");
+        expect(getMultiDungeons(after)).toEqual([{ dungeonId: "1" }]);
+        expect(getDjCreatorClass(after)).toBe("Cra");
+    });
+});
+
+describe("clôture unitaire d'un donjon (post multi)", () => {
+    const envelope = {
+        _items: [{ dungeonId: "d1" }, { dungeonId: "d2" }, { dungeonId: "d3" }],
+        _messageIds: ["m1", "m2", "m3"],
+        _creatorClass: "Cra",
+    };
+
+    it("marque UN donjon sans toucher les autres ni l'enveloppe", () => {
+        const next = withDjDungeonsClosed(envelope, [1], "2026-10-23T12:00:00.000Z");
+        const items = getMultiDungeons(next);
+        expect(isDjDungeonClosed(items[1])).toBe(true);
+        expect(isDjDungeonClosed(items[0])).toBe(false);
+        expect(isDjDungeonClosed(items[2])).toBe(false);
+        // Les autres clés de l'enveloppe survivent (messages Discord, classe du créateur).
+        expect(next?._messageIds).toEqual(["m1", "m2", "m3"]);
+        expect(next?._creatorClass).toBe("Cra");
+        expect(openDjDungeonIndexes(next)).toEqual([0, 2]);
+        expect(areAllDjDungeonsClosed(next)).toBe(false);
+    });
+
+    it("est idempotent : un donjon déjà clôturé garde sa première date", () => {
+        const first = withDjDungeonsClosed(envelope, [0], "2026-10-23T12:00:00.000Z");
+        const second = withDjDungeonsClosed(first, [0], "2026-10-24T09:00:00.000Z");
+        expect(getMultiDungeons(second)[0].closedAt).toBe("2026-10-23T12:00:00.000Z");
+    });
+
+    it("ne considère le post terminé que si TOUS les donjons sont clôturés", () => {
+        const partial = withDjDungeonsClosed(envelope, [0, 2]);
+        expect(areAllDjDungeonsClosed(partial)).toBe(false);
+        const total = withDjDungeonsClosed(envelope, [0, 1, 2]);
+        expect(areAllDjDungeonsClosed(total)).toBe(true);
+        expect(openDjDungeonIndexes(total)).toEqual([]);
+    });
+
+    it("ignore un index hors bornes et ne fabrique rien sur un post simple", () => {
+        expect(withDjDungeonsClosed(envelope, [9])).toBeNull();
+        expect(withDjDungeonsClosed(null, [0])).toBeNull();
+        expect(withDjDungeonsClosed([], [0])).toBeNull();
+        expect(areAllDjDungeonsClosed(null)).toBe(false);
+        // Un post simple (aucun item) n'est jamais « entièrement clôturé » : c'est `status`.
+        expect(areAllDjDungeonsClosed({ _creatorClass: "Cra" })).toBe(false);
+    });
+
+    it("pose le marqueur de rappel H-1 du bon donjon, et de lui seul", () => {
+        const next = withDjDungeonReminder(
+            envelope,
+            2,
+            "2026-10-23T19:00:00.000Z",
+            "2026-10-23T20:00:00.000Z"
+        );
+        const items = getMultiDungeons(next);
+        expect(items[2]._h1SentAt).toBe("2026-10-23T19:00:00.000Z");
+        expect(items[2]._h1For).toBe("2026-10-23T20:00:00.000Z");
+        expect(items[0]._h1SentAt).toBeUndefined();
+        expect(withDjDungeonReminder(envelope, 9, "x", "y")).toBeNull();
+    });
+});
+
 

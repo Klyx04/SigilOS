@@ -29,7 +29,7 @@ import { fr } from "date-fns/locale";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { DofusUiIcon } from "@/components/shared/dofus-ui-icon";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
-import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel, getDjDungeonStats, summarizeDjDungeons, getMultiMessageIds } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel, getDjDungeonStats, summarizeDjDungeons, getMultiMessageIds, isDjDungeonClosed } from "@/lib/dungeon-finder-utils";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
@@ -68,6 +68,11 @@ export function DjPostDetailModal({
     // Clôture (bilan des succès/points + fermeture Discord) : action principale du
     // créateur. La suppression du groupe a été retirée (elle détruisait le bilan).
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+    /**
+     * Clôture **unitaire** : index du donjon visé, ou `null` pour la clôture du groupe entier.
+     * `null` est le défaut du bouton « Terminer le post » (comportement historique).
+     */
+    const [closeDungeonIndex, setCloseDungeonIndex] = useState<number | null>(null);
     /**
      * #26 — accordéon « un bloc par donjon » : le premier est déplié d'office (on voit
      * tout de suite où on en est), les autres s'ouvrent à la demande. Responsive par
@@ -435,11 +440,34 @@ export function DjPostDetailModal({
                                             )}>
                                                 {s.acceptedCount}/{s.maxMembers}
                                             </span>
+                                            {isDjDungeonClosed(d) && (
+                                                <span className="text-caption font-bold uppercase tracking-wider text-emerald-400 shrink-0">Clôturé</span>
+                                            )}
                                             <span className="text-caption font-mono font-bold text-muted-foreground uppercase tracking-wider shrink-0">#{s.index + 1}</span>
                                             <ChevronDown className={cn("w-4 h-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
                                         </button>
                                         {open && (
                                         <div className="px-2.5 pb-2.5 space-y-2.5">
+                                            {/* Clôture UNITAIRE de ce donjon : modale de validation des
+                                                succès de CE donjon, puis suppression de son message
+                                                Discord (les autres donjons restent ouverts). */}
+                                            {isDjDungeonClosed(d) ? (
+                                                <p className="flex items-center gap-1.5 text-caption font-bold uppercase tracking-widest text-emerald-400">
+                                                    <CheckCircle2 className="w-3.5 h-3.5" /> Donjon clôturé
+                                                </p>
+                                            ) : isOwner && (post.status === "OPEN" || post.status === "FULL") ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="w-full h-8 text-caption font-bold gap-1.5 border-border/70"
+                                                    onClick={() => { setCloseDungeonIndex(s.index); setIsCloseModalOpen(true); }}
+                                                    disabled={isPending}
+                                                    title="Clôturer ce donjon : bilan des succès de ce donjon, puis suppression de son message Discord"
+                                                >
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    Clôturer ce donjon
+                                                </Button>
+                                            ) : null}
                                             {/* Classes recherchées de CE donjon (#26) */}
                                             {classesForDungeon.length > 0 && (
                                                 <div className="space-y-1">
@@ -476,7 +504,7 @@ export function DjPostDetailModal({
                                                             .filter((a) => d!.wantedAchievementIds!.includes(a.id))
                                                             .map((a) => (
                                                                 <span key={a.id} className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-lg bg-surface/70 border border-border/70 text-caption font-semibold text-foreground">
-                                                                    <AchievementIcon iconUrl={a.iconUrl} size={16} />
+                                                                    <AchievementIcon iconUrl={a.iconUrl} slug={a.slug ?? null} size={16} />
                                                                     {a.name}
                                                                 </span>
                                                             ))}
@@ -602,7 +630,7 @@ export function DjPostDetailModal({
                                         .filter((a) => post.wantedAchievementIds.includes(a.id))
                                         .map((a) => (
                                              <div key={a.id} className="flex items-center gap-2 bg-surface/50 border border-border/70 rounded-lg px-2.5 py-1.5 hover:border-emerald-500/30 transition-colors">
-                                                <AchievementIcon iconUrl={a.challenge.iconUrl} size={16} />
+                                                <AchievementIcon iconUrl={a.challenge.iconUrl} slug={a.challenge.slug ?? null} size={16} />
                                                 <span className="text-xs text-foreground font-semibold">{a.challenge.name}</span>
                                             </div>
                                         ))}
@@ -972,7 +1000,7 @@ export function DjPostDetailModal({
                                 )}
                                 <Button
                                     className="flex-1 min-w-[180px] bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-500/30 font-bold h-11 transition-all rounded-xl cursor-pointer"
-                                    onClick={() => setIsCloseModalOpen(true)}
+                                    onClick={() => { setCloseDungeonIndex(null); setIsCloseModalOpen(true); }}
                                     disabled={isPending}
                                     title={isOwner ? "Terminer le post (bilan + clôture Discord)" : "Fermer le post (admin)"}
                                 >
@@ -1009,12 +1037,16 @@ export function DjPostDetailModal({
                     isOpen={isCloseModalOpen}
                     post={post}
                     guildId={guildId}
+                    dungeonIndex={closeDungeonIndex}
                     adminMode={!!isAdmin && !isOwner}
                     onClose={() => setIsCloseModalOpen(false)}
                     onClosed={() => {
                         setIsCloseModalOpen(false);
                         onRefresh();
-                        onClose();
+                        // Clôture d'UN donjon : la fiche reste ouverte (on peut enchaîner sur un
+                        // autre donjon). Clôture du groupe entier : on ferme la fiche, comme avant.
+                        if (closeDungeonIndex === null) onClose();
+                        setCloseDungeonIndex(null);
                     }}
                 />
             )}

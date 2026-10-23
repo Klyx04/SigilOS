@@ -18,6 +18,8 @@ import { resolveSongesContributionPoints } from "@/lib/points-config";
 import { syncSongesMirror } from "@/server/agenda-mirror-sync";
 import { emitGuildActivity } from "@/server/guild-activity-emit";
 import { getAppBaseUrl } from "@/lib/utils";
+import { resolveOwnedClass } from "@/lib/user-character-classes";
+import { loadClassProfileByUserId } from "@/server/character-class-profile";
 
 // ============================================
 // CONSTANTS & HELPERS
@@ -157,6 +159,14 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         return { success: false, error: validated.error.errors[0].message };
     }
 
+    // Classe du meneur : validée contre SON roster (main + mules), fail-closed. Le menu
+    // affichait toutes les classes ; une classe non possédée n'est plus acceptée.
+    const ownedLeaderClass = resolveOwnedClass(
+        validated.data.leaderClass,
+        await loadClassProfileByUserId(ctx.userId, guildId)
+    );
+    if (!ownedLeaderClass.success) return { success: false, error: ownedLeaderClass.error };
+
     // RATE LIMIT: 3 créations par 10 minutes
     // 🛠️ Dev bypass : RATE_LIMIT_BYPASS_DISCORD_IDS (IDs Discord séparés par virgule)
     const bypassDiscordIds = (process.env.RATE_LIMIT_BYPASS_DISCORD_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
@@ -213,12 +223,12 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
     });
 
     // Create an ACCEPTED join request for the leader to store their class choice
-    if (validated.data.leaderClass) {
+    if (ownedLeaderClass.classe) {
         await db.dreamJoinRequest.create({
             data: {
                 runId: run.id,
                 userId: ctx.userId,
-                classe: validated.data.leaderClass,
+                classe: ownedLeaderClass.classe,
                 status: "ACCEPTED",
                 message: "Meneur de la run",
                 linkedStuffId: validated.data.linkedStuffId ?? null,
@@ -265,6 +275,8 @@ const UpdateRunSchema = z.object({
     scheduledAt: z.date().optional().nullable(),
     mentionRoleIds: z.array(z.string()).default([]),
     currentFloor: z.number().min(0).max(26).optional(),
+    /** Classe du meneur — `undefined` = ne pas toucher (une run affiche toujours une classe). */
+    leaderClass: z.string().max(30).optional(),
 }).refine((data) => {
     if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
     const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
@@ -319,6 +331,22 @@ export async function updateDreamRun(
             return { success: false, error: "Impossible de modifier une run terminée ou abandonnée" };
         }
 
+        // Classe du meneur : validée contre le roster du MENEUR (même quand un admin édite).
+        // `undefined` = champ non touché ; la run affiche toujours une classe, donc un
+        // choix vide est refusé plutôt que d'inventer une valeur.
+        let leaderClassValue: string | undefined;
+        if (validated.data.leaderClass !== undefined) {
+            const owned = resolveOwnedClass(
+                validated.data.leaderClass,
+                await loadClassProfileByUserId(run.leaderId, ctx.guildId)
+            );
+            if (!owned.success) return { success: false, error: owned.error };
+            if (!owned.classe) {
+                return { success: false, error: "Choisis une classe : la run affiche toujours celle du meneur." };
+            }
+            leaderClassValue = owned.classe;
+        }
+
         await db.dreamRun.update({
             where: { id: runId },
             data: {
@@ -331,6 +359,32 @@ export async function updateDreamRun(
                 ...(validated.data.currentFloor !== undefined && { currentFloor: validated.data.currentFloor }),
             },
         });
+
+        // Classe du meneur : stockée dans SA demande ACCEPTED — la source que lit l'embed
+        // (le meneur n'est pas un candidat, il n'a pas de ligne « participant » dédiée).
+        if (leaderClassValue !== undefined) {
+            const leaderRequest = await db.dreamJoinRequest.findFirst({
+                where: { runId, userId: run.leaderId, status: "ACCEPTED" },
+                orderBy: { createdAt: "desc" },
+                select: { id: true },
+            });
+            if (leaderRequest) {
+                await db.dreamJoinRequest.update({
+                    where: { id: leaderRequest.id },
+                    data: { classe: leaderClassValue },
+                });
+            } else if (leaderClassValue) {
+                await db.dreamJoinRequest.create({
+                    data: {
+                        runId,
+                        userId: run.leaderId,
+                        classe: leaderClassValue,
+                        status: "ACCEPTED",
+                        message: "Meneur de la run",
+                    },
+                });
+            }
+        }
 
         // Rafraîchir l'embed Discord si la run était publiée (best-effort, non bloquant)
         try {

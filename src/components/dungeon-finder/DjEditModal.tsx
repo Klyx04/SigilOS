@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Pencil, CheckCircle2, CalendarClock, MessageSquare, Users, Swords, ScrollText, Link2, Layers } from "lucide-react";
 import { updateDjPost } from "@/server/actions/dungeon-finder-actions";
+import { CreatorClassSelector } from "@/components/shared/creator-class-selector";
+import { getDjCreatorClass } from "@/lib/dungeon-finder-utils";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { AchievementIcon } from "@/components/ui/achievement-icon";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
@@ -48,6 +50,11 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
 
     // Quête manuelle = pas de questId valide
     const isManualQuest = post.mode === "QUETE" && (!post.questId || post.questId <= 0);
+    // Classe du créateur : valeur DÉJÀ stockée dans l'enveloppe (jamais un défaut). Elle
+    // n'est envoyée que si elle change : sinon, une mule retirée du profil ferait échouer
+    // l'édition d'un autre champ (le serveur refuse une classe non possédée).
+    const initialCreatorClass = useMemo(() => getDjCreatorClass(post.dungeonsJson), [post.dungeonsJson]);
+    const [creatorClass, setCreatorClass] = useState<string | null>(initialCreatorClass);
     const [questName, setQuestName] = useState(post.questName ?? "");
     const [questUrl, setQuestUrl] = useState(post.questUrl ?? "");
 
@@ -99,6 +106,9 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                 // chaque donjon porte les siennes). Sur un multi, on renvoie la valeur **déjà en
                 // base** (aucun changement, aucun écrasement) ; sur un post simple, la sélection.
                 requiredClasses: isMulti ? (post.requiredClasses ?? []) : requiredClasses,
+                // Classe du créateur (main ou mule) — indépendante des classes recherchées.
+                // Envoyée SEULEMENT si elle change (voir `initialCreatorClass`).
+                ...(creatorClass !== initialCreatorClass ? { creatorClass } : {}),
                 // #26 — dates prévues PAR donjon du post multi (max 5, bornage serveur).
                 ...(isMulti && {
                     multiDungeonDates: multiDungeons.map((_, idx) => ({
@@ -120,9 +130,12 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
         });
     }
 
-    const isMulti = (post.dungeonsJson?.length ?? 0) > 0;
+    // Enveloppe (`{_items, _creatorClass…}`) OU tableau : `getMultiDungeons` couvre les deux.
+    // Lire `post.dungeonsJson.length` affichait « Multi-donjons — undefined » dès qu'une
+    // enveloppe existait (rappels H-1, classe du créateur).
+    const isMulti = multiDungeons.length > 0;
     const title = isMulti
-        ? `Multi-donjons — ${post.dungeonsJson?.length}`
+        ? `Multi-donjons — ${multiDungeons.length}`
         : (post.mode === "DONJON" ? post.dungeon?.name : post.mode === "DEFI" ? (post.defiName || "Défi") : post.mode === "TITAN" ? (post.titanName || "Titan") : post.questName);
     const achievements = post.dungeon?.achievements ?? [];
 
@@ -150,7 +163,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
                                 <Layers className="w-3.5 h-3.5 text-info" /> Donjons de la session
                             </p>
-                            {(post.dungeonsJson ?? []).map((d: any, idx: number) => (
+                            {multiDungeons.map((d: any, idx: number) => (
                                 <div key={d.dungeonId ?? idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-surface/60 border border-border">
                                     {d.imageUrl ? (
                                         <img src={d.imageUrl} alt="" className="w-9 h-9 rounded-lg object-contain bg-background border border-border shrink-0 p-0.5" />
@@ -294,7 +307,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                                                 : "border-border bg-surface/50 hover:bg-elevated text-muted-foreground hover:text-foreground"
                                                 }`}
                                         >
-                                            <AchievementIcon iconUrl={a.challenge.iconUrl} size={16} />
+                                            <AchievementIcon iconUrl={a.challenge.iconUrl} slug={a.challenge.slug ?? null} size={16} />
                                             {a.challenge.name}
                                             {selected && <CheckCircle2 className="w-3.5 h-3.5 text-warning ml-1" />}
                                         </button>
@@ -303,6 +316,15 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                             </div>
                         </div>
                     )}
+
+                    {/* Ma classe (créateur) — indépendante des classes recherchées */}
+                    <CreatorClassSelector
+                        guildId={guildId}
+                        value={creatorClass}
+                        onChange={setCreatorClass}
+                        label="Ma classe pour ce groupe"
+                        description="Ton personnage principal et tes mules du profil SigilOS."
+                    />
 
                     {/* Required Classes — post SIMPLE : en multi, les classes sont **par donjon**
                         (réglées à la création, chacune dans son bloc). Un sélecteur global ici

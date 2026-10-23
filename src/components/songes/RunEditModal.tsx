@@ -21,12 +21,16 @@ import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE } from "@/lib/songes/types";
 import { updateDreamRun } from "@/server/actions/songes/dream-run-actions";
 import type { DreamRun } from "@prisma/client";
 import { toast } from "sonner";
+import { CreatorClassSelector } from "@/components/shared/creator-class-selector";
 
 interface RunEditModalProps {
     isOpen: boolean;
     onClose: () => void;
     guildId: string;
     run: DreamRun;
+    /** Classe actuelle du meneur (demande ACCEPTED) — évite de la réinitialiser sur le main. */
+    initialLeaderClass?: string | null;
+
     onUpdated?: () => void;
 }
 
@@ -34,7 +38,7 @@ interface RunEditModalProps {
  * Chantier Songes — Modale « Modifier la Run » (leader ou admin).
  * Branchée dans RunCard (RunDetailHeader était orphelin / jamais rendu).
  */
-export function RunEditModal({ isOpen, onClose, guildId, run, onUpdated }: RunEditModalProps) {
+export function RunEditModal({ isOpen, onClose, guildId, run, initialLeaderClass, onUpdated }: RunEditModalProps) {
     const router = useRouter();
     const [pending, setPending] = useState(false);
     const [difficulty, setDifficulty] = useState<string>(run.difficulty);
@@ -47,6 +51,8 @@ export function RunEditModal({ isOpen, onClose, guildId, run, onUpdated }: RunEd
     // laissait croire à un départ programmé). Heure locale, sans décalage UTC.
     const [scheduledAt, setScheduledAt] = useState<string>(() => toLocalDateTimeInput(run.scheduledAt));
     const [currentFloor, setCurrentFloor] = useState<string>(String(run.currentFloor));
+    // Classe du meneur : part de la classe ACTUELLE de la run (jamais d'un défaut inventé).
+    const [leaderClass, setLeaderClass] = useState<string | null>(initialLeaderClass ?? null);
 
     const toggleObjective = (key: string) => {
         setObjectives(prev => (prev.includes(key) ? prev.filter(o => o !== key) : [...prev, key]));
@@ -63,6 +69,9 @@ export function RunEditModal({ isOpen, onClose, guildId, run, onUpdated }: RunEd
                 scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
                 mentionRoleIds: [],
                 currentFloor: currentFloor ? Math.max(0, Math.min(26, parseInt(currentFloor, 10) || 0)) : undefined,
+                // Classe du meneur : envoyée seulement si elle CHANGE (sinon le serveur ne
+                // touche à rien, et une mule retirée du profil ne bloque pas l'édition).
+                ...(leaderClass && leaderClass !== initialLeaderClass ? { leaderClass } : {}),
             });
             if (res.success) {
                 toast.success("Run mise à jour !");
@@ -176,6 +185,15 @@ export function RunEditModal({ isOpen, onClose, guildId, run, onUpdated }: RunEd
                             className="bg-surface border-border text-sm"
                         />
                     </div>
+
+                    <CreatorClassSelector
+                        guildId={guildId}
+                        value={leaderClass}
+                        onChange={setLeaderClass}
+                        label="Ta classe pour cette run"
+                        description="Seuls ton personnage principal et tes mules du profil SigilOS sont proposés."
+                    />
+
                 </div>
                 <div className="flex justify-end gap-3 mt-4">
                     <Button variant="ghost" onClick={onClose} disabled={pending} className={SONGES_BUTTON.ghost}>Annuler</Button>

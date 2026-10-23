@@ -98,3 +98,4 @@ docker compose up -d
 | Admin God : images manquantes | vérifier `public/game-data/{monsters,achievements,dungeons}` |
 | Un fichier ne se commite pas | `git check-ignore -v <fichier>` — et **ne jamais** écrire un source avec `>` sous PowerShell 5.1 (UTF-16 → fichier corrompu) |
 | `The column X does not exist` juste après une migration | Un `next dev` **déjà lancé** garde l'**ancien client Prisma** dans ses chunks SSR (un `include` demande alors toutes les colonnes) : redémarrer le serveur après `npx prisma generate` |
+| `⨯ uncaughtException: Error: aborted` / `code: 'ECONNRESET'` dans la console de `next dev` | Requête **abandonnée par le client** (rechargement à chaud, modale fermée, action serveur en vol) : Next la journalise sans arrêter le serveur, et la page suivante fonctionne. **Rien à faire** si l'app répond ; en boucle **sans** interaction, chercher l'action qui n'aboutit pas (onglet Réseau du navigateur) |

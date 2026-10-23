@@ -200,4 +200,29 @@ describe("Sortie du déploiement — compréhensible sans explication", () => {
         // …et il est découvrable : la sortie de `--help` cite la variable.
         expect(source).toContain("DEPLOY_VERBOSE=1 ./scripts/deploy-cd.sh");
     });
+
+    it("⑩ un SHA de mauvaise longueur est refusé AVANT le registre — plus de faux « la CI ne l'a pas publié »", () => {
+        const source = deployCd();
+        // 📏 Mesure du 23/10/2026 : `list beta 689667a0` (8 caractères) répondait
+        // « Tag 689667a0 incomplet : la CI ne l'a pas publié » alors que le build de ce
+        // commit était vert, et que la CI publie `${SHA:0:7}` (`689667a`). L'opérateur
+        // cherchait donc une panne GitHub qui n'existait pas.
+        expect(source).toMatch(/\[\[ "\$sha" =~ \^\[0-9a-f\]\{7\}\$ \]\]/);
+        // Le remède est écrit dans le message, pas seulement dans la doc.
+        expect(source).toContain("git rev-parse --short=7");
+        // La garde est appelée par les DEUX chemins (vérifier / déployer)…
+        expect(source.match(/require_sha7 "\$/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+        // …et AVANT la vérification du token : on peut donc la mesurer sans GHCR_TOKEN,
+        // et un refus ne laisse aucune trace côté registre ni conteneur.
+        for (const handler of ["list_handler", "deploy"]) {
+            const start = source.indexOf(`${handler}()`);
+            expect(start, `${handler} introuvable`).toBeGreaterThan(-1);
+            const tokenCheck = source.indexOf('GHCR_TOKEN non défini', start);
+            const guard = source.indexOf('require_sha7 "$', start);
+            expect(guard, `${handler} : garde absente`).toBeGreaterThan(-1);
+            expect(guard, `${handler} : la garde doit précéder le token`).toBeLessThan(tokenCheck);
+        }
+        // Le SHA affiché dans le bandeau a la même longueur que les tags déployables.
+        expect(source).toContain("git rev-parse --short=7 HEAD");
+    });
 });

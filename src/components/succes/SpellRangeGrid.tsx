@@ -20,7 +20,7 @@ import {
     type SpellElementKey,
     type ZoneDamageDecrease,
 } from "@/lib/dofus-spells";
-import { normalizeDofusAssetStoredUrl, resolveSpellIconUrl } from "@/lib/dofus-image-url";
+import { normalizeDofusAssetStoredUrl, resolveSpellIconUrl, internalDofusDbImageUrl } from "@/lib/dofus-image-url";
 import {
     zoneFalloffPercent,
     zoneLinesAtOffset,
@@ -41,12 +41,19 @@ import {
     cellToScreen,
     classifyGrid,
     computeMonsterPlacements,
+    computePushDestination,
     distance,
     getLosPath,
     getSpellRangeDistance,
     spellZoneCells,
     toLos,
 } from "@/lib/dofus-grid";
+import {
+    classifySpellEffects,
+    computePositionalEffect,
+    effectShortLabel,
+    EFFECT_KIND_COLOR,
+} from "@/lib/dofus-spell-effects";
 
 export interface SpellZone {
     shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Cercle de distance" | "Inconnue";
@@ -82,6 +89,11 @@ export interface SpellData {
     effects?: string[];
     /** Grade/Niveau Dofensive du level utilisé (« Niv. X »). */
     grade?: number;
+    /**
+     * Sort **à charge** (Glas du Xelor, Torrent de l'Huppermage…) : les dégâts dépendent du
+     * nombre de charges accumulées. Signalé dans le panneau, **jamais** chiffré au hasard.
+     */
+    chargeBased?: boolean;
     /** Effets structurés (durées, déclencheurs, masques) — affichage détaillé. */
     effectDetails?: {
         label: string;
@@ -200,6 +212,10 @@ interface SpellRangeGridProps {
      * Absent ⇒ `1` : aucune modification (les jets restent ceux du sort).
      */
     damageTakenMultiplier?: number;
+    /** Masque les pastilles flottantes de dégâts affichées directement sur les cases de la grille tactique. */
+    hideMapDamageBadges?: boolean;
+    /** Ouvre le plateau en plein écran par défaut. */
+    defaultFullscreen?: boolean;
 }
 
 // Ligne de Bresenham entre deux cellules (grille orthogonale) — pour la ligne de vue.
@@ -251,6 +267,8 @@ export function SpellRangeGrid({
     enemyIconUrl,
     maxEnemies = 4,
     damageTakenMultiplier = 1,
+    hideMapDamageBadges = false,
+    defaultFullscreen = false,
 }: SpellRangeGridProps) {
     const { t, locale } = useI18n();
     const simT = t.tacticalSim;
@@ -269,6 +287,8 @@ export function SpellRangeGrid({
 
     const selectSpell = (spell: SpellData) => {
         setInternalSpellId(spell.id);
+        // Changer de sort efface le verrou de case visée (les portées/zones diffèrent).
+        setLockedAnchor(null);
         onSelectSpell?.(spell);
     };
 
@@ -301,6 +321,8 @@ export function SpellRangeGrid({
     const [enemies, setEnemies] = useState<DofusPos[]>([]);
     const [selectedEnemy, setSelectedEnemy] = useState<number | null>(null);
     const [placingEnemy, setPlacingEnemy] = useState<boolean>(false);
+    /** Clé `x,y` de l'ennemi survolé dans le panneau de dégâts ↔ halo doré sur la carte SVG. */
+    const [hoveredDamageTargetKey, setHoveredDamageTargetKey] = useState<string | null>(null);
 
     // Cases de départ réelles (map Dofensive).
     const [showStartCells, setShowStartCells] = useState<boolean>(false);
@@ -326,6 +348,13 @@ export function SpellRangeGrid({
 
     // Survol souris
     const [hoveredCell, setHoveredCell] = useState<DofusPos | null>(null);
+    /**
+     * **Case visée verrouillée** — fixée par un clic de l'utilisateur (comme dans le vrai jeu).
+     * Sans ce verrou, `zoneAnchor` (basé sur `hoveredCell`) s'efface dès que le curseur quitte
+     * la cellule ; le panneau de dégâts affiche alors « 0 cible » même si des ennemis sont dans
+     * la zone. Le verrou persist jusqu'au prochain clic ou changement de sort.
+     */
+    const [lockedAnchor, setLockedAnchor] = useState<DofusPos | null>(null);
 
     // ── Sélecteur de map (salles du donjon, source Dofensive) ──
     const [selectedMapId, setSelectedMapId] = useState<number | "empty">("empty");
@@ -377,6 +406,15 @@ export function SpellRangeGrid({
     // 21/09/2026 : « c trop le bordel et trop slopesque dans tous les boutons au-dessus le
     // composant, faut un rangement pro »).
     const [showOptions, setShowOptions] = useState<boolean>(false);
+    /**
+     * 🎨 **Peinture de cases** — obstacles et trous posés par le joueur pour reproduire SA
+     * situation (ligne de vue, poussée bloquée, case infranchissable). `null` = mode sélection.
+     * Constat user du 23/10/2026 : « faudrait permettre de poser des obstacles à la volée et
+     * des trous sur la map pour simuler les lignes de vue ».
+     */
+    const [paintMode, setPaintMode] = useState<"obstacle" | "hole" | null>(null);
+    /** Cases peintes (`x,y`) — persistées avec le reste de la simulation. */
+    const [paintedCells, setPaintedCells] = useState<Record<string, "obstacle" | "hole">>({});
     const [showLegend, setShowLegend] = useState<boolean>(false);
     // Prévisu de DÉGÂTS : les jets **réels** du grade, calculés côté serveur (ou via
     // `computeSpellDamage` pour un stuff), jamais une estimation inventée.
@@ -399,7 +437,7 @@ export function SpellRangeGrid({
      * s'empilent plus sur la carte. Tout l'état du plateau (sort, salle, entités, zoom) est
      * conservé, il vit dans ce composant.
      */
-    const [fullscreen, setFullscreen] = useState<boolean>(false);
+    const [fullscreen, setFullscreen] = useState<boolean>(defaultFullscreen);
 
     // Illustration titan (galerie God : /game-data/titans/<slug>.webp).
     // Convention + onError : aucune base ni session requise (marche partout,
@@ -470,6 +508,11 @@ export function SpellRangeGrid({
     const mapStates = useMemo(() => (mapData ? classifyGrid(mapData.cells) : null), [mapData]);
 
     const cellState = (x: number, y: number): CellState => {
+        // 🎨 Peinture du joueur (obstacle / trou posés à la volée) : prioritaire sur la carte,
+        // c'est ce qui permet de tester lignes de vue, obstacles et poussées sur SA situation.
+        const painted = paintedCells[`${x},${y}`];
+        if (painted === "obstacle") return CellState.OBSTACLE;
+        if (painted === "hole") return CellState.HOLE;
         if (!mapStates) return CellState.GROUND;
         return mapStates[y]?.[x] ?? CellState.VOID;
     };
@@ -764,7 +807,37 @@ export function SpellRangeGrid({
     const handleCellClick = (x: number, y: number) => {
         // Ignorer le clic si l'utilisateur était en train de déplacer la carte
         if (isDraggingRef.current || justDraggedRef.current) return;
+
+        // 🎨 Mode peinture : le clic pose (ou retire) un obstacle / un trou. On sort AVANT
+        // toutes les autres règles (viser, placer un jeton, déplacer le lanceur) : peindre sur
+        // une case déjà occupée doit rester possible pour corriger un mur.
+        if (paintMode) {
+            setPaintedCells((prev) => {
+                const key = `${x},${y}`;
+                const next = { ...prev };
+                if (next[key] === paintMode) delete next[key];
+                else next[key] = paintMode;
+                return next;
+            });
+            setLockedAnchor(null);
+            return;
+        }
+
         if (isObstacle(x, y)) return;
+
+        // ── Verrou de zone ──────────────────────────────────────────────────────
+        // Posé EN PREMIER, avant toute logique d'entité. Sans ça, cliquer
+        // directement SUR une case ennemi déclenchait setSelectedEnemy → return,
+        // et setLockedAnchor n'était jamais atteint ⇒ « 0 cible » (bug 23/10).
+        // Toggle : re-clic sur la même case verrouillée = déverrouillage.
+        if (currentSpell && !placingAlly && !placingEnemy && isCellInRange(x, y)) {
+            setLockedAnchor((prev) =>
+                prev?.x === x && prev?.y === y ? null : { x, y }
+            );
+        } else if (!placingAlly && !placingEnemy) {
+            setLockedAnchor(null);
+        }
+        // ────────────────────────────────────────────────────────────────────────
 
         if (!hideAllies && placingAlly) {
             if (x === casterPos.x && y === casterPos.y) return;
@@ -845,6 +918,8 @@ export function SpellRangeGrid({
             const st = cellState(x, y);
             if (st !== CellState.GROUND) return;
             setCasterPos({ x, y });
+            // Le caster a bougé → la zone active n'est plus pertinente.
+            setLockedAnchor(null);
         }
     };
 
@@ -922,7 +997,7 @@ export function SpellRangeGrid({
             }
         }
         return count;
-    }, [casterPos, currentSpell, gridRows, gridCols, mapData]);
+    }, [casterPos, currentSpell, gridRows, gridCols, mapData, paintedCells]);
 
     // Persistance localStorage (placements, map sélectionnée, toggle départ)
     const storageKey = `sigilos_sim_${dungeonName || bossName || "default"}`;
@@ -957,6 +1032,9 @@ export function SpellRangeGrid({
                 if (typeof parsed.showStartCells === "boolean") {
                     setShowStartCells(parsed.showStartCells);
                 }
+                if (parsed.paintedCells && typeof parsed.paintedCells === "object" && !Array.isArray(parsed.paintedCells)) {
+                    setPaintedCells(parsed.paintedCells);
+                }
             }
         } catch {
             // Ignorer si parse error
@@ -978,12 +1056,13 @@ export function SpellRangeGrid({
                     enemies,
                     casterPos,
                     showStartCells,
+                    paintedCells,
                 })
             );
         } catch {
             // Ignorer
         }
-    }, [storageKey, selectedMapId, allies, enemies, casterPos, showStartCells]);
+    }, [storageKey, selectedMapId, allies, enemies, casterPos, showStartCells, paintedCells]);
 
     /**
      * **Case VISÉE** par le sort — la « cible blanche » du jeu. C'est à la fois la **matrice de la
@@ -995,23 +1074,41 @@ export function SpellRangeGrid({
     const zoneAnchor = useMemo<DofusPos | null>(() => {
         const isSelfSpell = currentSpell?.range === 0 && (currentSpell?.minRange ?? 0) === 0;
         if (isSelfSpell) return casterPos;
+        // Priorité : case verrouillée par clic (si toujours en portée) > case survolée.
+        // Sans le verrou, `zoneAnchor` disparaît dès que la souris quitte la portée ⇒ le
+        // panneau affichait « 0 cible » alors que des ennemis étaient dans la zone (bug 23/10).
+        // lockedAnchor : posé par un clic valide, il n'est PAS re-validé à chaque rendu.
+        // Sans ça, un sort "en ligne" (castInLine) invalidait le verrou dès que le caster
+        // n'était plus aligné avec la case verrouillée → zoneAnchor=null → 0 cible (bug 23/10).
+        if (lockedAnchor) return lockedAnchor;
         return hoveredCell && isCellInRange(hoveredCell.x, hoveredCell.y) ? hoveredCell : null;
-    }, [hoveredCell, currentSpell, casterPos, isCellInRange]);
+    }, [hoveredCell, lockedAnchor, currentSpell, casterPos, isCellInRange]);
 
     // Prévisu de zone d'effet (AoE) — bâtie sur la case visée (`zoneAnchor`) : une seule source.
+    //
+    // ⚠️ RÈGLES (23/10/2026) :
+    //   · Sort sans zone DofusDB → traité comme "Point" (seule la case visée).
+    //   · Sort "Point" (size=0) → même règle : l'ancienne garde `size < 1 → null`
+    //     effaçait zonePreview pour tous les sorts single-cible, d'où « 0 cible ».
+    //   · size > 15 : garde conservée (données corrompues, éviter O(n²) massif).
     const zonePreview = useMemo(() => {
-        if (!zoneAnchor || !currentSpell?.zone) return null;
-        const size = currentSpell.zone.size;
-        if (size < 1 || size > 15) return null;
+        if (!zoneAnchor || !currentSpell) return null;
+        const zone = currentSpell.zone;
+        const size = zone?.size ?? 0;
+        // Pas de zone définie OU sort Point (size 0) : seule la case visée.
+        if (!zone || size === 0 || zone.shape === "Point") {
+            return new Set([`${zoneAnchor.x},${zoneAnchor.y}`]);
+        }
+        if (size > 15) return new Set([`${zoneAnchor.x},${zoneAnchor.y}`]);
         const cells = spellZoneCells({
-            zone: currentSpell.zone,
+            zone,
             target: zoneAnchor,
             caster: casterPos,
             cols: gridCols,
             rows: gridRows,
             isRealMap,
         });
-        return new Set(cells.map((c) => `${c.x},${c.y}`));
+        return new Set(cells.map((cell) => `${cell.x},${cell.y}`));
     }, [zoneAnchor, currentSpell, casterPos, gridCols, gridRows, isRealMap]);
     const isInZone = (x: number, y: number): boolean => !!zonePreview && zonePreview.has(`${x},${y}`);
 
@@ -1038,6 +1135,69 @@ export function SpellRangeGrid({
         });
         return hits;
     }, [zonePreview, enemies]);
+
+    /**
+     * Effets classifiés du sort actif — source unique pour les badges SVG et les infobulles.
+     */
+    const spellEffects = useMemo(
+        () => classifySpellEffects(currentSpell?.effectDetails ?? currentSpell?.effects as string[] | undefined),
+        [currentSpell]
+    );
+
+    /**
+     * Destinations positionnelles pour chaque ennemi dans la zone (push, pull, tp, swap…).
+     * Clé = index ennemi, valeur = tableau des résultats positionnels.
+     */
+    const effectPreviews = useMemo(() => {
+        const positional = spellEffects.filter(e =>
+            ["push","pull","tp_caster","tp_target","swap","tp_cell","tp_symmetric","tp_random"].includes(e.kind)
+        );
+        if (!positional.length || !zonePreview || !zoneAnchor) {
+            return new Map<string, NonNullable<ReturnType<typeof computePositionalEffect>>[]>();
+        }
+        const result = new Map<string, NonNullable<ReturnType<typeof computePositionalEffect>>[]>();
+        const blocked = (x: number, y: number) => {
+            const st = cellState(x, y);
+            return st === CellState.OBSTACLE || st === CellState.VOID || st === CellState.HOLE;
+        };
+        // Ennemis (poutchs)
+        if (enemiesEnabled) { enemies.forEach((enemy, idx) => {
+            if (!zonePreview.has(enemy.x + "," + enemy.y)) return;
+            const dests = positional.map(effect =>
+                computePositionalEffect({
+                    effect,
+                    caster: casterPos,
+                    target: enemy,
+                    anchor: zoneAnchor,
+                    cols: gridCols,
+                    rows: gridRows,
+                    isRealMap,
+                    isBlocked: blocked,
+                })
+            ).filter((r): r is NonNullable<typeof r> => r !== null);
+            if (dests.length > 0) result.set("enemy-" + idx, dests);
+        }); }
+        // Alliés (Fécas et autres)
+        if (!hideAllies) {
+            allies.forEach((ally, idx) => {
+                if (!zonePreview.has(ally.x + "," + ally.y)) return;
+                const allyDests = positional.map(effect =>
+                    computePositionalEffect({
+                        effect,
+                        caster: casterPos,
+                        target: { x: ally.x, y: ally.y },
+                        anchor: zoneAnchor,
+                        cols: gridCols,
+                        rows: gridRows,
+                        isRealMap,
+                        isBlocked: blocked,
+                    })
+                ).filter((r): r is NonNullable<typeof r> => r !== null);
+                if (allyDests.length > 0) result.set("ally-" + idx, allyDests);
+            });
+        }
+        return result;
+    }, [spellEffects, enemies, allies, zonePreview, zoneAnchor, casterPos, gridCols, gridRows, isRealMap, enemiesEnabled, hideAllies, cellState]);
 
     // Recentre sur la case de départ du boss (map) ou le centre (grille libre).
     const recenter = () => {
@@ -1209,7 +1369,12 @@ export function SpellRangeGrid({
     // Dégâts du sort affiché : jets **réels** du grade, par élément (données calculées par le
     // serveur ou repli textuel) + distance de poussée quand le sort pousse.
     const damageInfo = useMemo(
-        () => damageLinesFromEffects(currentSpell?.effectDetails ?? (currentSpell as any)?.unityEffects ?? (currentSpell as any)?.effects),
+        () => damageLinesFromEffects(
+            currentSpell?.effectDetails ?? (currentSpell as any)?.unityEffects ?? (currentSpell as any)?.effects,
+            // Une ligne PAR COUP (comme l'infobulle du jeu) : les sorts à deux jets ne sont plus
+            // affichés comme une seule valeur additionnée (mesure du 23/10/2026).
+            { keepHits: true },
+        ),
         [currentSpell]
     );
     const damageTotal = useMemo(() => totalDamageRange(damageInfo.lines), [damageInfo.lines]);
@@ -1267,9 +1432,26 @@ export function SpellRangeGrid({
                 falloff: zoneFalloffPercent(offset, damageInfo.lines[0]?.decrease ?? null),
                 lines: applyDamageTakenToLines(zoneLinesAtOffset(damageInfo.lines, offset), damageTakenMultiplier),
                 total: applyDamageTakenToTotal(zoneTotalAtOffset(damageInfo.lines, offset), damageTakenMultiplier),
+                // Effets positionnels de CETTE cible — mêmes calculs que les flèches du plateau
+                // (distance réellement parcourue, effet bloqué par un obstacle/bord).
+                effects: (() => {
+                    const enemyIndex = enemies.findIndex((e) => e.x === x && e.y === y);
+                    const fromEnemy = enemyIndex >= 0 ? effectPreviews.get("enemy-" + enemyIndex) : undefined;
+                    const fromAlly = enemyIndex < 0
+                        ? (() => {
+                              const allyIndex = allies.findIndex((a) => a.x === x && a.y === y);
+                              return allyIndex >= 0 ? effectPreviews.get("ally-" + allyIndex) : undefined;
+                          })()
+                        : undefined;
+                    return (fromEnemy ?? fromAlly ?? []).map((r) => ({
+                        kind: r.kind,
+                        cases: r.actualCases,
+                        blocked: r.blocked,
+                    }));
+                })(),
             };
         });
-    }, [showDamage, zonePreview, zoneAnchor, damageInfo.lines, allies, enemies, enemiesEnabled, hideAllies, isRealMap, damageTakenMultiplier, simT]);
+    }, [showDamage, zonePreview, zoneAnchor, damageInfo.lines, allies, enemies, enemiesEnabled, hideAllies, isRealMap, damageTakenMultiplier, simT, effectPreviews]);
 
     /** Dégâts **réellement** infligés sur toute la zone (somme des cibles, dégressivité comprise). */
     const damageZoneTotal = useMemo(
@@ -1435,6 +1617,60 @@ export function SpellRangeGrid({
      * survol (la case visée bougerait sous le curseur). La légende, elle, n'a pas ce problème
      * (elle ne change d'état que sur un clic explicite) : elle est donc sortie de l'overlay.
      */
+    /**
+     * 🎨 **Peinture de cases** (obstacle / trou) — même définition pour le panneau « Options »
+     * du plateau sombre (boss) et du panneau thémé (fiche stuff).
+     */
+    const paintControls = (variant: "board" | "page") => {
+        const dim = variant === "board" ? "text-white/45" : "text-muted-foreground";
+        const idle = variant === "board"
+            ? "border-white/15 text-white/65 hover:text-white hover:border-white/30"
+            : "border-border text-muted-foreground hover:text-foreground hover:border-border-strong";
+        const active = variant === "board"
+            ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
+            : "border-warning/50 bg-warning/10 text-warning";
+        const paintedCount = Object.keys(paintedCells).length;
+        return (
+            <div className="space-y-1.5" data-no-drag>
+                <p className={cn("text-[9px] font-bold uppercase tracking-wider", dim)}>
+                    Peinture — obstacle ou trou
+                </p>
+                <div className="flex gap-1.5">
+                    {(["obstacle", "hole"] as const).map((mode) => (
+                        <button
+                            key={mode}
+                            type="button"
+                            aria-pressed={paintMode === mode}
+                            onClick={() => setPaintMode((prev) => (prev === mode ? null : mode))}
+                            className={cn(
+                                "h-8 flex-1 rounded-lg border text-[10px] font-bold transition-colors cursor-pointer",
+                                paintMode === mode ? active : idle
+                            )}
+                        >
+                            {mode === "obstacle" ? "Obstacle" : "Trou"}
+                        </button>
+                    ))}
+                    <button
+                        type="button"
+                        onClick={() => setPaintedCells({})}
+                        disabled={paintedCount === 0}
+                        className={cn(
+                            "h-8 rounded-lg border px-2 text-[10px] font-bold transition-colors cursor-pointer disabled:opacity-40",
+                            idle
+                        )}
+                    >
+                        Vider{paintedCount > 0 ? ` (${paintedCount})` : ""}
+                    </button>
+                </div>
+                <p className={cn("text-[9px] leading-snug", dim)}>
+                    {paintMode
+                        ? "Clique une case pour la peindre (re-clic = effacer). Un mur bloque la ligne de vue, un trou bloque les poussées."
+                        : "Pose des murs ou des trous pour reproduire ta situation réelle."}
+                </p>
+            </div>
+        );
+    };
+
     const damagePanel = (rail: boolean) =>
         showDamage && damageInfo.lines.length > 0 ? (
             <SimulationDamageHud
@@ -1454,18 +1690,29 @@ export function SpellRangeGrid({
                               // Icône **interne** (proxy du siphon) : jamais de hotlink
                               // DofusDB/Dofensive depuis le navigateur, et aucune icône
                               // étrangère (le proxy résout `iconId`).
+                              // Icône **interne** : `sort_<iconId>` DofusDB → proxy du siphon
+                              // (l'id du SORT servait d'iconId ⇒ icône d'un autre sort, constat
+                              // du 23/10/2026). Repli : chemin déjà interne, puis proxy par id.
                               imageUrl:
-                                  currentSpell.imageUrl && currentSpell.imageUrl.startsWith("/")
+                                  internalDofusDbImageUrl(currentSpell.imageUrl ?? null) ??
+                                  (currentSpell.imageUrl && currentSpell.imageUrl.startsWith("/")
                                       ? currentSpell.imageUrl
-                                      : `/api/assets-dofus/spells/${currentSpell.id}`,
+                                      : `/api/assets-dofus/spells/${currentSpell.id}`),
                               apCost: currentSpell.apCost,
                               minRange,
                               maxRange,
+                              // Description officielle du sort : le panneau la montre sous le nom.
+                              description: currentSpell.description,
+                              chargeBased: currentSpell.chargeBased,
                           }
                         : null
                 }
+                hoveredTargetKey={hoveredDamageTargetKey}
+                onHoverTarget={setHoveredDamageTargetKey}
+                enemyIconUrl={enemyIconUrl}
                 onClose={() => setShowDamage(false)}
                 className={rail ? "w-full max-h-none" : undefined}
+                spellEffects={spellEffects}
             />
         ) : null;
 
@@ -1509,6 +1756,32 @@ export function SpellRangeGrid({
     const activeSpellIconSrc = resolveSpellIconUrl(currentSpell?.unityIconId);
     const simSurface = (
         <div className={cn(compact ? "flex flex-col h-full space-y-1.5 p-0 bg-transparent border-0 shadow-none min-h-0" : "space-y-3 rounded-2xl bg-surface border border-border p-4 sm:p-5 shadow-xs", fullscreen && "h-full min-h-0 flex flex-col space-y-0 rounded-none border-0 bg-transparent p-0 sm:p-0 shadow-none")}>
+            {/* 🎨 Mode peinture ACTIF : bandeau hors du panneau « Options » — le panneau peut être
+                replié, le mode ne doit jamais rester actif sans signe visible (un clic peindrait
+                au lieu de viser). Un seul clic pour en sortir. */}
+            {paintMode && (
+                <div
+                    data-no-drag
+                    className={cn(
+                        "flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px]",
+                        compact
+                            ? "border-amber-400/50 bg-amber-400/15 text-amber-200"
+                            : "border-warning/40 bg-warning/10 text-warning-foreground"
+                    )}
+                >
+                    <span className="truncate font-semibold">
+                        Peinture : {paintMode === "obstacle" ? "obstacle" : "trou"} — clique une case pour la poser
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setPaintMode(null)}
+                        aria-label="Quitter le mode peinture"
+                        className="shrink-0 cursor-pointer rounded px-1.5 py-0.5 font-semibold underline-offset-2 hover:underline"
+                    >
+                        Terminer
+                    </button>
+                </div>
+            )}
             {/* Toolbar Simulation Compacte : Choix du sort & Paramètres de portée */}
             {!compact && (
                 <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 bg-background border border-border/80 rounded-xl">
@@ -1756,12 +2029,37 @@ export function SpellRangeGrid({
                         {/* Ligne 2 : Zoom + Options + Recentrer. Tout le secondaire (placement,
                             butin, toggles) vit dans le panneau « Options » replié. */}
                         <div className="relative flex items-center justify-between gap-1 flex-wrap text-[10px]">
-                            {/* Zoom controls */}
-                            <div className="inline-flex items-center bg-zinc-900 border border-white/10 rounded-md p-0.5">
-                                <button type="button" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Number((z - 0.2).toFixed(2))))} className="px-1.5 py-0.5 font-black text-zinc-400 hover:text-white" title="Zoom arrière">−</button>
-                                <span className="px-1 font-bold text-zinc-300 tabular-nums text-[9px]">{Math.round(zoom * 100)}%</span>
-                                <button type="button" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Number((z + 0.2).toFixed(2))))} className="px-1.5 py-0.5 font-black text-zinc-400 hover:text-white" title="Zoom avant">+</button>
-                                <button type="button" onClick={() => { setZoom(0.6); setPan({ x: 0, y: 0 }); }} className="px-1.5 py-0.5 font-bold text-white/70 hover:text-white" title="Ajuster et recentrer">Fit</button>
+                            {/* Zoom controls — trois cibles de MÊME taille (deslop 23/10/2026) :
+                                plus de `font-black`, plus de cibles inégales entre −, %, Fit. */}
+                            <div className="inline-flex h-6 items-center gap-0.5 rounded-md border border-white/10 bg-zinc-900 p-0.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Number((z - 0.2).toFixed(2))))}
+                                    aria-label="Zoom arrière"
+                                    title="Zoom arrière"
+                                    className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded text-[11px] font-semibold leading-none text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"
+                                >
+                                    −
+                                </button>
+                                <span className="min-w-[2.25rem] text-center text-[9px] font-semibold tabular-nums text-zinc-300">{Math.round(zoom * 100)}%</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Number((z + 0.2).toFixed(2))))}
+                                    aria-label="Zoom avant"
+                                    title="Zoom avant"
+                                    className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded text-[11px] font-semibold leading-none text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"
+                                >
+                                    +
+                                </button>
+                                <span className="mx-0.5 h-3.5 w-px bg-white/10" aria-hidden="true" />
+                                <button
+                                    type="button"
+                                    onClick={() => { setZoom(0.6); setPan({ x: 0, y: 0 }); }}
+                                    title="Ajuster et recentrer"
+                                    className="inline-flex h-5 cursor-pointer items-center rounded px-1.5 text-[9px] font-semibold uppercase tracking-wide text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                                >
+                                    Fit
+                                </button>
                             </div>
 
                             {/* « Dégâts estimés » : interrupteur VISIBLE (retour user « toggle degat
@@ -1791,7 +2089,7 @@ export function SpellRangeGrid({
                                     <SlidersHorizontal className="w-3 h-3" />
                                     {simT.options}
                                     {activeOptionCount > 0 && (
-                                        <span className="rounded-full bg-warning/25 px-1 text-[9px] font-black tabular-nums text-warning">
+                                        <span className="rounded-full bg-warning/25 px-1 text-[9px] font-bold tabular-nums text-warning">
                                             {activeOptionCount}
                                         </span>
                                     )}
@@ -1825,6 +2123,9 @@ export function SpellRangeGrid({
                                             <X className="h-3.5 w-3.5" aria-hidden="true" />
                                         </button>
                                     </div>
+
+                            {/* 🎨 Peinture : murs / trous posés à la volée (lignes de vue, poussées). */}
+                            {paintControls("board")}
 
                             {/* Sections NOMMÉES : le panneau ne propose plus une liste à plat —
                                 on lit une section avant de la régler (retour user « composant
@@ -2127,6 +2428,9 @@ export function SpellRangeGrid({
                                             <X className="h-3.5 w-3.5" aria-hidden="true" />
                                         </button>
                                     </div>
+
+                                    {/* 🎨 Peinture : murs / trous posés à la volée (lignes de vue, poussées). */}
+                                    {paintControls("page")}
 
                                     {/* Rangée 1 : Actions & Modes de plateau */}
                                     <div className="flex flex-wrap items-center gap-2">
@@ -2567,15 +2871,28 @@ export function SpellRangeGrid({
                                     if (ei >= 0) {
                                         const isSel = selectedEnemy === ei;
                                         const isHit = hitEnemies.has(ei);
+                                        const isHudHovered2 = hoveredDamageTargetKey === `${c},${r}`;
                                         return (
-                                            <g key={`enemy-${ei}`} pointerEvents="none">
+                                            <g
+                                                key={`enemy-${ei}`}
+                                                style={{ cursor: "pointer" }}
+                                                onClick={() => handleCellClick(c, r)}
+                                                onMouseEnter={() => { setHoveredCell({ x: c, y: r }); setHoveredDamageTargetKey(`${c},${r}`); }}
+                                                onMouseLeave={() => { setHoveredCell(null); setHoveredDamageTargetKey(null); }}
+                                            >
+                                                {/* Halo doré — survol via le panneau de dégâts */}
+                                                {isHudHovered2 && (
+                                                    <circle cx={sx} cy={sy + 10} r="28" fill="rgba(224,163,32,0.18)" stroke="#e0a320" strokeWidth="2.5" opacity="1">
+                                                        <animate attributeName="opacity" values="0.6;1;0.6" dur="0.9s" repeatCount="indefinite" />
+                                                    </circle>
+                                                )}
                                                 {isSel && (<circle cx={sx} cy={sy + 10} r="22" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
                                                 {isHit && (
                                                     <circle cx={sx} cy={sy + 10} r="20" fill="rgba(239, 68, 68, 0.4)" stroke="#ef4444" strokeWidth="2.5">
                                                         <animate attributeName="opacity" values="0.4;0.9;0.4" dur="1s" repeatCount="indefinite" />
                                                     </circle>
                                                 )}
-                                                <g transform={`translate(${sx - 22}, ${sy - 32})`}>
+                                                <g transform={`translate(${sx - 22}, ${sy - 32})`} pointerEvents="none">
                                                     <image href={enemyIconUrl} x="0" y="0" width="44" height="44" className="drop-shadow-2xl" />
                                                 </g>
                                                 {isHit && (
@@ -2728,15 +3045,28 @@ export function SpellRangeGrid({
                                             if (enemy.x !== x || enemy.y !== y) return null;
                                             const isSel = selectedEnemy === ei;
                                             const isHit = hitEnemies.has(ei);
+                                            const isHudHovered = hoveredDamageTargetKey === `${enemy.x},${enemy.y}`;
                                             return (
-                                                <g key={`enemy-${ei}`} pointerEvents="none">
+                                                <g
+                                                    key={`enemy-${ei}`}
+                                                    style={{ cursor: "pointer" }}
+                                                    onClick={() => handleCellClick(enemy.x, enemy.y)}
+                                                    onMouseEnter={() => { setHoveredCell({ x: enemy.x, y: enemy.y }); setHoveredDamageTargetKey(`${enemy.x},${enemy.y}`); }}
+                                                    onMouseLeave={() => { setHoveredCell(null); setHoveredDamageTargetKey(null); }}
+                                                >
+                                                    {/* Halo doré quand survolé via le panneau de dégâts */}
+                                                    {isHudHovered && (
+                                                        <circle cx={sx} cy={sy + 10} r="26" fill="rgba(224,163,32,0.18)" stroke="#e0a320" strokeWidth="2.5" opacity="1">
+                                                            <animate attributeName="opacity" values="0.6;1;0.6" dur="0.9s" repeatCount="indefinite" />
+                                                        </circle>
+                                                    )}
                                                     {isSel && (<circle cx={sx} cy={sy + 10} r="21" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="4 3" opacity="0.9" />)}
                                                     {isHit && (
                                                         <circle cx={sx} cy={sy + 10} r="19" fill="rgba(239, 68, 68, 0.4)" stroke="#ef4444" strokeWidth="2.5">
                                                             <animate attributeName="opacity" values="0.4;0.9;0.4" dur="1s" repeatCount="indefinite" />
                                                         </circle>
                                                     )}
-                                                    <g transform={`translate(${sx - 21}, ${sy - 30})`}>
+                                                    <g transform={`translate(${sx - 21}, ${sy - 30})`} pointerEvents="none">
                                                         <image href={enemyIconUrl} x="0" y="0" width="42" height="42" className="drop-shadow-2xl" />
                                                     </g>
                                                 </g>
@@ -2747,6 +3077,82 @@ export function SpellRangeGrid({
                             })
                         )
                     )}
+                {/* ── PREVIEW D'EFFETS ──────────────────────────────────────────────────
+                    Affiche pour chaque ennemi dans la zone :
+                    ① case fantôme + flèche pour chaque effet positionnel (push/pull/tp/swap)
+                    ② badges non-positionnels (états, PA, PM, soins…) au-dessus du jeton. */}
+                {zonePreview && (enemiesEnabled || (!hideAllies && allies.length > 0)) && (
+                    <g pointerEvents="none" data-effects-preview="1">
+                        {[...effectPreviews.entries()].map(([key, results]) => {
+                            // Récupère l'entité depuis la clé "enemy-N" / "ally-N"
+                            const isAlly = key.startsWith("ally-");
+                            const entityIdx = parseInt(key.split("-")[1], 10);
+                            const entity = isAlly ? allies[entityIdx] : enemies[entityIdx];
+                            if (!entity) return null;
+                            const srcScr = cellScreenPos(entity.x, entity.y);
+                            const sx0 = srcScr.sx;
+                            const sy0 = srcScr.sy + tileHalfH;
+                            return results.map((res, ri) => {
+                                const dstScr = cellScreenPos(res.dest.x, res.dest.y);
+                                const sx1 = dstScr.sx;
+                                const sy1 = dstScr.sy + tileHalfH;
+                                const sameCell = res.dest.x === entity.x && res.dest.y === entity.y;
+                                const col = EFFECT_KIND_COLOR[res.kind];
+                                const ghostPts = isRealMap
+                                    ? (() => { const { sx, sy } = cellToScreen(res.dest.x, res.dest.y, tileW, tileH); return sx+","+sy+" "+(sx+tileHalfW)+","+(sy+tileHalfH)+" "+sx+","+(sy+tileH)+" "+(sx-tileHalfW)+","+(sy+tileHalfH); })()
+                                    : (() => { const gsx = freeOriginX+(res.dest.x-res.dest.y)*tileHalfW; const gsy = freeOriginY+(res.dest.x+res.dest.y)*tileHalfH; return gsx+","+gsy+" "+(gsx+tileHalfW)+","+(gsy+tileHalfH)+" "+gsx+","+(gsy+tileH)+" "+(gsx-tileHalfW)+","+(gsy+tileHalfH); })();
+                                const ang = Math.atan2(sy1 - sy0, sx1 - sx0);
+                                const hl = 9;
+                                const ax = sx1 - hl * Math.cos(ang - 0.42);
+                                const ay = sy1 - hl * Math.sin(ang - 0.42);
+                                const bx = sx1 - hl * Math.cos(ang + 0.42);
+                                const by = sy1 - hl * Math.sin(ang + 0.42);
+                                return (
+                                    <g key={"pos-"+key+"-"+ri}>
+                                        {!sameCell && <polygon points={ghostPts} fill={col.bg} stroke={col.border} strokeWidth={1.8} strokeDasharray="4 3" opacity={0.9} />}
+                                        {!sameCell && <line x1={sx0} y1={sy0} x2={sx1} y2={sy1} stroke={col.border} strokeWidth={2.5} strokeDasharray="5 3" opacity={0.8} />}
+                                        {!sameCell && <polygon points={sx1+","+sy1+" "+ax+","+ay+" "+bx+","+by} fill={col.border} opacity={0.9} />}
+                                        {/* ⚠️ Plus AUCUN texte sur le plateau ici : la pastille noire
+                                            « ↗ 2c » recouvrait la pastille de dégâts et le libellé
+                                            « Case visée » (constat user du 23/10/2026). La géométrie
+                                            reste (case fantôme + flèche), la valeur vit dans le
+                                            panneau de droite (« Effets du sort » + badge par cible). */}
+                                        {/* Fin de la preview positionnelle : **géométrie seule** — plus
+                                            aucune valeur chiffrée sur le plateau (les dégâts de choc
+                                            « 50 × cases » sont une approximation, et les libellés
+                                            masquaient les pastilles de dégâts). */}
+                                    </g>
+                                );
+                            });
+                        })}
+                        {[
+                            ...enemies.map((e, i) => ({ entity: e, eKey: "enemy-"+i })),
+                            ...(!hideAllies ? allies.map((a, i) => ({ entity: { x: a.x, y: a.y }, eKey: "ally-"+i })) : []),
+                        ].map(({ entity, eKey }) => {
+                            if (!zonePreview || !zonePreview.has(entity.x+","+entity.y)) return null;
+                            const nonPos = spellEffects.filter(e =>
+                                !["push","pull","tp_caster","tp_target","swap","tp_cell","tp_symmetric","tp_random"].includes(e.kind) && e.kind !== "unknown"
+                            );
+                            if (!nonPos.length) return null;
+                            const { sx, sy } = cellScreenPos(entity.x, entity.y);
+                            return (
+                                <g key={"fx-"+eKey} transform={"translate("+(sx - tileHalfW)+","+(sy - tileH - 4)+")"}>
+                                    {nonPos.slice(0, 5).map((eff, fi) => {
+                                        const col = EFFECT_KIND_COLOR[eff.kind];
+                                        const lbl = effectShortLabel(eff) + (eff.duration ? " "+eff.duration : "");
+                                        const bw = Math.max(34, lbl.length * 6 + 10);
+                                        return (
+                                            <g key={fi} transform={"translate(0,"+(fi * 17)+")"}>
+                                                <rect x={0} y={0} width={bw} height={14} rx={4} fill="rgba(0,0,0,0.82)" stroke={col.border} strokeWidth={1} />
+                                                <text x={bw/2} y={10} textAnchor="middle" fontSize={8.5} fontWeight="900" fill={col.text} className="select-none">{lbl}</text>
+                                            </g>
+                                        );
+                                    })}
+                                </g>
+                            );
+                        })}
+                    </g>
+                )}
                 {/* Case VISÉE — la « cible blanche » du jeu (convention relevée sur la page de
                     règles) : elle matérialise la matrice de la zone ET l'origine de la dégressivité.
                     Toujours affichée, même option de dégâts éteinte : on doit voir ce qu'on cible. */}
@@ -2784,7 +3190,7 @@ export function SpellRangeGrid({
                     serveur (caractéristiques du monstre appliquées), rien n'est estimé ici.
                     Chaque badge porte la **dégressivité du jeu** propre à SA cible et affiche les
                     lignes par élément avec les couleurs réelles du jeu. */}
-                {showDamage && damageInfo.lines.length > 0 && zonePreview && (
+                {showDamage && !hideMapDamageBadges && damageInfo.lines.length > 0 && zonePreview && (
                     <g pointerEvents="none">
                         {/* ① On mesure d'abord TOUTES les pastilles (contenu + taille déduite),
                             ② on les place d'un coup (bornage au cadre **et** anti-chevauchement),
@@ -2991,7 +3397,7 @@ export function SpellRangeGrid({
             {!compact && !fullscreen && (
                 <aside
                     data-no-drag
-                    className="flex w-full shrink-0 flex-col gap-2 lg:w-80 [scrollbar-width:thin]"
+                    className="flex w-full shrink-0 flex-col gap-2 lg:w-96 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]"
                 >
                     {damagePanel(true)}
                     {legendPanel(true)}
@@ -3079,7 +3485,7 @@ export function SpellRangeGrid({
             }}
         >
             <DialogContent
-                className="flex h-[min(94vh,64rem)] w-[min(97vw,96rem)] max-w-none flex-col gap-0 overflow-hidden p-0"
+                className="flex h-[97dvh] w-[99vw] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 shadow-2xl"
                 showCloseButton={false}
                 // Échap annule d'abord ce qui est en cours (pose d'un allié/ennemi, cible
                 // sélectionnée) ; il ne referme la modale que s'il n'y a rien à annuler.
@@ -3123,7 +3529,7 @@ export function SpellRangeGrid({
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col">{simSurface}</div>
                     <aside
                         data-no-drag
-                        className="flex max-h-[42%] w-full shrink-0 flex-col gap-2 overflow-y-auto border-t border-border bg-surface p-2 [scrollbar-width:thin] lg:max-h-none lg:w-80 lg:border-l lg:border-t-0"
+                        className="flex max-h-[48%] w-full shrink-0 flex-col gap-2 overflow-y-auto border-t border-border bg-surface p-3 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.12)_transparent] lg:max-h-none lg:w-96 lg:border-l lg:border-t-0"
                     >
                         {damagePanel(true)}
                         {legendPanel(true)}

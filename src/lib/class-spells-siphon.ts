@@ -16,7 +16,8 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { dofusdbFetch } from "@/lib/dofusdb-fetch";
 import { getClassName } from "@/lib/dofusbook-utils";
-import { SPELL_CHANGE_KEYS, spellDamageFromEffect, type SpellBaseDamage } from "@/lib/dofus-spells";
+import { SPELL_CHANGE_KEYS, spellDamageFromEffect, pushPullEffectsFromDofusDb, type SpellBaseDamage } from "@/lib/dofus-spells";
+import type { DofensiveSpellEffect } from "@/lib/dofensive-spells";
 import { diffCollection, recordGameDataChanges } from "@/lib/game-data-changelog";
 import { siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
 
@@ -57,6 +58,11 @@ export interface ClassSpellDamage {
     damages: SpellBaseDamage[];
     /** Jet de dégâts en coup critique (criticalEffect DofusDB), pour le calcul réel du crit. */
     critDamages?: SpellBaseDamage[];
+    /**
+     * Effets non-dégâts (poussée/attirance) — indispensables à la simulation tactique.
+     * Absent sur les grimoires siphonnés avant le 23/10/2026 (cache traité comme périmé).
+     */
+    effectDetails?: DofensiveSpellEffect[] | null;
     /** Tous les grades du sort (niveaux « 1 2 3 » ou « 1 2 » à la Dofusbook). */
     grades?: ClassSpellGrade[];
 }
@@ -80,6 +86,8 @@ export interface ClassSpellGrade {
     damages: SpellBaseDamage[];
     /** Jet de dégâts en coup critique (criticalEffect DofusDB), pour le calcul réel du crit. */
     critDamages?: SpellBaseDamage[];
+    /** Effets non-dégâts de CE grade (poussée/attirance) — voir `effectDetails` du sort. */
+    effectDetails?: DofensiveSpellEffect[] | null;
 }
 
 /** DofusDB : name/description sont des objets { fr, en, ... } ; img = icône. */
@@ -114,6 +122,10 @@ function gradeFromLevel(level: any): ClassSpellGrade {
     const range = Number(level.range ?? level.maxRange ?? 0);
     const pz = (Array.isArray(level.previewZones) && level.previewZones.length > 0 ? level.previewZones[0] : null) || level.zone || null;
 
+    // Effets **non-dégâts** du grade (repousse/attire) : la simulation tactique en a besoin
+    // pour tracer ses flèches — le siphon ne gardait auparavant que les dégâts.
+    const supportEffects = pushPullEffectsFromDofusDb(effects);
+
     return {
         grade: Number(level.grade ?? level.level ?? 0),
         minPlayerLevel: Number(level.minPlayerLevel ?? 1),
@@ -134,6 +146,16 @@ function gradeFromLevel(level: any): ClassSpellGrade {
             : null,
         damages,
         critDamages: critDamages.length > 0 ? critDamages : undefined,
+        effectDetails: supportEffects.length > 0
+            ? supportEffects.map((e) => ({
+                  label: e.label,
+                  duration: null,
+                  triggers: [],
+                  masks: [],
+                  damage: null,
+                  pushDistance: e.pushDistance,
+              }))
+            : null,
     };
 }
 

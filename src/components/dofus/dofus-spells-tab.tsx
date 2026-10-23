@@ -1,21 +1,25 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Loader2, Zap, Sword, Target, Info, Search } from "lucide-react";
+import { Loader2, Zap, Sword, Target, Info, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getClassSpells, type ClassSpellDamage } from "@/server/actions/dofus-spells-actions";
-import { computeSpellDamage, castsPerTarget, castsPerTurn, spellZoneFromDamages, type BuildStatsForSpells, type SpellElementKey } from "@/lib/dofus-spells";
+import {
+    computeSpellDamage,
+    castsPerTarget,
+    castsPerTurn,
+    spellZoneFromDamages,
+    organizeSpellDamageGroups,
+    type BuildStatsForSpells,
+    type SpellElementKey,
+    type SpellDamageGroup,
+} from "@/lib/dofus-spells";
+import { COMMON_SPELLS } from "@/lib/common-spells";
 import { getClassName } from "@/lib/dofusbook-utils";
 import { resolveDofusAssetImageUrl } from "@/lib/dofus-image-url";
 
 const frNumber = new Intl.NumberFormat("fr-FR");
 
-/**
- * Libellé + icône + token couleur par élément.
- * Icônes = `/assets/module-succes/*` (vraies icônes Dofus, même mapping que
- * `SuccesBossGuide`) ; couleurs = tokens sémantiques (cohérents fiche boss :
- * Terre→warning, Feu→danger, Eau→info, Air→success).
- */
 const ELEMENT_META: Record<SpellElementKey, { label: string; icon: string; text: string }> = {
     terre: { label: "Terre", icon: "/assets/module-succes/terre.png", text: "text-warning" },
     feu: { label: "Feu", icon: "/assets/module-succes/Intelligence.png", text: "text-danger" },
@@ -32,13 +36,9 @@ interface SpellsTabProps {
     build: BuildStatsForSpells;
 }
 
-type VariantFilter = "all" | "base" | "variant";
+type VariantFilter = "all" | "base" | "variant" | "common";
 type ElementFilter = "all" | SpellElementKey | "utility";
 
-/**
- * Onglet « Sorts » : affiche tous les sorts de classe (sorts de base & variantes)
- * avec leurs dégâts théoriques calculés (non-crit / critique) appliqués aux stats réelles du build.
- */
 export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
     const [spells, setSpells] = useState<ClassSpellDamage[] | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -46,6 +46,8 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
 
     // Sélection du grade par sort : { [spellId]: gradeNumber }
     const [gradeSel, setGradeSel] = useState<Record<number, number>>({});
+    // Sélection du palier/tier pour les sorts multi-paliers (ex: Tromperie) : { [spellId]: tierKey }
+    const [tierSel, setTierSel] = useState<Record<number, string>>({});
 
     // Filtres & recherche
     const [searchQuery, setSearchQuery] = useState("");
@@ -70,7 +72,9 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                 if (!res.success || !res.data || res.data.spells.length === 0) {
                     setError(res.error || "Aucun sort détecté pour cette classe.");
                 } else {
-                    setSpells(res.data.spells);
+                    // Combine class spells + common spells
+                    const allSpells = [...res.data.spells, ...COMMON_SPELLS];
+                    setSpells(allSpells);
                 }
             })
             .catch(() => !cancelled && setError("Impossible de charger les sorts."))
@@ -96,17 +100,13 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
             const minRange = active ? active.minRange : sp.minRange;
             const apCost = active ? active.apCost : sp.apCost;
             const critChance = active ? active.criticalChance : sp.criticalChance;
-            // Limites de lancer SUIVENT LE GRADE (DofusDB : chaque niveau a ses
-            // propres maxCastPerTurn / maxCastPerTarget / intervalle / zone).
             const gMaxPerTurn = active ? active.maxCastPerTurn : sp.maxCastPerTurn;
             const gMaxPerTarget = active ? active.maxCastPerTarget : sp.maxCastPerTarget;
             const gInterval = active ? active.minCastInterval : sp.minCastInterval;
             const gZone = active ? active.zone : sp.zone;
-            // Contraintes de lancer du grade (champs réels DofusDB, défaut = LdV).
             const gLos = active ? active.castTestLos !== false : sp.castTestLos !== false;
             const gLine = active ? !!active.castInLine : !!sp.castInLine;
             const gDiag = active ? !!active.castInDiagonal : !!sp.castInDiagonal;
-            // Zone d'effet réelle (lignes de dégâts `zoneDescr`, pas le champ `zone` quasi vide).
             const gZoneSummary = spellZoneFromDamages(dmgLines);
 
             const kind: "sorts" | "melee" | "distance" = maxRange <= 1 ? "melee" : "distance";
@@ -122,22 +122,65 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                 );
             });
 
-            const result = parts.length > 0 ? {
-                baseMin: parts.reduce((a, p) => a + p.baseMin, 0),
-                baseMax: parts.reduce((a, p) => a + p.baseMax, 0),
-                theoMin: parts.reduce((a, p) => a + p.theoMin, 0),
-                theoMax: parts.reduce((a, p) => a + p.theoMax, 0),
-                critMin: parts.reduce((a, p) => a + p.critMin, 0),
-                critMax: parts.reduce((a, p) => a + p.critMax, 0),
-                elementStat: parts[0]?.elementStat ?? 0,
-                critMult: parts[0]?.critMult ?? 1.5,
-                grade: gLabel,
-            } : null;
+            // Organisation en groupes logiques (paliers / jets exclusifs)
+            const damageGroups = organizeSpellDamageGroups(dmgLines, parts);
+            const activeTierKey = tierSel[sp.id] ?? damageGroups[0]?.tierKey ?? "all";
+            const activeGroup = damageGroups.find((g) => g.tierKey === activeTierKey) ?? damageGroups[0];
+
+            let result: {
+                baseMin: number;
+                baseMax: number;
+                theoMin: number;
+                theoMax: number;
+                critMin: number;
+                critMax: number;
+                elementStat: number;
+                critMult: number;
+                grade: number;
+                isExclusive?: boolean;
+            } | null = null;
+
+            if (parts.length > 0 && activeGroup) {
+                const activeParts = activeGroup.items.map((it) => it.res);
+                if (activeGroup.isExclusive) {
+                    // Jets alternatifs (ex. Tromperie, un seul élément tiré) : la fourchette min-max globale
+                    const mins = activeParts.map((p) => p.theoMin);
+                    const maxs = activeParts.map((p) => p.theoMax);
+                    const cMins = activeParts.map((p) => p.critMin);
+                    const cMaxs = activeParts.map((p) => p.critMax);
+                    result = {
+                        baseMin: Math.min(...activeParts.map((p) => p.baseMin)),
+                        baseMax: Math.max(...activeParts.map((p) => p.baseMax)),
+                        theoMin: Math.min(...mins),
+                        theoMax: Math.max(...maxs),
+                        critMin: Math.min(...cMins),
+                        critMax: Math.max(...cMaxs),
+                        elementStat: activeParts[0]?.elementStat ?? 0,
+                        critMult: activeParts[0]?.critMult ?? 1.5,
+                        grade: gLabel,
+                        isExclusive: true,
+                    };
+                } else {
+                    // Cumulatif (ex. sort bi-élément ou mono)
+                    result = {
+                        baseMin: activeParts.reduce((a, p) => a + p.baseMin, 0),
+                        baseMax: activeParts.reduce((a, p) => a + p.baseMax, 0),
+                        theoMin: activeParts.reduce((a, p) => a + p.theoMin, 0),
+                        theoMax: activeParts.reduce((a, p) => a + p.theoMax, 0),
+                        critMin: activeParts.reduce((a, p) => a + p.critMin, 0),
+                        critMax: activeParts.reduce((a, p) => a + p.critMax, 0),
+                        elementStat: activeParts[0]?.elementStat ?? 0,
+                        critMult: activeParts[0]?.critMult ?? 1.5,
+                        grade: gLabel,
+                        isExclusive: false,
+                    };
+                }
+            }
 
             const primaryElement: SpellElementKey = (dmgLines[0]?.element) ?? "neutre";
             const isUtility = !result;
+            const isCommon = sp.id >= 99000;
 
-            // Multiplicateurs de lancer : 0 = illimité → pas de total dérivé.
             const nPerTarget = castsPerTarget(gMaxPerTarget ?? 0, gMaxPerTurn ?? 0);
             const nPerTurn = castsPerTurn(gMaxPerTurn ?? 0);
 
@@ -161,22 +204,27 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                 gLabel,
                 gMinPlayerLevel,
                 elements: parts,
+                damageGroups,
+                activeGroup,
+                activeTierKey,
                 result,
                 nPerTarget,
                 nPerTurn,
                 primaryElement,
                 isUtility,
+                isCommon,
                 kind,
             };
         });
-    }, [spells, gradeSel, build]);
+    }, [spells, gradeSel, tierSel, build]);
 
     // Filtrage des sorts
     const filteredSpells = useMemo(() => {
         return computedSpells.filter((sp) => {
-            // Filtre variante
-            if (variantFilter === "base" && sp.isVariant) return false;
-            if (variantFilter === "variant" && !sp.isVariant) return false;
+            // Filtre variante / commun
+            if (variantFilter === "base" && (sp.isVariant || sp.isCommon)) return false;
+            if (variantFilter === "variant" && (!sp.isVariant || sp.isCommon)) return false;
+            if (variantFilter === "common" && !sp.isCommon) return false;
 
             // Filtre élément
             if (elementFilter === "utility" && !sp.isUtility) return false;
@@ -226,8 +274,9 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
         build.damages.distance || 0,
     ];
 
-    const baseCount = computedSpells.filter((s) => !s.isVariant).length;
-    const variantCount = computedSpells.filter((s) => s.isVariant).length;
+    const baseCount = computedSpells.filter((s) => !s.isVariant && !s.isCommon).length;
+    const variantCount = computedSpells.filter((s) => s.isVariant && !s.isCommon).length;
+    const commonCount = computedSpells.filter((s) => s.isCommon).length;
 
     return (
         <div className="flex flex-col gap-5">
@@ -260,16 +309,14 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
 
             {/* 2. Barre d'outils : Recherche & Filtres */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                {/* Filtre Type (Tous / Base / Variantes) */}
+                {/* Filtre Type (Tous / Base / Variantes / Communs) */}
                 <div className="flex items-center gap-1 bg-surface/60 border border-border p-1 rounded-xl shrink-0">
                     <button
                         type="button"
                         onClick={() => setVariantFilter("all")}
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors cursor-pointer",
-                            variantFilter === "all"
-                                ? "bg-elevated text-foreground"
-                                : "text-muted-foreground hover:text-foreground"
+                            variantFilter === "all" ? "bg-elevated text-foreground" : "text-muted-foreground hover:text-foreground"
                         )}
                     >
                         Tous ({computedSpells.length})
@@ -279,9 +326,7 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                         onClick={() => setVariantFilter("base")}
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors cursor-pointer",
-                            variantFilter === "base"
-                                ? "bg-elevated text-foreground"
-                                : "text-muted-foreground hover:text-foreground"
+                            variantFilter === "base" ? "bg-elevated text-foreground" : "text-muted-foreground hover:text-foreground"
                         )}
                     >
                         Base ({baseCount})
@@ -291,12 +336,20 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                         onClick={() => setVariantFilter("variant")}
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors cursor-pointer",
-                            variantFilter === "variant"
-                                ? "bg-elevated text-foreground"
-                                : "text-muted-foreground hover:text-foreground"
+                            variantFilter === "variant" ? "bg-elevated text-foreground" : "text-muted-foreground hover:text-foreground"
                         )}
                     >
                         Variantes ({variantCount})
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setVariantFilter("common")}
+                        className={cn(
+                            "px-3 py-1.5 rounded-lg text-caption font-bold transition-colors cursor-pointer flex items-center gap-1.5",
+                            variantFilter === "common" ? "bg-elevated text-warning font-black" : "text-muted-foreground hover:text-foreground"
+                        )}
+                    >
+                        <Sparkles className="w-3 h-3 text-warning" /> Communs ({commonCount})
                     </button>
                 </div>
 
@@ -355,9 +408,6 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                     {filteredSpells.map((sp) => {
                         const meta = ELEMENT_META[sp.primaryElement];
                         const currentGrade = gradeSel[sp.id] ?? sp.gLabel;
-                        // Icône SIPHONNÉE : `/api/assets-dofus/spells/{id}?url=…` (WebP disque du
-                        // serveur) au lieu de l'URL absolue DofusDB stockée en base — le navigateur
-                        // n'appelle plus jamais `api.dofusdb.fr` (57 requêtes sup. en moins).
                         const iconSrc = resolveDofusAssetImageUrl("spells", sp.id, sp.imageUrl);
 
                         return (
@@ -365,7 +415,11 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                 key={sp.id}
                                 className={cn(
                                     "flex flex-col gap-2.5 bg-surface p-4 rounded-[4px] border transition-colors",
-                                    sp.isVariant ? "border-border/80 hover:border-info/30" : "border-border hover:border-success/30",
+                                    sp.isCommon
+                                        ? "border-warning/40 hover:border-warning/70"
+                                        : sp.isVariant
+                                            ? "border-border/80 hover:border-info/30"
+                                            : "border-border hover:border-success/30",
                                     sp.isUtility && "opacity-90"
                                 )}
                             >
@@ -387,7 +441,11 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-1.5 mt-0.5">
-                                            {sp.isVariant ? (
+                                            {sp.isCommon ? (
+                                                <span className="px-1.5 py-0.5 bg-warning/15 border border-warning/30 text-warning text-[10px] font-black rounded uppercase">
+                                                    Commun
+                                                </span>
+                                            ) : sp.isVariant ? (
                                                 <span className="px-1.5 py-0.5 bg-info/10 border border-info/20 text-info text-[10px] font-bold rounded uppercase">
                                                     Variante
                                                 </span>
@@ -406,7 +464,7 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                         </div>
                                     </div>
 
-                                    {/* Sélecteur dynamique de grades : 1, 2, 3 ou 1, 2 */}
+                                    {/* Sélecteur dynamique de grades */}
                                     <div className="flex items-center gap-1 shrink-0">
                                         {sp.gradesList && sp.gradesList.length > 1 ? (
                                             sp.gradesList.map((g) => {
@@ -463,7 +521,8 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                         <p className="text-label font-bold text-foreground tabular-nums">{sp.gCrit}%</p>
                                     </div>
                                 </div>
-                                {/* Limites de lancer du grade (Dofusbook : par tour / par cible / intervalle / zone / LdV) */}
+
+                                {/* Limites de lancer */}
                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
                                     <span className="tabular-nums">
                                         {(sp.gMaxPerTurn ?? 0) > 0 ? `${sp.gMaxPerTurn} / tour` : "Lancers illimités"}
@@ -494,104 +553,91 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
                                     <span>{sp.gLos ? "LdV" : "Sans LdV"}{sp.gLine ? " · Ligne" : ""}{sp.gDiag ? " · Diagonale" : ""}</span>
                                 </div>
 
+                                {/* Sélecteur de Palier pour les sorts multi-paliers (ex. Tromperie) */}
+                                {sp.damageGroups && sp.damageGroups.length > 1 && (
+                                    <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Palier :</span>
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                            {sp.damageGroups.map((grp) => {
+                                                const active = grp.tierKey === sp.activeTierKey;
+                                                return (
+                                                    <button
+                                                        key={grp.tierKey}
+                                                        type="button"
+                                                        onClick={() => setTierSel((prev) => ({ ...prev, [sp.id]: grp.tierKey }))}
+                                                        className={cn(
+                                                            "px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer",
+                                                            active
+                                                                ? "bg-foreground text-background font-black"
+                                                                : "bg-surface border border-border text-muted-foreground hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        {grp.tierLabel}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Section Dégâts */}
-                                {sp.result ? (
+                                {sp.result && sp.activeGroup ? (
                                     <div className="flex flex-col gap-1.5 border-t border-border pt-2.5 mt-auto">
-                                        {sp.elements && sp.elements.length > 1 ? (
-                                            <>
-                                                {sp.elements.map((p, idx) => {
-                                                    const lineMeta = ELEMENT_META[sp.dmgLines[idx]?.element ?? "neutre"];
-                                                    return (
-                                                        <div key={idx} className="flex items-baseline justify-between text-caption">
-                                                            <span className={cn("inline-flex items-center gap-1.5 font-medium", lineMeta?.text ?? "text-muted-foreground")}>
-                                                                {lineMeta && (
-                                                                    // eslint-disable-next-line @next/next/no-img-element
-                                                                    <img src={lineMeta.icon} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain" loading="lazy" />
-                                                                )}
-                                                                {lineMeta?.label} {frNumber.format(p.theoMin)}–{frNumber.format(p.theoMax)}
-                                                            </span>
-                                                            <span className="text-[10px] text-muted-foreground italic">
-                                                                Base {p.baseMin}–{p.baseMax}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })}
-                                                <div className="flex items-baseline justify-between border-t border-border/50 pt-1.5 mt-0.5">
-                                                    <span className="text-caption font-bold text-muted-foreground uppercase">Total par lancer</span>
-                                                    <span className={cn("font-bold text-body-sm tabular-nums", meta?.text ?? "text-foreground")}>
-                                                        {frNumber.format(sp.result.theoMin)}–{frNumber.format(sp.result.theoMax)}
+                                        {/* Lignes du palier actif */}
+                                        {sp.activeGroup.items.map((item) => {
+                                            const lineMeta = ELEMENT_META[item.dmg.element ?? "neutre"];
+                                            return (
+                                                <div key={item.index} className="flex items-baseline justify-between text-caption">
+                                                    <span className={cn("inline-flex items-center gap-1.5 font-medium", lineMeta?.text ?? "text-muted-foreground")}>
+                                                        {lineMeta && (
+                                                            // eslint-disable-next-line @next/next/no-img-element
+                                                            <img src={lineMeta.icon} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain" loading="lazy" />
+                                                        )}
+                                                        {lineMeta?.label} {frNumber.format(item.res.theoMin)}–{frNumber.format(item.res.theoMax)}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground italic">
+                                                        Base {item.res.baseMin}–{item.res.baseMax}
                                                     </span>
                                                 </div>
-                                                <div className="flex items-baseline justify-between">
-                                                    <span className="text-caption font-bold text-muted-foreground uppercase flex items-center gap-1">
-                                                        Critique
-                                                    </span>
-                                                    <span className="font-bold text-body-sm tabular-nums text-danger">
-                                                        {frNumber.format(sp.result.critMin)}–{frNumber.format(sp.result.critMax)}
-                                                    </span>
-                                                </div>
-                                                {(sp.nPerTarget != null && sp.nPerTarget > 1) && (
-                                                    <div className="flex items-baseline justify-between">
-                                                        <span className="text-caption font-bold text-muted-foreground uppercase">
-                                                            Par cible (×{sp.nPerTarget})
-                                                        </span>
-                                                        <span className={cn("font-bold text-body-sm tabular-nums", meta?.text ?? "text-foreground")}>
-                                                            {frNumber.format(sp.result.theoMin * sp.nPerTarget)}–{frNumber.format(sp.result.theoMax * sp.nPerTarget)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {(sp.nPerTurn != null && sp.nPerTurn > 1) && (
-                                                    <div className="flex items-baseline justify-between">
-                                                        <span className="text-caption font-bold text-muted-foreground uppercase">
-                                                            Par tour (×{sp.nPerTurn})
-                                                        </span>
-                                                        <span className="font-bold text-body-sm tabular-nums text-foreground">
-                                                            {frNumber.format(sp.result.theoMin * sp.nPerTurn)}–{frNumber.format(sp.result.theoMax * sp.nPerTurn)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="flex items-baseline justify-between">
-                                                    <span className="text-caption text-muted-foreground">
-                                                        Base {frNumber.format(sp.result.baseMin)}–{frNumber.format(sp.result.baseMax)}
-                                                    </span>
-                                                    <span className="text-[10px] text-muted-foreground italic">{KIND_LABEL[sp.kind]}</span>
-                                                </div>
-                                                <div className="flex items-baseline justify-between">
-                                                    <span className="text-caption font-bold text-muted-foreground uppercase">Dégâts</span>
-                                                    <span className={cn("font-bold text-body-sm tabular-nums", meta?.text ?? "text-foreground")}>
-                                                        {frNumber.format(sp.result.theoMin)}–{frNumber.format(sp.result.theoMax)}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-baseline justify-between">
-                                                    <span className="text-caption font-bold text-muted-foreground uppercase">Critique</span>
-                                                    <span className="font-bold text-body-sm tabular-nums text-danger">
-                                                        {frNumber.format(sp.result.critMin)}–{frNumber.format(sp.result.critMax)}
-                                                    </span>
-                                                </div>
-                                                {(sp.nPerTarget != null && sp.nPerTarget > 1) && (
-                                                    <div className="flex items-baseline justify-between">
-                                                        <span className="text-caption font-bold text-muted-foreground uppercase">
-                                                            Par cible (×{sp.nPerTarget})
-                                                        </span>
-                                                        <span className={cn("font-bold text-body-sm tabular-nums", meta?.text ?? "text-foreground")}>
-                                                            {frNumber.format(sp.result.theoMin * sp.nPerTarget)}–{frNumber.format(sp.result.theoMax * sp.nPerTarget)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {(sp.nPerTurn != null && sp.nPerTurn > 1) && (
-                                                    <div className="flex items-baseline justify-between">
-                                                        <span className="text-caption font-bold text-muted-foreground uppercase">
-                                                            Par tour (×{sp.nPerTurn})
-                                                        </span>
-                                                        <span className="font-bold text-body-sm tabular-nums text-foreground">
-                                                            {frNumber.format(sp.result.theoMin * sp.nPerTurn)}–{frNumber.format(sp.result.theoMax * sp.nPerTurn)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </>
+                                            );
+                                        })}
+
+                                        {/* Totaux calculés du palier */}
+                                        <div className="flex items-baseline justify-between border-t border-border/50 pt-1.5 mt-0.5">
+                                            <span className="text-caption font-bold text-muted-foreground uppercase">
+                                                {sp.result.isExclusive ? "Total par jet (aléatoire)" : "Total par lancer"}
+                                            </span>
+                                            <span className={cn("font-bold text-body-sm tabular-nums", meta?.text ?? "text-foreground")}>
+                                                {frNumber.format(sp.result.theoMin)}–{frNumber.format(sp.result.theoMax)}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-baseline justify-between">
+                                            <span className="text-caption font-bold text-muted-foreground uppercase">
+                                                Critique
+                                            </span>
+                                            <span className="font-bold text-body-sm tabular-nums text-danger">
+                                                {frNumber.format(sp.result.critMin)}–{frNumber.format(sp.result.critMax)}
+                                            </span>
+                                        </div>
+                                        {sp.nPerTarget != null && sp.nPerTarget > 1 && (
+                                            <div className="flex items-baseline justify-between">
+                                                <span className="text-caption font-bold text-muted-foreground uppercase">
+                                                    Par cible (×{sp.nPerTarget})
+                                                </span>
+                                                <span className={cn("font-bold text-body-sm tabular-nums", meta?.text ?? "text-foreground")}>
+                                                    {frNumber.format(sp.result.theoMin * sp.nPerTarget)}–{frNumber.format(sp.result.theoMax * sp.nPerTarget)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {sp.nPerTurn != null && sp.nPerTurn > 1 && (
+                                            <div className="flex items-baseline justify-between">
+                                                <span className="text-caption font-bold text-muted-foreground uppercase">
+                                                    Par tour (×{sp.nPerTurn})
+                                                </span>
+                                                <span className="font-bold text-body-sm tabular-nums text-foreground">
+                                                    {frNumber.format(sp.result.theoMin * sp.nPerTurn)}–{frNumber.format(sp.result.theoMax * sp.nPerTurn)}
+                                                </span>
+                                            </div>
                                         )}
                                     </div>
                                 ) : (
@@ -618,8 +664,8 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
             )}
 
             <p className="text-caption text-muted-foreground mt-2">
-                Dégâts théoriques (formule Dofus 2 : base × (1 + (stat + puissance)/100) + dommages fixes, majorés par les % sorts/distance/mêlée).
-                Le total cumule les lignes du sort par lancer ; « Par cible » multiplie par le nombre de lancers sur la même cible (plafonné au tour), « Par tour » par le nombre de lancers par tour (grade affiché).
+                Dégâts théoriques calculés selon la formule Dofus 2 : base × (1 + (stat + puissance)/100) + dommages fixes, majorés par les % sorts/distance/mêlée.
+                Pour les sorts à jets alternatifs (ex. Tromperie, tirage élémentaire), les totaux correspondent au jet de l'élément tiré selon le palier sélectionné.
             </p>
         </div>
     );

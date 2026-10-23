@@ -377,9 +377,19 @@ export function damageLinesFromEffects(
               | string
           >
         | null
-        | undefined
+        | undefined,
+    /**
+     * `keepHits` (défaut `false` = comportement historique) : une ligne **par coup** au lieu
+     * d'une ligne **par élément**. Mesure du 23/10/2026 : `Extraction` porte deux coups
+     * (28-30 puis 14-15) ; fusionnés, la simulation affichait `1242-1292` là où Dofusbook
+     * affiche `893-935` **et** `446-467` — l'utilisateur lisait « dégâts faux ».
+     * Le total, lui, ne change pas : c'est la somme des deux coups.
+     */
+    opts: { keepHits?: boolean } = {}
 ): { lines: SpellDamageLine[]; push: number | null } {
     const byElement = new Map<SpellElementKey, SpellDamageLine>();
+    /** Coups dans l'ordre du sort (voir `keepHits`). */
+    const hits: SpellDamageLine[] = [];
     let push: number | null = null;
 
     for (const item of effectDetails ?? []) {
@@ -422,6 +432,7 @@ export function damageLinesFromEffects(
         const decrease = normalizeDecrease(damage.decrease);
 
         const current = byElement.get(element);
+        hits.push({ element, min, max, lines: 1, crit, decrease });
         if (current) {
             current.min += min;
             current.max += max;
@@ -438,7 +449,7 @@ export function damageLinesFromEffects(
         }
     }
 
-    return { lines: [...byElement.values()], push };
+    return { lines: opts.keepHits ? hits : [...byElement.values()], push };
 }
 
 /**
@@ -451,7 +462,7 @@ export function damageLinesFromEffects(
 export function normalizeSpellEffectDetails(
     spell: {
         effects?: string[];
-        effectDetails?: any[];
+        effectDetails?: any[] | null;
         unityEffects?: string[];
     } | null | undefined
 ): DofensiveSpellEffect[] {
@@ -511,6 +522,78 @@ export function normalizeSpellEffectDetails(
             pushDistance,
         };
     });
+}
+
+/**
+ * Poussées / attirances d'un grade, depuis les **effects bruts DofusDB**.
+ *
+ * Ids officiels : `4`/`5` = repousse, `6`/`8` = attire (mêmes ids que le siphon des boss).
+ * La distance vient de `diceNum` (ou `value`), sinon de `zoneDescr.param1`.
+ *
+ * 🐛 Mesure du 23/10/2026 : le siphon des sorts de CLASSE ne gardait que les dégâts — Météore
+ * arrivait en simulation sans aucune poussée, donc sans flèche et sans « Effets du sort ».
+ * Cette règle est la **seule** source de vérité pour ces quatre ids.
+ */
+export function pushPullEffectsFromDofusDb(
+    effects: unknown
+): { label: string; pushDistance: number }[] {
+    const list = Array.isArray(effects) ? effects : [];
+    const out: { label: string; pushDistance: number }[] = [];
+    for (const raw of list) {
+        const eff = raw as { effectId?: unknown; diceNum?: unknown; value?: unknown; zoneDescr?: { param1?: unknown } };
+        const id = Math.floor(Number(eff?.effectId));
+        if (![4, 5, 6, 8].includes(id)) continue;
+        const fromDice = Math.floor(Number(eff?.diceNum ?? eff?.value) || 0);
+        const fromZone = Math.floor(Number(eff?.zoneDescr?.param1) || 0);
+        const distance = fromDice > 0 ? fromDice : fromZone;
+        if (!(distance > 0)) continue;
+        const attract = id === 6 || id === 8;
+        out.push({
+            label: attract ? `Attire de ${distance}` : `Repousse de ${distance}`,
+            pushDistance: distance,
+        });
+    }
+    return out;
+}
+
+/**
+ * Effets d'un sort **pour la simulation tactique** : lignes de dégâts recalculées avec les
+ * statistiques du build **+** effets non-dégâts du sort (poussée, attirance, TP, états, soin,
+ * bouclier, invocation).
+ *
+ * 🐛 Mesure du 23/10/2026 : la simulation ne passait QUE `spellEffectDetailsFromBuild(...)`
+ * (dégâts purs, **sans `pushDistance`**) ⇒ `classifySpellEffects` ne trouvait aucune poussée :
+ * Météore n'affichait ni flèche sur la grille, ni la section « Effets du sort » du panneau,
+ * alors que le même sort a ses flèches dans les modules Boss/Donjons (détails Dofensive).
+ *
+ * Règle de fusion — **jamais deux fois les mêmes dégâts** :
+ *  - une entrée du sort qui ne porte QUE des dégâts est ignorée (les lignes recalculées, avec
+ *    les caractéristiques du joueur, font foi) ;
+ *  - une entrée qui porte une poussée/attirance est conservée, mais **sans** son `damage`
+ *    (sinon la cible serait comptée deux fois dans la prévisu) ;
+ *  - déduplication par (libellé normalisé + distance de poussée).
+ */
+export function mergeSimulationEffectDetails(
+    damageLines: DofensiveSpellEffect[],
+    spell: { effects?: string[]; effectDetails?: any[] | null; unityEffects?: string[] } | null | undefined
+): DofensiveSpellEffect[] {
+    const keyOf = (eff: DofensiveSpellEffect) =>
+        `${cleanDofusText(eff.label ?? "").toLowerCase()}|${eff.pushDistance ?? ""}`;
+
+    const merged = [...damageLines];
+    const seen = new Set(merged.map(keyOf));
+
+    for (const eff of normalizeSpellEffectDetails(spell)) {
+        const push = typeof eff.pushDistance === "number" && eff.pushDistance > 0 ? eff.pushDistance : null;
+        // Dégâts seuls : déjà couverts par les lignes recalculées du build.
+        if (eff.damage && push === null) continue;
+        const key = keyOf(eff);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(eff.damage ? { ...eff, damage: null } : eff);
+    }
+
+    return merged;
 }
 
 export interface BossPassiveEffect {
@@ -830,6 +913,12 @@ export function spellEffectDetailsFromBuild(
          * multiplicateur 1,5, qui n'est pas un jet critique du jeu).
          */
         critDamages?: SpellBaseDamage[] | null;
+        /**
+         * Sort qui **vole de la vie** (description officielle : « Vole de la vie dans l'élément
+         * Feu… ») : le libellé dit « vol de vie » et non « dommages » — constat user du
+         * 23/10/2026 sur Extraction, affiché « Dommages Feu ».
+         */
+        lifesteal?: boolean;
     } = {}
 ): {
     label: string;
@@ -868,7 +957,7 @@ export function spellEffectDetailsFromBuild(
             // libellé inventé, et aucune table de libellés dupliquée dans ce module sans dépendance.
             const elementLabel = dmg.element.charAt(0).toUpperCase() + dmg.element.slice(1);
             return {
-                label: `${res.theoMin} à ${res.theoMax} dommages ${elementLabel}`,
+                label: `${res.theoMin} à ${res.theoMax} ${opts.lifesteal ? "vol de vie" : "dommages"} ${elementLabel}`,
                 duration: null,
                 triggers: [] as string[],
                 masks: [] as string[],
@@ -925,6 +1014,12 @@ export interface SpellGradeLike {
     zone: { shape: string; size: number; range: number } | null;
     damages: SpellBaseDamage[];
     critDamages?: SpellBaseDamage[];
+    /**
+     * Effets **non-dégâts** du grade (poussée/attirance au minimum) — la simulation tactique
+     * en a besoin pour tracer les flèches ; absents sur les grimoires siphonnés avant le
+     * 23/10/2026 (le cache est alors considéré comme périmé par `getClassSpells`).
+     */
+    effectDetails?: DofensiveSpellEffect[] | null;
 }
 
 /** Grade par défaut pour un niveau de perso : le plus élevé accessible, sinon le 1er. */
@@ -964,6 +1059,7 @@ export function applyCharLevelToSpells<
             zone: chosen.zone,
             damages: chosen.damages,
             critDamages: chosen.critDamages,
+            effectDetails: chosen.effectDetails ?? null,
         };
     });
 }
@@ -1016,6 +1112,7 @@ export function elementFromDofusdb(effectElement: number | null | undefined): Sp
  *   117 = bonus de Portée (« +X PO » → devenait une fausse ligne « Neutre X–X »).
  */
 const DIRECT_DAMAGE_IDS = new Set([91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 112]);
+const GLYPH_TRAP_EFFECT_IDS = new Set([400, 401, 402, 1017, 2796]);
 
 /**
  * Tente de produire une `SpellBaseDamage` depuis un effect DofusDB brut.
@@ -1050,11 +1147,31 @@ export function spellDamageFromEffect(eff: any): SpellBaseDamage | null {
     if (!eff || typeof eff !== "object") return null;
 
     const id = Number(eff.effectId ?? eff.id);
-    const isDamage = DIRECT_DAMAGE_IDS.has(id) || (!!eff.formatted && /[Dd]ommages/.test(String(eff.formatted)));
-    if (!isDamage) return null;
+    const hasDamageText = !!eff.formatted && /(?:[Dd]ommages?|[Vv]ol(?:s)?(?:\s+de\s+vie)?)/.test(String(eff.formatted));
+    const isDirectDamage = DIRECT_DAMAGE_IDS.has(id);
+    const isGlyphOrTrap = GLYPH_TRAP_EFFECT_IDS.has(id);
+
+    if (!isDirectDamage && !isGlyphOrTrap && !hasDamageText) return null;
 
     let min = Number(eff.diceNum ?? eff.min ?? eff.value) || 0;
     let max = Number(eff.diceSide ?? eff.max ?? eff.value) || 0;
+    let detectedElement: SpellElementKey | null = null;
+
+    // Si c'est un glyphe/piège ou si formatted est présent, extraction avancée du texte
+    if (typeof eff.formatted === "string" && (isGlyphOrTrap || min === 0 || max === 0 || min > 1000)) {
+        const parsed = extractDamageFromLabel(eff.formatted);
+        if (parsed) {
+            min = parsed.min;
+            max = parsed.max;
+            detectedElement = parsed.element;
+        } else {
+            const m = eff.formatted.match(/(\d+)(?:\s*à\s*(\d+))?/);
+            if (m) {
+                min = Number(m[1]);
+                max = m[2] ? Number(m[2]) : min;
+            }
+        }
+    }
 
     // Si `formatted` fourni ("10 à 18"), on tente de l'exploiter.
     if ((min === 0 || max === 0) && typeof eff.formatted === "string") {
@@ -1086,7 +1203,7 @@ export function spellDamageFromEffect(eff: any): SpellBaseDamage | null {
     return {
         min,
         max,
-        element: elementFromDofusdb(eff.effectElement ?? (eff as any).effectElementId),
+        element: detectedElement || elementFromDofusdb(eff.effectElement ?? (eff as any).effectElementId),
         grade: Number(eff.grade ?? eff.level ?? 0),
         zone,
         decrease,
@@ -1095,3 +1212,65 @@ export function spellDamageFromEffect(eff: any): SpellBaseDamage | null {
 
 
 
+
+
+export interface SpellDamageGroup {
+    tierKey: string;
+    tierLabel: string;
+    isExclusive: boolean;
+    items: Array<{
+        index: number;
+        dmg: SpellBaseDamage;
+        res: SpellDamageResult;
+    }>;
+}
+
+export function organizeSpellDamageGroups(
+    dmgLines: SpellBaseDamage[],
+    results: SpellDamageResult[]
+): SpellDamageGroup[] {
+    if (dmgLines.length === 0 || results.length === 0) return [];
+
+    const baseKeys = new Map<string, Array<{ index: number; dmg: SpellBaseDamage; res: SpellDamageResult }>>();
+
+    dmgLines.forEach((dmg, idx) => {
+        const res = results[idx];
+        if (!res) return;
+        const key = `${dmg.min}-${dmg.max}`;
+        if (!baseKeys.has(key)) baseKeys.set(key, []);
+        baseKeys.get(key)!.push({ index: idx, dmg, res });
+    });
+
+    const uniqueElements = new Set(dmgLines.map((d) => d.element));
+    const hasRepeatedElements = dmgLines.length > uniqueElements.size;
+    const isMultiTier = baseKeys.size > 1 && hasRepeatedElements;
+
+    if (!isMultiTier && !hasRepeatedElements) {
+        return [
+            {
+                tierKey: "all",
+                tierLabel: "Dégâts",
+                isExclusive: false,
+                items: dmgLines.map((dmg, idx) => ({ index: idx, dmg, res: results[idx] })),
+            },
+        ];
+    }
+
+    const groups: SpellDamageGroup[] = [];
+    let tierIndex = 1;
+
+    for (const [key, items] of baseKeys.entries()) {
+        const distinctElementsInTier = new Set(items.map((it) => it.dmg.element));
+        const isExclusive = distinctElementsInTier.size === items.length && items.length > 1;
+
+        groups.push({
+            tierKey: key,
+            tierLabel: isMultiTier ? `Palier ${tierIndex} (Base ${key})` : "Jets alternatifs",
+            isExclusive,
+            items,
+        });
+        tierIndex++;
+    }
+
+    return groups;
+}

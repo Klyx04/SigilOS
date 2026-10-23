@@ -69,7 +69,12 @@ export async function getClassSpells(classId: number, charLevel: number = 200): 
     const level = Number.isFinite(charLevel) && charLevel > 0 ? Math.floor(charLevel) : 200;
 
     const stored = await readSpellbook(classId);
-    if (stored && stored.spells.length > 0) {
+    // Un grimoire siphonné AVANT le 23/10/2026 ne porte aucun `effectDetails` (poussée) :
+    // il est traité comme périmé, sinon la simulation resterait sans flèches pour toujours.
+    const storedHasEffectDetails = !!stored?.spells?.some(
+        (sp) => Array.isArray(sp.effectDetails) && sp.effectDetails.length > 0
+    );
+    if (stored && stored.spells.length > 0 && storedHasEffectDetails) {
         const age = Date.now() - new Date(stored.updatedAt).getTime();
         if (age <= CLASS_SPELLS_TTL_MS) {
             return {

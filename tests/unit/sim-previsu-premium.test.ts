@@ -187,7 +187,7 @@ describe("dégressivité appliquée PAR CIBLE sur la grille", () => {
 
     it("le badge d'une cible porte son total, son malus de distance, son critique et ses lignes d'élément", () => {
         const layer = GRID.slice(
-            GRID.indexOf("{showDamage && damageInfo.lines.length > 0 && zonePreview"),
+            GRID.indexOf("{showDamage && !hideMapDamageBadges && damageInfo.lines.length > 0 && zonePreview"),
             GRID.indexOf("</svg>")
         );
         expect(layer).toMatch(/formatDamageRange\(target\.total\.min, target\.total\.max\)/);
@@ -325,7 +325,7 @@ describe("blocs « Dégâts estimés » & « Réglages du plateau » — refonte
         expect(GRID).toMatch(/simT\.damageTargetEnemy\.replace\("\{index\}"/);
         expect(GRID).toMatch(/simT\.damageTargetAlly\.replace\("\{index\}"/);
         // Le panneau affiche les données, il n'en invente aucune.
-        expect(HUD).toMatch(/perTarget\.map\(\(target\) => \(/);
+        expect(HUD).toMatch(/perTarget\.map\(\(target\) => \{/);
         expect(HUD).toMatch(/\{target\.label\}/);
     });
 
@@ -342,7 +342,7 @@ describe("blocs « Dégâts estimés » & « Réglages du plateau » — refonte
 
     it("les badges nomment leur cible (on sait QUI porte la valeur)", () => {
         const layer = GRID.slice(
-            GRID.indexOf("{showDamage && damageInfo.lines.length > 0 && zonePreview"),
+            GRID.indexOf("{showDamage && !hideMapDamageBadges && damageInfo.lines.length > 0 && zonePreview"),
             GRID.indexOf("</svg>")
         );
         expect(layer).toMatch(/\{target\.label\}/);

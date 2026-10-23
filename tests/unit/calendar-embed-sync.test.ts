@@ -96,10 +96,16 @@ describe("Calendrier — l'ID de message stocké n'est jamais un `outbox:<jobId>
 
 describe("Calendrier — écriture de la classe (constat du même jour)", () => {
     it("borne la classe reçue (elle part dans un field d'embed Discord)", () => {
-        expect(SERVICE_CODE).toMatch(/classe: data\?\.classe\?\.trim\(\)\.slice\(0, 30\) \|\| undefined/);
+        // ⚠️ Renforcé le 23/10/2026 : la classe n'est plus un texte libre tronqué à
+        // 30 caractères — elle est **validée contre le roster** du profil (main + mules)
+        // et ramenée à sa forme canonique du catalogue avant toute écriture.
+        expect(SERVICE_CODE).toMatch(/resolveOwnedClass\(/);
+        expect(SERVICE_CODE).toMatch(/classe: ownedClass\.classe \|\| undefined/);
+        // Aucune écriture en texte libre ne subsiste sur ce chemin.
+        expect(SERVICE_CODE).not.toMatch(/classe: data\?\.classe\?\.trim\(\)\.slice/);
     });
 
     it("confirme la classe retenue au cliqueur (issue d'inscription)", () => {
-        expect(exportedFunction("processRegistration")).toMatch(/classe: data\?\.classe\?\.trim\(\) \|\| undefined/);
+        expect(exportedFunction("processRegistration")).toMatch(/classe: ownedClass\.classe \|\| undefined/);
     });
 });

@@ -15,6 +15,8 @@ import { messageHasCustomId } from "@/lib/discord-components";
 import { buildClassDispatchFields, buildClassSelectRow, type DispatchEntry } from "@/server/discord-class-dispatch";
 import { loadEmojiResolver } from "@/server/discord-app-emojis";
 import { resolveEffectiveClass } from "@/lib/dofus-assets";
+import { resolveOwnedClass } from "@/lib/user-character-classes";
+import { loadClassProfileByUserId } from "@/server/character-class-profile";
 
 // Les visuels (génériques + dédiés par type de raid) vivent dans
 // `src/lib/calendar-event-images.ts` : même source pour l'embed Discord et les
@@ -256,6 +258,14 @@ export async function processRegistration(guildId: string, eventId: string, user
         };
     }
 
+    // Classe choisie à l'inscription : validée contre le roster (main + mules), fail-closed.
+    // Le menu Discord affiche les 19 classes ; seules les siennes sont acceptées.
+    const ownedClass = resolveOwnedClass(
+        data?.classe,
+        await loadClassProfileByUserId(userId, guildId)
+    );
+    if (!ownedClass.success) return { success: false, error: ownedClass.error };
+
     // RBAC: Raids require RAID_MEMBER permission to participate
     if (event.type === "RAID_OFFICIAL") {
         const discordUserId = await getDiscordId(userId);
@@ -336,8 +346,9 @@ export async function processRegistration(guildId: string, eventId: string, user
             // Position unique : elle est recomputée à chaque désinscription.
             position: event.participants.length + 1,
             // Borne dure (RULES §4) : la classe part dans l'embed Discord, une valeur
-            // libre trop longue ferait échouer le field (1000 car. max).
-            classe: data?.classe?.trim().slice(0, 30) || undefined,
+            // libre trop longue ferait échouer le field (1000 car. max). Valeur déjà
+            // canonique et validée ci-dessus (`resolveOwnedClass`).
+            classe: ownedClass.classe || undefined,
             comment: data?.comment
         }
     });
@@ -364,7 +375,7 @@ export async function processRegistration(guildId: string, eventId: string, user
         reserveCount: counts.reserveCount + (isReserveFinal ? 1 : 0),
         maxParticipants,
         // Confirmée au cliqueur : la classe retenue (vide = « Sans classe »).
-        classe: data?.classe?.trim() || undefined,
+        classe: ownedClass.classe || undefined,
         embedStatus,
     };
 }
@@ -478,6 +489,15 @@ export async function updateRegistrationClass(
     if (!event) return { success: false, error: "Événement introuvable" };
     if (event.status !== "PUBLISHED") return { success: false, error: "Inscriptions fermées" };
 
+    // Classe choisie : validée contre le roster du clic (main + mules). Fail-closed —
+    // le menu Discord affiche les 19 classes, mais seules les siennes sont acceptées.
+    const ownedClass = resolveOwnedClass(
+        classe,
+        await loadClassProfileByUserId(userId, guildId)
+    );
+    if (!ownedClass.success) return { success: false, error: ownedClass.error };
+    if (!ownedClass.classe) return { success: false, error: "Classe inconnue" };
+
     const mine = await db.eventParticipant.findFirst({
         where: { eventId, userId },
     });
@@ -485,7 +505,7 @@ export async function updateRegistrationClass(
 
     await db.eventParticipant.update({
         where: { id: mine.id },
-        data: { classe: classe.trim().slice(0, 30) },
+        data: { classe: ownedClass.classe },
     });
 
     if (event.discordMessageId && event.discordChannelId) {

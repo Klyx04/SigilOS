@@ -18,6 +18,8 @@ import { isAgendaMirror, agendaMirrorSource } from "@/lib/agenda-mirror";
 import { blindAutoCloseWhere, shouldBlindAutoClose } from "@/lib/calendar-auto-close";
 import { startOfWeek, addDays } from "date-fns";
 import { getAppBaseUrl } from "@/lib/utils";
+import { resolveOwnedClass } from "@/lib/user-character-classes";
+import { loadClassProfileByUserId } from "@/server/character-class-profile";
 
 // ============================================
 // LOCAL ENUM DEFINITIONS (mirrors Prisma schema)
@@ -59,6 +61,11 @@ const GuildEventSchema = z.object({
     missionIds: z.array(z.string()).optional(), // For SESSION_MISSIONS
     publishOnDiscord: z.boolean().optional().default(false),
     mentionRoleIds: z.array(z.string()).optional().default([]),
+    /**
+     * Classe du créateur — utilisée là où il est **inscrit d'office** (raids : slot 1).
+     * Validée côté serveur contre son roster (main + mules), fail-closed.
+     */
+    creatorClass: z.string().max(30).nullable().optional(),
 }).refine(data => data.endDate > data.startDate, {
     message: "La date de fin doit être après la date de début",
     path: ["endDate"]
@@ -624,7 +631,15 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
-        const { publishOnDiscord, missionIds, mentionRoleIds, ...eventData } = validated.data;
+        const { publishOnDiscord, missionIds, mentionRoleIds, creatorClass, ...eventData } = validated.data;
+
+        // Classe du créateur : validée contre SON roster (main + mules), fail-closed —
+        // une classe qu'il ne possède pas n'est jamais écrite sur son inscription.
+        const ownedCreatorClass = resolveOwnedClass(
+            creatorClass,
+            await loadClassProfileByUserId(ctx.id!, guildId)
+        );
+        if (!ownedCreatorClass.success) return { success: false, error: ownedCreatorClass.error };
 
         if (isPastDay(eventData.startDate)) {
             return { success: false, error: "Impossible de créer un événement sur un jour passé." };
@@ -745,15 +760,21 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
                 }
             }
 
-            await db.eventParticipant.create({
-                data: {
-                    eventId: event.id,
-                    userId: ctx.id!,
-                    status: "REGISTERED",
-                    position: 1,
-                }
-            });
         }
+
+        // Option B (décision du 23/10/2026) : le créateur est inscrit d'office sur **tous**
+        // les événements (plus seulement les raids), slot 1, avec la classe qu'il a choisie.
+        // C'est ce qui permet au sélecteur de classe d'exister hors raid.
+        await db.eventParticipant.create({
+            data: {
+                eventId: event.id,
+                userId: ctx.id!,
+                status: "REGISTERED",
+                position: 1,
+                // Absente ⇒ repli sur `UserProfile.classe` à l'affichage, comme avant.
+                ...(ownedCreatorClass.classe ? { classe: ownedCreatorClass.classe } : {}),
+            }
+        });
 
 
 
@@ -960,7 +981,7 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
         }
 
         // Exclude virtual fields
-        const { publishOnDiscord, missionIds, mentionRoleIds, ...updateData } = validated.data;
+        const { publishOnDiscord, missionIds, mentionRoleIds, creatorClass, ...updateData } = validated.data;
         if (isPastDay(updateData.startDate)) {
             return { success: false, error: "Impossible de déplacer un événement sur un jour passé." };
         }
@@ -996,6 +1017,29 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
                 metadata: finalMetadata
             }
         });
+
+        // Classe du créateur (édition) : seulement si elle CHANGE — une mule retirée du
+        // profil ne doit pas faire échouer l'édition d'un autre champ. On met à jour SON
+        // inscription si elle existe (jamais de création implicite ici).
+        if (creatorClass !== undefined) {
+            const mine = await db.eventParticipant.findFirst({
+                where: { eventId, userId: ctx.id! },
+                select: { id: true, classe: true },
+            });
+            if (mine) {
+                const owned = resolveOwnedClass(
+                    creatorClass,
+                    await loadClassProfileByUserId(ctx.id!, guildId)
+                );
+                if (!owned.success) return { success: false, error: owned.error };
+                if ((owned.classe ?? null) !== (mine.classe ?? null)) {
+                    await db.eventParticipant.update({
+                        where: { id: mine.id },
+                        data: { classe: owned.classe },
+                    });
+                }
+            }
+        }
 
         // Sync Discord embed if the event was published on Discord
         if (event.discordMessageId && event.discordChannelId) {

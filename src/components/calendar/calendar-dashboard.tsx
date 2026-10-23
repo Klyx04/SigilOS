@@ -750,7 +750,15 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     {editingEvent && (
                         <EventForm
                             guildId={guildId}
-                            initialData={editingEvent}
+                            initialData={{
+                                ...editingEvent,
+                                // Classe du créateur sur CET événement (participant) : point de
+                                // départ du sélecteur. Sans elle, l'édition repartirait du main.
+                                creatorClass:
+                                    (editingEvent as any).participants?.find(
+                                        (p: any) => p.userId === currentUserId
+                                    )?.classe ?? null,
+                            }}
                             onSubmit={handleUpdate}
                             discordChannels={discordChannels}
                             canManageRaid={canManageRaid}

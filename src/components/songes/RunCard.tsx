@@ -89,11 +89,14 @@ interface RunCardProps {
     canJoinSonges?: boolean;
     isAdmin?: boolean;
     isDiscordConfigured?: boolean;
+    guildId?: string;
+    onRefresh?: () => void;
 }
 
-export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = false, isDiscordConfigured = false }: RunCardProps) {
+export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = false, isDiscordConfigured = false, guildId: propsGuildId, onRefresh }: RunCardProps) {
     const params = useParams();
     const router = useRouter();
+    const guildId = propsGuildId || (params?.guildId as string);
     const [isPending, startTransition] = useTransition();
     const [loading, setLoading] = useState(false);
     const [joinDialogOpen, setJoinDialogOpen] = useState(false);
@@ -133,13 +136,13 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             const candidateIds = run.joinRequests?.map(r => r.userId) || [];
             const allUserIds = [...new Set([run.leaderId, ...run.members.map((m) => m.userId), ...candidateIds])];
             if (allUserIds.length > 0) {
-                const result = await getMemberProfiles(params.guildId as string, allUserIds);
+                const result = await getMemberProfiles(guildId, allUserIds);
                 if (result.success && result.profiles) {
                     setProfiles(result.profiles as MemberProfile[]);
                 }
             }
             if (!isMember && currentUserId && !isLeader) {
-                const requestStatus = await getMyJoinRequestStatus(params.guildId as string, run.id);
+                const requestStatus = await getMyJoinRequestStatus(guildId, run.id);
                 setPendingRequest(requestStatus.success && requestStatus.status === "PENDING");
             }
         }
@@ -156,7 +159,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
     const handleSendJoinRequest = async () => {
         setLoading(true);
-        const result = await sendJoinRequest(params.guildId as string, {
+        const result = await sendJoinRequest(guildId, {
             runId: run.id,
             classe: selectedClasse,
             message: message || undefined,
@@ -170,6 +173,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             setJoinDialogOpen(false);
             setPendingRequest(true);
             router.refresh();
+            onRefresh?.();
         } else {
             toast.error(result.error);
         }
@@ -178,25 +182,28 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
     const handleCancelRequest = () => {
         startTransition(async () => {
-            await cancelJoinRequest(params.guildId as string, run.id);
+            await cancelJoinRequest(guildId, run.id);
             setPendingRequest(false);
             router.refresh();
+            onRefresh?.();
         });
     };
 
     const handleLeave = () => {
         startTransition(async () => {
-            await leaveDreamRun(params.guildId as string, run.id);
+            await leaveDreamRun(guildId, run.id);
             router.refresh();
+            onRefresh?.();
         });
     };
 
     const handleRespondCandidacy = async (requestId: string, accept: boolean) => {
         setActionLoading(requestId);
-        const result = await respondToJoinRequest(params.guildId as string, { requestId, accept });
+        const result = await respondToJoinRequest(guildId, { requestId, accept });
         if (result.success) {
             toast.success(accept ? "Candidat accepté !" : "Candidature refusée");
             router.refresh();
+            onRefresh?.();
         } else {
             toast.error(result.error);
         }
@@ -396,7 +403,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     <>
                         <div className="w-full sm:w-auto flex-1">
                              <RunLeaderActions
-                                guildId={params.guildId as string}
+                                guildId={guildId}
                                 runId={run.id}
                                 variant="full"
                                 isDiscordConfigured={isDiscordConfigured}
@@ -524,28 +531,29 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             <RunEditModal
                 isOpen={editModalOpen}
                 onClose={() => setEditModalOpen(false)}
-                guildId={params.guildId as string}
+                guildId={guildId}
                 run={run}
+                onUpdated={() => { router.refresh(); onRefresh?.(); }}
             />
 
             <RunProgressModal
                 isOpen={progressModalOpen}
                 onClose={() => setProgressModalOpen(false)}
-                guildId={params.guildId as string}
+                guildId={guildId}
                 runId={run.id}
                 currentFloor={run.currentFloor}
-                onUpdate={() => router.refresh()}
+                onUpdate={() => { router.refresh(); onRefresh?.(); }}
             />
 
             <RunCloseModal
                 isOpen={closeModalOpen}
                 runId={run.id}
-                guildId={params.guildId as string}
+                guildId={guildId}
                 difficulty={run.difficulty}
                 epreuveLabel={epreuve?.label ?? null}
                 memberUserIds={run.members.filter(m => m.userId !== run.leaderId).map(m => m.userId)}
                 onClose={() => setCloseModalOpen(false)}
-                onClosed={() => { setCloseModalOpen(false); router.refresh(); }}
+                onClosed={() => { setCloseModalOpen(false); router.refresh(); onRefresh?.(); }}
             />
         </div>
     );

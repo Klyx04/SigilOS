@@ -40,6 +40,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +56,11 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DofusUiIcon, type DofusUiIconName } from "@/components/shared/dofus-ui-icon";
-import { isAgendaMirror } from "@/lib/agenda-mirror";
+import { isAgendaMirror, agendaMirrorSource } from "@/lib/agenda-mirror";
+import { DjPostDetailModal } from "@/components/dungeon-finder/DjPostDetailModal";
+import { SongesRunDetailModal } from "@/components/songes/SongesRunDetailModal";
+import { getDjPostById, type DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
+import { getDreamRunById } from "@/server/actions/songes/dream-run-actions";
 import { resolveEventImagePath } from "@/lib/calendar-event-images";
 import { calendarEventTheme } from "@/lib/calendar-event-theme";
 import { PseudoChip } from "@/components/shared/pseudo-chip";
@@ -233,6 +238,8 @@ interface EventDetailModalProps {
     myCharacters?: { main: string | null; secondaries: string[] };
     /** Change MA classe sur cet événement (même règle serveur que le menu classe Discord). */
     onMyClassChange?: (classe: string) => Promise<void>;
+    currentProfileId?: string;
+    onRefresh?: () => void;
 }
 
 // ============================================
@@ -265,6 +272,8 @@ export function EventDetailModal({
     raidEligibility = null,
     myCharacters,
     onMyClassChange,
+    currentProfileId,
+    onRefresh,
 }: EventDetailModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showRegistration, setShowRegistration] = useState(false);
@@ -387,7 +396,106 @@ export function EventDetailModal({
     const liveRemaining = liveSession ? formatLiveRemaining(new Date(liveSession.endsAt).getTime(), liveNow) : "";
     const liveStepsCount = liveSession ? getLocalizedRaidData(liveSession.raidType, "fr").steps.length : 0;
 
+    const mirrorSource = agendaMirrorSource(eventMetadata);
+
+    const [mirrorDjPost, setMirrorDjPost] = useState<DjPostWithDetails | null>(
+        () => (event as any)?.mirrorDjPost ?? null
+    );
+    const [mirrorDreamRun, setMirrorDreamRun] = useState<any | null>(
+        () => (event as any)?.mirrorDreamRun ?? null
+    );
+
+    useEffect(() => {
+        if ((event as any)?.mirrorDjPost) {
+            setMirrorDjPost((event as any).mirrorDjPost);
+        } else if (open && mirrorSource?.kind === "DJ") {
+            getDjPostById(guildId, mirrorSource.id).then((res) => {
+                if (res.success && res.data) setMirrorDjPost(res.data);
+            });
+        } else if (!open) {
+            setMirrorDjPost(null);
+        }
+    }, [event, open, mirrorSource?.kind, mirrorSource?.id, guildId]);
+
+    useEffect(() => {
+        if ((event as any)?.mirrorDreamRun) {
+            setMirrorDreamRun((event as any).mirrorDreamRun);
+        } else if (open && mirrorSource?.kind === "SONGES") {
+            getDreamRunById(guildId, mirrorSource.id).then((res) => {
+                if (res.success && res.run) setMirrorDreamRun(res.run);
+            });
+        } else if (!open) {
+            setMirrorDreamRun(null);
+        }
+    }, [event, open, mirrorSource?.kind, mirrorSource?.id, guildId]);
+
+    const handleMirrorRefresh = () => {
+        if (mirrorSource?.kind === "DJ") {
+            getDjPostById(guildId, mirrorSource.id).then((res) => {
+                if (res.success && res.data) setMirrorDjPost(res.data);
+            });
+        } else if (mirrorSource?.kind === "SONGES") {
+            getDreamRunById(guildId, mirrorSource.id).then((res) => {
+                if (res.success && res.run) setMirrorDreamRun(res.run);
+            });
+        }
+        onRefresh?.();
+    };
+
     if (!event) return null;
+
+    if (open && mirrorSource?.kind === "DJ") {
+        if (!mirrorDjPost) {
+            return (
+                <Dialog open={open} onOpenChange={(o) => !o && onOpenChange(false)}>
+                    <DialogContent className="max-w-md p-8 bg-surface border-border flex flex-col items-center justify-center gap-3">
+                        <DialogTitle className="sr-only">Chargement de l'événement</DialogTitle>
+                        <DialogDescription className="sr-only">Chargement des détails du groupe de donjon</DialogDescription>
+                        <Loader2 className="w-8 h-8 animate-spin text-warning" />
+                        <p className="text-sm text-muted-foreground font-medium">Chargement du groupe...</p>
+                    </DialogContent>
+                </Dialog>
+            );
+        }
+        return (
+            <DjPostDetailModal
+                isOpen={open}
+                onClose={() => onOpenChange(false)}
+                post={mirrorDjPost}
+                guildId={guildId}
+                currentProfileId={currentProfileId}
+                isAdmin={isAdmin}
+                onRefresh={handleMirrorRefresh}
+            />
+        );
+    }
+
+    if (open && mirrorSource?.kind === "SONGES") {
+        if (!mirrorDreamRun) {
+            return (
+                <Dialog open={open} onOpenChange={(o) => !o && onOpenChange(false)}>
+                    <DialogContent className="max-w-md p-8 bg-surface border-border flex flex-col items-center justify-center gap-3">
+                        <DialogTitle className="sr-only">Chargement de l'événement</DialogTitle>
+                        <DialogDescription className="sr-only">Chargement des détails de la run Songes</DialogDescription>
+                        <Loader2 className="w-8 h-8 animate-spin text-warning" />
+                        <p className="text-sm text-muted-foreground font-medium">Chargement de la run...</p>
+                    </DialogContent>
+                </Dialog>
+            );
+        }
+        return (
+            <SongesRunDetailModal
+                isOpen={open}
+                onClose={() => onOpenChange(false)}
+                run={mirrorDreamRun}
+                guildId={guildId}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                isDiscordConfigured={Boolean(discordChannels?.calendarNotifyChannelId)}
+                onRefresh={handleMirrorRefresh}
+            />
+        );
+    }
 
     // Init present participants when entering completion mode
     const initRaidCompletion = () => {

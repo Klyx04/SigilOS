@@ -69,6 +69,7 @@ interface CalendarDashboardProps {
     isAdmin?: boolean;
     /** Personnages Dofus du membre : raccourci « Mes personnages » des modales d'inscription. */
     myCharacters?: { main: string | null; secondaries: string[] };
+    currentProfileId?: string;
 }
 
 type ViewMode = "grid";
@@ -82,7 +83,7 @@ interface DiscordRole {
 /** Types filtrables (dans l'ordre d'affichage) — libellés/couleurs via `calendarEventTheme`. */
 const FILTER_TYPE_KEYS = ["RAID_OFFICIAL", "EVENT_GUILD", "SESSION_MISSIONS", "SORTIE_FARM", "DUNGEON_FARM", "SONGES_RUN"] as const;
 
-export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false, myCharacters }: CalendarDashboardProps) {
+export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false, myCharacters, currentProfileId: propsProfileId }: CalendarDashboardProps) {
     const [displayMode] = useState<ViewMode>("grid");
     const [gridType, setGridType] = useState<"week" | "month">("week");
     // Chantier #87/#88 : `new Date()` en SSR (serveur UTC) vs client (Europe/Paris) peut
@@ -105,6 +106,13 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     const [selectedEvent, setSelectedEvent] = useState<any>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [hasMetamobKey, setHasMetamobKey] = useState(false);
+    const [currentProfileId, setCurrentProfileId] = useState<string | undefined>(propsProfileId);
+
+    useEffect(() => {
+        if (propsProfileId) {
+            setCurrentProfileId(propsProfileId);
+        }
+    }, [propsProfileId]);
 
     // Discord roles for notifications
     const [discordRoles, setDiscordRoles] = useState<DiscordRole[]>([]);
@@ -169,6 +177,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         if (result.success && result.event) {
             setSelectedEvent(result.event);
             setHasMetamobKey(!!(result as any).hasMetamobKey);
+            if ((result as any).currentProfileId) {
+                setCurrentProfileId((result as any).currentProfileId);
+            }
         } else {
             toast.error(result.error || "Impossible de charger l'événement");
         }
@@ -669,6 +680,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     }
                 }}
                 currentUserId={currentUserId}
+                currentProfileId={currentProfileId}
                 guildId={guildId}
                 canManage={canManage}
                 isAdmin={isAdmin}
@@ -692,6 +704,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 onUndoComplete={handleUndoComplete}
                 onSendReminder={handleSendReminder}
                 onShareDiscord={handleShareDiscord}
+                onRefresh={() => {
+                    fetchEvents();
+                    if (selectedEventId) {
+                        fetchEventDetails(selectedEventId);
+                    }
+                }}
             />
 
             {/* ============ DAY EVENTS MODAL (via +N badge) ============ */}

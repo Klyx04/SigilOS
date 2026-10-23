@@ -27,13 +27,14 @@ interface RunEditModalProps {
     onClose: () => void;
     guildId: string;
     run: DreamRun;
+    onUpdated?: () => void;
 }
 
 /**
  * Chantier Songes — Modale « Modifier la Run » (leader ou admin).
  * Branchée dans RunCard (RunDetailHeader était orphelin / jamais rendu).
  */
-export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProps) {
+export function RunEditModal({ isOpen, onClose, guildId, run, onUpdated }: RunEditModalProps) {
     const router = useRouter();
     const [pending, setPending] = useState(false);
     const [difficulty, setDifficulty] = useState<string>(run.difficulty);
@@ -67,6 +68,7 @@ export function RunEditModal({ isOpen, onClose, guildId, run }: RunEditModalProp
                 toast.success("Run mise à jour !");
                 onClose();
                 router.refresh();
+                onUpdated?.();
             } else {
                 toast.error(res.error || "Erreur lors de la mise à jour");
             }

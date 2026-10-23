@@ -14,7 +14,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { deleteChannelMessage } from "@/server/discord";
 import { buildClassSelectRow } from "@/server/discord-class-dispatch";
 import { rateLimit } from "@/lib/ratelimit";
-import { isAgendaMirror } from "@/lib/agenda-mirror";
+import { isAgendaMirror, agendaMirrorSource } from "@/lib/agenda-mirror";
 import { blindAutoCloseWhere, shouldBlindAutoClose } from "@/lib/calendar-auto-close";
 import { startOfWeek, addDays } from "date-fns";
 import { getAppBaseUrl } from "@/lib/utils";
@@ -457,7 +457,35 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
             }));
         }
 
-        return { success: true, event: eventData, hasMetamobKey };
+        const mirrorSource = agendaMirrorSource(eventData.metadata);
+        let mirrorDjPost = null;
+        let mirrorDreamRun = null;
+
+        if (mirrorSource?.kind === "DJ") {
+            const { getDjPostById } = await import("@/server/actions/dungeon-finder-actions");
+            const djRes = await getDjPostById(guildId, mirrorSource.id);
+            if (djRes.success && djRes.data) {
+                mirrorDjPost = djRes.data;
+            }
+        } else if (mirrorSource?.kind === "SONGES") {
+            const { getDreamRunById } = await import("@/server/actions/songes/dream-run-actions");
+            const songesRes = await getDreamRunById(guildId, mirrorSource.id);
+            if (songesRes.success && songesRes.run) {
+                mirrorDreamRun = songesRes.run;
+            }
+        }
+
+        return {
+            success: true,
+            event: {
+                ...eventData,
+                mirrorDjPost,
+                mirrorDreamRun,
+            },
+            hasMetamobKey,
+            currentProfileId: ctx.profileId,
+            isAdmin: ctx.isAdmin,
+        };
     } catch (error) {
         logger.error("[Calendar] getEventDetails Error:", error);
         return { success: false, error: "Erreur serveur" };

@@ -427,6 +427,13 @@ export async function getDreamRunById(guildId: string, runId: string) {
                 floors: {
                     orderBy: { floorNumber: "asc" },
                 },
+                joinRequests: {
+                    where: { status: { in: ["PENDING", "ACCEPTED"] } },
+                    select: { id: true, userId: true, message: true, classe: true, status: true },
+                },
+                _count: {
+                    select: { floors: true, bonuses: true },
+                },
                 bonuses: {
                     orderBy: { acquiredAt: "asc" },
                 },

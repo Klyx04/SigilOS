@@ -96,6 +96,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
                                 userPseudo={ctx.pseudoDofus || ctx.name}
                                 isAdmin={ctx.isAdmin}
                                 myCharacters={myCharacters}
+                                currentProfileId={ctx.profileId}
                             />
                         </Suspense>
                     </div>

@@ -3069,6 +3069,132 @@ export async function getDjPosts(
 /**
  * Accept a participant request (author only).
  */
+/**
+ * Charge un post DJ unique par son ID avec toutes ses relations (détail / miroir calendrier).
+ */
+export async function getDjPostById(
+    guildId: string,
+    postId: string
+): Promise<ActionResponse<DjPostWithDetails>> {
+    const user = await getUserContext(guildId);
+    if (!user.canViewFinder && !user.canViewCalendar) return { success: false, error: "Accès refusé" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const post = await (db as any).djSearchPost.findFirst({
+            where: {
+                id: postId,
+                guildId: guildConfig.id,
+            },
+            include: {
+                dungeon: {
+                    select: {
+                        id: true,
+                        name: true,
+                        bossName: true,
+                        level: true,
+                        imageUrl: true,
+                        isExpedition: true,
+                        isOcreQuest: true,
+                        dofuspourlesnoobsUrl: true,
+                        dofensiveUrl: true,
+                        achievements: {
+                            include: {
+                                challenge: {
+                                    select: { id: true, name: true, iconUrl: true },
+                                },
+                            },
+                        },
+                    },
+                },
+                defi: {
+                    select: { id: true, name: true, imageUrl: true, zone: true },
+                },
+                titan: {
+                    select: { id: true, name: true, imageUrl: true, zone: true, level: true, maxMembers: true },
+                },
+                profile: {
+                    select: {
+                        id: true,
+                        discordNickname: true,
+                        pseudoDofus: true,
+                        dofusPseudo: true,
+                        classe: true,
+                        user: { select: { image: true } },
+                    },
+                },
+                participants: {
+                    include: {
+                        profile: {
+                            select: {
+                                id: true,
+                                discordNickname: true,
+                                pseudoDofus: true,
+                                dofusPseudo: true,
+                                user: { select: { image: true } },
+                            },
+                        },
+                    },
+                    orderBy: { createdAt: "asc" },
+                },
+            },
+        });
+
+        if (!post) return { success: false, error: "Post introuvable" };
+
+        let questUrl = post.questUrl;
+        if (post.mode === "QUETE" && !questUrl && post.questName) {
+            const { getVerifiedDPLNUrl } = await import("@/lib/dofus-noobs-helper");
+            questUrl = await getVerifiedDPLNUrl(post.questName);
+        }
+
+        let questImageUrl: string | null = null;
+        let questMinimap: QuestMinimap | null = null;
+        let questNpc: { id: number; name: string } | null = null;
+
+        if (post.questId && Number.isInteger(Number(post.questId)) && Number(post.questId) > 0) {
+            const questRow = await db.gameQuest.findFirst({
+                where: { dofusDbId: Number(post.questId) },
+                select: { imageUrl: true, contentJson: true },
+            });
+            if (questRow) {
+                questImageUrl = questRow.imageUrl;
+                const worldmapData = getWorldmapData();
+                const worldsData = getWorldsData();
+                const npcEntries = getNpcEntries();
+                questMinimap = resolveQuestMinimap(
+                    worldmapData,
+                    worldsData,
+                    questMapIdFromImageUrl(questImageUrl)
+                );
+                questNpc = resolveQuestNpc(questRow.contentJson, npcEntries);
+            }
+        }
+
+        const dungeonsJson = getMultiDungeons(post.dungeonsJson);
+
+        return {
+            success: true,
+            data: {
+                ...post,
+                dungeonsJson: dungeonsJson.length > 0 ? dungeonsJson : post.dungeonsJson,
+                questUrl,
+                questImageUrl,
+                questMinimap,
+                questNpc,
+            } as DjPostWithDetails,
+        };
+    } catch (error) {
+        logger.error("[getDjPostById]", error);
+        return { success: false, error: "Erreur lors du chargement du post" };
+    }
+}
+
 export async function acceptDjParticipant(
     guildId: string,
     postId: string,

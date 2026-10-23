@@ -146,6 +146,14 @@ export function normalizeChallengeIconUrl(stored: string | null | undefined): st
     const id = canonical?.match(/\/assets-dofus\/challenges\/(\d+)/)?.[1];
     if (id) return resolveDofusAssetImageUrl("challenges", id) ?? canonical;
 
+    // 🐛 Mesure du 23/10/2026 (sonde) : un chemin **accentué** (`/game-data/achievements/spécial.png`)
+    // ressortait `null` de la normalisation ⇒ l'icône du succès disparaissait sans aucun recours,
+    // alors que le fichier ASCII jumeau (`special.png`) existe et que TOUS les assets du dépôt
+    // sont en ASCII. On ne perd donc jamais un chemin local : on le rend en ASCII.
+    if (!canonical && stored.startsWith("/game-data/")) {
+        return encodeURI(stored.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+    }
+
     return canonical;
 }
 

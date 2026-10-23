@@ -19,8 +19,9 @@ import { DofusbookSimulationTab } from "@/components/dofus/dofusbook-simulation-
 import type { BuildStatsForSpells } from "@/lib/dofus-spells";
 import { getRuneForStat } from "@/lib/dofus-runes";
 import { ItemVariantModal } from "@/components/dofus/item-variant-modal";
-import { applyVariantsToBuild } from "@/lib/dofus-variant-utils";
-import { getPassiveDescription } from "@/lib/dofus-passives";
+import { applyVariantsToBuild, normalizeSavedVariants } from "@/lib/dofus-variant-utils";
+import { saveBuildVariant } from "@/server/actions/gallery-actions";
+import { resolveItemPassive } from "@/lib/dofus-passives";
 
 /** Icônes des onglets : vrais assets du jeu (aucune illustration IA). */
 const BUILD_TABS = [
@@ -49,6 +50,16 @@ interface DofusbookPreviewProps {
     initialData?: DofusbookPreviewData;
     /** Guilde courante : permet d'**enregistrer** les données récupérées par le navigateur. */
     guildId?: string;
+    /**
+     * **Variante proposée par le joueur** (assainie côté serveur). Le stuff Dofusbook d'origine
+     * reste la référence : la variante s'affiche par-dessus (`applyVariantsToBuild`), et le JSON
+     * du build n'est jamais réécrit.
+     */
+    savedVariants?: Record<string, DofusbookItem>;
+    /** Id du build (dans `dofusBookLinks`) — requis pour enregistrer la variante. */
+    variantBuildId?: string;
+    /** Vrai pour l'auteur du build : affiche « Enregistrer la variante ». */
+    canPersistVariant?: boolean;
 }
 
 const parseDofusbookSmithmagic = (smithmagic: any, items: any) => {
@@ -201,22 +212,29 @@ function ItemDetailModal({
                 </div>
 
                 {(() => {
-                    const passiveDesc = getPassiveDescription(item.name);
+                    const passive = resolveItemPassive(item);
+                    const hasSp = (item.effects || []).some((fx) => fx.code === "sp");
                     const regularEffects = (item.effects || []).filter((fx) => fx.code !== "sp");
-                    const hasPassive = !!passiveDesc || (item.effects || []).some((fx) => fx.code === "sp");
+                    const hasPassive = !!passive || hasSp;
 
                     return (
                         <div className="flex flex-col gap-2.5 border-t border-border pt-3">
-                            {/* Pouvoir Passif Officiel (Dofus, Prymaradites, etc.) */}
+                            {/* Pouvoir Passif — texte OFFICIEL (catalogue DofusDB), jamais inventé. */}
                             {hasPassive && (
                                 <div className="flex flex-col gap-1.5 p-3 rounded-[6px] bg-warning/10 border border-warning/25">
                                     <div className="flex items-center gap-1.5 text-xs font-black text-warning uppercase tracking-wide">
                                         <Sparkles className="w-3.5 h-3.5 shrink-0" />
                                         <span>Pouvoir Passif</span>
                                     </div>
-                                    <p className="text-caption font-medium text-foreground leading-relaxed">
-                                        {passiveDesc || "Effet passif unique déclenché en combat."}
-                                    </p>
+                                    {passive ? (
+                                        <p className="text-caption font-medium text-foreground leading-relaxed whitespace-pre-line">
+                                            {passive.text}
+                                        </p>
+                                    ) : (
+                                        <p className="text-caption font-medium text-muted-foreground leading-relaxed">
+                                            Effet passif officiel non disponible pour cet objet.
+                                        </p>
+                                    )}
                                 </div>
                             )}
 
@@ -449,7 +467,7 @@ function GearSlotItem({
     );
 }
 
-export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData, guildId }: DofusbookPreviewProps) {
+export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData, guildId, savedVariants, variantBuildId, canPersistVariant = false }: DofusbookPreviewProps) {
     const [data, setData] = useState<DofusbookPreviewData | null>(initialData || null);
     const [loading, setLoading] = useState(!initialData);
     const [lastRefresh, setLastRefresh] = useState(0);
@@ -458,14 +476,30 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     const [selected, setSelected] = useState<SelectedBuildItem | null>(null);
 
     // Système de variantes d'équipement interactives (0 synchro Dofusbook destructive)
-    const [variants, setVariants] = useState<Record<string, DofusbookItem>>({});
+    const [variants, setVariants] = useState<Record<string, DofusbookItem>>(
+        () => normalizeSavedVariants(savedVariants),
+    );
     const [variantModalSlot, setVariantModalSlot] = useState<string | null>(null);
+    /**
+     * Affichage : `false` = stuff Dofusbook d'origine, `true` = variante proposée par le joueur.
+     * Le basculement ne modifie **rien** côté Dofusbook : seule la donnée affichée change.
+     */
+    const [showVariant, setShowVariant] = useState(false);
+    const [savingVariant, setSavingVariant] = useState(false);
+
+    // La variante enregistrée arrive après le premier rendu (page serveur) : on la resynchronise.
+    useEffect(() => {
+        setVariants(normalizeSavedVariants(savedVariants));
+    }, [savedVariants]);
+
+    const hasVariant = Object.keys(variants).length > 0;
 
     /** Build effectif avec les variantes appliquées (données Dofusbook d'origine préservées). */
     const effectiveData = useMemo(() => {
         if (!data) return null;
+        if (!showVariant || !hasVariant) return data;
         return applyVariantsToBuild(data, variants) ?? data;
-    }, [data, variants]);
+    }, [data, variants, showVariant, hasVariant]);
 
     /**
      * Stats du build pour les sorts & la simulation — recalculées instantanément avec les variantes.
@@ -596,8 +630,56 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
         );
     }
 
+    /**
+     * Publie la variante dans la galerie (champ `variants` du build, JSON).
+     * ⚠️ Le stuff Dofusbook (`url`, `previewData`) n'est **jamais** réécrit : la synchro reste intacte.
+     */
+    const persistVariant = async () => {
+        if (!guildId || !variantBuildId || savingVariant) return;
+        setSavingVariant(true);
+        try {
+            const res = await saveBuildVariant(guildId, variantBuildId, variants);
+            if (res.success) {
+                toast.success("Variante enregistrée — visible par la guilde dans la galerie.");
+            } else {
+                toast.error(res.error || "Impossible d'enregistrer la variante.");
+            }
+        } catch {
+            toast.error("Erreur réseau : la variante n'a pas été enregistrée.");
+        } finally {
+            setSavingVariant(false);
+        }
+    };
+
+    // Stats affichées sur la miniature : celles du stuff d'origine, ou celles de la variante quand
+    // la bascule est active (les calculs sont déjà faits par `applyVariantsToBuild`).
+    const cardStats = (showVariant && effectiveData ? effectiveData.stats : null) ?? data?.stats ?? null;
+
     const cardContent = (
         <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-surface border border-border rounded-[4px] p-5 sm:p-6 transition-colors hover:border-border-strong cursor-pointer", className)}>
+
+            {/* Bascule Stuff ⇄ Variante (miniature) — n'apparaît que si une variante existe.
+                `stopPropagation` : le bouton ne doit PAS ouvrir la fiche (DialogTrigger). */}
+            {hasVariant && (
+                <button
+                    type="button"
+                    aria-pressed={showVariant}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowVariant((v) => !v);
+                    }}
+                    title={showVariant ? "Revenir au stuff Dofusbook d'origine" : "Afficher la variante proposée par le joueur"}
+                    className={cn(
+                        "absolute top-2 right-2 z-30 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors",
+                        showVariant
+                            ? "border-warning/50 bg-warning/20 text-warning"
+                            : "border-border bg-background/80 text-muted-foreground hover:text-foreground",
+                    )}
+                >
+                    Variante
+                </button>
+            )}
 
             <div className="flex flex-col gap-4 relative z-10 h-full">
                 {/* Header */}
@@ -700,19 +782,19 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                     <div className="flex items-center justify-center gap-2.5 py-1 px-3 bg-surface border border-border rounded-[4px] text-caption font-bold tabular-nums">
                         <span className="flex items-center gap-1 text-foreground">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.pa ?? 0}
+                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {cardStats?.pa ?? 0}
                         </span>
                         <span className="text-muted-foreground/30">•</span>
                         <span className="flex items-center gap-1 text-foreground">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.pm ?? 0}
+                            <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {cardStats?.pm ?? 0}
                         </span>
                         <span className="text-muted-foreground/30">•</span>
                         <span className="flex items-center gap-1 text-foreground">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.po ?? 0}
+                            <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {cardStats?.po ?? 0}
                         </span>
-                        {(data.stats?.cc ?? 0) > 0 && (
+                        {(cardStats?.cc ?? 0) > 0 && (
                             <>
                                 <span className="text-muted-foreground/30">•</span>
                                 <span className="flex items-center gap-1 text-foreground">
@@ -776,13 +858,48 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                             </div>
 
                             <div className="flex items-center gap-2">
-                                {Object.keys(variants).length > 0 && (
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-warning/15 border border-warning/30 rounded-xl text-xs font-bold text-warning">
-                                        <span>{Object.keys(variants).length} variante(s)</span>
+                                {hasVariant && (
+                                    <div className="flex items-center gap-1.5">
+                                        {/* Bascule Stuff ⇄ Variante (modale) — même état que la miniature. */}
+                                        <div className="flex items-center rounded-xl border border-warning/30 bg-warning/10 p-0.5" role="group" aria-label="Stuff d'origine ou variante proposée">
+                                            <button
+                                                type="button"
+                                                aria-pressed={!showVariant}
+                                                onClick={() => setShowVariant(false)}
+                                                className={cn(
+                                                    "px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors",
+                                                    !showVariant ? "bg-background text-foreground" : "text-warning",
+                                                )}
+                                            >
+                                                Stuff
+                                            </button>
+                                            <button
+                                                type="button"
+                                                aria-pressed={showVariant}
+                                                onClick={() => setShowVariant(true)}
+                                                className={cn(
+                                                    "px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors",
+                                                    showVariant ? "bg-warning text-black" : "text-warning",
+                                                )}
+                                            >
+                                                Variante ({Object.keys(variants).length})
+                                            </button>
+                                        </div>
+                                        {canPersistVariant && variantBuildId && guildId && (
+                                            <button
+                                                type="button"
+                                                onClick={persistVariant}
+                                                disabled={savingVariant}
+                                                className="px-2 py-1 rounded-lg border border-warning/40 bg-warning/15 text-[10px] font-bold text-warning hover:bg-warning/25 transition-colors disabled:opacity-50"
+                                                title="Publier cette variante dans la galerie (le stuff Dofusbook reste inchangé)"
+                                            >
+                                                {savingVariant ? "Enregistrement…" : "Enregistrer"}
+                                            </button>
+                                        )}
                                         <button
                                             type="button"
-                                            onClick={() => setVariants({})}
-                                            className="hover:underline text-[10px] font-black text-foreground ml-1 cursor-pointer"
+                                            onClick={() => { setVariants({}); setShowVariant(false); }}
+                                            className="text-[10px] font-black text-foreground hover:underline cursor-pointer"
                                             title="Rétablir le build d'origine"
                                         >
                                             (Réinitialiser)

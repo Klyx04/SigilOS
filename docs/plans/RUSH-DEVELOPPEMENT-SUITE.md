@@ -63,7 +63,7 @@ par donjon ; même règle avec plusieurs donjons.
 référence : `GuideSequence.dungeonOptionalIds` était **lu** à trois endroits et **jamais écrit**,
 donc **tout donjon était requis**. Le chemin d'écriture et la case existent désormais
 (`boundOptionalDungeonIds` côté règle, `upsertRushSequence` côté serveur, case dans l'éditeur God
-pour l'édition **et** la création). **Prochain lot : S4-1** (vue Branches à 2 étages).
+pour l'édition **et** la création). **S4-1 est livré le 23/10/2026** (vue Branches à 2 étages : règle pure `src/lib/rush-branches.ts`, onglet God, paires alignées, manques, orphelins).
 
 État du code au moment de la mesure : le type
 `RushDungeonRef.isOptional` (S0-2) et sa propagation étaient déjà en place ; il ne manquait que le
@@ -156,7 +156,7 @@ God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles re
 
 | Lot | Contenu | État |
 |---|---|---|
-| **S4-1** | **Vue Branches à 2 étages** (cité → Ordre, paires alignées, manques) — cible **100/102** | à faire |
+| **S4-1** | **Vue Branches à 2 étages** (cité → Ordre, paires alignées, manques) — cible **100/102** | **livré** le 23/10/2026 (`src/lib/rush-branches.ts`, onglet God, 9 verrous) |
 | **S4-2** | Édition des champs de route sur une séquence **existante** | à faire |
 | **S4-3** | Case **optionnel** par donjon (S0-6) | bloqué migration |
 | **S4-4** | Import consolidé (dry-run) : listes ordonnées + 30 Ordres + 19 classes, **jamais de re-seed destructif** | à faire |

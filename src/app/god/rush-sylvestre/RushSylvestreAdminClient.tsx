@@ -55,6 +55,7 @@ import {
   RUSH_RICH_TEXT_NOT_ACCEPTED,
 } from "@/components/dofus-quests/rush/RushRichText";
 import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import { countMissingOrderSlots, type RushBranchesView } from "@/lib/rush-branches";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
 // composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
 import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
@@ -245,7 +246,14 @@ function godScrollContainer(): HTMLElement | null {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide }) {
+export function RushSylvestreAdminClient({
+  guide: initialGuide,
+  branches,
+}: {
+  guide: Guide;
+  /** Vue Branches (S4-1) — calculée côté serveur par la règle pure `buildRushBranches`. */
+  branches?: RushBranchesView;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isActive, setIsActive] = useState(initialGuide.isActive);
@@ -289,7 +297,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
   const [addingStep, setAddingStep] = useState(false);
-  const [activeTab, setActiveTab] = useState<"content" | "settings" | "launch">("content");
+  const [activeTab, setActiveTab] = useState<"content" | "settings" | "launch" | "branches">("content");
   // Config UI/UX éditable (pense-bête + options modale de lancement) — lue depuis le guide.
   const [uiConfig, setUiConfig] = useState<RushUIConfig>(() => resolveRushUIConfig((initialGuide as any).rushUIConfig));
   const [uiSaving, setUiSaving] = useState(false);
@@ -642,11 +650,17 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
               </span>
             )}
             <div className="flex items-center p-1 bg-zinc-900 rounded-xl border border-white/5">
-              {(["content", "settings", "launch"] as const).map(t => (
+              {(["content", "branches", "settings", "launch"] as const).map(t => (
                 <button key={t} onClick={() => setActiveTab(t)}
                   className={`px-3 py-1.5 rounded-lg text-caption font-black uppercase tracking-widest transition-all ${activeTab === t ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300"}`}
                 >
-                  {t === "content" ? <><Layers className="w-3 h-3 inline mr-1" />Contenu</> : t === "launch" ? <><ClipboardList className="w-3 h-3 inline mr-1" />Lancement</> : <><Settings className="w-3 h-3 inline mr-1" />Config</>}
+                  {t === "content"
+                    ? <><Layers className="w-3 h-3 inline mr-1" />Contenu</>
+                    : t === "branches"
+                      ? <><AlignLeft className="w-3 h-3 inline mr-1" />Branches</>
+                      : t === "launch"
+                        ? <><ClipboardList className="w-3 h-3 inline mr-1" />Lancement</>
+                        : <><Settings className="w-3 h-3 inline mr-1" />Config</>}
                 </button>
               ))}
             </div>
@@ -983,6 +997,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
             )}
           </motion.div>
         )}
+
+        {activeTab === "branches" && <RushBranchesPanel view={branches} />}
 
         {activeTab === "settings" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-xl">
@@ -4044,3 +4060,170 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
     </div>
   );
 }
+
+// ─── RushBranchesPanel (S4-1) ────────────────────────────────────────────────
+/**
+ * Vue **Branches à deux étages** — cité (étage 1) puis Ordre (étage 2).
+ *
+ * Lecture seule : elle sert à **voir** ce qui est saisi et ce qui manque (cible **100 / 102**,
+ * 3 Ordres × 5 paliers par cité). L'édition vit dans l'onglet Contenu (S4-2).
+ * Aucune requête : la vue est calculée côté serveur par `buildRushBranches`.
+ */
+function RushBranchesPanel({ view }: { view?: RushBranchesView }) {
+  if (!view) {
+    return (
+      <p className="max-w-6xl mx-auto px-6 py-10 text-sm text-zinc-500">
+        Vue Branches indisponible : le guide n'a pas pu être chargé.
+      </p>
+    );
+  }
+
+  const missingSlots = countMissingOrderSlots(view);
+
+  return (
+    <div className="max-w-6xl mx-auto px-6 py-6 space-y-8">
+      {/* Étage 1 — les deux cités (cible mesurée 100 / 102). */}
+      <section className="grid gap-4 md:grid-cols-2">
+        {view.camps.map((camp) => {
+          const pct = Math.min(100, Math.round((camp.present / camp.target) * 100));
+          const done = camp.missing === 0;
+          return (
+            <div key={camp.camp} className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={camp.camp === "bontarien" ? "/ordres/bonta.png" : "/ordres/brakmar.png"}
+                    alt=""
+                    aria-hidden="true"
+                    className="w-6 h-6 object-contain"
+                    loading="lazy"
+                  />
+                  <h3 className="text-sm font-bold text-white">{camp.label}</h3>
+                </div>
+                <span className={`text-caption font-black tabular-nums ${done ? "text-emerald-400" : "text-amber-400"}`}>
+                  {camp.present} / {camp.target}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${done ? "bg-emerald-500" : "bg-amber-500"}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <p className="text-caption text-zinc-400">
+                {camp.missing === 0
+                  ? `Série complète${camp.beyondMirror > 0 ? ` (${camp.beyondMirror} position(s) hors miroir)` : ""}.`
+                  : `${camp.missing} quête(s) de cité manquante(s)`}
+              </p>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* Étage 2 — 3 Ordres × 5 paliers, par cité. */}
+      <section className="space-y-3">
+        <header className="flex items-center justify-between">
+          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Ordres — 3 par cité, 5 paliers</h2>
+          <span className="text-caption font-bold text-zinc-500">{missingSlots} emplacement(s) vide(s)</span>
+        </header>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {view.camps.map((camp) => (
+            <div key={camp.camp} className="rounded-xl border border-white/10 bg-zinc-900/40 p-4 space-y-4">
+              <p className="text-caption font-black uppercase tracking-widest text-zinc-500">{camp.label}</p>
+              {camp.orders.map((order) => (
+                <div key={order.id} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={order.icon} alt="" aria-hidden="true" className="w-5 h-5 object-contain" loading="lazy" />
+                    <span className="text-xs font-bold text-white flex-1 min-w-0 truncate">{order.name}</span>
+                    <span className={`text-caption font-black tabular-nums ${order.missing === 0 ? "text-emerald-400" : "text-amber-400"}`}>
+                      {order.slots.length - order.missing}/{order.slots.length}
+                    </span>
+                  </div>
+                  <ul className="space-y-1">
+                    {order.slots.map((slot) => {
+                      const empty = slot.sequences.length === 0;
+                      return (
+                        <li
+                          key={slot.level}
+                          className={`flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-caption ${
+                            empty
+                              ? "border-dashed border-white/10 text-zinc-600"
+                              : "border-white/10 bg-zinc-950/50 text-zinc-300"
+                          }`}
+                        >
+                          <span className="font-black tabular-nums text-zinc-500 w-7 shrink-0">{slot.level}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold truncate">{slot.label}</p>
+                            {empty ? (
+                              <p className="text-zinc-600">— manque —</p>
+                            ) : (
+                              <p className="truncate">{slot.sequences.map((s) => s.subGuideName).join(" · ")}</p>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {order.unlevelled.length > 0 && (
+                    <p className="text-caption text-amber-500/80">
+                      {order.unlevelled.length} quête(s) sans palier :{" "}
+                      {order.unlevelled.map((s) => s.subGuideName).join(" · ")}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Paires alignées — position ↔ position (le miroir ne vaut pas au-delà de 100). */}
+      <section className="space-y-3">
+        <header className="flex items-center justify-between">
+          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Paires alignées par position</h2>
+          <span className="text-caption font-bold text-zinc-500">{view.pairs.length} position(s)</span>
+        </header>
+        <div className="max-h-[30rem] overflow-y-auto rounded-xl border border-white/10">
+          <table className="w-full text-caption">
+            <thead className="sticky top-0 bg-zinc-900 text-zinc-400">
+              <tr>
+                <th className="px-3 py-2 text-left font-black uppercase tracking-wider">#</th>
+                <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Bontarien</th>
+                <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Brâkmarien</th>
+              </tr>
+            </thead>
+            <tbody>
+              {view.pairs.map((pair) => (
+                <tr key={pair.position} className="border-t border-white/5">
+                  <td className="px-3 py-1.5 font-black tabular-nums text-zinc-500">{pair.position}</td>
+                  <td className={`px-3 py-1.5 ${pair.bontarien ? "text-zinc-200" : "text-zinc-600"}`}>
+                    {pair.bontarien ? pair.bontarien.subGuideName : "— manque —"}
+                  </td>
+                  <td className={`px-3 py-1.5 ${pair.brakmarien ? "text-zinc-200" : "text-zinc-600"}`}>
+                    {pair.brakmarien ? pair.brakmarien.subGuideName : "— manque —"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {view.orphans.length > 0 && (
+        <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <p className="text-caption font-black uppercase tracking-widest text-amber-400">
+            {view.orphans.length} séquence(s) hors branche
+          </p>
+          <p className="text-caption text-zinc-400 mt-1">
+            Cité ou Ordre non reconnu — à corriger dans l'onglet Contenu :{" "}
+            {view.orphans.slice(0, 12).map((s) => s.subGuideName).join(" · ")}
+            {view.orphans.length > 12 ? " …" : ""}
+          </p>
+        </section>
+      )}
+    </div>
+  );
+}
+

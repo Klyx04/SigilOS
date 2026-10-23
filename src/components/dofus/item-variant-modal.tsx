@@ -13,7 +13,7 @@ import {
 } from "@/lib/dofus-variant-utils";
 import type { DofusbookItem } from "@/lib/dofusbook-utils";
 import { resolveDofusStatTheme, dofusStatAssetUrl } from "@/lib/dofus-stats-theme";
-import { getPassiveDescription } from "@/lib/dofus-passives";
+import { resolveItemPassive } from "@/lib/dofus-passives";
 import { cn } from "@/lib/utils";
 
 interface ItemVariantModalProps {
@@ -297,16 +297,29 @@ export function ItemVariantModal({
                                             {/* Effets & Caractéristiques de l'item */}
                                             <div className="flex-1 flex flex-col gap-1 pt-2.5 text-[11px] leading-tight">
                                                 {(() => {
-                                                    const passiveDesc = getPassiveDescription(item.name);
+                                                    const passive = resolveItemPassive({
+                                                        name: item.name,
+                                                        effects: [
+                                                            ...item.stats,
+                                                            ...(item.passiveSpellId
+                                                                ? [{ code: "sp", min: item.passiveSpellId, max: 1 }]
+                                                                : []),
+                                                        ],
+                                                    });
                                                     const regularStats = item.stats.filter((st) => st.code !== "sp");
 
                                                     return (
                                                         <>
-                                                            {passiveDesc && (
+                                                            {passive && (
                                                                 <div className="mb-1 p-2 rounded-lg bg-warning/10 border border-warning/25 text-[10px] text-foreground leading-snug">
-                                                                    <span className="font-extrabold text-warning block mb-0.5">✦ Passif :</span>
-                                                                    <p className="line-clamp-3">{passiveDesc}</p>
+                                                                    <span className="font-extrabold text-warning block mb-0.5">✦ Passif officiel :</span>
+                                                                    <p className="line-clamp-4 whitespace-pre-line">{passive.text}</p>
                                                                 </div>
+                                                            )}
+                                                            {item.description && (
+                                                                <p className="mb-1 text-[10px] leading-snug text-muted-foreground line-clamp-3">
+                                                                    {item.description}
+                                                                </p>
                                                             )}
                                                             {regularStats.map((st, idx) => {
                                                                 const theme = resolveDofusStatTheme(null, null, st.code);

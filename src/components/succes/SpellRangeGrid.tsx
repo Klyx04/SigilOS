@@ -54,6 +54,17 @@ import {
     effectShortLabel,
     EFFECT_KIND_COLOR,
 } from "@/lib/dofus-spell-effects";
+import {
+    clearPaintedCells,
+    countPaintedCells,
+    mapPaintKey,
+    migrateStoredPaint,
+    readPaintedCells,
+    sanitizePaintedCells,
+    togglePaintedCell,
+    type PaintedByMap,
+    type PaintMode,
+} from "@/lib/sim-paint";
 
 export interface SpellZone {
     shape: "Cercle" | "Croix" | "Ligne" | "Cône" | "Perpend" | "Rectangle" | "Point" | "Cercle de distance" | "Inconnue";
@@ -412,9 +423,13 @@ export function SpellRangeGrid({
      * Constat user du 23/10/2026 : « faudrait permettre de poser des obstacles à la volée et
      * des trous sur la map pour simuler les lignes de vue ».
      */
-    const [paintMode, setPaintMode] = useState<"obstacle" | "hole" | null>(null);
-    /** Cases peintes (`x,y`) — persistées avec le reste de la simulation. */
-    const [paintedCells, setPaintedCells] = useState<Record<string, "obstacle" | "hole">>({});
+    const [paintMode, setPaintMode] = useState<PaintMode | null>(null);
+    /**
+     * Cases peintes **par carte** (`paintedByMap[mapId]`) — persistées avec le reste de la
+     * simulation. Cloisonner par carte évite qu'une peinture faite sur A s'applique (invisible)
+     * sur B : c'était l'un des deux défauts mesurés le 23/10/2026 (règle pure `src/lib/sim-paint.ts`).
+     */
+    const [paintedCellsByMap, setPaintedCellsByMap] = useState<PaintedByMap>({});
     const [showLegend, setShowLegend] = useState<boolean>(false);
     // Prévisu de DÉGÂTS : les jets **réels** du grade, calculés côté serveur (ou via
     // `computeSpellDamage` pour un stuff), jamais une estimation inventée.
@@ -506,6 +521,17 @@ export function SpellRangeGrid({
 
     // États classés (VOID/HOLE/GROUND/OBSTACLE) à partir de la grille brute 0/1/2.
     const mapStates = useMemo(() => (mapData ? classifyGrid(mapData.cells) : null), [mapData]);
+
+    /**
+     * Peinture de la **carte courante**, bornée à la grille rendue : une case hors grille ne peut
+     * pas être dessinée, la garder produirait « Vider (n) » sans rien à l'écran.
+     * Mémoïsée : l'effet de sauvegarde dépend de cette valeur.
+     */
+    const paintMap = mapPaintKey(selectedMapId === "empty" ? null : String(selectedMapId));
+    const paintedCells = useMemo(
+        () => sanitizePaintedCells(readPaintedCells(paintedCellsByMap, paintMap), gridRows, gridCols),
+        [paintedCellsByMap, paintMap, gridRows, gridCols],
+    );
 
     const cellState = (x: number, y: number): CellState => {
         // 🎨 Peinture du joueur (obstacle / trou posés à la volée) : prioritaire sur la carte,
@@ -812,13 +838,7 @@ export function SpellRangeGrid({
         // toutes les autres règles (viser, placer un jeton, déplacer le lanceur) : peindre sur
         // une case déjà occupée doit rester possible pour corriger un mur.
         if (paintMode) {
-            setPaintedCells((prev) => {
-                const key = `${x},${y}`;
-                const next = { ...prev };
-                if (next[key] === paintMode) delete next[key];
-                else next[key] = paintMode;
-                return next;
-            });
+            setPaintedCellsByMap((prev) => togglePaintedCell(prev, paintMap, x, y, paintMode));
             setLockedAnchor(null);
             return;
         }
@@ -1032,9 +1052,8 @@ export function SpellRangeGrid({
                 if (typeof parsed.showStartCells === "boolean") {
                     setShowStartCells(parsed.showStartCells);
                 }
-                if (parsed.paintedCells && typeof parsed.paintedCells === "object" && !Array.isArray(parsed.paintedCells)) {
-                    setPaintedCells(parsed.paintedCells);
-                }
+                // 🎨 Peinture : cloisonnée par carte ; l'ancien stockage plat est migré.
+                setPaintedCellsByMap(migrateStoredPaint(parsed, parsed.mapId ?? selectedMapId));
             }
         } catch {
             // Ignorer si parse error
@@ -1056,13 +1075,13 @@ export function SpellRangeGrid({
                     enemies,
                     casterPos,
                     showStartCells,
-                    paintedCells,
+                    paintedByMap: paintedCellsByMap,
                 })
             );
         } catch {
             // Ignorer
         }
-    }, [storageKey, selectedMapId, allies, enemies, casterPos, showStartCells, paintedCells]);
+    }, [storageKey, selectedMapId, allies, enemies, casterPos, showStartCells, paintedCellsByMap]);
 
     /**
      * **Case VISÉE** par le sort — la « cible blanche » du jeu. C'est à la fois la **matrice de la
@@ -1629,7 +1648,7 @@ export function SpellRangeGrid({
         const active = variant === "board"
             ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
             : "border-warning/50 bg-warning/10 text-warning";
-        const paintedCount = Object.keys(paintedCells).length;
+        const paintedCount = countPaintedCells(paintedCells);
         return (
             <div className="space-y-1.5" data-no-drag>
                 <p className={cn("text-[9px] font-bold uppercase tracking-wider", dim)}>
@@ -1652,7 +1671,7 @@ export function SpellRangeGrid({
                     ))}
                     <button
                         type="button"
-                        onClick={() => setPaintedCells({})}
+                        onClick={() => setPaintedCellsByMap((prev) => clearPaintedCells(prev, paintMap))}
                         disabled={paintedCount === 0}
                         className={cn(
                             "h-8 rounded-lg border px-2 text-[10px] font-bold transition-colors cursor-pointer disabled:opacity-40",
@@ -2645,12 +2664,16 @@ export function SpellRangeGrid({
                             };
                             const OBST_H = 24;
                             const isObs = (cc: number, rr: number) => cellState(cc, rr) === CellState.OBSTACLE;
+                            // 🎨 Une case peinte hors du sol d'origine reste RENDUE (sinon la
+                            // peinture disparaît sans explication) : elle est simplement traitée
+                            // comme un obstacle (mur) ou un trou.
+                            const isPaintedCell = (cc: number, rr: number) => !!paintedCells[`${cc},${rr}`];
 
                             // Cellules non-VOID triées par profondeur isométrique (row + col).
                             const cells: { c: number; r: number; depth: number }[] = [];
                             for (let r = 0; r < gridRows; r++) {
                                 for (let c = 0; c < gridCols; c++) {
-                                    if (cellState(c, r) === CellState.VOID) continue;
+                                    if (cellState(c, r) === CellState.VOID && !isPaintedCell(c, r)) continue;
                                     cells.push({ c, r, depth: r + c });
                                 }
                             }
@@ -2659,19 +2682,20 @@ export function SpellRangeGrid({
                             return [
                                 cells.map(({ c, r }) => {
                                 const state = cellState(c, r);
-                                // HOLE (trou) : case impossible → noir, non rendue.
-                                if (state === CellState.HOLE) return null;
+                                // HOLE (trou) : case impossible → **rendue** en noir profond (le
+                                // `return null` d'avant faisait exactement « je peins, il n'y a rien »).
+                                const isHole = state === CellState.HOLE;
                                 const obs = state === CellState.OBSTACLE;
                                 const key = `${c},${r}`;
                                 const isStartAlly = !!startCells?.ally.has(key);
                                 const monsterOrder = startCells?.enemy?.get(key);
                                 const isStartEnemy = monsterOrder !== undefined;
                                 const { sx, sy } = cellToScreen(c, r, tileW, tileH);
-                                const isCaster = !obs && c === casterPos.x && r === casterPos.y;
-                                const isAllyCell = !obs && !hideAllies && allies.some((a) => a.x === c && a.y === r);
-                                const isEnemyCell = !obs && enemiesEnabled && enemies.some((e) => e.x === c && e.y === r);
+                                const isCaster = !obs && !isHole && c === casterPos.x && r === casterPos.y;
+                                const isAllyCell = !obs && !isHole && !hideAllies && allies.some((a) => a.x === c && a.y === r);
+                                const isEnemyCell = !obs && !isHole && enemiesEnabled && enemies.some((e) => e.x === c && e.y === r);
                                 const isTokenCell = isAllyCell || isEnemyCell;
-                                const inRange = !obs && isCellInRange(c, r);
+                                const inRange = !obs && !isHole && isCellInRange(c, r);
                                 const isHovered = hoveredCell?.x === c && hoveredCell?.y === r;
                                 const isZoneAnchor = zoneAnchor?.x === c && zoneAnchor?.y === r;
 
@@ -2686,7 +2710,12 @@ export function SpellRangeGrid({
                                 let strokeColor = C.grid;
                                 let strokeWidth = 0.4;
 
-                                if (obs) {
+                                if (isHole) {
+                                    // Trou : aplat très sombre + liseré discret (case infranchissable).
+                                    fillColor = "#050505";
+                                    strokeColor = "rgba(255, 255, 255, 0.14)";
+                                    strokeWidth = 0.6;
+                                } else if (obs) {
                                     fillColor = C.obsTop;
                                     strokeColor = C.obsStroke;
                                     strokeWidth = 0.5;
@@ -2718,14 +2747,14 @@ export function SpellRangeGrid({
                                     strokeWidth = 1.4;
                                 }
 
-                                if (isHovered && !isCaster && !isTokenCell && !obs) {
+                                if (isHovered && !isCaster && !isTokenCell && !obs && !isHole) {
                                     fillColor = inRange ? "#9ae44c" : "#a39e90";
                                 }
 
                                 // Prévisu de zone d'effet (AoE) : ambre, prioritaire sur la portée ET
                                 // sur les jetons — un personnage DANS la zone doit sauter aux yeux
                                 // (retour user 21/09/2026 : « on voit pas quand on touche les cibles »).
-                                if (isInZone(c, r) && !obs && !isCaster) {
+                                if (isInZone(c, r) && !obs && !isHole && !isCaster) {
                                     fillColor = isTokenCell ? "#f2b53a" : "#e0a320";
                                     strokeColor = isTokenCell ? "#ffffff" : "#ffcf5e";
                                     strokeWidth = isTokenCell ? 1.8 : 1.1;
@@ -2786,7 +2815,8 @@ export function SpellRangeGrid({
                             }),
                             /* Passe 2 — entités triées par profondeur (au-dessus des obstacles) */
                             cells.map(({ c, r }) => {
-                                if (cellState(c, r) === CellState.OBSTACLE) return null;
+                                const cellKind = cellState(c, r);
+                                if (cellKind === CellState.OBSTACLE || cellKind === CellState.HOLE) return null;
                                 const { sx, sy } = cellToScreen(c, r, tileW, tileH);
                                 if (c === casterPos.x && r === casterPos.y) {
                                     // Boss mis à l'échelle (titan ≈ 2) : les pieds restent plantés

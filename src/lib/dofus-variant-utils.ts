@@ -427,3 +427,105 @@ export function applyVariantsToBuild(
 
     return result;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Variantes **enregistrées** (proposées par le joueur sur son stuff)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Nombre maximal de slots dans une variante enregistrée (16 slots d'équipement). */
+export const SAVED_VARIANT_MAX_SLOTS = 16;
+const SAVED_VARIANT_MAX_EFFECTS = 40;
+const SAVED_VARIANT_MAX_NAME = 120;
+const SAVED_VARIANT_MAX_STAT = 1_000_000;
+
+/**
+ * Variante proposée par le joueur, **stockée dans `dofusBookLinks[].variants`** (JSON, aucune
+ * migration) : une entrée par slot, au format `DofusbookItem` (le même que `applyVariantsToBuild`).
+ *
+ * ⚠️ La synchronisation Dofusbook n'est **jamais** touchée : `previewData` reste la donnée du
+ * build d'origine, la variante s'applique par-dessus, à l'affichage.
+ */
+export type SavedVariant = Record<string, DofusbookItem>;
+
+function boundedInt(value: unknown, fallback = 0): number {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(-SAVED_VARIANT_MAX_STAT, Math.min(SAVED_VARIANT_MAX_STAT, Math.round(n)));
+}
+
+/**
+ * Assainit une variante **venue du client ou de la base** : slots connus uniquement, bornes sur
+ * les textes et les valeurs, effets tronqués. Une entrée invalide est **écartée** (fail-closed :
+ * une variante corrompue ne casse pas l'affichage du stuff d'origine).
+ */
+export function normalizeSavedVariants(raw: unknown): SavedVariant {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+    const out: SavedVariant = {};
+    let slots = 0;
+
+    for (const [slot, value] of Object.entries(raw as Record<string, unknown>)) {
+        if (slots >= SAVED_VARIANT_MAX_SLOTS) break;
+        const slotInfo = VARIANT_SLOTS[slot];
+        if (!slotInfo) continue;
+        if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+
+        const item = value as Record<string, unknown>;
+        const id = boundedInt(item.id);
+        const name = typeof item.name === "string" ? item.name.trim().slice(0, SAVED_VARIANT_MAX_NAME) : "";
+        if (id <= 0 || name.length === 0) continue;
+
+        const effects: DofusbookItemEffect[] = [];
+        if (Array.isArray(item.effects)) {
+            for (const fx of item.effects.slice(0, SAVED_VARIANT_MAX_EFFECTS)) {
+                if (!fx || typeof fx !== "object") continue;
+                const line = fx as Record<string, unknown>;
+                const code = typeof line.code === "string" ? line.code.trim().slice(0, 12) : "";
+                if (!code) continue;
+                const min = boundedInt(line.min);
+                const max = boundedInt(line.max, min);
+                const value = boundedInt(line.value, Math.max(min, max));
+                effects.push({ code, min, max, value });
+            }
+        }
+
+        out[slot] = {
+            id,
+            name,
+            picture: boundedInt(item.picture, id),
+            official: boundedInt(item.official, id),
+            level: Math.max(1, Math.min(200, boundedInt(item.level, 1))),
+            typeName: typeof item.typeName === "string" ? item.typeName.trim().slice(0, 40) : slotInfo.slotName,
+            effects,
+        };
+        slots += 1;
+    }
+
+    return out;
+}
+
+/** La variante est-elle vide (aucun slot utile) ? */
+export function hasSavedVariant(variants: SavedVariant | null | undefined): boolean {
+    return !!variants && Object.keys(variants).length > 0;
+}
+
+/** Deux variantes portent-elles exactement les mêmes objets (évite une écriture inutile) ? */
+export function sameSavedVariant(a: SavedVariant | null | undefined, b: SavedVariant | null | undefined): boolean {
+    const left = a ?? {};
+    const right = b ?? {};
+    const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+    for (const key of keys) {
+        const la = left[key];
+        const rb = right[key];
+        if (!la || !rb) return false;
+        if (la.id !== rb.id || la.name !== rb.name) return false;
+        const ea = la.effects ?? [];
+        const eb = rb.effects ?? [];
+        if (ea.length !== eb.length) return false;
+        for (let i = 0; i < ea.length; i += 1) {
+            if (ea[i].code !== eb[i].code || ea[i].min !== eb[i].min || ea[i].max !== eb[i].max) return false;
+        }
+    }
+    return true;
+}
+

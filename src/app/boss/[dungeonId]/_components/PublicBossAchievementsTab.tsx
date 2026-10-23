@@ -1,20 +1,43 @@
 "use client";
 
-import { Trophy } from "lucide-react";
+import { Trophy, Check } from "lucide-react";
 import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
 import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement";
 import type { PublicDungeonAchievement } from "@/server/actions/public-boss-tabs-actions";
+import { cn } from "@/lib/utils";
 
 interface PublicBossAchievementsTabProps {
     achievements: PublicDungeonAchievement[];
     bossName: string;
+    /** Coche « fait » (fiche boss **interne** uniquement — la fiche publique reste en lecture). */
+    onToggle?: (achievementId: string) => void;
+    /** Ids déjà marqués « fait » par le membre connecté. */
+    doneIds?: ReadonlyArray<string>;
+    /** Coche en cours d'enregistrement (anti double-clic). */
+    pendingId?: string | null;
 }
 
-function AchievementCard({ achievement }: { achievement: PublicDungeonAchievement }) {
+function AchievementCard({
+    achievement,
+    done,
+    onToggle,
+    pending,
+}: {
+    achievement: PublicDungeonAchievement;
+    done?: boolean;
+    onToggle?: (achievementId: string) => void;
+    pending?: boolean;
+}) {
     const iconUrl = getDungeonAchievementIconUrl(achievement);
+    const checkable = typeof onToggle === "function";
 
     return (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-surface/50 border border-border/70 hover:border-border transition-colors">
+        <div
+            className={cn(
+                "flex items-start gap-3 p-4 rounded-xl bg-surface/50 border transition-colors",
+                done ? "border-success/40 bg-success/5" : "border-border/70 hover:border-border",
+            )}
+        >
             {/* Icône du succès — réelle quand elle est connue (proxy interne), repli Trophy sinon. */}
             <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-1.5 shrink-0 overflow-hidden shadow-xs">
                 {iconUrl ? (
@@ -40,6 +63,38 @@ function AchievementCard({ achievement }: { achievement: PublicDungeonAchievemen
                     </p>
                 )}
             </div>
+
+            {/* Coche « fait » — case native (clavier + lecteur d'écran), masquée en public. */}
+            {checkable && (
+                <label
+                    className={cn(
+                        "shrink-0 inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-bold cursor-pointer select-none transition-colors",
+                        done
+                            ? "border-success/50 bg-success/15 text-success"
+                            : "border-border bg-background/60 text-muted-foreground hover:text-foreground hover:bg-elevated",
+                        pending && "opacity-60 cursor-wait",
+                    )}
+                >
+                    <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={!!done}
+                        disabled={pending}
+                        onChange={() => onToggle?.(achievement.id)}
+                        aria-label={`Marquer « ${achievement.name} » comme fait`}
+                    />
+                    <span
+                        aria-hidden="true"
+                        className={cn(
+                            "w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center",
+                            done ? "border-success bg-success text-success-foreground" : "border-border",
+                        )}
+                    >
+                        {done && <Check className="w-2.5 h-2.5" strokeWidth={3} />}
+                    </span>
+                    Fait
+                </label>
+            )}
         </div>
     );
 }
@@ -48,10 +103,17 @@ function AchievementCard({ achievement }: { achievement: PublicDungeonAchievemen
  * Onglet Succès de la fiche boss publique.
  * Lecture seule — aucune interaction, aucune donnée de progression.
  */
-export function PublicBossAchievementsTab({ achievements, bossName }: PublicBossAchievementsTabProps) {
+export function PublicBossAchievementsTab({
+    achievements,
+    bossName,
+    onToggle,
+    doneIds,
+    pendingId,
+}: PublicBossAchievementsTabProps) {
     // Le pseudo-succès « Donjon validé » n'est plus rendu (demande user du 11/10/2026) : on l'écarte
     // même si une ligne résiduelle traînait en base avant la purge.
     const visible = achievements.filter((a) => a.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG);
+    const done = new Set(doneIds ?? []);
 
     if (visible.length === 0) {
         return (
@@ -78,7 +140,13 @@ export function PublicBossAchievementsTab({ achievements, bossName }: PublicBoss
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {visible.map((a) => (
-                    <AchievementCard key={a.id} achievement={a} />
+                    <AchievementCard
+                        key={a.id}
+                        achievement={a}
+                        done={done.has(a.id)}
+                        onToggle={onToggle}
+                        pending={pendingId === a.id}
+                    />
                 ))}
             </div>
         </div>

@@ -29,6 +29,10 @@ import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
 import { DungeonMinimapCard } from "@/app/boss/[dungeonId]/_components/DungeonMinimapCard";
 import { PublicBossAchievementsTab } from "@/app/boss/[dungeonId]/_components/PublicBossAchievementsTab";
+import {
+    getDungeonAchievementStates,
+    toggleDungeonAchievement,
+} from "@/server/actions/dungeon-achievement-actions";
 import type { PublicDungeonAchievement } from "@/server/actions/public-boss-tabs-actions";
 import {
     ALL_LEVELS_ID,
@@ -313,8 +317,62 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
     const [dungeonMapsByBoss, setDungeonMapsByBoss] = useState<Record<string, DofensiveDungeonInfo | null>>({});
     const [copiedTravel, setCopiedTravel] = useState(false);
     const [expandedSpells, setExpandedSpells] = useState<Record<number, boolean>>({});
+    // 🏅 Succès « fait » (fiche interne) — `UserDungeonAchievement`, une coche par succès.
+    const [doneAchievements, setDoneAchievements] = useState<string[]>([]);
+    const [pendingAchievement, setPendingAchievement] = useState<string | null>(null);
     const toggleSpellExpanded = (id: number) => {
         setExpandedSpells((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    // 🏅 Coche « fait » des succès du donjon sélectionné (fiche interne uniquement).
+    // La fiche publique garde le composant en lecture seule (`scope` ≠ "boss" ⇒ aucune coche).
+    const achievementDungeonId = selected?.id ?? null;
+    useEffect(() => {
+        if (!achievementDungeonId || scope !== "boss") {
+            setDoneAchievements([]);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const res = await getDungeonAchievementStates(guildId, achievementDungeonId);
+            if (cancelled) return;
+            if (res.success && Array.isArray(res.doneIds)) setDoneAchievements(res.doneIds);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [achievementDungeonId, guildId, scope]);
+
+    const handleToggleAchievement = async (achievementId: string) => {
+        if (!achievementDungeonId || pendingAchievement) return;
+        const wasDone = doneAchievements.includes(achievementId);
+
+        // Optimiste : la case répond tout de suite, on revient en arrière si le serveur refuse.
+        setDoneAchievements((prev) =>
+            wasDone ? prev.filter((id) => id !== achievementId) : [...prev, achievementId],
+        );
+        setPendingAchievement(achievementId);
+
+        const res = await toggleDungeonAchievement({
+            guildId,
+            dungeonId: achievementDungeonId,
+            achievementId,
+        });
+        setPendingAchievement(null);
+
+        if (!res.success) {
+            setDoneAchievements((prev) =>
+                wasDone ? [...prev, achievementId] : prev.filter((id) => id !== achievementId),
+            );
+            toast.error(res.error || "Impossible d'enregistrer la coche");
+            return;
+        }
+        setDoneAchievements((prev) => {
+            const has = prev.includes(achievementId);
+            if (res.done && !has) return [...prev, achievementId];
+            if (!res.done && has) return prev.filter((id) => id !== achievementId);
+            return prev;
+        });
     };
 
     // 1. Charger la liste des donjons (instantané ~50ms, sans spammer 89 requêtes réseau)
@@ -1156,6 +1214,9 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                 description: a.challenge?.description ?? null,
                             }))}
                             bossName={selected.bossName}
+                            onToggle={scope === "boss" ? handleToggleAchievement : undefined}
+                            doneIds={scope === "boss" ? doneAchievements : undefined}
+                            pendingId={pendingAchievement}
                         />
                     )}
 

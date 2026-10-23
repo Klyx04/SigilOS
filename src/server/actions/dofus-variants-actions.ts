@@ -2,6 +2,8 @@
 
 import { db } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
+import { auth } from '@/auth';
+import { rateLimit } from '@/lib/ratelimit';
 import { VARIANT_SLOTS, normalizeStatCode, getStatLabel } from '@/lib/dofus-variant-utils';
 import { normalizeItemIconUrl } from '@/lib/market/item-image';
 import { Prisma } from '@prisma/client';
@@ -14,6 +16,10 @@ export interface VariantItemSummary {
     typeName: string;
     itemSetName?: string | null;
     iconUrl: string | null;
+    /** Description officielle de l'objet (texte DofusDB) — Prysmaradites, objets légendaires… */
+    description?: string | null;
+    /** Id du sort passif (ligne native `effectId 1175` : `diceNum`) — résolu par `resolveItemPassive`. */
+    passiveSpellId?: number | null;
     stats: {
         code: string;
         label: string;
@@ -100,12 +106,41 @@ function extractStatsFromGameItem(item: {
 }
 
 /**
+ * Id du **sort passif** porté par l'objet (capacité légendaire).
+ *
+ * Mesure du 23/10/2026 : les Dofus et objets légendaires portent une ligne native
+ * `effectId 1175` dont `diceNum` = sort passif et `diceSide` = grade (Dofus Turquoise → 5952).
+ * `nativeEffects` (version légère) **perd** cette ligne : on interroge donc `effects` d'abord.
+ */
+function extractPassiveSpellId(item: { nativeEffects?: unknown; effects?: unknown }): number | null {
+    const sources: unknown[] = [item.effects, item.nativeEffects];
+    for (const source of sources) {
+        if (!Array.isArray(source)) continue;
+        for (const fx of source as any[]) {
+            if (Number(fx?.effectId) !== 1175) continue;
+            const id = Number(fx?.diceNum ?? fx?.from ?? 0);
+            if (Number.isFinite(id) && id > 0) return id;
+        }
+    }
+    return null;
+}
+
+/**
  * 🔍 Recherche d'équipements pour remplacer un slot de build (Variante interactive).
  * 0 appel externe (100% BDD locale), ultra réactif, filtrable par nom, niveau et caractéristiques.
  */
 export async function searchVariantItems(
     params: SearchVariantItemsParams
 ): Promise<ActionResponse<SearchVariantItemsResult>> {
+    // 🔐 Auth + rate limit (fail-closed) : la bibliothèque d'objets n'est pas publique.
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) return { success: false, error: 'Non autorisé' };
+    const limited = await rateLimit(`variant-search:${userId}`, 60, 60_000);
+    if (!limited.success) {
+        return { success: false, error: 'Trop de recherches — réessaie dans une minute.' };
+    }
+
     try {
         const { slot, query = '', minLevel = 1, maxLevel = 200, statFilters = [], limit = 48 } = params;
 
@@ -161,6 +196,7 @@ export async function searchVariantItems(
                 typeName: true,
                 itemSetName: true,
                 iconUrl: true,
+                description: true,
                 nativeEffects: true,
                 effects: true,
             },
@@ -177,6 +213,8 @@ export async function searchVariantItems(
                 typeName: item.typeName,
                 itemSetName: item.itemSetName,
                 iconUrl: normalizeItemIconUrl(item.iconUrl, item.ankamaId),
+                description: item.description ?? null,
+                passiveSpellId: extractPassiveSpellId(item),
                 stats,
             };
         });

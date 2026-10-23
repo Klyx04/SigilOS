@@ -1,0 +1,475 @@
+{
+  "source": "DofusDB /spells (effet 1175 → sort passif)",
+  "generatedAt": "2026-10-23",
+  "count": 117,
+  "spells": {
+    "5453": {
+      "name": "Dofus des Veilleurs",
+      "text": "{{spell,5453,1::Veille Dimensionnelle}} :\n• Lorsque le porteur termine son tour, il soigne ses alliés alignés avec lui de 7% de leur vie."
+    },
+    "5454": {
+      "name": "Dofus Nébuleux",
+      "text": "{{spell,5454,1::Rêve Nébuleux}} :\n• Les tours impairs, le porteur sacrifie 10% de soins finaux pour gagner 20% de dommages finaux.\n• Les tours pairs, il sacrifie 10% de dommages finaux pour gagner 20% de soins finaux."
+    },
+    "5952": {
+      "name": "Dofus Turquoise",
+      "text": "{{spell,5952,1::Bleu Turquoise}} :\n• Lorsque le porteur effectue un coup critique, il gagne 1% de dommages finaux pendant 3 tours (cumulable 10 fois)."
+    },
+    "6149": {
+      "name": "Dokoko",
+      "text": "{{spell,6149,1::Le Singe et la Lune}} :\n• Tous les 3 tours à partir du tour 3, le porteur est soigné de 10% de sa vie."
+    },
+    "6828": {
+      "name": "Dofus Abyssal",
+      "text": "{{spell,6828,1::Descente aux Abysses}} :\n• À chaque début de tour, le porteur gagne 1 PM si aucun ennemi n'est à son contact. Sinon, il gagne 1 PA."
+    },
+    "7331": {
+      "name": "Dofusteuse",
+      "text": "{{spell,7331,1::Bénédiction des Dofus}} :\n• Augmente une caractéristique élémentaire du porteur par tour de jeu :\n • <sprite name=\"eau\"> 400 Chance > <sprite name=\"terre\"> 400 Force > <sprite name=\"air\"> 400 Agilité > <sprite name=\"feu\"> 400 Intelligence"
+    },
+    "8393": {
+      "name": "Dofus Émeraude",
+      "text": "{{spell,8393,1::Vert Émeraude}} :\n• Lorsque le porteur termine son tour, il gagne 100% de son niveau en bouclier pendant 1 tour pour chaque ennemi à son contact. Les effets sont réduits de moitié si l'ennemi est une invocation."
+    },
+    "8394": {
+      "name": "Dofus Ocre",
+      "text": "{{spell,8394,1::Jaune Ocre}} :\n• À chaque début de tour, le porteur gagne 1 PA s'il n'a subi aucune attaque ennemie depuis son précédent tour de jeu. Sinon, il gagne 20 de Fuite."
+    },
+    "8395": {
+      "name": "Dofus Pourpre",
+      "text": "{{spell,8395,1::Pourpre Profond}} :\n• Lorsque le porteur est attaqué, il gagne 1% de dommages finaux pendant 2 tours (cumulable 10 fois)."
+    },
+    "8396": {
+      "name": "Dofus Vulbis",
+      "text": "{{spell,8396,1::Rouge Vermeil}} :\n• À chaque début de tour, le porteur gagne 10% de dommages finaux s'il n'a subi aucune attaque ennemie depuis son précédent tour de jeu. Sinon, il gagne 20 de Tacle."
+    },
+    "8418": {
+      "name": "Dofus Cawotte",
+      "text": "{{spell,8418,1::Sagesse Wabbit}} :\n• Lorsque le porteur subit une tentative de retrait de PA ou de PM, il gagne 25 Esquive PA ou 25 Esquive PM pendant 1 tour (cumulable 1 fois, partagé entre les effets)."
+    },
+    "10164": {
+      "name": "Dofus Forgelave",
+      "text": "{{spell,10164,1::Forge du Volcan}} :\n• Le porteur gagne 100% de son niveau en bouclier selon les effets qu'il subit d'un ennemi (1 fois par type d'effet par tour) :\n • Dommages de poussée\n • Attirance ou poussée\n • Échange de positions, téléportation ou téléportail\n • Portage Pandawa"
+    },
+    "11352": {
+      "name": "Appétit de Crocobur",
+      "text": "{{spell,11352,1::Appétit de Crocobur}} :\n• À chaque début de tour, le porteur s'inflige 15 de dommages dans son meilleur élément d'attaque pour infliger les mêmes dommages en vol de vie aux entités à son contact à la fin de son tour. Soigne également les attaquants de 7% des dommages occasionnés aux ennemis touchés pendant 2 tours (cumulable 1 fois)."
+    },
+    "11354": {
+      "name": "Destin Fatidique",
+      "text": "{{spell,11354,1::Destin Fatidique}} :\n• À chaque fin de tour, le porteur partage les dommages entre les ennemis dans un carré de taille 1 et augmente les dommages qu'ils subissent de 6% pendant 2 tours (cumulable 1 fois). Il gagne également 10 de Tacle pendant 1 tour pour chaque ennemi touché."
+    },
+    "11357": {
+      "name": "Plume de Buhorado",
+      "text": "{{spell,11357,1::Plume de Buhorado}} :\n• Lorsque le porteur effectue un coup critique, il gagne 10 de Dommages Poussée pendant 3 tours."
+    },
+    "11358": {
+      "name": "Droiture de Fallanster",
+      "text": "{{spell,11358,1::Droiture de Fallanster}} :\n• Lorsque le porteur termine son tour en ligne de vue d'un ennemi, il pose un glyphe-aura dans un carré de taille 1 qui réduit les dommages subis par les alliés de 10% jusqu'au début de son prochain tour (cumulable 1 fois). Le glyphe est dissipé au prochain tour ou s'il est déplacé."
+    },
+    "11359": {
+      "name": "Trompe-la-Mort",
+      "text": "{{spell,11359,1::Trompe-la-Mort}} :\n• Lorsque le porteur a plus de 50% de sa vie, ses dommages finaux sont augmentés de 7%, mais il perd 10% de sa vie à chaque début de tour.\n• Lorsqu'il a moins de 50% de sa vie, les dommages qu'il subit sont réduits de 20%."
+    },
+    "11360": {
+      "name": "Roi sous la Montagne",
+      "text": "{{spell,11360,1::Roi sous la Montagne}} :\n• Lorsque le porteur effectue ou subit une tentative de retrait de PA ou PM, il gagne 2% de dommages finaux pendant 2 tours (cumulable 5 fois).\n• Les effets ne peuvent pas être déclenchés si le porteur est à la fois l'attaquant et la cible."
+    },
+    "11361": {
+      "name": "Sagesse de Ganymède",
+      "text": "{{spell,11361,1::Sagesse de Ganymède}} :\n• Le porteur gagne 2 PA les tours pairs, mais perd 1 PA et 1 PM les tours impairs."
+    },
+    "11363": {
+      "name": "Bravoure de Rykke Errel",
+      "text": "{{spell,11363,1::Bravoure de Rykke Errel}} :\n• Lorsque le porteur subit une attaque à distance, il gagne 10% de son niveau en bouclier et perd 1% de dommages à distance pendant 1 tour par case d'éloignement avec son attaquant (11 cases maximum)."
+    },
+    "11365": {
+      "name": "Assimilation Élémentaire",
+      "text": "{{spell,11365,1::Assimilation Élémentaire}} :\n• Lorsque le porteur subit des dommages dans un élément, il gagne 4% de résistance dans cet élément pendant 2 tours (cumulable 5 fois, partagé entre les éléments)."
+    },
+    "11366": {
+      "name": "Mille Lieues",
+      "text": "{{spell,11366,1::Mille Lieues}} :\n• Le porteur gagne 2 PM les tours impairs."
+    },
+    "11367": {
+      "name": "Les Culs Bottés",
+      "text": "{{spell,11367,1::Les Culs Bottés}} :\n• À chaque début et fin de tour, le porteur repousse de 2 cases les entités à son contact."
+    },
+    "11368": {
+      "name": "Audace de Dodge",
+      "text": "{{spell,11368,1::Audace de Dodge}} :\n• À chaque début de tour, le porteur se téléporte ou échange de position sur une case adjacente aléatoire et gagne 1 PM et 10% Critique, ou n'est pas déplacé et gagne 40 de Fuite et de Dommages Poussée, pendant 1 tour."
+    },
+    "11369": {
+      "name": "Courage de Dame Jhessica",
+      "text": "{{spell,11369,1::Courage de Dame Jhessica}} :\n• À chaque fin de tour, le porteur retire 60 de Fuite aux ennemis à son contact (cumulable 1 fois) et gagne 1% de dommages aux sorts pour chaque ennemi touché pendant 2 tours (cumulable 4 fois)."
+    },
+    "12147": {
+      "name": "Froid de Novamaire",
+      "text": "{{spell,12147,1::Froid de Novamaire}} :\n• À chaque fin de tour, le porteur retire 1 PA aux ennemis à son contact pendant 1 tour (cumulable 1 fois).\n• Lorsqu'un combattant ennemi est achevé, le porteur gagne 1 PA pendant 1 tour (cumulable 2 fois).\n• Lorsque le porteur achève un combattant ennemi, il pose un glyphe-aura qui rend les alliés invisibles pendant 1 tour dans un cercle de taille 3."
+    },
+    "12344": {
+      "name": "Dofus Cacao",
+      "text": "{{spell,12344,1::Bénédiction chocolatée}} :\n• Lorsque le porteur est attaqué à distance en étant au contact d'un ennemi, il gagne 35% de son niveau en bouclier pendant 1 tour au début de son prochain tour."
+    },
+    "12475": {
+      "name": "Célérité du Piou",
+      "text": "{{spell,12475,1::Célérité du Piou}} (niveau 200) :\n• Lorsque le porteur se fait tacler, il gagne 1 PM pendant 2 tours."
+    },
+    "12477": {
+      "name": "Épargne du Koalak",
+      "text": "{{spell,12477,1::Épargne du Koalak}} (niveau 200) :\n• Lorsque le porteur se fait tacler, il gagne 1 PA pendant 2 tours."
+    },
+    "12479": {
+      "name": "Évasion du Kitsou",
+      "text": "{{spell,12479,1::Évasion du Kitsou}} (niveau 200) :\n• À chaque début de tour, le porteur gagne 10 de Fuite pendant 2 tours par ennemi à 2 cases ou moins de lui."
+    },
+    "12480": {
+      "name": "Toile de l'Arakne",
+      "text": "{{spell,12480,1::Toile de l'Arakne}} : \n• À chaque fin de tour, le porteur gagne 10 de Tacle pendant 2 tours par ennemi à 2 cases ou moins de lui."
+    },
+    "12481": {
+      "name": "Hystérie de la Truche",
+      "text": "{{spell,12481,1::Hystérie de la Truche}} (niveau 200) :\n• Le porteur gagne 10 de Tacle s'il est poussé ou 10 de Fuite s'il est attiré pendant 2 tours."
+    },
+    "12482": {
+      "name": "Soif du Moskito",
+      "text": "{{spell,12482,1::Soif du Moskito}} (niveau 200) :\n• Le porteur sacrifie 5% de ses dommages finaux pour se soigner de 15% des dommages qu'il occasionne à ses ennemis pendant son tour de jeu."
+    },
+    "12483": {
+      "name": "Impatience du Wabbit",
+      "text": "{{spell,12483,1::Impatience du Wabbit}} (niveau 200) :\n• Au début du combat, le porteur gagne 1% de dommages finaux pour chaque combattant ennemi, mais perd 2% de dommages finaux jusqu'à la fin du combat lorsque l'un d'entre eux meurt."
+    },
+    "12484": {
+      "name": "Brutalité du Trool",
+      "text": "{{spell,12484,1::Brutalité du Trool}} (niveau 200) :\n• Au début du combat, le porteur sacrifie 1% de dommages finaux par combattant ennemi pour gagner 3% de dommages finaux jusqu'à la fin du combat lorsque l'un d'entre eux meurt."
+    },
+    "12485": {
+      "name": "Précision du Bwork",
+      "text": "{{spell,12485,1::Précision du Bwork}} (niveau 200) :\n• À chaque début de tour, le porteur gagne 3% de dommages à distance pendant 1 tour s'il est au contact d'un ennemi, sinon il gagne 3% de dommages en mêlée pendant 1 tour."
+    },
+    "12486": {
+      "name": "Rage du Mulou",
+      "text": "{{spell,12486,1::Rage du Mulou}} (niveau 200) :\n• Le porteur gagne 5% de dommages finaux pendant 2 tours lorsqu'un combattant allié meurt (cumulable 3 fois)."
+    },
+    "12487": {
+      "name": "Générosité du Bwak",
+      "text": "{{spell,12487,1::Générosité du Bwak}} (niveau 200) :\n• Lorsque le porteur termine son tour au contact d'un ennemi, il sacrifie 2% de dommages à distance pour son prochain tour pour en donner 4% à ses alliés pendant 1 tour (cumulable 1 fois)."
+    },
+    "12488": {
+      "name": "Douceur de la Boufette",
+      "text": "{{spell,12488,1::Douceur de la Boufette}} (niveau 200) :\n• À chaque fin de tour, le porteur donne 3% de dommages en mêlée aux alliés à son contact pendant 2 tours (cumulable 1 fois)."
+    },
+    "12489": {
+      "name": "Robustesse du Craqueleur",
+      "text": "{{spell,12489,1::Robustesse du Craqueleur}} (niveau 200) :\n• Au début du combat, le porteur sacrifie 2% de résistance par allié pour en donner 3% à ses alliés. Les résistances sacrifiées pour un allié sont récupérées à sa mort.\n• Les effets sont retirés à la mort du porteur."
+    },
+    "12490": {
+      "name": "Protection de la Krokille",
+      "text": "{{spell,12490,1::Protection de la Krokille}} (niveau 200) :\n• Au début du combat, le porteur gagne 100% du niveau de chaque allié en bouclier, mais perd 5% de résistance à chaque mort d'un combattant allié présent au début du combat."
+    },
+    "12492": {
+      "name": "Gourmandise du Gloutoblop",
+      "text": "{{spell,12492,1::Gourmandise du Gloutoblop}} (niveau 200) :\n• Lorsqu'un combattant allié meurt, le porteur est soigné de 20% de sa vie (3 fois maximum)."
+    },
+    "12497": {
+      "name": "Immortalité du Chafer",
+      "text": "{{spell,12497,1::Immortalité du Chafer}} (niveau 200) :\n• Lorsqu'un combattant allié meurt, le porteur gagne 500% du niveau de cet allié en bouclier pour le reste du combat (5 fois maximum)."
+    },
+    "12498": {
+      "name": "Écorce de l'Abraknyde",
+      "text": "{{spell,12498,1::Écorce de l'Abraknyde}} (niveau 200) :\n• Lorsque le porteur subit une tentative de retrait de PM, il gagne 75% de son niveau en bouclier pendant 1 tour (cumulable 1 fois)."
+    },
+    "12499": {
+      "name": "Altruisme du Champa",
+      "text": "{{spell,12499,1::Altruisme du Champa}} (niveau 200) :\n• Lorsque le porteur termine son tour au contact d'un allié, il donne 1 PA aux alliés à son contact pendant 2 tours (cumulable 1 fois)."
+    },
+    "12500": {
+      "name": "Bienveillance de la Tofoune",
+      "text": "{{spell,12500,1::Bienveillance de la Tofoune}} (niveau 200) :\n• Lorsque le porteur termine son tour au contact d'un allié, il donne 1 PM aux alliés à son contact pendant 2 tours (cumulable 2 fois)."
+    },
+    "12501": {
+      "name": "Appel du Pandore",
+      "text": "{{spell,12501,1::Appel du Pandore}} (niveau 200) :\n• Lorsque le porteur invoque une créature, il lui donne 1 PM pendant 2 tours."
+    },
+    "12502": {
+      "name": "Entrave du Dragoeuf",
+      "text": "{{spell,12502,1::Entrave du Dragoeuf}} (niveau 200) :\n• Lorsque le porteur tacle un ennemi, il gagne 200% de son niveau en bouclier pendant 1 tour."
+    },
+    "12503": {
+      "name": "Dévouement de la Domoizelle",
+      "text": "{{spell,12503,1::Dévouement de la Domoizelle}} (niveau 200) :\n• À chaque fin de tour, le porteur transfère 5% de sa vie aux alliés à son contact et gagne 10% de Vitalité pendant 2 tours si le transfert s'est effectué."
+    },
+    "12505": {
+      "name": "Toxicité du Scorbute",
+      "text": "{{spell,12505,1::Toxicité du Scorbute}} (niveau 200) :\n• À chaque début de tour, le porteur s'inflige 8 de dommages dans son meilleur élément d'attaque pour les infliger aux entités à son contact à la fin de son tour."
+    },
+    "12506": {
+      "name": "Empathie de la Boursoin",
+      "text": "{{spell,12506,1::Empathie de la Boursoin}} (niveau 200) :\n• Au début du combat, le porteur gagne 10% de soins finaux. Ce bonus est perdu si un de ses combattants alliés meurt."
+    },
+    "14762": {
+      "name": "Prytek Mate",
+      "text": "{{spell,14762,1::Prytek Mate}} :\n• Le porteur gagne 550% de son niveau en bouclier au premier tour, puis 200% au deuxième tour, et 100% au troisième tour."
+    },
+    "14763": {
+      "name": "Prytek Brillante",
+      "text": "{{spell,14763,1::Prytek Brillante}} :\n• Le porteur gagne 150% de son niveau en bouclier au premier tour, puis 450% au deuxième tour et 150% au troisième tour."
+    },
+    "14764": {
+      "name": "Prytek Iridescente",
+      "text": "{{spell,14764,1::Prytek Iridescente}} :\n• Le porteur gagne 100% de son niveau en bouclier au premier tour, puis 200% au deuxième tour et 350% au troisième tour."
+    },
+    "14902": {
+      "name": "Sprynt",
+      "text": "{{spell,14902,1::Sprynt}} :\n• Le porteur est Intaclable tant qu'il n'a pas occasionné de dommages. S'il en occasionne, la durée de l'état passe à 1 tour."
+    },
+    "14903": {
+      "name": "Pryssion Mate",
+      "text": "{{spell,14903,1::Pryssion Mate}} :\n• Le porteur sacrifie 10% de dommages finaux pour gagner 1 PA pendant 3 tours."
+    },
+    "14904": {
+      "name": "Pryssion Brillante",
+      "text": "{{spell,14904,1::Pryssion Brillante}} :\n• Le porteur sacrifie 35% de dommages finaux pour gagner 2 PA pendant 2 tours."
+    },
+    "14905": {
+      "name": "Pryssion Iridescente",
+      "text": "{{spell,14905,1::Pryssion Iridescente}} :\n• Le porteur sacrifie 50% de dommages finaux pour gagner 3 PA pendant 1 tour."
+    },
+    "14908": {
+      "name": "Surpryz",
+      "text": "{{spell,14908,1::Surpryz}} :\n• Le porteur gagne 100% de Critique au premier tour, puis 35% au deuxième tour, et 15% au troisième tour."
+    },
+    "14913": {
+      "name": "Prynyang",
+      "text": "{{spell,14913,1::Prynyang}} :\n• Le porteur sacrifie 10% de résistance pour gagner 10% de dommages finaux au premier tour, puis gagne 3% de dommages finaux et de résistance au deuxième tour, et sacrifie 10% de dommages finaux pour gagner 10% de résistance au troisième tour."
+    },
+    "14919": {
+      "name": "Ratrapry",
+      "text": "{{spell,14919,1::Ratrapry}} :\n• Le porteur gagne 1 PM pendant 1 tour pour chaque combattant ennemi à plus de 9 cases de lui au début des 3 premiers tours de jeu (cumulable 3 fois)."
+    },
+    "14926": {
+      "name": "Prygen",
+      "text": "{{spell,14926,1::Prygen}} :\n• Soigne 60% des dommages ennemis subis au premier tour, puis 30% au deuxième tour, et 10% au troisième tour."
+    },
+    "14930": {
+      "name": "Prycipithon Mate",
+      "text": "{{spell,14930,1::Prycipithon Mate}} :\n• Le porteur gagne 2 PA au premier tour."
+    },
+    "14931": {
+      "name": "Prycipithon Brillante",
+      "text": "{{spell,14931,1::Prycipithon Brillante}} :\n• Le porteur sacrifie 2 PM pour gagner 3 PA au premier tour."
+    },
+    "14932": {
+      "name": "Prycipithon Iridescente",
+      "text": "{{spell,14932,1::Prycipithon Iridescente}} :\n• Le porteur sacrifie 4 PM pour gagner 4 PA au premier tour."
+    },
+    "14933": {
+      "name": "Espryt",
+      "text": "{{spell,14933,1::Espryt}} :\n• Le porteur gagne 100 de Retrait au premier tour, puis 50 au deuxième tour, et 25 au troisième tour."
+    },
+    "14934": {
+      "name": "Korprys",
+      "text": "{{spell,14934,1::Korprys}} :\n• Le porteur gagne 200 d'Esquive au premier tour, puis 100 au deuxième tour, et 50 au troisième tour."
+    },
+    "14939": {
+      "name": "Caraprys",
+      "text": "{{spell,14939,1::Caraprys}} :\n• Le porteur donne 15% de résistances à ses invocations au premier tour, puis 10% au deuxième tour, et 5% au troisième tour."
+    },
+    "14940": {
+      "name": "Prysmaru",
+      "text": "{{spell,14940,1::Prysmaru}} :\n• Le porteur devient invisible pendant 1 tour au début de son premier tour de jeu. L'invisibilité ne se dissipe pas lorsqu'il attaque, mais elle est retirée s'il subit des dommages."
+    },
+    "14941": {
+      "name": "Prysmenvout",
+      "text": "{{spell,14941,1::Prysmenvout}} :\n• Le porteur réduit la durée des effets actifs sur lui de 4 tours au début de son premier tour de jeu."
+    },
+    "14943": {
+      "name": "Supprys",
+      "text": "{{spell,14943,1::Supprys}} :\n• Le porteur augmente les soins reçus par ses combattants alliés de 10% pendant son tour de jeu au premier tour, puis de 35% au deuxième tour, et de 50% au troisième tour."
+    },
+    "14945": {
+      "name": "Aprybou",
+      "text": "{{spell,14945,1::Aprybou}} :\n• Le porteur gagne 200% de son niveau en bouclier jusqu'à la fin du combat au début du premier tour de jeu de chaque combattant ennemi qui joue avant lui."
+    },
+    "14948": {
+      "name": "Pryximite",
+      "text": "{{spell,14948,1::Pryximite}} :\n• Le porteur gagne 2% de dommages en mêlée pendant 3 tours pour chaque combattant ennemi à 3 cases ou moins de lui au début et à la fin de son premier tour."
+    },
+    "14949": {
+      "name": "Prymune",
+      "text": "{{spell,14949,1::Prymune}} :\n• Le porteur réduit tout type de dommages subis de 80% au premier tour."
+    },
+    "14950": {
+      "name": "Prysantor",
+      "text": "{{spell,14950,1::Prysantor}} :\n• Le porteur est dans l'état Pesanteur tant qu'il n'a pas subi de dommages. S'il en subit, la durée de l'état passe à 1 tour."
+    },
+    "15739": {
+      "name": "Guerre de Positions",
+      "text": "{{spell,15739,1::Guerre de Positions}} :\n• À chaque fin de tour, le porteur retire 2 PM aux ennemis à son contact pendant 1 tour (cumulable 1 fois).\n• Lorsqu'un combattant ennemi est achevé, le porteur gagne 1 PM jusqu'à la fin du combat (cumulable 5 fois)."
+    },
+    "15975": {
+      "name": "Nuée Pestilentielle",
+      "text": "{{spell,15975,1::Nuée Pestilentielle}} :\n• Lorsque le porteur remonte à 90% de sa vie, il applique un poison de début de tour de 18 dans son meilleur élément d'attaque sur les ennemis à 2 cases ou moins de lui pendant 2 tours (cumulable 1 fois)."
+    },
+    "15984": {
+      "name": "Fers de la Tyrannie",
+      "text": "{{spell,15984,1::Fers de la Tyrannie}} :\n• À chaque fin de tour, le porteur attire les entités à 3 cases ou moins alignés à lui. S'il n'y a aucune entité à son contact, il devient Indéplaçable jusqu'au début de son prochain tour. L'état est retiré s'il subit des dommages."
+    },
+    "15996": {
+      "name": "Épreuve de la Balance",
+      "text": "{{spell,15996,1::Épreuve de la Balance}} :\n• Lorsque le porteur subit une tentative de retrait de PA, de PM ou de Portée, il vole 2% de résistances à son attaquant pendant 2 tours (cumulable 4 fois).\n• Les effets ne peuvent pas être déclenchés par le porteur."
+    },
+    "17006": {
+      "name": "Domakuro",
+      "text": "{{spell,17006,1::Rivière d'Encre}} :\n• À chaque fin de tour sur les 4 premiers tours, le porteur et ses invocations gagnent jusqu'à 16 Dommages jusqu'à la fin du combat.\n• Ce bonus est réduit à chaque fois que le porteur attaque un ennemi durant son tour :\n • Aucune attaque : 16 Dommages.\n • 1 attaque : 8 Dommages.\n • 2 attaques et plus : 0 Dommages."
+    },
+    "17307": {
+      "name": "Dorigami",
+      "text": "{{spell,17307,1::Tigre de Papier}} :\n• À chaque début de tour sur les 5 premiers tours, le porteur gagne 100% de son niveau en bouclier pendant 1 tour.\n• Sur ces 5 premiers tours, si le porteur achève un ennemi durant son tour de jeu, il gagne un bouclier pendant 2 tours selon la nature de l'ennemi :\n • Invocation : 100% de son niveau en bouclier (cumulable 4 fois).\n • Combattant : 300% de son niveau en bouclier (cumulable 2 fois)."
+    },
+    "18629": {
+      "name": "Dofus Ébène - Sort initial",
+      "text": "{{spell,18629,1::Noir Ébène}} :\n• Lorsque le porteur attaque en mêlée durant son tour, il gagne 2% de dommages à distance, et s'il attaque à distance, il gagne 2% de dommages en mêlée pendant 3 tours (cumulable 5 fois).\n• Déclencher les 2 effets dans le tour permet à la prochaine attaque d'appliquer un poison de 16 dans son élément pendant 2 tours (cumulable 2 fois).\n• Le temps de relance du poison est de 2 tours, mais peut être réinitialisé si la cible est achevée."
+    },
+    "18665": {
+      "name": "Dofus Ivoire - Sort initial",
+      "text": "{{spell,18665,1::Blanc Ivoire}} :\n• Le porteur réduit de 50% les dommages d'une attaque sur 5. Les effets d'interception et de partage de dommages sont incompatibles."
+    },
+    "18672": {
+      "name": "Dofus Argenté Scintillant",
+      "text": "{{spell,18672,1::Promesse d'Argent}} :\n• Lorsque le porteur descend sous les 20% de sa vie, il est soigné de 30% de sa vie et gagne 20% de dommages finaux pendant 1 tour au début de son prochain tour (1 fois par combat)."
+    },
+    "18674": {
+      "name": "Dofus Argenté",
+      "text": "{{spell,18674,1::Souvenir d'Argent}} :\n• Lorsque le porteur descend sous les 20% de sa vie, il est soigné de 20% de sa vie au début de son prochain tour (1 fois par combat)."
+    },
+    "18888": {
+      "name": "Dofus Tacheté - Sort initial",
+      "text": "{{spell,18888,1::Harmonie de Pandala}} :\n• Lorsque le porteur occasionne des dommages durant son tour de jeu, lui et ses alliés porteurs du {{item,23408::Dorigami}} gagnent 20 de Dommages pendant 1 tour (cumulable 1 fois).\n• S'il n'en occasionne pas, lui et ses alliés porteurs du {{item,23237::Domakuro}} gagnent 100% de son niveau en bouclier pendant 1 tour."
+    },
+    "20712": {
+      "name": "Sort Initial",
+      "text": "Déclenche le combat tactique \"Boufbowl\""
+    },
+    "20981": {
+      "name": "Dofus du Cauchemar",
+      "text": "{{spell,20981,1::Éternel Cauchemar}} :\n• Bouclier Bontarien : lorsque le porteur est désenvoûté ou entravé, il gagne 100% de son niveau en bouclier pour 1 tour.\n• Puissance Brâkmarienne : lorsque le porteur occasionne ou subit des dommages de poussée, il gagne 100 de Puissance pour 1 tour. \n• Œil du Cauchemar : si le porteur déclenche les 2 effets dans le même tour, les dommages qu'il occasionne et subit sont augmentés de 10% pendant 1 tour.\n• Les effets ne peuvent être déclenchés qu'une seule fois par tour."
+    },
+    "23151": {
+      "name": "Barbarie du Kanig",
+      "text": "{{spell,23151,1::Barbarie du Kanig}} (niveau 200) :\n• Lorsque le porteur achève une entité avec une arme, il gagne 5% de dommages finaux pendant 2 tours (cumulable 3 fois)."
+    },
+    "23152": {
+      "name": "Agitation du Kozaru",
+      "text": "{{spell,23152,1::Agitation du Kozaru}} (niveau 200) :\n• Lorsque le porteur pousse, attire ou transpose une entité, il gagne 7 de Tacle et de Fuite pendant 2 tours."
+    },
+    "23153": {
+      "name": "Acuité du Noeul",
+      "text": "{{spell,23153,1::Acuité du Noeul}} (niveau 200) :\n• À chaque début de tour, le porteur gagne 3 de Portée pour le tour. Ce bonus est perdu s'il utilise au moins un PM."
+    },
+    "28438": {
+      "name": "Idole de Viti Roussie",
+      "text": "{{spell,28438,1::Idole de Viti Roussie}}\n• Les ennemis gagnent 40% de résistance à distance.\n• Lorsqu'un ennemi est attaqué, il renvoie 100% des dommages subis aux alliés autour de l'attaquant à 3 cases ou moins de ce dernier."
+    },
+    "28439": {
+      "name": "Idole de Thomahon Nauséabonde",
+      "text": "{{spell,28449,1::Idole de Thomahon Nauséabonde}}\n• Les ennemis gagnent 200% de dommages en mêlée.\n• Lorsqu'un ennemi est attaqué, il renvoie 50% des dommages subis à son attaquant."
+    },
+    "28440": {
+      "name": "Idole de Foluk Dorée",
+      "text": "{{spell,28440,1::Idole de Foluk Dorée}}\n• Lorsqu'un combattant allié termine son tour, les ennemis gagnent 2 PM (1 tour) s'il a au moins un allié à 2 cases ou moins de lui.\n• Lorsqu'un ennemi termine son tour, il attire de 2 cases tous les alliés à plus de 4 cases de lui."
+    },
+    "28441": {
+      "name": "Idole de Viti Végétale",
+      "text": "{{spell,28441,1::Idole de Viti Végétale}}\n• Les ennemis gagnent 2 PM et 40% de résistance à distance."
+    },
+    "28442": {
+      "name": "Idole de Viti Glacée",
+      "text": "{{spell,28442,1::Idole de Viti Glacée}}\n• Lorsqu'un combattant allié termine son tour, il perd 50% de sa vie (2 tours) s'il est au contact d'au moins un ennemi.\n• Lorsqu'un ennemi termine son tour, il attire d'une case tous les alliés à plus de 4 cases de lui."
+    },
+    "28443": {
+      "name": "Idole de Thomahon Marine",
+      "text": "{{spell,28443,1::Idole de Thomahon Marine}}\n• Lorsqu'un combattant allié termine son tour, il perd 50% de sa vie (2 tours) s'il n'est pas au contact d'un ennemi.\n• Lorsqu'un ennemi est attaqué, il renvoie 50% des dommages subis à son attaquant."
+    },
+    "28444": {
+      "name": "Idole de Thomahon Arboricole",
+      "text": "{{spell,28444,1::Idole de Thomahon Arboricole}}\n• Les ennemis gagnent 4 PM.\n• Lorsqu'un ennemi termine son tour, il attire d'une case tous les alliés à plus de 8 cases de lui."
+    },
+    "28445": {
+      "name": "Idole de Thomahon d'Obsidienne",
+      "text": "{{spell,28445,1::Idole de Thomahon d'Obsidienne}}\n• Lorsqu'un combattant allié est attaqué, il renvoie 200% des dommages subis à ses alliés à 2 cases ou moins de lui.\n• Lorsqu'il termine son tour, il perd 50% de sa vie (2 tours) s'il est au contact d'au moins un ennemi."
+    },
+    "28446": {
+      "name": "Idole de Foluk Griffée",
+      "text": "{{spell,28446,1::Idole de Foluk Griffée}}\n• Les alliés sont Insoignables.\n• Les ennemis gagnent 40% de dommages finaux après chaque tour global."
+    },
+    "28447": {
+      "name": "Idole de Foluk Féérique",
+      "text": "{{spell,28447,1::Idole de Foluk Féérique}}\n• Les ennemis gagnent 400% de dommages finaux. Ces dommages finaux sont réduits de 40% après chaque tour global (cumulable 10 fois).\n• Lorsqu'un combattant allié commence son tour, il pose deux glyphes de début et de fin de tour sur leur case qui rendent les ennemis Invulnérables (1 tour)."
+    },
+    "28516": {
+      "name": "Dofus Sylvestre",
+      "text": "{{spell,28516,1::Garde Champêtre}} :\n• Le porteur gagne 8 de Puissance pendant 2 tours pour chaque PM qu'il utilise.\n• S'il n'a utilisé aucun PM durant son tour, il est soigné de 8% de sa vie."
+    },
+    "29819": {
+      "name": "Carapace du Scarafeuille",
+      "text": "{{spell,29819,1::Carapace du Scarafeuille}} (niveau 200) :\n• Lorsque le porteur subit une tentative de retrait de PA, il gagne 75% de son niveau en bouclier pendant 1 tour (cumulable 1 fois)."
+    },
+    "29820": {
+      "name": "Patience du Thomondor",
+      "text": "{{spell,29820,1::Patience du Thomondor}} (niveau 200) :\n• Lorsque le porteur n'utilise aucun PM durant son tour de jeu, il gagne 2 PM pour le prochain tour."
+    },
+    "29821": {
+      "name": "Persévérance de la Léolhyène",
+      "text": "{{spell,29821,1::Persévérance de la Léolhyène}} (niveau 200) :\n• Lorsque le porteur n'utilise aucun PM durant son tour de jeu, il gagne 1 PA pour le prochain tour."
+    },
+    "29822": {
+      "name": "Sérénité du Bambouto",
+      "text": "{{spell,29822,1::Sérénité du Bambouto}} (niveau 200) :\n• Lorsque le porteur n'utilise aucun PM durant son tour de jeu, il gagne 3 de Portée pour le prochain tour."
+    },
+    "29823": {
+      "name": "Réconfort du Timansot",
+      "text": "{{spell,29823,1::Réconfort du Timansot}} (niveau 200) :\n• À chaque fin de tour, le porteur est soigné de 3% de sa vie pour chaque combattant allié à son contact."
+    },
+    "31607": {
+      "name": "Dofoozbz",
+      "text": "{{spell,31607,1::Éclosion Explosive}} :\n• Lorsqu'une invocation du porteur est attaquée, le porteur gagne 1% de dommages finaux pendant 2 tours (cumulable 10 fois).\n• Si elle est achevée par un ennemi, le porteur occasionne 10 dommages dans son meilleur élément aux ennemis dans un cercle de taille 2 autour d'elle."
+    },
+    "31856": {
+      "name": "Ardeur de la Cité Sombre",
+      "text": "{{spell,31856,1::Ardeur de la Cité Sombre}} :\n• À chaque début de tour, le porteur et ses alliés gagnent 1% de dommages finaux pendant 1 tour pour chaque combattant ennemi en vie (cumulable 4 fois)."
+    },
+    "31857": {
+      "name": "Reflet Aveuglant",
+      "text": "{{spell,31857,1::Reflet Aveuglant}} :\n• Le porteur réduit et renvoie 75% des dommages initiaux de la première attaque alliée subie à l'ennemi le plus proche de lui dans sa ligne de vue (une fois par tour).\n• À chaque fin de tour, il retire 4 de Portée pendant 1 tour à tous les ennemis dans sa ligne de vue et les dévoile s'ils sont invisibles (cumulable 1 fois)."
+    },
+    "31858": {
+      "name": "Clairvoyance de Mériana",
+      "text": "{{spell,31858,1::Clairvoyance de Mériana}} :\n• Lorsque le porteur occasionne des dommages élémentaires, il gagne du Retrait selon l'élément pendant 2 tours (cumulable 8 fois, partagé entre les effets) :\n • Terre & Eau : 5 Retrait PM\n • Feu & Air : 5 Retrait PA"
+    },
+    "31859": {
+      "name": "Ordre du Tonnerre",
+      "text": "{{spell,31859,1::Ordre du Tonnerre}} :\n• Le porteur gagne 6 Dommages Poussée pendant 2 tours pour chaque PM qu'il utilise.\n• À chaque fin de tour, le porteur donne 1 PM pendant 1 tour à tous les alliés dans sa ligne de vue (cumulable 1 fois)."
+    },
+    "31860": {
+      "name": "Jugement de Thanatena",
+      "text": "{{spell,31860,1::Jugement de Thanatena}} :\n• À chaque début de tour, le porteur érode et augmente les dommages subis par tout le monde de 4% pendant 1 tour (cumulable 1 fois).\n• Lorsqu'il achève un ennemi, il est soigné de 20% de sa vie et gagne 10% de dommages finaux pendant 1 tour. Les soins sont de 5% de sa vie si c'est une invocation."
+    },
+    "31861": {
+      "name": "Amour d'Helséphine",
+      "text": "{{spell,31861,1::Amour d'Helséphine}} :\n• Lorsque le porteur applique du bouclier ou occasionne des dommages en mêlée, il soigne ses alliés de 6% de leur vie à 3 cases ou moins autour de lui (une fois par type de déclenchement par tour)."
+    },
+    "31862": {
+      "name": "Ponctualité d'Henual",
+      "text": "{{spell,31862,1::Ponctualité d'Henual}} :\n• Le porteur gagne 1 PA lorsqu'il est téléporté, se téléporte ou échange de position (1 fois par tour).\n• S'il n'a rien subi au tour précédent, il est téléporté à sa position précédente au début de son tour."
+    },
+    "31880": {
+      "name": "Ferveur de la Cité Blanche",
+      "text": "{{spell,31880,1::Ferveur de la Cité Blanche}} :\n• À chaque début de tour, le porteur et ses alliés gagnent 1% de résistance pendant 1 tour pour chaque combattant ennemi en vie (cumulable 4 fois)."
+    },
+    "31881": {
+      "name": "Indeprys",
+      "text": "{{spell,31881,1::Indeprys}} :\n• Le porteur est Indéplaçable tant qu'il n'a pas subi de dommages. S'il en subit, la durée de l'état passe à 1 tour."
+    }
+  }
+}

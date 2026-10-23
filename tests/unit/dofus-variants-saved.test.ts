@@ -128,4 +128,15 @@ describe("chaîne serveur → galerie (verrous de source)", () => {
         expect(preview).toContain("Stuff");
         expect(preview).toContain("Variante");
     });
+
+    it("la variante survit à la fermeture de la fiche (auto-save + brouillon local)", () => {
+        // Constat user du 23/10/2026 : « dès qu'on quitte la modale on perd la variante ».
+        expect(preview).toContain("writeLocalVariant(variantBuildId, variants)");
+        expect(preview).toContain("readLocalVariant(variantBuildId)");
+        expect(preview).toContain("saveBuildVariant(guildId!, variantBuildId, snapshot)");
+        expect(preview).toContain("if (!sameSavedVariant(variants, persistedVariantRef.current)) return;");
+        expect(preview).toContain("clearLocalVariant(variantBuildId)");
+        // Une restauration ne publie pas d'office : seule une édition explicite déclenche l'écriture.
+        expect(preview).toContain("if (!variantEditedRef.current) {");
+    });
 });

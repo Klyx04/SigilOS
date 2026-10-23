@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, memo } from "react";
+import { useState, useEffect, useMemo, useRef, memo } from "react";
 import { getClassName, processDofusbookRawData, dofusbookItemIconUrl, dofusbookItemIconId, dofusbookCharacteristicRows, DOFUSBOOK_STAT_LABELS as statLabelMapping, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
 import { bakeDofusbookFromBrowser } from "@/lib/dofusbook-client-bake";
 import { ExternalLink, Users, Loader2, Zap, Move, Shield, Sparkles, RefreshCw, Copy, X } from "lucide-react";
@@ -19,7 +19,8 @@ import { DofusbookSimulationTab } from "@/components/dofus/dofusbook-simulation-
 import type { BuildStatsForSpells } from "@/lib/dofus-spells";
 import { getRuneForStat } from "@/lib/dofus-runes";
 import { ItemVariantModal } from "@/components/dofus/item-variant-modal";
-import { applyVariantsToBuild, normalizeSavedVariants } from "@/lib/dofus-variant-utils";
+import { applyVariantsToBuild, hasSavedVariant, normalizeSavedVariants, sameSavedVariant, type SavedVariant } from "@/lib/dofus-variant-utils";
+import { clearLocalVariant, readLocalVariant, writeLocalVariant } from "@/lib/dofus-variant-storage";
 import { saveBuildVariant } from "@/server/actions/gallery-actions";
 import { resolveItemPassive } from "@/lib/dofus-passives";
 
@@ -486,11 +487,92 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
      */
     const [showVariant, setShowVariant] = useState(false);
     const [savingVariant, setSavingVariant] = useState(false);
+    /** État de publication affiché : rien / en cours / publié / brouillon local. */
+    const [variantStatus, setVariantStatus] = useState<"idle" | "saving" | "saved" | "local">("idle");
+    /** Dernière version **publiée** (ou reçue du serveur) — évite de rejouer une écriture inutile. */
+    const persistedVariantRef = useRef<SavedVariant>(normalizeSavedVariants(savedVariants));
+    /** Build dont la variante a été restaurée : un refetch de la page ne doit pas écraser une édition. */
+    const restoredVariantBuildRef = useRef<string | null>(null);
+    /** Vrai dès que le membre touche un slot : une **restauration** ne doit jamais publier d'office. */
+    const variantEditedRef = useRef(false);
 
-    // La variante enregistrée arrive après le premier rendu (page serveur) : on la resynchronise.
+    // 1. Restauration — le serveur d'abord, sinon le **brouillon local**. Ne s'applique qu'au
+    //    changement de build : avant le 23/10/2026 cet effet dépendait de l'identité du prop, donc
+    //    un simple rafraîchissement de la galerie effaçait la variante en cours d'édition.
     useEffect(() => {
-        setVariants(normalizeSavedVariants(savedVariants));
-    }, [savedVariants]);
+        if (!variantBuildId || restoredVariantBuildRef.current === variantBuildId) return;
+        restoredVariantBuildRef.current = variantBuildId;
+
+        const fromServer = normalizeSavedVariants(savedVariants);
+        persistedVariantRef.current = fromServer;
+        if (hasSavedVariant(fromServer)) {
+            setVariants(fromServer);
+            setShowVariant(true);
+            setVariantStatus("saved");
+            return;
+        }
+        const draft = readLocalVariant(variantBuildId);
+        if (hasSavedVariant(draft)) {
+            setVariants(draft);
+            setShowVariant(true);
+            setVariantStatus("local");
+        }
+    }, [variantBuildId, savedVariants]);
+
+    // 2. Le serveur a changé (republication) et aucune édition n'est en cours : on s'aligne.
+    useEffect(() => {
+        if (!variantBuildId || restoredVariantBuildRef.current !== variantBuildId) return;
+        const fromServer = normalizeSavedVariants(savedVariants);
+        if (sameSavedVariant(fromServer, persistedVariantRef.current)) return;
+        if (!sameSavedVariant(variants, persistedVariantRef.current)) return; // édition en cours
+        persistedVariantRef.current = fromServer;
+        setVariants(fromServer);
+    }, [savedVariants, variantBuildId, variants]);
+
+    // 3. Persistance : **auto-enregistrement** (auteur) après 800 ms d'inactivité, et brouillon
+    //    local systématique tant que la variante n'est pas publiée. Rien ne se perd en quittant
+    //    la modale, l'écran ou en rechargeant la page.
+    useEffect(() => {
+        if (!variantBuildId || restoredVariantBuildRef.current !== variantBuildId) return;
+        const unchanged = sameSavedVariant(variants, persistedVariantRef.current);
+        if (unchanged) return;
+
+        writeLocalVariant(variantBuildId, variants);
+
+        // Une simple **restauration** (brouillon local retrouvé) ne publie rien : il faut une
+        // édition explicite du membre.
+        if (!variantEditedRef.current) {
+            setVariantStatus("local");
+            return;
+        }
+
+        const canPublish = canPersistVariant && !!guildId;
+        const timer = setTimeout(async () => {
+            if (!canPublish) {
+                setVariantStatus("local");
+                return;
+            }
+            const snapshot = variants;
+            setSavingVariant(true);
+            setVariantStatus("saving");
+            try {
+                const res = await saveBuildVariant(guildId!, variantBuildId, snapshot);
+                if (res.success) {
+                    persistedVariantRef.current = normalizeSavedVariants(snapshot);
+                    clearLocalVariant(variantBuildId);
+                    setVariantStatus("saved");
+                } else {
+                    setVariantStatus("local");
+                }
+            } catch {
+                setVariantStatus("local");
+            } finally {
+                setSavingVariant(false);
+            }
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [variants, variantBuildId, canPersistVariant, guildId]);
 
     const hasVariant = Object.keys(variants).length > 0;
 
@@ -637,14 +719,22 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     const persistVariant = async () => {
         if (!guildId || !variantBuildId || savingVariant) return;
         setSavingVariant(true);
+        setVariantStatus("saving");
         try {
             const res = await saveBuildVariant(guildId, variantBuildId, variants);
             if (res.success) {
+                persistedVariantRef.current = normalizeSavedVariants(variants);
+                clearLocalVariant(variantBuildId);
+                setVariantStatus("saved");
                 toast.success("Variante enregistrée — visible par la guilde dans la galerie.");
             } else {
+                writeLocalVariant(variantBuildId, variants);
+                setVariantStatus("local");
                 toast.error(res.error || "Impossible d'enregistrer la variante.");
             }
         } catch {
+            writeLocalVariant(variantBuildId, variants);
+            setVariantStatus("local");
             toast.error("Erreur réseau : la variante n'a pas été enregistrée.");
         } finally {
             setSavingVariant(false);
@@ -885,6 +975,31 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 Variante ({Object.keys(variants).length})
                                             </button>
                                         </div>
+                                        {variantStatus !== "idle" && (
+                                            <span
+                                                className={cn(
+                                                    "text-[10px] font-bold",
+                                                    variantStatus === "saved"
+                                                        ? "text-success"
+                                                        : variantStatus === "saving"
+                                                            ? "text-warning"
+                                                            : "text-muted-foreground",
+                                                )}
+                                                title={
+                                                    variantStatus === "saved"
+                                                        ? "Variante enregistrée : visible par la guilde"
+                                                        : variantStatus === "saving"
+                                                            ? "Enregistrement en cours…"
+                                                            : "Brouillon local : conservé sur cet appareil, pas encore publié"
+                                                }
+                                            >
+                                                {variantStatus === "saving"
+                                                    ? "Enregistrement…"
+                                                    : variantStatus === "saved"
+                                                        ? "Enregistré"
+                                                        : "Brouillon local"}
+                                            </span>
+                                        )}
                                         {canPersistVariant && variantBuildId && guildId && (
                                             <button
                                                 type="button"
@@ -898,7 +1013,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         )}
                                         <button
                                             type="button"
-                                            onClick={() => { setVariants({}); setShowVariant(false); }}
+                                            onClick={() => { variantEditedRef.current = true; setVariants({}); setShowVariant(false); }}
                                             className="text-[10px] font-black text-foreground hover:underline cursor-pointer"
                                             title="Rétablir le build d'origine"
                                         >
@@ -1542,10 +1657,12 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                         originalItem={variantModalSlot ? data?.items?.[variantModalSlot] : null}
                         buildLevel={data?.level || 200}
                         onSelect={(s, it) => {
+                            variantEditedRef.current = true;
                             setVariants((prev) => ({ ...prev, [s]: it }));
                             toast.success(`Variante appliquée : ${it.name} — Caractéristiques & dégâts recalculés en direct !`);
                         }}
                         onRemoveVariant={(s) => {
+                            variantEditedRef.current = true;
                             setVariants((prev) => {
                                 const next = { ...prev };
                                 delete next[s];

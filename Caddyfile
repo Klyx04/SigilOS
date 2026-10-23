@@ -23,7 +23,7 @@
 # et `/uploads/*` (preuves/guides) dans l'exemption — ces ressources légitimes
 # ne doivent JAMAIS être limitées.
 (rate_limit_base) {
-    @rl_exempt not path /game-data/* /_next/* /manifest.webmanifest /images/* /icons/* /fonts/* /assets/* /uploads/* /api/storage/*
+    @rl_exempt not path /game-data/* /_next/* /manifest.webmanifest /images/* /icons/* /fonts/* /assets/* /uploads/* /api/storage/* /api/assets-dofus/*
 
     rate_limit @rl_exempt {
         zone public_ip {

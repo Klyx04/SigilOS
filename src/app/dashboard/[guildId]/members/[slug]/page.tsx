@@ -68,8 +68,8 @@ export default async function MemberProfilePage({
     return (
         <div className="p-6 space-y-6">
             {isOnVacation && (
-                <div className="flex items-center gap-3 p-4 bg-info/10 border border-info/30 rounded-lg text-info">
-                    <Palmtree className="h-5 w-5 text-info flex-shrink-0" />
+                <div className="flex items-center gap-3 p-4 bg-warning/10 border border-warning/30 rounded-xl text-warning">
+                    <Palmtree className="h-5 w-5 text-warning flex-shrink-0" />
                     <span>
                         🏖️ <strong>{displayName}</strong> est absent
                         {vacationStart && ` du ${format(vacationStart, "d MMMM yyyy", { locale: fr })}`}

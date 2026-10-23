@@ -317,7 +317,8 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
         const pings = [mentionContent, memberMention].filter(Boolean).join(" ");
 
         try {
-            await sendChannelMessage(guildConfig.welcomeNotifyChannelId, pings, {
+            await sendChannelMessage(guildConfig.welcomeNotifyChannelId, "", {
+                mentionContent: pings,
                 embedTitle: `🌟 NOUVELLE ARRIVÉE !`,
                 embedDescription: content,
                 embedColor: 0xf59e0b, // Amber 500

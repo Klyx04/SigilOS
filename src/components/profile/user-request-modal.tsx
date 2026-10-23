@@ -1,22 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import Image from "next/image";
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogFooter,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { sendUserRequest } from "@/server/actions/user-request-actions";
-import { Hammer, Sparkles, Shield, Loader2, Send, Check, ArrowRight, Handshake } from "lucide-react";
-import { DOFUS_JOBS, getOrder } from "@/lib/dofus-assets";
+import { Hammer, Sparkles, Shield, Loader2, Send, Check, ArrowRight, ArrowLeft, Handshake, Search, BellRing } from "lucide-react";
+import { getOrder, getJob, getAlignment } from "@/lib/dofus-assets";
+import { normalizeMetiers, type MetierEntry } from "@/lib/metiers";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+
+interface LegendaryCraftItem {
+    id: string;
+    name: string;
+    imageUrl?: string | null;
+}
+
+interface ServiceItem {
+    id: string;
+    title: string;
+    description?: string | null;
+    imageUrl?: string | null;
+    dofusItemIconUrl?: string | null;
+}
 
 interface UserRequestModalProps {
     isOpen: boolean;
@@ -28,175 +44,19 @@ interface UserRequestModalProps {
         jobs: string[];
         alignment?: string | null;
         alignmentOrder?: string | null;
-        legendaryCrafts: any[];
-        services?: any[];
+        legendaryCrafts: unknown[];
+        services?: unknown[];
     };
 }
 
 type RequestType = "job" | "order" | "legendary" | "service";
+type ModalStep = "type" | "value" | "message";
 
-const TYPE_CONFIG: Record<RequestType, {
-    icon: typeof Hammer;
-    label: string;
-    gradient: string;
-    border: string;
-    glow: string;
-    badge: string;
-}> = {
-    job: {
-        icon: Hammer,
-        label: "Métier",
-        gradient: "from-warning/20 via-warning/5 to-transparent",
-        border: "border-warning/40",
-        glow: "shadow-amber-500/20",
-        badge: "bg-warning/15 text-warning border-warning/30",
-    },
-    order: {
-        icon: Shield,
-        label: "Ordre",
-        gradient: "from-info/20 via-info/5 to-transparent",
-        border: "border-info/40",
-        glow: "shadow-indigo-500/20",
-        badge: "bg-info/15 text-info border-info/30",
-    },
-    legendary: {
-        icon: Sparkles,
-        label: "Légendaire",
-        gradient: "from-info/20 via-info/5 to-transparent",
-        border: "border-info/40",
-        glow: "shadow-purple-500/20",
-        badge: "bg-info/15 text-info border-info/30",
-    },
-    service: {
-        icon: Handshake,
-        label: "Service",
-        gradient: "from-success/20 via-success/5 to-transparent",
-        border: "border-success/40",
-        glow: "shadow-emerald-500/20",
-        badge: "bg-success/15 text-success border-success/30",
-    },
-};
-
-function TypeCard({ type, current, onClick, disabled, jobsCount, hasLegendary, servicesCount }: {
-    type: RequestType;
-    current: RequestType;
-    onClick: () => void;
-    disabled?: boolean;
-    jobsCount?: number;
-    hasLegendary?: boolean;
-    servicesCount?: number;
-}) {
-    const cfg = TYPE_CONFIG[type];
-    const Icon = cfg.icon;
-    const isActive = type === current;
-
-    // Show availability badge
-    let availability: string | null = null;
-    if (type === "job") availability = jobsCount ? `${jobsCount} métier${jobsCount > 1 ? "s" : ""}` : "Aucun";
-    if (type === "legendary") availability = hasLegendary ? "Disponible" : "Aucun";
-    if (type === "order") availability = "Disponible";
-    if (type === "service") availability = servicesCount ? `${servicesCount} service${servicesCount > 1 ? "s" : ""}` : "Aucun";
-
-    return (
-        <button
-            type="button"
-            disabled={disabled}
-            onClick={onClick}
-            className={cn(
-                "relative group flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-colors duration-200 outline-none min-w-0",
-                isActive
-                    ? [cfg.border, cfg.glow, "bg-surface/80 scale-[1.02]"].join(" ")
-                    : "border-border/40 bg-surface/30 hover:border-border/60 hover:bg-surface/50",
-                disabled && "opacity-25 cursor-not-allowed pointer-events-none"
-            )}
-        >
-            {/* Active glow background */}
-            {isActive && (
-                <div className={cn("absolute inset-0 rounded-2xl opacity-30 transition-opacity", cfg.gradient)} />
-            )}
-
-            {/* Icon */}
-            <div className={cn(
-                "relative z-10 w-11 h-11 rounded-xl flex items-center justify-center border-2 transition-all duration-300",
-                isActive
-                    ? [cfg.border, "bg-elevated/80"].join(" ")
-                    : "border-border/30 bg-elevated/40 group-hover:border-border/50"
-            )}>
-                <Icon className={cn(
-                    "w-5 h-5 transition-all duration-300",
-                    isActive ? "scale-110" : "text-muted-foreground group-hover:text-foreground"
-                )} />
-            </div>
-
-            {/* Label */}
-            <span className={cn(
-                "relative z-10 text-caption font-bold uppercase tracking-wide text-center leading-tight break-words max-w-full transition-colors duration-200",
-                isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
-            )}>
-                {cfg.label}
-            </span>
-
-            {/* Availability badge */}
-            {availability && (
-                <span className={cn(
-                    "relative z-10 text-caption font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap max-w-full truncate",
-                    type === "job" && jobsCount
-                        ? "bg-warning/10 text-warning/70 border-warning/20"
-                        : type === "legendary" && hasLegendary
-                            ? "bg-info/10 text-info/70 border-info/20"
-                            : type === "order"
-                                ? "bg-info/10 text-info/70 border-info/20"
-                                : type === "service" && servicesCount
-                                    ? "bg-success/10 text-success/70 border-success/20"
-                                    : "bg-elevated/60 text-muted-foreground border-border/30"
-                )}>
-                    {availability}
-                </span>
-            )}
-
-            {/* Active checkmark */}
-            {isActive && (
-                <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-success flex items-center justify-center shadow-lg shadow-emerald-500/40 z-20">
-                    <Check className="w-3 h-3 text-foreground" />
-                </div>
-            )}
-        </button>
-    );
-}
-
-function ValueCard({ label, icon, isSelected, onClick }: {
-    label: string;
-    icon?: string | null;
-    isSelected: boolean;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                "flex items-center gap-3 w-full px-4 py-3 rounded-xl border transition-all duration-200 text-left group",
-                isSelected
-                    ? "bg-success/10 border-success/40 shadow-sm shadow-emerald-500/10"
-                    : "bg-surface/50 border-border/30 hover:border-border/50 hover:bg-surface/80"
-            )}
-        >
-            {icon && (
-                <div className="w-9 h-9 rounded-lg bg-elevated/80 border border-border/40 flex items-center justify-center shrink-0 overflow-hidden">
-                    <img src={icon} alt="" className="w-6 h-6 object-contain" />
-                </div>
-            )}
-            <span className={cn(
-                "flex-1 text-sm font-bold transition-colors",
-                isSelected ? "text-success" : "text-foreground group-hover:text-foreground"
-            )}>
-                {label}
-            </span>
-            {isSelected && <Check className="w-4 h-4 text-success shrink-0" />}
-            {!isSelected && <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
-        </button>
-    );
-}
+const STEPS: { id: ModalStep; label: string }[] = [
+    { id: "type", label: "Type" },
+    { id: "value", label: "Objet" },
+    { id: "message", label: "Message" },
+];
 
 export function UserRequestModal({
     isOpen,
@@ -208,36 +68,46 @@ export function UserRequestModal({
 }: UserRequestModalProps) {
     const [type, setType] = useState<RequestType>("job");
     const [value, setValue] = useState<string>("");
-    const [step, setStep] = useState<"type" | "value" | "message">("type");
+    const [step, setStep] = useState<ModalStep>("type");
     const [message, setMessage] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
     const [isPending, setIsPending] = useState(false);
 
-    const orderData = capabilities.alignment && capabilities.alignmentOrder
-        ? getOrder(capabilities.alignment, capabilities.alignmentOrder)
-        : null;
+    // Normalize capabilities
+    const normalizedJobs = useMemo<MetierEntry[]>(() => {
+        return normalizeMetiers(capabilities.jobs || []);
+    }, [capabilities.jobs]);
 
-    const jobs = (capabilities.jobs || []);
-    const legendaryItems = (capabilities.legendaryCrafts || []);
-    const services = (capabilities.services || []);
+    const orderData = useMemo(() => {
+        if (!capabilities.alignment || !capabilities.alignmentOrder) return null;
+        return getOrder(capabilities.alignment, capabilities.alignmentOrder);
+    }, [capabilities.alignment, capabilities.alignmentOrder]);
 
-    const handleSubmit = async () => {
-        if (!value) {
-            toast.error("Veuillez sélectionner une option");
-            return;
-        }
-        setIsPending(true);
-        try {
-            const res = await sendUserRequest(guildId, targetUserId, { type, value, message });
-            if (res.success) {
-                toast.success("Demande envoyée avec succès !");
-                onClose();
-            } else {
-                toast.error(res.error || "Erreur lors de l'envoi");
-            }
-        } catch {
-            toast.error("Une erreur est survenue");
-        } finally {
-            setIsPending(false);
+    const alignmentData = useMemo(() => {
+        if (!capabilities.alignment) return null;
+        return getAlignment(capabilities.alignment);
+    }, [capabilities.alignment]);
+
+    const legendaryItems = useMemo<LegendaryCraftItem[]>(() => {
+        return (capabilities.legendaryCrafts || []) as LegendaryCraftItem[];
+    }, [capabilities.legendaryCrafts]);
+
+    const services = useMemo<ServiceItem[]>(() => {
+        return (capabilities.services || []) as ServiceItem[];
+    }, [capabilities.services]);
+
+    // Availability checks
+    const hasJobs = normalizedJobs.length > 0;
+    const hasOrder = !!orderData;
+    const hasLegendary = legendaryItems.length > 0;
+    const hasServices = services.length > 0;
+
+    const isTypeAvailable = (t: RequestType) => {
+        switch (t) {
+            case "job": return hasJobs;
+            case "order": return hasOrder;
+            case "legendary": return hasLegendary;
+            case "service": return hasServices;
         }
     };
 
@@ -246,369 +116,653 @@ export function UserRequestModal({
         setValue("");
         setStep("type");
         setMessage("");
+        setSearchQuery("");
     };
 
-    // Get current type config for styling
-    const activeCfg = TYPE_CONFIG[type];
+    const handleClose = () => {
+        resetModal();
+        onClose();
+    };
+
+    const handleSelectType = (selected: RequestType) => {
+        if (!isTypeAvailable(selected)) return;
+        setType(selected);
+        setValue("");
+        setSearchQuery("");
+    };
+
+    const handleSubmit = async () => {
+        if (!value) {
+            toast.error("Veuillez sélectionner un élément");
+            return;
+        }
+        setIsPending(true);
+        try {
+            const res = await sendUserRequest(guildId, targetUserId, { type, value, message });
+            if (res.success) {
+                toast.success("Demande envoyée avec succès !");
+                handleClose();
+            } else {
+                toast.error(res.error || "Erreur lors de l'envoi de la demande");
+            }
+        } catch {
+            toast.error("Une erreur inattendue est survenue");
+        } finally {
+            setIsPending(false);
+        }
+    };
+
+    const currentStepIndex = STEPS.findIndex(s => s.id === step);
+    const canProceedFromType = isTypeAvailable(type);
+
+    // Filtered items for Step 2
+    const filteredJobs = useMemo(() => {
+        if (!searchQuery.trim()) return normalizedJobs;
+        const q = searchQuery.toLowerCase();
+        return normalizedJobs.filter(j => j.name.toLowerCase().includes(q));
+    }, [normalizedJobs, searchQuery]);
+
+    const filteredLegendary = useMemo(() => {
+        if (!searchQuery.trim()) return legendaryItems;
+        const q = searchQuery.toLowerCase();
+        return legendaryItems.filter(i => (i.name || "").toLowerCase().includes(q));
+    }, [legendaryItems, searchQuery]);
+
+    const filteredServices = useMemo(() => {
+        if (!searchQuery.trim()) return services;
+        const q = searchQuery.toLowerCase();
+        return services.filter(s =>
+            (s.title || "").toLowerCase().includes(q) ||
+            (s.description || "").toLowerCase().includes(q)
+        );
+    }, [services, searchQuery]);
+
+    // Recap data for step 3
+    const recapData = useMemo(() => {
+        if (type === "job") {
+            const j = normalizedJobs.find(item => item.id === value) || getJob(value);
+            const level = j && "level" in j ? j.level : 200;
+            return {
+                title: j?.name || value,
+                subtitle: `Métier d'artisanat · Niveau ${level}`,
+                icon: getJob(value)?.icon || "",
+            };
+        }
+        if (type === "order" && orderData) {
+            return {
+                title: orderData.name,
+                subtitle: `Alignement ${alignmentData?.name || ""}`,
+                icon: orderData.icon || "",
+            };
+        }
+        if (type === "legendary") {
+            const item = legendaryItems.find(i => i.id === value);
+            return {
+                title: item?.name || value,
+                subtitle: "Équipement légendaire",
+                icon: item?.imageUrl || "",
+            };
+        }
+        const svc = services.find(s => s.id === value);
+        return {
+            title: svc?.title || value,
+            subtitle: "Service de guilde",
+            icon: svc?.imageUrl || svc?.dofusItemIconUrl || "",
+        };
+    }, [type, value, normalizedJobs, orderData, alignmentData, legendaryItems, services]);
 
     return (
-        <Dialog open={isOpen} onOpenChange={(val) => {
-            if (!val) { resetModal(); onClose(); }
-        }}>
-            <DialogContent className="sm:max-w-[520px] max-w-[calc(100vw-1rem)] bg-background border-border/60 shadow-2xl text-foreground p-0 gap-0 overflow-hidden rounded-3xl">
-                {/* Header with gradient accent */}
-                <div className="relative overflow-hidden">
-                    <div className={cn(
-                        "absolute inset-0 opacity-20",
-                        type === "job" ? "bg-gradient-to-br from-warning/30 via-transparent to-transparent" :
-                        type === "order" ? "bg-gradient-to-br from-info/30 via-transparent to-transparent" :
-                        type === "legendary" ? "bg-gradient-to-br from-info/30 via-transparent to-transparent" :
-                        "bg-gradient-to-br from-success/30 via-transparent to-transparent"
-                    )} />
-                    <DialogHeader className="relative p-6 pb-4 border-b border-border">
-                        <div className="flex items-center gap-3">
-                            <div className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center border",
-                                type === "job" ? "bg-warning/10 border-warning/30" :
-                                type === "order" ? "bg-info/10 border-info/30" :
-                                type === "legendary" ? "bg-info/10 border-info/30" :
-                                "bg-success/10 border-success/30"
-                            )}>
-                                <Send className={cn(
-                                    "w-4 h-4",
-                                    type === "job" ? "text-warning" :
-                                    type === "order" ? "text-info" :
-                                    type === "legendary" ? "text-info" :
-                                    "text-success"
-                                )} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <DialogTitle className="text-base font-bold truncate">
-                                    Solliciter <span className="text-success">{targetName}</span>
-                                </DialogTitle>
-                                <p className="text-caption text-muted-foreground font-medium mt-0.5">
-                                    Envoyez une demande de service à ce membre
+        <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
+            <DialogContent className="sm:max-w-[540px] max-w-[calc(100vw-1.5rem)] bg-surface border border-border-strong text-foreground shadow-2xl rounded-2xl overflow-hidden p-0 gap-0">
+                {/* Subtle top brand accent line */}
+                <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-accent to-transparent" />
+
+                {/* Header */}
+                <div className="p-6 pb-4 border-b border-border bg-background/40">
+                    <DialogHeader className="text-left space-y-1">
+                        <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
+                                Demande d&apos;artisanat & entraide
+                            </span>
+                        </div>
+                        <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
+                            Solliciter <span className="text-accent">{targetName}</span>
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                            Envoyez une demande ciblée (craft, alignement, service) directement à ce membre sur Discord.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {/* Stepper bar */}
+                    <div className="grid grid-cols-3 gap-2 mt-5 p-1 rounded-xl bg-background/80 border border-border">
+                        {STEPS.map((s, idx) => {
+                            const isCurrent = s.id === step;
+                            const isPast = idx < currentStepIndex;
+                            return (
+                                <button
+                                    key={s.id}
+                                    type="button"
+                                    onClick={() => {
+                                        if (isPast) {
+                                            setStep(s.id);
+                                        }
+                                    }}
+                                    disabled={!isPast}
+                                    className={cn(
+                                        "flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all select-none",
+                                        isCurrent && "bg-accent/15 text-accent border border-accent/30 shadow-xs",
+                                        isPast && "text-foreground hover:bg-surface/90 cursor-pointer",
+                                        !isCurrent && !isPast && "text-muted-foreground/50 cursor-not-allowed"
+                                    )}
+                                >
+                                    <span className={cn(
+                                        "w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
+                                        isCurrent && "bg-accent text-accent-foreground",
+                                        isPast && "bg-surface border border-border-strong text-accent",
+                                        !isCurrent && !isPast && "bg-muted/40 text-muted-foreground/60"
+                                    )}>
+                                        {isPast ? <Check className="w-2.5 h-2.5" /> : idx + 1}
+                                    </span>
+                                    <span className="truncate">{s.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Body Content */}
+                <div className="p-6 min-h-[300px] max-h-[60vh] overflow-y-auto scrollbar-thin">
+                    {/* STEP 1: TYPE SELECTION */}
+                    {step === "type" && (
+                        <div className="space-y-4 animate-in fade-in duration-200">
+                            <div>
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Type d&apos;intervention
+                                </h3>
+                                <p className="text-sm font-medium text-foreground mt-0.5">
+                                    Quel type de service souhaitez-vous solliciter ?
                                 </p>
                             </div>
-                        </div>
 
-                        {/* Step indicator */}
-                        <div className="flex items-center gap-2 mt-4">
-                            {(["type", "value", "message"] as const).map((s, i) => {
-                                const idx = ["type", "value", "message"].indexOf(step);
-                                const isDone = i <= idx;
-                                return (
-                                    <div key={s} className="flex items-center gap-2 flex-1 min-w-0">
-                                        <div className={cn(
-                                            "flex items-center gap-1 px-2 py-1 rounded-full text-caption font-bold uppercase tracking-wide border transition-colors whitespace-nowrap",
-                                            isDone
-                                                ? [activeCfg.border, activeCfg.badge, "shadow-sm"].join(" ")
-                                                : "border-border text-muted-foreground bg-surface/50"
-                                        )}>
-                                            <span className={cn(
-                                                "w-3.5 h-3.5 rounded-full flex items-center justify-center text-caption font-black",
-                                                isDone ? "bg-current" : "bg-muted"
-                                            )}>
-                                                {isDone ? "✓" : i + 1}
-                                            </span>
-                                            <span className="hidden sm:inline whitespace-nowrap">
-                                                {s === "type" ? "Type" : s === "value" ? "Objet" : "Message"}
-                                            </span>
-                                        </div>
-                                        {i < 2 && <div className={cn(
-                                            "flex-1 h-px",
-                                            isDone ? "bg-current opacity-30" : "bg-elevated"
-                                        )} />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </DialogHeader>
-                </div>
-
-                <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto scrollbar-thin">
-                    <AnimatePresence mode="wait">
-                        {step === "type" && (
-                            <motion.div
-                                key="step-type"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="space-y-4"
-                            >
-                                <div className="flex items-center gap-2 mb-1">
-                                    <div className="w-1 h-1 rounded-full bg-warning/60" />
-                                    <Label className="text-caption uppercase font-black text-muted-foreground tracking-widest">
-                                        Choisissez le type de service
-                                    </Label>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <TypeCard
-                                        type="job"
-                                        current={type}
-                                        onClick={() => { setType("job"); setValue(""); }}
-                                        jobsCount={jobs.length}
-                                    />
-                                    <TypeCard
-                                        type="order"
-                                        current={type}
-                                        onClick={() => { setType("order"); setValue(""); }}
-                                        disabled={!orderData}
-                                    />
-                                    <TypeCard
-                                        type="legendary"
-                                        current={type}
-                                        onClick={() => { setType("legendary"); setValue(""); }}
-                                        disabled={legendaryItems.length === 0}
-                                        hasLegendary={legendaryItems.length > 0}
-                                    />
-                                    <TypeCard
-                                        type="service"
-                                        current={type}
-                                        onClick={() => { setType("service"); setValue(""); }}
-                                        disabled={services.length === 0}
-                                        servicesCount={services.length}
-                                    />
-                                </div>
-
-                                {type === "order" && !orderData && (
-                                    <div className="p-3 rounded-xl bg-surface/60 border border-border/40">
-                                        <p className="text-caption text-muted-foreground font-medium text-center">
-                                            Ce membre n'a pas d'ordre configuré sur son profil
-                                        </p>
-                                    </div>
-                                )}
-
-                                {((type === "job" && jobs.length > 0) || (type === "legendary" && legendaryItems.length > 0) || (type === "order" && orderData) || (type === "service" && services.length > 0)) && (
-                                    <Button
-                                        onClick={() => setStep("value")}
-                                        className={cn(
-                                            "w-full h-11 rounded-xl font-black text-caption uppercase tracking-widest transition-colors",
-                                            type === "job" ? "bg-warning/15 hover:bg-warning/25 text-warning border border-warning/25" :
-                                            type === "order" ? "bg-info/15 hover:bg-info/25 text-info border border-info/25" :
-                                            type === "legendary" ? "bg-info/15 hover:bg-info/25 text-info border border-info/25" :
-                                            "bg-success/15 hover:bg-success/25 text-success border border-success/25"
-                                        )}
-                                    >
-                                        Suivant
-                                        <ArrowRight className="w-3.5 h-3.5 ml-2" />
-                                    </Button>
-                                )}
-                            </motion.div>
-                        )}
-
-                        {step === "value" && (
-                            <motion.div
-                                key="step-value"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="space-y-3"
-                            >
-                                <div className="flex items-center gap-2 mb-1">
-                                    <div className="w-1 h-1 rounded-full" style={{
-                                        backgroundColor: type === "job" ? "#f59e0b" : type === "order" ? "#6366f1" : type === "legendary" ? "#a855f7" : "#10b981"
-                                    }} />
-                                    <Label className="text-caption uppercase font-black text-muted-foreground tracking-widest">
-                                        {type === "job" ? "Métier recherché" : type === "order" ? "Ordre d'alignement" : type === "legendary" ? "Légendaire à crafter" : "Service demandé"}
-                                    </Label>
-                                </div>
-
-                                <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
-                                    {type === "job" && jobs.map(jobId => {
-                                        const job = Object.values(DOFUS_JOBS).flat().find(j => j.id === jobId);
-                                        if (!job) return null;
-                                        return (
-                                            <ValueCard
-                                                key={jobId}
-                                                label={job.name}
-                                                icon={job.icon}
-                                                isSelected={value === jobId}
-                                                onClick={() => setValue(value === jobId ? "" : jobId)}
-                                            />
-                                        );
-                                    })}
-                                    {type === "order" && orderData && (
-                                        <ValueCard
-                                            label={orderData.name}
-                                            icon={orderData.icon}
-                                            isSelected={value === orderData.id}
-                                            onClick={() => setValue(value === orderData.id ? "" : orderData.id)}
-                                        />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {/* Métier */}
+                                <button
+                                    type="button"
+                                    disabled={!hasJobs}
+                                    onClick={() => handleSelectType("job")}
+                                    className={cn(
+                                        "flex flex-col p-4 rounded-xl border text-left transition-all duration-150 group relative cursor-pointer",
+                                        type === "job" && hasJobs
+                                            ? "border-accent bg-accent/[0.08] ring-1 ring-accent/30 shadow-xs"
+                                            : "border-border bg-surface/60 hover:bg-elevated hover:border-border-strong",
+                                        !hasJobs && "opacity-40 cursor-not-allowed bg-surface/20 border-border/30"
                                     )}
-                                    {type === "legendary" && legendaryItems.map((item: any) => (
-                                        <ValueCard
-                                            key={item.id}
-                                            label={item.name}
-                                            icon={item.imageUrl}
-                                            isSelected={value === item.id}
-                                            onClick={() => setValue(value === item.id ? "" : item.id)}
-                                        />
-                                    ))}
-                                    {type === "service" && services.map((svc: any) => (
-                                        <ValueCard
-                                            key={svc.id}
-                                            label={svc.title}
-                                            icon={svc.imageUrl}
-                                            isSelected={value === svc.id}
-                                            onClick={() => setValue(value === svc.id ? "" : svc.id)}
-                                        />
-                                    ))}
-                                </div>
-
-                                {!value && (
-                                    <p className="text-caption text-muted-foreground text-center font-medium">
-                                        Sélectionnez un élément ci-dessus
-                                    </p>
-                                )}
-
-                                <div className="flex items-center gap-2 pt-1">
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => setStep("type")}
-                                        className="text-muted-foreground hover:text-foreground text-caption font-black uppercase tracking-widest h-9"
-                                    >
-                                        ← Retour
-                                    </Button>
-                                    <Button
-                                        onClick={() => setStep("message")}
-                                        disabled={!value}
-                                        className={cn(
-                                            "flex-1 h-10 rounded-xl font-black text-caption uppercase tracking-widest transition-colors",
-                                            type === "job" ? "bg-warning/15 hover:bg-warning/25 text-warning border border-warning/25" :
-                                            type === "order" ? "bg-info/15 hover:bg-info/25 text-info border border-info/25" :
-                                            type === "legendary" ? "bg-info/15 hover:bg-info/25 text-info border border-info/25" :
-                                            "bg-success/15 hover:bg-success/25 text-success border border-success/25"
-                                        )}
-                                    >
-                                        Suivant
-                                        <ArrowRight className="w-3.5 h-3.5 ml-2" />
-                                    </Button>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {step === "message" && (
-                            <motion.div
-                                key="step-message"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="space-y-4"
-                            >
-                                {/* Selected item recap */}
-                                <div className={cn(
-                                    "flex items-center gap-3 p-3 rounded-xl border",
-                                    type === "job" ? "bg-warning/5 border-warning/20" :
-                                    type === "order" ? "bg-info/5 border-info/20" :
-                                    type === "legendary" ? "bg-info/5 border-info/20" :
-                                    "bg-success/5 border-success/20"
-                                )}>
-                                    {(() => {
-                                        let icon = "";
-                                        let label = "";
-                                        if (type === "job") {
-                                            const job = Object.values(DOFUS_JOBS).flat().find(j => j.id === value);
-                                            icon = job?.icon || "";
-                                            label = job?.name || value;
-                                        } else if (type === "order" && orderData) {
-                                            icon = orderData.icon;
-                                            label = orderData.name;
-                                        } else if (type === "legendary") {
-                                            const item = legendaryItems.find((i: any) => i.id === value);
-                                            icon = item?.imageUrl;
-                                            label = item?.name || value;
-                                        } else if (type === "service") {
-                                            const svc = services.find((s: any) => s.id === value);
-                                            icon = svc?.imageUrl;
-                                            label = svc?.title || value;
-                                        }
-                                        return (
-                                            <>
-                                                {icon && <img src={icon} alt="" className="w-8 h-8 object-contain shrink-0" />}
-                                                <div>
-                                                    <p className="text-caption font-black uppercase tracking-widest text-muted-foreground">Objet de la demande</p>
-                                                    <p className="text-sm font-bold text-foreground">{label}</p>
-                                                </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    onClick={() => setStep("value")}
-                                                    className="ml-auto text-caption text-muted-foreground hover:text-foreground font-black uppercase tracking-widest h-7 px-2"
-                                                >
-                                                    Modifier
-                                                </Button>
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-
-                                {/* Message */}
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <Label className="text-caption uppercase font-black text-muted-foreground tracking-widest flex items-center gap-2">
-                                            <span className="w-1 h-1 rounded-full bg-muted" />
-                                            Message (optionnel)
-                                        </Label>
-                                        <span className={cn(
-                                            "text-caption font-bold transition-colors",
-                                            message.length > 450 ? "text-warning" : "text-muted-foreground"
+                                >
+                                    <div className="flex items-center justify-between w-full mb-3">
+                                        <div className={cn(
+                                            "w-9 h-9 rounded-lg flex items-center justify-center border transition-colors",
+                                            type === "job" && hasJobs
+                                                ? "bg-accent text-accent-foreground border-accent"
+                                                : "bg-surface border-border text-foreground group-hover:border-border-strong"
                                         )}>
-                                            {message.length} / 500
+                                            <Hammer className="w-4 h-4" />
+                                        </div>
+                                        <span className={cn(
+                                            "text-[11px] font-semibold px-2 py-0.5 rounded-full border",
+                                            hasJobs
+                                                ? "bg-accent/10 text-accent border-accent/25"
+                                                : "bg-muted/40 text-muted-foreground border-transparent"
+                                        )}>
+                                            {hasJobs ? `${normalizedJobs.length} métier${normalizedJobs.length > 1 ? "s" : ""}` : "Aucun"}
                                         </span>
                                     </div>
-                                    <Textarea
-                                        placeholder="Ajoutez un message personnalisé à votre demande..."
-                                        className="bg-surface/60 border-border/50 focus-visible:border-success/30 focus-visible:ring-success/10 min-h-[90px] rounded-xl text-sm placeholder:text-muted-foreground resize-none"
-                                        value={message}
-                                        onChange={(e) => setMessage(e.target.value.slice(0, 500))}
-                                        maxLength={500}
+                                    <div className="text-sm font-bold text-foreground">Métier d&apos;artisanat</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">Craft, récolte ou forgemagie</div>
+                                </button>
+
+                                {/* Ordre */}
+                                <button
+                                    type="button"
+                                    disabled={!hasOrder}
+                                    onClick={() => handleSelectType("order")}
+                                    className={cn(
+                                        "flex flex-col p-4 rounded-xl border text-left transition-all duration-150 group relative cursor-pointer",
+                                        type === "order" && hasOrder
+                                            ? "border-accent bg-accent/[0.08] ring-1 ring-accent/30 shadow-xs"
+                                            : "border-border bg-surface/60 hover:bg-elevated hover:border-border-strong",
+                                        !hasOrder && "opacity-40 cursor-not-allowed bg-surface/20 border-border/30"
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between w-full mb-3">
+                                        <div className={cn(
+                                            "w-9 h-9 rounded-lg flex items-center justify-center border transition-colors",
+                                            type === "order" && hasOrder
+                                                ? "bg-accent text-accent-foreground border-accent"
+                                                : "bg-surface border-border text-foreground group-hover:border-border-strong"
+                                        )}>
+                                            <Shield className="w-4 h-4" />
+                                        </div>
+                                        <span className={cn(
+                                            "text-[11px] font-semibold px-2 py-0.5 rounded-full border",
+                                            hasOrder
+                                                ? "bg-accent/10 text-accent border-accent/25"
+                                                : "bg-muted/40 text-muted-foreground border-transparent"
+                                        )}>
+                                            {hasOrder ? "Disponible" : "Non configuré"}
+                                        </span>
+                                    </div>
+                                    <div className="text-sm font-bold text-foreground">Ordre d&apos;alignement</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                        {orderData?.name || "Bénédictions & dons"}
+                                    </div>
+                                </button>
+
+                                {/* Légendaire */}
+                                <button
+                                    type="button"
+                                    disabled={!hasLegendary}
+                                    onClick={() => handleSelectType("legendary")}
+                                    className={cn(
+                                        "flex flex-col p-4 rounded-xl border text-left transition-all duration-150 group relative cursor-pointer",
+                                        type === "legendary" && hasLegendary
+                                            ? "border-accent bg-accent/[0.08] ring-1 ring-accent/30 shadow-xs"
+                                            : "border-border bg-surface/60 hover:bg-elevated hover:border-border-strong",
+                                        !hasLegendary && "opacity-40 cursor-not-allowed bg-surface/20 border-border/30"
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between w-full mb-3">
+                                        <div className={cn(
+                                            "w-9 h-9 rounded-lg flex items-center justify-center border transition-colors",
+                                            type === "legendary" && hasLegendary
+                                                ? "bg-accent text-accent-foreground border-accent"
+                                                : "bg-surface border-border text-foreground group-hover:border-border-strong"
+                                        )}>
+                                            <Sparkles className="w-4 h-4" />
+                                        </div>
+                                        <span className={cn(
+                                            "text-[11px] font-semibold px-2 py-0.5 rounded-full border",
+                                            hasLegendary
+                                                ? "bg-accent/10 text-accent border-accent/25"
+                                                : "bg-muted/40 text-muted-foreground border-transparent"
+                                        )}>
+                                            {hasLegendary ? `${legendaryItems.length} craft${legendaryItems.length > 1 ? "s" : ""}` : "Aucun craft"}
+                                        </span>
+                                    </div>
+                                    <div className="text-sm font-bold text-foreground">Artisanat légendaire</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">Équipements & runes rares</div>
+                                </button>
+
+                                {/* Service */}
+                                <button
+                                    type="button"
+                                    disabled={!hasServices}
+                                    onClick={() => handleSelectType("service")}
+                                    className={cn(
+                                        "flex flex-col p-4 rounded-xl border text-left transition-all duration-150 group relative cursor-pointer",
+                                        type === "service" && hasServices
+                                            ? "border-accent bg-accent/[0.08] ring-1 ring-accent/30 shadow-xs"
+                                            : "border-border bg-surface/60 hover:bg-elevated hover:border-border-strong",
+                                        !hasServices && "opacity-40 cursor-not-allowed bg-surface/20 border-border/30"
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between w-full mb-3">
+                                        <div className={cn(
+                                            "w-9 h-9 rounded-lg flex items-center justify-center border transition-colors",
+                                            type === "service" && hasServices
+                                                ? "bg-accent text-accent-foreground border-accent"
+                                                : "bg-surface border-border text-foreground group-hover:border-border-strong"
+                                        )}>
+                                            <Handshake className="w-4 h-4" />
+                                        </div>
+                                        <span className={cn(
+                                            "text-[11px] font-semibold px-2 py-0.5 rounded-full border",
+                                            hasServices
+                                                ? "bg-accent/10 text-accent border-accent/25"
+                                                : "bg-muted/40 text-muted-foreground border-transparent"
+                                        )}>
+                                            {hasServices ? `${services.length} service${services.length > 1 ? "s" : ""}` : "Aucun service"}
+                                        </span>
+                                    </div>
+                                    <div className="text-sm font-bold text-foreground">Service de guilde</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">Aide donjons, passages, quêtes</div>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* STEP 2: OBJECT SELECTION */}
+                    {step === "value" && (
+                        <div className="space-y-4 animate-in fade-in duration-200">
+                            <div>
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    {type === "job" && "Sélection du métier"}
+                                    {type === "order" && "Bénédiction d'ordre"}
+                                    {type === "legendary" && "Sélection du craft légendaire"}
+                                    {type === "service" && "Sélection du service"}
+                                </h3>
+                                <p className="text-sm font-medium text-foreground mt-0.5">
+                                    Choisissez l&apos;élément concerné par votre demande :
+                                </p>
+                            </div>
+
+                            {/* Search bar if multiple items */}
+                            {(type === "job" && normalizedJobs.length > 4) || (type === "legendary" && legendaryItems.length > 4) || (type === "service" && services.length > 4) ? (
+                                <div className="relative">
+                                    <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                                    <Input
+                                        placeholder="Filtrer les options..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-9 h-9 rounded-xl bg-background/70 border-border text-xs focus-visible:ring-accent/20 focus-visible:border-accent"
                                     />
                                 </div>
+                            ) : null}
 
-                                <div className="flex items-center gap-2 pt-1">
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => setStep("value")}
-                                        className="text-muted-foreground hover:text-foreground text-caption font-black uppercase tracking-widest h-9"
-                                    >
-                                        ← Retour
-                                    </Button>
-                                    <Button
-                                        onClick={handleSubmit}
-                                        disabled={isPending}
-                                        className="flex-1 h-11 rounded-xl font-black text-caption uppercase tracking-widest bg-success hover:bg-success text-success-foreground shadow-lg shadow-emerald-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                                    >
-                                        {isPending ? (
-                                            <span className="flex items-center gap-2">
-                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                Envoi en cours...
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center gap-2">
-                                                <Send className="w-3.5 h-3.5" />
-                                                Envoyer la demande
-                                            </span>
+                            {/* Options List */}
+                            <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1 scrollbar-thin">
+                                {/* Jobs */}
+                                {type === "job" && filteredJobs.map((j) => {
+                                    const jobMeta = getJob(j.id);
+                                    const isSelected = value === j.id;
+                                    return (
+                                        <button
+                                            key={j.id}
+                                            type="button"
+                                            onClick={() => setValue(isSelected ? "" : j.id)}
+                                            className={cn(
+                                                "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left group cursor-pointer",
+                                                isSelected
+                                                    ? "border-accent bg-accent/[0.08] ring-1 ring-accent/30 shadow-xs"
+                                                    : "border-border bg-surface/50 hover:bg-elevated hover:border-border-strong"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-9 h-9 rounded-lg bg-background/80 border border-border p-1.5 flex items-center justify-center shrink-0">
+                                                    {jobMeta?.icon ? (
+                                                        <Image src={jobMeta.icon} alt="" width={24} height={24} className="w-6 h-6 object-contain" />
+                                                    ) : (
+                                                        <Hammer className="w-4 h-4 text-muted-foreground" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-semibold text-foreground truncate">{j.name}</div>
+                                                    <div className="text-xs text-muted-foreground">Niveau {j.level}</div>
+                                                </div>
+                                            </div>
+                                            <div className={cn(
+                                                "w-5 h-5 rounded-full flex items-center justify-center border transition-colors shrink-0",
+                                                isSelected
+                                                    ? "bg-accent border-accent text-accent-foreground"
+                                                    : "border-border group-hover:border-border-strong"
+                                            )}>
+                                                {isSelected && <Check className="w-3 h-3" />}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+
+                                {/* Order */}
+                                {type === "order" && orderData && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setValue(orderData.id)}
+                                        className={cn(
+                                            "w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-left group cursor-pointer",
+                                            value === orderData.id
+                                                ? "border-accent bg-accent/[0.08] ring-1 ring-accent/30 shadow-xs"
+                                                : "border-border bg-surface/50 hover:bg-elevated hover:border-border-strong"
                                         )}
-                                    </Button>
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-10 h-10 rounded-lg bg-background/80 border border-border p-1.5 flex items-center justify-center shrink-0">
+                                                {orderData.icon ? (
+                                                    <Image src={orderData.icon} alt="" width={28} height={28} className="w-7 h-7 object-contain" />
+                                                ) : (
+                                                    <Shield className="w-5 h-5 text-accent" />
+                                                )}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-semibold text-foreground truncate">{orderData.name}</div>
+                                                <div className="text-xs text-muted-foreground">Alignement {alignmentData?.name || "Bonta/Brâkmar"}</div>
+                                            </div>
+                                        </div>
+                                        <div className={cn(
+                                            "w-5 h-5 rounded-full flex items-center justify-center border transition-colors shrink-0",
+                                            value === orderData.id
+                                                ? "bg-accent border-accent text-accent-foreground"
+                                                : "border-border group-hover:border-border-strong"
+                                        )}>
+                                            {value === orderData.id && <Check className="w-3 h-3" />}
+                                        </div>
+                                    </button>
+                                )}
+
+                                {/* Legendary items */}
+                                {type === "legendary" && filteredLegendary.map((item) => {
+                                    const isSelected = value === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => setValue(isSelected ? "" : item.id)}
+                                            className={cn(
+                                                "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left group cursor-pointer",
+                                                isSelected
+                                                    ? "border-accent bg-accent/[0.08] ring-1 ring-accent/30 shadow-xs"
+                                                    : "border-border bg-surface/50 hover:bg-elevated hover:border-border-strong"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-9 h-9 rounded-lg bg-background/80 border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                                                    {item.imageUrl ? (
+                                                        <Image src={item.imageUrl} alt="" width={28} height={28} className="w-7 h-7 object-contain" />
+                                                    ) : (
+                                                        <Sparkles className="w-4 h-4 text-accent" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-semibold text-foreground truncate">{item.name}</div>
+                                                    <div className="text-xs text-muted-foreground">Craft légendaire</div>
+                                                </div>
+                                            </div>
+                                            <div className={cn(
+                                                "w-5 h-5 rounded-full flex items-center justify-center border transition-colors shrink-0",
+                                                isSelected
+                                                    ? "bg-accent border-accent text-accent-foreground"
+                                                    : "border-border group-hover:border-border-strong"
+                                            )}>
+                                                {isSelected && <Check className="w-3 h-3" />}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+
+                                {/* Services */}
+                                {type === "service" && filteredServices.map((svc) => {
+                                    const isSelected = value === svc.id;
+                                    const icon = svc.imageUrl || svc.dofusItemIconUrl;
+                                    return (
+                                        <button
+                                            key={svc.id}
+                                            type="button"
+                                            onClick={() => setValue(isSelected ? "" : svc.id)}
+                                            className={cn(
+                                                "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left group cursor-pointer",
+                                                isSelected
+                                                    ? "border-accent bg-accent/[0.08] ring-1 ring-accent/30 shadow-xs"
+                                                    : "border-border bg-surface/50 hover:bg-elevated hover:border-border-strong"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-9 h-9 rounded-lg bg-background/80 border border-border p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                                                    {icon ? (
+                                                        <Image src={icon} alt="" width={28} height={28} className="w-7 h-7 object-contain" />
+                                                    ) : (
+                                                        <Handshake className="w-4 h-4 text-accent" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-semibold text-foreground truncate">{svc.title}</div>
+                                                    {svc.description && (
+                                                        <div className="text-xs text-muted-foreground truncate">{svc.description}</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className={cn(
+                                                "w-5 h-5 rounded-full flex items-center justify-center border transition-colors shrink-0",
+                                                isSelected
+                                                    ? "bg-accent border-accent text-accent-foreground"
+                                                    : "border-border group-hover:border-border-strong"
+                                            )}>
+                                                {isSelected && <Check className="w-3 h-3" />}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+
+                                {((type === "job" && filteredJobs.length === 0) ||
+                                    (type === "legendary" && filteredLegendary.length === 0) ||
+                                    (type === "service" && filteredServices.length === 0)) && (
+                                        <div className="p-6 text-center text-xs text-muted-foreground">
+                                            Aucun élément ne correspond à votre recherche.
+                                        </div>
+                                    )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* STEP 3: MESSAGE & CONFIRMATION */}
+                    {step === "message" && (
+                        <div className="space-y-4 animate-in fade-in duration-200">
+                            {/* Summary Card */}
+                            <div className="p-3.5 rounded-xl border border-border bg-background/70 flex items-center justify-between">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 rounded-lg bg-surface border border-border p-1.5 flex items-center justify-center shrink-0">
+                                        {recapData.icon ? (
+                                            <Image src={recapData.icon} alt="" width={28} height={28} className="w-7 h-7 object-contain" />
+                                        ) : (
+                                            <Send className="w-4 h-4 text-accent" />
+                                        )}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                            {recapData.subtitle}
+                                        </div>
+                                        <div className="text-sm font-bold text-foreground truncate">
+                                            {recapData.title}
+                                        </div>
+                                    </div>
                                 </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setStep("value")}
+                                    className="text-xs text-muted-foreground hover:text-foreground h-8 px-2.5 font-semibold"
+                                >
+                                    Modifier
+                                </Button>
+                            </div>
+
+                            {/* Discord Information Callout */}
+                            <div className="p-3.5 rounded-xl bg-accent/[0.06] border border-accent/20 flex items-start gap-3 text-xs leading-relaxed">
+                                <BellRing className="w-4 h-4 text-accent mt-0.5 shrink-0" />
+                                <div className="text-muted-foreground">
+                                    Un ping Discord sera envoyé à <strong className="text-foreground">{targetName}</strong> dans le salon des sollicitations de la guilde avec votre message et un bouton permettant de vous répondre directement.
+                                </div>
+                            </div>
+
+                            {/* Message input */}
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                    <Label className="text-xs font-semibold text-foreground">
+                                        Message personnalisé <span className="text-muted-foreground font-normal">(optionnel)</span>
+                                    </Label>
+                                    <span className={cn(
+                                        "text-[11px] font-mono",
+                                        message.length > 450 ? "text-warning font-bold" : "text-muted-foreground"
+                                    )}>
+                                        {message.length} / 500
+                                    </span>
+                                </div>
+                                <Textarea
+                                    placeholder="Ex : Bonjour, pourrais-tu me crafter cet item ce soir ? Je fournis les ressources et le pourboire..."
+                                    className="bg-background/70 border-border focus-visible:border-accent focus-visible:ring-accent/20 min-h-[95px] rounded-xl text-sm placeholder:text-muted-foreground/60 resize-none"
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value.slice(0, 500))}
+                                    maxLength={500}
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                <DialogFooter className="p-4 border-t border-border">
-                    <Button
-                        variant="ghost"
-                        onClick={() => { resetModal(); onClose(); }}
-                        disabled={isPending}
-                        className="text-muted-foreground hover:text-muted-foreground text-caption font-black uppercase tracking-widest h-8 w-full"
-                    >
-                        Annuler
-                    </Button>
-                </DialogFooter>
+                {/* Footer Navigation */}
+                <div className="p-4 bg-background/60 border-t border-border flex items-center justify-between">
+                    {step === "type" ? (
+                        <Button
+                            variant="ghost"
+                            onClick={handleClose}
+                            className="text-xs text-muted-foreground hover:text-foreground font-semibold h-9 px-3 cursor-pointer"
+                        >
+                            Annuler
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                if (step === "value") setStep("type");
+                                if (step === "message") setStep("value");
+                            }}
+                            className="text-xs text-muted-foreground hover:text-foreground font-semibold h-9 px-3 gap-1.5 cursor-pointer"
+                        >
+                            <ArrowLeft className="w-3.5 h-3.5" />
+                            Retour
+                        </Button>
+                    )}
+
+                    {step === "type" && (
+                        <Button
+                            onClick={() => setStep("value")}
+                            disabled={!canProceedFromType}
+                            className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-xs h-9 px-4 rounded-xl gap-1.5 cursor-pointer shadow-xs disabled:opacity-40"
+                        >
+                            Continuer
+                            <ArrowRight className="w-3.5 h-3.5" />
+                        </Button>
+                    )}
+
+                    {step === "value" && (
+                        <Button
+                            onClick={() => setStep("message")}
+                            disabled={!value}
+                            className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-xs h-9 px-4 rounded-xl gap-1.5 cursor-pointer shadow-xs disabled:opacity-40"
+                        >
+                            Continuer
+                            <ArrowRight className="w-3.5 h-3.5" />
+                        </Button>
+                    )}
+
+                    {step === "message" && (
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={isPending || !value}
+                            className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-xs h-9 px-5 rounded-xl gap-2 cursor-pointer shadow-xs disabled:opacity-40"
+                        >
+                            {isPending ? (
+                                <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    <span>Envoi en cours...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Send className="w-3.5 h-3.5" />
+                                    <span>Envoyer la demande</span>
+                                </>
+                            )}
+                        </Button>
+                    )}
+                </div>
             </DialogContent>
         </Dialog>
     );

@@ -6,6 +6,22 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 23/10/2026 (suite 6) — **Passifs souverains · peinture de la simulation réparée · vue Branches S4-1 · variantes de stuff dans la galerie · coche « fait » des succès de boss** — branche `feat/rush-sim-passifs-galerie` (une seule PR, à la demande du user)
+> **Demandes user (verbatim)** : « siphonne en souverain les effets de prysma des objets légendaires etc comme pour les dofus stp et affiche leur effet dans les items des galeris etc » · « ces histoires d'obstacle de peinture etc coté simulateur c faux ya rien » · « enchaîne tout en une seule PR » · « je veux que les gens voient dans la galerie les variantes proposés par les stuff des gens… sans casser la synchro dofusbook » · « on peut pas cocher les doubles boss dans les succès du module fiche boss il faut ajouter une coche comme “fait” ».
+> **Mesures (preuves)** :
+> ① Passifs : `GameItem.effects` porte la ligne native **`effectId 1175`** dont **`diceNum` = id du sort passif** (Dofus Turquoise 739 → **5952**), et DofusDB expose la description FR officielle (`/spells/5952`). **344 objets** concernés ; `dofus-passives.ts` n'avait que 24 textes manuels + un repli **inventé** pour les Prysmaradites. `GameItem.description` (25 Prysmaradites) était siphonné mais **jamais affiché**.
+> ② Peinture : sur la carte réelle, un **trou** faisait `return null` (`SpellRangeGrid.tsx:2663`) ⇒ invisible ; `storageKey` ne contenait **pas** l'id de carte ⇒ peinture d'une autre map invisible et hors grille.
+> **Fait** :
+> ① **Siphon souverain** `scripts/siphon-item-passives.mjs` → `src/data/item-passives.json` (**117 sorts**, texte verbatim ; clés triées, idempotent) ; `src/lib/dofus-passives.ts` : `cleanPassiveMarkup`, `resolvePassiveText`, `resolveItemPassive` (sp → catalogue → repli manuel → **null**, jamais de texte inventé), repli Prysmaradite supprimé ; `searchVariantItems` renvoie `description` + `passiveSpellId` (+ **auth + rate limit** ajoutés) ; affichage dans la modale d'item du build **et** la bibliothèque de variantes.
+> ② **Peinture** : règle pure `src/lib/sim-paint.ts` (cloisonnement par carte, bascule obstacle/trou, purge hors grille, migration du stockage plat) ; le trou est **rendu** (aplat noir + liseré), les cases peintes hors sol d'origine restent visibles, les jetons ne se posent plus sur un trou.
+> ③ **S4-1** : règle pure `src/lib/rush-branches.ts` (cible **100/102**, paires **par position**, positions 101-102 **hors miroir**, 3 Ordres × 5 paliers avec le libellé réel du palier, orphelins signalés) calculée **côté serveur** dans `god/rush-sylvestre/page.tsx`, nouvel onglet **Branches** (lecture seule).
+> ④ **Variantes** : `dofusBookLinks[].variants` (JSON, **aucune migration**), action `saveBuildVariant` (profil courant, rate limit), `GalleryBuild.variants`, bascule **Stuff ⇄ Variante** (`aria-pressed`) sur la **miniature** et dans la **modale**, stats PA/PM/PO/CC de la miniature recalculées ; le stuff Dofusbook (`url`, `previewData`) n'est **jamais** réécrit.
+> ⑤ **Fiche boss** : `src/server/actions/dungeon-achievement-actions.ts` (`toggleDungeonAchievement` / `getDungeonAchievementStates`, table `UserDungeonAchievement` existante) + coche native « Fait » dans l'onglet Succès (public = lecture seule) ; optimiste avec retour arrière.
+> **Preuves** : `npm run test:run` **5 086 ✓ / 480 fichiers** · `npx tsc --noEmit` **0 erreur** · ESLint **0 erreur** (225 warnings préexistants). Nouveaux verrous : `rush-branches` 9 · `item-passives` 8 · `sim-peinture` 8 · `dofus-variants-saved` 11 · `boss-achievement-check` 8. Un seul verrou de source ajusté (`sim-previsu-premium`, ligne de zone) : `!isHole` ajouté, intention conservée et justifiée en commentaire.
+> **Reste (ordre)** : ① **S1** (contenu 100/102 + 30 Ordres + 19 classes + prérequis) · ② **D-SIM1** (payload brut ou dump des stats) · ③ charges chiffrées Glas/Torrent · ④ glyphes au sol · ⑤ état de simulation dans l'URL · ⑥ images OG / embed Discord avec variante.
+> **Rotation** : bloc « Tickets v2 : ouverture sans compte » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 23/10/2026 (suite 5) — **Simulation tactique : peinture d'obstacles/trous, glyphes & pièges, sorts à charge signalés, barre de zoom déslopée** — branche `feat/sim-lot-backlog`
 > **Demande user (verbatim)** : « one shot tout le backlog » — sorts à charge (Glas/Torrent), obstacles et trous posés à la volée, glyphes/pièges au sol, déslop de la barre d'outils.
 > **Fait** :
@@ -72,9 +88,4 @@
 > **Preuves** : Suite seniority **109 / 109 ✓**, suite complète Vitest **4 952 / 4 952 ✓ (461 fichiers)**, TypeScript `npx tsc --noEmit` **0 erreur**, ESLint **0 erreur**.
 > **Rotation** : sortie du bloc le plus ancien (règle des 6 sessions respectée).
 
-## 📝 Session 23/10/2026 — **Tickets v2 : ouverture sans compte SigilOS préalable** — branche `fix/tickets-v2-ouverture-sans-compte`
-> **Demandes user (verbatim)** : « applique le correctif oui creer une petit branche et pousse , et dis moi si je dois recreer le panneau et le bouton ou pas besoin »
-> **Mesures & causes racines** : Dans `src/app/api/discord/interactions/route.ts` (ligne 331), le gate d'exemption globale pour les utilisateurs Discord sans compte SigilOS (`!account`) n'exemptait que l'ancien préfixe `ticket` et `rr`. Les interactions Tickets v2 (`tb:` et `tb_pick:`) étaient donc rejetées par erreur avec `DISCORD_ACCOUNT_REQUIRED` (« Tu dois t'être connecté au moins une fois sur le site pour utiliser ce bouton »), bloquant tout candidat ou arrivant Discord souhaitant ouvrir un ticket sans compte web préalable.
-> **Fait** : ① Ajout de `isTicketCustomId(custom_id)` dans la condition de dispense de compte web (`!account && !isTicketInteraction && prefix !== "rr"`) dans `route.ts` ; ② Test unitaire de non-régression dans `tests/unit/tickets-runtime-guards.test.ts`.
-> **Preuves** : 240 tests de la suite tickets verts (`vitest run tests/unit/tickets`), TypeScript 0 erreur (`npx tsc --noEmit`), ESLint 0 erreur. PR **#1094**.
-> **Ops (humain)** : Aucun besoin de recréer le panneau ni le bouton dans Discord : le `custom_id` (`tb:open:...`) ne change pas, le correctif est 100% côté serveur une fois mergé et déployé.
+

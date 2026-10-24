@@ -5,6 +5,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { db } from "@/lib/prisma";
 import { fetchGuildRoles, fetchGuildChannels } from "@/server/discord";
 import { SlashCommandsRbacPanel } from "@/components/admin/SlashCommandsRbacPanel";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Terminal, Eye } from "lucide-react";
 import Link from "next/link";
@@ -112,12 +113,20 @@ export default async function AdminCommandesPage({ params }: Props) {
                 icon={Terminal}
                 backHref={`/dashboard/${guildId}/admin`}
                 actions={
-                    <Button asChild variant="outline" size="sm" className="gap-2 rounded-xl border-border text-xs font-bold">
-                        <Link href={`/dashboard/${guildId}/commandes`}>
-                            <Eye className="w-3.5 h-3.5 text-accent" />
-                            Guide Visuel Membres
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* 📚 Documentation du module : contenu géré en base (God → Docs),
+                            jamais commité dans le dépôt (règle `.clinerules/04-docs.md`). */}
+                        <ModuleHelpActions
+                            docSlug="commandes-discord"
+                            docTitle="Faire fonctionner les commandes SigilOS sur Discord"
+                        />
+                        <Button asChild variant="outline" size="sm" className="gap-2 rounded-xl border-border text-xs font-bold">
+                            <Link href={`/dashboard/${guildId}/commandes`}>
+                                <Eye className="w-3.5 h-3.5 text-accent" />
+                                Guide Visuel Membres
+                            </Link>
+                        </Button>
+                    </div>
                 }
             />
 

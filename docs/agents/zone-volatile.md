@@ -52,11 +52,17 @@ src/temp/
 ├─ chantier.md                  ← historique léger des chantiers
 ├─ memo-AAAA-MM-JJ-<chantier>.md
 ├─ <chantier>/                  ← chantier EN COURS (plan, maquette, amorces, captures)
+├─ docs/<slug>.html             ← doc PRODUIT prête à uploader (God → Docs) — jamais commitée
 ├─ archive/                     ← chantiers TERMINÉS
 │  ├─ memos/  amorces/  commits/  contexte/  media/
 │  └─ _decommissionne-AAAA-MM/
 └─ _<script>.mjs / _*.ps1       ← scripts jetables
 ```
+
+**Documentation produit** : un bouton « Documentation » de module pointe sur un **slug** dont le
+contenu vit en base (`DocPage`, God → Docs). On l'écrit ici : `src/temp/docs/<slug>.html`, on le
+relit dans un navigateur, **on ne le commit jamais** — le mainteneur l'uploade lui-même. Règle
+complète : `.clinerules/04-docs.md`.
 
 ---
 

@@ -193,10 +193,11 @@ describe("gate d'exécution de /valider-recrue", () => {
         expect(route).toContain("n'est pas déployée sur ce serveur");
     });
 
-    it("accepte la permission RH, un rôle Discord autorisé ou un admin Discord", () => {
-        expect(route).toContain("hasGuildRole");
-        expect(route).toContain("isDiscordAdmin");
-        expect(route).toContain("!isStaff && !hasGuildRole && !isDiscordAdmin");
+    it("accepte la permission RH, un rôle Discord autorisé ou un admin Discord (gate local)", () => {
+        expect(route).toContain("mappedStaff");
+        expect(route).toContain("allowedByGuildRole");
+        expect(route).toContain("isSubmitAdmin");
+        expect(route).toContain("!isSubmitAdmin && !mappedStaff && !allowedByGuildRole");
     });
 
     it("ne renvoie plus de 500 sur une interaction (Discord afficherait « pas de réponse »)", () => {

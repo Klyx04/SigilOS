@@ -79,7 +79,9 @@ describe("slash commands — périmètre", () => {
         expect(route).toContain("type: 9, // MODAL");
 
         expect(route).toContain('commandName === "valider-recrue"');
-        expect(route).toContain("PERMISSION_IDS.STAFF_MEMBER_MGMT");
+        // La permission « Ressources Humaines » reste vérifiée — désormais **à la
+        // soumission** et sans appel Discord (`PERMISSIONS`, gate local).
+        expect(route).toContain("PERMISSIONS.STAFF_MEMBER_MGMT");
         expect(route).toContain("addGuildMemberRole");
         expect(route).toContain("removeGuildMemberRole");
         expect(route).toContain("trialValidated");

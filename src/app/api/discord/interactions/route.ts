@@ -2796,20 +2796,10 @@ export async function POST(request: NextRequest) {
                 }
             } else if (prefix === "valrecrue" && action === "submit") {
                 // ── Soumission de la modale /valider-recrue (Staff) ────────────────
-                const { internalCheckPermission } = await import("@/server/actions/user-actions");
-                const { PERMISSIONS } = await import("@/lib/permissions");
-                let isStaff = false;
-                try {
-                    isStaff = guild_id
-                        ? await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.STAFF_MEMBER_MGMT)
-                        : false;
-                } catch {
-                    isStaff = false;
-                }
-                if (!isStaff) {
-                    return ephemeralDiscordRefusal("🚫 `/valider-recrue` est réservée au staff (permission « Ressources Humaines »).");
-                }
-
+                // Gate **local** : admin Discord (payload) ∪ rôle autorisé par la guilde ∪
+                // mapping de rôles en base. **Aucun appel à l'API Discord** : l'ancien
+                // `internalCheckPermission` en faisait trois, et faisait expirer la
+                // soumission de la modale exactement comme l'ouverture.
                 const targetId = entityId;
                 if (!targetId || !guild_id) {
                     return ephemeralDiscordMessage("❌ Interaction de validation invalide.");
@@ -2817,10 +2807,39 @@ export async function POST(request: NextRequest) {
 
                 const guildConfig = await db.guildConfig.findUnique({
                     where: { discordGuildId: guild_id },
-                    select: { id: true, trialDurationDays: true },
+                    select: {
+                        id: true,
+                        trialDurationDays: true,
+                        rolesMapping: true,
+                        usersMapping: true,
+                        slashCommandPermissions: {
+                            where: { commandName: "valider-recrue" },
+                            select: { roleIds: true },
+                        },
+                    },
                 });
                 if (!guildConfig) {
                     return ephemeralDiscordMessage("❌ Ce serveur n'est pas lié à SigilOS.");
+                }
+
+                const { hasMappedPermission } = await import("@/lib/discord/permission-mapping");
+                const { PERMISSIONS } = await import("@/lib/permissions");
+                const submitRoleIds: string[] = member?.roles ?? [];
+                const isSubmitAdmin = (BigInt(member?.permissions || "0") & BigInt(0x8)) === BigInt(0x8);
+                const mappedStaff = hasMappedPermission({
+                    memberRoleIds: submitRoleIds,
+                    discordUserId: member.user.id,
+                    rolesMapping: guildConfig.rolesMapping,
+                    usersMapping: guildConfig.usersMapping,
+                    permission: PERMISSIONS.STAFF_MEMBER_MGMT,
+                });
+                const allowedByGuildRole = (guildConfig.slashCommandPermissions[0]?.roleIds ?? []).some(
+                    (roleId) => submitRoleIds.includes(roleId)
+                );
+                if (!isSubmitAdmin && !mappedStaff && !allowedByGuildRole) {
+                    return ephemeralDiscordRefusal(
+                        "🚫 `/valider-recrue` est réservée au staff : permission « Ressources Humaines » ou rôle autorisé par la guilde."
+                    );
                 }
 
                 // Extraire les champs saisis dans la modale
@@ -3860,34 +3879,14 @@ export async function POST(request: NextRequest) {
 
             // ── /valider-recrue (STAFF — ouvre la modale de saisie registre) ──
             if (commandName === "valider-recrue") {
-                // Gate : permission dashboard « Ressources Humaines », **ou** rôle Discord
-                // listé dans le dashboard, **ou** admin Discord. Les deux sources ne doivent
-                // plus se contredire : un EMPEREUR autorisé côté dashboard passait la porte
-                // Discord puis se faisait refuser ici (mesure du 24/10/2026).
-                const { internalCheckPermission } = await import("@/server/actions/user-actions");
-                const { PERMISSION_IDS } = await import("@/lib/permissions");
-                const isDiscordAdmin = (BigInt(member?.permissions || "0") & BigInt(0x8)) === BigInt(0x8);
-                const roleGate = guild_id
-                    ? await db.guildSlashCommandPermission.findFirst({
-                          where: { commandName: "valider-recrue", guild: { discordGuildId: guild_id } },
-                          select: { roleIds: true },
-                      })
-                    : null;
-                const hasGuildRole = (roleGate?.roleIds ?? []).some((roleId) => userRoleIds.includes(roleId));
-                let isStaff = false;
-                try {
-                    isStaff = guild_id
-                        ? await internalCheckPermission(guild_id, discordUserId, PERMISSION_IDS.STAFF_MEMBER_MGMT)
-                        : false;
-                } catch {
-                    isStaff = false;
-                }
-                if (!isStaff && !hasGuildRole && !isDiscordAdmin) {
-                    return ephemeralDiscordRefusal(
-                        "🚫 `/valider-recrue` est réservée au staff : permission « Ressources Humaines » ou rôle autorisé par la guilde."
-                    );
-                }
-
+                // ⚡ **ACK d'abord** (mesure du 24/10/2026) : l'ancienne version appelait
+                // `internalCheckPermission` ici, soit **trois appels à l'API Discord**
+                // (membre, serveur, rôles) AVANT la réponse → dépassement des 3 s et
+                // « n'a pas répondu à temps » dès que le rate-limit Discord mordait.
+                //
+                // La vérification d'accès se fait **à la soumission** de la modale
+                // (`valrecrue:submit`), là où l'écriture a lieu — et désormais **sans
+                // aucun appel Discord** (rôles de la payload + mapping local).
                 const opt = (name: string): string | undefined =>
                     payload.data?.options?.find((o: any) => o.name === name)?.value;
                 const targetId: string | undefined = opt("membre");

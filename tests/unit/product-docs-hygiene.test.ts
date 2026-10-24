@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { load } from "cheerio";
 
 /** Dossier volatile des docs produit (absent en CI : les tests de contenu sont alors sautés). */
 const DOCS_DIR = join("src", "temp", "docs");
@@ -71,13 +72,17 @@ describe("documentation produit", () => {
         const violations: string[] = [];
         for (const fichier of docsLocales()) {
             const html = readFileSync(join(DOCS_DIR, fichier), "utf8");
+            // Le texte **affiché** vient du parseur, jamais d'une découpe de balises par
+            // expression régulière : une seule passe de `replace(/<[^>]+>/)` laisse du balisage
+            // (alerte CodeQL « incomplete multi-character sanitization »).
+            const $ = load(html);
 
             // 1. Blocs `pre` : une ligne trop longue déborde du drawer (~340 px utiles sur mobile).
-            for (const bloc of html.matchAll(/<pre>[\s\S]*?<\/pre>/g)) {
-                const lignes = bloc[0]
-                    .replace(/<[^>]+>/g, "")
+            for (const bloc of $("pre").toArray()) {
+                const lignes = $(bloc)
+                    .text()
                     .split(/\r?\n/)
-                    .map((l) => l.replace(/\s+$/, ""));
+                    .map((l) => l.trimEnd());
                 lignes.forEach((ligne, index) => {
                     if (ligne.length > 44) {
                         violations.push(`${fichier} → pre ligne ${index + 1} : ${ligne.length} car.`);
@@ -86,9 +91,8 @@ describe("documentation produit", () => {
             }
 
             // 2. Tableaux : au-delà de 2 colonnes, les cellules se tassent et le texte se coupe mal.
-            for (const table of html.matchAll(/<table[\s\S]*?<\/table>/g)) {
-                const entete = table[0].match(/<tr[\s\S]*?<\/tr>/);
-                const colonnes = entete ? (entete[0].match(/<th\b/g) || []).length : 0;
+            for (const table of $("table").toArray()) {
+                const colonnes = $(table).find("tr").first().find("th").length;
                 if (colonnes > 2) {
                     violations.push(`${fichier} → tableau de ${colonnes} colonnes`);
                 }

@@ -37,7 +37,7 @@ const notifySchema = z.object({
     ]),
     success: z.boolean().optional(),
     metadata: z
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .refine(obj => Object.keys(obj).length <= 20, "metadata : trop de clés")
         .refine(
             obj => Object.values(obj).every(v => ["string", "number", "boolean"].includes(typeof v) && v !== null),

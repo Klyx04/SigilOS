@@ -318,7 +318,7 @@ export async function createServiceListing(
 
         const parsed = createServiceSchema.safeParse(input);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
 
         const guildConfig = await db.guildConfig.findUnique({
@@ -436,7 +436,7 @@ export async function updateServiceListing(
 
         const parsed = updateServiceSchema.safeParse(input);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
 
         await db.serviceListing.update({
@@ -1241,7 +1241,7 @@ export async function sendServiceReplyAction(
         // 2. Validation Zod (bornes strictes)
         const parsed = sendServiceReplySchema.safeParse({ replyMessage });
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Message invalide" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Message invalide" };
         }
         const message = parsed.data.replyMessage;
 

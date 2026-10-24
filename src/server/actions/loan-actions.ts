@@ -158,7 +158,7 @@ export async function createLoan(
 
         const parsed = createLoanSchema.safeParse(input);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
 
         if (parsed.data.borrowerProfileId === user.profileId) {

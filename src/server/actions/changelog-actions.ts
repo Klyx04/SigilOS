@@ -80,7 +80,7 @@ export async function createChangelogEntry(input: CreateChangelogInput) {
 
     const parsed = ChangelogSchema.safeParse(input);
     if (!parsed.success) {
-        return { success: false, error: parsed.error.errors[0]?.message ?? 'Données invalides' };
+        return { success: false, error: parsed.error.issues[0]?.message ?? 'Données invalides' };
     }
 
     try {
@@ -117,7 +117,7 @@ export async function updateChangelogEntry(id: string, input: Partial<CreateChan
 
     const parsed = ChangelogUpdateSchema.safeParse(input);
     if (!parsed.success) {
-        return { success: false, error: parsed.error.errors[0]?.message ?? 'Données invalides' };
+        return { success: false, error: parsed.error.issues[0]?.message ?? 'Données invalides' };
     }
 
     try {

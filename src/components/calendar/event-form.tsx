@@ -8,7 +8,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { CreatorClassSelector } from "@/components/shared/creator-class-selector";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parse, addHours, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -176,7 +176,7 @@ const eventFormSchema = z.object({
     title: z.string().min(3, "Le titre doit faire au moins 3 caractères").max(100),
     description: z.string().max(2000).optional(),
     type: z.string(),
-    date: z.date({ required_error: "Date requise" }),
+    date: z.date({ message: "Date requise" }),
     startTime: z.string().min(5, "Heure requise"),
     endTime: z.string().min(5, "Heure requise"),
     maxParticipants: z.coerce.number().min(1).optional().nullable(),
@@ -384,7 +384,10 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
     }, [guildId]);
 
     const form = useForm<EventFormValues>({
-        resolver: zodResolver(eventFormSchema),
+        // zod 4 : `z.coerce.number()` expose un type d'ENTRÉE `unknown` (le champ HTML renvoie une
+        // chaîne), alors que la valeur validée en sortie est bien un nombre. Le resolver est donc
+        // aligné sur les valeurs du formulaire — **aucun changement de comportement**.
+        resolver: zodResolver(eventFormSchema) as Resolver<EventFormValues>,
         defaultValues: initialData ? {
             title: initialData.title || "",
             description: initialData.description || "",

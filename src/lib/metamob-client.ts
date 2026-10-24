@@ -601,7 +601,7 @@ async function fetchApi<T>(
 
         if (error instanceof z.ZodError) {
             // Là, c'est un VRAI signal : le format de l'API a changé (drift) → reste en `error`.
-            logger.error("[Metamob] Format de réponse API inattendu", error.errors);
+            logger.error("[Metamob] Format de réponse API inattendu", error.issues);
             throw new MetamobApiError("API_ERROR", "Format de réponse API invalide");
         }
 

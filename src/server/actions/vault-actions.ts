@@ -124,7 +124,7 @@ export async function createVaultEntry(
 
         const parsed = createVaultEntrySchema.safeParse(input);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
 
         const guildConfig = await db.guildConfig.findUnique({

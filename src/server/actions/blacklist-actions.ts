@@ -93,7 +93,7 @@ export async function addBlacklistEntry(rawData: z.infer<typeof BlacklistSchema>
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
     const validation = BlacklistSchema.safeParse(rawData);
-    if (!validation.success) return { success: false, error: validation.error.errors[0].message };
+    if (!validation.success) return { success: false, error: validation.error.issues[0].message };
     const { guildId, content } = validation.data;
 
     const ctx = await getUserContext(guildId);

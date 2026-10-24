@@ -234,7 +234,7 @@ export async function linkOcreAccount(
         // Validation
         const parsed = LinkAccountSchema.safeParse(rawData);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
+            return { success: false, error: parsed.error.issues[0]?.message || "Données invalides" };
         }
         const { guildId } = parsed.data;
         const apiKey = parsed.data.apiKey?.trim();

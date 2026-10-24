@@ -707,7 +707,7 @@ export async function setMemberTrialState(
 
     const validated = trialStateSchema.safeParse(input);
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0]?.message || "Données invalides" };
+        return { success: false, error: validated.error.issues[0]?.message || "Données invalides" };
     }
 
     try {
@@ -803,7 +803,7 @@ export async function recordMemberDeparture(
 
     const validated = departureSchema.safeParse(data);
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0]?.message || "Motif invalide" };
+        return { success: false, error: validated.error.issues[0]?.message || "Motif invalide" };
     }
 
     try {
@@ -1049,7 +1049,7 @@ export async function updateMemberAlts(
 
     const validated = altsSchema.safeParse({ alts });
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0]?.message || "Format des mules invalide" };
+        return { success: false, error: validated.error.issues[0]?.message || "Format des mules invalide" };
     }
 
     try {
@@ -1108,7 +1108,7 @@ export async function addMemberRegistryComment(
 
     const validated = registryCommentSchema.safeParse(input);
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0]?.message || "Commentaire invalide" };
+        return { success: false, error: validated.error.issues[0]?.message || "Commentaire invalide" };
     }
 
     try {
@@ -1196,7 +1196,7 @@ export async function updateMemberRegistryIdentity(
 
     const validated = registryIdentitySchema.safeParse(input);
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0]?.message || "Données invalides" };
+        return { success: false, error: validated.error.issues[0]?.message || "Données invalides" };
     }
 
     try {
@@ -1301,7 +1301,7 @@ export async function updateGuildLifecycleConfig(
 
     const validated = updateConfigSchema.safeParse(configData);
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0]?.message || "Paramètres invalides" };
+        return { success: false, error: validated.error.issues[0]?.message || "Paramètres invalides" };
     }
 
     try {
@@ -1822,7 +1822,7 @@ export async function updateMemberRegistryComment(
 
     const validated = registryCommentEditSchema.safeParse(input);
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0]?.message || "Commentaire invalide" };
+        return { success: false, error: validated.error.issues[0]?.message || "Commentaire invalide" };
     }
 
     try {

@@ -156,7 +156,7 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
 
     const validated = CreateRunSchema.safeParse(data);
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0].message };
+        return { success: false, error: validated.error.issues[0].message };
     }
 
     // Classe du meneur : validée contre SON roster (main + mules), fail-closed. Le menu
@@ -307,7 +307,7 @@ export async function updateDreamRun(
 
     const validated = UpdateRunSchema.safeParse(data);
     if (!validated.success) {
-        return { success: false, error: validated.error.errors[0].message };
+        return { success: false, error: validated.error.issues[0].message };
     }
 
     // RATE LIMIT : 10 éditions par 10 minutes (anti-spam)

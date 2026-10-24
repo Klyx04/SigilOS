@@ -1882,7 +1882,7 @@ export async function updateDjPost(
 
     const parsed = updatePostSchema.safeParse(payload);
     if (!parsed.success) {
-        logger.warn("[updateDjPost] payload invalide", { error: parsed.error.errors[0]?.message });
+        logger.warn("[updateDjPost] payload invalide", { error: parsed.error.issues[0]?.message });
         return { success: false, error: "Données invalides" };
     }
     const data = parsed.data;

@@ -2318,7 +2318,7 @@ export async function reviewAchievementSubmission(input: z.infer<typeof reviewAc
     if (!guard.allowed) return { success: false, error: guard.error };
 
     const parsed = reviewAchievementSchema.safeParse(input);
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message };
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
     try {
         const submission = await (db as any).achievementSubmission.findUnique({

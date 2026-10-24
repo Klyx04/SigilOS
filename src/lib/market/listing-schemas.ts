@@ -241,8 +241,9 @@ export const ENGLISH_ZOD_MESSAGE_RE =
     /must contain|must be|expected .*, received|invalid (enum value|type|literal|union|discriminator|string|number|boolean|date|array)|too small|too big|not_finite|unrecognized key/i;
 
 /** Libellé lisible d'un segment de chemin Zod (`items.2.priceKamas` → lisible). */
-function segmentLabel(segment: string | number): string {
+function segmentLabel(segment: PropertyKey): string {
     if (typeof segment === "number") return `n°${segment + 1}`;
+    const normalized = typeof segment === "symbol" ? segment.toString() : segment;
     const labels: Record<string, string> = {
         title: "titre",
         description: "description",
@@ -271,11 +272,11 @@ function segmentLabel(segment: string | number): string {
         acceptsTrade: "troc",
         forgedBy: "mention « modifié par »",
     };
-    return labels[segment] ?? String(segment);
+    return labels[String(normalized)] ?? String(normalized);
 }
 
 /** `items.2.priceKamas` → « objet n°3 — prix » (contexte de lot conservé). */
-export function fieldLabel(path: (string | number)[]): string {
+export function fieldLabel(path: readonly PropertyKey[]): string {
     if (path.length === 0) return "formulaire";
     const [head, ...rest] = path;
     if ((head === "items" || head === "components" || head === "stats" || head === "criteria") && typeof rest[0] === "number") {
@@ -290,17 +291,17 @@ export function fieldLabel(path: (string | number)[]): string {
 /** Code Zod → phrase française générique (repli quand le message n'est pas déjà FR). */
 function genericFrenchMessage(issue: z.ZodIssue, label: string): string {
     switch (issue.code) {
-        case z.ZodIssueCode.too_small:
-            if (issue.type === "string") return `« ${label} » : champ à compléter.`;
+        case "too_small":
+            // zod 4 : le type de valeur contrôlée est porté par `origin` (plus `type`).
+            if ((issue as { origin?: string }).origin === "string") return `« ${label} » : champ à compléter.`;
             return `« ${label} » : valeur trop petite.`;
-        case z.ZodIssueCode.too_big:
+        case "too_big":
             return `« ${label} » : valeur trop grande, vérifie ta saisie.`;
-        case z.ZodIssueCode.invalid_type:
+        case "invalid_type":
             return `« ${label} » : saisie invalide, vérifie ce champ.`;
-        case z.ZodIssueCode.invalid_enum_value:
+        case "invalid_value":
+            // Remplace l'ancien `invalid_enum_value` (fusionné en v4).
             return `« ${label} » : choix invalide.`;
-        case z.ZodIssueCode.not_finite:
-            return `« ${label} » : nombre invalide.`;
         default:
             return `« ${label} » : saisie invalide, vérifie ce champ.`;
     }

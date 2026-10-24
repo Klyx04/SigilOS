@@ -287,7 +287,7 @@ export async function addUserSkin(rawData: z.infer<typeof SkinSchema>): Promise<
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
     const validation = SkinSchema.safeParse(rawData);
-    if (!validation.success) return { success: false, error: validation.error.errors[0].message };
+    if (!validation.success) return { success: false, error: validation.error.issues[0].message };
     const { guildId, url, name: manualName, existingSkinId } = validation.data;
 
     try {

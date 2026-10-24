@@ -340,6 +340,27 @@ export function ticketButtonLayoutForMotif(
 }
 
 /**
+ * 🏷️ **Nom du salon une fois le ticket fermé** (sans migration, même tiroir
+ * `settingsJson`). Chaîne vide = défaut (`ticket-clos`, appliqué par
+ * `formatClosedTicketChannelName`). Placeholders : `{num}`, `{user}`, `{journey}`.
+ */
+export type TicketNamingSettings = {
+    closedChannelPattern: string;
+};
+
+export function readTicketNamingSettings(raw: unknown): TicketNamingSettings {
+    const input =
+        raw && typeof raw === "object" && !Array.isArray(raw)
+            ? (raw as Record<string, unknown>)
+            : {};
+    const pattern =
+        typeof input.closedChannelPattern === "string"
+            ? input.closedChannelPattern.trim().slice(0, 80)
+            : "";
+    return { closedChannelPattern: pattern };
+}
+
+/**
  * 📩 **Messagerie des avis + langue du serveur** (sans migration, même tiroir
  * `settingsJson`) : où part l'enquête de satisfaction (`DM` = message privé,
  * `TICKET` = boutons dans le salon fermé non supprimé) et dans quelle langue
@@ -382,6 +403,8 @@ export function writeTicketPermissionSettings(
         ticketLanguage: "fr" | "en";
         csatTitle?: string;
         csatDescription?: string;
+        /** 🏷️ Nom du salon après fermeture (`settingsJson.closedChannelPattern`). */
+        closedChannelPattern?: string;
     }>
 ): Record<string, unknown> {
     const base = (current && typeof current === "object" && !Array.isArray(current)
@@ -406,6 +429,10 @@ export function writeTicketPermissionSettings(
     }
     if (patch.csatDescription !== undefined) {
         base.csatDescription = typeof patch.csatDescription === "string" ? patch.csatDescription.slice(0, 2048) : "";
+    }
+    if (patch.closedChannelPattern !== undefined) {
+        base.closedChannelPattern =
+            typeof patch.closedChannelPattern === "string" ? patch.closedChannelPattern.trim().slice(0, 80) : "";
     }
     if (patch.category) {
         const categories =

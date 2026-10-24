@@ -16,7 +16,8 @@ import {
 import { updateTicketGuildConfigAction, saveTicketGuildPermissionsAction } from "@/server/actions/ticket-bot-actions";
 import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
 import { TicketRolesPicker } from "../ticket-discord-pickers";
-import { readTicketPermissionSettings, readTicketMessagingSettings, type TicketCsatDestination } from "@/lib/tickets/category-permissions";
+import { readTicketPermissionSettings, readTicketMessagingSettings, readTicketNamingSettings, type TicketCsatDestination } from "@/lib/tickets/category-permissions";
+import { DEFAULT_CLOSED_CHANNEL_PATTERN, formatClosedTicketChannelName } from "@/lib/tickets/embeds";
 import {
     TICKET_CHANNEL_GROUPS,
     TICKET_CHANNEL_GROUP_LABELS,
@@ -108,6 +109,15 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
     const patchButton = (key: TicketButtonKey, patch: Partial<NonNullable<TicketButtonSettings[TicketButtonKey]>>) =>
         setButtonSettings((previous) => ({ ...previous, [key]: { ...previous[key], ...patch } }));
     const [ticketLanguage, setTicketLanguage] = useState<"fr" | "en">(initialMessaging.ticketLanguage);
+    // 🏷️ Nom du salon une fois le ticket fermé (réglage du staff, `ticket-clos` par défaut).
+    const [closedChannelPattern, setClosedChannelPattern] = useState<string>(
+        readTicketNamingSettings(config?.settingsJson).closedChannelPattern
+    );
+    const closedChannelPreview = formatClosedTicketChannelName(closedChannelPattern, {
+        number: 42,
+        user: "membre",
+        journey: "Support",
+    });
 
     // 🆕 Matrice Ouvert/Fermé (4 groupes × 2 états × 8 permissions, sans migration).
     const [matrix, setMatrix] = useState<TicketChannelMatrix>(() =>
@@ -154,6 +164,7 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 csatTitle,
                 csatDescription,
                 buttons: buttonSettings,
+                closedChannelPattern,
             });
 
             if (!permRes.success) {
@@ -185,6 +196,27 @@ export function TicketSettingsTab({ guildId, config, onRefresh }: TicketSettings
                 <Button onClick={handleSave} disabled={isPending} size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">
                     <Save className="h-3.5 w-3.5 mr-1" /> Sauvegarder
                 </Button>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-emerald-400" /> Nom du salon à la clôture
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                    Le salon est renommé à la fermeture, puis reprend son nom d&apos;ouverture si le ticket est
+                    rouvert. Placeholders : <code className="font-mono">{"{num}"}</code>,{" "}
+                    <code className="font-mono">{"{user}"}</code>,{" "}
+                    <code className="font-mono">{"{journey}"}</code>.
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <Input
+                        value={closedChannelPattern}
+                        onChange={(event) => setClosedChannelPattern(event.target.value)}
+                        placeholder={DEFAULT_CLOSED_CHANNEL_PATTERN}
+                        className="text-xs h-9 font-mono bg-background max-w-xs"
+                    />
+                    <span className="text-[11px] text-emerald-400 font-mono">→ {closedChannelPreview}</span>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

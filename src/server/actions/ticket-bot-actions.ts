@@ -50,6 +50,10 @@ import {
 } from "@/lib/tickets/button-config";
 import { normalizeTicketIcon } from "@/lib/tickets/ticket-icons";
 import {
+    renameTicketChannelOnClose,
+    restoreTicketChannelNameOnReopen,
+} from "@/server/tickets/channel-naming";
+import {
     readTicketMessagingSettings,
     readTicketPermissionSettings,
     resolveCategoryClosePolicy,
@@ -276,6 +280,8 @@ export async function saveTicketGuildPermissionsAction(
          * Un bouton `disabled` est réellement retiré du message.
          */
         buttons?: TicketButtonSettings;
+        /** 🏷️ Nom du salon après fermeture (`ticket-clos` par défaut, vide = défaut). */
+        closedChannelPattern?: string;
     }
 ): Promise<ActionResponse> {
     try {
@@ -304,6 +310,7 @@ export async function saveTicketGuildPermissionsAction(
             ticketLanguage: patch.ticketLanguage,
             csatTitle: patch.csatTitle,
             csatDescription: patch.csatDescription,
+            closedChannelPattern: patch.closedChannelPattern,
         });
         if (patch.channelPermissions) {
             // Relecture stricte : seules les 3 groupes modifiables, booléens exigés.
@@ -1064,6 +1071,20 @@ export async function closeTicketAction(
                     ticketId: ticket.id,
                 });
             }
+            // 🏷️ Le salon passe au nom de fermeture défini par le staff (`ticket-clos`).
+            await renameTicketChannelOnClose({
+                discordChannelId: ticket.discordChannelId,
+                naming: {
+                    ticketNumber: ticket.ticketNumber,
+                    creatorDiscordName: ticket.creatorDiscordName,
+                    journey: ticket.journey
+                        ? { name: ticket.journey.name, namingPattern: ticket.journey.namingPattern }
+                        : null,
+                    category: ticket.category ? { name: ticket.category.name } : null,
+                },
+                settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                ticketId: ticket.id,
+            });
             const closeLang = resolveTicketLang(
                 readTicketMessagingSettings(
                     (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
@@ -1100,24 +1121,19 @@ export async function closeTicketAction(
             await sendChannelMessage(
                 ticket.discordChannelId,
                 closeLang === "en"
-                    ? `📦 Ticket #${ticket.ticketNumber} closed by **${closeBy}**${reason ? ` — ${reason.slice(0, 200)}` : ""}`
-                    : `📦 Ticket #${ticket.ticketNumber} fermé par **${closeBy}**${reason ? ` — ${reason.slice(0, 200)}` : ""}`,
+                    ? `📦 Ticket #${ticket.ticketNumber} closed by **${closeBy}**`
+                    : `📦 Ticket #${ticket.ticketNumber} fermé par **${closeBy}**`,
                 {
                     embedTitle:
                         closeLang === "en"
                             ? `📦 Ticket #${ticket.ticketNumber} — Closed`
                             : `📦 Ticket #${ticket.ticketNumber} — Fermé`,
                     embedColor: 0x71717a,
-                    embedDescription: [
+                    // 🔇 Le **motif** n'est plus affiché : un membre n'a pas à lire
+                    // « Exécution de la commande /bienvenue ». Il reste en base
+                    // (`closedReason`), dans l'audit et dans les archives staff.
+                    embedDescription:
                         closeLang === "en" ? `Closed by **${closeBy}**` : `Fermé par **${closeBy}**`,
-                        reason
-                            ? closeLang === "en"
-                                ? `Reason: ${reason.slice(0, 300)}`
-                                : `Motif : ${reason.slice(0, 300)}`
-                            : null,
-                    ]
-                        .filter(Boolean)
-                        .join("\n\n"),
                     embedFooter: `SigilOS Tickets · #${ticket.ticketNumber}`,
                     components: buildModerationRows(
                         ticket.id,
@@ -3409,6 +3425,20 @@ export async function internalHandleTicketClose(params: {
                     ticketId: ticket.id,
                 });
             }
+            // 🏷️ Salon renommé selon le réglage du module (`ticket-clos` par défaut).
+            await renameTicketChannelOnClose({
+                discordChannelId: ticket.discordChannelId,
+                naming: {
+                    ticketNumber: ticket.ticketNumber,
+                    creatorDiscordName: ticket.creatorDiscordName,
+                    journey: ticket.journey
+                        ? { name: ticket.journey.name, namingPattern: ticket.journey.namingPattern }
+                        : null,
+                    category: ticket.category ? { name: ticket.category.name } : null,
+                },
+                settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                ticketId: ticket.id,
+            });
             const internalCloseLang = resolveTicketLang(
                 readTicketMessagingSettings(
                     (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson
@@ -3443,26 +3473,20 @@ export async function internalHandleTicketClose(params: {
             await sendChannelMessage(
                 ticket.discordChannelId,
                 internalCloseLang === "en"
-                    ? `📦 Ticket #${ticket.ticketNumber} closed by **${params.discordUserName}**${params.reason ? ` — ${params.reason.slice(0, 200)}` : ""}`
-                    : `📦 Ticket #${ticket.ticketNumber} fermé par **${params.discordUserName}**${params.reason ? ` — ${params.reason.slice(0, 200)}` : ""}`,
+                    ? `📦 Ticket #${ticket.ticketNumber} closed by **${params.discordUserName}**`
+                    : `📦 Ticket #${ticket.ticketNumber} fermé par **${params.discordUserName}**`,
                 {
                     embedTitle:
                         internalCloseLang === "en"
                             ? `📦 Ticket #${ticket.ticketNumber} — Closed`
                             : `📦 Ticket #${ticket.ticketNumber} — Fermé`,
                     embedColor: 0x71717a,
-                    embedDescription: [
+                    // 🔇 Pas de motif affiché (ex. « Exécution de la commande /bienvenue ») :
+                    // il reste en base, dans l'audit et dans les archives staff.
+                    embedDescription:
                         internalCloseLang === "en"
                             ? `Closed by **${params.discordUserName}**`
                             : `Fermé par **${params.discordUserName}**`,
-                        params.reason
-                            ? internalCloseLang === "en"
-                                ? `Reason: ${params.reason.slice(0, 300)}`
-                                : `Motif : ${params.reason.slice(0, 300)}`
-                            : null,
-                    ]
-                        .filter(Boolean)
-                        .join("\n\n"),
                     embedFooter: `SigilOS Tickets · #${ticket.ticketNumber}`,
                     components: buildModerationRows(
                         ticket.id,
@@ -3764,6 +3788,19 @@ export async function internalHandleTicketReopen(params: {
                     ticketId: ticket.id,
                 });
             }
+            // 🏷️ Le salon reprend son nom d'ouverture (il portait `ticket-clos`).
+            await restoreTicketChannelNameOnReopen({
+                discordChannelId: ticket.discordChannelId,
+                naming: {
+                    ticketNumber: ticket.ticketNumber,
+                    creatorDiscordName: ticket.creatorDiscordName,
+                    journey: ticket.journey
+                        ? { name: ticket.journey.name, namingPattern: ticket.journey.namingPattern }
+                        : null,
+                    category: ticket.category ? { name: ticket.category.name } : null,
+                },
+                ticketId: ticket.id,
+            });
         }
 
         if (ticket.discordChannelId) {

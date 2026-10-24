@@ -84,6 +84,21 @@ export function formatTicketChannelName(
     return slug.length > 0 ? slug : `ticket-${String(vars.number).padStart(4, "0")}`;
 }
 
+/**
+ * Nom du salon **une fois le ticket fermé** (réglage `closedChannelPattern`).
+ * Défaut : `ticket-clos`. Mêmes placeholders que l'ouverture (`{num}`, `{user}`,
+ * `{journey}`) et même assainissement (minuscules, `[a-z0-9-_]`, 100 caractères).
+ */
+export const DEFAULT_CLOSED_CHANNEL_PATTERN = "ticket-clos";
+
+export function formatClosedTicketChannelName(
+    pattern: string | null | undefined,
+    vars: { number: number; user: string; journey: string }
+): string {
+    const safe = (pattern ?? "").trim() || DEFAULT_CLOSED_CHANNEL_PATTERN;
+    return formatTicketChannelName(safe, vars);
+}
+
 /** `#6366f1` → entier Discord ; toute valeur douteuse retombe sur l'indigo SigilOS. */
 export function parseEmbedColor(color: string | null | undefined): number {
     const fallback = 0x6366f1;

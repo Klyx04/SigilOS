@@ -748,7 +748,8 @@ export function TicketCommandsTab({
                         </Badge>
                     </h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                        Créez jusqu&apos;à 20 commandes slash Discord rapides, utilisables exclusivement dans les salons de tickets de votre guilde.
+                        Créez jusqu&apos;à 20 commandes slash Discord rapides. Le bot les déploie sur votre
+                        serveur et ne les <strong>exécute</strong> que dans un salon de ticket ouvert.
                     </p>
                 </div>
 
@@ -772,7 +773,14 @@ export function TicketCommandsTab({
                 <div className="space-y-0.5 text-xs">
                     <div className="font-semibold text-foreground">Comment fonctionnent ces commandes sur Discord ?</div>
                     <p className="text-muted-foreground text-[11px] leading-relaxed">
-                        Chaque commande créée ici est automatiquement synchronisée avec l&apos;API Discord. Lorsqu&apos;un membre du staff tape <code className="bg-surface px-1 py-0.5 rounded font-mono text-emerald-400">/</code> dans un salon de ticket, Discord lui propose la commande avec autocomplétion intelligente, gestion des rôles et message personnalisé.
+                        Chaque commande créée ici est <strong>déployée</strong> sur votre serveur (API Discord)
+                        dès l&apos;enregistrement, puis le bot refuse son exécution hors d&apos;un salon de ticket
+                        ouvert. ⚠️ <strong>La visibilité</strong> (voir la commande dans le picker{" "}
+                        <code className="bg-surface px-1 py-0.5 rounded font-mono text-emerald-400">/</code>)
+                        dépend de Discord : par <strong>rôle</strong>, elle se règle à la main dans
+                        Discord → Intégrations (un bot n&apos;a pas le droit d&apos;écrire ces dérogations). Et
+                        si un filtre <strong>par salon</strong> y est posé, la commande disparaît aussi des
+                        salons de tickets (créés après coup) : laisse « Tous les salons » autorisé.
                     </p>
                 </div>
             </div>
@@ -1556,7 +1564,11 @@ export function TicketCommandsTab({
                                                 Étape 4 : Définir qui a l&apos;autorisation d&apos;utiliser cette commande
                                             </div>
                                             <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                                Ces commandes ne fonctionnent <strong>jamais</strong> dans les salons publics de votre serveur : elles sont <strong>strictement restreintes</strong> aux salons de tickets ouverts de votre guilde. Choisissez ici qui a le droit de les exécuter.
+                                                Le bot refuse <strong>toujours</strong> l&apos;exécution hors
+                                                d&apos;un salon de ticket ouvert. Ici, tu choisis qui a le droit de
+                                                l&apos;exécuter. Pour <strong>masquer</strong> aussi la commande à
+                                                certains rôles dans Discord, c&apos;est un réglage manuel
+                                                (Intégrations) : un bot ne peut pas écrire ces dérogations.
                                             </p>
                                         </div>
                                     </div>

@@ -258,6 +258,8 @@ async function ticketJourneyInteraction(input: {
 }
 
 export async function POST(request: NextRequest) {
+    const interactionStartedAt = Date.now();
+    let interactionLabel: string | null = null;
     try {
         const bodyText = await request.text();
         const isValid = await verifyDiscordSignature(request, bodyText);
@@ -277,6 +279,16 @@ export async function POST(request: NextRequest) {
         }
 
         const payload = JSON.parse(bodyText);
+
+        // Étiquette de diagnostic (jamais de contenu utilisateur) : sert à savoir
+        // QUELLE interaction dépasse le budget de 3 s.
+        const rawCustomId = typeof payload?.data?.custom_id === "string" ? payload.data.custom_id : "";
+        interactionLabel =
+            payload?.type === 2
+                ? `/${String(payload.data?.name ?? "?")}`
+                : payload?.type === 3 || payload?.type === 5
+                  ? `${payload.type === 3 ? "button" : "modal"}:${rawCustomId.split(":")[0] || "?"}`
+                  : `type:${String(payload?.type ?? "?")}`;
 
         // 1. Handle Ping
         if (payload.type === 1) {
@@ -4210,5 +4222,15 @@ export async function POST(request: NextRequest) {
                 flags: 64,
             },
         });
+    } finally {
+        // ⏱️ Trace **par chemin** : jusqu'ici, rien ne disait quelle interaction
+        // frôlait les 3 s de Discord (les logs bêta étaient vides sur 40 min).
+        const elapsedMs = Date.now() - interactionStartedAt;
+        if (elapsedMs > 2_500) {
+            logger.warn("[Discord Interaction] interaction lente (> budget)", {
+                elapsedMs,
+                interaction: interactionLabel,
+            });
+        }
     }
 }

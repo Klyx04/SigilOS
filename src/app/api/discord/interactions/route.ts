@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/ratelimit";
 import { getAppBaseUrl } from "@/lib/utils";
 import { DOFUS_JOBS, DAYS_OF_WEEK } from "@/lib/dofus-assets";
 import { PREFERRED_ACTIVITIES } from "@/lib/profile-activities";
@@ -34,41 +35,19 @@ const VALID_CLASSES = [
 ];
 
 // ============================================
-// RATE LIMIT (simple in-memory, per Discord user)
+// RATE LIMIT (Redis, par utilisateur Discord)
 // ============================================
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(key: string, maxRequests: number, windowMs: number): boolean {
-    const now = Date.now();
-    const entry = rateLimitMap.get(key);
-
-    if (!entry || now > entry.resetAt) {
-        rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
-        return true;
-    }
-
-    if (entry.count >= maxRequests) return false;
-
-    entry.count++;
-    return true;
-}
-
-/** Returns remaining wait seconds (0 = not rate-limited) */
-function getRateLimitRemaining(key: string, maxRequests: number, windowMs: number): number {
-    const now = Date.now();
-    const entry = rateLimitMap.get(key);
-
-    if (!entry || now > entry.resetAt) {
-        rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
-        return 0;
-    }
-
-    if (entry.count >= maxRequests) {
-        return Math.ceil((entry.resetAt - now) / 1000);
-    }
-
-    entry.count++;
-    return 0;
+/**
+ * Consomme un jeton et renvoie l'attente en **secondes** (`0` = autorisé).
+ *
+ * Store **Redis** (`rateLimit`, avec son repli mémoire **borné** et purge) : l'ancienne
+ * `Map` locale de cette route grandissait sans purge et repartait de zéro à chaque
+ * déploiement — deux instances = deux compteurs (règle `AGENTS.md` §5.8).
+ */
+async function consumeRateLimit(key: string, maxRequests: number, windowMs: number): Promise<number> {
+    const result = await rateLimit(`discord-interaction:${key}`, maxRequests, windowMs);
+    if (result.success) return 0;
+    return Math.max(1, Math.ceil((result.reset - Date.now()) / 1000));
 }
 
 // ============================================
@@ -331,7 +310,7 @@ export async function POST(request: NextRequest) {
             };
 
             // Rate limit: 10 interactions per 60s per discord user
-            if (!checkRateLimit(`interaction:${discordUserId}`, 10, 60_000)) {
+            if ((await consumeRateLimit(`interaction:${discordUserId}`, 10, 60_000)) > 0) {
                 return NextResponse.json({
                     type: 4,
                     data: { content: "⏳ Tu fais trop de requêtes. Réessaie dans quelques secondes.", flags: 64 },
@@ -372,7 +351,7 @@ export async function POST(request: NextRequest) {
 
                 if (prefix === "dj") {
                     const djKey = `dj:${member.user.id}:${entityId}`;
-                    const waitSecs = getRateLimitRemaining(djKey, 3, 30_000);
+                    const waitSecs = await consumeRateLimit(djKey, 3, 30_000);
                     if (waitSecs > 0) {
                         return ephemeralDiscordMessage(`⏳ Doucement ! Réessaie dans **${waitSecs}s**.`);
                     }
@@ -623,7 +602,7 @@ export async function POST(request: NextRequest) {
             } else if (prefix === "dj") {
                 // Rate limit spécifique DJ : 3 actions (join/leave) par post par user / 30s
                 const djKey = `dj:${member.user.id}:${entityId}`;
-                const waitSecs = getRateLimitRemaining(djKey, 3, 30_000);
+                const waitSecs = await consumeRateLimit(djKey, 3, 30_000);
                 if (waitSecs > 0) {
                     return NextResponse.json({
                         type: 4,
@@ -1077,7 +1056,7 @@ export async function POST(request: NextRequest) {
                 // =========================================================
                 if (action === "open") {
                     // RATE LIMIT: 1 ticket every 10 seconds per user
-                    const waitSec = getRateLimitRemaining(`ticket:${member.user.id}`, 1, 10_000);
+                    const waitSec = await consumeRateLimit(`ticket:${member.user.id}`, 1, 10_000);
                     if (waitSec > 0) {
                         return NextResponse.json({
                             type: 4,
@@ -2109,7 +2088,7 @@ export async function POST(request: NextRequest) {
             const [prefix, action, entityId, extra] = custom_id.split(":");
 
             // Rate limit: 5 modal submits per 5min per discord user
-            if (!checkRateLimit(`modal:${member.user.id}`, 5, 5 * 60_000)) {
+            if ((await consumeRateLimit(`modal:${member.user.id}`, 5, 5 * 60_000)) > 0) {
                 return NextResponse.json({
                     type: 4,
                     data: { content: "⏳ Trop de candidatures. Réessaie dans quelques minutes.", flags: 64 },
@@ -4073,7 +4052,7 @@ export async function POST(request: NextRequest) {
                         }
 
                         // Verrou anti-spam : max 3 exécutions par 5s par utilisateur
-                        if (!checkRateLimit(`ticket-cmd:${discordUserId}:${channelId}`, 3, 5_000)) {
+                        if ((await consumeRateLimit(`ticket-cmd:${discordUserId}:${channelId}`, 3, 5_000)) > 0) {
                             return NextResponse.json({
                                 type: 4,
                                 data: {

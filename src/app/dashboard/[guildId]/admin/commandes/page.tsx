@@ -66,18 +66,30 @@ export default async function AdminCommandesPage({ params }: Props) {
     ]);
 
     const { SLASH_COMMANDS_CATALOG } = await import("@/lib/slash-commands-catalog");
+    const { isCatalogCommandDeployed } = await import("@/lib/discord/command-permissions");
     const permMap = new Map(permissions.map(p => [p.commandName, p]));
 
-    const slashPerms = SLASH_COMMANDS_CATALOG.map(cmd => {
-        const existing = permMap.get(cmd.name);
-        return {
-            command: { ...cmd, staffOnly: cmd.staffOnly ?? false },
-            isEnabled: existing ? existing.isEnabled : true,
-            roleIds: existing ? existing.roleIds : [],
-            channelIds: existing ? existing.channelIds : [],
-            config: (existing?.config as { addRoleId: string | null; removeRoleId: string | null } | null) ?? null,
-        };
-    });
+    const slashPerms = SLASH_COMMANDS_CATALOG
+        // Une commande non déployée sur la guilde (God l'a retirée, ou `staffOnly`
+        // jamais autorisée) **ne doit pas** apparaître : elle n'existe pas sur Discord,
+        // donc il n'y a rien à configurer ici.
+        .filter((cmd) => {
+            const existing = permMap.get(cmd.name);
+            return isCatalogCommandDeployed(
+                cmd,
+                existing ? { commandName: existing.commandName, isEnabled: existing.isEnabled } : null
+            );
+        })
+        .map(cmd => {
+            const existing = permMap.get(cmd.name);
+            return {
+                command: { ...cmd, staffOnly: cmd.staffOnly ?? false },
+                isEnabled: existing ? existing.isEnabled : true,
+                roleIds: existing ? existing.roleIds : [],
+                channelIds: existing ? existing.channelIds : [],
+                config: (existing?.config as { addRoleId: string | null; removeRoleId: string | null } | null) ?? null,
+            };
+        });
 
     const discordRoles = rawRoles.map((r: any) => ({
         id: r.id,

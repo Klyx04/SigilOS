@@ -181,7 +181,7 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
             success: true,
             data: updated,
             sync: sync
-                ? { ok: sync.ok, error: sync.error, permissionErrors: sync.permissionErrors }
+                ? { ok: sync.ok, error: sync.error, permissionDrift: sync.permissionDrift, throttled: sync.throttled }
                 : null,
         };
     } catch (err) {
@@ -200,7 +200,9 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
 export async function syncGuildCommandsAction(guildId: string): Promise<{
     success: boolean;
     count?: number;
-    permissionErrors?: string[];
+    throttled?: boolean;
+    /** Commandes dont les dérogations Discord diffèrent (le bot ne peut pas les écrire). */
+    permissionDrift?: string[];
     error?: string;
 }> {
     try {
@@ -233,7 +235,8 @@ export async function syncGuildCommandsAction(guildId: string): Promise<{
         return {
             success: true,
             count: sync.count,
-            permissionErrors: sync.permissionErrors,
+            throttled: sync.throttled,
+            permissionDrift: sync.permissionDrift,
         };
     } catch (err) {
         logger.error("[syncGuildCommandsAction Error]", err);

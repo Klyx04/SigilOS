@@ -86,7 +86,8 @@ export async function setGodCommandScopeAction(input: unknown): Promise<{
     success: boolean;
     deployed?: boolean;
     count?: number;
-    permissionErrors?: string[];
+    throttled?: boolean;
+    permissionDrift?: string[];
     error?: string;
 }> {
     if (!(await isSuperAdmin())) {
@@ -128,7 +129,8 @@ export async function setGodCommandScopeAction(input: unknown): Promise<{
             success: true,
             deployed: enabled,
             count: sync.count,
-            permissionErrors: sync.permissionErrors,
+            throttled: sync.throttled,
+            permissionDrift: sync.permissionDrift,
         };
     } catch (err) {
         logger.error("[setGodCommandScopeAction Error]", err);

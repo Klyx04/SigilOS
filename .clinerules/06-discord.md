@@ -25,6 +25,11 @@ paths:
   travail lourd) ; une réponse 5xx s'affiche « L'application n'a pas répondu ».
 - **Bulk overwrite** : `PUT /guilds/{id}/commands` remplace **toute** la liste — une commande absente
   est supprimée, dérogations comprises.
+- **Un bot ne peut pas écrire les dérogations** : `PUT .../commands/{id}/permissions` et
+  `PUT .../commands/permissions` répondent `403 { code: 20001, "Bots cannot use this endpoint" }`
+  (mesure du 24/10/2026). La **lecture** (GET) est autorisée. Un bot ne maîtrise donc que la
+  **définition** (dont `default_member_permissions`) ; la visibilité par rôle/salon se règle à la
+  **main** dans Intégrations et se fait respecter **à l'exécution**.
 - **Salons** : dérogation de type `3` ; « tous les salons » = `guildId − 1`. Un salon qui n'existe pas
   encore (ticket) ne peut pas y figurer.
 - **Fail-closed** si Discord refuse : remonter l'erreur, jamais un « ok » optimiste.

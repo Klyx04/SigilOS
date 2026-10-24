@@ -63,10 +63,8 @@ function useCommandScopes() {
             const res = await setGodCommandScopeAction({ guildId, commandName, enabled });
             if (!res.success) {
                 toast.error(res.error || "Discord a refusé la synchronisation");
-            } else if (res.permissionErrors?.length) {
-                toast.warning(
-                    `/${commandName} ${enabled ? "déployée" : "retirée"} sur ${guildName} — droits partiels : ${res.permissionErrors[0]}`
-                );
+            } else if (res.throttled) {
+                toast.info("Synchronisation déjà en cours — patiente quelques secondes.");
                 await load();
             } else {
                 toast.success(
@@ -74,6 +72,11 @@ function useCommandScopes() {
                         ? `/${commandName} déployée sur ${guildName}`
                         : `/${commandName} retirée de ${guildName}`
                 );
+                if (res.permissionDrift?.length) {
+                    toast.info(
+                        `Écart avec Discord sur ${res.permissionDrift.slice(0, 3).join(", ")} : un bot ne peut pas écrire les dérogations (rôles/salons). Le bot les fait respecter à l'exécution ; pour les masquer aussi, règle-les dans Discord → Intégrations.`
+                    );
+                }
                 await load();
             }
         } catch {

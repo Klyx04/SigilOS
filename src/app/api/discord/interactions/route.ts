@@ -3248,6 +3248,20 @@ export async function POST(request: NextRequest) {
 
                 if (guildConfig) {
                     const perm = guildConfig.slashCommandPermissions[0];
+                    // Commande `staffOnly` (ex. `/valider-recrue`) : elle n'existe sur la
+                    // guilde que si God l'a autorisée. Aucune ligne = pas déployée = refus,
+                    // même si un client Discord l'a encore en cache (fail-closed).
+                    const { SLASH_COMMANDS_CATALOG: catalogForGate } = await import("@/lib/slash-commands-catalog");
+                    const catalogCommand = catalogForGate.find((command) => command.name === commandName);
+                    if (catalogCommand?.staffOnly && !perm) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: {
+                                content: "🚫 Cette commande n'est pas déployée sur ce serveur.",
+                                flags: 64,
+                            },
+                        });
+                    }
                     if (perm && !perm.isEnabled) {
                         return NextResponse.json({
                             type: 4,

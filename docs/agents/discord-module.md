@@ -36,9 +36,11 @@ officiel dit l'inverse : `type` = `1` rôle, `2` membre, **`3` salon**, et « to
 
 | Piège | Réalité |
 |---|---|
-| Restriction par salon | Faisable **par commande** (entrées `type: 3`) ; impossible pour un salon **pas encore créé** (salon de ticket) |
+| Écrire une dérogation depuis le bot | **Refusé** : `403 code 20001 "Bots cannot use this endpoint"` — la **lecture** (GET) est autorisée, l'écriture est réservée à un **utilisateur** (Intégrations) |
+| Restriction par salon | Faisable **par commande**, à la main dans Intégrations (entrées `type: 3`) ; impossible pour un salon **pas encore créé** (salon de ticket) |
 | `PUT /guilds/{id}/commands` | **Remplace toute la liste** : une commande omise est supprimée, dérogations comprises |
 | Défauts d'application | Le réglage « Tous les salons » + `@everyone` refusé **masque toutes** les commandes ailleurs |
+| Boucle d'écritures | Bucket strict → `429 retry_after ≈ 23 s` : coalescer et étrangler (throttle) |
 | Réponse lente | **3 s** maximum, sinon « L'application n'a pas répondu » (même si le travail aboutit) |
 | `catch` muet sur une synchro | Affiche « Enregistré » alors que Discord a refusé |
 

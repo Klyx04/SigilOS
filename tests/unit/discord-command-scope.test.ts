@@ -163,6 +163,20 @@ describe("synchronisation — contrats de source", () => {
     });
 });
 
+describe("copie — ne pas promettre ce que Discord interdit", () => {
+    const tab = readFileSync(
+        "src/app/dashboard/[guildId]/tickets/_components/tabs/ticket-commands-tab.tsx",
+        "utf8"
+    );
+
+    it("la visibilité est expliquée (Intégrations) au lieu d'être promise comme automatique", () => {
+        expect(tab).not.toContain("strictement restreintes");
+        expect(tab).not.toContain("automatiquement synchronisée avec l&apos;API Discord");
+        expect(tab).toContain("Intégrations");
+        expect(tab).toContain("Tous les salons");
+    });
+});
+
 describe("dashboard admin — une commande non déployée n'est pas configurable", () => {
     const page = readFileSync("src/app/dashboard/[guildId]/admin/commandes/page.tsx", "utf8");
 

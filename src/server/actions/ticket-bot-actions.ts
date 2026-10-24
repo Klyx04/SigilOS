@@ -49,6 +49,7 @@ import {
     type TicketButtonSettings,
 } from "@/lib/tickets/button-config";
 import { normalizeTicketIcon } from "@/lib/tickets/ticket-icons";
+import { raceWithDeadline } from "@/lib/discord/deadline";
 import {
     renameTicketChannelOnClose,
     restoreTicketChannelNameOnReopen,
@@ -3007,6 +3008,31 @@ async function postTicketWelcomeMessage(input: {
 }
 
 /**
+ * Budget d'attente du PATCH du message d'accueil : l'ACK Discord doit partir < 3 s.
+ * Mesure du 24/10/2026 : ce PATCH atteint **2,66 s** au p95 sur la bêta.
+ */
+const TICKET_PATCH_DEADLINE_MS = 1_200;
+
+/**
+ * PATCH du message d'accueil **borné** : au-delà du budget, on ne bloque plus la
+ * réponse d'interaction (« L'application n'a pas répondu ») ; le PATCH n'est pas
+ * annulé, il se termine en tâche de fond et l'issue est journalisée (jamais muette).
+ */
+async function patchWelcomeWithinDeadline(
+    input: Parameters<typeof patchTicketWelcomeMessage>[0]
+): Promise<void> {
+    const outcome = await raceWithDeadline(
+        patchTicketWelcomeMessage(input),
+        TICKET_PATCH_DEADLINE_MS
+    );
+    if (outcome.status === "timeout") {
+        logger.warn("[Tickets] PATCH du message d'accueil au-delà du budget — poursuivi en tâche de fond", {
+            ticketId: input.ticketId,
+        });
+    }
+}
+
+/**
  * Identifiant du **message d'accueil** d'un ticket (`metadataJson.welcomeMessageId`).
  * Un ticket ouvert avant cette version n'en a pas : on ne patche alors rien — jamais de
  * faux succès (le message de modération prend le relais pour les boutons).
@@ -3449,7 +3475,7 @@ export async function internalHandleTicketClose(params: {
             );
             // 🆕 Le message d'accueil **révèle** Rouvrir / Transcript / Supprimer : c'est le
             // même message qui portait « Prendre en charge » et « Fermer le ticket ».
-            await patchTicketWelcomeMessage({
+            await patchWelcomeWithinDeadline({
                 ticketId: ticket.id,
                 channelId: ticket.discordChannelId,
                 metadataJson: ticket.metadataJson,
@@ -3811,7 +3837,7 @@ export async function internalHandleTicketReopen(params: {
             );
             // 🆕 Le message d'accueil repasse en état « ouvert » : les boutons redeviennent
             // « Prendre en charge » / « Fermer le ticket » (plus de Supprimer en évidence).
-            await patchTicketWelcomeMessage({
+            await patchWelcomeWithinDeadline({
                 ticketId: ticket.id,
                 channelId: ticket.discordChannelId,
                 metadataJson: ticket.metadataJson,

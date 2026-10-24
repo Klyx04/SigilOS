@@ -51,12 +51,15 @@ export function SlashCommandsRbacPanel({
             const res = await syncGuildCommandsAction(guildId);
             if (!res.success) {
                 toast.error(res.error || "Discord a refusé la synchronisation");
-            } else if (res.permissionErrors?.length) {
-                toast.warning(
-                    `${res.count ?? 0} commande(s) synchronisée(s) — droits partiels : ${res.permissionErrors[0]}`
-                );
+            } else if (res.throttled) {
+                toast.info("Synchronisation déjà en cours — patiente quelques secondes.");
             } else {
                 toast.success(`${res.count ?? 0} commande(s) synchronisée(s) avec Discord`);
+                if (res.permissionDrift?.length) {
+                    toast.info(
+                        `Écart de dérogations sur ${res.permissionDrift.slice(0, 3).join(", ")} : un bot ne peut pas les écrire. Le bot les fait respecter à l'exécution ; pour les masquer aussi, règle-les dans Discord → Intégrations.`
+                    );
+                }
             }
         } catch {
             toast.error("Erreur de communication avec le serveur");
@@ -147,12 +150,17 @@ export function SlashCommandsRbacPanel({
                     toast.warning(
                         `Enregistré — mais Discord a refusé la synchronisation : ${res.sync.error || "erreur inconnue"}`
                     );
-                } else if (res.sync?.permissionErrors?.length) {
-                    toast.warning(
-                        `Permissions enregistrées — droits Discord partiels : ${res.sync.permissionErrors[0]}`
-                    );
+                } else if (res.sync?.throttled) {
+                    toast.success(`Permissions enregistrées (Discord venait d'être synchronisé).`);
                 } else {
-                    toast.success(`Permissions pour /${commandName} appliquées (base + Discord) !`);
+                    toast.success(
+                        `Permissions pour /${commandName} enregistrées — le bot les applique à l'exécution.`
+                    );
+                    if (res.sync?.permissionDrift?.includes(`/${commandName}`)) {
+                        toast.info(
+                            `Discord applique encore une autre règle pour /${commandName} (dérogation posée à la main) : à corriger dans Discord → Intégrations.`
+                        );
+                    }
                 }
             } else {
                 toast.error(res.error || "Échec de l'enregistrement");
@@ -175,8 +183,9 @@ export function SlashCommandsRbacPanel({
                         <div>
                             <h3 className="text-base font-bold text-foreground">Commandes Slash Discord</h3>
                             <p className="text-xs text-muted-foreground">
-                                Rôles <strong>invisibles pour les autres</strong> et salons d&apos;exécution : chaque
-                                enregistrement est <strong>appliqué sur Discord</strong> immédiatement.
+                                Rôles et salons sont appliqués par le bot <strong>à l&apos;exécution</strong> (refus
+                                éphémère). Discord n&apos;autorise pas un bot à écrire les dérogations : pour
+                                <em> masquer</em> aussi la commande, règle-la dans Discord → Intégrations.
                             </p>
                         </div>
                     </div>

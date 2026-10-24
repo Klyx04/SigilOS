@@ -42,8 +42,12 @@ Jamais de secret affiché ; **aucune écriture** sans décision explicite. Une *
 ## 4. Écrire le code
 
 - Dériver les définitions d'une **source unique** (catalogue), pas d'une liste dupliquée.
-- Pousser les **permissions** (rôles + salons) et **effacer** une restriction périmée (`permissions: []`).
-- Une commande non déployée n'est **pas** enregistrée (elle disparaît partout, Intégrations comprises).
+- **Écrire** ce qui est permis : la **définition** des commandes (bulk `PUT .../commands`).
+- **Lire** ce qui ne l'est pas : `GET .../commands/permissions` sert au **diagnostic d'écart**.
+  Les dérogations rôles/salons se règlent **à la main** (Intégrations) et se font respecter
+  **à l'exécution** (refus éphémère).
+- Une commande non déployée n'est **pas** enregistrée (elle disparaît partout, Intégrations
+  comprises) **et** doit être refusée à l'exécution (fail-closed) et masquée dans le dashboard.
 - Tests de la règle **pure** (payloads) + contrat de source pour l'appel réseau.
 
 ## Pièges mesurés (à revérifier, pas à supposer)
@@ -51,9 +55,11 @@ Jamais de secret affiché ; **aucune écriture** sans décision explicite. Une *
 | Piège | Réalité |
 |---|---|
 | « Je vois la commande » | Un **admin** voit tout, quelles que soient les dérogations |
+| Écrire les dérogations depuis un bot | **Impossible** : `403 code 20001 "Bots cannot use this endpoint"` (GET autorisé) |
 | « Pas de `channels` dans la réponse » | Les salons sont des entrées `type: 3` du tableau `permissions` |
-| « Restreindre par salon » | Faisable **par commande** ; impossible pour un salon **pas encore créé** (ticket) |
+| « Restreindre par salon » | Faisable **par commande** (à la main) ; impossible pour un salon **pas encore créé** (ticket) |
 | `PUT /guilds/{id}/commands` | Remplace **toute** la liste : une commande omise est supprimée |
+| Boucle d'écritures | Bucket strict → `429 retry_after ≈ 23 s` : coalescer + throttle |
 | Réponse lente | 3 s maximum ; au-delà, « L'application n'a pas répondu » (même si le travail aboutit) |
 | Erreur avalée | Un `catch` muet = « Enregistré » alors que Discord a refusé |
 

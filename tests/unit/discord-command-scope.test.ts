@@ -135,29 +135,49 @@ describe("payloads Discord dérivés du catalogue", () => {
 describe("synchronisation — contrats de source", () => {
     const source = readFileSync("src/server/actions/discord-commands-sync.ts", "utf8");
 
-    it("pousse les permissions de CHAQUE commande (rôles + salons)", () => {
-        expect(source).toContain("/commands/${command.id}/permissions");
-        expect(source).toContain("buildCommandPermissionEntries");
-        expect(source).toContain("resolveTicketCommandRoleIds");
+    it("n'écrit JAMAIS les dérogations (Discord refuse aux bots, code 20001) et se contente de les LIRE", () => {
+        // Mesure du 24/10/2026 : PUT .../permissions → 403 "Bots cannot use this endpoint".
+        expect(source).toContain("readCommandPermissionDrift");
+        expect(source).not.toContain("commands/${command.id}/permissions");
+        expect(source).toContain("/commands/permissions");
+        expect(source).toContain("20001");
     });
 
-    it("réinitialise les défauts de l'application (plus de salons imposés à la main)", () => {
-        expect(source).toContain("/commands/permissions");
-        expect(source).toContain("permissions: []");
+    it("calcule l'écart avec les rôles/salons du dashboard (diagnostic, pas une écriture)", () => {
+        expect(source).toContain("buildCommandPermissionEntries");
+        expect(source).toContain("resolveTicketCommandRoleIds");
+        expect(source).toContain("permissionDrift");
     });
 
     it("ne déploie que les commandes autorisées sur la guilde", () => {
         expect(source).toContain("isCatalogCommandDeployed");
     });
 
-    it("remonte les erreurs de Discord au lieu de les avaler", () => {
-        expect(source).toContain("permissionErrors");
+    it("remonte l'écart et borne les appels (anti-429)", () => {
+        expect(source).toContain("throttled");
+        expect(source).toContain("rateLimit");
+        // Un 429 Discord est une limite attendue (warn + retry_after), pas une erreur Sentry.
+        expect(source).toContain("retryAfterMs");
+        expect(source).toContain("Discord limite les modifications");
         expect(source).toContain("logger.warn");
+    });
+});
+
+describe("dashboard admin — une commande non déployée n'est pas configurable", () => {
+    const page = readFileSync("src/app/dashboard/[guildId]/admin/commandes/page.tsx", "utf8");
+
+    it("filtre la matrice avec la même règle que la synchro (pas de carte fantôme)", () => {
+        expect(page).toContain("isCatalogCommandDeployed");
+        expect(page).toContain(".filter(");
     });
 });
 
 describe("gate d'exécution de /valider-recrue", () => {
     const route = readFileSync("src/app/api/discord/interactions/route.ts", "utf8");
+
+    it("refuse une commande staffOnly qui n'est pas déployée sur la guilde (fail-closed)", () => {
+        expect(route).toContain("n'est pas déployée sur ce serveur");
+    });
 
     it("accepte la permission RH, un rôle Discord autorisé ou un admin Discord", () => {
         expect(route).toContain("hasGuildRole");

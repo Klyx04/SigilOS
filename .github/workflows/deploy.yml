@@ -11,7 +11,7 @@ name: Build & Push Images
 # Prérequis :
 #  - Secrets GitHub : GHCR_PAT (Personal Access Token avec
 #    write:packages) ou utiliser GITHUB_TOKEN (défaut).
-#  - Secrets du build : BETA_PASSWORD, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SENTRY_DSN,
+#  - Secrets du build : NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SENTRY_DSN,
 #    SENTRY_AUTH_TOKEN (upload des source maps → stack traces LISIBLES dans Sentry ;
 #    sans lui le bloc `sourcemaps {}` de `next.config.ts` est inerte).
 #    (définis dans Settings > Secrets and variables > Actions).
@@ -147,7 +147,6 @@ jobs:
             retry_push "sigilos-${NAME}-${SUFFIX}" \
               -f Dockerfile \
               --build-arg NEXT_PUBLIC_APP_URL="${APP_URL}" \
-              --build-arg BETA_PASSWORD="${{ secrets.BETA_PASSWORD }}" \
               --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
               --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT="${SENTRY_ENV}" \
               --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \

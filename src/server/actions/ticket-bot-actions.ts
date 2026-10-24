@@ -18,6 +18,7 @@ import {
     deleteChannelDiscord,
     editInteractionMessage,
     patchChannelMessage,
+    deleteChannelMessage,
     sendChannelMessage,
 } from "@/server/discord";
 import { captureTicketArchives } from "@/server/tickets/archive";
@@ -49,6 +50,7 @@ import {
     type TicketButtonSettings,
 } from "@/lib/tickets/button-config";
 import { normalizeTicketIcon } from "@/lib/tickets/ticket-icons";
+import { isDiscordSnowflake } from "@/lib/discord-ids";
 import { raceWithDeadline } from "@/lib/discord/deadline";
 import {
     renameTicketChannelOnClose,
@@ -3369,12 +3371,32 @@ export async function internalHandleTicketClose(params: {
         // source de vérité — pagination réelle, partageable / annexe distinctes,
         // double verrou plateforme + guilde, échéance issue des **plafonds plateforme**).
         const archiveConfig = await ticketArchiveConfig(ticket.guildId);
-        const archive = await captureTicketArchives({
-            ticket,
-            config: archiveConfig,
-            closedByName: params.discordUserName,
-            closedReason: params.reason ?? null,
-        });
+        // 🛡️ Les archives ne doivent **jamais** faire échouer une clôture : la capture
+        // pagine tout l'historique du salon (plusieurs secondes sur un gros ticket, et
+        // un 404 si le salon a bougé). Échec ⇒ on poursuit avec un résumé « partiel »,
+        // journalisé — jamais une erreur muette ni un ticket à moitié fermé.
+        let archive: Awaited<ReturnType<typeof captureTicketArchives>>;
+        try {
+            archive = await captureTicketArchives({
+                ticket,
+                config: archiveConfig,
+                closedByName: params.discordUserName,
+                closedReason: params.reason ?? null,
+            });
+        } catch (archiveError) {
+            logger.warn("[internalHandleTicketClose] archives indisponibles — clôture poursuivie", {
+                ticketId: ticket.id,
+                error: archiveError,
+            });
+            archive = {
+                kinds: [],
+                captured: 0,
+                totalCount: null,
+                partial: true,
+                note: "Archives indisponibles : capture impossible au moment de la clôture.",
+                errors: ["capture impossible"],
+            };
+        }
 
         // Close ticket in DB
         await db.ticketRecord.update({
@@ -3406,23 +3428,31 @@ export async function internalHandleTicketClose(params: {
         // partagé** avec la fermeture depuis le dashboard (`sendTicketCsatSurvey`) :
         // mention du demandeur, et **repli** dans le salon fermé si les MP sont fermés
         // (avant : un MP refusé perdait l'avis en silence).
-        const csat = await sendTicketCsatSurvey({
-            ticket: {
-                id: ticket.id,
-                ticketNumber: ticket.ticketNumber,
-                creatorDiscordId: ticket.creatorDiscordId,
-                discordChannelId: ticket.discordChannelId,
-            },
-            guildName: ticket.guild.name,
-            motifName: ticket.journey?.name || ticket.category?.name || "Support",
-            settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
-            enableCsat: ticketConfig?.enableCsat !== false,
-        });
-        if (!csat.sent && csat.reason !== "disabled") {
-            logger.warn("[internalHandleTicketClose] enquête de satisfaction non envoyée", {
+        try {
+            const csat = await sendTicketCsatSurvey({
+                ticket: {
+                    id: ticket.id,
+                    ticketNumber: ticket.ticketNumber,
+                    creatorDiscordId: ticket.creatorDiscordId,
+                    discordChannelId: ticket.discordChannelId,
+                },
+                guildName: ticket.guild.name,
+                motifName: ticket.journey?.name || ticket.category?.name || "Support",
+                settingsJson: (ticketConfig as { settingsJson?: unknown } | null)?.settingsJson,
+                enableCsat: ticketConfig?.enableCsat !== false,
+            });
+            if (!csat.sent && csat.reason !== "disabled") {
+                logger.warn("[internalHandleTicketClose] enquête de satisfaction non envoyée", {
+                    ticketId: ticket.id,
+                    reason: csat.reason,
+                    detail: csat.detail,
+                });
+            }
+        } catch (csatError) {
+            // Un MP fermé / une enquête impossible ne doit pas annuler une clôture.
+            logger.warn("[internalHandleTicketClose] enquête de satisfaction en échec — clôture poursuivie", {
                 ticketId: ticket.id,
-                reason: csat.reason,
-                detail: csat.detail,
+                error: csatError,
             });
         }
 
@@ -3496,7 +3526,7 @@ export async function internalHandleTicketClose(params: {
                     enableTranscripts: archiveConfig.enableTranscripts,
                 }),
             });
-            await sendChannelMessage(
+            const moderationMessageId = await sendChannelMessage(
                 ticket.discordChannelId,
                 internalCloseLang === "en"
                     ? `📦 Ticket #${ticket.ticketNumber} closed by **${params.discordUserName}**`
@@ -3529,7 +3559,27 @@ export async function internalHandleTicketClose(params: {
                     error,
                     ticketId: ticket.id,
                 });
+                return null;
             });
+
+            // 🆕 Mémorise le message de modération pour pouvoir le **supprimer** à la
+            // réouverture (sinon sa barre de boutons « fermé » reste un vestige au-dessus
+            // du salon rouvert). Flocon réel uniquement : en mode outbox l'identifiant
+            // vaut `outbox:<jobId>` et ne peut être ni édité ni supprimé.
+            if (isDiscordSnowflake(moderationMessageId)) {
+                const metadata = (ticket.metadataJson as Record<string, unknown> | null) ?? {};
+                await db.ticketRecord
+                    .update({
+                        where: { id: ticket.id },
+                        data: { metadataJson: { ...metadata, moderationMessageId } },
+                    })
+                    .catch((metadataError) => {
+                        logger.warn("[internalHandleTicketClose] id du message de modération non mémorisé", {
+                            ticketId: ticket.id,
+                            error: metadataError,
+                        });
+                    });
+            }
         }
 
         return { success: true, message: `Ticket #${ticket.ticketNumber} clôturé avec succès.` };
@@ -3827,6 +3877,30 @@ export async function internalHandleTicketReopen(params: {
                 },
                 ticketId: ticket.id,
             });
+        }
+
+        // 🧹 Supprime le message de modération créé à la clôture : sa barre de boutons
+        // « fermé » (Rouvrir / Transcript / Supprimer) resterait un vestige au-dessus du
+        // salon rouvert, alors que le message d'accueil porte déjà les boutons de l'état
+        // ouvert. L'id est celui mémorisé à la fermeture (flocon réel uniquement).
+        if (ticket.discordChannelId) {
+            const staleModerationId = (ticket.metadataJson as { moderationMessageId?: unknown } | null)
+                ?.moderationMessageId;
+            if (isDiscordSnowflake(staleModerationId)) {
+                const removed = await deleteChannelMessage(ticket.discordChannelId, staleModerationId);
+                if (!removed) {
+                    logger.warn("[internalHandleTicketReopen] message de modération non supprimé", {
+                        ticketId: ticket.id,
+                    });
+                }
+                const metadata = (ticket.metadataJson as Record<string, unknown> | null) ?? {};
+                await db.ticketRecord
+                    .update({
+                        where: { id: ticket.id },
+                        data: { metadataJson: { ...metadata, moderationMessageId: null } },
+                    })
+                    .catch(() => undefined);
+            }
         }
 
         if (ticket.discordChannelId) {

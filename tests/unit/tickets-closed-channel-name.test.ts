@@ -89,4 +89,15 @@ describe("message de clôture et renommage — contrats de source", () => {
         expect(source).toContain("restoreTicketChannelNameOnReopen");
         expect(source).toContain("closedChannelPattern");
     });
+
+    it("la clôture est increvable (archives, CSAT) et le message de modération est nettoyé à la réouverture", () => {
+        // Un PATCH 404 (message d'accueil disparu), une enquête impossible ou une
+        // capture d'archives en échec ne doivent **jamais** annuler une clôture.
+        expect(source).toContain("archives indisponibles — clôture poursuivie");
+        expect(source).toContain("enquête de satisfaction en échec — clôture poursuivie");
+        // Le message de modération est mémorisé puis supprimé à la réouverture
+        // (sinon sa barre de boutons « fermé » reste un vestige).
+        expect(source).toContain("moderationMessageId");
+        expect(source).toContain("deleteChannelMessage");
+    });
 });

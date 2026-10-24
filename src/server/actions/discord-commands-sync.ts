@@ -3,150 +3,97 @@
 import { isSuperAdmin } from "./super-admin-actions";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { readTicketCustomCommands, buildTicketSlashCommandOptions } from "@/lib/tickets/custom-commands";
+import { SLASH_COMMANDS_CATALOG } from "@/lib/slash-commands-catalog";
+import {
+    readTicketCustomCommands,
+    buildTicketSlashCommandOptions,
+    type TicketCustomCommand,
+} from "@/lib/tickets/custom-commands";
+import {
+    buildCommandPermissionEntries,
+    isCatalogCommandDeployed,
+    resolveTicketCommandRoleIds,
+    type DiscordCommandPermissionEntry,
+} from "@/lib/discord/command-permissions";
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
+/** Discord accepte 5 requêtes/s par route : on espace les écritures de permissions. */
+const PERMISSION_SYNC_DELAY_MS = 150;
 
-/**
- * Construit le payload Discord Application Command pour chaque commande du catalogue.
- * On définit les options (autocomplétion) pour les commandes qui en ont besoin.
- */
-function buildDiscordCommandPayloads() {
-    const rawCommands: Array<{
-        name: string;
-        description: string;
-        options?: Array<{
-            name: string;
-            description: string;
-            type: number;
-            required?: boolean;
-            autocomplete?: boolean;
-            choices?: Array<{ name: string; value: string }>;
-        }>;
-    }> = [
-        {
-            name: "almanax",
-            description: "📅 Offrande & bonus Almanax du jour demandé",
-            options: [
-                {
-                    name: "date",
-                    description: "Date au format JJ/MM/AAAA (optionnel, défaut = aujourd'hui)",
-                    type: 3, // STRING
-                    required: false
-                }
-            ]
-        },
-        {
-            name: "profil",
-            description: "🎖️ Fiche membre : classe, succès, métiers 200, activités et planning",
-            options: [
-                {
-                    name: "membre",
-                    description: "Mentionner un membre (optionnel, défaut = soi-même)",
-                    type: 6, // USER
-                    required: false
-                }
-            ]
-        },
-        {
-            name: "boss",
-            description: "👑 Fiche d'un Boss de donjon – PV, résistances, sorts et mécaniques",
-            options: [
-                {
-                    name: "nom",
-                    description: "Nom du boss (ex: Comte Harebourg, Vortex...)",
-                    type: 3, // STRING
-                    required: true,
-                    autocomplete: true
-                }
-            ]
-        },
-        {
-            name: "monstre",
-            description: "👾 Fiche d'un monstre ou archimonstre – caractéristiques, zone et butins",
-            options: [
-                {
-                    name: "nom",
-                    description: "Nom du monstre ou archimonstre",
-                    type: 3, // STRING
-                    required: true,
-                    autocomplete: true
-                }
-            ]
-        },
-        {
-            name: "metiers",
-            description: "🔨 Trouve qui a tel métier dans la guilde, avec les niveaux",
-            options: [
-                {
-                    name: "metier",
-                    description: "Nom du métier (ex: Tailleur, Mineur, Forgemage...)",
-                    type: 3, // STRING
-                    required: true,
-                    autocomplete: true
-                }
-            ]
-        },
-        {
-            name: "ocre",
-            description: "🥚 Fiche quête Ocre – zone de pop et disponibilité des doublons en guilde",
-            options: [
-                {
-                    name: "archimonstre",
-                    description: "Nom de l'archimonstre ou monstre d'étape",
-                    type: 3, // STRING
-                    required: true,
-                    autocomplete: true
-                }
-            ]
-        },
-        {
-            name: "valider-recrue",
-            // 🧭 La commande n'a plus qu'**une** option : la recrue visée. Les six autres
-            // (`pseudo-dofus`, `tag-ankama`, `recruteur`, `arrivee`, `ajouter-role`,
-            // `retirer-role`) sont devenues des **champs de formulaire** : la commande ouvre
-            // une **modale** préremplie (pseudo et tag Ankama lus du profil, date du jour,
-            // recruteur = auteur de l'interaction) et les rôles appliqués viennent du réglage
-            // RBAC de la guilde (`/dashboard/[guildId]/admin/slash-commands`). Les options
-            // héritées restaient affichées par Discord (« membre » + « + 6 en plus ») alors
-            // qu'elles n'étaient plus utilisées.
-            description: "✅ Staff — ouvre le formulaire de validation d'une recrue (registre)",
-            options: [
-                {
-                    name: "membre",
-                    description: "La recrue à valider — le reste se remplit dans le formulaire",
-                    type: 6, // USER
-                    required: true
-                }
-            ]
-        },
-    ];
+import { buildDiscordCommandPayloads, type DiscordCommandOption } from "@/lib/discord/command-payloads";
 
-    // Discord API n'accepte pas `options: []` (tableau vide). On ne transmet options que s'il y en a.
-    return rawCommands.map(cmd => {
-        if (!cmd.options || cmd.options.length === 0) {
-            const { options: _, ...rest } = cmd;
-            return rest;
-        }
-        return cmd;
-    });
+
+function discordAppId(): string | null {
+    return (
+        process.env.AUTH_DISCORD_ID ||
+        process.env.DISCORD_APPLICATION_ID ||
+        process.env.DISCORD_CLIENT_ID ||
+        null
+    );
 }
 
-
 /**
- * Enregistre (PUT = upsert bulk) toutes les commandes slash sur UN serveur Discord spécifique.
- * Utilise l'endpoint Guild Commands (instantané, pas de délai de propagation de 1h comme les globales).
+ * Construit une URL de l'API Discord sur une **base constante** et vérifie l'hôte
+ * (même garde anti-SSRF que l'enregistrement : rien ne vient du client sauf des
+ * flocons validés en amont).
  */
-export async function registerCommandsForGuild(
-    discordGuildId: string,
-    customCommandsOverride?: Array<{ name: string; description: string; options?: any[] }>
-): Promise<{
+function discordApiUrl(path: string): URL {
+    const apiBase = new URL(`${DISCORD_API_BASE}/`);
+    const target = new URL(path, apiBase);
+    if (target.protocol !== "https:" || target.hostname !== apiBase.hostname) {
+        throw new Error("Hôte Discord invalide");
+    }
+    return target;
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+async function putDiscordJson(
+    url: URL,
+    body: unknown,
+    botToken: string
+): Promise<{ ok: true; json: unknown } | { ok: false; error: string }> {
+    const res = await fetch(url, {
+        method: "PUT",
+        headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+            "User-Agent": "DiscordBot (https://sigilos.fr, 1.0.0)",
+        },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        const errBody = await res.text();
+        return { ok: false, error: `Discord ${res.status}: ${errBody.slice(0, 200)}` };
+    }
+    const text = await res.text();
+    return { ok: true, json: text ? JSON.parse(text) : null };
+}
+
+export interface GuildCommandSyncResult {
     ok: boolean;
     guildId: string;
     error?: string;
     count?: number;
-}> {
-    const appId = process.env.AUTH_DISCORD_ID || process.env.DISCORD_APPLICATION_ID || process.env.DISCORD_CLIENT_ID;
+    /** Commandes enregistrées dont les **permissions** n'ont pas pu être écrites. */
+    permissionErrors?: string[];
+}
+
+/**
+ * Enregistre (PUT = upsert bulk) toutes les commandes slash sur UN serveur Discord,
+ * **puis pousse les permissions réelles** (rôles + salons) depuis la base.
+ *
+ * Sans la seconde étape, Discord gardait les cases cochées à la main (mesure du
+ * 24/10/2026 : `/valider-recrue` visible pour le seul rôle STAFF alors que le
+ * dashboard autorisait aussi EMPEREUR). Une commande non déployée n'est **pas**
+ * envoyée : Discord la supprime de la guilde (elle n'apparaît nulle part, pas même
+ * dans Intégrations).
+ */
+export async function registerCommandsForGuild(
+    discordGuildId: string,
+    customCommandsOverride?: Array<{ name: string; description: string; options?: DiscordCommandOption[] }>
+): Promise<GuildCommandSyncResult> {
+    const appId = discordAppId();
     const botToken = process.env.DISCORD_BOT_TOKEN;
 
     if (!appId || !botToken) {
@@ -160,62 +107,173 @@ export async function registerCommandsForGuild(
         return { ok: false, guildId: discordGuildId, error: "Identifiant de guilde Discord invalide" };
     }
 
-    let customPayloads = customCommandsOverride;
-    if (!customPayloads) {
-        try {
+    try {
+        // 1. Ce que la guilde possède réellement en base (source de vérité).
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: {
+                id: true,
+                slashCommandPermissions: {
+                    select: { commandName: true, isEnabled: true, roleIds: true, channelIds: true },
+                },
+            },
+        });
+        const permissionRows = new Map(
+            (guild?.slashCommandPermissions ?? []).map((row) => [row.commandName, row])
+        );
+
+        let ticketCommands: TicketCustomCommand[] = [];
+        let ticketStaffRoleIds: string[] = [];
+        let ticketCommandsOverride = customCommandsOverride;
+        if (guild) {
             const ticketConfig = await db.ticketGuildConfig.findFirst({
-                where: { guild: { discordGuildId } },
-                select: { isEnabled: true, settingsJson: true },
+                where: { guildId: guild.id },
+                select: { isEnabled: true, settingsJson: true, staffRoleIds: true },
             });
             if (ticketConfig?.isEnabled) {
-                const commands = readTicketCustomCommands(ticketConfig.settingsJson);
-                customPayloads = commands
-                    .filter((c) => c.isEnabled)
-                    .map((c) => ({
-                        name: c.name,
-                        description: c.description,
-                        options: buildTicketSlashCommandOptions(c),
-                    }));
+                ticketCommands = readTicketCustomCommands(ticketConfig.settingsJson);
+                const journeys = await db.ticketJourney.findMany({
+                    where: { guildId: guild.id },
+                    select: { staffRoleIds: true },
+                });
+                ticketStaffRoleIds = [
+                    ...new Set([
+                        ...(ticketConfig.staffRoleIds ?? []),
+                        ...journeys.flatMap((journey) => journey.staffRoleIds ?? []),
+                    ]),
+                ];
             }
-        } catch (err) {
-            logger.warn("[SlashCommandSync] Impossible de lire les commandes de ticket pour la guilde", { discordGuildId, err });
         }
-    }
 
-    const catalogPayloads = buildDiscordCommandPayloads();
-    const payloads = [...catalogPayloads, ...(customPayloads || [])];
-    // \`new URL(path, base)\` garde l'hôte de la base ; le slash final est indispensable
-    // (sans lui, le dernier segment \`/v10\` serait remplacé).
-    const apiBase = new URL(`${DISCORD_API_BASE}/`);
-    const url = new URL(`applications/${appId}/guilds/${discordGuildId}/commands`, apiBase);
-    if (url.protocol !== "https:" || url.hostname !== apiBase.hostname) {
-        return { ok: false, guildId: discordGuildId, error: "Hôte Discord invalide" };
-    }
-
-    try {
-        const res = await fetch(url, {
-            method: "PUT",
-            headers: {
-                Authorization: `Bot ${botToken}`,
-                "Content-Type": "application/json",
-                "User-Agent": "DiscordBot (https://sigilos.fr, 1.0.0)"
-            },
-            body: JSON.stringify(payloads)
+        // 2. Payloads : commandes du catalogue **déployées** + commandes de ticket actives.
+        const catalogPayloads = buildDiscordCommandPayloads().filter((payload) => {
+            const definition = SLASH_COMMANDS_CATALOG.find((command) => command.name === payload.name);
+            if (!definition) return true;
+            return isCatalogCommandDeployed(definition, permissionRows.get(definition.name));
         });
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            logger.error("[SlashCommandSync] Discord API error", { guild: discordGuildId, status: res.status, body: errBody });
-            return { ok: false, guildId: discordGuildId, error: `Discord ${res.status}: ${errBody.slice(0, 200)}` };
+        if (!ticketCommandsOverride) {
+            ticketCommandsOverride = ticketCommands
+                .filter((command) => command.isEnabled)
+                .map((command) => ({
+                    name: command.name,
+                    description: command.description,
+                    options: buildTicketSlashCommandOptions(command),
+                }));
         }
 
-        const registered = await res.json() as any[];
-        logger.info(`[SlashCommandSync] ✅ ${registered.length} commandes enregistrées pour la guilde ${discordGuildId}`);
-        return { ok: true, guildId: discordGuildId, count: registered.length };
+        const payloads = [...catalogPayloads, ...(ticketCommandsOverride || [])];
+
+        // 3. Enregistrement (bulk overwrite : la guilde reçoit EXACTEMENT cette liste).
+        const apiBase = new URL(`${DISCORD_API_BASE}/`);
+        const url = new URL(`applications/${appId}/guilds/${discordGuildId}/commands`, apiBase);
+        if (url.protocol !== "https:" || url.hostname !== apiBase.hostname) {
+            return { ok: false, guildId: discordGuildId, error: "Hôte Discord invalide" };
+        }
+
+        const registration = await putDiscordJson(url, payloads, botToken);
+        if (!registration.ok) {
+            logger.error("[SlashCommandSync] Discord API error", { guild: discordGuildId, error: registration.error });
+            return { ok: false, guildId: discordGuildId, error: registration.error };
+        }
+
+        const registered = (Array.isArray(registration.json) ? registration.json : []) as Array<{
+            id: string;
+            name: string;
+        }>;
+        logger.info(`[SlashCommandSync] ✅ ${registered.length} commandes enregistrées pour la guilde ${discordGuildId}`, {
+            commands: registered.map((command) => command.name),
+        });
+
+        return await pushCommandPermissions({
+            appId,
+            botToken,
+            discordGuildId,
+            registered,
+            permissionRows,
+            ticketCommands,
+            ticketStaffRoleIds,
+        });
     } catch (err) {
         logger.error("[SlashCommandSync] Fetch error", { guild: discordGuildId, error: String(err) });
         return { ok: false, guildId: discordGuildId, error: String(err) };
     }
+}
+
+/**
+ * Écrit les permissions de chaque commande enregistrée, puis **efface** les défauts
+ * de l'application (les cases cochées à la main dans Discord → Intégrations).
+ */
+async function pushCommandPermissions(input: {
+    appId: string;
+    botToken: string;
+    discordGuildId: string;
+    registered: Array<{ id: string; name: string }>;
+    permissionRows: Map<string, { commandName: string; isEnabled: boolean; roleIds: string[]; channelIds: string[] }>;
+    ticketCommands: TicketCustomCommand[];
+    ticketStaffRoleIds: string[];
+}): Promise<GuildCommandSyncResult> {
+    const { appId, botToken, discordGuildId, registered } = input;
+    const permissionErrors: string[] = [];
+
+    for (const command of registered) {
+        const catalogRow = input.permissionRows.get(command.name);
+        const ticketCommand = input.ticketCommands.find(
+            (candidate) => candidate.isEnabled && candidate.name === command.name
+        );
+
+        let entries: DiscordCommandPermissionEntry[] = [];
+        if (catalogRow) {
+            entries = buildCommandPermissionEntries({
+                discordGuildId,
+                roleIds: catalogRow.roleIds,
+                channelIds: catalogRow.channelIds,
+            });
+        } else if (ticketCommand) {
+            // ⚠️ Pas de dérogation de salon pour les commandes de ticket : leurs salons
+            // sont créés à la volée (`ticket-0042-…`) et ne peuvent pas être listés à
+            // l'avance. Le garde d'exécution du bot refuse hors ticket.
+            entries = buildCommandPermissionEntries({
+                discordGuildId,
+                roleIds: resolveTicketCommandRoleIds(ticketCommand, input.ticketStaffRoleIds),
+                channelIds: [],
+            });
+        }
+
+        const permissionUrl = discordApiUrl(
+            `applications/${appId}/guilds/${discordGuildId}/commands/${command.id}/permissions`
+        );
+        const written = await putDiscordJson(permissionUrl, { permissions: entries }, botToken);
+        if (!written.ok) {
+            permissionErrors.push(`/${command.name}: ${written.error}`);
+            logger.warn("[SlashCommandSync] permissions non écrites", {
+                guild: discordGuildId,
+                command: command.name,
+                error: written.error,
+            });
+        }
+        await sleep(PERMISSION_SYNC_DELAY_MS);
+    }
+
+    // Défauts de l'application : « Tous les salons » limité à 5 salons + `@everyone`
+    // refusé masquaient toutes les commandes hors de ces salons — dont #bot-notif et
+    // les salons de tickets. Le dashboard est désormais la seule source de vérité.
+    const defaultsUrl = discordApiUrl(`applications/${appId}/guilds/${discordGuildId}/commands/permissions`);
+    const defaults = await putDiscordJson(defaultsUrl, { permissions: [] }, botToken);
+    if (!defaults.ok) {
+        permissionErrors.push(`défauts de l'application: ${defaults.error}`);
+        logger.warn("[SlashCommandSync] défauts de permissions non réinitialisés", {
+            guild: discordGuildId,
+            error: defaults.error,
+        });
+    }
+
+    return {
+        ok: true,
+        guildId: discordGuildId,
+        count: registered.length,
+        permissionErrors: permissionErrors.length > 0 ? permissionErrors : undefined,
+    };
 }
 
 /**
@@ -224,7 +282,7 @@ export async function registerCommandsForGuild(
  */
 export async function syncSlashCommandsToDiscordAction(targetGuildId?: string): Promise<{
     success: boolean;
-    results: Array<{ ok: boolean; guildId: string; error?: string; count?: number }>;
+    results: GuildCommandSyncResult[];
     error?: string;
 }> {
     const isAdmin = await isSuperAdmin();
@@ -236,20 +294,18 @@ export async function syncSlashCommandsToDiscordAction(targetGuildId?: string): 
         let discordGuildIds: string[] = [];
 
         if (targetGuildId) {
-            // Single guild sync
             const guild = await db.guildConfig.findUnique({
                 where: { id: targetGuildId },
-                select: { discordGuildId: true }
+                select: { discordGuildId: true },
             });
             if (!guild) return { success: false, results: [], error: "Guild not found" };
             discordGuildIds = [guild.discordGuildId];
         } else {
-            // All guilds
             const guilds = await db.guildConfig.findMany({
                 where: { isActive: true },
-                select: { discordGuildId: true }
+                select: { discordGuildId: true },
             });
-            discordGuildIds = guilds.map(g => g.discordGuildId);
+            discordGuildIds = guilds.map((guild) => guild.discordGuildId);
         }
 
         if (discordGuildIds.length === 0) {
@@ -257,23 +313,21 @@ export async function syncSlashCommandsToDiscordAction(targetGuildId?: string): 
         }
 
         // Run registrations sequentially (rate-limit safety — max 200 req/5s global)
-        const results: Array<{ ok: boolean; guildId: string; error?: string; count?: number }> = [];
+        const results: GuildCommandSyncResult[] = [];
         for (const guildId of discordGuildIds) {
-            const res = await registerCommandsForGuild(guildId);
-            results.push(res);
-            // 300ms gap between guilds to respect Discord's rate limits
+            results.push(await registerCommandsForGuild(guildId));
             if (discordGuildIds.length > 1) {
-                await new Promise(r => setTimeout(r, 300));
+                await sleep(300);
             }
         }
 
-        const successCount = results.filter(r => r.ok).length;
-        const firstError = results.find(r => !r.ok)?.error;
+        const successCount = results.filter((result) => result.ok).length;
+        const firstError = results.find((result) => !result.ok)?.error;
 
         return {
             success: successCount > 0,
             results,
-            error: successCount === 0 ? (firstError || "Aucun serveur n'a pu être synchronisé") : undefined
+            error: successCount === 0 ? firstError || "Aucun serveur n'a pu être synchronisé" : undefined,
         };
     } catch (err) {
         logger.error("[syncSlashCommandsToDiscordAction] Error", { error: String(err) });

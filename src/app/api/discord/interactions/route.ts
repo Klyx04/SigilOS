@@ -284,6 +284,16 @@ export async function POST(request: NextRequest) {
         const isValid = await verifyDiscordSignature(request, bodyText);
 
         if (!isValid) {
+            // 🚨 Un refus de signature rend **toutes** les commandes muettes côté Discord
+            // (« L'application n'a pas répondu »). On garde une trace avec le contexte
+            // (jamais le secret lui-même) pour distinguer clé absente / proxy / rejeu.
+            logger.warn("[Discord Interaction] signature refusée", {
+                hasPublicKey: Boolean(
+                    process.env.DISCORD_APPLICATION_PUBLIC_KEY || process.env.DISCORD_PUBLIC_KEY
+                ),
+                hasTimestamp: Boolean(request.headers.get("x-signature-timestamp")),
+                hasSignature: Boolean(request.headers.get("x-signature-ed25519")),
+            });
             return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
         }
 
@@ -3845,9 +3855,20 @@ export async function POST(request: NextRequest) {
 
             // ── /valider-recrue (STAFF — ouvre la modale de saisie registre) ──
             if (commandName === "valider-recrue") {
-                // Gate staff : permission dashboard, fail-closed (pas de session ici).
+                // Gate : permission dashboard « Ressources Humaines », **ou** rôle Discord
+                // listé dans le dashboard, **ou** admin Discord. Les deux sources ne doivent
+                // plus se contredire : un EMPEREUR autorisé côté dashboard passait la porte
+                // Discord puis se faisait refuser ici (mesure du 24/10/2026).
                 const { internalCheckPermission } = await import("@/server/actions/user-actions");
                 const { PERMISSION_IDS } = await import("@/lib/permissions");
+                const isDiscordAdmin = (BigInt(member?.permissions || "0") & BigInt(0x8)) === BigInt(0x8);
+                const roleGate = guild_id
+                    ? await db.guildSlashCommandPermission.findFirst({
+                          where: { commandName: "valider-recrue", guild: { discordGuildId: guild_id } },
+                          select: { roleIds: true },
+                      })
+                    : null;
+                const hasGuildRole = (roleGate?.roleIds ?? []).some((roleId) => userRoleIds.includes(roleId));
                 let isStaff = false;
                 try {
                     isStaff = guild_id
@@ -3856,8 +3877,10 @@ export async function POST(request: NextRequest) {
                 } catch {
                     isStaff = false;
                 }
-                if (!isStaff) {
-                    return ephemeralDiscordRefusal("🚫 `/valider-recrue` est réservée au staff (permission « Ressources Humaines »).");
+                if (!isStaff && !hasGuildRole && !isDiscordAdmin) {
+                    return ephemeralDiscordRefusal(
+                        "🚫 `/valider-recrue` est réservée au staff : permission « Ressources Humaines » ou rôle autorisé par la guilde."
+                    );
                 }
 
                 const opt = (name: string): string | undefined =>
@@ -4183,7 +4206,16 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Unknown type" }, { status: 400 });
 
     } catch (error) {
-        console.error("[Discord Interaction] Error:", error);
-        return NextResponse.json({ error: "Internal error" }, { status: 500 });
+        // 🔇 Une réponse 5xx s'affiche « L'application n'a pas répondu » dans Discord.
+        // On répond donc **toujours** une interaction valide (refus éphémère) et on
+        // journalise l'erreur réelle pour Sentry.
+        logger.error("[Discord Interaction] Error:", error);
+        return NextResponse.json({
+            type: 4,
+            data: {
+                content: "❌ Une erreur interne est survenue. Réessaie dans un instant.",
+                flags: 64,
+            },
+        });
     }
 }

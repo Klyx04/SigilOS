@@ -60,7 +60,9 @@ describe("slash commands — périmètre", () => {
     });
 
     it("valider-recrue n'a plus qu'UNE option : la modale porte le reste", () => {
-        const sync = readFileSync("src/server/actions/discord-commands-sync.ts", "utf8");
+        // La définition Discord a déménagé dans la **source unique** (`src/lib/discord/
+        // command-payloads.ts`, dérivée du catalogue) : l'invariant ne bouge pas.
+        const sync = readFileSync("src/lib/discord/command-payloads.ts", "utf8");
         // Définition Discord : la seule option restante est la recrue visée.
         expect(sync).toContain('"membre"');
         for (const moved of ['"pseudo-dofus"', '"tag-ankama"', '"recruteur"', '"arrivee"', '"ajouter-role"', '"retirer-role"']) {

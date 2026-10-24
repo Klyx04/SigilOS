@@ -5,13 +5,14 @@ import {
     Terminal, 
     ShieldCheck, 
     Save, 
-    Hash
+    Hash,
+    RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MultiSelect, type Option } from "@/components/ui/multi-select";
 import { toast } from "sonner";
-import { updateGuildSlashCommandPermissionAction } from "@/server/actions/slash-command-actions";
+import { updateGuildSlashCommandPermissionAction, syncGuildCommandsAction } from "@/server/actions/slash-command-actions";
 
 interface CommandItem {
     command: {
@@ -42,6 +43,27 @@ export function SlashCommandsRbacPanel({
         initialMatrix.map(m => ({ ...m, channelIds: m.channelIds || [], config: m.config ?? null }))
     );
     const [isSaving, setIsSaving] = useState<string | null>(null);
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    const handleSyncAll = async () => {
+        setIsSyncing(true);
+        try {
+            const res = await syncGuildCommandsAction(guildId);
+            if (!res.success) {
+                toast.error(res.error || "Discord a refusé la synchronisation");
+            } else if (res.permissionErrors?.length) {
+                toast.warning(
+                    `${res.count ?? 0} commande(s) synchronisée(s) — droits partiels : ${res.permissionErrors[0]}`
+                );
+            } else {
+                toast.success(`${res.count ?? 0} commande(s) synchronisée(s) avec Discord`);
+            }
+        } catch {
+            toast.error("Erreur de communication avec le serveur");
+        } finally {
+            setIsSyncing(false);
+        }
+    };
 
     const handleConfigChange = (commandName: string, patch: { addRoleId?: string | null; removeRoleId?: string | null }) => {
         setMatrix(prev => prev.map(item => {
@@ -121,7 +143,17 @@ export function SlashCommandsRbacPanel({
             });
 
             if (res.success) {
-                toast.success(`Permissions pour /${commandName} mises à jour avec succès !`);
+                if (res.sync && !res.sync.ok) {
+                    toast.warning(
+                        `Enregistré — mais Discord a refusé la synchronisation : ${res.sync.error || "erreur inconnue"}`
+                    );
+                } else if (res.sync?.permissionErrors?.length) {
+                    toast.warning(
+                        `Permissions enregistrées — droits Discord partiels : ${res.sync.permissionErrors[0]}`
+                    );
+                } else {
+                    toast.success(`Permissions pour /${commandName} appliquées (base + Discord) !`);
+                }
             } else {
                 toast.error(res.error || "Échec de l'enregistrement");
             }
@@ -135,16 +167,29 @@ export function SlashCommandsRbacPanel({
     return (
         <div className="space-y-6">
             <div className="p-6 rounded-3xl bg-surface border border-border">
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="w-9 h-9 rounded-xl bg-accent-soft text-accent flex items-center justify-center border border-accent/20">
-                        <Terminal className="w-5 h-5" />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-accent-soft text-accent flex items-center justify-center border border-accent/20">
+                            <Terminal className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-bold text-foreground">Commandes Slash Discord</h3>
+                            <p className="text-xs text-muted-foreground">
+                                Rôles <strong>invisibles pour les autres</strong> et salons d&apos;exécution : chaque
+                                enregistrement est <strong>appliqué sur Discord</strong> immédiatement.
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="text-base font-bold text-foreground">Commandes Slash Discord</h3>
-                        <p className="text-xs text-muted-foreground">
-                            Configurez la disponibilité, les rôles et les salons autorisés à exécuter chaque commande du bot via des sélecteurs déroulants fluides.
-                        </p>
-                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void handleSyncAll()}
+                        disabled={isSyncing}
+                        className="text-xs shrink-0"
+                    >
+                        <RefreshCw className={cn("w-3.5 h-3.5 mr-1", isSyncing && "animate-spin")} />
+                        {isSyncing ? "Synchronisation…" : "Resynchroniser Discord"}
+                    </Button>
                 </div>
             </div>
 
@@ -264,7 +309,7 @@ export function SlashCommandsRbacPanel({
                                 <div className="flex items-center justify-between text-[11px]">
                                     <label className="font-bold text-muted-foreground flex items-center gap-1.5">
                                         <Hash className="w-3.5 h-3.5 text-accent" />
-                                        Salons Discord Autorisés
+                                        Salons d&apos;exécution autorisés
                                     </label>
                                     <span className="text-[10px] font-mono">
                                         {(item.channelIds?.length || 0) === 0 ? (
@@ -281,6 +326,11 @@ export function SlashCommandsRbacPanel({
                                     placeholder="Tous les salons (exécutable partout)"
                                     className="bg-muted/40 border-border hover:border-border-strong text-foreground text-xs min-h-[38px]"
                                 />
+                                <p className="text-[10px] text-muted-foreground">
+                                    Discord masque une commande par <strong>rôle</strong>. Les salons sont un
+                                    garde d&apos;exécution : hors de cette liste, le bot refuse proprement (message
+                                    privé). Impossible côté Discord pour les salons de tickets, créés à la volée.
+                                </p>
                             </div>
                         </div>
 

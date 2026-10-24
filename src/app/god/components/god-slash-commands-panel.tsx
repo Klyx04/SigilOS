@@ -1,19 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
     Terminal, 
     RefreshCw,
     CheckCircle2,
     XCircle,
     AlertTriangle,
-    Zap
+    Zap,
+    ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { SLASH_COMMANDS_CATALOG } from "@/lib/slash-commands-catalog";
 import { syncSlashCommandsToDiscordAction } from "@/server/actions/discord-commands-sync";
+import {
+    getGodCommandScopesAction,
+    setGodCommandScopeAction,
+} from "@/server/actions/god-slash-command-actions";
+import type { GodCommandScopesPayload } from "@/lib/discord/command-permissions";
 
 interface SyncResult {
     ok: boolean;
@@ -28,6 +34,147 @@ const CATEGORY_COLORS: Record<string, string> = {
     PROFIL: "text-sky-400 bg-sky-400/10 border-sky-400/20",
     UTILITAIRE: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
 };
+
+/** État + actions des portées (chargement, bascule, rechargement après succès). */
+function useCommandScopes() {
+    const [payload, setPayload] = useState<GodCommandScopesPayload | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [pending, setPending] = useState<string | null>(null);
+
+    const load = async () => {
+        setIsLoading(true);
+        try {
+            setPayload(await getGodCommandScopesAction());
+        } catch {
+            toast.error("Impossible de lire les portées des commandes");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        void load();
+    }, []);
+
+    const toggle = async (guildId: string, guildName: string, commandName: string, enabled: boolean) => {
+        const key = `${guildId}:${commandName}`;
+        setPending(key);
+        try {
+            const res = await setGodCommandScopeAction({ guildId, commandName, enabled });
+            if (!res.success) {
+                toast.error(res.error || "Discord a refusé la synchronisation");
+            } else if (res.permissionErrors?.length) {
+                toast.warning(
+                    `/${commandName} ${enabled ? "déployée" : "retirée"} sur ${guildName} — droits partiels : ${res.permissionErrors[0]}`
+                );
+                await load();
+            } else {
+                toast.success(
+                    enabled
+                        ? `/${commandName} déployée sur ${guildName}`
+                        : `/${commandName} retirée de ${guildName}`
+                );
+                await load();
+            }
+        } catch {
+            toast.error("Erreur de communication avec le serveur");
+        } finally {
+            setPending(null);
+        }
+    };
+
+    return { payload, isLoading, pending, load, toggle };
+}
+
+/**
+ * 🌍 Déploiement **guilde par guilde**. `/valider-recrue` est fermée par défaut ;
+ * un clic l'autorise, la déploie sur Discord et la fait apparaître dans le dashboard
+ * de la guilde. Chaque clic resynchronise et affiche le **résultat réel**.
+ */
+function GuildCommandScopes() {
+    const { payload, isLoading, pending, load, toggle } = useCommandScopes();
+    const commands =
+        payload?.commands ??
+        SLASH_COMMANDS_CATALOG.map((command) => ({ name: command.name, staffOnly: command.staffOnly === true }));
+
+    return (
+        <div className="p-5 sm:p-6 rounded-2xl border border-border bg-surface space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-accent" />
+                        Autorisation par guilde
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                        Une commande non autorisée n&apos;est <strong>pas enregistrée</strong> sur le serveur :
+                        elle n&apos;existe nulle part (ni autocomplete, ni Intégrations).{" "}
+                        <code className="font-mono">/valider-recrue</code> est fermée par défaut.
+                    </p>
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void load()}
+                    disabled={isLoading}
+                    className="text-xs"
+                >
+                    <RefreshCw className={cn("w-3.5 h-3.5 mr-1", isLoading && "animate-spin")} /> Rafraîchir
+                </Button>
+            </div>
+
+            {isLoading && !payload ? (
+                <p className="text-xs text-muted-foreground">Chargement des guilde(s)…</p>
+            ) : payload && !payload.success ? (
+                <p className="text-xs text-rose-500">{payload.error || "Lecture impossible"}</p>
+            ) : (payload?.guilds?.length ?? 0) === 0 ? (
+                <p className="text-xs text-muted-foreground">Aucune guilde active.</p>
+            ) : (
+                <div className="space-y-2">
+                    {(payload?.guilds ?? []).map((guild) => (
+                        <div
+                            key={guild.id}
+                            className="rounded-xl border border-border/60 bg-elevated/30 p-3 flex flex-col gap-2"
+                        >
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-semibold text-foreground">{guild.name}</span>
+                                <span className="text-[10px] font-mono text-muted-foreground">
+                                    {guild.isActive ? "active" : "inactive"}
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {commands.map((command) => {
+                                    const deployed = guild.deployed[command.name] === true;
+                                    const key = `${guild.id}:${command.name}`;
+                                    return (
+                                        <button
+                                            key={command.name}
+                                            type="button"
+                                            onClick={() => void toggle(guild.id, guild.name, command.name, !deployed)}
+                                            disabled={pending === key}
+                                            aria-pressed={deployed}
+                                            aria-label={`${deployed ? "Retirer" : "Autoriser"} /${command.name} pour ${guild.name}`}
+                                            className={cn(
+                                                "px-2 py-1 rounded-lg border text-[10px] font-mono transition-colors",
+                                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                                                deployed
+                                                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
+                                                    : "border-border/60 bg-background text-muted-foreground hover:border-accent/40",
+                                                pending === key && "opacity-50",
+                                                command.staffOnly && !deployed && "border-warning/40 text-warning"
+                                            )}
+                                        >
+                                            /{command.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export function GodSlashCommandsPanel() {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -132,6 +279,9 @@ export function GodSlashCommandsPanel() {
                 </div>
             </div>
 
+            {/* Déploiement guilde par guilde (God) */}
+            <GuildCommandScopes />
+
             {/* Command catalog */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {SLASH_COMMANDS_CATALOG.map((cmd) => (
@@ -160,7 +310,7 @@ export function GodSlashCommandsPanel() {
                         <div className="pt-3 border-t border-border/60 flex items-center justify-between text-[11px]">
                             <span className="font-mono text-muted-foreground">{cmd.usage}</span>
                             <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                                Active
+                                {cmd.staffOnly ? "Sur autorisation" : "Active"}
                             </span>
                         </div>
                     </div>

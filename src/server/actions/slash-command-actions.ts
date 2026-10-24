@@ -8,6 +8,8 @@ import { logAction } from "./audit-actions";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { SLASH_COMMANDS_CATALOG } from "@/lib/slash-commands-catalog";
+import { isCatalogCommandDeployed } from "@/lib/discord/command-permissions";
+import { registerCommandsForGuild } from "./discord-commands-sync";
 
 const snowflakeSchema = z.string().regex(/^\d{5,25}$/);
 
@@ -59,7 +61,18 @@ export async function getGuildSlashCommandPermissionsAction(guildId: string) {
 
         const permMap = new Map(permissions.map(p => [p.commandName, p]));
 
-        const matrix = SLASH_COMMANDS_CATALOG.map(cmd => {
+        const matrix = SLASH_COMMANDS_CATALOG
+            // Une commande `staffOnly` (ex. `/valider-recrue`) n'apparaît dans le
+            // dashboard que si elle est **déployée** sur la guilde (whitelist God) :
+            // afficher une commande absente de Discord ferait mentir l'écran.
+            .filter((cmd) => {
+                const existing = permMap.get(cmd.name);
+                return isCatalogCommandDeployed(
+                    cmd,
+                    existing ? { commandName: existing.commandName, isEnabled: existing.isEnabled } : null
+                );
+            })
+            .map(cmd => {
             const existing = permMap.get(cmd.name);
             return {
                 command: cmd,
@@ -157,7 +170,20 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
             newValue: { commandName, roleIdsCount: roleIds.length, channelIdsCount: channelIds.length, isEnabled, hasConfig: !!commandConfig }
         }).catch(() => {});
 
-        return { success: true, data: updated };
+        // 🆕 Le dashboard devient la **source de vérité** : on pousse rôles + salons sur
+        // Discord immédiatement. Avant, l'enregistrement restait en base et Discord
+        // gardait ses cases cochées à la main (mesure du 24/10/2026).
+        const sync = config.discordGuildId
+            ? await registerCommandsForGuild(config.discordGuildId)
+            : null;
+
+        return {
+            success: true,
+            data: updated,
+            sync: sync
+                ? { ok: sync.ok, error: sync.error, permissionErrors: sync.permissionErrors }
+                : null,
+        };
     } catch (err) {
         logger.error("[updateGuildSlashCommandPermissionAction Error]", err);
         return { success: false, error: "Failed to update slash command permission" };
@@ -166,6 +192,58 @@ export async function updateGuildSlashCommandPermissionAction(input: z.infer<typ
 
 /**
  * Vérifie si un utilisateur Discord a le droit d'exécuter une commande slash donnée
+ */
+/**
+ * Resynchronise **une guilde** (bouton « Resynchroniser » du dashboard) : définitions
+ * + permissions réelles. Mêmes droits que la configuration des commandes slash.
+ */
+export async function syncGuildCommandsAction(guildId: string): Promise<{
+    success: boolean;
+    count?: number;
+    permissionErrors?: string[];
+    error?: string;
+}> {
+    try {
+        const config = await db.guildConfig.findFirst({
+            where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
+            select: { id: true, discordGuildId: true },
+        });
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        const user = await getUserContext(config.discordGuildId || guildId);
+        const hasAccess =
+            user.isAuthenticated &&
+            (user.isDiscordAdmin ||
+                user.isAdmin ||
+                user.canManageRBAC ||
+                user.canViewSettings ||
+                user.canManageTickets ||
+                user.canManageMembers ||
+                user.canManageMissions);
+        if (!hasAccess) return { success: false, error: "Non autorisé" };
+
+        if (!config.discordGuildId) {
+            return { success: false, error: "Aucun serveur Discord lié à cette guilde" };
+        }
+
+        const sync = await registerCommandsForGuild(config.discordGuildId);
+        if (!sync.ok) {
+            return { success: false, error: sync.error || "Discord a refusé la synchronisation" };
+        }
+        return {
+            success: true,
+            count: sync.count,
+            permissionErrors: sync.permissionErrors,
+        };
+    } catch (err) {
+        logger.error("[syncGuildCommandsAction Error]", err);
+        return { success: false, error: "Erreur de synchronisation" };
+    }
+}
+
+/**
+ * Vérifie si un utilisateur Discord a le droit d'exécuter une commande slash donnée
+ * (règle unique, réutilisable hors route).
  */
 export async function checkSlashCommandExecutionAllowed(
     discordGuildId: string,

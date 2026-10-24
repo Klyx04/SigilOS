@@ -55,6 +55,7 @@ AGENTS.md                         contrat court, lu automatiquement (~11 Ko)
 ├── 03-tests.md                   règles tests (paths: tests/**)
 ├── 04-docs.md                    règles doc (paths: docs/**, AGENTS.md)
 ├── 05-runtime.md                 règles runtime Node (paths: .nvmrc, package.json, Dockerfile*, workflows)
+├── 06-discord.md                 règles Discord (paths: src/app/api/discord/**, src/server/discord.ts, tickets…)
 └── hooks/
     ├── PreToolUse.ps1            bloque les gestes irréversibles
     ├── TaskStart.ps1             injecte SHA + prochaine étape
@@ -66,6 +67,7 @@ AGENTS.md                         contrat court, lu automatiquement (~11 Ko)
 ├── sentry-triage/SKILL.md
 ├── route-securite/SKILL.md
 ├── doc-session/SKILL.md
+├── discord-api/SKILL.md
 └── node-runtime/SKILL.md
 .clineignore                      sort les binaires et les builds de l'index
 
@@ -96,6 +98,7 @@ Un hook est du **code exécutable** : il se relit, il ne contient aucun secret, 
 | `route-securite` | nouvelle page/action, revue de code | la checklist auth / `guildId` / Zod / fail-closed |
 | `doc-session` | fin de session | ROADMAP + activeContext sans doublon |
 | `node-runtime` | avis de sécurité Node, conteneur plus vieux que `.nvmrc` | la procédure `.nvmrc` → images → rebuild bêta/prod |
+| `discord-api` | toute nouveauté/modif/suppression côté Discord (commande, permission, salon, bouton, modale, intent) | la vérification doc officielle + types installés + `GET` de mesure **avant** de coder |
 
 Emplacement : **`.cline/skills/<nom>/SKILL.md`** (versionné). Le `name` doit être **identique au nom du
 dossier** ; la `description` (≤ 1 024 caractères) est ce qui déclenche le skill. Un skill global du même

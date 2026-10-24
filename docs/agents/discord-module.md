@@ -6,6 +6,45 @@ description: How to add Discord button/modal interactions for a new SigilOS modu
 
 When adding a new module that has **Discord embed buttons** (join, leave, vote, etc.), follow this checklist to ensure consistency, security, and maintainability.
 
+## 0. Avant de toucher à Discord — la source officielle d'abord
+
+**Non négociable** : une nouveauté, une modification ou une suppression côté Discord (commande slash,
+permission, salon, bouton, modale, embed, intent, gateway) commence par la **doc officielle** et par le
+**type de la version installée** (`node_modules/discord-api-types`). Jamais de mémoire, jamais une
+déduction tirée d'un champ **absent** d'une réponse d'API.
+
+```text
+doc officielle (docs.discord.com)  →  type installé (discord-api-types)  →  GET en lecture seule  →  code
+```
+
+**Pourquoi cette règle existe (mesure du 24/10/2026)** : un agent avait conclu « Discord ne permet pas
+de restreindre une commande par salon » parce que la réponse `GET .../commands/{id}/permissions` ne
+contenait aucun salon — alors que l'absence signifiait seulement « aucun salon configuré ». Le type
+officiel dit l'inverse : `type` = `1` rôle, `2` membre, **`3` salon**, et « tous les salons » vaut
+`guildId − 1`. La conclusion était fausse, et le plan bâti dessus aussi.
+
+**Les quatre vérifications qui évitent 90 % des erreurs Discord** :
+
+1. **Doc** : citer la section exacte (`Application Command Permissions Object`, `Receiving and
+   Responding`, `Permissions`, `Gateway`) — la page est longue, viser le titre.
+2. **Type** : lire le `.d.ts` installé, c'est le contrat réel de la version déployée.
+3. **Mesure** : un `GET` en lecture seule tranche. **Une donnée manquante n'est pas une impossibilité.**
+4. **Test avec un compte sans admin** : un **administrateur Discord voit toujours toutes les
+   commandes** — « je la vois » ne prouve rien.
+
+**Pièges mesurés à revérifier avant de les réaffirmer** :
+
+| Piège | Réalité |
+|---|---|
+| Restriction par salon | Faisable **par commande** (entrées `type: 3`) ; impossible pour un salon **pas encore créé** (salon de ticket) |
+| `PUT /guilds/{id}/commands` | **Remplace toute la liste** : une commande omise est supprimée, dérogations comprises |
+| Défauts d'application | Le réglage « Tous les salons » + `@everyone` refusé **masque toutes** les commandes ailleurs |
+| Réponse lente | **3 s** maximum, sinon « L'application n'a pas répondu » (même si le travail aboutit) |
+| `catch` muet sur une synchro | Affiche « Enregistré » alors que Discord a refusé |
+
+Procédure complète : skill `discord-api` (`.cline/skills/discord-api/SKILL.md`). Règle toujours chargée :
+`.clinerules/06-discord.md`.
+
 ## Architecture Overview
 
 ```

@@ -34,7 +34,7 @@ poste de travail, ni empreinte machine (chemin local, ID Discord, métadonnée d
 | Ops : cron, déploiement, incidents | `docs/MAINTENANCE.md` |
 | Indexation, robots, sitemap + **checklist de bascule prod** | `docs/plans/SEO_REPRISE.md` (section « CHECKLIST … OUVERTURE PROD ») |
 | « C'est quoi ce fichier ? » | `docs/arbo/CARTE-DU-PROJET.md` |
-| Procédure ciblée | `docs/agents/` : `git-push` · `prisma-schema-change` · `add-cron-task` · `discord-module` · `dev-local` · `deploy-vps` · `disaster-recovery` · `zone-volatile` · `node-runtime` |
+| Procédure ciblée | `docs/agents/` : `git-push` · `prisma-schema-change` · `add-cron-task` · **`discord-module` (§0 obligatoire avant toute nouveauté/modif Discord)** · `dev-local` · `deploy-vps` · `disaster-recovery` · `zone-volatile` · `node-runtime` |
 | **Harnais agentique (règles, skills, hooks)** | `docs/agents/harnais.md` — **à la demande**, pas par défaut |
 | Index complet de la doc | `docs/README.md` |
 

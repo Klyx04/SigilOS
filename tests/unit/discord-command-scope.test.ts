@@ -12,7 +12,8 @@ import {
 } from "@/lib/discord/command-payloads";
 import { SLASH_COMMANDS_CATALOG } from "@/lib/slash-commands-catalog";
 
-const GUILD = "1290442961380835451";
+// Flocons **fictifs** : le dépôt est public, aucun identifiant Discord réel n'y entre.
+const GUILD = "100000000000000001";
 const STAFF = "111111111111111111";
 const EMPEREUR = "222222222222222222";
 const CHANNEL = "333333333333333333";

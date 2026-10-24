@@ -14,7 +14,7 @@ const prometheusResponseSchema = z.object({
         resultType: z.string(),
         result: z.array(
             z.object({
-                metric: z.record(z.string()).optional(),
+                metric: z.record(z.string(), z.string()).optional(),
                 value: z.tuple([z.number(), z.string()]).optional(),
             }),
         ),

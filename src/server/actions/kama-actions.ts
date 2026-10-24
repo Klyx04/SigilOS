@@ -186,7 +186,7 @@ export async function submitKamaDonation(
     if (!guard.allowed) return { success: false, error: guard.error };
 
     const parsed = submitDonationSchema.safeParse(input);
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message || "Donnees invalides" };
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message || "Donnees invalides" };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -381,7 +381,7 @@ export async function reviewKamaDonation(
     if (!guard.allowed) return { success: false, error: guard.error };
 
     const parsed = reviewDonationSchema.safeParse(input);
-    if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message };
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({

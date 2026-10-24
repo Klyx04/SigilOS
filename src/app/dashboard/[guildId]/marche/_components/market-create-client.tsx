@@ -623,7 +623,7 @@ export function MarketCreateClient({ guildId, initial = null, natureIcons }: Mar
     }
 
     /** Étape ciblée par un chemin d'anomalie (bannière étape 4/5 + saut direct). */
-    function issueStep(path: (string | number)[]): 1 | 2 | 3 {
+    function issueStep(path: readonly PropertyKey[]): 1 | 2 | 3 {
         const head = path[0];
         if (head === "type") return 1;
         if (

@@ -42,7 +42,7 @@ const MissionSchema = z.object({
     xpReward: z.number().min(0).default(0),
     guildatonsReward: z.number().min(0).default(0),
     title: z.string().optional(),
-    payload: z.record(z.any()),
+    payload: z.record(z.string(), z.any()),
 }); // No .strict() — extra fields from DB are ignored safely
 
 const CreateWeekSchema = z.object({

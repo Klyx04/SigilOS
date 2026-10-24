@@ -622,7 +622,7 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
     }
 
     const validated = GuildEventSchema.safeParse(data);
-    if (!validated.success) return { success: false, error: validated.error.errors[0].message };
+    if (!validated.success) return { success: false, error: validated.error.issues[0].message };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -965,7 +965,7 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
     if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
 
     const validated = GuildEventSchema.safeParse(data);
-    if (!validated.success) return { success: false, error: validated.error.errors[0].message };
+    if (!validated.success) return { success: false, error: validated.error.issues[0].message };
 
     try {
         const guildConfig = await db.guildConfig.findUnique({

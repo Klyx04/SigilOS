@@ -160,13 +160,25 @@ describe("Y-4 — l'écran : responsive et purement informatif", () => {
         expect(code).toContain("space-y-2 md:hidden");
     });
 
-    it("n'expose aucune action : c'est une vue, pas un formulaire", () => {
+    it("reste une vue : aucune écriture, seuls les boutons de pagination", () => {
         const code = source(PANEL);
-        const section = code.slice(code.indexOf("Prochains paliers"), code.indexOf("État réel (lu"));
-        expect(section.length).toBeGreaterThan(0);
-        expect(section).not.toContain("<Button");
-        expect(section).not.toContain("onClick");
+        const start = code.indexOf('<TabsContent value="prochains"');
+        const end = code.indexOf('<TabsContent value="etat"');
+        expect(start, "onglet « Prochains paliers » introuvable").toBeGreaterThan(-1);
+        expect(end).toBeGreaterThan(start);
+        const section = code.slice(start, end);
+        expect(section).toContain("Prochains paliers");
         expect(section).not.toContain("<Input");
+        expect(section).not.toContain("<Switch");
+        expect(section).not.toContain("<Textarea");
+        expect(section).not.toContain("updateSeniorityRolesSettings");
+        // Seule interaction tolérée : la pagination (navigation, aucune mutation).
+        const labels = [...section.matchAll(/aria-label="(Page[^"]+)"/g)].map((match) => match[1]);
+        expect(labels).toEqual([
+            "Page précédente des prochains paliers",
+            "Page suivante des prochains paliers",
+        ]);
+        expect((section.match(/<Button/g) ?? []).length).toBe(2);
     });
 });
 describe("Y-4 — règle pure : prochain palier", () => {

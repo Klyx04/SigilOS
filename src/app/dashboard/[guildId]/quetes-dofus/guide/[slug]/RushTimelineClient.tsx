@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { createPortal } from "react-dom";
+import { GameIcon } from "@/components/shared/game-icon";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, Square, ChevronDown, ChevronUp, ChevronLeft,
@@ -573,7 +574,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                   onClick={() => onDungeonClick(allDungeons[0].id, questName)}
                   className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  <Users className="h-3 w-3" aria-hidden="true" />
+                  <GameIcon src="crossed-swords.png" className="h-3 w-3" />
                   Chercher un groupe
                 </button>
               ) : undefined

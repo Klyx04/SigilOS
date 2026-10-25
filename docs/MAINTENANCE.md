@@ -42,7 +42,8 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 - `/api/cron/avatar-resync` — **resync des hashs d'avatars Discord (#134)** : `GET /guilds/{id}/members`, mise à jour de `User.image` uniquement si le hash a changé ; `null` → avatar par défaut côté UI. Fréquence recommandée : quotidien (`0 5 * * *`).
 - `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` · `/api/cron/cleanup-inactive-service-requests` — purges (depuis **S5.6**, `cleanup-logs` purge aussi les **logs d'audit du marché**, cf. §Module « Marché »). **Rétention des logs d'audit (audit du 25/09)** : `cleanup-logs` applique **90 j** aux actions plateforme (`isGodLog: true`, sans guilde) et **30 j** aux journaux de guilde — politique unique dans `src/lib/audit-retention-policy.ts`, appliquée par le core `src/server/audit-retention.ts` (par lots de 500, par périmètre, jamais de `deleteMany` global). Le script VPS `scripts/database-janitor.ts` (04h00) consomme la même politique.
 - `/api/cron/daily-summary` · `/api/cron/status-ping` · `/api/cron/mission-reset-notify` · `/api/cron/loan-reminders` — notifications
-- `/api/cron/raid-reminders` — **rappels des raids, trois passes** (une seule ligne de crontab) : ① **H-24 (J-1)** : pour chaque raid `PUBLISHED` programmé au moins 48 h à l'avance (`startDate - createdAt >= 48 h`), entré dans sa fenêtre H-24 (tolérance 4 h [H-24 .. H-20]), poste UN message dans le salon du raid avec ping des seuls inscrits (REGISTERED + CONFIRMED + créateur). Idempotent (`metadata.raidReminder24hSentAt`), silencieux si rappel manuel récent. ② **H-1** : pour chaque raid `PUBLISHED` entré dans sa fenêtre (`GuildEvent.notifyBefore`, **60 min par défaut**), poste UN message dans le salon du raid dont le `content` ne porte que les mentions `<@id>` des **inscrits** (REGISTERED + CONFIRMED) — **jamais** les rôles de l'embed, jamais `@everyone`. Idempotent (`metadata.raidReminderSentAt`) et silencieux si un rappel manuel vient d'être envoyé. ③ **H+24 — rappel de clôture** : pour chaque raid terminé depuis 24 h et encore `PUBLISHED`, UN message qui ne ping que le **capitaine actuel** (`creatorId`, donc le nouveau lead après un transfert de capitanat) : « reste à clôturer : présents + score → XP/Kamas » + lien vers le raid. Idempotent (`metadata.closureReminderSentAt`). Un raid n'est **pas** clôturé d'office par la passe de fond avant **48 h** (`src/lib/calendar-auto-close.ts`) — sinon le rappel de clôture ne partirait jamais. Fréquence recommandée : toutes les 10 min (`0,10,20,30,40,50 * * * *`).
+- `/api/cron/raid-reminders` — **rappels des raids, trois passes** (une seule ligne de crontab) : ① **H-24 (J-1)** : pour chaque raid `PUBLISHED` programmé au moins 48 h à l'avance (`startDate - createdAt >= 48 h`), entré dans sa fenêtre H-24 (tolérance 4 h [H-24 .. H-20]), poste UN message dans le salon du raid avec ping des seuls inscrits (REGISTERED + CONFIRMED + créateur). Idempotent (`metadata.raidReminder24hSentAt`), silencieux si rappel manuel récent. ② **H-1** : pour chaque raid `PUBLISHED` entré dans sa fenêtre (`GuildEvent.notifyBefore`, **60 min par défaut**), poste UN message dans le salon du raid dont le `content` ne porte que les mentions `<@id>` des **inscrits** (REGISTERED + CONFIRMED) — **jamais** les rôles de l'embed, jamais `@everyone`. Idempotent (`metadata.raidReminderSentAt`) et silencieux si un rappel manuel vient d'être envoyé. ③ **H+24 — rappel de clôture** : pour chaque raid terminé depuis 24 h et encore `PUBLISHED`, UN message qui ne ping que le **capitaine actuel** (`creatorId`, donc le nouveau lead après un transfert de capitanat) : « reste à clôturer : présents + score → XP/Kamas » + lien vers le raid. Idempotent (`metadata.closureReminderSentAt`). Un raid n'est **pas** clôturé d'office avant **48 h** (`src/lib/calendar-auto-close.ts`) — sinon le rappel de clôture ne partirait jamais. Fréquence recommandée : toutes les 10 min (`0,10,20,30,40,50 * * * *`).
+- `/api/cron/calendar-auto-close` — **clôture d'office du calendrier + purge Discord** (depuis le 25/10/2026, une seule passe) : ① **raid** encore `PUBLISHED` **48 h** après sa fin ⇒ `COMPLETED` avec `metadata.closedBySystem` + `systemClosedAt` (et **pas** `completedAt`) — le capitaine peut encore **compléter** (présents + score) ou **annuler** pendant 24 h, le raid n'est donc jamais « terminé sans points » définitivement ; ② **autres types** : clôturés dès la fin ; ③ **miroirs DJ/Songes** : jamais clôturés ici (la copie suit son post d'origine, `syncDjMirror`/`syncSongesMirror`) ; ④ **purge** de `metadata.reminderMessages` (rappels H-24/H-1/clôture/manuel, outbox résolu par `messageKey`) **et** de l'embed de publication. Garde d'état `status: "PUBLISHED"` dans le `WHERE` (jamais deux clôtures), 200 événements max par passe, refs non supprimées conservées pour rejeu. **Les pages ne clôturent plus rien** : ouvrir le calendrier est une lecture pure. Fréquence recommandée : toutes les 10 min (`0,10,20,30,40,50 * * * *`).
 - `/api/cron/event-reminders` — **rappel des events calendrier non-raid** (même contrat, fenêtre `notifyBefore`, marqueur `metadata.eventReminderSentAt` ; sans `startDate` → ignoré).
 - `/api/cron/dj-reminders` — **rappel H-1 des posts DJ/Quêtes datés** (`targetDate` ; posts indéfinis ignorés ; marqueur `dungeonsJson._h1ReminderSentAt`).
 - `/api/cron/songes-reminders` — **rappel H-1 des runs Songes planifiées** (`scheduledAt` ; runs indéfinies ignorées ; idempotence Redis par échéance).
@@ -148,25 +149,28 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 # Rappels des raids (toutes les 10 min) — ① ping des INSCRITS 1 h avant le départ
 # (un seul ping par raid, silence si un rappel manuel vient d'être envoyé) ;
 # ② rappel de CLÔTURE au capitaine 24 h après la fin (un seul par raid)
-0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "raid-reminders \%{http_code} $(date -Is)\n" \
-  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
-  "$APP_URL/api/cron/raid-reminders" >> "$LOG_DIR/raid-reminders.log" 2>&1
+# flock : trois passes + appels Discord dans la même exécution (jamais deux en parallèle).
+0,10,20,30,40,50 * * * * /usr/bin/flock -n /tmp/raid-reminders.lock curl -s -m 60 -o /dev/null -w "raid-reminders \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/raid-reminders" >> "$LOG_DIR/raid-reminders.log" 2>&1
+
+# Clôture d'office du calendrier (toutes les 10 min) — ① raid encore ouvert 48 h
+# après la fin : clôture traçable (à compléter par le capitaine) ; ② autres types :
+# dès la fin ; ③ miroirs DJ/Songes jamais clôturés ; ④ PURGE des rappels Discord +
+# de l'embed dans le salon. Aucune page n'écrit de statut : cette ligne est le SEUL
+# exécutant de la règle `src/lib/calendar-auto-close.ts`.
+# ⚠️ `flock -n` : la passe purge des messages Discord un par un (jusqu'à 200 événements,
+#    runtime plafonné à 15 min côté monitoring) — jamais deux passes concurrentes.
+# ⚠️ `\%` obligatoire (cron coupe la ligne au premier `%` non échappé : exit 2, aucun log).
+0,10,20,30,40,50 * * * * /usr/bin/flock -n /tmp/calendar-auto-close.lock curl -s -m 60 -o /dev/null -w "calendar-auto-close \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/calendar-auto-close" >> "$LOG_DIR/calendar-auto-close.log" 2>&1
 
 # Rappel des events calendrier non-raid (même fenêtre `notifyBefore`, 60 min par
 # défaut ; posts sans `startDate` ignorés ; un seul ping par event)
-0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "event-reminders \%{http_code} $(date -Is)\n" \
-  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
-  "$APP_URL/api/cron/event-reminders" >> "$LOG_DIR/event-reminders.log" 2>&1
+0,10,20,30,40,50 * * * * /usr/bin/flock -n /tmp/event-reminders.lock curl -s -m 60 -o /dev/null -w "event-reminders \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/event-reminders" >> "$LOG_DIR/event-reminders.log" 2>&1
 
 # Rappel H-1 des posts DJ/Quêtes datés (`targetDate` ; posts indéfinis ignorés)
-0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "dj-reminders \%{http_code} $(date -Is)\n" \
-  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
-  "$APP_URL/api/cron/dj-reminders" >> "$LOG_DIR/dj-reminders.log" 2>&1
+0,10,20,30,40,50 * * * * /usr/bin/flock -n /tmp/dj-reminders.lock curl -s -m 60 -o /dev/null -w "dj-reminders \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/dj-reminders" >> "$LOG_DIR/dj-reminders.log" 2>&1
 
 # Rappel H-1 des runs Songes planifiées (`scheduledAt` ; runs indéfinies ignorées)
-0,10,20,30,40,50 * * * * curl -s -o /dev/null -w "songes-reminders \%{http_code} $(date -Is)\n" \
-  -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
-  "$APP_URL/api/cron/songes-reminders" >> "$LOG_DIR/songes-reminders.log" 2>&1
+0,10,20,30,40,50 * * * * /usr/bin/flock -n /tmp/songes-reminders.lock curl -s -m 60 -o /dev/null -w "songes-reminders \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/songes-reminders" >> "$LOG_DIR/songes-reminders.log" 2>&1
 
 # Rôles automatiques par ancienneté (chantier Y, lot Y-2) — UNE FOIS par jour : la passe
 # réconcilie les rôles des paliers atteints (`jours → rôles`) et n'annonce que les

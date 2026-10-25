@@ -2,7 +2,7 @@
 
 import { Trophy, Check } from "lucide-react";
 import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
-import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement";
+import { visibleDungeonAchievements } from "@/lib/dungeon-no-achievement";
 import type { PublicDungeonAchievement } from "@/server/actions/public-boss-tabs-actions";
 import { cn } from "@/lib/utils";
 
@@ -110,9 +110,9 @@ export function PublicBossAchievementsTab({
     doneIds,
     pendingId,
 }: PublicBossAchievementsTabProps) {
-    // Le pseudo-succès « Donjon validé » n'est plus rendu (demande user du 11/10/2026) : on l'écarte
-    // même si une ligne résiduelle traînait en base avant la purge.
-    const visible = achievements.filter((a) => a.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG);
+    // « Donjon validé » n'est rendu que s'il est le **seul** succès du donjon (doubles boss) ;
+    // partout ailleurs il reste écarté (décision du 11/10 conservée).
+    const visible = visibleDungeonAchievements(achievements);
     const done = new Set(doneIds ?? []);
 
     if (visible.length === 0) {

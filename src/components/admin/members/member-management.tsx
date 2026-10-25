@@ -11,6 +11,7 @@ import type { RosterRoleInput, RosterRow } from "@/lib/member-roster";
 
 import { DailyReportButton } from "@/components/admin/daily-report-button";
 import { MemberBlacklist } from "./member-blacklist";
+import { InGameGuildPanel } from "./in-game-guild-panel";
 import { MemberMulesSummary } from "./member-mules-summary";
 import { MemberRosterList } from "./member-roster-list";
 import { SeniorityRolesPanel } from "./seniority-roles-panel";
@@ -21,6 +22,8 @@ interface MemberManagementProps {
     roles: RosterRoleInput[];
     /** Ids des rôles Discord **autorisés dashboard** : borne le filtre de rôles au RBAC réel. */
     dashboardRoleIds?: string[];
+    /** Rôles Discord comptés comme « en guilde en jeu » (onglet Mules). */
+    inGameGuildRoleIds?: string[];
     stats: { active: number; archived: number; banned: number; total: number; maxMembers: number };
     discordAvailable: boolean;
     welcomeBadgeName: string;
@@ -36,6 +39,7 @@ interface MemberManagementProps {
 /** Onglets (assets Dofus réels, jamais d'emoji dans un libellé structurant). */
 const TABS = [
     { id: "membres", label: "Membres", icon: "party.png" },
+    { id: "mules", label: "Mules", icon: "petsmount.png" },
     { id: "anciennete", label: "Rôles d'ancienneté", icon: "/assets/dofus/modules/ladder.png" },
     { id: "blacklist", label: "Blacklist", icon: "circle-warning.png" },
 ] as const;
@@ -47,6 +51,7 @@ export default function MemberManagement({
     rows,
     roles,
     dashboardRoleIds,
+    inGameGuildRoleIds,
     stats,
     discordAvailable,
     canManageMembers,
@@ -58,8 +63,13 @@ export default function MemberManagement({
     // L'onglet « Rôles d'ancienneté » n'existe que pour ceux qui gèrent déjà les membres : la
     // page est leur garde, donc **aucune permission ni entrée de menu** à inventer (brief §7-2).
     const visibleTabs = TABS.filter((tab) => tab.id !== "anciennete" || canManageMembers);
+    const allowedInitialTabs: MembersTab[] = ["membres", "mules", "blacklist"];
     const [activeTab, setActiveTab] = useState<MembersTab>(
-        initialTab === "anciennete" && canManageMembers ? "anciennete" : "membres",
+        canManageMembers && initialTab === "anciennete"
+            ? "anciennete"
+            : initialTab && (allowedInitialTabs as string[]).includes(initialTab)
+              ? (initialTab as MembersTab)
+              : "membres",
     );
 
     const fillPercent =
@@ -129,8 +139,6 @@ export default function MemberManagement({
                     ))}
                 </div>
 
-                <MemberMulesSummary rows={rows} />
-
                 <div className="flex flex-wrap items-center gap-2">
                     <DailyReportButton guildId={guildId} />
                     {!discordAvailable && (
@@ -149,6 +157,23 @@ export default function MemberManagement({
                     canDeleteMembers={canDeleteMembers}
                     currentUserId={currentUserId}
                     ownerId={ownerId}
+                />
+            </TabsContent>
+
+            <TabsContent value="mules" className="space-y-6">
+                <InGameGuildPanel
+                    guildId={guildId}
+                    rows={rows}
+                    roles={roles}
+                    initialRoleIds={inGameGuildRoleIds ?? []}
+                    canManageMembers={canManageMembers}
+                />
+                {/* Le tag « en guilde en jeu » d'une mule n'est proposé qu'à qui gère les membres ;
+                    l'inventaire reste lisible par les autres (aucune écriture possible). */}
+                <MemberMulesSummary
+                    rows={rows}
+                    guildId={guildId}
+                    canManageMembers={canManageMembers}
                 />
             </TabsContent>
 

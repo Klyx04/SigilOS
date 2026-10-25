@@ -73,11 +73,12 @@ const ENTRY_B = {
     content: "contenu de B",
 };
 
-/** Entrée légitime de la guilde **A**. */
+/** Entrée légitime de la guilde **A** (identifiant de message réaliste : un snowflake). */
+const MESSAGE_A = "123456789012345678";
 const ENTRY_A = {
     id: "entree-A",
     guildId: "guilde-interne-A",
-    discordMessageId: "msg-A",
+    discordMessageId: MESSAGE_A,
     content: "contenu d'origine",
 };
 
@@ -127,21 +128,24 @@ describe("editBlacklistEntry — isolation de guilde (F3)", () => {
     it("lit et écrit avec la guilde (cas nominal A → A)", async () => {
         mockFindFirst.mockResolvedValue(ENTRY_A);
         mockUpdateMany.mockResolvedValue({ count: 1 });
+        mockUpdateChannelMessage.mockResolvedValue(true);
 
         const res = await editBlacklistEntry(DISCORD_GUILD_A, ENTRY_A.id, "  contenu corrigé  ");
 
-        expect(res).toEqual({ success: true });
+        expect(res).toMatchObject({ success: true });
+        // Le statut Discord accompagne désormais le succès (fail-open corrigé).
+        expect(res.data?.discord).toBe("updated");
         expect(mockUpdateMany).toHaveBeenCalledWith({
             where: { id: ENTRY_A.id, guildId: GUILD_A.id },
             data: { content: "contenu corrigé" },
         });
-        // La synchro Discord continue de fonctionner (même guilde, même message).
-        // ⚠️ Comportement **préexistant** (hors périmètre F3, non modifié) : Discord reçoit
-        // le texte **brut**, la base reçoit le texte **nettoyé** (`content.trim()`).
+        // L'embed suit le texte **enregistré** (`trim`) : c'est le contrat du correctif du
+        // 25/10/2026 (avant, Discord recevait le texte brut et la base le texte nettoyé —
+        // l'embed pouvait donc diverger de la fiche).
         expect(mockUpdateChannelMessage).toHaveBeenCalledWith(
             "chan-A",
-            "msg-A",
-            "  contenu corrigé  ",
+            MESSAGE_A,
+            "contenu corrigé",
             expect.anything(),
         );
         expectNoUnscopedAccess();

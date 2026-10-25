@@ -108,6 +108,54 @@ function ClassPicker({
 }
 
 /**
+ * Coche « en guilde en jeu » d'une mule — **oui / non** explicite.
+ *
+ * Deux boutons segmentés (jamais une case sans libellé) : le staff voit l'état réel,
+ * et le choix est enregistré avec les mules (`Enregistrer les mules`). La valeur vit
+ * dans le JSON `altPseudos` (`inGameGuild`), la même clé que l'onglet Mules compte.
+ */
+function GuildeToggle({
+    value,
+    onChange,
+    disabled,
+    label,
+}: {
+    value: boolean;
+    onChange: (next: boolean) => void;
+    disabled?: boolean;
+    label: string;
+}) {
+    return (
+        <div role="group" aria-label={label} className="flex items-center gap-1">
+            <span className="text-caption text-muted-foreground">En guilde</span>
+            {[false, true].map((state) => {
+                const active = value === state;
+                return (
+                    <button
+                        key={String(state)}
+                        type="button"
+                        aria-pressed={active}
+                        disabled={disabled}
+                        onClick={() => onChange(state)}
+                        className={cn(
+                            "rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                            active
+                                ? state
+                                    ? "border-accent-soft-border bg-accent-soft text-accent"
+                                    : "border-border-strong bg-elevated text-foreground"
+                                : "border-border text-muted-foreground hover:text-foreground",
+                            disabled && "opacity-60"
+                        )}
+                    >
+                        {state ? "Oui" : "Non"}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+/**
  * Mules déclarées d'un membre — **une liste, jamais un champ de saisie libre**.
  *
  * Avant : un `<textarea>` « une par ligne » qui perdait la classe et le niveau (le registre les
@@ -135,6 +183,7 @@ export function MemberMulesEditor({
 }) {
     const [pseudo, setPseudo] = useState("");
     const [classe, setClasse] = useState(DEFAULT_CLASS);
+    const [newInGameGuild, setNewInGameGuild] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [manualFallback, setManualFallback] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -178,9 +227,15 @@ export function MemberMulesEditor({
         const level = result.data?.level;
         onChange([
             ...mules,
-            { pseudo: value, classe, level: typeof level === "number" ? level : undefined },
+            {
+                pseudo: value,
+                classe,
+                level: typeof level === "number" ? level : undefined,
+                ...(newInGameGuild ? { inGameGuild: true } : {}),
+            },
         ]);
         setPseudo("");
+        setNewInGameGuild(false);
         toast.success(
             result.data?.manualFallback
                 ? `${value} ajouté — saisie manuelle autorisée par l'administration`
@@ -194,6 +249,18 @@ export function MemberMulesEditor({
 
     function patchClass(index: number, next: string) {
         onChange(mules.map((mule, position) => (position === index ? { ...mule, classe: next } : mule)));
+    }
+
+    function patchGuilde(index: number, value: boolean) {
+        onChange(
+            mules.map((mule, position) => {
+                if (position !== index) return mule;
+                if (value) return { ...mule, inGameGuild: true };
+                const next: RosterMule = { ...mule };
+                delete next.inGameGuild;
+                return next;
+            })
+        );
     }
 
 
@@ -224,6 +291,16 @@ export function MemberMulesEditor({
                                     {getClass(mule.classe || DEFAULT_CLASS)?.name ?? "Classe inconnue"}
                                     {mule.level ? ` · ${muleLevelLabel(mule.level)}` : ""}
                                 </p>
+                                {canEdit && (
+                                    <div className="mt-1">
+                                        <GuildeToggle
+                                            value={mule.inGameGuild === true}
+                                            onChange={(next) => patchGuilde(index, next)}
+                                            disabled={isPending}
+                                            label={`En guilde en jeu pour ${mule.pseudo}`}
+                                        />
+                                    </div>
+                                )}
                             </div>
                             {canEdit && (
                                 <ClassPicker
@@ -281,6 +358,12 @@ export function MemberMulesEditor({
                         />
                     </div>
                     <ClassPicker value={classe} onChange={setClasse} disabled={isPending || verifying} />
+                    <GuildeToggle
+                        value={newInGameGuild}
+                        onChange={setNewInGameGuild}
+                        disabled={isPending || verifying}
+                        label="Nouvelle mule en guilde en jeu"
+                    />
                     <Button
                         type="button"
                         size="sm"

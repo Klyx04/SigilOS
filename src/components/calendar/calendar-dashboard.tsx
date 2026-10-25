@@ -40,7 +40,6 @@ import {
     cancelCalendarEvent,
     undoCompleteRaidEvent,
     sendEventReminder,
-    autoCloseExpiredEvents,
     sendCalendarDiscordNotification,
     getDiscordRolesForCalendar,
     type GuildEventInput

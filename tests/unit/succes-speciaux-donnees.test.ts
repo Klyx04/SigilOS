@@ -575,20 +575,25 @@ describe("outil d'exploitation des succès spéciaux — complet et lançable en
     });
 });
 
-describe("« Donjon validé » — plus créé, plus rendu", () => {
-    it("la fiche publique l'écarte et n'affiche plus de phrase générique", () => {
+describe("« Donjon validé » — rendu ciblé (revirement du 25/10/2026)", () => {
+    it("la fiche publique le rend **seulement** s'il est le seul succès du donjon", () => {
         const tab = read("src/app/boss/[dungeonId]/_components/PublicBossAchievementsTab.tsx");
-        expect(tab).toContain("NO_ACHIEVEMENT_CHALLENGE_SLUG");
-        expect(tab).toMatch(/achievements\.filter\(\(a\) => a\.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG\)/);
+        expect(tab).toContain("visibleDungeonAchievements");
+        expect(tab).toMatch(/const visible = visibleDungeonAchievements\(achievements\)/);
+        // La règle pure : écarté dès qu'un vrai succès existe (décision du 11/10 conservée)…
+        const rule = read("src/lib/dungeon-no-achievement.ts");
+        expect(rule).toMatch(/achievementSlug\(achievement\) !== NO_ACHIEVEMENT_CHALLENGE_SLUG/);
+        // … et conservé quand c'est la seule ligne (la coche « je l'ai fait »).
+        expect(rule).toMatch(/return real\.length > 0 \? real : \[\.\.\.achievements\]/);
         expect(tab).not.toContain("pour l&apos;obtenir");
     });
 
-    it("le hub ET « Mes Succès » ne le reçoivent plus du tout (filtre à la source)", () => {
-        // `SuccesTracker` compte `achievements.length` (totaux + « tranches complètes ») : sans ce
-        // filtre, le pseudo-succès restait comptabilisé côté interne, même après le retrait du rendu.
+    it("le hub ET « Mes Succès » passent par la même règle (jamais un faux succès compté)", () => {
+        // `SuccesTracker` compte `achievements.length` (totaux + « tranches complètes ») : la règle
+        // partagée garantit qu'un donjon avec de vrais succès ne voit **jamais** le pseudo-succès.
         const actions = read("src/server/actions/game-data-actions.ts");
-        expect(actions).toContain('import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement"');
-        expect(actions).toMatch(/achievement\?\.challenge\?\.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG/);
+        expect(actions).toContain('import { visibleDungeonAchievements } from "@/lib/dungeon-no-achievement"');
+        expect(actions).toMatch(/visibleDungeonAchievements\(dungeon\.achievements \?\? \[\]\)/);
     });
 
     it("l'outil d'exploitation existe, en dry-run par défaut", () => {

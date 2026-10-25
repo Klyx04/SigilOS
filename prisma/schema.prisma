@@ -495,6 +495,11 @@ model GuildConfig {
   pollsPingRoleIds                 String[]                @default([])
   missionPingRoleIds               String[]                @default([])
   raidAllowedSignUpRoleIds         String[]                @default([])
+  /// Rôles Discord comptés comme « en guilde **en jeu** » (module Membres → onglet Mules).
+  /// Décision user du 25/10/2026 : une personne portant **plusieurs** de ces rôles n'est
+  /// comptée qu'**une seule fois** ; les mules déclarées taguées `inGameGuild` s'ajoutent
+  /// à ce total. Liste vide = aucun rôle compté (jamais de repli permissif).
+  inGameGuildRoleIds               String[]                @default([])
   raidHubConfig                    Json?
   notifications                    Notification[]
   memberBans                       GuildMemberBan[]

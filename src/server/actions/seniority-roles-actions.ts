@@ -121,6 +121,8 @@ export interface UpcomingSeniorityMember {
     seniorityDays: number;
     /** Seuil du palier visé. */
     tierDays: number;
+    /** Rôles **gagnés** à ce palier (ids Discord) — l'écran affiche leur nom. */
+    tierRoleIds: string[];
     /** Jours restants avant de le franchir. */
     daysUntil: number;
 }
@@ -224,6 +226,7 @@ export async function getSeniorityRolesSettings(guildId: string) {
                     avatarUrl: normalizeDiscordAvatarUrl(profile.user?.image ?? null, 64),
                     seniorityDays,
                     tierDays: upcomingTier.tierDays,
+                    tierRoleIds: config.tiers[upcomingTier.tierIndex]?.roleIds ?? [],
                     daysUntil: upcomingTier.daysUntil,
                 });
             }

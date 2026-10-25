@@ -506,8 +506,20 @@ export function EventDetailModal({
         setShowRaidCompletion(true);
     };
 
-    const isCompleted = event.status === "COMPLETED" || (Boolean(event.endDate) && new Date(event.endDate).getTime() < Date.now());
-    const effectiveStatus = isCompleted ? "COMPLETED" : event.status;
+    // Statut = celui décidé par le SERVEUR (règle unique `@/lib/calendar-auto-close`) : l'écran
+    // ne rejuge plus la date. C'est cette recomparaison locale qui marquait « Terminé » un raid
+    // encore `PUBLISHED` et masquait le bouton « Clôturer le Raid » au capitaine.
+    const isCompleted = event.status === "COMPLETED";
+    const effectiveStatus = event.status;
+    // Raid terminé mais encore ouvert : la passe de fond ne le clôturera qu'à +48 h, le
+    // capitaine a donc 24 h après le rappel de clôture pour saisir présents + score.
+    const awaitsClosure =
+        isRaid && effectiveStatus === "PUBLISHED" && Boolean(event.endDate) && new Date(event.endDate).getTime() < Date.now();
+    // Clôturé d'office (aucun `metadata.completedAt`) : la fiche propose de rattraper les points.
+    const systemClosed = isRaid && effectiveStatus === "COMPLETED" && !raidMeta?.completedAt;
+    // Beaucoup d'actions (raid terminé) : une ligne entière SOUS le titre plutôt qu'un titre
+    // comprimé à une lettre par ligne (capture du 25/10/2026).
+    const denseActions = isRaid && (effectiveStatus === "COMPLETED" || awaitsClosure);
     const typeConfig = calendarEventTheme(event.type);
     const statusConfig = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.DRAFT;
 
@@ -615,8 +627,8 @@ export function EventDetailModal({
                             </div>
                         )}
 
-                        <div className="relative z-10 flex w-full flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-                            <div className="flex min-w-0 gap-4">
+                        <div className="relative z-10 flex w-full flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-6">
+                            <div className="flex min-w-0 flex-1 gap-4">
                                 {/* Vrai visuel de l'événement : même source que l'embed Discord et
                                     les cartes du dashboard (`resolveEventImagePath`). Pour un raid,
                                     l'illustration 3:4 est affichée ENTIÈRE (jamais rognée). */}
@@ -648,20 +660,28 @@ export function EventDetailModal({
                                     )}
                                 </div>
 
-                                <div className="min-w-0 space-y-2">
-                                    <div className="flex items-center gap-2">
+                                <div className="min-w-0 flex-1 space-y-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <Badge variant="outline" className={cn("text-caption font-black uppercase tracking-wider", typeConfig.color, "border-current/30 bg-current/5 px-2 py-0")}>
                                             {typeConfig.label}
                                         </Badge>
                                         <Badge className={cn("text-caption font-black uppercase tracking-wider px-2 py-0", statusConfig.bg)}>
                                             {statusConfig.label}
                                         </Badge>
+                                        {awaitsClosure && (
+                                            <Badge className="text-caption font-black uppercase tracking-wider px-2 py-0 border border-warning/40 bg-warning/10 text-warning">
+                                                À clôturer
+                                            </Badge>
+                                        )}
                                     </div>
                                     <DialogHeader>
-                                        <DialogTitle className={cn(
-                                            "font-black tracking-tight text-foreground uppercase leading-tight break-words",
-                                            event.title.length > 40 ? "text-lg sm:text-xl" : "text-xl sm:text-2xl"
-                                        )}>
+                                        <DialogTitle
+                                            title={event.title}
+                                            className={cn(
+                                                "font-black tracking-tight text-foreground uppercase leading-tight break-words line-clamp-2",
+                                                event.title.length > 40 ? "text-lg sm:text-xl" : "text-xl sm:text-2xl"
+                                            )}
+                                        >
                                             {event.title}
                                         </DialogTitle>
                                     </DialogHeader>
@@ -672,7 +692,14 @@ export function EventDetailModal({
                                 sur desktop (jamais de débordement horizontal).
                                 Miroirs R1 : aucune action, même admin (lecture seule). */}
                             {canManage && !isMirror && (
-                                <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
+                                <div
+                                    className={cn(
+                                        "flex flex-wrap items-center gap-2 sm:justify-end",
+                                        // Raid terminé = beaucoup d'actions : on leur donne une ligne
+                                        // entière SOUS le titre plutôt que de comprimer celui-ci.
+                                        denseActions ? "sm:basis-full" : "sm:max-w-[45%]"
+                                    )}
+                                >
                                     {/* Edit button — only creator or admin, disabled for Kralamoure */}
                                     {onEdit && event.type !== "KRALAMOURE" && (isCreator || isAdmin) && (
                                         <Button
@@ -770,7 +797,18 @@ export function EventDetailModal({
                                         )
                                     )}
                                     {effectiveStatus === "COMPLETED" && (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {systemClosed && (isCreator || canManage) && (
+                                                <Button
+                                                    size="sm"
+                                                    onClick={initRaidCompletion}
+                                                    disabled={isLoading}
+                                                    className="bg-danger text-danger-foreground hover:bg-danger/90"
+                                                >
+                                                    <Trophy className="h-4 w-4 mr-1.5" />
+                                                    Compléter le raid
+                                                </Button>
+                                            )}
                                             {isRaid && onUndoComplete && (isCreator || canManage) && (
                                                 <Button
                                                     size="sm"
@@ -784,7 +822,7 @@ export function EventDetailModal({
                                                 </Button>
                                             )}
                                             <Badge variant="secondary" className="bg-background/50 text-muted-foreground border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider">
-                                                {isRaid ? "Raid terminé" : "Event terminé"}
+                                                {systemClosed ? "Clôturé d'office — à compléter" : isRaid ? "Raid terminé" : "Event terminé"}
                                             </Badge>
                                         </div>
                                     )}

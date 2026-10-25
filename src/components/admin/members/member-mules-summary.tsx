@@ -1,16 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Baby, ChevronDown, ChevronUp, HelpCircle, Search } from "lucide-react";
+import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getClass } from "@/lib/dofus-assets";
-import { collectDeclaredMules, filterDeclaredMuleGroups, MULE_OMEGA_BASE, type DeclaredMule } from "@/lib/member-mules";
+import { isMuleInGameGuild } from "@/lib/in-game-guild";
+import {
+    collectDeclaredMules,
+    filterDeclaredMuleGroups,
+    MULE_OMEGA_BASE,
+    type DeclaredMule,
+    type DeclaredMuleGroup,
+} from "@/lib/member-mules";
 import type { RosterRow } from "@/lib/member-roster";
+import { setMuleInGameGuild } from "@/server/actions/member-in-game-actions";
 import { cn } from "@/lib/utils";
 
 /** Nombre de propriétaires visibles quand le panneau est replié (le reste est derrière « Voir tout »). */
@@ -26,15 +36,24 @@ function initials(name: string) {
         .toUpperCase();
 }
 
-function MuleChip({ mule, muted }: { mule: DeclaredMule; muted: boolean }) {
+function MuleChip({
+    mule,
+    muted,
+    canToggle,
+    pending,
+    onToggle,
+}: {
+    mule: DeclaredMule;
+    muted: boolean;
+    canToggle?: boolean;
+    pending?: boolean;
+    onToggle?: () => void;
+}) {
     const classe = mule.classe ? getClass(mule.classe) : null;
-    return (
-        <li
-            className={cn(
-                "flex items-center gap-1.5 rounded-md border border-border bg-elevated px-1.5 py-1",
-                muted && "opacity-60"
-            )}
-        >
+    const enGuilde = isMuleInGameGuild(mule);
+
+    const content = (
+        <>
             {classe ? (
                 <Image
                     src={classe.icon}
@@ -59,6 +78,41 @@ function MuleChip({ mule, muted }: { mule: DeclaredMule; muted: boolean }) {
                     {mule.level > MULE_OMEGA_BASE ? `Ω${mule.level - MULE_OMEGA_BASE}` : `Nv. ${mule.level}`}
                 </span>
             )}
+            {enGuilde && (
+                <span className="rounded-sm border border-accent-soft-border bg-accent-soft px-1 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                    En guilde
+                </span>
+            )}
+        </>
+    );
+
+    return (
+        <li
+            className={cn(
+                "flex items-center gap-1.5 rounded-md border bg-elevated px-1.5 py-1",
+                enGuilde ? "border-accent-soft-border" : "border-border",
+                muted && "opacity-60",
+                pending && "opacity-60"
+            )}
+        >
+            {canToggle && onToggle ? (
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    disabled={pending}
+                    aria-pressed={enGuilde}
+                    title={
+                        enGuilde
+                            ? "Retirer le tag « en guilde en jeu »"
+                            : "Marquer cette mule « en guilde en jeu »"
+                    }
+                    className="flex items-center gap-1.5 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                >
+                    {content}
+                </button>
+            ) : (
+                content
+            )}
         </li>
     );
 }
@@ -75,10 +129,64 @@ function MuleChip({ mule, muted }: { mule: DeclaredMule; muted: boolean }) {
  * `src/lib/member-mules.ts`). Aucune classe inventée : sans classe déclarée, un repère
  * neutre plutôt qu'une icône qui ferait croire à une information.
  */
-export function MemberMulesSummary({ rows }: { rows: RosterRow[] }) {
+export function MemberMulesSummary({
+    rows,
+    guildId,
+    canManageMembers = false,
+}: {
+    rows: RosterRow[];
+    /** Fourni ⇒ le staff peut taguer une mule « en guilde en jeu » (action serveur). */
+    guildId?: string;
+    canManageMembers?: boolean;
+}) {
     const summary = useMemo(() => collectDeclaredMules(rows), [rows]);
     const [expanded, setExpanded] = useState(false);
     const [query, setQuery] = useState("");
+    const [pendingKey, setPendingKey] = useState<string | null>(null);
+    const [, startTransition] = useTransition();
+    const router = useRouter();
+
+    const canTag = Boolean(guildId && canManageMembers);
+    const tagged = useMemo(
+        () =>
+            summary.groups.reduce(
+                (count, group) => count + group.mules.filter(isMuleInGameGuild).length,
+                0
+            ),
+        [summary]
+    );
+
+    /** Clé stable d'une mule pour l'état d'attente (profil, sinon Discord, sinon nom). */
+    const muleKey = (group: DeclaredMuleGroup, mule: DeclaredMule) =>
+        `${group.owner.profileId ?? group.owner.discordId ?? group.owner.name}::${mule.pseudo}`;
+
+    const toggleMule = (group: DeclaredMuleGroup, mule: DeclaredMule) => {
+        if (!guildId || !canTag) return;
+        setPendingKey(muleKey(group, mule));
+        startTransition(async () => {
+            const result = await setMuleInGameGuild(
+                guildId,
+                {
+                    profileId: group.owner.profileId,
+                    // Une seule cible : le profil prime sur la ligne de registre.
+                    discordId: group.owner.profileId ? null : group.owner.discordId,
+                },
+                mule.pseudo,
+                !mule.inGameGuild
+            );
+            setPendingKey(null);
+            if (!result.success) {
+                toast.error(result.error || "Erreur lors de l'enregistrement");
+                return;
+            }
+            toast.success(
+                mule.inGameGuild
+                    ? "Tag « en guilde » retiré"
+                    : `${mule.pseudo} marquée « en guilde en jeu »`
+            );
+            router.refresh();
+        });
+    };
 
     const groups = useMemo(() => filterDeclaredMuleGroups(summary.groups, query), [summary, query]);
     const visibleGroups = expanded ? groups : groups.slice(0, COLLAPSED_GROUPS);
@@ -93,6 +201,11 @@ export function MemberMulesSummary({ rows }: { rows: RosterRow[] }) {
                 <Baby className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 <h3 className="text-sm font-semibold text-foreground">Mules déclarées</h3>
                 <Badge variant="outline" className="tabular-nums">{summary.total}</Badge>
+                {tagged > 0 && (
+                    <Badge className="tabular-nums border border-accent-soft-border bg-accent-soft text-accent">
+                        {tagged} en guilde
+                    </Badge>
+                )}
                 <span className="text-caption text-muted-foreground">
                     {summary.membersWithMules} membre{summary.membersWithMules > 1 ? "s" : ""} en déclare
                     {summary.withoutClass > 0 && ` · ${summary.withoutClass} sans classe`}
@@ -162,6 +275,9 @@ export function MemberMulesSummary({ rows }: { rows: RosterRow[] }) {
                                         key={`${group.owner.name}-${mule.pseudo}`}
                                         mule={mule}
                                         muted={group.owner.status === "BANNED"}
+                                        canToggle={canTag}
+                                        pending={pendingKey === muleKey(group, mule)}
+                                        onToggle={() => toggleMule(group, mule)}
                                     />
                                 ))}
                             </ul>

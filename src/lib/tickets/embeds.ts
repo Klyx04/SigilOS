@@ -25,12 +25,22 @@ import {
 import { ticketIconPayload } from "./ticket-icons";
 import { isDiscordAvatarUrl } from "@/lib/discord-avatars";
 
+// 🏷️ Le formatage des noms de salon vit dans un module **sans import** (le bot gateway
+// le recalcule au renommage d'un demandeur) : on le réexporte ici pour les appelants
+// historiques — une seule implémentation, deux consommateurs.
+export {
+    DEFAULT_CLOSED_CHANNEL_PATTERN,
+    DISCORD_CHANNEL_NAME_MAX,
+    formatClosedTicketChannelName,
+    formatTicketChannelName,
+    type TicketChannelNameVars,
+} from "./channel-name-format";
+
 /** Limites Discord appliquées à la construction (jamais dépassées en silence). */
 export const DISCORD_MAX_ROWS = 5;
 export const DISCORD_TITLE_MAX = 256;
 export const DISCORD_DESCRIPTION_MAX = 4096;
 export const DISCORD_FIELD_VALUE_MAX = 1024;
-export const DISCORD_CHANNEL_NAME_MAX = 100;
 
 /**
  * Neutralise les mentions d'un contenu fourni par un membre : une réponse de
@@ -55,48 +65,6 @@ export function truncate(text: string, max: number): string {
 /** Texte destiné à un embed : mentions neutralisées puis borné. */
 export function sanitizeEmbedText(text: string | null | undefined, max = DISCORD_FIELD_VALUE_MAX): string {
     return truncate(neutralizeMentions(text), max);
-}
-
-/**
- * Nom de salon Discord : minuscules, `[a-z0-9-_]`, 100 caractères maximum.
- * `{num}` `{user}` `{journey}` (alias `{category}`) sont remplacés, puis le résultat
- * est assaini — un nom de parcours accentué ne casse plus la création du salon.
- */
-export function formatTicketChannelName(
-    pattern: string,
-    vars: { number: number; user: string; journey: string }
-): string {
-    const filled = (pattern || "ticket-{num}")
-        .replace(/\{num\}/g, String(vars.number).padStart(4, "0"))
-        .replace(/\{user\}/g, vars.user || "membre")
-        .replace(/\{journey\}/g, vars.journey || "ticket")
-        .replace(/\{category\}/g, vars.journey || "ticket");
-
-    const slug = filled
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9-_]+/g, "-")
-        .replace(/-{2,}/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, DISCORD_CHANNEL_NAME_MAX);
-
-    return slug.length > 0 ? slug : `ticket-${String(vars.number).padStart(4, "0")}`;
-}
-
-/**
- * Nom du salon **une fois le ticket fermé** (réglage `closedChannelPattern`).
- * Défaut : `ticket-clos`. Mêmes placeholders que l'ouverture (`{num}`, `{user}`,
- * `{journey}`) et même assainissement (minuscules, `[a-z0-9-_]`, 100 caractères).
- */
-export const DEFAULT_CLOSED_CHANNEL_PATTERN = "ticket-clos";
-
-export function formatClosedTicketChannelName(
-    pattern: string | null | undefined,
-    vars: { number: number; user: string; journey: string }
-): string {
-    const safe = (pattern ?? "").trim() || DEFAULT_CLOSED_CHANNEL_PATTERN;
-    return formatTicketChannelName(safe, vars);
 }
 
 /** `#6366f1` → entier Discord ; toute valeur douteuse retombe sur l'indigo SigilOS. */

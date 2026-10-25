@@ -281,7 +281,9 @@ export function MemberDetailDialog({
                     setRereadError(fresh.error || "Relecture impossible");
                 }
 
-                toast.success(successMessage);
+                // Le serveur peut préciser le résultat (ex. « … — vérifié sur le ladder (niv. 200) »).
+                const serverMessage = (result as { data?: { message?: string } }).data?.message;
+                toast.success(serverMessage || successMessage);
                 onDone?.();
                 onChanged?.();
             } catch {

@@ -406,6 +406,8 @@ model GuildConfig {
   vaultNotifyChannelId             String?
   systemNotifyChannelId            String?
   lifecycleNotifyChannelId         String?
+  /** Salon qui reçoit l'embed « fin d'essai » d'un membre (25/10/2026). */
+  trialEndNotifyChannelId          String?
   firstAdminViewAt                 DateTime?
   welcomeEnabled                   Boolean                 @default(false)
   welcomeNotifyChannelId           String?

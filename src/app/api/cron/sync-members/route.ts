@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncAllGuilds } from "@/server/actions/sync-actions";
+import { syncTicketChannelNamesForGuild } from "@/server/ticket-channel-names";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
 
@@ -28,6 +29,21 @@ export async function GET(req: NextRequest) {
         logger.info("[SyncMembersCron] Starting scheduled member departure sync...");
 
         const { results } = await syncAllGuilds();
+
+        // 🏷️ Rattrapage des noms de salons de tickets : si le demandeur a changé de pseudo
+        // Discord et que le motif du salon contient `{user}`, le salon suit (règle partagée
+        // `@/lib/tickets/channel-name-format`). Le bot gateway ne peut pas le faire (image
+        // sans `src/`), ce cron est donc le seul écrivain.
+        let ticketsRenamed = 0;
+        const ticketErrors: string[] = [];
+        for (const guildId of Object.keys(results)) {
+            try {
+                const ticketSync = await syncTicketChannelNamesForGuild(guildId);
+                ticketsRenamed += ticketSync.renamed;
+            } catch (error) {
+                ticketErrors.push(`${guildId}: ${(error as Error).message || "?"}`);
+            }
+        }
 
         const summary = Object.entries(results).reduce(
             (acc, [guildId, result]) => {
@@ -69,6 +85,8 @@ export async function GET(req: NextRequest) {
             success: true,
             durationMs,
             guilds: Object.keys(results).length,
+            ticketsRenamed,
+            ticketErrors,
             ...summary,
             details: results,
         });

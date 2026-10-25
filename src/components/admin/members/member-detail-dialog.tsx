@@ -14,6 +14,7 @@ import {
     Archive,
     Loader2,
     MessageSquare,
+    RotateCcw,
     X,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -311,6 +312,26 @@ export function MemberDetailDialog({
                     trialEndsAt: trialEndsAt ? new Date(`${trialEndsAt}T00:00:00.000Z`).toISOString() : null,
                 }),
             "Essai validé"
+        );
+    }
+
+    /**
+     * Reprogramme l'essai : on repart d'un essai **en cours** avec une nouvelle échéance.
+     * Refusé sans date — une remise à zéro sans échéance ne veut rien dire.
+     */
+    function handleResetTrial() {
+        if (!row) return;
+        if (!trialEndsAt) {
+            toast.error("Choisis la nouvelle date de fin d'essai.");
+            return;
+        }
+        run(
+            () =>
+                setMemberTrialState(guildId, subject, {
+                    validated: false,
+                    trialEndsAt: new Date(`${trialEndsAt}T00:00:00.000Z`).toISOString(),
+                }),
+            "Essai reprogrammé"
         );
     }
 
@@ -614,8 +635,22 @@ export function MemberDetailDialog({
                                                 className="h-9 text-sm"
                                             />
                                         </div>
-                                        <Button size="sm" variant="outline" onClick={handleSaveTrial} disabled={isPending}>
-                                            Valider l&apos;essai
+                                        <Button
+                                            size="sm"
+                                            onClick={handleSaveTrial}
+                                            disabled={isPending || current.trial?.validated === true}
+                                        >
+                                            {current.trial?.validated ? "Essai validé" : "Valider l'essai"}
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleResetTrial}
+                                            disabled={isPending}
+                                            title="Reprogrammer l'essai avec la date choisie"
+                                        >
+                                            <RotateCcw className="h-3.5 w-3.5" />
+                                            Reprogrammer
                                         </Button>
                                     </div>
 
@@ -733,8 +768,10 @@ export function MemberDetailDialog({
                         <section className="space-y-3">
                             <SectionTitle icon="parchment.png">Registre</SectionTitle>
 
-                            {isDashboard ? (
-                                <>
+                            {/* Registre : identité, essai, recruteur, mules et journal — pour un
+                                profil dashboard **comme** pour un membre Discord hors dashboard
+                                (les actions ciblent `{profileId}` ou `{discordId}`). */}
+                            <>
                                     <div className="flex flex-wrap items-end gap-2">
                                         <div className="min-w-48 flex-1 space-y-1.5">
                                             <Label className="text-xs">Recruteur</Label>
@@ -889,11 +926,6 @@ export function MemberDetailDialog({
                                         )}
                                     </div>
                                 </>
-                            ) : (
-                                <p className="text-xs text-muted-foreground">
-                                    Le registre ne concerne que les profils dashboard.
-                                </p>
-                            )}
                         </section>
                         {/* ── 3. Discord ─────────────────────────────────────── */}
                         <section className="space-y-3">

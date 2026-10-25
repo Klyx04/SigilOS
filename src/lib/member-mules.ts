@@ -11,11 +11,26 @@ import type { RosterMule, RosterRow, RosterStatus } from "@/lib/member-roster";
 
 /** Pseudo borné : un `altPseudos` abîmé ne doit pas casser l'affichage. */
 const PSEUDO_MAX = 60;
-/** Niveau borné (Dofus : 1–200) ; hors bornes ⇒ `null` plutôt qu'un chiffre faux. */
+/**
+ * Niveau borné. Dofus plafonne à 200, mais un personnage **Oméga** repart au-delà :
+ * 200 + niveau Oméga (jusqu'à 400 constaté). Hors bornes ⇒ `null` plutôt qu'un chiffre faux.
+ */
 const LEVEL_MIN = 1;
-const LEVEL_MAX = 200;
+export const MULE_LEVEL_MAX = 400;
+/** Seuil Oméga : au-delà de 200, le niveau affiché est un niveau Oméga. */
+export const MULE_OMEGA_BASE = 200;
 /** Classe bornée : un id de classe fait moins que ça. */
 const CLASSE_MAX = 40;
+
+/**
+ * Libellé d'un niveau de mule. Un personnage **Oméga** ne s'affiche pas « niveau 75 »
+ * quand il est Oméga 75 (niveau 275) : on le dit explicitement.
+ */
+export function muleLevelLabel(level: number | null): string | null {
+    if (level === null) return null;
+    if (level > MULE_OMEGA_BASE) return `Ω ${level - MULE_OMEGA_BASE} (niv. ${level})`;
+    return `Niv. ${level}`;
+}
 
 export interface DeclaredMuleOwner {
     /** Profil dashboard (`UserProfile.id`) — `null` pour une ligne de registre hors dashboard. */
@@ -58,7 +73,7 @@ function cleanText(value: unknown, max: number): string | null {
 function cleanLevel(value: unknown): number | null {
     const level = typeof value === "string" ? Number(value) : value;
     if (typeof level !== "number" || !Number.isFinite(level)) return null;
-    if (!Number.isInteger(level) || level < LEVEL_MIN || level > LEVEL_MAX) return null;
+    if (!Number.isInteger(level) || level < LEVEL_MIN || level > MULE_LEVEL_MAX) return null;
     return level;
 }
 

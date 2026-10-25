@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
+import { muleLevelLabel } from "@/lib/member-mules";
 import type { RosterMule } from "@/lib/member-roster";
 import { isLadderManualFallbackEnabled, verifyDofusPseudo } from "@/server/actions/profile-actions";
 
@@ -221,7 +222,7 @@ export function MemberMulesEditor({
                                 <p className="truncate text-sm text-foreground">{mule.pseudo}</p>
                                 <p className="text-caption text-muted-foreground">
                                     {getClass(mule.classe || DEFAULT_CLASS)?.name ?? "Classe inconnue"}
-                                    {mule.level ? ` · niveau ${mule.level}` : ""}
+                                    {mule.level ? ` · ${muleLevelLabel(mule.level)}` : ""}
                                 </p>
                             </div>
                             {canEdit && (
@@ -305,7 +306,17 @@ export function MemberMulesEditor({
             )}
 
             {canEdit && (
-                <Button size="sm" variant="outline" onClick={onSave} disabled={isPending}>
+                <Button
+                    size="sm"
+                    onClick={onSave}
+                    disabled={isPending}
+                    className="w-full gap-2 sm:w-auto"
+                >
+                    {isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
                     Enregistrer les mules
                 </Button>
             )}

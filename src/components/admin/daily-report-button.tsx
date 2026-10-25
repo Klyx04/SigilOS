@@ -18,10 +18,17 @@ export function DailyReportButton({ guildId }: { guildId: string }) {
     const handleSendReport = () => {
         startTransition(async () => {
             const res = await sendDailySummaryReport(guildId, true);
-            if (res.success) {
+            if (res.success && !("skipped" in res && res.skipped)) {
                 toast.success("Rapport quotidien envoyé");
                 setIsSuccess(true);
                 setTimeout(() => setIsSuccess(false), 3000);
+            } else if (res.success && "skipped" in res && res.skipped) {
+                // « Rien envoyé » n'est pas un échec : on le dit au lieu d'un faux succès.
+                toast.info(
+                    res.reason === "already_sent"
+                        ? "Rapport déjà envoyé aujourd'hui (envoi automatique) — rien de plus à envoyer."
+                        : "Rien à signaler : aucun mouvement de membre, absence, ticket ou preuve sur les dernières 24 h. Aucun message n'a été envoyé."
+                );
             } else {
                 toast.error(res.error || "Échec de l'envoi");
             }

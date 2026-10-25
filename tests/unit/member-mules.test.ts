@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { collectDeclaredMules, normalizeDeclaredMule } from "@/lib/member-mules";
+import { collectDeclaredMules, muleLevelLabel, normalizeDeclaredMule } from "@/lib/member-mules";
 import type { RosterRow } from "@/lib/member-roster";
 
 const row = (patch: Partial<RosterRow> = {}): RosterRow => ({
@@ -130,5 +130,27 @@ describe("inventaire des mules d'une guilde", () => {
         ]);
 
         expect(summary).toEqual({ total: 0, membersWithMules: 0, withoutClass: 0, groups: [] });
+    });
+});
+
+
+describe("libellé de niveau (Oméga)", () => {
+    it("affiche un niveau normal tel quel", () => {
+        expect(muleLevelLabel(1)).toBe("Niv. 1");
+        expect(muleLevelLabel(200)).toBe("Niv. 200");
+    });
+
+    it("nomme le niveau Oméga au-delà de 200 (275 = Oméga 75)", () => {
+        expect(muleLevelLabel(275)).toBe("Ω 75 (niv. 275)");
+        expect(muleLevelLabel(400)).toBe("Ω 200 (niv. 400)");
+    });
+
+    it("n'invente rien quand le niveau est absent", () => {
+        expect(muleLevelLabel(null)).toBeNull();
+    });
+
+    it("accepte un niveau Oméga à la normalisation, refuse au-delà de 400", () => {
+        expect(normalizeDeclaredMule({ pseudo: "A", level: 275 })?.level).toBe(275);
+        expect(normalizeDeclaredMule({ pseudo: "A", level: 401 })?.level).toBeNull();
     });
 });

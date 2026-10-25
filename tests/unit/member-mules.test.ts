@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { collectDeclaredMules, muleLevelLabel, normalizeDeclaredMule } from "@/lib/member-mules";
+import { collectDeclaredMules, filterDeclaredMuleGroups, muleLevelLabel, normalizeDeclaredMule } from "@/lib/member-mules";
 import type { RosterRow } from "@/lib/member-roster";
 
 const row = (patch: Partial<RosterRow> = {}): RosterRow => ({
@@ -152,5 +152,49 @@ describe("libellé de niveau (Oméga)", () => {
     it("accepte un niveau Oméga à la normalisation, refuse au-delà de 400", () => {
         expect(normalizeDeclaredMule({ pseudo: "A", level: 275 })?.level).toBe(275);
         expect(normalizeDeclaredMule({ pseudo: "A", level: 401 })?.level).toBeNull();
+    });
+});
+
+
+describe("recherche dans le panneau (mule ou propriétaire)", () => {
+    const groups = [
+        {
+            owner: { profileId: "p1", discordId: "111", name: "Wylan", avatar: null, status: "ACTIVE" as const },
+            mules: [
+                { pseudo: "Wylanette", classe: "cra", level: null },
+                { pseudo: "Éliomule", classe: "eliotrope", level: null },
+            ],
+        },
+        {
+            owner: { profileId: "p2", discordId: "222", name: "Lyphi", avatar: null, status: "ACTIVE" as const },
+            mules: [{ pseudo: "Lyphiette", classe: null, level: null }],
+        },
+    ];
+
+    it("renvoie tout quand la recherche est vide", () => {
+        expect(filterDeclaredMuleGroups(groups, "")).toHaveLength(2);
+        expect(filterDeclaredMuleGroups(groups, "   ")).toHaveLength(2);
+    });
+
+    it("trouve une mule par son pseudo, sans casse ni accents", () => {
+        const result = filterDeclaredMuleGroups(groups, "elio");
+        expect(result).toHaveLength(1);
+        expect(result[0].mules.map((mule) => mule.pseudo)).toEqual(["Éliomule"]);
+    });
+
+    it("trouve toutes les mules d'un membre par son nom", () => {
+        const result = filterDeclaredMuleGroups(groups, "wyl");
+        expect(result).toHaveLength(1);
+        expect(result[0].mules).toHaveLength(2);
+    });
+
+    it("renvoie une liste vide quand rien ne correspond", () => {
+        expect(filterDeclaredMuleGroups(groups, "zzz")).toEqual([]);
+    });
+
+    it("ne modifie pas les groupes reçus", () => {
+        const before = JSON.parse(JSON.stringify(groups));
+        filterDeclaredMuleGroups(groups, "lyphi");
+        expect(groups).toEqual(before);
     });
 });

@@ -64,6 +64,37 @@ export interface DeclaredMulesSummary {
     groups: DeclaredMuleGroup[];
 }
 
+/**
+ * Filtre les groupes pour la **recherche** du panneau (nom du propriétaire ou pseudo
+ * de mule). Insensible à la casse **et aux accents** : « Wylanette » se trouve en
+ * tapant « wylanete », et « Éliotrope » en tapant « eliotrope ».
+ */
+export function filterDeclaredMuleGroups(
+    groups: readonly DeclaredMuleGroup[],
+    query: string | null | undefined
+): DeclaredMuleGroup[] {
+    const needle = normalizeForSearch(query);
+    if (!needle) return groups.map((group) => ({ ...group, mules: [...group.mules] }));
+
+    const out: DeclaredMuleGroup[] = [];
+    for (const group of groups) {
+        const ownerMatches = normalizeForSearch(group.owner.name).includes(needle);
+        const mules = ownerMatches
+            ? [...group.mules]
+            : group.mules.filter((mule) => normalizeForSearch(mule.pseudo).includes(needle));
+        if (mules.length > 0) out.push({ owner: group.owner, mules });
+    }
+    return out;
+}
+
+function normalizeForSearch(value: string | null | undefined): string {
+    return (value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
+
 function cleanText(value: unknown, max: number): string | null {
     if (typeof value !== "string") return null;
     const trimmed = value.replace(/\s+/g, " ").trim();

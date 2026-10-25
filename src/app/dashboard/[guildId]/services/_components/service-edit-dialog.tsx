@@ -68,7 +68,14 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
                 contactMethod: [contactDiscord && "Discord", contactIngame && "En jeu"].filter(Boolean).join(" + ") || undefined,
             });
             if (result.success) {
-                toast.success("Annonce mise à jour !");
+                const status = result.data?.discordStatus;
+                if (status === "updated") {
+                    toast.success("Annonce mise à jour — la carte Discord a suivi.");
+                } else if (status === "refused") {
+                    toast.warning("Annonce mise à jour, mais Discord a refusé la mise à jour de la carte.");
+                } else {
+                    toast.success("Annonce mise à jour !");
+                }
                 setOpen(false);
                 router.refresh();
             } else {

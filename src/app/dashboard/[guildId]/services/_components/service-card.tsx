@@ -3,10 +3,10 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Pause, Play, Swords, MessageSquare, Gamepad2, Crown, GraduationCap, Star } from "lucide-react";
+import { Trash2, Pause, Play, Swords, MessageSquare, Gamepad2, Crown, GraduationCap, Star, CloudOff, Send } from "lucide-react";
 import { type ServiceListingWithProfile } from "@/server/actions/service-actions";
 import { CATEGORY_LABELS, CATEGORY_EMOJIS } from "@/server/actions/services-constants";
-import { deleteServiceListing, toggleServiceStatus } from "@/server/actions/service-actions";
+import { deleteServiceListing, toggleServiceStatus, republishServiceListing } from "@/server/actions/service-actions";
 import { ServiceCategory } from "@prisma/client";
 import { ServiceEditDialog } from "./service-edit-dialog";
 import { ServiceContactDialog } from "./service-contact-dialog";
@@ -193,6 +193,22 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
         else toast.error(result.error || "Erreur.");
         setLoading(false);
     };
+
+    /** (Re)publication Discord : utile quand la première tentative a échoué. */
+    const handlePublish = async () => {
+        setLoading(true);
+        const result = await republishServiceListing(guildId, listing.id);
+        if (result.success) {
+            toast.success(result.data?.discordStatus === "updated" ? "Carte Discord mise à jour." : "Annonce publiée sur Discord !");
+            router.refresh();
+        } else {
+            toast.error(result.error || "Publication impossible.");
+        }
+        setLoading(false);
+    };
+
+    // Une annonce sans `discordMessageId` n'a jamais atteint Discord (salon absent, refus…).
+    const isPublished = Boolean(listing.discordMessageId);
 
     const handleToggle = async () => {
         setLoading(true);
@@ -470,11 +486,27 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servi
                     <div className="flex flex-col">
                         <span className="text-sm font-black text-foreground tracking-tight leading-none">{name}</span>
                         <span className="text-caption text-muted-foreground font-bold uppercase tracking-widest mt-1">Vendeur certifié</span>
+                        {isOwner && !isPublished && (
+                            <span className="mt-1 inline-flex items-center gap-1 text-caption font-bold text-warning">
+                                <CloudOff className="h-3 w-3" /> Non publiée sur Discord
+                            </span>
+                        )}
                     </div>
                 </div>
 
                 {isOwner ? (
                     <div className="flex items-center gap-2">
+                        {!isPublished && (
+                            <Button
+                                size="sm"
+                                onClick={handlePublish}
+                                disabled={loading}
+                                className="h-9 bg-warning/15 hover:bg-warning/25 text-warning border border-warning/30 font-bold px-3 text-xs"
+                                title="Publier cette annonce dans le forum Discord"
+                            >
+                                <Send className="h-3.5 w-3.5 mr-1" /> Publier
+                            </Button>
+                        )}
                         <ServiceEditDialog listing={listing} guildId={guildId} />
                         <Button size="icon" variant="ghost" onClick={handleToggle} disabled={loading} className="h-9 w-9 rounded-xl bg-surface hover:bg-surface text-muted-foreground hover:text-foreground transition-all">
                             {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}

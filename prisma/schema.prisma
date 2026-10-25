@@ -393,6 +393,15 @@ model GuildConfig {
   // Chantier — points de contribution personnalisables (DJ / quêtes / Songes), config JSON admin
   pointsConfig                     Json?
   servicesNotifyChannelId          String?
+  // Module Services (25/10/2026) — deux flux distincts :
+  //  · annonces : salon **forum** (un sujet par service, filtrable par tag) ;
+  //  · demandes : salon forum **ou** texte (un message/sujet par demande client).
+  // `servicesNotifyChannelId` reste lu en **repli** pour les demandes (legacy) et sera
+  // retiré dans un lot ultérieur — aucune config n'est perdue au passage.
+  servicesListingsChannelId        String?
+  servicesRequestsChannelId        String?
+  /** mapping `ServiceCategory → id de tag forum` (tags existants, jamais créés par nous). */
+  servicesForumTags                Json?
   loansNotifyChannelId             String?
   vaultNotifyChannelId             String?
   systemNotifyChannelId            String?

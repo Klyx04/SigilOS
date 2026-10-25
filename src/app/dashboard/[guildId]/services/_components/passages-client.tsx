@@ -55,6 +55,8 @@ interface PassagesClientProps {
         serviceVaultMessage: string | null;
     };
     servicesDiscordConfigured?: boolean;
+    /** Salon **forum** des annonces configuré (bandeau admin si absent). */
+    listingsDiscordConfigured?: boolean;
     loansDiscordConfigured?: boolean;
     vaultDiscordConfigured?: boolean;
     // #71 — prévisu du salon dans la modale de prêt
@@ -76,6 +78,7 @@ export function PassagesClient({
     vaultSummary,
     maintenance,
     servicesDiscordConfigured = false,
+    listingsDiscordConfigured = false,
     loansDiscordConfigured = false,
     vaultDiscordConfigured = false,
     loansChannelName = null,
@@ -392,6 +395,20 @@ export function PassagesClient({
                     <MaintenanceView label="Services" message={maintenance?.serviceMarketplaceMessage} />
                 ) : (
                     <div className="space-y-4 min-h-[420px]">
+                        {isAdmin && !listingsDiscordConfigured && (
+                            <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs font-bold">
+                                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                <span>
+                                    Aucun salon <strong>forum</strong> n&apos;est configuré pour les annonces : les services publiés n&apos;apparaissent pas sur Discord.
+                                </span>
+                                <a
+                                    href={`/dashboard/${guildId}/admin/settings?tab=services`}
+                                    className="underline underline-offset-2 hover:opacity-80"
+                                >
+                                    Configurer
+                                </a>
+                            </div>
+                        )}
                         {maintenance && !maintenance.serviceMarketplaceEnabled && isAdmin && (
                             <div className="flex items-center gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs font-bold mb-3">
                                 <AlertTriangle className="w-3.5 h-3.5" /> Mode maintenance actif (Visible uniquement par l'admin)

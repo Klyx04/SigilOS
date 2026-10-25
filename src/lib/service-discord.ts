@@ -39,6 +39,21 @@ export function serviceThreadName(raw: string | null | undefined, fallback = "Se
     return name.slice(0, SERVICE_THREAD_NAME_MAX);
 }
 
+/**
+ * Salon qui reçoit les **demandes** des clients : le salon dédié s'il est configuré,
+ * sinon le champ historique (`servicesNotifyChannelId`), conservé en repli pour ne
+ * perdre aucune configuration existante.
+ */
+export function resolveServiceRequestsChannelId(config: {
+    servicesRequestsChannelId?: string | null;
+    legacyNotifyChannelId?: string | null;
+}): string | null {
+    const dedicated = config.servicesRequestsChannelId?.trim();
+    if (dedicated) return dedicated;
+    const legacy = config.legacyNotifyChannelId?.trim();
+    return legacy || null;
+}
+
 export type ServiceMessageTarget = {
     /** Salon qui contient réellement le message (le fil, pour un forum). */
     channelId: string;

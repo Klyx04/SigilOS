@@ -603,6 +603,38 @@ Critère **strict** : aucun `DungeonAchievement` rattaché **et** `conditions` n
 challenges du seed ont `conditions: null`) ⇒ un challenge créé à la main dans God est rattaché à un
 donjon, donc jamais visé. Le code ne **recrée** jamais ces lignes (la passe ne crée plus de challenge).
 
+### Rattrapage « Donjon validé » — donjons sans aucun succès (25/10/2026)
+
+Les **doubles boss** (« Comte et Klime », « Comte et Nileza », « Comte et Sylargh »,
+« Comte et Missiz Frizz », « Harebourg et Frizz », « Abyssaux du Gouffre du Gigalodon ») et les
+**boss d'anomalie** (Mureine, Jardins éternels ×3, Willorque, Exécrabe, Cire Momore…) n'ont
+**aucun** succès propre : sans coche, l'écran affichait « Succès — 0/0 ». L'outil rattache le
+pseudo-succès `donjon-valide` (« Donjon validé ») **uniquement** à ces donjons (aucune ligne
+`DungeonAchievement`), et le rend **seulement** s'il est le seul du donjon
+(`src/lib/dungeon-no-achievement.ts`).
+
+Bundlé dans l'image (`npm run build:backfill-dungeon-completion`), **dry-run par défaut**,
+**idempotent** (`upsert`) ; il **crée** le challenge s'il a été purgé :
+
+```bash
+# 1) contrôle — AUCUNE écriture (liste des donjons visés, avec le flag « sans succès »)
+docker exec sigilos-beta node scripts/backfill-dungeon-completion.js
+# 2) écriture
+docker exec sigilos-beta node scripts/backfill-dungeon-completion.js --apply
+# 3) re-contrôle : doit afficher « Donjons sans succès : 0 / N »
+docker exec sigilos-beta node scripts/backfill-dungeon-completion.js
+```
+
+Idem `sigilos-prod` (noms de conteneurs mesurés le 25/10/2026 dans `docker ps`).
+
+Mesure du 25/10/2026 en **bêta** : **13 donjons / 150** cochés, re-contrôle `0 / 150`.
+
+⚠️ **`Cannot find module '/app/scripts/backfill-dungeon-completion.js'` = image trop ancienne**,
+pas une panne : le bundle n'existe que depuis le commit `5009643d` (25/10/2026). Une image
+antérieure (prod `main` = `07c0500e` du 12/10) ne l'a pas ⇒ lancer le rattrapage **après** le
+déploiement du lot, jamais en copiant le fichier dans un conteneur en marche (`docker cp` =
+artefact hors image, perdu au prochain redéploiement).
+
 ### Pourquoi pas `docker compose exec … tsx`
 L'image de prod ne contient **ni `src/` ni `tsconfig`** (elle ne copie que `public/`, `prisma/`,
 `scripts/` et les JS compilés) alors que le script importe le catalogue TypeScript ⇒

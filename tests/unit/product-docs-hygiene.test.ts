@@ -38,6 +38,12 @@ describe("documentation produit", () => {
         expect(page).toContain('docSlug="commandes-discord"');
     });
 
+    it("le module Services expose un bouton Documentation sur le slug `services`", () => {
+        const page = readFileSync("src/app/dashboard/[guildId]/services/page.tsx", "utf8");
+        expect(page).toContain("ModuleHelpActions");
+        expect(page).toContain('docSlug="services"');
+    });
+
     it("la règle « doc produit locale, jamais commitée » est écrite dans le harnais", () => {
         const rule = readFileSync(".clinerules/04-docs.md", "utf8");
         expect(rule).toContain("src/temp/docs/");

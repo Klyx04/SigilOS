@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncAllGuilds } from "@/server/actions/sync-actions";
+import { notifyEndedTrialsForGuild } from "@/server/actions/trial-end-actions";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
 
@@ -28,6 +29,18 @@ export async function GET(req: NextRequest) {
         logger.info("[SyncMembersCron] Starting scheduled member departure sync...");
 
         const { results } = await syncAllGuilds();
+
+        // 🎓 Fin d'essai : un embed par membre dont l'échéance est passée (jamais de
+        // validation automatique), idempotent via Redis (une clé par membre + échéance).
+        let trialsNotified = 0;
+        for (const guildId of Object.keys(results)) {
+            try {
+                const trialSync = await notifyEndedTrialsForGuild(guildId);
+                trialsNotified += trialSync.notified;
+            } catch (error) {
+                logger.warn(`[SyncMembersCron] fin d'essai: ${guildId} — ${(error as Error).message || "?"}`);
+            }
+        }
 
         const summary = Object.entries(results).reduce(
             (acc, [guildId, result]) => {
@@ -69,6 +82,7 @@ export async function GET(req: NextRequest) {
             success: true,
             durationMs,
             guilds: Object.keys(results).length,
+            trialsNotified,
             ...summary,
             details: results,
         });

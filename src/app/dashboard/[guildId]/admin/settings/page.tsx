@@ -29,6 +29,7 @@ import { SystemSettingsClient } from "../_components/system-settings-client";
 import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
 import { BlacklistSettingsClient } from "../_components/blacklist-settings-client";
 import { RelanceSettingsClient } from "../_components/relance-settings-client";
+import { TrialEndSettingsClient } from "../_components/trial-end-settings-client";
 import { GallerySettingsClient } from "../_components/gallery-settings-client";
 import { DirectorySettingsClient } from "../_components/directory-settings-client";
 import { ServicesSettingsClient } from "../_components/services-settings-client";
@@ -304,6 +305,9 @@ export default async function FeatureSettingsPage({
                                     <AbsenceSettingsClient guildId={guildId} />
                                     <div className="pt-8 border-t border-border">
                                         <RelanceSettingsClient guildId={guildId} />
+                                    </div>
+                                    <div className="pt-8 border-t border-border">
+                                        <TrialEndSettingsClient guildId={guildId} />
                                     </div>
                                 </div>
                             )}

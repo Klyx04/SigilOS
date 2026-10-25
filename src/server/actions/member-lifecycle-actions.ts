@@ -1214,9 +1214,43 @@ export async function updateMemberRegistryIdentity(
         const target = resolveRegistryTarget(subject);
 
         const data: Record<string, unknown> = {};
+        // 🔎 Vérification ladder du pseudo (demande user du 25/10/2026) : elle n'a lieu que si
+        // le module « Ladder Ankama » est **actif** pour la guilde. Sinon (`toggle` off côté
+        // God) on enregistre la saisie manuelle telle quelle, sans appel réseau.
+        let ladderNote = "";
         if (validated.data.pseudoDofus !== undefined) {
-            const v = validated.data.pseudoDofus?.trim();
-            data.pseudoDofus = v ? v : null;
+            const rawPseudo = validated.data.pseudoDofus?.trim() || "";
+            let finalPseudo = rawPseudo ? rawPseudo : null;
+
+            if (rawPseudo) {
+                try {
+                    const { isModuleEnabled } = await import("./module-actions");
+                    const ladderEnabled = await isModuleEnabled(guildId, "ladderSync");
+                    if (ladderEnabled) {
+                        const { verifyDofusPseudo } = await import("./profile-actions");
+                        const check = await verifyDofusPseudo(rawPseudo, guildId);
+                        if (!check.success) {
+                            // Fail-closed : un pseudo introuvable n'est jamais enregistré.
+                            return { success: false, error: check.error || "Pseudo introuvable sur le ladder." };
+                        }
+                        const info = (check.data ?? {}) as { character_name?: string | null; level?: number | null; manualFallback?: boolean };
+                        // Orthographe **officielle** du personnage : c'est elle qui part dans le profil.
+                        if (info.character_name) finalPseudo = String(info.character_name).trim() || finalPseudo;
+                        ladderNote = info.manualFallback
+                            ? " (saisie manuelle autorisée par l'administration)"
+                            : typeof info.level === "number"
+                              ? ` — vérifié sur le ladder (niv. ${info.level})`
+                              : " — vérifié sur le ladder";
+                    } else {
+                        ladderNote = " (vérification ladder désactivée pour cette guilde)";
+                    }
+                } catch (ladderErr) {
+                    logger.warn("[updateMemberRegistryIdentity] vérification ladder impossible", { err: String(ladderErr) });
+                    return { success: false, error: "Vérification ladder indisponible — réessaie ou demande le mode manuel." };
+                }
+            }
+
+            data.pseudoDofus = finalPseudo;
         }
         if (validated.data.ankamaId !== undefined) {
             const v = validated.data.ankamaId?.trim();
@@ -1282,7 +1316,7 @@ export async function updateMemberRegistryIdentity(
             });
         }
 
-        return { success: true, data: { message: "Ligne du registre mise à jour" } };
+        return { success: true, data: { message: `Ligne du registre mise à jour${ladderNote}` } };
     } catch (err: unknown) {
         logger.error("[updateMemberRegistryIdentity] Erreur:", err);
         return { success: false, error: "Erreur lors de la mise à jour du registre" };

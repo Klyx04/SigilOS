@@ -83,7 +83,6 @@ export async function notifyEndedTrialsForGuild(
             where: { guildId: guild.id, trialValidated: false, trialEndsAt: { not: null } },
             select: {
                 id: true,
-                userId: true,
                 pseudoDofus: true,
                 discordNickname: true,
                 trialEndsAt: true,
@@ -101,14 +100,12 @@ export async function notifyEndedTrialsForGuild(
             memberKey: profile.id,
             displayName: profile.pseudoDofus || profile.discordNickname || profile.user?.name || "Membre",
             endsAt: profile.trialEndsAt,
-            mention: profile.userId ? `<@${profile.userId}>` : null,
             scope: "Profil dashboard",
         })),
         ...entries.map((entry) => ({
             memberKey: entry.discordId,
             displayName: entry.pseudoDofus || entry.discordId,
             endsAt: entry.trialEndsAt,
-            mention: `<@${entry.discordId}>`,
             scope: "Registre staff",
         })),
     ];
@@ -124,9 +121,6 @@ export async function notifyEndedTrialsForGuild(
         const sent = await postServiceMessage(
             guild.trialEndNotifyChannelId,
             {
-                content: candidate.mention
-                    ? `⏳ ${candidate.mention}, ton essai est arrivé à échéance.`
-                    : "⏳ Un essai est arrivé à échéance.",
                 embeds: [{
                     title: "⏳ Fin d'essai",
                     description: [

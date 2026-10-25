@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
@@ -2855,7 +2855,10 @@ export async function POST(request: NextRequest) {
                 });
 
                 // Traitement complet en arrière-plan
-                (async () => {
+                // `after()` (Next 16) **garantit** l'exécution après l'envoi de la réponse : une
+                // promesse flottante peut être perdue si Next recycle le contexte de requête, et
+                // le staff resterait devant « SigilOS réfléchit… » jusqu'à l'expiration du token.
+                after(async () => {
                     const { editInteractionMessage } = await import("@/server/discord");
                     try {
                         const guildConfig = await db.guildConfig.findUnique({
@@ -3097,7 +3100,7 @@ export async function POST(request: NextRequest) {
                             "❌ Une erreur interne est survenue lors de l'enregistrement de la recrue."
                         ).catch(() => null);
                     }
-                })();
+                });
 
                 return deferredResponse;
             }

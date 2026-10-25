@@ -2,7 +2,8 @@
 
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { sendChannelMessage, deleteChannelMessage } from "@/server/discord";
+import { sanitizeMentions } from "@/server/discord";
+import { deleteServiceMessage, postServiceMessage } from "@/server/discord-services";
 import { createNotification } from "@/server/actions/notification-actions";
 import { ServiceRequestStatus, NotificationType, NotificationCategory } from "@prisma/client";
 
@@ -81,7 +82,7 @@ export async function processInactiveServiceRequests(): Promise<{
             if (daysSinceCreate >= PURGE_DAYS) {
                 // Suppression de l'embed Discord de la demande (best-effort)
                 if (channelId && req.discordMessageId) {
-                    await deleteChannelMessage(channelId, req.discordMessageId).catch(() => {});
+                    await deleteServiceMessage(channelId, req.discordMessageId).catch(() => {});
                 }
 
                 await db.serviceRequest.update({
@@ -115,11 +116,16 @@ export async function processInactiveServiceRequests(): Promise<{
                 // 1. Ping Discord du demandeur dans le canal des services
                 if (channelId) {
                     const clientDiscordId = await getDiscordIdByUserId(req.clientUserId);
-                    const mention = clientDiscordId ? `<@${clientDiscordId}>` : clientLabel;
+                    const mention = clientDiscordId ? `<@${clientDiscordId}>` : sanitizeMentions(clientLabel);
+                    const safeTitle = sanitizeMentions(listingTitle);
                     const content = isLast
-                        ? `⚠️ **DERNIER RAPPEL ${label} (J+${REMINDER_DAYS[nextIndex]})** — ${mention}, ta demande pour « ${listingTitle} » est sans réponse depuis ${REMINDER_DAYS[nextIndex]} jours. Sans réponse sous **${remainingDays} jours**, elle sera **supprimée automatiquement**.`
-                        : `⚠️ **${label} (J+${REMINDER_DAYS[nextIndex]})** — ${mention}, ta demande pour « ${listingTitle} » est toujours sans réponse. Elle sera **supprimée automatiquement dans ${remainingDays} jours** si aucun passeur ne répond.`;
-                    await sendChannelMessage(channelId, content).catch(() => {});
+                        ? `⚠️ **DERNIER RAPPEL ${label} (J+${REMINDER_DAYS[nextIndex]})** — ${mention}, ta demande pour « ${safeTitle} » est sans réponse depuis ${REMINDER_DAYS[nextIndex]} jours. Sans réponse sous **${remainingDays} jours**, elle sera **supprimée automatiquement**.`
+                        : `⚠️ **${label} (J+${REMINDER_DAYS[nextIndex]})** — ${mention}, ta demande pour « ${safeTitle} » est toujours sans réponse. Elle sera **supprimée automatiquement dans ${remainingDays} jours** si aucun passeur ne répond.`;
+                    await postServiceMessage(
+                        channelId,
+                        { content },
+                        `⚠️ Rappel — ${listingTitle}`
+                    ).catch(() => {});
                 }
 
                 // 2. Notification Dashboard au demandeur

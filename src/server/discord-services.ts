@@ -5,6 +5,7 @@ import {
     serviceThreadName,
     type ServiceMessageTarget,
 } from "@/lib/service-discord";
+import { SERVICE_FORUM_TAGS_MAX } from "@/lib/services/forum-tags";
 import {
     createForumThread,
     deleteChannelMessage,
@@ -32,7 +33,8 @@ import {
 export async function postServiceMessage(
     channelId: string,
     body: Record<string, unknown>,
-    threadName: string
+    threadName: string,
+    options: { appliedTags?: string[] } = {}
 ): Promise<ServiceMessageTarget | null> {
     let channelType: number | null = null;
     let channel: Awaited<ReturnType<typeof fetchChannel>> = null;
@@ -50,12 +52,19 @@ export async function postServiceMessage(
 
     if (isForumOnlyChannelType(channelType)) {
         // Forum / média : le post EST un fil, et l'id du fil est celui du message d'amorçage.
-        // Un forum qui `RequireTag` refuse un sujet sans étiquette : on applique la première
-        // étiquette non modérée (même règle que les cartes d'annonce, historique du module).
-        const appliedTags = (channel?.available_tags ?? [])
+        // Étiquettes : celles **demandées** (mapping catégorie → tag) sont revalidées contre
+        // `available_tags` — un id inventé est écarté (fail-closed) ; à défaut, la première
+        // étiquette non modérée (un forum qui `RequireTag` refuse un sujet sans étiquette).
+        const available = channel?.available_tags ?? [];
+        const availableIds = new Set(available.map((tag) => tag.id));
+        const requested = (options.appliedTags ?? [])
+            .filter((id) => availableIds.has(id))
+            .slice(0, SERVICE_FORUM_TAGS_MAX);
+        const fallbackTags = available
             .filter((tag) => !tag.moderated)
             .slice(0, 1)
             .map((tag) => tag.id);
+        const appliedTags = requested.length > 0 ? requested : fallbackTags;
         const threadBody: Record<string, unknown> = {
             name: serviceThreadName(threadName),
             message: body,

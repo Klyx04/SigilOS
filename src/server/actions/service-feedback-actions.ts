@@ -6,6 +6,7 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { createNotification } from "./notification-actions";
 import { sanitizeMentions } from "@/server/discord";
 import { patchServiceMessage, postServiceMessage } from "@/server/discord-services";
+import { resolveServiceRequestsChannelId } from "@/lib/service-discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ServiceCategory, NotificationType, NotificationCategory } from "@prisma/client";
@@ -79,9 +80,13 @@ export async function submitServiceFeedback(
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true, servicesNotifyChannelId: true },
+            select: { id: true, servicesRequestsChannelId: true, servicesNotifyChannelId: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+        const requestsChannelId = resolveServiceRequestsChannelId({
+            servicesRequestsChannelId: guildConfig.servicesRequestsChannelId,
+            legacyNotifyChannelId: guildConfig.servicesNotifyChannelId,
+        });
 
         // Si lié à une demande de service, vérifier son statut
         let linkedRequest: { id: string; discordMessageId: string | null; status: string } | null = null;
@@ -148,12 +153,12 @@ export async function submitServiceFeedback(
         const providerName = providerProfile.pseudoDofus || providerProfile.discordNickname || providerProfile.user?.name || "Prestataire";
         const appUrl = getAppBaseUrl();
 
-        if (guildConfig.servicesNotifyChannelId) {
+        if (requestsChannelId) {
             // Si la demande avait un message Discord, on met à jour le message existant pour clore le cycle
             if (linkedRequest?.discordMessageId) {
                 try {
                     await patchServiceMessage(
-                        guildConfig.servicesNotifyChannelId,
+                        requestsChannelId,
                         linkedRequest.discordMessageId,
                         {
                             content: `⭐ **Avis client enregistré** — **${sanitizeMentions(clientName)}** a attribué ${stars} (${rating}/5) à **${sanitizeMentions(providerName)}** !`,
@@ -183,7 +188,7 @@ export async function submitServiceFeedback(
                 }],
             };
             await postServiceMessage(
-                guildConfig.servicesNotifyChannelId,
+                requestsChannelId,
                 reviewBody,
                 `⭐ Avis — ${providerName}`
             ).catch((err) => logger.warn("[submitServiceFeedback] Discord broadcast failed", { error: err }));

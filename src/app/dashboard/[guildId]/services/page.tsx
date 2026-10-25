@@ -8,6 +8,7 @@ import { getLoans } from "@/server/actions/loan-actions";
 import { getVaultEntries, getVaultBalance } from "@/server/actions/vault-actions";
 import { getServicesStatusPublic } from "@/server/actions/admin-actions";
 import { getServiceFeedbacks, getProviderRankings } from "@/server/actions/service-feedback-actions";
+import { resolveServiceRequestsChannelId } from "@/lib/service-discord";
 import { PassagesClient } from "./_components/passages-client";
 import { db } from "@/lib/prisma";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
@@ -40,11 +41,23 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
         getProviderRankings(guildId),
         db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { loansNotifyChannelId: true, servicesNotifyChannelId: true, vaultNotifyChannelId: true },
+            select: {
+                loansNotifyChannelId: true,
+                servicesNotifyChannelId: true,
+                servicesRequestsChannelId: true,
+                servicesListingsChannelId: true,
+                vaultNotifyChannelId: true,
+            },
         }),
     ]);
 
-    const servicesDiscordConfigured = !!guildConfig?.servicesNotifyChannelId;
+    // Demandes : salon dédié, sinon repli historique. Annonces : forum dédié obligatoire.
+    const requestsChannelId = resolveServiceRequestsChannelId({
+        servicesRequestsChannelId: guildConfig?.servicesRequestsChannelId,
+        legacyNotifyChannelId: guildConfig?.servicesNotifyChannelId,
+    });
+    const servicesDiscordConfigured = !!requestsChannelId;
+    const listingsDiscordConfigured = !!guildConfig?.servicesListingsChannelId;
     const loansDiscordConfigured = !!guildConfig?.loansNotifyChannelId;
     const vaultDiscordConfigured = !!guildConfig?.vaultNotifyChannelId;
 
@@ -90,6 +103,7 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
                         vaultSummary={vaultBalanceRes.success ? JSON.parse(JSON.stringify(vaultBalanceRes.data || [])) : []}
                         maintenance={statusRes.success ? JSON.parse(JSON.stringify(statusRes.data)) : undefined}
                         servicesDiscordConfigured={servicesDiscordConfigured}
+                listingsDiscordConfigured={listingsDiscordConfigured}
                         loansDiscordConfigured={loansDiscordConfigured}
                         loansChannelName={loansChannelName}
                         vaultDiscordConfigured={vaultDiscordConfigured}

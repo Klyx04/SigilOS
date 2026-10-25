@@ -404,7 +404,19 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
             });
 
             if (result.success) {
-                toast.success("Annonce publiée !");
+                // On ne dit plus « publiée » quand Discord n'a rien reçu : le statut est mesuré.
+                const status = result.data?.discordStatus;
+                if (status === "published") {
+                    toast.success("Annonce publiée dans le forum !");
+                } else if (status === "updated") {
+                    toast.success("Annonce mise à jour sur Discord.");
+                } else if (status === "no_channel" || status === "not_forum") {
+                    toast.warning("Annonce enregistrée, mais aucun salon forum n'est configuré : demande à un administrateur de ta guilde de le choisir dans les réglages du module Services.");
+                } else if (status === "refused") {
+                    toast.warning("Annonce enregistrée, mais Discord a refusé la publication. Préviens un administrateur (permissions du bot).");
+                } else {
+                    toast.success("Annonce enregistrée.");
+                }
                 resetForm(); onOpenChange(false); router.refresh();
             } else {
                 toast.error(result.error || "Erreur lors de la publication.");

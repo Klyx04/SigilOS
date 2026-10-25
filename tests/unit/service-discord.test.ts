@@ -33,6 +33,7 @@ vi.mock("@/server/discord", () => ({
 import {
     isForumOnlyChannelType,
     resolveServiceMessageTarget,
+    resolveServiceRequestsChannelId,
     serviceThreadName,
 } from "@/lib/service-discord";
 import {
@@ -243,3 +244,63 @@ describe("mise à jour et suppression d'un message déjà publié", () => {
         expect(mockDeleteChannelMessage).not.toHaveBeenCalled();
     });
 });
+
+// ─── Deux salons : annonces (forum) et demandes (forum ou texte) ─────────
+
+describe("salon des demandes : dédié, sinon repli historique", () => {
+    it("privilégie le salon dédié aux demandes", () => {
+        expect(
+            resolveServiceRequestsChannelId({
+                servicesRequestsChannelId: "dedie",
+                legacyNotifyChannelId: "ancien",
+            })
+        ).toBe("dedie");
+    });
+
+    it("retombe sur le champ historique tant que l'admin n'a rien choisi", () => {
+        expect(
+            resolveServiceRequestsChannelId({
+                servicesRequestsChannelId: null,
+                legacyNotifyChannelId: "ancien",
+            })
+        ).toBe("ancien");
+    });
+
+    it("répond null quand rien n'est configuré (l'écran le dit, sans mentir)", () => {
+        expect(resolveServiceRequestsChannelId({})).toBeNull();
+        expect(
+            resolveServiceRequestsChannelId({ servicesRequestsChannelId: "   ", legacyNotifyChannelId: "" })
+        ).toBeNull();
+    });
+});
+
+describe("étiquettes appliquées au sujet", () => {
+    const FORUM = {
+        id: "forum-1",
+        type: 15,
+        name: "services",
+        available_tags: [
+            { id: "tag-donjon", name: "Donjon" },
+            { id: "tag-libre", name: "Autre" },
+        ],
+    };
+
+    it("applique l'étiquette demandée (catégorie de l'annonce)", async () => {
+        mockFetchChannel.mockResolvedValue(FORUM);
+        mockCreateForumThread.mockResolvedValue({ id: "fil-1" });
+
+        await postServiceMessage("forum-1", { content: "x" }, "📩 Donjon", { appliedTags: ["tag-donjon"] });
+
+        expect(mockCreateForumThread.mock.calls[0][1].applied_tags).toEqual(["tag-donjon"]);
+    });
+
+    it("écarte une étiquette inventée et retombe sur la première étiquette non modérée", async () => {
+        mockFetchChannel.mockResolvedValue(FORUM);
+        mockCreateForumThread.mockResolvedValue({ id: "fil-1" });
+
+        await postServiceMessage("forum-1", { content: "x" }, "📩 Donjon", { appliedTags: ["tag-invente"] });
+
+        expect(mockCreateForumThread.mock.calls[0][1].applied_tags).toEqual(["tag-donjon"]);
+    });
+});
+

@@ -914,6 +914,44 @@ export async function createForumThread(
 }
 
 /**
+ * PATCH /channels/{id} — **renomme un salon** (jamais d'exception : `false` = à retenter).
+ *
+ * Utilisé pour aligner le nom d'un salon de ticket sur le pseudo Discord du demandeur.
+ * `reason` part dans l'audit Discord (`X-Audit-Log-Reason`, borné et encodé).
+ */
+export async function renameChannel(channelId: string, name: string, reason?: string): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    const trimmed = name.trim().slice(0, 100);
+    if (!trimmed) return false;
+
+    try {
+        const headers: Record<string, string> = {
+            Authorization: `Bot ${token}`,
+            "Content-Type": "application/json",
+        };
+        if (reason) headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
+
+        const res = await fetchWithRetry(`/api/v10/channels/${channelId}`, {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify({ name: trimmed }),
+        });
+
+        if (!res.ok) {
+            await res.text(); // corps jamais journalisé (F-15)
+            logger.warn(`[Discord] renameChannel failed: ${res.status}`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        logger.warn("[Discord] Error renaming channel:", error);
+        return false;
+    }
+}
+
+/**
  * #223 — PATCH /channels/{id}/messages/{mid} générique (mise à jour d'un embed Discord).
  */
 export async function patchChannelMessage(

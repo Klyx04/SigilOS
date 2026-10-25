@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "type": "module",
     "scripts": {
-        "build": "tsc",
+        "build": "tsc && node -e \"require('node:fs').copyFileSync('ticket-name.mjs','dist/ticket-name.mjs')\"",
         "start": "node dist/index.js",
         "dev": "node --loader ts-node/esm --watch index.ts"
     },

@@ -82,6 +82,10 @@ RUN npm run build:siphon
 # `node scripts/succes-speciaux.js siphon [--apply]`, dry-run par défaut)
 RUN npm run build:succes
 
+# Build du rattrapage « Donjon validé » (doubles boss sans succès — dry-run par défaut :
+# `node scripts/backfill-dungeon-completion.js [--apply]`)
+RUN npm run build:backfill-dungeon-completion
+
 # Build worker script
 RUN npm run build:worker
 

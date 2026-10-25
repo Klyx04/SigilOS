@@ -192,6 +192,7 @@ services/discord-bot/node_modules/
 /scripts/database-janitor.js
 /scripts/siphon-guide-images.js
 /scripts/succes-speciaux.js
+/scripts/backfill-dungeon-completion.js
 /scripts/seed-v3-compiled.js
 **/.wrangler/
 

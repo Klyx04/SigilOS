@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 /**
  * 🎓 Fin d'essai (demande user du 25/10/2026) : **aucune** validation automatique —
  * on ne fait que **signaler** l'échéance passée, une fois par membre et par échéance.
@@ -43,5 +44,13 @@ describe("clé d'idempotence de l'embed", () => {
         expect(trialEndNoticeKey("g1", "m1", new Date("2026-10-20T18:30:00.000Z"))).toBe(
             trialEndNoticeKey("g1", "m1", "2026-10-20T02:00:00.000Z")
         );
+    });
+});
+describe("notification fin d'essai — format staff uniquement", () => {
+    it("n'envoie aucun message de ping personnel (message staff par embed pur)", () => {
+        const actionsSource = readFileSync("src/server/actions/trial-end-actions.ts", "utf8");
+        expect(actionsSource).not.toContain("ton essai est arrivé à échéance");
+        expect(actionsSource).not.toContain("content:");
+        expect(actionsSource).toContain("embeds: [{");
     });
 });

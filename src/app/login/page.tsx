@@ -105,6 +105,10 @@ export default async function LoginPage({
                         <p className="mt-5 max-w-[54ch] text-xs text-muted-foreground leading-relaxed">
                             {t.auth.safeAccessNotice}
                         </p>
+
+                        <p className="mt-2 max-w-[54ch] text-xs text-muted-foreground leading-relaxed">
+                            {t.auth.discordVerificationNotice}
+                        </p>
                     </div>
                 </div>
             </main>

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getClass } from "@/lib/dofus-assets";
-import { collectDeclaredMules, filterDeclaredMuleGroups, type DeclaredMule } from "@/lib/member-mules";
+import { collectDeclaredMules, filterDeclaredMuleGroups, MULE_OMEGA_BASE, type DeclaredMule } from "@/lib/member-mules";
 import type { RosterRow } from "@/lib/member-roster";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +55,9 @@ function MuleChip({ mule, muted }: { mule: DeclaredMule; muted: boolean }) {
             )}
             <span className="max-w-32 truncate text-xs text-foreground">{mule.pseudo}</span>
             {mule.level !== null && (
-                <span className="tabular-nums text-caption text-muted-foreground">Nv. {mule.level}</span>
+                <span className="tabular-nums text-caption text-muted-foreground">
+                    {mule.level > MULE_OMEGA_BASE ? `Ω${mule.level - MULE_OMEGA_BASE}` : `Nv. ${mule.level}`}
+                </span>
             )}
         </li>
     );

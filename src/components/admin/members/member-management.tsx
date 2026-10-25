@@ -11,6 +11,7 @@ import type { RosterRoleInput, RosterRow } from "@/lib/member-roster";
 
 import { DailyReportButton } from "@/components/admin/daily-report-button";
 import { MemberBlacklist } from "./member-blacklist";
+import { MemberMulesSummary } from "./member-mules-summary";
 import { MemberRosterList } from "./member-roster-list";
 import { SeniorityRolesPanel } from "./seniority-roles-panel";
 
@@ -127,6 +128,8 @@ export default function MemberManagement({
                         </div>
                     ))}
                 </div>
+
+                <MemberMulesSummary rows={rows} />
 
                 <div className="flex flex-wrap items-center gap-2">
                     <DailyReportButton guildId={guildId} />

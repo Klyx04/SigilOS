@@ -159,7 +159,7 @@ const altsSchema = z.object({
             z.object({
                 pseudo: z.string().min(1).max(30),
                 classe: z.string().nullable().optional(),
-                level: z.number().int().min(1).max(200).nullable().optional(),
+                level: z.number().int().min(1).max(400).nullable().optional(),
             })
         ])
     ),
@@ -540,7 +540,7 @@ export async function getMemberRegistryDiscordIndex(
         });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        const [{ listGuildMembers, fetchGuildRoles }, { buildGuildAvatarUrl }] = await Promise.all([
+        const [{ listGuildMembers, fetchGuildRoles }, { buildGuildAvatarUrl, buildDiscordAvatarUrl, getDefaultDiscordAvatar }] = await Promise.all([
             import("@/server/discord"),
             import("@/lib/discord-avatars"),
         ]);
@@ -639,8 +639,13 @@ export async function getMemberRegistryDiscordIndex(
                 discordId,
                 displayName: String(member.nick || member.user.global_name || member.user.username || discordId),
                 username: String(member.user.username ?? ""),
-                // Avatar de guilde prioritaire, repli sur l'avatar global (même règle que #134).
-                avatar: buildGuildAvatarUrl(guildId, discordId, member.avatar || member.user.avatar || null, 128),
+                // Avatar : d'abord celui **du serveur**, sinon celui du compte Discord, sinon
+                // l'avatar par défaut de Discord. Avant, le hash *global* était glissé dans
+                // l'URL *de guilde* → 404 silencieux et initiales à la place de la photo.
+                avatar: member.avatar
+                    ? buildGuildAvatarUrl(guildId, discordId, member.avatar, 128)
+                    : buildDiscordAvatarUrl(discordId, member.user.avatar || null, 128) ??
+                      getDefaultDiscordAvatar(discordId),
                 joinedAt: member.joined_at ?? null,
                 roles,
                 joinedAtResolved,

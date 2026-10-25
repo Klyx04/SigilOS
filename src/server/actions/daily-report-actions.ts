@@ -26,8 +26,17 @@ import { getAppBaseUrl } from "@/lib/utils";
  */
 export async function sendDailySummaryReport(guildId: string, isManual = false) {
     if (isManual) {
-        const isAdmin = await isSuperAdmin();
-        if (!isAdmin) throw new Error("Accès refusé");
+        // 🔓 Le rapport est un outil **de guilde** : un admin (ou « Gérer les membres ») suffit.
+        // Avant, il fallait être God et l'action **levait** — le bouton ne montrait donc rien.
+        const { getUserContext } = await import("./user-actions");
+        const ctx = await getUserContext(guildId);
+        const allowed = (ctx.isAuthenticated && (ctx.isAdmin || ctx.canManageMembers)) || (await isSuperAdmin());
+        if (!allowed) {
+            return {
+                success: false as const,
+                error: "Permission « Gérer les membres » requise pour envoyer le rapport du jour.",
+            };
+        }
     } else {
         // 🔒 SÉCURITÉ (IDOR) : le chemin AUTO est légitime pour le worker BullMQ (SANS session)
         // et la route cron (protégée par secret). Un utilisateur connecté NON-God ne doit pas
@@ -45,7 +54,7 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
             const claimed = await redis.set(key, "1", "EX", 86_400, "NX");
             if (claimed !== "OK") {
                 logger.info(`[Daily Report] Déjà envoyé aujourd'hui pour ${guildId} (${today}) — skip anti-doublon.`);
-                return { success: true, messageId: null, skipped: true };
+                return { success: true, messageId: null, skipped: true, reason: "already_sent" as const };
             }
         } catch (e) {
             // Redis indisponible → on laisse passer (degraded, pas de blocage).
@@ -125,7 +134,7 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
 
         if (!hasData) {
             logger.info(`[Daily Report] Aucun événement staff pour la guilde ${config.name} (${guildId}) — message sauté.`);
-            return { success: true, messageId: null, skipped: true };
+            return { success: true, messageId: null, skipped: true, reason: "no_events" as const };
         }
 
         const { getAppBaseUrl } = await import("@/lib/utils");

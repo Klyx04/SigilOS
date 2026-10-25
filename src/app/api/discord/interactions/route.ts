@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
@@ -2797,50 +2797,21 @@ export async function POST(request: NextRequest) {
                 }
             } else if (prefix === "valrecrue" && action === "submit") {
                 // ── Soumission de la modale /valider-recrue (Staff) ────────────────
-                // Gate **local** : admin Discord (payload) ∪ rôle autorisé par la guilde ∪
-                // mapping de rôles en base. **Aucun appel à l'API Discord** : l'ancien
-                // `internalCheckPermission` en faisait trois, et faisait expirer la
-                // soumission de la modale exactement comme l'ouverture.
+                // ⚡⚡ FIX LONG TERME (25/10/2026) : ACK IMMÉDIAT (type 5, Deferred)
+                // Discord impose une réponse en moins de 3 s à la soumission d'une modale.
+                // L'écriture DB et surtout les appels API Discord pour attribuer/retirer
+                // les rôles (addGuildMemberRole, removeGuildMemberRole) et leurs rate-limits
+                // dépassent souvent ce délai, causant « L'application n'a pas répondu à temps »
+                // et figeant la modale à l'écran du staff.
+                // En renvoyant immédiatement `type: 5` (deferred reply éphémère) :
+                // 1. Discord FERME la modale instantanément.
+                // 2. Le staff voit « SigilOS réfléchit... ».
+                // 3. Le traitement (DB, rôles Discord, audit) s'exécute en arrière-plan
+                //    sans contrainte de 3 s (le token reste valide 15 minutes).
+                // 4. `editInteractionMessage` publie l'embed vert de confirmation final.
                 const targetId = entityId;
                 if (!targetId || !guild_id) {
                     return ephemeralDiscordMessage("❌ Interaction de validation invalide.");
-                }
-
-                const guildConfig = await db.guildConfig.findUnique({
-                    where: { discordGuildId: guild_id },
-                    select: {
-                        id: true,
-                        trialDurationDays: true,
-                        rolesMapping: true,
-                        usersMapping: true,
-                        slashCommandPermissions: {
-                            where: { commandName: "valider-recrue" },
-                            select: { roleIds: true },
-                        },
-                    },
-                });
-                if (!guildConfig) {
-                    return ephemeralDiscordMessage("❌ Ce serveur n'est pas lié à SigilOS.");
-                }
-
-                const { hasMappedPermission } = await import("@/lib/discord/permission-mapping");
-                const { PERMISSIONS } = await import("@/lib/permissions");
-                const submitRoleIds: string[] = member?.roles ?? [];
-                const isSubmitAdmin = (BigInt(member?.permissions || "0") & BigInt(0x8)) === BigInt(0x8);
-                const mappedStaff = hasMappedPermission({
-                    memberRoleIds: submitRoleIds,
-                    discordUserId: member.user.id,
-                    rolesMapping: guildConfig.rolesMapping,
-                    usersMapping: guildConfig.usersMapping,
-                    permission: PERMISSIONS.STAFF_MEMBER_MGMT,
-                });
-                const allowedByGuildRole = (guildConfig.slashCommandPermissions[0]?.roleIds ?? []).some(
-                    (roleId) => submitRoleIds.includes(roleId)
-                );
-                if (!isSubmitAdmin && !mappedStaff && !allowedByGuildRole) {
-                    return ephemeralDiscordRefusal(
-                        "🚫 `/valider-recrue` est réservée au staff : permission « Ressources Humaines » ou rôle autorisé par la guilde."
-                    );
                 }
 
                 // Extraire les champs saisis dans la modale
@@ -2877,195 +2848,261 @@ export async function POST(request: NextRequest) {
                 }
                 const arrivalDate = new Date(`${ymd}T12:00:00`);
 
-                const findGuildProfile = async (discordId: string) => {
-                    const account = await db.account.findFirst({
-                        where: { provider: "discord", providerAccountId: discordId },
-                        include: {
-                            user: {
+                // Réponse immédiate de type 5 pour libérer Discord et fermer la modale
+                const deferredResponse = NextResponse.json({
+                    type: 5,
+                    data: { flags: 64 },
+                });
+
+                // Traitement complet en arrière-plan
+                // `after()` (Next 16) **garantit** l'exécution après l'envoi de la réponse : une
+                // promesse flottante peut être perdue si Next recycle le contexte de requête, et
+                // le staff resterait devant « SigilOS réfléchit… » jusqu'à l'expiration du token.
+                after(async () => {
+                    const { editInteractionMessage } = await import("@/server/discord");
+                    try {
+                        const guildConfig = await db.guildConfig.findUnique({
+                            where: { discordGuildId: guild_id },
+                            select: {
+                                id: true,
+                                trialDurationDays: true,
+                                rolesMapping: true,
+                                usersMapping: true,
+                                slashCommandPermissions: {
+                                    where: { commandName: "valider-recrue" },
+                                    select: { roleIds: true },
+                                },
+                            },
+                        });
+                        if (!guildConfig) {
+                            await editInteractionMessage(payload.application_id, payload.token, "❌ Ce serveur n'est pas lié à SigilOS.");
+                            return;
+                        }
+
+                        const { hasMappedPermission } = await import("@/lib/discord/permission-mapping");
+                        const { PERMISSIONS } = await import("@/lib/permissions");
+                        const submitRoleIds: string[] = member?.roles ?? [];
+                        const isSubmitAdmin = (BigInt(member?.permissions || "0") & BigInt(0x8)) === BigInt(0x8);
+                        const mappedStaff = hasMappedPermission({
+                            memberRoleIds: submitRoleIds,
+                            discordUserId: member.user.id,
+                            rolesMapping: guildConfig.rolesMapping,
+                            usersMapping: guildConfig.usersMapping,
+                            permission: PERMISSIONS.STAFF_MEMBER_MGMT,
+                        });
+                        const allowedByGuildRole = (guildConfig.slashCommandPermissions[0]?.roleIds ?? []).some(
+                            (roleId) => submitRoleIds.includes(roleId)
+                        );
+                        if (!isSubmitAdmin && !mappedStaff && !allowedByGuildRole) {
+                            await editInteractionMessage(
+                                payload.application_id,
+                                payload.token,
+                                "🚫 `/valider-recrue` est réservée au staff : permission « Ressources Humaines » ou rôle autorisé par la guilde."
+                            );
+                            return;
+                        }
+
+                        const findGuildProfile = async (discordId: string) => {
+                            const account = await db.account.findFirst({
+                                where: { provider: "discord", providerAccountId: discordId },
                                 include: {
-                                    profiles: {
-                                        where: { guildId: guildConfig.id },
-                                        take: 1,
-                                        select: {
-                                            id: true,
-                                            pseudoDofus: true,
-                                            discordNickname: true,
-                                            ankamaId: true,
-                                            trialValidated: true,
-                                            trialEndsAt: true,
-                                            guildJoinedAt: true,
-                                            recruitedById: true,
+                                    user: {
+                                        include: {
+                                            profiles: {
+                                                where: { guildId: guildConfig.id },
+                                                take: 1,
+                                                select: {
+                                                    id: true,
+                                                    pseudoDofus: true,
+                                                    discordNickname: true,
+                                                    ankamaId: true,
+                                                    trialValidated: true,
+                                                    trialEndsAt: true,
+                                                    guildJoinedAt: true,
+                                                    recruitedById: true,
+                                                },
+                                            },
                                         },
                                     },
                                 },
-                            },
-                        },
-                    });
-                    return account?.user?.profiles?.[0] ?? null;
-                };
+                            });
+                            return account?.user?.profiles?.[0] ?? null;
+                        };
 
-                const profile = await findGuildProfile(targetId);
-                // B-2 : plus besoin d'un profil dashboard pour compléter une recrue. Un membre
-                // hors dashboard a désormais sa ligne dédiée (`MemberRegistryEntry`, clé guilde +
-                // ID Discord) — on l'écrit au même titre qu'un profil.
-                const registryEntry = profile
-                    ? null
-                    : await db.memberRegistryEntry.findUnique({
-                          where: { guildId_discordId: { guildId: guildConfig.id, discordId: targetId } },
-                          select: { id: true, trialValidated: true, trialEndsAt: true },
-                      });
+                        const profile = await findGuildProfile(targetId);
+                        // B-2 : plus besoin d'un profil dashboard pour compléter une recrue. Un membre
+                        // hors dashboard a désormais sa ligne dédiée (`MemberRegistryEntry`, clé guilde +
+                        // ID Discord) — on l'écrit au même titre qu'un profil.
+                        const registryEntry = profile
+                            ? null
+                            : await db.memberRegistryEntry.findUnique({
+                                  where: { guildId_discordId: { guildId: guildConfig.id, discordId: targetId } },
+                                  select: { id: true, trialValidated: true, trialEndsAt: true },
+                              });
 
-                // Recruteur : analysé si fourni, sinon l'auteur de l'interaction (le staff)
-                let recruiterProfileId: string | null = null;
-                let recruiterLabel: string | null = null;
-                if (rawRecruiter) {
-                    const matchSnowflake = rawRecruiter.match(/^<@!?(\d{5,25})>$/) || rawRecruiter.match(/^(\d{5,25})$/);
-                    if (matchSnowflake) {
-                        const recProfile = await findGuildProfile(matchSnowflake[1]);
-                        if (recProfile) {
-                            recruiterProfileId = recProfile.id;
-                            recruiterLabel = recProfile.pseudoDofus || recProfile.discordNickname || "Recruteur";
-                        }
-                    }
-                    if (!recruiterProfileId) {
-                        const cleanQuery = rawRecruiter.trim();
-                        const rec = await db.userProfile.findFirst({
-                            where: {
-                                guildId: guildConfig.id,
-                                OR: [
-                                    { pseudoDofus: { equals: cleanQuery, mode: "insensitive" } },
-                                    { discordNickname: { equals: cleanQuery, mode: "insensitive" } },
-                                    { user: { name: { equals: cleanQuery, mode: "insensitive" } } },
-                                ],
-                            },
-                            select: { id: true, pseudoDofus: true, discordNickname: true },
-                        });
-                        if (rec) {
-                            recruiterProfileId = rec.id;
-                            recruiterLabel = rec.pseudoDofus || rec.discordNickname || cleanQuery;
+                        // Recruteur : analysé si fourni, sinon l'auteur de l'interaction (le staff)
+                        let recruiterProfileId: string | null = null;
+                        let recruiterLabel: string | null = null;
+                        if (rawRecruiter) {
+                            const matchSnowflake = rawRecruiter.match(/^<@!?(\d{5,25})>$/) || rawRecruiter.match(/^(\d{5,25})$/);
+                            if (matchSnowflake) {
+                                const recProfile = await findGuildProfile(matchSnowflake[1]);
+                                if (recProfile) {
+                                    recruiterProfileId = recProfile.id;
+                                    recruiterLabel = recProfile.pseudoDofus || recProfile.discordNickname || "Recruteur";
+                                }
+                            }
+                            if (!recruiterProfileId) {
+                                const cleanQuery = rawRecruiter.trim();
+                                const rec = await db.userProfile.findFirst({
+                                    where: {
+                                        guildId: guildConfig.id,
+                                        OR: [
+                                            { pseudoDofus: { equals: cleanQuery, mode: "insensitive" } },
+                                            { discordNickname: { equals: cleanQuery, mode: "insensitive" } },
+                                            { user: { name: { equals: cleanQuery, mode: "insensitive" } } },
+                                        ],
+                                    },
+                                    select: { id: true, pseudoDofus: true, discordNickname: true },
+                                });
+                                if (rec) {
+                                    recruiterProfileId = rec.id;
+                                    recruiterLabel = rec.pseudoDofus || rec.discordNickname || cleanQuery;
+                                } else {
+                                    await editInteractionMessage(
+                                        payload.application_id,
+                                        payload.token,
+                                        `❌ Recruteur « ${cleanQuery} » introuvable parmi les membres de la guilde.`
+                                    );
+                                    return;
+                                }
+                            }
                         } else {
-                            return ephemeralDiscordMessage(`❌ Recruteur « ${cleanQuery} » introuvable parmi les membres de la guilde.`);
+                            const authorProfile = await findGuildProfile(member.user.id);
+                            recruiterProfileId = authorProfile?.id ?? null;
+                            recruiterLabel = authorProfile ? authorProfile.pseudoDofus || authorProfile.discordNickname || "Toi" : null;
                         }
+
+                        // Mise en essai si la recrue n'est ni validée ni déjà en essai daté
+                        // (l'état est lu sur le profil **ou** sur la ligne de registre du hors dashboard).
+                        const trialValidated = profile?.trialValidated ?? registryEntry?.trialValidated ?? false;
+                        const trialAlreadyDated = profile?.trialEndsAt ?? registryEntry?.trialEndsAt ?? null;
+                        const needsTrial = !trialValidated && !trialAlreadyDated;
+                        const trialBase = arrivalDate ?? new Date();
+                        const trialEndsAt = needsTrial
+                            ? new Date(trialBase.getTime() + Math.max(1, guildConfig.trialDurationDays) * 86_400_000)
+                            : undefined;
+
+                        // Rôles appliqués par défaut selon réglage dashboard
+                        const { parseValiderRecrueConfig } = await import("@/lib/slash-commands-catalog");
+                        const permRow = await db.guildSlashCommandPermission.findUnique({
+                            where: { guildId_commandName: { guildId: guildConfig.id, commandName: "valider-recrue" } },
+                            select: { config: true },
+                        });
+                        const dashboardRoles = parseValiderRecrueConfig(permRow?.config);
+                        const addRoleId = dashboardRoles.addRoleId;
+                        const removeRoleId = dashboardRoles.removeRoleId;
+
+                        const registryData = {
+                            pseudoDofus: rawPseudo,
+                            ...(rawAnkama ? { ankamaId: rawAnkama } : {}),
+                            guildJoinedAt: arrivalDate,
+                            ...(recruiterProfileId ? { recruitedById: recruiterProfileId } : {}),
+                            ...(needsTrial ? { trialValidated: false, trialEndsAt } : {}),
+                        };
+
+                        if (profile) {
+                            await db.userProfile.update({ where: { id: profile.id }, data: registryData });
+                        } else {
+                            // Recrue hors dashboard : la ligne de registre est créée si besoin, sinon complétée.
+                            await db.memberRegistryEntry.upsert({
+                                where: { guildId_discordId: { guildId: guildConfig.id, discordId: targetId } },
+                                create: { guildId: guildConfig.id, discordId: targetId, ...registryData },
+                                update: registryData,
+                            });
+                        }
+
+                        // Application des rôles sur Discord
+                        const { addGuildMemberRole, removeGuildMemberRole } = await import("@/server/discord");
+                        const roleOutcomes: string[] = [];
+                        if (addRoleId) {
+                            const r = await addGuildMemberRole(guild_id, targetId, addRoleId, "SigilOS /valider-recrue (modale)");
+                            roleOutcomes.push(r.success ? `+ <@&${addRoleId}>` : `⚠️ ajout <@&${addRoleId}> : ${r.error}`);
+                        }
+                        if (removeRoleId) {
+                            const r = await removeGuildMemberRole(guild_id, targetId, removeRoleId, "SigilOS /valider-recrue (modale)");
+                            roleOutcomes.push(r.success ? `− <@&${removeRoleId}>` : `⚠️ retrait <@&${removeRoleId}> : ${r.error}`);
+                        }
+
+                        const { createAuditLog } = await import("@/server/actions/audit-actions");
+                        await createAuditLog({
+                            guildId: guildConfig.id,
+                            actorUserId: `discord:${member.user.id}`,
+                            actorName: "Discord /valider-recrue (modale)",
+                            action: "SETTINGS_UPDATED",
+                            targetType: "USER_PROFILE",
+                            targetId: profile?.id ?? registryEntry?.id ?? targetId,
+                            newValue: {
+                                pseudoDofus: rawPseudo,
+                                ankamaId: rawAnkama,
+                                guildJoinedAt: arrivalDate,
+                                recruitedById: recruiterProfileId,
+                                addRoleId,
+                                removeRoleId,
+                            },
+                            metadata: { source: "modal-valider-recrue", channelId: payload.channel_id ?? null },
+                        }).catch(() => null);
+
+                        const seniority = computeSeniorityDays(arrivalDate.toISOString());
+                        const appBaseUrl = getAppBaseUrl();
+                        const fields: { name: string; value: string; inline?: boolean }[] = [
+                            { name: "Pseudo Dofus", value: rawPseudo, inline: true },
+                            { name: "Tag Ankama", value: rawAnkama || "—", inline: true },
+                            { name: "Recruté par", value: recruiterLabel || "—", inline: true },
+                            {
+                                name: "Arrivée",
+                                value: `${new Date(arrivalDate).toLocaleDateString("fr-FR")} (${seniority} j)`,
+                                inline: true,
+                            },
+                            {
+                                name: "Essai",
+                                value: needsTrial
+                                    ? `démarré (${guildConfig.trialDurationDays} j)`
+                                    : trialValidated
+                                      ? "déjà validé"
+                                      : "en cours",
+                                inline: true,
+                            },
+                            {
+                                name: "Fiche",
+                                value: profile ? "Profil dashboard" : "Hors dashboard (registre)",
+                                inline: true,
+                            },
+                            ...(roleOutcomes.length > 0
+                                ? [{ name: "Rôles Discord", value: roleOutcomes.join("\n"), inline: false }]
+                                : []),
+                        ];
+
+                        await editInteractionMessage(payload.application_id, payload.token, {
+                            embeds: [{
+                                title: `✅ Ligne registre complétée — <@${targetId}>`,
+                                color: 0x22C55E,
+                                fields,
+                                url: `${appBaseUrl}/dashboard/${guild_id}/admin/members`,
+                                footer: { text: "SigilOS • Registre staff" },
+                            }],
+                        });
+                    } catch (bgError) {
+                        logger.error("[valider-recrue] Échec traitement arrière-plan:", bgError);
+                        await editInteractionMessage(
+                            payload.application_id,
+                            payload.token,
+                            "❌ Une erreur interne est survenue lors de l'enregistrement de la recrue."
+                        ).catch(() => null);
                     }
-                } else {
-                    const authorProfile = await findGuildProfile(member.user.id);
-                    recruiterProfileId = authorProfile?.id ?? null;
-                    recruiterLabel = authorProfile ? authorProfile.pseudoDofus || authorProfile.discordNickname || "Toi" : null;
-                }
-
-                // Mise en essai si la recrue n'est ni validée ni déjà en essai daté
-                // (l'état est lu sur le profil **ou** sur la ligne de registre du hors dashboard).
-                const trialValidated = profile?.trialValidated ?? registryEntry?.trialValidated ?? false;
-                const trialAlreadyDated = profile?.trialEndsAt ?? registryEntry?.trialEndsAt ?? null;
-                const needsTrial = !trialValidated && !trialAlreadyDated;
-                const trialBase = arrivalDate ?? new Date();
-                const trialEndsAt = needsTrial
-                    ? new Date(trialBase.getTime() + Math.max(1, guildConfig.trialDurationDays) * 86_400_000)
-                    : undefined;
-
-                // Rôles appliqués par défaut selon réglage dashboard
-                const { parseValiderRecrueConfig } = await import("@/lib/slash-commands-catalog");
-                const permRow = await db.guildSlashCommandPermission.findUnique({
-                    where: { guildId_commandName: { guildId: guildConfig.id, commandName: "valider-recrue" } },
-                    select: { config: true },
                 });
-                const dashboardRoles = parseValiderRecrueConfig(permRow?.config);
-                const addRoleId = dashboardRoles.addRoleId;
-                const removeRoleId = dashboardRoles.removeRoleId;
 
-                const registryData = {
-                    pseudoDofus: rawPseudo,
-                    ...(rawAnkama ? { ankamaId: rawAnkama } : {}),
-                    guildJoinedAt: arrivalDate,
-                    ...(recruiterProfileId ? { recruitedById: recruiterProfileId } : {}),
-                    ...(needsTrial ? { trialValidated: false, trialEndsAt } : {}),
-                };
-
-                if (profile) {
-                    await db.userProfile.update({ where: { id: profile.id }, data: registryData });
-                } else {
-                    // Recrue hors dashboard : la ligne de registre est créée si besoin, sinon complétée.
-                    await db.memberRegistryEntry.upsert({
-                        where: { guildId_discordId: { guildId: guildConfig.id, discordId: targetId } },
-                        create: { guildId: guildConfig.id, discordId: targetId, ...registryData },
-                        update: registryData,
-                    });
-                }
-
-                // Application des rôles sur Discord
-                const { addGuildMemberRole, removeGuildMemberRole } = await import("@/server/discord");
-                const roleOutcomes: string[] = [];
-                if (addRoleId) {
-                    const r = await addGuildMemberRole(guild_id, targetId, addRoleId, "SigilOS /valider-recrue (modale)");
-                    roleOutcomes.push(r.success ? `+ <@&${addRoleId}>` : `⚠️ ajout <@&${addRoleId}> : ${r.error}`);
-                }
-                if (removeRoleId) {
-                    const r = await removeGuildMemberRole(guild_id, targetId, removeRoleId, "SigilOS /valider-recrue (modale)");
-                    roleOutcomes.push(r.success ? `− <@&${removeRoleId}>` : `⚠️ retrait <@&${removeRoleId}> : ${r.error}`);
-                }
-
-                const { createAuditLog } = await import("@/server/actions/audit-actions");
-                await createAuditLog({
-                    guildId: guildConfig.id,
-                    actorUserId: `discord:${member.user.id}`,
-                    actorName: "Discord /valider-recrue (modale)",
-                    action: "SETTINGS_UPDATED",
-                    targetType: "USER_PROFILE",
-                    targetId: profile?.id ?? registryEntry?.id ?? targetId,
-                    newValue: {
-                        pseudoDofus: rawPseudo,
-                        ankamaId: rawAnkama,
-                        guildJoinedAt: arrivalDate,
-                        recruitedById: recruiterProfileId,
-                        addRoleId,
-                        removeRoleId,
-                    },
-                    metadata: { source: "modal-valider-recrue", channelId: payload.channel_id ?? null },
-                }).catch(() => null);
-
-                const seniority = computeSeniorityDays(arrivalDate.toISOString());
-                const appBaseUrl = getAppBaseUrl();
-                const fields: { name: string; value: string; inline?: boolean }[] = [
-                    { name: "Pseudo Dofus", value: rawPseudo, inline: true },
-                    { name: "Tag Ankama", value: rawAnkama || "—", inline: true },
-                    { name: "Recruté par", value: recruiterLabel || "—", inline: true },
-                    {
-                        name: "Arrivée",
-                        value: `${new Date(arrivalDate).toLocaleDateString("fr-FR")} (${seniority} j)`,
-                        inline: true,
-                    },
-                    {
-                        name: "Essai",
-                        value: needsTrial
-                            ? `démarré (${guildConfig.trialDurationDays} j)`
-                            : trialValidated
-                              ? "déjà validé"
-                              : "en cours",
-                        inline: true,
-                    },
-                    {
-                        name: "Fiche",
-                        value: profile ? "Profil dashboard" : "Hors dashboard (registre)",
-                        inline: true,
-                    },
-                    ...(roleOutcomes.length > 0
-                        ? [{ name: "Rôles Discord", value: roleOutcomes.join("\n"), inline: false }]
-                        : []),
-                ];
-
-                return NextResponse.json({
-                    type: 4,
-                    data: {
-                        embeds: [{
-                            title: `✅ Ligne registre complétée — <@${targetId}>`,
-                            color: 0x22C55E,
-                            fields,
-                            url: `${appBaseUrl}/dashboard/${guild_id}/admin/members`,
-                            footer: { text: "SigilOS • Registre staff" },
-                        }],
-                        flags: 64,
-                    },
-                });
+                return deferredResponse;
             }
 
             return NextResponse.json({ type: 4, data: { content: "Modal inconnu", flags: 64 } });
@@ -3881,13 +3918,8 @@ export async function POST(request: NextRequest) {
             // ── /valider-recrue (STAFF — ouvre la modale de saisie registre) ──
             if (commandName === "valider-recrue") {
                 // ⚡ **ACK d'abord** (mesure du 24/10/2026) : l'ancienne version appelait
-                // `internalCheckPermission` ici, soit **trois appels à l'API Discord**
-                // (membre, serveur, rôles) AVANT la réponse → dépassement des 3 s et
-                // « n'a pas répondu à temps » dès que le rate-limit Discord mordait.
-                //
-                // La vérification d'accès se fait **à la soumission** de la modale
-                // (`valrecrue:submit`), là où l'écriture a lieu — et désormais **sans
-                // aucun appel Discord** (rôles de la payload + mapping local).
+                // `internalCheckPermission` ici, soit trois appels à l'API Discord
+                // AVANT la réponse → dépassement des 3 s. Le gate a été basculé à la soumission.
                 const opt = (name: string): string | undefined =>
                     payload.data?.options?.find((o: any) => o.name === name)?.value;
                 const targetId: string | undefined = opt("membre");
@@ -3895,11 +3927,20 @@ export async function POST(request: NextRequest) {
                     return ephemeralDiscordMessage("❌ Utilise `/valider-recrue membre:@pseudo` dans un serveur lié à SigilOS.");
                 }
 
-                // ⏱️ **Budget de pré-remplissage** (mesure du 25/10/2026) : cette commande répond
-                // par une **modale** (`type: 9`), qui doit partir en **moins de 3 s**. Les lectures
-                // de pré-remplissage (serveur lié, profil, ligne de registre) sont donc **bornées** :
-                // au-delà du budget, la modale s'ouvre **vide** (la soumission relit tout) au lieu
-                // de laisser Discord afficher « n'a pas répondu à temps ».
+                // Résolution instantanée depuis le payload Discord (0 ms, 0 I/O) :
+                // Pour une recrue qui vient d'arriver sur le serveur et n'a jamais été sur le dashboard,
+                // Discord fournit déjà son surnom serveur (`nick`), son nom global ou son username.
+                const resolvedUser = payload.data?.resolved?.users?.[targetId];
+                const resolvedMember = payload.data?.resolved?.members?.[targetId];
+                const targetDiscordName: string =
+                    resolvedMember?.nick ||
+                    resolvedUser?.global_name ||
+                    resolvedUser?.username ||
+                    "Recrue";
+
+                // ⏱️ **Budget de pré-remplissage** : cette commande répond par une modale (`type: 9`),
+                // qui doit partir en moins de 3 s. Si la recrue a déjà un profil ou une ligne registre,
+                // on pré-remplit les champs ; au-delà du budget, la modale s'ouvre avec son nom Discord.
                 const VALRECRUE_PREFILL_BUDGET_MS = 700;
 
                 const findGuildProfile = async (discordId: string, internalGuildId: string) => {
@@ -3934,13 +3975,14 @@ export async function POST(request: NextRequest) {
                         if (!guildConfigRead) {
                             return { linked: false as const, profile: null, registryEntry: null };
                         }
+                        const internalGuildId = guildConfigRead.id;
 
-                        const profileRead = await findGuildProfile(targetId, guildConfigRead.id);
-                        // B-2 : sans profil dashboard, on préremplit depuis la ligne de registre.
+                        const profileRead = await findGuildProfile(targetId, internalGuildId);
+                        // Sans profil dashboard, on préremplit depuis la ligne de registre si elle existe.
                         const registryRead = profileRead
                             ? null
                             : await db.memberRegistryEntry.findUnique({
-                                  where: { guildId_discordId: { guildId: guildConfigRead.id, discordId: targetId } },
+                                  where: { guildId_discordId: { guildId: internalGuildId, discordId: targetId } },
                                   select: { pseudoDofus: true, ankamaId: true },
                               });
 
@@ -3953,14 +3995,14 @@ export async function POST(request: NextRequest) {
                     return ephemeralDiscordMessage("❌ Ce serveur n'est pas lié à SigilOS.");
                 }
                 if (prefillOutcome.status === "timeout") {
-                    logger.warn("[valider-recrue] pré-remplissage au-delà du budget — modale ouverte sans pré-remplissage");
+                    logger.warn("[valider-recrue] pré-remplissage au-delà du budget — modale ouverte avec nom résolu");
                 }
 
                 const prefill = prefillOutcome.status === "done" ? prefillOutcome.value : null;
                 const profile = prefill?.profile ?? null;
                 const registryEntry = prefill?.registryEntry ?? null;
 
-                // Date du jour JJ/MM/AAAA (prépopulée avec la date du jour et non la date existante, éditable)
+                // Date du jour JJ/MM/AAAA (prépopulée avec la date du jour, éditable)
                 const now = new Date();
                 const pad = (n: number) => n.toString().padStart(2, "0");
                 const todayFr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
@@ -3968,7 +4010,12 @@ export async function POST(request: NextRequest) {
                     profile?.pseudoDofus ||
                     profile?.discordNickname ||
                     registryEntry?.pseudoDofus ||
-                    "Recrue";
+                    targetDiscordName;
+
+                const initialPseudoDofus =
+                    profile?.pseudoDofus ||
+                    registryEntry?.pseudoDofus ||
+                    (targetDiscordName !== "Recrue" ? targetDiscordName : "");
 
                 return NextResponse.json({
                     type: 9, // MODAL
@@ -3988,7 +4035,7 @@ export async function POST(request: NextRequest) {
                                         required: true,
                                         min_length: 2,
                                         max_length: 30,
-                                        value: profile?.pseudoDofus || registryEntry?.pseudoDofus || "",
+                                        value: initialPseudoDofus,
                                     },
                                 ],
                             },

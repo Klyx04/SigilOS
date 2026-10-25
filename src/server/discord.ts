@@ -1439,10 +1439,19 @@ export async function updateChannelMessage(
  * Utilisé pour donner un retour visible (succès / erreur) sur les boutons Discord,
  * notamment `ticket:close`. Le message est éphemère (visible uniquement par le cliqueur).
  */
+export type InteractionEditPayload =
+    | string
+    | {
+          content?: string;
+          embeds?: Record<string, unknown>[];
+          components?: Record<string, unknown>[];
+          flags?: number;
+      };
+
 export async function editInteractionMessage(
     applicationId: string,
     interactionToken: string,
-    content: string
+    payload: InteractionEditPayload
 ): Promise<boolean> {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
@@ -1472,7 +1481,7 @@ export async function editInteractionMessage(
                     Authorization: `Bot ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ content, flags: 64 }), // flags:64 = EPHEMERAL
+                body: JSON.stringify(typeof payload === "string" ? { content: payload, flags: 64 } : { flags: 64, ...payload }),
             }
         );
 

@@ -6,7 +6,8 @@ import { logServiceActivity } from "./activity-log-actions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ServiceCategory, ServiceStatus, NotificationType, NotificationCategory, ServiceRequestStatus, Prisma } from "@prisma/client";
-import { validateChannelBelongsToGuild, fetchChannel, postChannelMessage, createForumThread, deleteChannelMessage } from "@/server/discord";
+import { validateChannelBelongsToGuild, sanitizeMentions } from "@/server/discord";
+import { deleteServiceMessage, patchServiceMessage, postServiceMessage, postServiceThreadMessage } from "@/server/discord-services";
 import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
 
@@ -132,7 +133,7 @@ async function getDiscordIdForUserId(userId: string): Promise<string | null> {
 
 // Discord channel types
 // 0 = GUILD_TEXT, 5 = GUILD_NEWS, 15 = GUILD_FORUM, 16 = GUILD_MEDIA
-const FORUM_TYPES = [15, 16];
+// (le type est désormais résolu dans `@/server/discord-services` — jamais ici)
 
 async function sendServiceDiscordNotification(
     discordGuildId: string,
@@ -158,19 +159,6 @@ async function sendServiceDiscordNotification(
 
         const channelId = guildConfig.servicesNotifyChannelId;
         const appUrl = getAppBaseUrl();
-
-        // -- Detect channel type -- (via la couche centrale : fetchChannel, jamais de fetch direct)
-        let channelInfo: { type: number; available_tags?: { id: string; name: string; moderated?: boolean }[] } | null = null;
-        try {
-            channelInfo = await fetchChannel(channelId);
-        } catch (err) {
-            logger.warn("[ServiceEmbed] Cannot fetch channel info", { err: String(err) });
-        }
-        if (!channelInfo) {
-            logger.warn("[ServiceEmbed] Cannot fetch channel info");
-            return;
-        }
-        const isForum = FORUM_TYPES.includes(channelInfo.type);
 
         // -- Build embed content --
         const emoji = CATEGORY_EMOJIS[listing.category];
@@ -199,43 +187,22 @@ async function sendServiceDiscordNotification(
             ]
         }];
 
-        let discordMessageId: string | null = null;
+        // -- Publication : salon texte/annonce OU forum (le post y est un fil) --
+        const target = await postServiceMessage(
+            channelId,
+            { embeds: [embed], components },
+            `${emoji} ${listing.title}`
+        );
 
-        if (isForum) {
-            // ── FORUM CHANNEL : POST /threads (centralisé createForumThread) ──
-            const availableTags = channelInfo.available_tags || [];
-            const firstUsableTag = availableTags.find(t => !t.moderated);
-            const applied_tags = firstUsableTag ? [firstUsableTag.id] : [];
-
-            const body: Record<string, unknown> = {
-                name: `${emoji} ${listing.title}`.slice(0, 100),
-                message: {
-                    embeds: [embed],
-                    components,
-                },
-            };
-            if (applied_tags.length > 0) {
-                body.applied_tags = applied_tags;
-            }
-
-            const thread = await createForumThread(channelId, body);
-            if (thread) discordMessageId = thread.id;
-        } else {
-            // ── TEXTE CLASSIQUE : POST /messages (centralisé postChannelMessage) ──
-            try {
-                discordMessageId = await postChannelMessage(channelId, { embeds: [embed], components });
-            } catch (postErr) {
-                logger.warn("[ServiceEmbed] Discord API error", { err: String(postErr) });
-            }
-        }
-
-        if (discordMessageId) {
+        if (target) {
+            // On mémorise le salon **réel** (le fil, pour un forum) : sans lui, la
+            // suppression de l'annonce viserait le forum parent et échouerait.
             await db.serviceListing.update({
                 where: { id: listingId },
-                data: { discordMessageId, discordChannelId: channelId },
+                data: { discordMessageId: target.messageId, discordChannelId: target.channelId },
             });
         } else {
-            logger.warn("[ServiceEmbed] Discord API error");
+            logger.warn("[ServiceEmbed] publication Discord impossible (salon ou permissions)");
         }
     } catch (error) {
         logger.error("[sendServiceDiscordNotification] failed", { err: error });
@@ -535,10 +502,12 @@ export async function deleteServiceListing(
             return { success: false, error: "Seul l'auteur ou un admin peut supprimer cette annonce." };
         }
 
-        // Delete Discord message if exists (centralisé : deleteChannelMessage)
+        // Supprime le message Discord s'il existe. `discordChannelId` vaut le fil pour un
+        // forum (lignes récentes) ou le forum parent (lignes antérieures) : le résolveur
+        // tranche sur le type réel, sans migration.
         if (listing.discordChannelId && listing.discordMessageId) {
             try {
-                await deleteChannelMessage(listing.discordChannelId, listing.discordMessageId);
+                await deleteServiceMessage(listing.discordChannelId, listing.discordMessageId);
             } catch {
                 // Silently fail — message may already be deleted
             }
@@ -732,8 +701,8 @@ export async function contactPasseurAction(
             }),
         ]);
 
-        const providerMention = providerAccount?.providerAccountId ? `<@${providerAccount.providerAccountId}>` : listing.profile.pseudoDofus || "Passeur";
-        const requesterMention = requesterAccount?.providerAccountId ? `<@${requesterAccount.providerAccountId}>` : user.name || "Membre";
+        const providerMention = providerAccount?.providerAccountId ? `<@${providerAccount.providerAccountId}>` : sanitizeMentions(listing.profile.pseudoDofus || "Passeur");
+        const requesterMention = requesterAccount?.providerAccountId ? `<@${requesterAccount.providerAccountId}>` : sanitizeMentions(user.name || "Membre");
 
         // Call Discord Bot API to send mention message
         const token = process.env.DISCORD_BOT_TOKEN;
@@ -773,7 +742,7 @@ export async function contactPasseurAction(
                     : listing.category === "PASSAGE_DONJON"
                         ? "• Passage classique"
                         : "• Service standard",
-                customMessage ? `\n**Message du client :**\n*${customMessage}*` : "",
+                customMessage ? `\n**Message du client :**\n*${sanitizeMentions(customMessage)}*` : "",
             ].filter(Boolean).join("\n"),
             color: CATEGORY_COLORS_HEX[listing.category as keyof typeof CATEGORY_COLORS_HEX] || 0x8b5cf6,
             timestamp: new Date().toISOString(),
@@ -820,23 +789,29 @@ export async function contactPasseurAction(
             ]
         }];
 
-        let discordMessageId: string | null = null;
-        try {
-            discordMessageId = await postChannelMessage(channelId, {
+        // -- Publication : salon texte/annonce OU forum (le post y est un fil) --
+        const target = await postServiceMessage(
+            channelId,
+            {
                 content: `🔔 ${providerMention}, tu as une nouvelle demande de service de la part de ${requesterMention} !`,
                 embeds: [embed],
                 components,
+            },
+            `📩 ${listing.title}`
+        );
+
+        if (target) {
+            // Id conservé pour la clôture / le feedback (résolu ensuite par `discord-services`).
+            await db.serviceRequest.update({
+                where: { id: serviceRequest.id },
+                data: { discordMessageId: target.messageId },
             });
-            // Store the Discord message ID for later update (close/feedback)
-            if (discordMessageId) {
-                await db.serviceRequest.update({
-                    where: { id: serviceRequest.id },
-                    data: { discordMessageId },
-                });
-            }
-        } catch (postErr) {
-            logger.warn("[contactPasseurAction] Discord API error", { err: String(postErr) });
-            // Ne pas bloquer : la demande est persistée, le Discord est best-effort
+        } else {
+            // La demande reste enregistrée (elle vit dans le module), mais on ne fait pas
+            // croire au client que Discord a été notifié : l'UI le dit explicitement.
+            logger.warn("[contactPasseurAction] Discord n'a pas accepté la demande", {
+                requestId: serviceRequest.id,
+            });
         }
 
         // 🔔 Dashboard notification to the provider
@@ -867,7 +842,8 @@ export async function contactPasseurAction(
             details: JSON.stringify({ options, hasMessage: !!customMessage, requestId: serviceRequest.id }),
         });
 
-        return { success: true, data: { requestId: serviceRequest.id } };
+        // `discordDelivered` : l'UI ne prétend plus que Discord a été notifié quand ce n'est pas vrai.
+        return { success: true, data: { requestId: serviceRequest.id, discordDelivered: !!target } };
     } catch (error) {
         logger.error("[contactPasseurAction] failed", { err: error });
         return { success: false, error: "Erreur interne" };
@@ -944,7 +920,6 @@ export async function closeServiceRequestAction(
         // 2. Mise à jour de l'embed Discord (remplacer les boutons par le statut clôturé)
         if (request.discordMessageId && guildConfig.servicesNotifyChannelId) {
             try {
-                const { patchChannelMessage } = await import("@/server/discord");
                 const clientAccount = await db.account.findFirst({
                     where: { userId: request.clientUserId, provider: "discord" },
                     select: { providerAccountId: true },
@@ -953,7 +928,7 @@ export async function closeServiceRequestAction(
                     ? `<@${clientAccount.providerAccountId}>`
                     : request.clientName;
 
-                await patchChannelMessage(
+                await patchServiceMessage(
                     guildConfig.servicesNotifyChannelId,
                     request.discordMessageId,
                     {
@@ -1035,7 +1010,7 @@ export async function cancelServiceRequestAction(
         // 1. Supprimer le message Discord
         if (request.discordMessageId && guildConfig.servicesNotifyChannelId) {
             try {
-                await deleteChannelMessage(guildConfig.servicesNotifyChannelId, request.discordMessageId);
+                await deleteServiceMessage(guildConfig.servicesNotifyChannelId, request.discordMessageId);
             } catch (delErr) {
                 logger.warn("[cancelServiceRequestAction] Discord delete message error", { err: String(delErr) });
             }
@@ -1329,32 +1304,50 @@ export async function sendServiceReplyAction(
             logger.error("[sendServiceReplyAction] Dashboard notification failed", { err: notifErr });
         }
 
-        // 7. Post Discord : systématiquement dans le salon de notification avec
-        // mention directe du récepteur (pas de DM privé — cohérent avec l'envoi
-        // initial d'une demande côté client, qui ne passe que par le salon)
+        // 7. Post Discord : dans le **fil de la demande** quand le salon est un forum
+        // (sinon chaque réponse créerait un nouveau sujet), sinon dans le salon de
+        // notification. Mention directe du récepteur (pas de DM privé).
         const token = process.env.DISCORD_BOT_TOKEN;
         const recipientDiscordId = await getDiscordIdForUserId(recipientUserId);
         if (token && guildConfig.servicesNotifyChannelId) {
             const channelId = guildConfig.servicesNotifyChannelId;
-            const recipientMention = recipientDiscordId ? `<@${recipientDiscordId}>` : recipientUserId;
+            const recipientMention = recipientDiscordId ? `<@${recipientDiscordId}>` : sanitizeMentions(recipientUserId);
 
-            // 7a. Message dans le salon (mention directe — visible, traçable)
-            try {
-                const embed = {
-                    title: `💬 ${title}`,
-                    description: message,
-                    color: 0x06b6d4,
-                    timestamp: new Date().toISOString(),
-                    footer: { text: `${senderLabel} • SigilOS Services` },
-                };
-                await postChannelMessage(channelId, {
-                    content: `🔔 ${recipientMention}, ${senderLabel} a répondu à ta demande pour **${listing.title}** :`,
+            // Fil de la demande en cours entre ces deux personnes (id du message d'amorçage).
+            const requestThread = await db.serviceRequest.findFirst({
+                where: {
+                    guildId: guildConfig.id,
+                    listingId: listing.id,
+                    discordMessageId: { not: null },
+                    OR: [
+                        { clientUserId: actorUserId, providerUserId: recipientUserId },
+                        { clientUserId: recipientUserId, providerUserId: actorUserId },
+                    ],
+                },
+                orderBy: { createdAt: "desc" },
+                select: { discordMessageId: true },
+            }).catch(() => null);
+
+            // 7a. Message publié (salon, ou fil de la demande dans un forum)
+            const embed = {
+                title: `💬 ${sanitizeMentions(title)}`,
+                description: sanitizeMentions(message),
+                color: 0x06b6d4,
+                timestamp: new Date().toISOString(),
+                footer: { text: `${sanitizeMentions(senderLabel)} • SigilOS Services` },
+            };
+            const replyTarget = await postServiceThreadMessage(
+                channelId,
+                requestThread?.discordMessageId ?? null,
+                {
+                    content: `🔔 ${recipientMention}, ${sanitizeMentions(senderLabel)} a répondu à ta demande pour **${sanitizeMentions(listing.title)}** :`,
                     embeds: [embed],
-                });
-            } catch (discordErr) {
-                logger.warn("[sendServiceReplyAction] channel message failed", { err: discordErr });
+                },
+                `💬 ${listing.title}`
+            );
+            if (!replyTarget) {
+                logger.warn("[sendServiceReplyAction] réponse non publiée sur Discord", { listingId: listing.id });
             }
-
         }
 
         // 8. Log activity

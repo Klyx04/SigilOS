@@ -97,7 +97,14 @@ export function ServiceContactDialog({ listing, guildId, isDiscordConfigured = f
             }
             const res = await contactPasseurAction(guildId, listing.id, finalOptions, message.trim() || null);
             if (res.success) {
-                toast.success("Demande envoyée ! Le passeur a été notifié sur Discord.");
+                // Vérité mesurée : la demande est **enregistrée** dans le module, mais Discord
+                // peut avoir refusé l'annonce (permissions, forum fermé…). On ne prétend plus
+                // au client que le passeur a été notifié quand ce n'est pas le cas.
+                if (res.data?.discordDelivered) {
+                    toast.success("Demande envoyée ! Le passeur a été notifié sur Discord.");
+                } else {
+                    toast.warning("Demande enregistrée, mais Discord n'a pas pu être notifié. Le passeur la verra dans le module Services.");
+                }
                 setOpen(false);
             } else {
                 toast.error(res.error || "Impossible d'envoyer la demande.");

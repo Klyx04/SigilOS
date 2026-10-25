@@ -12,6 +12,7 @@ import { resolveServiceRequestsChannelId } from "@/lib/service-discord";
 import { PassagesClient } from "./_components/passages-client";
 import { db } from "@/lib/prisma";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 import { ConciergeBell } from "lucide-react";
 
@@ -82,7 +83,12 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
                     icon={ConciergeBell}
                     iconColor="#06b6d4"
                     backHref={`/dashboard/${guildId}`}
-                    actions={<ModuleTourReplayButton phase="services" />}
+                    actions={
+                        <div className="flex items-center gap-2">
+                            <ModuleHelpActions docSlug="services" docTitle="Services & Artisans" tourPhase="services" />
+                            <ModuleTourReplayButton phase="services" />
+                        </div>
+                    }
                 />
             </div>
 

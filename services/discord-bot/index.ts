@@ -28,6 +28,8 @@ import {
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+// 🏷️ Miroir du formatage de l'app (image du bot sans `src/`) — parité verrouillée par un test.
+import { renameTicketChannelName } from './ticket-name.mjs';
 
 // SECURITY FIX (F-23): Use the canonical DATABASE_URL env var like the rest of the
 // app (docker-compose provides it). The previous code reassembled the connection
@@ -1005,16 +1007,72 @@ client.on(Events.GuildBanRemove, async (ban) => {
 // ========================
 // Event: Member Update (Nicknames & Roles)
 // ========================
+/**
+ * 🏷️ **Renommage temps réel** des salons de tickets du membre qui vient de changer de
+ * pseudo (surnom serveur **ou** nom d'utilisateur).
+ *
+ * Ne touche qu'aux tickets **ouverts** ; le nom est recalculé par remplacement du slug
+ * de l'ancien pseudo dans le nom **actuel** (`renameTicketChannelName`), donc :
+ *  - `ticket-0044-retro-slide` → `ticket-0044-baboba` ;
+ *  - `ticket-0044` (motif sans `{user}`) → **inchangé** ;
+ *  - un nom retouché à la main sans l'ancien pseudo → **inchangé**.
+ *
+ * Le cron `sync-members` reste le filet de sécurité (bot hors-ligne au moment du changement).
+ */
+async function syncTicketChannelNames(oldMember: any, newMember: any) {
+    const oldDisplayName = oldMember.nickname || oldMember.displayName || oldMember.user.username;
+    const newDisplayName = newMember.nickname || newMember.displayName || newMember.user.username;
+    if (!oldDisplayName || !newDisplayName || oldDisplayName === newDisplayName) return;
+
+    const tickets = await db.ticketRecord.findMany({
+        where: {
+            discordGuildId: newMember.guild.id,
+            creatorDiscordId: newMember.id,
+            status: 'OPEN',
+            discordChannelId: { not: null },
+        },
+        select: { id: true, ticketNumber: true, discordChannelId: true, creatorDiscordName: true },
+    }).catch(() => []);
+
+    for (const ticket of tickets) {
+        if (!ticket.discordChannelId) continue;
+
+        if (ticket.creatorDiscordName !== newDisplayName) {
+            await db.ticketRecord
+                .update({ where: { id: ticket.id }, data: { creatorDiscordName: newDisplayName } })
+                .catch(() => null);
+        }
+
+        try {
+            const channel: any = newMember.guild.channels.cache.get(ticket.discordChannelId)
+                || (await newMember.guild.channels.fetch(ticket.discordChannelId).catch(() => null));
+            if (!channel || typeof channel.setName !== 'function') continue;
+
+            const nextName = renameTicketChannelName(channel.name, oldDisplayName, newDisplayName);
+            if (!nextName) continue;
+
+            await channel.setName(nextName, 'SigilOS · pseudo Discord du demandeur mis à jour');
+            console.log(`[Discord Bot] 🏷️ Ticket #${ticket.ticketNumber} renommé → ${nextName}`);
+        } catch (error) {
+            console.error(`[Discord Bot] Ticket rename failed for #${ticket.ticketNumber}:`, error);
+        }
+    }
+}
+
+
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
     const oldNick = oldMember.nickname || oldMember.displayName;
     const newNick = newMember.nickname || newMember.displayName;
     const nickChanged = oldMember.nickname !== newMember.nickname;
+    // Un changement de **nom d'utilisateur** (sans surnom serveur) ne levait aucun traitement :
+    // ni le cache du profil ni le salon du ticket ne suivaient.
+    const usernameChanged = oldMember.user.username !== newMember.user.username;
 
     const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id) && r.id !== newMember.guild.id);
     const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id) && r.id !== newMember.guild.id);
     const rolesChanged = addedRoles.size > 0 || removedRoles.size > 0;
 
-    if (!nickChanged && !rolesChanged) return;
+    if (!nickChanged && !usernameChanged && !rolesChanged) return;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -1025,7 +1083,7 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
         if (!guildConfig) return;
 
         // Si le surnom a changé, mettre à jour le cache UserProfile
-        if (nickChanged) {
+        if (nickChanged || usernameChanged) {
             console.log(`[Discord Bot] ✏️ Nickname changed: ${newMember.user.tag} (${oldNick} -> ${newNick})`);
 
             await db.userProfile.updateMany({                where: {
@@ -1066,6 +1124,10 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
                     },
                 },
             });
+
+            // 🏷️ **Temps réel** : le salon du ticket suit le pseudo (remplacement « sur place »,
+            // donc un nom sans le pseudo ou personnalisé par le staff n'est pas touché).
+            await syncTicketChannelNames(oldMember, newMember);
         }
 
         // Si les rôles ont changé, logguer la modification de rôles Discord

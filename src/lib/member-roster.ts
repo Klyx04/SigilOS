@@ -30,6 +30,11 @@ export interface RosterMule {
     pseudo: string;
     classe?: string;
     level?: number;
+    /**
+     * La mule est **en guilde en jeu** (déclaration du staff, onglet Mules).
+     * Optionnel et **rétrocompatible** : une mule sans ce champ n'est pas comptée.
+     */
+    inGameGuild?: boolean;
 }
 
 /** État d'essai d'un membre (registre). */
@@ -66,6 +71,12 @@ export interface RosterRow {
     status: RosterStatus | null;
     /** Vrai si la personne possède un profil dashboard (`UserProfile`). */
     dashboard: boolean;
+    /**
+     * Compte **Discord de bot**. La source (`getMemberRegistryDiscordIndex`) les écarte
+     * déjà (`member.user.bot`), mais la règle de comptage « en guilde en jeu » le vérifie
+     * explicitement : un bot n'est jamais un joueur en guilde.
+     */
+    isBot?: boolean;
     roles: string[];
     joinedAt: string | null;
     seniorityDays: number | null;
@@ -105,6 +116,8 @@ export interface RosterProfileInput {
     /** Vacances déclarées (optionnel : les lignes hors dashboard n'en portent pas). */
     vacationStart?: string | null;
     vacationEnd?: string | null;
+    /** Compte de bot Discord (jamais compté comme joueur en guilde). */
+    isBot?: boolean;
 }
 
 /** Membre Discord **sans profil** (forme structurelle d'un `RegistryDiscordOnlyMember`). */
@@ -133,6 +146,8 @@ export interface RosterDiscordOnlyInput {
     recruiterAvatar?: string | null;
     /** Ancienneté calculée côté serveur (date d'arrivée retenue). */
     seniorityDays?: number | null;
+    /** Compte de bot Discord (jamais compté comme joueur en guilde). */
+    isBot?: boolean;
 }
 
 /** Rôle Discord proposé au filtre (id, libellé, couleur, position). */
@@ -141,6 +156,8 @@ export interface RosterRoleInput {
     name: string;
     color?: number | null;
     position?: number | null;
+    /** Rôle géré par une intégration/bot (jamais proposé au choix « en guilde en jeu »). */
+    managed?: boolean;
 }
 
 // ─── Fusion des trois vues en une seule liste ───────────────────────────────────────────────────
@@ -178,6 +195,8 @@ export function buildMemberRoster(input: {
             avatar: p.avatar,
             status: p.status,
             dashboard: true,
+            // La clé n'apparaît que pour un bot : aucune ligne existante n'est modifiée.
+            ...(p.isBot === true ? { isBot: true } : {}),
             roles: rolesByProfileId?.[p.profileId] ?? [],
             joinedAt: p.joinedAt,
             seniorityDays: p.seniorityDays,
@@ -226,6 +245,7 @@ export function buildMemberRoster(input: {
             avatar: d.avatar,
             status: null,
             dashboard: false,
+            ...(d.isBot === true ? { isBot: true } : {}),
             roles: Array.isArray(d.roles) ? d.roles : [],
             joinedAt,
             seniorityDays,

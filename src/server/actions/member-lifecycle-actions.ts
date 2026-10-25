@@ -33,6 +33,8 @@ export interface MemberAltInfo {
     pseudo: string;
     classe?: string;
     level?: number;
+    /** Mule déclarée « en guilde en jeu » (onglet Mules) — optionnel, rétrocompatible. */
+    inGameGuild?: boolean;
 }
 
 export interface LifecycleMemberSummary {
@@ -160,6 +162,11 @@ const altsSchema = z.object({
                 pseudo: z.string().min(1).max(30),
                 classe: z.string().nullable().optional(),
                 level: z.number().int().min(1).max(400).nullable().optional(),
+                /**
+                 * Tag « en guilde en jeu » (onglet Mules). Sans cette clé, le schéma
+                 * **supprimait** la coche à chaque enregistrement depuis la modale.
+                 */
+                inGameGuild: z.boolean().optional(),
             })
         ])
     ),
@@ -211,11 +218,14 @@ function normalizeMules(raw: unknown): MemberAltInfo[] {
         .map((alt: unknown): MemberAltInfo | null => {
             if (typeof alt === "string") return { pseudo: alt };
             if (alt && typeof alt === "object" && "pseudo" in alt) {
-                const candidate = alt as { pseudo?: unknown; classe?: unknown; level?: unknown };
+                const candidate = alt as { pseudo?: unknown; classe?: unknown; level?: unknown; inGameGuild?: unknown };
                 return {
                     pseudo: String(candidate.pseudo),
                     classe: candidate.classe ? String(candidate.classe) : undefined,
                     level: typeof candidate.level === "number" ? candidate.level : undefined,
+                    // Le tag « en guilde en jeu » vit dans le même JSON : il doit survivre
+                    // à toute relecture (sinon le compteur de l'onglet Mules retombe à 0).
+                    ...(candidate.inGameGuild === true ? { inGameGuild: true } : {}),
                 };
             }
             return null;
@@ -678,6 +688,9 @@ export async function getMemberRegistryDiscordIndex(
                     name: role.name,
                     color: role.color,
                     position: role.position,
+                    // Rôle **géré par une intégration/bot** : proposé nulle part dans le
+                    // choix des rôles « en guilde en jeu » (on ne gère pas ces rôles).
+                    managed: role.managed === true,
                 })),
                 rolesByProfileId,
                 discordOnly,
@@ -1040,7 +1053,7 @@ export async function updateMemberRecruiter(
 export async function updateMemberAlts(
     guildId: string,
     subject: RegistrySubject,
-    alts: Array<{ pseudo: string; classe?: string; level?: number } | string>
+    alts: Array<{ pseudo: string; classe?: string; level?: number; inGameGuild?: boolean } | string>
 ): Promise<ActionResponse<{ message: string }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };

@@ -15,6 +15,7 @@ import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
 import { getDiscordApiCode, getDiscordApiStatus } from "@/lib/discord-api-errors";
 import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates, mergeMultiDungeonRequiredClasses, getDjDungeonStats, getMultiMessageIds, withMultiMessageIds, getDjCreatorClass, withDjCreatorClass, isDjDungeonClosed, withDjDungeonsClosed, openDjDungeonIndexes } from "@/lib/dungeon-finder-utils";
+import { visibleDungeonAchievements } from "@/lib/dungeon-no-achievement";
 import { resolveOwnedClass } from "@/lib/user-character-classes";
 import { loadClassProfileByProfileId } from "@/server/character-class-profile";
 import { questMapIdFromImageUrl, resolveQuestMinimap, type QuestMinimap } from "@/lib/quest-minimap";
@@ -3989,10 +3990,12 @@ export async function getDungeonDirectory(
             }
         }
 
-        const dungeonAchievements = await (db as any).dungeonAchievement.findMany({
-            where: { dungeonId: targetDjId },
-            include: { challenge: { select: { name: true, iconUrl: true, slug: true, description: true } } },
-        });
+        const dungeonAchievements = visibleDungeonAchievements(
+            await (db as any).dungeonAchievement.findMany({
+                where: { dungeonId: targetDjId },
+                include: { challenge: { select: { name: true, iconUrl: true, slug: true, description: true } } },
+            })
+        );
 
         if (dungeonAchievements.length === 0) {
             return { success: true, data: [] };

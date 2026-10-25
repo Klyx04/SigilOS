@@ -15,7 +15,12 @@ import { deleteChannelMessage } from "@/server/discord";
 import { buildClassSelectRow } from "@/server/discord-class-dispatch";
 import { rateLimit } from "@/lib/ratelimit";
 import { isAgendaMirror, agendaMirrorSource } from "@/lib/agenda-mirror";
-import { blindAutoCloseWhere, shouldBlindAutoClose } from "@/lib/calendar-auto-close";
+import { shouldBlindAutoClose } from "@/lib/calendar-auto-close";
+import {
+    deleteEventDiscordMessage,
+    deleteReminderMessageRefs,
+    type ReminderMessageRef,
+} from "@/server/calendar-message-cleanup";
 import { startOfWeek, addDays } from "date-fns";
 import { getAppBaseUrl } from "@/lib/utils";
 import { resolveOwnedClass } from "@/lib/user-character-classes";
@@ -109,25 +114,15 @@ async function isReadonlyMirror(guildId: string, eventId: string): Promise<boole
 
 export type GuildEventInput = z.infer<typeof GuildEventSchema>;
 
-/** Entrée `metadata.reminderMessages` : le `messageKey` permet de résoudre le
- * vrai snowflake quand l'envoi est passé par l'outbox (`outbox:<jobId>`). */
-export type ReminderMessageRef = {
-    channelId: string;
-    messageId: string;
-    messageKey?: string | null;
-};
-
-/** Supprime des messages de rappel en résolvant les IDs outbox via Redis. */
-async function deleteReminderMessageRefs(refs: ReminderMessageRef[]): Promise<void> {
-    if (!refs || refs.length === 0) return;
-    const tasks: Promise<unknown>[] = [];
-    for (const rm of refs) {
-        if (!rm?.channelId || !rm?.messageId) continue;
-        tasks.push(
-            deleteChannelMessage(rm.channelId, rm.messageId, rm.messageKey ?? null).catch(() => false)
-        );
-    }
-    if (tasks.length > 0) await Promise.allSettled(tasks);
+/**
+ * Retire les marqueurs de clôture **d'office** : le capitaine reprend la main
+ * (`metadata.completedAt` devient le seul discriminant d'une clôture humaine).
+ */
+function stripSystemClosure(meta: Record<string, unknown>): Record<string, unknown> {
+    const next = { ...meta };
+    delete next.closedBySystem;
+    delete next.systemClosedAt;
+    return next;
 }
 
 // ============================================
@@ -157,13 +152,11 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
 
         const now = new Date();
 
-        // Clôture d'office des événements terminés — règle partagée (`blindAutoCloseWhere`) :
-        // un RAID_OFFICIAL n'est clôturé qu'à +48 h, sinon le rappel de clôture (24 h après
-        // la fin) ne pourrait jamais partir (raid déjà COMPLETED, embed supprimé).
-        await db.guildEvent.updateMany({
-            where: blindAutoCloseWhere(guildConfig.id, now),
-            data: { status: "COMPLETED" }
-        }).catch(() => {});
+        // ⚠️ LECTURE SEULE : la clôture d'office vit désormais dans la passe de fond
+        // (`@/server/calendar-auto-close-core`, cron `calendar-auto-close`), seule à
+        // purger les messages Discord. Une lecture ne doit jamais changer un statut
+        // (c'est ce qui clôturait des raids sans points, sans rien nettoyer).
+        // Ici on ne fait que **dériver** l'affichage avec la règle unique.
 
         const events = await db.guildEvent.findMany({
             where: {
@@ -234,7 +227,13 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
             // Même règle que la passe de fond : un raid qui attend sa clôture reste affiché
             // « Publié » (le rappel de clôture part à +24 h, la clôture d'office n'a lieu
             // qu'à +48 h) — sinon l'agenda annoncerait « terminé » un raid non clôturé.
-            const isPast = shouldBlindAutoClose(event.type, event.endDate, now);
+            // Un miroir DJ/Songes n'est jamais « terminé » par sa seule date.
+            const isPast = shouldBlindAutoClose({
+                type: event.type,
+                endDate: event.endDate,
+                now,
+                isMirror: isAgendaMirror(event.metadata),
+            });
             const effectiveStatus = (isPast && event.status === "PUBLISHED") ? "COMPLETED" : event.status;
             const meta = event.metadata as any;
             if (meta?.isKralamoure) {
@@ -356,19 +355,17 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
 
         if (!event) return { success: false, error: "Événement introuvable" };
 
-        // Auto-complete past event if still PUBLISHED
+        // Statut **dérivé** pour l'affichage — aucune écriture (la clôture d'office vit
+        // dans la passe de fond, avec la purge Discord). Même règle unique : un raid n'est
+        // « terminé » qu'à +48 h, pour que le rappel de clôture ait le temps de partir.
         const now = new Date();
-        // Même règle que la passe de fond : un raid n'est « terminé » qu'à +48 h, pour que
-        // le rappel de clôture (24 h après la fin) ait le temps de partir.
-        const isPast = shouldBlindAutoClose(event.type, event.endDate, now);
+        const isPast = shouldBlindAutoClose({
+            type: event.type,
+            endDate: event.endDate,
+            now,
+            isMirror: isAgendaMirror(event.metadata),
+        });
         const effectiveStatus = (isPast && event.status === "PUBLISHED") ? "COMPLETED" : event.status;
-
-        if (isPast && event.status === "PUBLISHED") {
-            db.guildEvent.update({
-                where: { id: event.id },
-                data: { status: "COMPLETED" }
-            }).catch(() => {});
-        }
 
         // Clone event to allow modification
         const eventData = { ...event, status: effectiveStatus as any };
@@ -1241,17 +1238,16 @@ export async function completeEvent(guildId: string, eventId: string) {
             data: { status: "COMPLETED" }
         });
 
-        // Close Discord message + cleanup reminder messages (await allSettled — le forEach
-        // original lâchait les promesses sans attendre, le runtime coupait avant la fin).
+        // Close Discord message + cleanup reminder messages (attendu : le runtime Next
+        // coupait les promesses non attendues). Purge partagée avec la passe de fond.
         const cleanupMeta = (event.metadata as any) || {};
         const reminderMessages: ReminderMessageRef[] = cleanupMeta.reminderMessages || [];
         await deleteReminderMessageRefs(reminderMessages);
-        const completeTasks: Promise<unknown>[] = [];
-        if (event.discordChannelId && event.discordMessageId) {
-            const { eventMessageKey } = await import("@/server/calendar-service");
-            completeTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId, eventMessageKey(eventId)).catch(() => false));
-        }
-        if (completeTasks.length > 0) await Promise.allSettled(completeTasks);
+        await deleteEventDiscordMessage({
+            id: eventId,
+            discordChannelId: event.discordChannelId,
+            discordMessageId: event.discordMessageId,
+        });
 
         // Distribute XP to all registered participants
         if (event.participants.length > 0) {
@@ -1302,8 +1298,15 @@ export async function completeRaidEvent(
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
-        if (event.status === "COMPLETED") return { success: false, error: "Déjà terminé" };
         if (isAgendaMirror(event.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
+
+        // Clôture **humaine** = `metadata.completedAt`. Un raid clôturé d'office par la
+        // passe de fond (`closedBySystem`, sans `completedAt`) reste donc complétable :
+        // c'est ce qui évite un raid définitivement « terminé » sans points.
+        const existingMeta = (event.metadata as any) || {};
+        if (existingMeta.completedAt) {
+            return { success: false, error: "Déjà clôturé par le capitaine" };
+        }
 
         const canComplete = ctx.isAdmin || ctx.canManageCalendar || event.creatorId === ctx.id;
         if (!canComplete) {
@@ -1314,14 +1317,14 @@ export async function completeRaidEvent(
         const requireKamas = guildConfig.raidRequireKamaDonation ?? true;
         const purpleKamasCost = requireKamas ? ((guildConfig.raidKamaDonationThreshold ?? 3) * 10) : 0;
 
-        // Save score + completion data in metadata
-        const existingMeta = (event.metadata as any) || {};
+        // Save score + completion data in metadata (la clôture d'office éventuelle est
+        // effacée : le capitaine reprend la main, `completedAt` devient le discriminant).
         await db.guildEvent.update({
             where: { id: eventId },
             data: {
                 status: "COMPLETED",
                 metadata: {
-                    ...existingMeta,
+                    ...stripSystemClosure(existingMeta),
                     raidScore: score,
                     raidPresentUserIds: presentUserIds,
                     raidPurpleKamasCost: purpleKamasCost,
@@ -1331,17 +1334,16 @@ export async function completeRaidEvent(
             }
         });
 
-        // Close Discord message + cleanup reminder messages (await allSettled — même
-        // correction que completeEvent : on attend toutes les suppressions Discord).
+        // Close Discord message + cleanup reminder messages (même purge partagée que la
+        // passe de fond : rappels outbox résolus par leur clé Redis + embed de publication).
         const cleanupMeta = (event.metadata as any) || {};
         const reminderMessages: ReminderMessageRef[] = cleanupMeta.reminderMessages || [];
         await deleteReminderMessageRefs(reminderMessages);
-        const raidCompleteTasks: Promise<unknown>[] = [];
-        if (event.discordChannelId && event.discordMessageId) {
-            const { eventMessageKey } = await import("@/server/calendar-service");
-            raidCompleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId, eventMessageKey(eventId)).catch(() => false));
-        }
-        if (raidCompleteTasks.length > 0) await Promise.allSettled(raidCompleteTasks);
+        await deleteEventDiscordMessage({
+            id: eventId,
+            discordChannelId: event.discordChannelId,
+            discordMessageId: event.discordMessageId,
+        });
 
         // Distribute XP + deduct Purple Kamas for present members (dynamic threshold + stored for undo)
         if (presentUserIds.length > 0) {
@@ -1388,10 +1390,14 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
         if (!event) return { success: false, error: "Événement introuvable" };
         if (event.status !== "COMPLETED") return { success: false, error: "Le raid n'est pas clôturé" };
 
-        // 24h window check
+        // Fenêtre de 24 h : clôture du capitaine (`completedAt`) **ou** clôture d'office
+        // (`systemClosedAt`). Un raid clôturé d'office n'a aucun remboursement à faire
+        // (aucun présent, aucun Kamas consommé).
         const meta = (event.metadata as any) || {};
-        const completedAt = meta.completedAt ? new Date(meta.completedAt) : null;
-        if (!completedAt || (Date.now() - completedAt.getTime()) > 24 * 60 * 60 * 1000) {
+        const closedAt = meta.completedAt
+            ? new Date(meta.completedAt)
+            : (meta.systemClosedAt ? new Date(meta.systemClosedAt) : null);
+        if (!closedAt || (Date.now() - closedAt.getTime()) > 24 * 60 * 60 * 1000) {
             return { success: false, error: "Délai de 24h dépassé. Vous ne pouvez plus annuler cette clôture." };
         }
 
@@ -1427,6 +1433,8 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
                     raidPresentUserIds: [],
                     completedAt: null,
                     completedBy: null,
+                    closedBySystem: null,
+                    systemClosedAt: null,
                     raidUndoneAt: new Date().toISOString(),
                     raidUndoneBy: ctx.id
                 }
@@ -1784,7 +1792,9 @@ export async function sendEventReminder(
             where: { id: eventId },
             include: {
                 participants: {
-                    where: { status: { in: ["REGISTERED", "RESERVE"] } },
+                    // Même population que le rappel automatique (`raid-reminder-service`) :
+                    // un inscrit passé en CONFIRMED doit être pingé et notifié lui aussi.
+                    where: { status: { in: ["REGISTERED", "CONFIRMED", "RESERVE"] } },
                     include: { user: { select: { id: true, name: true } } }
                 }
             }
@@ -1994,11 +2004,15 @@ export async function sendEventReminder(
             }
         }
 
-        // Update lastRemindedAt
-        await db.guildEvent.update({
-            where: { id: eventId },
-            data: { lastRemindedAt: new Date() }
-        });
+        // `lastRemindedAt` met les rappels AUTOMATIQUES en silence 30 min (anti-double
+        // ping) : on ne le pose que si quelque chose est réellement parti. Un rappel qui
+        // n'a rien pu envoyer ne doit pas bloquer le cron pour rien.
+        if (discordSent || sentCount > 0) {
+            await db.guildEvent.update({
+                where: { id: eventId },
+                data: { lastRemindedAt: new Date() }
+            });
+        }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, sentCount, discordSent, pinged: voicePinged, skipped: voiceSkipped };
@@ -2118,72 +2132,6 @@ export async function getEventsNeedingReminders() {
     } catch (error) {
         logger.error("[Calendar] getEventsNeedingReminders Error:", error);
         return { success: false, events: [] };
-    }
-}
-
-// ============================================
-// AUTO-CLOSE EXPIRED EVENTS
-// ============================================
-
-/**
- * Auto-close events that have passed their end date
- * Called on dashboard load or via cron job
- */
-export async function autoCloseExpiredEvents(guildId: string) {
-    try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true }
-        });
-        if (!guildConfig) return { success: false, closedCount: 0 };
-
-        const now = new Date();
-
-        // Événements terminés à clôturer d'office — règle partagée (`blindAutoCloseWhere`) :
-        // à +48 h seulement pour les raids, dès la fin pour tous les autres types.
-        const expiredEvents = await db.guildEvent.findMany({
-            where: blindAutoCloseWhere(guildConfig.id, now),
-            select: { id: true, title: true, metadata: true, discordChannelId: true, discordMessageId: true }
-        });
-
-        if (expiredEvents.length === 0) {
-            return { success: true, closedCount: 0 };
-        }
-
-        // Mark them as COMPLETED
-        await db.guildEvent.updateMany({
-            where: {
-                id: { in: expiredEvents.map(e => e.id) }
-            },
-            data: {
-                status: "COMPLETED"
-            }
-        });
-
-        // ── Chantier #31 : supprimer les embeds Discord + messages de rappel des événements clôturés ──
-        const { deleteChannelMessage } = await import("@/server/discord");
-        const deleteTasks: Promise<unknown>[] = [];
-        for (const event of expiredEvents) {
-            const meta = (event.metadata as any) || {};
-            const reminderMessages: ReminderMessageRef[] = meta.reminderMessages || [];
-            for (const rm of reminderMessages) {
-                if (rm?.channelId && rm?.messageId) {
-                    deleteTasks.push(deleteChannelMessage(rm.channelId, rm.messageId, rm.messageKey ?? null).catch(() => false));
-                }
-            }
-            if (event.discordChannelId && event.discordMessageId) {
-                deleteTasks.push(deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => false));
-            }
-        }
-        if (deleteTasks.length > 0) {
-            await Promise.allSettled(deleteTasks);
-        }
-
-        revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, closedCount: expiredEvents.length };
-    } catch (error) {
-        logger.error("[Calendar] autoCloseExpiredEvents Error:", error);
-        return { success: false, closedCount: 0 };
     }
 }
 

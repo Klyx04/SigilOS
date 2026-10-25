@@ -18,6 +18,7 @@ import 'dotenv/config';
 import { legendaryItems } from './legendary-items';
 import { getIgnoredChallenges, getIgnoredDungeons, isIgnoredChallenge, isIgnoredDungeon } from '@/lib/game-data-ignores';
 import { resolveUniqueDungeonSlug } from '@/server/game/dungeon-slug';
+import { attachCompletionAchievement, ensureCompletionChallengeId } from '@/server/dungeon-completion';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -282,6 +283,11 @@ async function main() {
                « choses qui se recréent à chaque déploiement »). */
             const ignoredDungeons = getIgnoredDungeons();
 
+            /* Pseudo-succès **« Donjon validé »** (25/10/2026) : les doubles boss n'ont aucun succès
+               propre — DofusDB ne les liste pas. Ce challenge unique rend la coche « je l'ai fait »
+               possible. Il n'est **rendu** que s'il est le seul succès du donjon. */
+            const completionChallengeId = await ensureCompletionChallengeId(tx);
+
             for (const dungeon of seedData.data.dungeons) {
                 if (!dungeon.name) {
                     console.warn('⚠️  [DUNGEONS] Skipping dungeon without name:', dungeon);
@@ -364,6 +370,12 @@ async function main() {
                                 }
                             });
                         }
+                    }
+
+                    /* Donjon **sans aucun succès** (double boss, expédition…) : on rattache le
+                       pseudo-succès « Donjon validé » — la coche « je l'ai fait » redevient possible. */
+                    if (!dungeon.achievements || dungeon.achievements.length === 0) {
+                        await attachCompletionAchievement(tx, upsertedDungeon.id, completionChallengeId);
                     }
 
                     if (existing) {

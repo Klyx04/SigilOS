@@ -32,7 +32,7 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
         getMemberRegistryDiscordIndex(guildId),
         db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { welcomeBadgeName: true, ownerId: true, rolesMapping: true },
+            select: { welcomeBadgeName: true, ownerId: true, rolesMapping: true, inGameGuildRoleIds: true },
         }),
     ]);
 
@@ -144,6 +144,7 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
                         rows={rows}
                         roles={indexData?.roles ?? []}
                         dashboardRoleIds={dashboardRoleIds}
+                        inGameGuildRoleIds={guildConfig?.inGameGuildRoleIds ?? []}
                         stats={stats}
                         discordAvailable={indexData?.discordAvailable ?? false}
                         welcomeBadgeName={guildConfig?.welcomeBadgeName || "Nouveau"}

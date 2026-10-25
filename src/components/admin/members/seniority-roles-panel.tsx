@@ -12,10 +12,10 @@
  * la maison (`DiscordEmbedPreview`) — ce qui est montré est ce qui part.
  */
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { Check, ChevronsUpDown, Clock, ExternalLink, Loader2, Megaphone, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Clock, ExternalLink, Hash, Loader2, Megaphone, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn, getAppBaseUrl } from "@/lib/utils";
@@ -27,10 +27,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 import { DiscordEmbedPreview } from "@/components/discord/DiscordEmbedPreview";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
+import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
 import {
     getSeniorityRolesSettings,
     syncSeniorityRolesNow,
@@ -58,6 +60,23 @@ import { formatSeniority } from "@/lib/ladder-utils";
 const SAMPLE_DISCORD_ID = "123456789012345678";
 const SAMPLE_DISPLAY_NAME = "Pseudo du membre";
 const SAMPLE_SENIORITY_DAYS = 200;
+
+/**
+ * Sous-onglets de l'écran — l'onglet était un **seul scroll de plus de 1 000 px**
+ * (activation, filtres, paliers, message, aperçu, état, passes). Chaque sujet a
+ * désormais sa vue, et « État & passes » garde les informations de diagnostic.
+ */
+type SeniorityTab =
+    | "activation"
+    | "eligibilite"
+    | "paliers"
+    | "paliers-detail"
+    | "message"
+    | "prochains"
+    | "etat";
+
+/** Prochains paliers : 10 lignes par page (paginé, jamais tronqué en silence). */
+const UPCOMING_PAGE_SIZE = 10;
 
 const THUMBNAIL_LABELS: Record<SeniorityThumbnailSource, string> = {
     avatar: "PP Discord du membre",
@@ -263,6 +282,12 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
     /** Passe à la demande : le bilan complet, affiché sous les boutons (jamais un simple toast). */
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncReport, setSyncReport] = useState<string[] | null>(null);
+    /** Sous-onglet actif (l'écran ne se lit plus d'un seul trait). */
+    const [tab, setTab] = useState<SeniorityTab>("activation");
+    /** Nom du salon d'annonce (aperçu de destination) — `null` tant qu'il n'est pas résolu. */
+    const [channelName, setChannelName] = useState<string | null>(null);
+    /** Pagination des prochains paliers. */
+    const [upcomingPage, setUpcomingPage] = useState(0);
 
     const load = useCallback(async () => {
         const [settings, rolesRes] = await Promise.all([
@@ -278,6 +303,14 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
             const next = draftFrom(settings.data);
             setDraft(next);
             setInitial(next);
+            // Aperçu du salon d'annonce : nom lisible plutôt qu'un identifiant.
+            if (settings.data.channelId) {
+                getDiscordChannelInfo(guildId, settings.data.channelId)
+                    .then((res) => setChannelName(res.success && res.data ? res.data.name ?? null : null))
+                    .catch(() => setChannelName(null));
+            } else {
+                setChannelName(null);
+            }
         } else if (!settings.success) {
             toast.error(settings.error || "Réglages illisibles");
         }
@@ -456,6 +489,33 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                 getDefaultDiscordAvatar(SAMPLE_DISCORD_ID) ??
                 undefined);
 
+    /** Paliers triés par seuil (un seuil vide passe en fin), avec leur index d'édition. */
+    const sortedTiers = useMemo(() => {
+        if (!draft) return [];
+        return draft.tiers
+            .map((tier, index) => ({ tier, index }))
+            .sort((a, b) => {
+                const left = Number.parseInt(a.tier.days, 10);
+                const right = Number.parseInt(b.tier.days, 10);
+                return (
+                    (Number.isFinite(left) ? left : Number.MAX_SAFE_INTEGER) -
+                    (Number.isFinite(right) ? right : Number.MAX_SAFE_INTEGER)
+                );
+            });
+    }, [draft]);
+
+    /** Nom lisible d'un rôle de palier (le payload ne transporte que des ids). */
+    const roleNameById = useMemo(() => new Map(roles.map((role) => [role.id, role.name])), [roles]);
+
+    /** Prochains paliers : pagination côté écran (10 par page), jamais de coupe silencieuse. */
+    const upcoming = data?.upcoming ?? [];
+    const upcomingPageCount = Math.max(1, Math.ceil(upcoming.length / UPCOMING_PAGE_SIZE));
+    const safeUpcomingPage = Math.min(upcomingPage, upcomingPageCount - 1);
+    const upcomingPageRows = upcoming.slice(
+        safeUpcomingPage * UPCOMING_PAGE_SIZE,
+        (safeUpcomingPage + 1) * UPCOMING_PAGE_SIZE
+    );
+
     return (
         <Card>
             <UnsavedChangesGuard hasUnsavedChanges={hasUnsavedChanges} />
@@ -478,6 +538,18 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                     </div>
                 ) : (
                     <>
+                        <Tabs value={tab} onValueChange={(value) => setTab(value as SeniorityTab)} className="space-y-4">
+                            <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-lg border border-border-strong bg-surface p-1">
+                                <TabsTrigger value="activation" className="text-xs">Activation</TabsTrigger>
+                                <TabsTrigger value="eligibilite" className="text-xs">Éligibilité</TabsTrigger>
+                                <TabsTrigger value="paliers" className="text-xs">Paliers</TabsTrigger>
+                                <TabsTrigger value="paliers-detail" className="text-xs">Détail des paliers</TabsTrigger>
+                                <TabsTrigger value="message" className="text-xs">Message</TabsTrigger>
+                                <TabsTrigger value="prochains" className="text-xs">Prochains paliers</TabsTrigger>
+                                <TabsTrigger value="etat" className="text-xs">État &amp; passes</TabsTrigger>
+                            </TabsList>
+
+                        <TabsContent value="activation" className="space-y-4">
                         {/* ── Activation et salon ───────────────────────────────── */}
                         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4">
                             <div className="space-y-1">
@@ -499,26 +571,54 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                             <Label className="text-xs uppercase tracking-wide text-muted-foreground">
                                 Salon de l&apos;annonce
                             </Label>
-                            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                                <span>
-                                    {data?.channelId
-                                        ? "Un salon est réglé pour les annonces de palier."
-                                        : "Aucune annonce (les rôles sont posés en silence)."}
-                                </span>
-                                {/* Le salon vit dans Paramètres, comme tous les autres salons du dépôt. */}
-                                <Link
-                                    href={`/dashboard/${guildId}/admin/settings?tab=anciennete`}
-                                    className="inline-flex items-center gap-1 text-info hover:underline"
-                                >
-                                    Paramètres → Ancienneté
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                </Link>
-                            </p>
+                            {data?.channelId ? (
+                                <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-elevated/40 p-3">
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface">
+                                        <Hash className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-medium text-foreground">
+                                            #{channelName ?? "salon configuré"}
+                                        </p>
+                                        <p className="text-caption text-muted-foreground">
+                                            Aperçu de destination : les annonces de palier partent ici.
+                                        </p>
+                                    </div>
+                                    <Badge variant="outline" className="border-success/40 text-success">
+                                        Configuré
+                                    </Badge>
+                                    <Link
+                                        href={`https://discord.com/channels/${guildId}/${data.channelId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+                                    >
+                                        Ouvrir dans Discord
+                                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-3">
+                                    <span className="text-sm text-muted-foreground">
+                                        Aucune annonce : les rôles sont posés en silence.
+                                    </span>
+                                    <Link
+                                        href={`/dashboard/${guildId}/admin/settings?tab=anciennete`}
+                                        className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+                                    >
+                                        Configurer le salon
+                                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                                    </Link>
+                                </div>
+                            )}
                             <p className="text-xs text-muted-foreground">
-                                Les rôles sont posés même sans salon : l&apos;annonce est la seule chose qui en dépend.
+                                Les rôles sont posés même sans salon : seule l&apos;annonce en dépend.
                             </p>
                         </div>
 
+                        </TabsContent>
+
+                        <TabsContent value="eligibilite" className="space-y-4">
                         {/* ── Filtre de rôles (Éligibilité) ─────────────────────────── */}
                         <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
                             <div>
@@ -563,6 +663,72 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                             </div>
                         </div>
 
+                        </TabsContent>
+
+                        <TabsContent value="paliers" className="space-y-4">
+                        <div className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">Paliers</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Ajoute un seuil, puis règle ses rôles et son texte dans « Détail des paliers ».
+                                    </p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        addTier();
+                                        setTab("paliers-detail");
+                                    }}
+                                    className="gap-1.5"
+                                >
+                                    <Plus className="h-3.5 w-3.5" />
+                                    Ajouter un palier
+                                </Button>
+                            </div>
+
+                            {sortedTiers.length === 0 ? (
+                                <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                                    Aucun palier pour l’instant : sans palier, le robot ne fait rien.
+                                </p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {sortedTiers.map(({ tier, index }) => (
+                                        <li
+                                            key={index}
+                                            className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-3"
+                                        >
+                                            <Badge variant="secondary" className="tabular-nums">
+                                                {tier.days || "—"} jours
+                                            </Badge>
+                                            <span className="min-w-0 truncate text-xs text-muted-foreground">
+                                                {tier.roleIds.length === 0
+                                                    ? "Aucun rôle"
+                                                    : tier.roleIds.map((roleId) => roleNameById.get(roleId) ?? "Rôle supprimé").join(", ")}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {compactTierAnnouncement(tier.announcement) ? "texte personnalisé" : "hérite du message global"}
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="ml-auto"
+                                                onClick={() => setTab("paliers-detail")}
+                                            >
+                                                Modifier
+                                            </Button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+
+                        </TabsContent>
+
+                        <TabsContent value="paliers-detail" className="space-y-4">
                         {/* ── Paliers ──────────────────────────────────────────── */}
                         <div className="space-y-3">
                             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -585,7 +751,7 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                     Aucun palier pour l&apos;instant : sans palier, le robot ne fait rien.
                                 </p>
                             ) : (
-                                draft.tiers.map((tier, index) => (
+                                sortedTiers.map(({ tier, index }) => (
                                     <div
                                         key={index}
                                         className="space-y-3 rounded-xl border border-border bg-surface p-4"
@@ -710,6 +876,9 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                             )}
                         </div>
 
+                        </TabsContent>
+
+                        <TabsContent value="message" className="space-y-4">
                         {/* ── Message de félicitation (personnalisable) ─────────── */}
                         <div className="space-y-4">
                             <div>
@@ -858,6 +1027,9 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                             </div>
                         </div>
 
+                        </TabsContent>
+
+                        <TabsContent value="prochains" className="space-y-4">
                         {/* ── Prochains paliers (informatif, staff) ─────────────── */}
                         <div className="space-y-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -890,11 +1062,12 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                                     <th className="px-3 py-2 text-left font-medium">Membre</th>
                                                     <th className="px-3 py-2 text-left font-medium">Ancienneté</th>
                                                     <th className="px-3 py-2 text-left font-medium">Palier visé</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Rôle visé</th>
                                                     <th className="px-3 py-2 text-right font-medium">Dans</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {data.upcoming.map((member) => (
+                                                {upcomingPageRows.map((member) => (
                                                     <tr
                                                         key={`${member.displayName}-${member.tierDays}`}
                                                         className="border-t border-border"
@@ -916,6 +1089,13 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                                         <td className="px-3 py-2 text-muted-foreground">
                                                             {member.tierDays} jours
                                                         </td>
+                                                        <td className="px-3 py-2 text-muted-foreground">
+                                                            {member.tierRoleIds.length > 0
+                                                                ? member.tierRoleIds
+                                                                      .map((roleId) => roleNameById.get(roleId) ?? "Rôle supprimé")
+                                                                      .join(", ")
+                                                                : "—"}
+                                                        </td>
                                                         <td className="px-3 py-2 text-right font-medium text-foreground">
                                                             {member.daysUntil === 0 ? "aujourd'hui" : `${member.daysUntil} j`}
                                                         </td>
@@ -927,7 +1107,7 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
 
                                     {/* Mobile : cartes */}
                                     <div className="space-y-2 md:hidden">
-                                        {data.upcoming.map((member) => (
+                                        {upcomingPageRows.map((member) => (
                                             <div
                                                 key={`${member.displayName}-${member.tierDays}`}
                                                 className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3"
@@ -948,21 +1128,62 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                                             ? "aujourd'hui"
                                                             : `dans ${member.daysUntil} j`}
                                                     </p>
+                                                    <p className="truncate text-xs text-foreground">
+                                                        {member.tierRoleIds.length > 0
+                                                            ? member.tierRoleIds
+                                                                  .map((roleId) => roleNameById.get(roleId) ?? "Rôle supprimé")
+                                                                  .join(", ")
+                                                            : "Rôle visé non défini"}
+                                                    </p>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
 
-                                    {data.upcomingTotal > data.upcoming.length && (
-                                        <p className="text-xs text-muted-foreground">
-                                            {data.upcoming.length} affichés sur {data.upcomingTotal} (les plus proches
-                                            d&apos;abord).
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-caption text-muted-foreground">
+                                            Page {safeUpcomingPage + 1} / {upcomingPageCount} · {upcoming.length} affiché
+                                            {upcoming.length > 1 ? "s" : ""} sur {data.upcomingTotal} (les plus proches
+                                            d&apos;abord)
                                         </p>
-                                    )}
+                                        {upcomingPageCount > 1 && (
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-1"
+                                                    disabled={safeUpcomingPage === 0}
+                                                    onClick={() => setUpcomingPage(Math.max(0, safeUpcomingPage - 1))}
+                                                    aria-label="Page précédente des prochains paliers"
+                                                >
+                                                    <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                                                    Précédent
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-1"
+                                                    disabled={safeUpcomingPage >= upcomingPageCount - 1}
+                                                    onClick={() =>
+                                                        setUpcomingPage(Math.min(upcomingPageCount - 1, safeUpcomingPage + 1))
+                                                    }
+                                                    aria-label="Page suivante des prochains paliers"
+                                                >
+                                                    Suivant
+                                                    <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </>
                             )}
                         </div>
 
+                        </TabsContent>
+
+                        <TabsContent value="etat" className="space-y-4">
                         {/* ── État réel (lu, jamais recalculé ici) ─────────────── */}
                         <div className="space-y-2 rounded-xl border border-border bg-surface p-4">
                             <Label className="text-xs uppercase tracking-wide text-muted-foreground">État</Label>
@@ -1056,6 +1277,9 @@ export function SeniorityRolesPanel({ guildId }: { guildId: string }) {
                                 </ul>
                             )}
                         </div>
+
+                        </TabsContent>
+                        </Tabs>
 
                         <div className="flex justify-end">
                             <Button

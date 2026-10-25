@@ -137,6 +137,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Toutes les 10 min",
         logFile: "raid-reminders.log",
     },
+    calendar_auto_close: {
+        name: "Calendrier — clôture d'office + purge Discord",
+        schedule: "Toutes les 10 min",
+        logFile: "calendar-auto-close.log",
+    },
     event_reminders: {
         name: "Rappel Events — ping des inscrits (fenêtre notifyBefore)",
         schedule: "Toutes les 10 min",

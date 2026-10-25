@@ -10,7 +10,6 @@ import {
     ChevronDown,
     ChevronLeft,
     Loader2,
-    Swords,
     Info,
     RotateCcw,
     X,
@@ -19,6 +18,7 @@ import { getDungeonDirectory } from "@/server/actions/dungeon-finder-actions";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
+import { GameIcon } from "@/components/shared/game-icon";
 
 interface Dungeon {
     id: string;
@@ -453,7 +453,7 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                                 href={selectedDungeon.dofuspourlesnoobsUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 px-3 py-2 min-h-11 rounded-xl border border-border bg-surface text-xs font-bold text-foreground hover:bg-elevated transition-colors"
+                                                className="inline-flex items-center gap-2 rounded-lg border border-border-strong bg-elevated px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                                             >
                                                 <img
                                                     src="https://www.dofuspourlesnoobs.com/favicon.ico"
@@ -470,9 +470,9 @@ export function SuccesDirectory({ guildId }: SuccesDirectoryProps) {
                                             href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${selectedDungeon.id}${
                                                 expandedAchievementId ? `&achievementId=${expandedAchievementId}` : ""
                                             }`}
-                                            className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-border bg-surface text-foreground text-xs font-bold uppercase tracking-wide hover:bg-elevated transition-colors"
+                                            className="inline-flex items-center gap-2 rounded-lg border border-border-strong bg-elevated px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                                         >
-                                            <Swords className="w-4 h-4 text-muted-foreground" /> Chercher un groupe
+                                            <GameIcon src="crossed-swords.png" className="w-4 h-4" /> Chercher un groupe
                                         </Link>
                                     </div>
                                 </div>

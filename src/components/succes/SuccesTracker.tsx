@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { GameIcon } from "@/components/shared/game-icon";
 import {
     CheckCircle2,
     Circle,
     Trophy,
     Search,
     ChevronLeft,
-    Swords,
     Loader2,
     Users,
     X,
@@ -476,7 +476,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                             disabled={bracketLoading}
                             onClick={() => handleToggleLevelBracket(bracketAllDone ? "unvalidate" : "validate")}
                             className={cn(
-                                "inline-flex items-center gap-1.5 px-3 h-9 rounded-xl border border-border bg-surface/70 text-xs font-black text-foreground hover:bg-elevated transition-all shrink-0 disabled:opacity-50",
+                                "inline-flex items-center gap-1.5 rounded-lg border border-border-strong bg-elevated px-3 h-9 text-xs font-medium text-foreground transition-colors hover:bg-muted shrink-0 disabled:opacity-50",
                                 bracketAllDone && "text-muted-foreground hover:text-danger"
                             )}
                             title={
@@ -640,9 +640,9 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                         )}
                                         <Link
                                             href={`/dashboard/${guildId}/donjons-et-quetes?dungeonId=${selectedDungeon.id}`}
-                                            className="inline-flex items-center gap-2 px-4 py-2.5 min-h-11 rounded-xl border border-border bg-surface text-foreground text-xs font-bold uppercase tracking-wide hover:bg-elevated transition-colors"
+                                            className="inline-flex items-center gap-2 rounded-lg border border-border-strong bg-elevated px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                                         >
-                                            <Swords className="w-4 h-4 text-muted-foreground" /> Chercher un groupe
+                                            <GameIcon src="crossed-swords.png" className="w-4 h-4" /> Chercher un groupe
                                         </Link>
                                     </div>
                                 </div>
@@ -658,7 +658,7 @@ export function SuccesTracker({ guildId, canEdit }: SuccesTrackerProps) {
                                                 onClick={() => toggleAll(!selectedAllDone)}
                                                 title={selectedAllDone ? "Décocher les succès de ce donjon" : "Valider les succès de ce donjon"}
                                                 className={cn(
-                                                    "inline-flex items-center gap-1.5 px-3 py-2 min-h-11 rounded-xl border border-border bg-surface text-xs font-black uppercase tracking-wide text-foreground hover:bg-elevated transition-colors shrink-0",
+                                                    "inline-flex items-center gap-1.5 rounded-lg border border-border-strong bg-elevated px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted shrink-0",
                                                     selectedAllDone && "text-muted-foreground hover:text-danger"
                                                 )}
                                             >

@@ -12,7 +12,7 @@ import { logger } from "@/lib/logger";
 import { buildBountyBestiaireEntry } from "@/lib/bounty-fiche";
 import { resolveSubAreaCenter } from "@/lib/zone-minimap";
 import { internalDofusDbImageUrl, normalizeChallengeIconUrl, normalizeDofusAssetStoredUrl } from "@/lib/dofus-image-url";
-import { NO_ACHIEVEMENT_CHALLENGE_SLUG } from "@/lib/dungeon-no-achievement";
+import { visibleDungeonAchievements } from "@/lib/dungeon-no-achievement";
 import { sanitizeHtml } from "@/lib/security";
 import { dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
@@ -299,14 +299,11 @@ export async function getDungeonsWithAchievements(): Promise<ActionResponse<any[
             include: { achievements: { include: { challenge: true } } },
             orderBy: { level: 'asc' }
         });
-        // « Donjon validé » retiré (11/10/2026) : ce pseudo-succès n'est plus publié à AUCUN
-        // consommateur (hub Succès **et** « Mes Succès », qui compte `achievements.length` pour ses
-        // totaux et ses « tranches complètes ») — même si une ligne résiduelle traîne en base avant
-        // la purge (`scripts/succes-speciaux.ts retirer-donjon-valide`).
+        // « Donjon validé » n'est rendu **que** s'il est le seul succès du donjon (25/10/2026) :
+        // les doubles boss n'ont rien d'autre à cocher. Partout ailleurs, il reste écarté (11/10).
         const data = dungeons.map((dungeon) => ({
             ...dungeon,
-            achievements: (dungeon.achievements ?? [])
-                .filter((achievement: any) => achievement?.challenge?.slug !== NO_ACHIEVEMENT_CHALLENGE_SLUG)
+            achievements: visibleDungeonAchievements(dungeon.achievements ?? [])
                 // Icône de défi servie sous sa forme **canonique** (proxy interne) : sans ça les modales
                 // du module DJ affichaient la variante assombrie de l'URL stockée (mesure 15/10/2026).
                 .map((achievement: any) => ({

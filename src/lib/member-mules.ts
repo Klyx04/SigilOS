@@ -46,6 +46,8 @@ export interface DeclaredMule {
     /** Id/name de classe tel que déclaré (résolu par l'UI) ; `null` si absent. */
     classe: string | null;
     level: number | null;
+    /** Déclarée « en guilde en jeu » par le staff (onglet Mules). */
+    inGameGuild?: boolean;
 }
 
 export interface DeclaredMuleGroup {
@@ -120,6 +122,9 @@ export function normalizeDeclaredMule(value: unknown): DeclaredMule | null {
         pseudo,
         classe: cleanText(raw.classe, CLASSE_MAX),
         level: cleanLevel(raw.level),
+        // Rétrocompatibilité : la clé n'apparaît que si elle est vraie (un `false`
+        // explicite polluerait le JSON et les comparaisons existantes).
+        ...(raw.inGameGuild === true ? { inGameGuild: true as const } : {}),
     };
 }
 

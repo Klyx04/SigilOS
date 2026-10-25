@@ -15,6 +15,8 @@ function codeOnly(source: string): string {
 }
 
 const CALENDAR_ACTIONS = codeOnly(readFileSync("src/server/actions/calendar-actions.ts", "utf8"));
+/** Purge partagée (actions + passe de fond) : c'est elle qui résout la clé outbox. */
+const CALENDAR_CLEANUP = codeOnly(readFileSync("src/server/calendar-message-cleanup.ts", "utf8"));
 const CALENDAR_SERVICE = codeOnly(readFileSync("src/server/calendar-service.ts", "utf8"));
 const RAID_REMINDER_SERVICE = codeOnly(readFileSync("src/server/raid-reminder-service.ts", "utf8"));
 const EVENT_REMINDER_SERVICE = codeOnly(readFileSync("src/server/event-reminder-service.ts", "utf8"));
@@ -30,7 +32,11 @@ describe("1. Permissions de clôture, annulation et suppression par le créateur
     it("completeRaidEvent permet au créateur ou à l'admin de clôturer son raid", () => {
         const raidFn = CALENDAR_ACTIONS.slice(CALENDAR_ACTIONS.indexOf("export async function completeRaidEvent"));
         expect(raidFn).toContain("const canComplete = ctx.isAdmin || ctx.canManageCalendar || event.creatorId === ctx.id");
-        expect(raidFn).toContain("eventMessageKey(eventId)");
+        // L'embed du raid est supprimé par la purge partagée (déplacée le 25/10/2026 pour
+        // être aussi utilisée par la passe de fond) : l'invariant « clé outbox résolue »
+        // est vérifié sur son nouveau porteur, pas supprimé.
+        expect(raidFn).toContain("deleteEventDiscordMessage({");
+        expect(CALENDAR_CLEANUP).toContain("eventMessageKey(event.id)");
     });
 
     it("cancelCalendarEvent et deleteCalendarEvent permettent au créateur de supprimer/annuler", () => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { raceWithDeadline } from "@/lib/discord/deadline";
 import { rateLimit } from "@/lib/ratelimit";
 import { getAppBaseUrl } from "@/lib/utils";
 import { DOFUS_JOBS, DAYS_OF_WEEK } from "@/lib/dofus-assets";
@@ -3894,22 +3895,21 @@ export async function POST(request: NextRequest) {
                     return ephemeralDiscordMessage("❌ Utilise `/valider-recrue membre:@pseudo` dans un serveur lié à SigilOS.");
                 }
 
-                const guildConfig = await db.guildConfig.findUnique({
-                    where: { discordGuildId: guild_id },
-                    select: { id: true, trialDurationDays: true },
-                });
-                if (!guildConfig) {
-                    return ephemeralDiscordMessage("❌ Ce serveur n'est pas lié à SigilOS.");
-                }
+                // ⏱️ **Budget de pré-remplissage** (mesure du 25/10/2026) : cette commande répond
+                // par une **modale** (`type: 9`), qui doit partir en **moins de 3 s**. Les lectures
+                // de pré-remplissage (serveur lié, profil, ligne de registre) sont donc **bornées** :
+                // au-delà du budget, la modale s'ouvre **vide** (la soumission relit tout) au lieu
+                // de laisser Discord afficher « n'a pas répondu à temps ».
+                const VALRECRUE_PREFILL_BUDGET_MS = 700;
 
-                const findGuildProfile = async (discordId: string) => {
+                const findGuildProfile = async (discordId: string, internalGuildId: string) => {
                     const account = await db.account.findFirst({
                         where: { provider: "discord", providerAccountId: discordId },
                         include: {
                             user: {
                                 include: {
                                     profiles: {
-                                        where: { guildId: guildConfig.id },
+                                        where: { guildId: internalGuildId },
                                         take: 1,
                                         select: {
                                             id: true,
@@ -3925,15 +3925,40 @@ export async function POST(request: NextRequest) {
                     return account?.user?.profiles?.[0] ?? null;
                 };
 
-                const profile = await findGuildProfile(targetId);
-                // B-2 : plus besoin d'un profil dashboard pour compléter une recrue. Sans profil,
-                // on préremplit depuis la ligne de registre (hors dashboard) si elle existe.
-                const registryEntry = profile
-                    ? null
-                    : await db.memberRegistryEntry.findUnique({
-                          where: { guildId_discordId: { guildId: guildConfig.id, discordId: targetId } },
-                          select: { pseudoDofus: true, ankamaId: true },
-                      });
+                const prefillOutcome = await raceWithDeadline(
+                    (async () => {
+                        const guildConfigRead = await db.guildConfig.findUnique({
+                            where: { discordGuildId: guild_id },
+                            select: { id: true },
+                        });
+                        if (!guildConfigRead) {
+                            return { linked: false as const, profile: null, registryEntry: null };
+                        }
+
+                        const profileRead = await findGuildProfile(targetId, guildConfigRead.id);
+                        // B-2 : sans profil dashboard, on préremplit depuis la ligne de registre.
+                        const registryRead = profileRead
+                            ? null
+                            : await db.memberRegistryEntry.findUnique({
+                                  where: { guildId_discordId: { guildId: guildConfigRead.id, discordId: targetId } },
+                                  select: { pseudoDofus: true, ankamaId: true },
+                              });
+
+                        return { linked: true as const, profile: profileRead, registryEntry: registryRead };
+                    })(),
+                    VALRECRUE_PREFILL_BUDGET_MS
+                );
+
+                if (prefillOutcome.status === "done" && !prefillOutcome.value.linked) {
+                    return ephemeralDiscordMessage("❌ Ce serveur n'est pas lié à SigilOS.");
+                }
+                if (prefillOutcome.status === "timeout") {
+                    logger.warn("[valider-recrue] pré-remplissage au-delà du budget — modale ouverte sans pré-remplissage");
+                }
+
+                const prefill = prefillOutcome.status === "done" ? prefillOutcome.value : null;
+                const profile = prefill?.profile ?? null;
+                const registryEntry = prefill?.registryEntry ?? null;
 
                 // Date du jour JJ/MM/AAAA (prépopulée avec la date du jour et non la date existante, éditable)
                 const now = new Date();

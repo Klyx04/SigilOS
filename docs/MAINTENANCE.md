@@ -38,6 +38,18 @@ Logs: /home/sigiladmin/SigilOS/logs/maintenance.log
 Appelés depuis le crontab VPS (`crontab -l`) via
 `curl -s -H "x-cron-secret: $CRON_SECRET" https://beta.sigilos.fr/api/cron/<name>` :
 
+⚠️ **Depuis un shell SSH**, `$CRON_SECRET` n'est **pas exporté** (il vit dans l'environnement des
+conteneurs) : un `curl` manuel part avec un header **vide** et reçoit `{"error":"Unauthorized"}`.
+Pour un appel à la main, lire le secret là où il est :
+
+```bash
+# fichier posé pour la crontab (cf. § « Tâches planifiées »)
+curl -sS -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+  "https://beta.sigilos.fr/api/cron/<name>"
+# ou, à défaut, dans l'environnement du conteneur applicatif
+docker exec sigilos-beta printenv CRON_SECRET
+```
+
 - `/api/cron/sync-members` — rattrapage départs/bans Discord (toutes les 30 min / 1h)
 - `/api/cron/avatar-resync` — **resync des hashs d'avatars Discord (#134)** : `GET /guilds/{id}/members`, mise à jour de `User.image` uniquement si le hash a changé ; `null` → avatar par défaut côté UI. Fréquence recommandée : quotidien (`0 5 * * *`).
 - `/api/cron/cleanup-proofs` · `/api/cron/cleanup-logs` · `/api/cron/cleanup-inactive-posts` · `/api/cron/cleanup-inactive-service-requests` — purges (depuis **S5.6**, `cleanup-logs` purge aussi les **logs d'audit du marché**, cf. §Module « Marché »). **Rétention des logs d'audit (audit du 25/09)** : `cleanup-logs` applique **90 j** aux actions plateforme (`isGodLog: true`, sans guilde) et **30 j** aux journaux de guilde — politique unique dans `src/lib/audit-retention-policy.ts`, appliquée par le core `src/server/audit-retention.ts` (par lots de 500, par périmètre, jamais de `deleteMany` global). Le script VPS `scripts/database-janitor.ts` (04h00) consomme la même politique.
@@ -53,6 +65,8 @@ Appelés depuis le crontab VPS (`crontab -l`) via
 - `/api/cron/sync-monster-stats` — **siphon local fiches monstres (DofusDB + Dofensive)** : pour chaque boss de donjon, fiche DofusDB (grades/drops/sorts) fusionnée avec les sorts de combat Dofensive (AP/portée/zone/cooldown/maxCast) → table `MonsterStat`. ⚠️ 1er run lourd (10-30 min, ~tous les boss × 6-8 requêtes) — runs suivants rapides (tout déjà frais). **+ phase 5 (11/10/2026) — succès « spéciaux »** : complète **25 challenges par run** (`Challenge.description` = la **vraie** explication DofusDB, `iconUrl` servie par le proxy, `conditions` lues) — idempotent (un challenge déjà complet est sauté **sans requête**) ⇒ coût nul en régime établi, et **aucune opération manuelle sur le VPS** (l'image de prod ne contient ni `src/` ni tsconfig : un script qui importe du TS n'y tourne pas). Fréquence recommandée : quotidien (`45 3 * * *`).
 - `/api/cron/check-links` — **vérificateur de liens multi-sources (HEAD)** : flague les slugs cassés DofusDB/Dofensive/DPLN (résultat en audit God, rien stocké). Fréquence recommandée : hebdomadaire (`15 4 * * 0`).
 - `/api/cron/discord-channel-watch` — **surveillance des salons Discord** : pour chaque guilde active avec un `systemNotifyChannelId`, compare les IDs de canaux configurés dans `GuildConfig` aux canaux visibles par le bot. Si un canal configuré a disparu, envoie un embed d'alerte dans `systemNotifyChannelId` avec la liste des champs affectés et un lien vers `/admin/pilotage?tab=diagnostic`. Fréquence recommandée : quotidien (`0 7 * * *`).
+- `/api/cron/siphon-item-sets` — **référentiel des panoplies** (`GameItemSet`, 940 lignes DofusDB / **938** écrites) : nécessaire aux **bonus de panoplie recalculés** des variantes. `apply` = **0 par défaut** (dry-run), `pages` borne la passe (19 au total) et `startSkip` reprend au `nextSkip` rendu — la passe complète peut donc être découpée derrière un proxy. **Une seule fois** après une migration/MAJ, puis à la demande. Existe aussi en local (`npm run siphon:item-sets -- --apply`) : la route sert aux **conteneurs** (l'image standalone ne porte ni `tsx` ni les alias `@/`).
+
 
 ### 🛒 Module « Marché » — cron unique des échéances
 

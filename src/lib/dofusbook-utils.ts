@@ -92,6 +92,31 @@ export const DOFUSBOOK_STAT_LABELS: Record<string, string> = {
 };
 
 /**
+ * Codes d'effet **Dofusbook qui ne sont pas des statistiques**.
+ *
+ * 🧨 Constat du 26/10/2026 (capture user, carte de build d'un **Dofus Ocre** : « **at** +185 ») :
+ * le payload Dofusbook liste aussi des effets **non numériques**, et l'ancien rendu imprimait le
+ * code brut (`statLabelMapping[fx.code] || fx.code`). Mesure sur la fiche DofusDB du Dofus Ocre
+ * (`7754`) : `effectId 10` = « **Attitude #3** », `hideValueInTooltip: true`, `category 7` — la
+ * valeur (`185`) est un **id d'attitude/émote**, pas un montant.
+ *
+ *   · `at` → « Attitude » (émote) : jamais une ligne chiffrée ;
+ *   · `sp` → sort passif : rendu dans le bloc « Pouvoir Passif », jamais dans la liste.
+ *
+ * ⚠️ Cette liste ne concerne que les **codes Dofusbook** ; les effets natifs DofusDB ont la leur
+ * (`NON_STAT_EFFECT_IDS` dans `src/lib/dofus-stat-lines.ts`).
+ */
+export const DOFUSBOOK_NON_STAT_CODES: readonly string[] = ["at", "sp"];
+
+const DOFUSBOOK_NON_STAT_SET = new Set<string>(DOFUSBOOK_NON_STAT_CODES);
+
+/** Le code Dofusbook est-il une **métadonnée** (attitude, sort passif) plutôt qu'une stat ? */
+export function isDofusbookNonStatCode(code: unknown): boolean {
+    if (typeof code !== "string") return false;
+    return DOFUSBOOK_NON_STAT_SET.has(code.trim().toLowerCase());
+}
+
+/**
  * Version de la clé d'URL des icônes d'items (voir `dofusbookItemIconUrl`).
  *
  * 🐛 Historique (symptôme : panneau d'équipement avec des slots « vides » en forme d'épée) :

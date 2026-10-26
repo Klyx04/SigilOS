@@ -20,21 +20,27 @@
 | Données | **3** migrations additives (`criterions`/`twoHanded`/`conditions`, puis `GameItemSet`) · **264 conditions** chargées en local (siphon **idempotent**) · **938 panoplies** |
 | Verrous | `dofus-set-bonuses` **24** · `dofus-pods` **7** · `dofus-caps` **4** · `item-conditions-watch` **7** · `dofus-conditions` **+4 cas** (contrat de payload) · `dofus-variant-rules` **+2 cas** · `dofus-criteria` 12 · `dofusbook-sync-force` 16 · `galerie-variantes-affichage` 13 |
 
-## 1. Lot D — Ops bêta/prod (humain)
+## 1. Lot D — Ops prod (la **bêta** est faite, mesurée le 26/10/2026)
 
-1. `npx prisma migrate deploy` (**3** migrations additives : `criterions`/`twoHanded`/`conditions`
-   puis `20270120000000_item_sets`) puis `npx prisma generate`.
-2. `GET /api/cron/siphon-item-conditions?apply=1` (264 objets attendus ; sans `apply` = dry-run).
-   En local : `npm run siphon:item-conditions -- --apply`.
-3. **En bêta/prod (conteneur)** : `curl -H "x-cron-secret: $CRON_SECRET"
-   "https://beta.sigilos.fr/api/cron/siphon-item-sets?apply=1"` (**938 panoplies** attendues ;
-   sans `apply` = dry-run). En local : `npm run siphon:item-sets -- --apply`.
-4. Redémarrer l'app (client Prisma en mémoire).
-5. Redéployer le worker CF (`wrangler deploy` dans `cloudflare-workers/dofusbook-proxy`) —
-   sans ça, le cache Dofusbook de 24 h reste actif.
-6. Vérifier dans l'UI : fiche d'un build → condition affichée sur un objet contraint ; tentative de
-   variante invalide → refus explicite ; variante qui retire une pièce d'une panoplie active →
-   les totaux **baissent** du palier perdu.
+État bêta : **938** panoplies · **264** conditions · **3 646** liens objets↔panoplies · 2ᵉ passage = **0 écriture**
+sur les deux siphons (idempotence prouvée, JSONB réordonne les clés). Ce qui reste est **la prod**, dans cet ordre :
+
+1. PR `dev` → `main` → CI verte → `./scripts/deploy-cd.sh prod` (applique les **20** migrations en attente, dont
+   les **3 additives** de ce chantier : `criterions`/`twoHanded`/`conditions` puis `20270120000000_item_sets`).
+2. `GET /api/cron/siphon-item-sets?apply=1` (**938** attendues) — **en premier** : le référentiel prod est
+   **vide**, donc tant qu'il l'est, toutes les variantes à panoplie sont **refusées** (fail-closed, voulu).
+3. `GET /api/cron/siphon-item-conditions?apply=1` (**264** attendues ; sans `apply` = dry-run).
+4. `GET /api/cron/data-watch` **une fois à la main** : pose le filigrane des panoplies (sans lui la veille repart
+   sur 60 jours) et met les objets à jour.
+5. Poser les **deux lignes de crontab** prod (`docs/MAINTENANCE.md` § Tâches planifiées) : la veille
+   `0 5 * * 0` — elle **existe déjà** sur le VPS, **ne pas ajouter de doublon** — et le siphon mensuel des
+   conditions (`5 5 1 * *`). Un `.mjs` lancé par `docker exec` **échoue** (`@prisma/driver-adapter-utils` absent
+   du build standalone, mesuré le 26/10/2026) : ces opérations passent par les **routes**.
+6. Redéployer le worker CF (`wrangler deploy` dans `cloudflare-workers/dofusbook-proxy`) s'il ne l'est pas déjà
+   — sans ça, le cache Dofusbook de 24 h reste actif.
+7. Vérifier dans l'UI : condition affichée sur un objet contraint ; variante invalide **refusée avec sa raison**
+   (« Bonus de panoplies < 2 »…) ; variante qui retire une pièce d'une panoplie active → les totaux **baissent**
+   du palier perdu.
 
 
 ## 2. Décisions actées (finitions, 26/10/2026)

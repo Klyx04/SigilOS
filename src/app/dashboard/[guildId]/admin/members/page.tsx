@@ -6,7 +6,8 @@ import MemberManagement from "@/components/admin/members/member-management";
 import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { buildMemberRoster, DEFAULT_TRIAL_DURATION_DAYS } from "@/lib/member-roster";
+import { buildMemberRoster, DEFAULT_TRIAL_DURATION_DAYS, mergeExclusions, rosterCounts, type RosterExclusion } from "@/lib/member-roster";
+import { getGuildMemberBans } from "@/server/actions/lifecycle-actions";
 import { roleHasDashboardAccess } from "@/lib/permissions";
 
 export const metadata = {
@@ -25,7 +26,7 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
     const { guildId } = await params;
     const { tab } = await searchParams;
 
-    const [ctx, stats, lifecycle, discordIndex, guildConfig] = await Promise.all([
+    const [ctx, stats, lifecycle, discordIndex, guildConfig, memberBans] = await Promise.all([
         getUserContext(guildId),
         getGuildMemberStats(guildId),
         getGuildLifecycleData(guildId),
@@ -34,6 +35,9 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
             where: { discordGuildId: guildId },
             select: { welcomeBadgeName: true, ownerId: true, rolesMapping: true, inGameGuildRoleIds: true },
         }),
+        // F-01 — exclusions (tombstones). Fail-closed : une permission absente renvoie
+        // `success: false`, on affiche alors la liste sans les exclusions plutôt que de mentir.
+        getGuildMemberBans(guildId),
     ]);
 
     // RBAC : Admin, Gestion des membres ou Relances.
@@ -105,6 +109,30 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
         trialDurationDays: lifecycleData?.config.trialDurationDays ?? DEFAULT_TRIAL_DURATION_DAYS,
     });
 
+    // ── Exclusions actives (F-01) — source `GuildMemberBan` ─────────────────────────────────
+    // Un exclu dont le profil a été purgé n'existait dans **aucune** ligne : le compteur
+    // affichait 0 et seul le panneau God pouvait lever l'exclusion (mesure du 25/10/2026).
+    // Pure règle testée : `mergeExclusions` (src/lib/member-roster.ts).
+    const exclusions: RosterExclusion[] = memberBans.success
+        ? (
+              memberBans.data as {
+                  discordId: string;
+                  memberName: string | null;
+                  reason: string;
+                  createdAt: Date | string;
+                  liftedAt: Date | string | null;
+              }[]
+          )
+              .filter((ban) => !ban.liftedAt)
+              .map((ban) => ({
+                  discordId: ban.discordId,
+                  memberName: ban.memberName ?? null,
+                  reason: ban.reason,
+                  createdAt: new Date(ban.createdAt).toISOString(),
+              }))
+        : [];
+    const rosterRows = mergeExclusions(rows, exclusions);
+
     if (lifecycleData === null || indexData === null) {
         logger.warn("[admin/members] Données partielles chargées", {
             lifecycle: lifecycle.success,
@@ -141,11 +169,12 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
                 <div data-tour="admin-members-table">
                     <MemberManagement
                         guildId={guildId}
-                        rows={rows}
+                        rows={rosterRows}
                         roles={indexData?.roles ?? []}
                         dashboardRoleIds={dashboardRoleIds}
                         inGameGuildRoleIds={guildConfig?.inGameGuildRoleIds ?? []}
                         stats={stats}
+                        excludedCount={rosterCounts(rosterRows).banned}
                         discordAvailable={indexData?.discordAvailable ?? false}
                         welcomeBadgeName={guildConfig?.welcomeBadgeName || "Nouveau"}
                         isSuperAdmin={ctx.isSuperAdmin}

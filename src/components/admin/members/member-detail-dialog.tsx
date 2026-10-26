@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
     AlertTriangle,
     ArchiveRestore,
@@ -81,6 +81,7 @@ import {
     updateMemberRegistryIdentity,
     type RegistrySubject,
 } from "@/server/actions/member-lifecycle-actions";
+import { getGuildMemberBans, liftGuildMemberBan } from "@/server/actions/lifecycle-actions";
 import { RelanceModal } from "./relance-modal";
 import { VacationEditDialog } from "./vacation-edit-dialog";
 import { MemberDiscordActivity } from "./member-discord-activity";
@@ -216,6 +217,60 @@ export function MemberDetailDialog({
     const [rereadError, setRereadError] = useState<string | null>(null);
     /** Onglet de la fiche : la fiche registre, ou l'activité Discord mesurée. */
     const [detailTab, setDetailTab] = useState<"fiche" | "discord">("fiche");
+
+    /** Exclusion active (tombstone) de la personne affichée — `null` = aucune, ou pas le droit de la lire. */
+    const [activeExclusion, setActiveExclusion] = useState<{
+        reason: string;
+        createdAt: string;
+        bannedByName: string | null;
+    } | null>(null);
+
+    const displayedDiscordId = row?.discordId ?? null;
+
+    /**
+     * F-01 — mesure du 25/10/2026 : la modale permettait d'**exclure** mais n'offrait aucun moyen
+     * de **lever** l'exclusion ; le staff devait passer par le panneau God, et un exclu dont le
+     * profil avait été purgé n'apparaissait nulle part. On relit l'exclusion active à l'ouverture
+     * (source unique : `getGuildMemberBans`, même garde de permission que la levée).
+     */
+    useEffect(() => {
+        if (!open || !displayedDiscordId || !canManageMembers) {
+            setActiveExclusion(null);
+            return;
+        }
+        let cancelled = false;
+        getGuildMemberBans(guildId)
+            .then((res) => {
+                if (cancelled) return;
+                const ban = res.success
+                    ? (
+                          res.data as {
+                              discordId: string;
+                              reason: string;
+                              createdAt: Date | string;
+                              bannedByName: string | null;
+                              liftedAt: Date | string | null;
+                          }[]
+                      ).find((entry) => entry.discordId === displayedDiscordId && !entry.liftedAt)
+                    : undefined;
+                setActiveExclusion(
+                    ban
+                        ? {
+                              reason: ban.reason,
+                              createdAt: new Date(ban.createdAt).toISOString(),
+                              bannedByName: ban.bannedByName ?? null,
+                          }
+                        : null
+                );
+            })
+            .catch(() => {
+                // Fail-closed côté affichage : sans lecture, on n'invente pas d'exclusion.
+                if (!cancelled) setActiveExclusion(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [open, displayedDiscordId, guildId, canManageMembers]);
 
     if (!row) {
         return null;
@@ -361,6 +416,21 @@ export function MemberDetailDialog({
         run(() => reintegrateMember(guildId, current.profileId as string), "Membre réintégré");
     }
 
+    /**
+     * F-01 — l'inverse de « Exclure » : `reintegrateMember` remet le profil en ACTIVE mais **ne
+     * lève pas** le tombstone, donc le membre restait bloqué. On appelle l'action dédiée, qui
+     * trace `MEMBER_UNBANNED`, invalide le contexte et purge les sessions.
+     */
+    function handleLiftExclusion() {
+        const discordId = current.discordId;
+        if (!discordId) return;
+        run(
+            () => liftGuildMemberBan(guildId, discordId),
+            "Exclusion levée — le membre peut de nouveau accéder au tableau de bord",
+            () => setActiveExclusion(null)
+        );
+    }
+
     function handleSaveRecruiter() {
         if (!row) return;
         run(
@@ -447,12 +517,18 @@ export function MemberDetailDialog({
                                         variant="outline"
                                         className={cn(
                                             "text-caption",
-                                            current.dashboard
-                                                ? STATUS_TONES[current.status ?? ""]
-                                                : "text-muted-foreground"
+                                            current.status === "BANNED"
+                                                ? STATUS_TONES.BANNED
+                                                : current.dashboard
+                                                  ? STATUS_TONES[current.status ?? ""]
+                                                  : "text-muted-foreground"
                                         )}
                                     >
-                                        {current.dashboard ? STATUS_LABELS[current.status ?? ""] ?? "—" : "Hors dashboard"}
+                                        {current.status === "BANNED"
+                                            ? STATUS_LABELS.BANNED
+                                            : current.dashboard
+                                              ? STATUS_LABELS[current.status ?? ""] ?? "—"
+                                              : "Hors dashboard"}
                                     </Badge>
                                     {trialState && (
                                         <Badge variant="outline" className={cn("text-caption", trialState.tone)}>
@@ -464,6 +540,34 @@ export function MemberDetailDialog({
                             </div>
                         </div>
                     </DialogHeader>
+
+                    {/* F-01 — exclusion active : affichée AVANT les onglets, car elle explique à elle
+                        seule le refus d'accès, et elle se lève ici (plus besoin du panneau God).
+                        Aucun bandeau sans exclusion lue : la lecture est fail-closed. */}
+                    {activeExclusion && (
+                        <div
+                            role="status"
+                            className="flex flex-col gap-2 rounded-md border border-danger/40 bg-danger/5 px-3 py-2.5 text-xs sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <span className="leading-relaxed text-muted-foreground">
+                                <strong className="text-danger">Exclusion active</strong> depuis le{" "}
+                                {formatDay(activeExclusion.createdAt)} · motif : {activeExclusion.reason}
+                                {activeExclusion.bannedByName ? ` · par ${activeExclusion.bannedByName}` : ""}
+                            </span>
+                            {canManageMembers && current.discordId && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0"
+                                    onClick={handleLiftExclusion}
+                                    disabled={isPending}
+                                >
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    Lever l&apos;exclusion
+                                </Button>
+                            )}
+                        </div>
+                    )}
 
                     {/* Lot 2 — preuve honnête : l'heure du **serveur** + l'état de la relecture.
                         Aucun bandeau sans écriture confirmée ; une relecture ratée se dit. */}
@@ -988,7 +1092,7 @@ export function MemberDetailDialog({
                             </p>
                             <p className="mt-1">
                                 {canDeleteMembers
-                                    ? "La suppression définitive efface les données de guilde de ce membre et ne laisse aucune exclusion : s'il revient, il repart comme un nouvel arrivant."
+                                    ? "La suppression définitive efface les données de guilde de ce membre et pose une exclusion (il ne peut pas revenir de lui-même). Elle reste réversible ici : « Lever l'exclusion » rétablit son accès."
                                     : "Permission « Supprimer un profil de guilde » absente de votre rôle : la suppression reste hors de portée."}
                             </p>
                         </div>
@@ -1017,8 +1121,9 @@ export function MemberDetailDialog({
                                                         journal) sont effacés ;
                                                     </li>
                                                     <li>
-                                                        <strong>aucune exclusion n&apos;est conservée</strong> — s&apos;il
-                                                        revient, il repart comme un nouvel arrivant ;
+                                                        une <strong>exclusion</strong> est posée : s&apos;il revient,
+                                                        son accès reste fermé tant qu&apos;elle n&apos;est pas levée
+                                                        depuis cette fiche (« Lever l&apos;exclusion ») ;
                                                     </li>
                                                     <li>
                                                         {showAccountPurge

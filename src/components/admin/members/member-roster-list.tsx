@@ -103,7 +103,10 @@ function trialLabel(row: RosterRow): string {
 }
 
 function StatusBadge({ row }: { row: RosterRow }) {
-    if (!row.dashboard) {
+    // Une exclusion active prime sur « Hors dashboard » : c'est elle qui ferme la porte.
+    // (Mesure du 25/10/2026 : un exclu dont le profil a été purgé n'a aucune fiche et
+    // s'affichait « Hors dashboard », donc illisible en tant qu'exclusion.)
+    if (row.status !== "BANNED" && !row.dashboard) {
         return (
             <Badge
                 variant="outline"

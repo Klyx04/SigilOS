@@ -9,6 +9,16 @@
 
 ## 0. Reprise immédiate
 
+- **Livré le 26/10/2026 — Guide interne : modale par Dofus + déslop du bandeau personnage.** Le clic sur un Dofus
+  ouvre une **modale** (au lieu d'un panneau en ligne) qui dit **où en est chaque membre quête par quête** : X/Y quêtes,
+  quête en cours **et sa catégorie**, dernière validée ; le filtre de timeline reste accessible depuis la modale
+  (règle pure `src/lib/rush-dofus-progress.ts`, **8 cas** — une quête est faite quand **toutes** ses étapes le sont,
+  l'étape courante du joueur prime). Déslop du bandeau : badge « Main/Mule » fait main **retiré**, bouton reset rouge
+  **déplacé dans le menu du personnage** (par personnage), **3 crayons** du bloc Ordre retirés, « Rush Live » passe sur
+  un **asset du jeu** (`/assets/dofus/modules/guild.png`), et les cinq blocs partagent **une anatomie** (asset nu 28 px,
+  libellé 11 px, plus de `font-serif` décoratif). Les 4 gardes de `rush-guide-ui-polish` qui verrouillaient l'ancien
+  design sont **réécrites sur l'intention** (pas de pastille faite main, reset atteignable et nommé, statut dans le
+  menu, asset réel) — la demande du propriétaire contredisait l'ancien verrou. Suite **5 562 ✓ / 530 fichiers**.
 - **Livré le 26/10/2026 — Rush : identité assistée, route éditable, import dry-run, contraste (branche
   `feat/rush-identite-quete`).** ① **Picker de quête** dans les deux formulaires God : le nom et le lien **DofusDB
   direct** viennent du catalogue `GameQuest` (**1 976** quêtes, **530 / 530** des quêtes Tougli présentes), le lien

@@ -50,7 +50,7 @@ describe("resolveStatLineCode — caractéristique d'abord, jamais un code brut"
 
 describe("isNonStatEffectId — métadonnées mesurées", () => {
     it("reconnaît les traits de monture, les portées de sort et les titres", () => {
-        for (const id of [3829, 3830, 3831, 3833, 3834, 3835, 281, 286, 289, 724, 812, 1175, 10]) {
+        for (const id of [3829, 3830, 3831, 3833, 3834, 3835, 281, 286, 289, 724, 812, 1175]) {
             expect(isNonStatEffectId(id)).toBe(true);
         }
     });

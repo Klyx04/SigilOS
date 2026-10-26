@@ -628,6 +628,18 @@ describe("effects — lignes de métadonnées 0 → 0 (constat beta)", () => {
         expect(isStatBearingNativeEffect({ from: -6, to: -8 })).toBe(true);
     });
 
+    it("écarte aussi les métadonnées à valeur NON nulle (mesure du 26/10/2026)", () => {
+        // Traits de monture : `3829` (1) et `3831` (1 → 5000) fabriquaient « +5000 Vitalité ».
+        expect(isStatBearingNativeEffect({ from: 1, to: 1, effectId: 3829 })).toBe(false);
+        expect(isStatBearingNativeEffect({ from: 1, to: 5000, effectId: 3831 })).toBe(false);
+        // Portée de sort (`281`/`289` : la valeur est un id de sort) et titre de panoplie (`724`).
+        expect(isStatBearingNativeEffect({ from: 13106, to: 13106, effectId: 289 })).toBe(false);
+        expect(isStatBearingNativeEffect({ from: 75, to: 75, effectId: 724 })).toBe(false);
+        // …et les vraies statistiques restent des jets.
+        expect(isStatBearingNativeEffect({ from: 400, to: 400, effectId: 125 })).toBe(true);
+        expect(isStatBearingNativeEffect({ from: 70, to: 70, effectId: 416 })).toBe(true);
+    });
+
     it("buildNativeStatDrafts ne pré-remplit plus aucune ligne fantôme", () => {
         // Monture d'apparat : 0 ligne (la carte n'affiche plus de bloc EFFETS).
         expect(buildNativeStatDrafts(gladiusMoldus, null)).toEqual([]);

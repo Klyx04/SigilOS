@@ -150,12 +150,15 @@ export const EFFECT_CODES: Readonly<Record<number, string>> = {
  *   · `720`–`725` « Nombre de victimes », « Titre », « Renommer la guilde », « Ajouter un sort
  *     temporaire » ; `812` « #2/#3 » ; `130` « Vole des kamas » ; `983`/`984` métadonnées
  *     (« Échangeable », « Compatible avec ») ; `1175` capacité légendaire (déjà écartée par le
- *     Marché, cf. `NON_STAT_EFFECT_IDS` de `src/lib/market/effects.ts`) ;
- *   · `10` « Attitude » (émote : la valeur est un id d'attitude — l'ancienne carte de build
- *     affichait « at +185 »).
+ *     Marché, cf. `NON_STAT_EFFECT_IDS` de `src/lib/market/effects.ts`).
+ *
+ * ⚠️ L'**attitude** (`effectId 10`, « at +185 » d'un Dofus Ocre) n'est **pas** listée ici : sur une
+ * ligne d'objet, elle arrive toujours avec `characteristic: 0` et `EFFECT_CODES` ne cartographie
+ * aucun id ≤ 92 — le résolveur l'écarte donc déjà. L'inscrire globalement rejetterait aussi des
+ * lignes **légitimes** du Marché (référentiel), ce que verrouillent les tests.
  */
 export const NON_STAT_EFFECT_IDS: readonly number[] = [
-    10, 130, 281, 282, 283, 286, 287, 288, 289, 290, 291, 293, 295, 297,
+    130, 281, 282, 283, 286, 287, 288, 289, 290, 291, 293, 295, 297,
     720, 721, 722, 723, 724, 725, 812, 983, 984, 1175,
 ];
 

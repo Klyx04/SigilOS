@@ -104,7 +104,9 @@ describe("galerie — variante visible au clic", () => {
     const gallery = read(GALLERY);
 
     it("les statistiques de la carte suivent la bascule", () => {
-        expect(gallery).toContain("applyVariantsToBuild(build.previewData, build.variants ?? {})");
+        // Les panoplies du build sont passées à la règle depuis le 26/10/2026 : sans elles,
+        // la carte afficherait les bonus du stuff d'origine (cf. `applyVariantsToBuild`).
+        expect(gallery).toContain("applyVariantsToBuild(build.previewData, build.variants ?? {}, build.itemSets)");
         expect(gallery).toContain("variantViews.has(build.id) && build.variants");
     });
 

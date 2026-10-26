@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
     evaluateDofusConditions,
+    listConditionAtoms,
     readElementName,
     renderDofusConditions,
     type DofusConditionContext,
@@ -157,5 +158,70 @@ describe("branchement — catalogue → sélecteur → serveur", () => {
         expect(actions).toContain("evaluateDofusConditions(info.conditions");
         expect(actions).toContain("byAnkamaId.get(weapon.id)?.twoHanded === true");
         expect(actions).toContain("pieces.size >= 2");
+    });
+});
+
+
+describe("contrat de payload — échantillon réel mesuré (25/10/2026)", () => {
+    /**
+     * Formes **réellement observées** sur les 264 objets conditionnés : `element` en objet
+     * `{name, id}` **ou** en chaîne sérialisée `"@{name=PA; id=12}"` ; `relation` ∈ {and, or} ;
+     * opérateurs ∈ {<, =, >, <=, >=, !=}. **Toute autre forme doit refuser** (fail-closed) :
+     * c'est ce que verrouille ce bloc, pour que la CI rougisse **avant** la prod.
+     */
+    it("accepte les deux formes d'`element` avec les opérateurs mesurés", () => {
+        const tree = {
+            relation: "and",
+            children: [
+                // Forme **chaîne** (mesurée dans le payload).
+                { condition: { operator: "=", int_value: 11, element: "@{name=PA; id=12}" } },
+                // Forme **objet**.
+                { condition: { operator: ">", int_value: 2, element: { name: "PM", id: 8 } } },
+            ],
+        };
+
+        const evaluation = evaluateDofusConditions(tree, CONTEXT);
+        expect(evaluation.ok).toBe(true);
+        expect(evaluation.text).toBe("PA = 11 et PM > 2");
+        expect(evaluation.unsupported).toEqual([]);
+    });
+
+    it("refuse une relation hors {and, or} au lieu de la traiter comme un ET", () => {
+        const tree = {
+            relation: "xor",
+            children: [
+                { condition: { operator: "<", int_value: 12, element: { name: "PA" } } },
+                { condition: { operator: "<", int_value: 6, element: { name: "PM" } } },
+            ],
+        };
+
+        const evaluation = evaluateDofusConditions(tree, CONTEXT);
+        expect(evaluation.ok).toBe(false);
+        expect(evaluation.unsupported.join(" ")).toContain("relation non reconnue");
+    });
+
+    it("refuse une valeur absente (`int_value: null`) au lieu de la lire comme 0", () => {
+        // `Number(null)` vaut 0 : sans garde, « PA > -1 » serait satisfait par accident.
+        const tree = { condition: { operator: ">", int_value: null, element: { name: "PA" } } };
+
+        const evaluation = evaluateDofusConditions(tree, CONTEXT);
+        expect(evaluation.ok).toBe(false);
+        expect(evaluation.unsupported).toHaveLength(1);
+    });
+
+    it("liste les atomes avec leur évaluabilité (base du compteur d'inconnues)", () => {
+        const atoms = listConditionAtoms({
+            relation: "or",
+            children: [
+                { condition: { operator: "<", int_value: 12, element: { name: "PA" } } },
+                { condition: { operator: "~", int_value: 3, element: { name: "PM" } } },
+                { condition: { operator: "=", int_value: 1, element: { name: "Kamas" } } },
+            ],
+        });
+
+        expect(atoms).toHaveLength(3);
+        expect(atoms.filter((atom) => atom.supported)).toHaveLength(1);
+        expect(atoms[1]).toMatchObject({ element: "PM", operator: "~", supported: false });
+        expect(atoms[2]).toMatchObject({ element: "Kamas", supported: false });
     });
 });

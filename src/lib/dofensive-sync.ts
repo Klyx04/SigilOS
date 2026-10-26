@@ -19,6 +19,7 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { diffFields, recordGameDataChanges } from "@/lib/game-data-changelog";
 import { dofensiveFetch, norm } from "@/lib/dofensive-fetch";
+import { stableStringify } from "@/lib/stable-json";
 import {
     COMBAT_SPELLS_PAYLOAD_VERSION,
     isCombatSpellsPayloadOutdated,
@@ -51,19 +52,6 @@ export const DB_READABLE = process.env.VITEST !== "true";
 export function hashPayload(payload: unknown): string {
     const json = stableStringify(payload);
     return createHash("sha256").update(json).digest("hex").slice(0, 16);
-}
-
-function stableStringify(value: unknown): string {
-    if (value === null || value === undefined) return "null";
-    if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
-    if (typeof value === "object") {
-        const record = value as Record<string, unknown>;
-        return `{${Object.keys(record)
-            .sort()
-            .map((k) => `${JSON.stringify(k)}:${stableStringify(record[k])}`)
-            .join(",")}}`;
-    }
-    return JSON.stringify(value);
 }
 
 export function isFresh(lastSyncedAt: Date | string | null | undefined): boolean {

@@ -70,7 +70,78 @@ const ELEMENT_CONTEXT: Record<string, keyof DofusConditionContext> = {
     "Bonus de panoplies": "activeSets",
 };
 
-const KNOWN_OPERATORS = new Set(["<", "<=", ">", ">=", "=", "!="]);
+/** Opérateurs **acceptés** (contrat de payload mesuré) — tout autre opérateur est refusé. */
+export const KNOWN_CONDITION_OPERATORS = ["<", "<=", ">", ">=", "=", "!="] as const;
+/** Relations **acceptées** (`and` par défaut, `or` explicite). */
+export const KNOWN_CONDITION_RELATIONS = ["and", "or"] as const;
+
+const KNOWN_OPERATORS = new Set<string>(KNOWN_CONDITION_OPERATORS);
+const KNOWN_RELATIONS = new Set<string>(KNOWN_CONDITION_RELATIONS);
+
+/**
+ * Un **atome** de condition : un élément, un opérateur, une valeur — et s'il est évaluable.
+ *
+ * Sert au **compteur d'inconnues** (veille) : on agrège par élément/opérateur pour repérer
+ * qu'Ankama a introduit un nouveau type de condition, sans jamais deviner son sens.
+ */
+export interface ConditionAtom {
+    element: string;
+    operator: string;
+    value: number | null;
+    /** Évaluable dans le contexte d'un **stuff** (élément connu + opérateur connu + valeur finie). */
+    supported: boolean;
+}
+
+/**
+ * Parcourt un arbre de conditions et rend **tous** ses atomes.
+ *
+ * Fail-closed : un atome dont l'élément est hors contexte (kamas, abonnement, alignement…),
+ * l'opérateur inconnu ou la valeur non numérique est rendu `supported: false`.
+ * Une **relation** hors `{and, or}` rend tous les atomes de la branche non évaluables : on ne
+ * sait pas comment combiner les enfants, donc on ne conclut rien.
+ */
+export function listConditionAtoms(raw: unknown): ConditionAtom[] {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+
+    const atoms: ConditionAtom[] = [];
+
+    const walk = (node: RawConditionNode, relationOk: boolean): void => {
+        if (Array.isArray(node.children) && node.children.length > 0) {
+            const declared = node.relation === undefined || node.relation === null
+                ? "and"
+                : String(node.relation).toLowerCase();
+            const nextRelationOk = relationOk && KNOWN_RELATIONS.has(declared);
+            for (const child of node.children) walk(child, nextRelationOk);
+            return;
+        }
+
+        const condition = node.condition;
+        if (!condition) return;
+
+        const element = readElementName(condition.element);
+        const operator = String(condition.operator ?? "").trim();
+        // ⚠️ `Number(null)` vaut **0** : une valeur absente deviendrait « 0 » et pourrait
+        // satisfaire une condition par accident. On l'exclut explicitement.
+        const rawValue = condition.int_value;
+        const value = rawValue === null || rawValue === undefined ? Number.NaN : Number(rawValue);
+        const supported = relationOk
+            && element !== ""
+            && KNOWN_OPERATORS.has(operator)
+            && Number.isFinite(value)
+            && ELEMENT_CONTEXT[element] !== undefined;
+
+        atoms.push({
+            element,
+            operator,
+            value: Number.isFinite(value) ? value : null,
+            supported,
+        });
+    };
+
+    walk(raw as RawConditionNode, true);
+    return atoms;
+}
+
 
 /** L'API renvoie parfois `{name}` et parfois la chaîne `"@{name=PA; id=12}"`. */
 export function readElementName(element: RawElement): string {
@@ -105,17 +176,28 @@ interface EvalNode {
 function evalNode(node: RawConditionNode, context: DofusConditionContext): EvalNode {
     if (Array.isArray(node.children) && node.children.length > 0) {
         const relation = (node.relation ?? "and").toLowerCase();
+        /**
+         * Contrat de payload : `relation` ∈ **{and, or}**. Une relation inconnue ne se devine
+         * pas (on ne sait pas combiner les enfants) ⇒ branche **non évaluable** (fail-closed).
+         */
+        const relationKnown = KNOWN_RELATIONS.has(relation);
         const results = node.children.map((child) => evalNode(child, context));
         const text = results
             .map((result) => result.text)
             .filter(Boolean)
-            .join(relation === "or" ? " ou " : " et ");
+            .join(relation === "or" ? " ou " : relation === "and" ? " et " : ` ${relation} `);
         const failed = results.flatMap((result) => result.failed);
-        const unsupported = results.flatMap((result) => result.unsupported);
+        const unsupported = relationKnown
+            ? results.flatMap((result) => result.unsupported)
+            : [...results.flatMap((result) => result.unsupported), `${relation || "?"} (relation non reconnue)`];
 
         const clean = (result: EvalNode) =>
             result.satisfied && result.failed.length === 0 && result.unsupported.length === 0;
-        const satisfied = relation === "or" ? results.some(clean) : results.every(clean);
+        const satisfied = !relationKnown
+            ? false
+            : relation === "or"
+                ? results.some(clean)
+                : results.every(clean);
 
         return { text, satisfied, failed, unsupported };
     }
@@ -125,7 +207,10 @@ function evalNode(node: RawConditionNode, context: DofusConditionContext): EvalN
 
     const element = readElementName(raw.element);
     const operator = String(raw.operator ?? "").trim();
-    const value = Number(raw.int_value);
+    // ⚠️ `Number(null)` vaut **0** : une valeur absente deviendrait « 0 » et pourrait
+    // satisfaire une condition par accident. On l'exclut explicitement (fail-closed).
+    const rawValue = raw.int_value;
+    const value = rawValue === null || rawValue === undefined ? Number.NaN : Number(rawValue);
     const rendered = `${element} ${operator} ${Number.isFinite(value) ? value : "?"}`;
 
     if (!element || !KNOWN_OPERATORS.has(operator) || !Number.isFinite(value)) {

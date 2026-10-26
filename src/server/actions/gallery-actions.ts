@@ -6,7 +6,11 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { canonicalClassId, getClassName, isUsableDofusbookRawPayload, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
-import { hasSavedVariant, normalizeSavedVariants, type SavedVariant } from "@/lib/dofus-variant-utils";
+import { hasSavedVariant, normalizeSavedVariants, describeSavedVariants, type SavedVariant } from "@/lib/dofus-variant-utils";
+import { applyVariantsToBuild } from "@/lib/dofus-variant-utils";
+import type { VariantItemSets } from "@/lib/dofus-variant-utils";
+import { normalizeItemSetTiers, type ItemSetData } from "@/lib/dofus-set-bonuses";
+import { attachItemSetsToBuilds, resolveVariantItemSets, resolveVariantPreview } from "@/server/build-item-sets";
 import { validateSavedVariants, effectiveSlotIds, validatePrysmaraditeLimit } from "@/lib/dofus-variant-rules";
 import { evaluateDofusConditions } from "@/lib/dofus-conditions";
 import type { DofusbookItem } from "@/lib/dofusbook-utils";
@@ -61,6 +65,12 @@ export type GalleryBuild = {
      * Le build Dofusbook d'origine reste intact : la variante s'applique à l'affichage.
      */
     variants?: SavedVariant;
+    /**
+     * Panoplies du build (paliers complets + objet → panoplie), **résolues côté serveur**.
+     * Indispensables au recalcul des bonus quand une variante change une pièce : sans elles,
+     * la variante n'est pas calculée (fail-closed) — voir `applyVariantsToBuild`.
+     */
+    itemSets?: VariantItemSets;
     source?: "dofusbook";
     author: {
         id: string;
@@ -287,11 +297,17 @@ export async function getStuffGalleryPage(
         const offset = (page - 1) * PAGE_SIZE;
         const pageBuilds = allBuilds.slice(offset, offset + PAGE_SIZE);
         const hasMore = offset + PAGE_SIZE < total;
+        /**
+         * 🔗 Panoplies des builds **de cette page** (celles qui portent une variante) : deux
+         * requêtes bornées, aucun catalogue complet côté client. Sans contexte, la variante
+         * affiche un refus explicite au lieu de garder les bonus du stuff d'origine.
+         */
+        const buildsWithItemSets = await attachItemSetsToBuilds(pageBuilds);
 
         return {
             success: true,
             data: {
-                builds: pageBuilds,
+                builds: buildsWithItemSets,
                 total,
                 hasMore,
                 nextPage: hasMore ? page + 1 : null,
@@ -388,7 +404,8 @@ export async function refreshBuildMetadata(
 export async function storeClientDofusbookPreview(
     guildId: string,
     buildUrl: string,
-    raw: unknown
+    raw: unknown,
+    options: { force?: boolean } = {},
 ): Promise<ActionResponse<{ data: DofusbookPreviewData; persisted: boolean; changed?: boolean }>> {
     if (!guildId || !buildUrl) return { success: false, error: "Paramètres manquants" };
 
@@ -442,6 +459,18 @@ export async function storeClientDofusbookPreview(
          */
         const changed = JSON.stringify(currentLink?.previewData ?? null) !== JSON.stringify(data);
         if (!changed) {
+            /**
+             * ⚠️ **Un rafraîchissement forcé qui rend un payload identique n'est pas une preuve
+             * que rien n'a changé** : le relais peut servir son cache (24 h). Mesure du
+             * 26/10/2026 : `force=1` renvoyait le **même** payload **et aucun** en-tête `X-Cache`
+             * (signature d'un relais qui n'est pas la version du dépôt) ⇒ trace côté serveur.
+             */
+            if (options.force) {
+                logger.warn("[dofusbook] rafraîchissement forcé sans changement — relais probablement en cache", {
+                    buildId: id,
+                    items: Object.keys((data.items ?? {}) as Record<string, unknown>).length,
+                });
+            }
             return { success: true, data: { data, persisted: true, changed: false } };
         }
 
@@ -484,6 +513,37 @@ const SaveBuildVariantSchema = z.object({
     buildId: z.string().min(1).max(80),
     variants: z.unknown(),
 });
+
+/** Bornes du contexte de panoplies demandé par la miniature (16 slots d'équipement). */
+const GetVariantItemSetsSchema = z.object({
+    guildId: z.string().min(1).max(32),
+    ankamaIds: z.array(z.number().int().positive().max(99_999_999)).min(1).max(64),
+});
+
+/**
+ * 🔗 **Panoplies d'une variante**, demandées par la miniature elle-même.
+ *
+ * Pourquoi : la page peut être rendue **avant** la synchronisation des panoplies (cas réel du
+ * 26/10/2026 : un `next dev` démarré avant le siphon servait un rendu sans référentiel). Sans
+ * ce rattrapage, la variante affichait un refus alors que la donnée existait déjà en base.
+ *
+ * Lecture seule, bornée (64 ids), réservée aux membres de la guilde.
+ */
+export async function getVariantItemSets(
+    rawGuildId: string,
+    rawAnkamaIds: unknown,
+): Promise<ActionResponse<VariantItemSets>> {
+    const parsed = GetVariantItemSetsSchema.safeParse({ guildId: rawGuildId, ankamaIds: rawAnkamaIds });
+    if (!parsed.success) return { success: false, error: "Données invalides" };
+
+    const user = await getUserContext(parsed.data.guildId);
+    if (!user.isAuthenticated || !user.isMember) return { success: false, error: "Non autorisé" };
+
+    const context = await resolveVariantItemSets(parsed.data.ankamaIds);
+    if (!context) return { success: false, error: "Panoplies indisponibles" };
+
+    return { success: true, data: context };
+}
 
 export async function saveBuildVariant(
     rawGuildId: string,
@@ -585,8 +645,38 @@ export async function saveBuildVariant(
             }
             const activeSets = [...piecesBySet.values()].filter((pieces) => pieces.size >= 2).length;
 
-            const elements = previewData?.elements;
-            const stats = previewData?.stats;
+            /**
+             * 🔁 **Stats effectives** : les conditions sont évaluées sur le build **avec la
+             * variante**, bonus de panoplie **recalculés** (jusqu'ici on évaluait sur les stats
+             * du stuff d'origine — une approximation dès qu'une panoplie bougeait).
+             * Fail-closed : contexte incohérent ou panoplie absente du référentiel ⇒ refus,
+             * jamais une acceptation sur un total faux.
+             */
+            const byItem: Record<number, number> = {};
+            for (const [ankamaId, info] of byAnkamaId) {
+                const setId = Number(info.itemSetId ?? -1);
+                if (Number.isInteger(setId) && setId > 0) byItem[ankamaId] = setId;
+            }
+            const setIds = [...new Set(Object.values(byItem))].slice(0, 64);
+            const setRows = setIds.length > 0
+                ? await db.gameItemSet.findMany({
+                    where: { id: { in: setIds } },
+                    select: { id: true, name: true, itemCount: true, tiers: true },
+                })
+                : [];
+            const sets: Record<number, ItemSetData> = {};
+            for (const row of setRows) {
+                // Tableau **vide** = panoplie sans bonus (valide) ; pas un tableau = illisible ⇒ inconnue.
+                if (!Array.isArray(row.tiers)) continue;
+                sets[row.id] = { id: row.id, name: row.name, itemCount: row.itemCount, tiers: normalizeItemSetTiers(row.tiers) };
+            }
+            const effectiveBuild = previewData ? applyVariantsToBuild(previewData, variants, { sets, byItem }) : null;
+            if (previewData && !effectiveBuild) {
+                return { success: false, error: "Bonus de panoplie indisponibles pour ce build — variante refusée." };
+            }
+
+            const elements = effectiveBuild?.elements ?? previewData?.elements;
+            const stats = effectiveBuild?.stats ?? previewData?.stats;
             const baseContext = {
                 pa: Number(stats?.pa ?? 0),
                 pm: Number(stats?.pm ?? 0),
@@ -959,7 +1049,13 @@ export async function shareGalleryItemOnDiscord(
             }
 
             itemName = build.name;
-            const pd = build.previewData;
+            /**
+             * 🟡 **Variante** (arbitrage du 23/10/2026) : l'embed montre les stats **effectives** et
+             * un tag explicite. Une seule règle (`resolveVariantPreview`) avec l'image OG — et pas
+             * de tag si le calcul a échoué (fail-closed).
+             */
+            const variantView = await resolveVariantPreview(build.previewData, build.variants);
+            const pd = variantView.preview;
             const resolvedClassNum = canonicalClassId(
                 pd?.classId ??
                 build.classId ??
@@ -969,7 +1065,7 @@ export async function shareGalleryItemOnDiscord(
             const className = pd?.className || (resolvedClassNum ? getClassName(resolvedClassNum) : "");
             const levelStr = pd?.level ? ` · Niv. ${pd.level}` : "";
             
-            embedTitle = `🛡️ Build : ${build.name}${className ? ` (${className}${levelStr})` : ""}`;
+            embedTitle = `🛡️ Build : ${build.name}${className ? ` (${className}${levelStr})` : ""}${variantView.variantApplied ? " · 🟡 Variante" : ""}`;
             embedUrl = build.url;
             const classNum = resolvedClassNum;
             embedThumbnail = classNum 
@@ -978,6 +1074,23 @@ export async function shareGalleryItemOnDiscord(
 
             // Dynamic visual render of the inventory ring generated by SigilOS
             embedImage = `${appUrl}/api/og/build/${build.id}`;
+
+            /**
+             * 🟡 Tag **explicite** de la variante (arbitrage du 23/10/2026) : l'embed dit ce qui a
+             * changé et pourquoi les stats ne sont pas celles de Dofusbook. Borné à 6 lignes.
+             */
+            if (variantView.variantApplied) {
+                const replaced = describeSavedVariants(variantView.variants, build.previewData?.items);
+                const lines = replaced
+                    .slice(0, 6)
+                    .map((entry) => `• **${entry.slotLabel}** : ${entry.originalName ?? "—"} → ${entry.name}`);
+                if (replaced.length > 6) lines.push(`… et ${replaced.length - 6} autre(s)`);
+                fields.push({
+                    name: "🟡 Variante proposée",
+                    value: lines.length > 0 ? lines.join("\n") : "Aucun objet remplacé",
+                    inline: false,
+                });
+            }
 
             // 1. ⚔️ Caractéristiques principales
             if (pd?.stats) {

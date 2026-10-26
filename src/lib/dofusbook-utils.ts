@@ -1,4 +1,5 @@
 ﻿import { resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
+import { activeTierCount } from "@/lib/dofus-set-bonuses";
 
 export type DofusbookItemEffect = {
     code: string;
@@ -326,6 +327,8 @@ export type DofusbookPreviewData = {
         epm?: number;
         tacle?: number;
         fuite?: number;
+        /** Pods apportés par l'**équipement** (items + panoplies) — capacité : `src/lib/dofus-pods.ts`. */
+        pod?: number;
     };
     /** Character real stats = items + capital + scrolls */
     elements: {
@@ -549,6 +552,12 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     let cc = 0;
     let invo = 1;
     let so = 0;
+    /**
+     * Pods apportés par l'équipement (caractéristique DofusDB `40` → code `pod`), items **et**
+     * panoplies. La **capacité** se calcule dans `src/lib/dofus-pods.ts` (`1000 + 5 × Force`) :
+     * on ne stocke ici que l'apport de l'équipement.
+     */
+    let pod = 0;
     let retpa = 0, retpm = 0, epa = 0, epm = 0, tacle = 0, fuite = 0;
     let resN = 0, resT = 0, resF = 0, resE = 0, resA = 0;
     // Résistances secondaires / renvoi (mesurées le 25/10/2026 sur le build `22329554` :
@@ -642,6 +651,8 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             case 'invo':
             case 'ic': invo += val; break;
             case 'so': so += val; break;
+            // Pods (capacité d'inventaire) — la formule vit dans `src/lib/dofus-pods.ts`.
+            case 'pod': pod += val; break;
             // Retrait / esquive / tacle / fuite (Dofusbook: rpa, rpm, epa, epm, ta, fu)
             case 'rpa': retpa += val; break;
             case 'rpm': retpm += val; break;
@@ -696,18 +707,20 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             /**
              * ⚠️ **Un palier remplace le précédent** — les lignes de paliers ne s'additionnent
              * pas (Dofus 3.7, doc « Comprendre les interactions d'équipement » § Bonus).
-             * Les payloads Dofusbook n'envoient que le palier actif ; on sélectionne malgré tout
-             * **le plus haut palier atteint** pour rester juste si plusieurs arrivent (DofusDB).
+             *
+             * La décision (plus haut palier atteint, panoplie active dès 2 pièces) vient de
+             * `activeTierCount()` (`src/lib/dofus-set-bonuses.ts`) : c'est **la même règle**
+             * que celle appliquée au recalcul d'une variante. Ne pas la réécrire ici.
              */
-            const reachedTiers = (cloth.effects || []).filter(
-                (e: any) => Number(e.count) <= equippedCount
+            const clothEffects: any[] = Array.isArray(cloth.effects) ? cloth.effects : [];
+            const activeTier = activeTierCount(
+                clothEffects.map((e: any) => ({ count: Number(e.count) || 0 })),
+                equippedCount,
             );
-            const activeTier = reachedTiers.reduce(
-                (max: number, e: any) => Math.max(max, Number(e.count) || 0),
-                0,
-            );
-            const bonuses = reachedTiers.filter((e: any) => (Number(e.count) || 0) === activeTier);
-            
+            const bonuses = activeTier > 0
+                ? clothEffects.filter((e: any) => (Number(e.count) || 0) === activeTier)
+                : [];
+
             const clothBonuses: Record<string, number> = {};
             bonuses.forEach((e: any) => {
                 sumEffect(e);
@@ -974,7 +987,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         level,
         classId: validClassId ?? 0,
         className: validClassId ? getClassName(validClassId) : "",
-        stats: { pa, pm, po, vit, ini, pp, cc, invo, so, retpa, retpm, epa, epm, tacle, fuite },
+        stats: { pa, pm, po, vit, ini, pp, cc, invo, so, retpa, retpm, epa, epm, tacle, fuite, pod },
         elements: { fo: el_fo, in: el_in, ch: el_ch, ag: el_ag, sa: el_sa, pu: el_pu },
         resists: { neutre: resN, terre: resT, feu: resF, eau: resE, air: resA, critique: resCrit, poussee: resPouss, melee: resMelee, distance: resDist, renvoi },
         damages: { neutre: dn, terre: dt, feu: df, eau: de, air: da, general: dom, critique: dc, poussee: dp, armes: do_armes, sorts: do_sorts, melee: do_melee, distance: do_dist },

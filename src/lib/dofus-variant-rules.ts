@@ -159,6 +159,31 @@ export function validatePrysmaraditeLimit(typeNames: Array<string | null | undef
 }
 
 /**
+ * Types d'objet **hors** `VARIANT_SLOTS` (veille — Lot E « types/slots »).
+ *
+ * Pourquoi : `VARIANT_SLOTS` est écrit à la main. Si Dofus ajoute un type d'objet, la recherche
+ * de variante ne le proposerait **pas** ; la veille doit le **signaler**, jamais le deviner en
+ * élargissant un slot au hasard.
+ */
+export function unknownVariantItemTypes(typeNames: readonly string[]): string[] {
+    const known = new Set<string>();
+    for (const info of Object.values(VARIANT_SLOTS)) {
+        known.add(info.slotName.trim().toLowerCase());
+        for (const type of info.typeNames) known.add(type.trim().toLowerCase());
+    }
+
+    const unique = new Set<string>();
+    for (const raw of typeNames) {
+        const name = String(raw ?? "").trim();
+        if (name) unique.add(name);
+    }
+
+    return [...unique]
+        .filter((name) => !known.has(name.toLowerCase()))
+        .sort((a, b) => a.localeCompare(b));
+}
+
+/**
  * Valide **toute** une variante contre un build (utilisé côté serveur, fail-closed).
  * Renvoie la **première** violation, avec un message prêt à afficher.
  */

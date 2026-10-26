@@ -19,12 +19,14 @@ import { DofusbookSimulationTab } from "@/components/dofus/dofusbook-simulation-
 import type { BuildStatsForSpells } from "@/lib/dofus-spells";
 import { getRuneForStat } from "@/lib/dofus-runes";
 import { ItemVariantModal } from "@/components/dofus/item-variant-modal";
-import { applyVariantsToBuild, describeSavedVariants, hasSavedVariant, normalizeSavedVariants, sameSavedVariant, type SavedVariant } from "@/lib/dofus-variant-utils";
+import { applyVariantsToBuild, describeSavedVariants, explainVariantRefusal, hasSavedVariant, normalizeSavedVariants, sameSavedVariant, type SavedVariant, type VariantItemSets, type VariantRefusal } from "@/lib/dofus-variant-utils";
 import { clearLocalVariant, readLocalVariant, writeLocalVariant } from "@/lib/dofus-variant-storage";
 import { effectiveSlotIds } from "@/lib/dofus-variant-rules";
 import { renderDofusbookConstraints } from "@/lib/dofus-criteria";
-import { saveBuildVariant } from "@/server/actions/gallery-actions";
+import { getVariantItemSets, saveBuildVariant } from "@/server/actions/gallery-actions";
 import { resolveItemPassive } from "@/lib/dofus-passives";
+import { computePods, formatPods } from "@/lib/dofus-pods";
+import { capActionPoints, capMovementPoints, capRange, capSummons, MAX_AP, MAX_MP, MAX_RANGE, MAX_SUMMONS } from "@/lib/dofus-caps";
 
 /** Icônes des onglets : vrais assets du jeu (aucune illustration IA). */
 const BUILD_TABS = [
@@ -59,6 +61,15 @@ interface DofusbookPreviewProps {
      * du build n'est jamais réécrit.
      */
     savedVariants?: Record<string, DofusbookItem>;
+    /**
+     * **Panoplies du build** (paliers complets + `objet → panoplie`), résolues côté serveur.
+     *
+     * Indispensables : le payload Dofusbook ne porte que le palier **actif** d'une panoplie,
+     * donc sans elles une variante qui change une pièce ne peut pas être recalculée. Absent
+     * ou incomplet ⇒ la variante n'est **pas** calculée et l'UI l'affiche (fail-closed),
+     * jamais un total faux.
+     */
+    itemSets?: VariantItemSets | null;
     /** Id du build (dans `dofusBookLinks`) — requis pour enregistrer la variante. */
     variantBuildId?: string;
     /** Vrai pour l'auteur du build : affiche « Enregistrer la variante ». */
@@ -539,7 +550,7 @@ function GearSlotItem({
     );
 }
 
-export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData, guildId, savedVariants, variantBuildId, canPersistVariant = false, variantView, onVariantViewChange }: DofusbookPreviewProps) {
+export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData, guildId, savedVariants, itemSets = null, variantBuildId, canPersistVariant = false, variantView, onVariantViewChange }: DofusbookPreviewProps) {
     const [data, setData] = useState<DofusbookPreviewData | null>(initialData || null);
     const [loading, setLoading] = useState(!initialData);
     const [lastRefresh, setLastRefresh] = useState(0);
@@ -665,12 +676,52 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
         else setShowVariant(next);
     };
 
+    /**
+     * Contexte de panoplies **rattrapé côté serveur** quand la page a été rendue avant la
+     * synchronisation (cas réel du 26/10/2026) : la variante redevient calculable sans
+     * rechargement, au lieu d'afficher un refus transitoire.
+     */
+    const [resolvedItemSets, setResolvedItemSets] = useState<VariantItemSets | null>(itemSets ?? null);
+    useEffect(() => {
+        setResolvedItemSets(itemSets ?? null);
+    }, [itemSets]);
+
+    const contextRequestedRef = useRef(false);
+    useEffect(() => {
+        if (itemSets || resolvedItemSets || contextRequestedRef.current) return;
+        if (!guildId || !hasVariant || !data?.items) return;
+        const ids = [...new Set(
+            Object.values(variants)
+                .map((item) => Number(item?.official || item?.id || 0))
+                .filter((id) => Number.isInteger(id) && id > 0),
+        )].slice(0, 64);
+        if (ids.length === 0) return;
+
+        contextRequestedRef.current = true;
+        let cancelled = false;
+        getVariantItemSets(guildId, ids)
+            .then((response) => {
+                if (!cancelled && response.success && response.data) setResolvedItemSets(response.data);
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [itemSets, resolvedItemSets, guildId, hasVariant, data?.items, variants]);
+
     /** Build effectif avec les variantes appliquées (données Dofusbook d'origine préservées). */
-    const effectiveData = useMemo(() => {
-        if (!data) return null;
-        if (!variantShown || !hasVariant) return data;
-        return applyVariantsToBuild(data, variants) ?? data;
-    }, [data, variants, variantShown, hasVariant]);
+    const variantResult = useMemo(() => {
+        if (!data || !hasVariant) return { data, refusal: null as VariantRefusal | null };
+        // `resolvedItemSets` = panoplies du build : sans elles, un changement de pièce ne peut pas
+        // recalculer les bonus ⇒ refus **motivé** (jamais un total faux, jamais un badge muet).
+        const computed = applyVariantsToBuild(data, variants, resolvedItemSets);
+        return {
+            data: computed ?? data,
+            refusal: computed === null ? explainVariantRefusal(data, variants, resolvedItemSets) : null,
+        };
+    }, [data, variants, hasVariant, resolvedItemSets]);
+
+    const effectiveData = variantShown ? variantResult.data : data;
 
     /**
      * Stats du build pour les sorts & la simulation — recalculées instantanément avec les variantes.
@@ -703,10 +754,15 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             if (baked.ok) {
                 setData(baked.data);
                 if (force && !silent) {
-                    // `changed === false` = le worker a servi son cache edge (24 h) : on le dit,
-                    // au lieu d'annoncer une mise à jour qui n'a pas eu lieu.
-                    if (baked.changed === false) toast.info("Aucun changement côté Dofusbook pour l'instant");
-                    else toast.success(baked.persisted ? "Données actualisées" : "Données actualisées (affichage seul)");
+                    // `changed === false` = le relais a rendu un payload **identique**. Ce n'est
+                    // PAS la preuve que rien n'a bougé sur Dofusbook : mesuré le 26/10/2026, un
+                    // relais obsolète ignore `force=1` et sert son cache 24 h (même payload, aucun
+                    // en-tête `X-Cache`). On le dit, avec l'action — sans annoncer une fausse MAJ.
+                    if (baked.changed === false) {
+                        toast.warning("Rien de neuf reçu du relais Dofusbook — s'il sert encore son cache, réessaie plus tard (ou fais redéployer le relais).");
+                    } else {
+                        toast.success(baked.persisted ? "Données actualisées" : "Données actualisées (affichage seul)");
+                    }
                 }
                 return;
             }
@@ -849,6 +905,26 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     /** Récapitulatif des objets remplacés, affiché sous la grille quand la variante est active. */
     const variantDescriptions = describeSavedVariants(variants, data?.items);
 
+    /**
+     * 🔒 **Plafonds du jeu** (12 PA / 6 PM — Dofus Wiki § Action Point / Movement Point) :
+     * au-delà, le bonus d'**équipement** n'est pas compté. On affiche donc la valeur plafonnée
+     * et on **dit** ce qui est ignoré (constat user du 26/10/2026 : « 13 PA, c'est impossible »).
+     */
+    const paCapped = capActionPoints(effectiveData?.stats?.pa ?? data?.stats?.pa);
+    const pmCapped = capMovementPoints(effectiveData?.stats?.pm ?? data?.stats?.pm);
+    /**
+     * Portée et invocations sont plafonnées **aussi** (Dofus Wiki, même page) :
+     * « You can only have a maximum of **6 Range** » et « a maximum of **6 Summons** » — au-delà,
+     * le bonus d'équipement n'est pas compté. Même traitement : on affiche la valeur plafonnée
+     * et on dit le point ignoré.
+     */
+    const poCapped = capRange(effectiveData?.stats?.po ?? data?.stats?.po);
+    const invoCapped = capSummons(effectiveData?.stats?.invo ?? data?.stats?.invo);
+    const paHint = paCapped.ignored > 0 ? `+${paCapped.ignored} ignoré (plafond ${MAX_AP})` : undefined;
+    const pmHint = pmCapped.ignored > 0 ? `+${pmCapped.ignored} ignoré (plafond ${MAX_MP})` : undefined;
+    const poHint = poCapped.ignored > 0 ? `+${poCapped.ignored} ignoré (plafond ${MAX_RANGE})` : undefined;
+    const invoHint = invoCapped.ignored > 0 ? `+${invoCapped.ignored} ignoré (plafond ${MAX_SUMMONS})` : undefined;
+
     /** La variante affichée diffère-t-elle de la version publiée (bouton « Publier » utile) ? */
     const variantDirty = hasVariant && !sameSavedVariant(variants, persistedVariantRef.current);
 
@@ -858,8 +934,10 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
      * dessus. Le candidat retire ensuite son propre apport PA/PM (cf. `ItemVariantModal`).
      */
     const conditionContext = {
-        pa: Number(effectiveData?.stats?.pa ?? data?.stats?.pa ?? 0),
-        pm: Number(effectiveData?.stats?.pm ?? data?.stats?.pm ?? 0),
+        // ⚠️ Valeurs **plafonnées** (12 PA / 6 PM) : une condition « PA < 12 » se juge sur le
+        // total réel du personnage, pas sur un cumul au-delà du plafond du jeu.
+        pa: paCapped.value,
+        pm: pmCapped.value,
         vit: Number(effectiveData?.stats?.vit ?? data?.stats?.vit ?? 0),
         sa: Number(effectiveData?.elements?.sa ?? data?.elements?.sa ?? 0),
         fo: Number(effectiveData?.elements?.fo ?? data?.elements?.fo ?? 0),
@@ -916,6 +994,19 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                     <span aria-hidden="true" className={cn("w-1.5 h-1.5 rounded-full", variantShown ? "bg-warning" : "bg-muted-foreground/50")} />
                     Variante ({Object.keys(variants).length})
                 </button>
+            )}
+
+            {/* Refus explicite (fail-closed) : la **cause** est dite — sans les paliers de
+                panoplie, le total de la variante ne peut pas être recalculé. */}
+            {variantShown && variantResult.refusal && (
+                <span
+                    role="status"
+                    className="absolute top-2 left-2 z-30 inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning"
+                    title={variantResult.refusal.details}
+                >
+                    <AlertTriangle className="w-2.5 h-2.5" aria-hidden="true" />
+                    {variantResult.refusal.message}
+                </span>
             )}
 
             <div className="flex flex-col gap-4 relative z-10 h-full">
@@ -1040,17 +1131,17 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                     <div className="flex items-center justify-center gap-2.5 py-1 px-3 bg-surface border border-border rounded-[4px] text-caption font-bold tabular-nums">
                         <span className="flex items-center gap-1 text-foreground">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {cardStats?.pa ?? 0}
+                            <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {paCapped.value}
                         </span>
                         <span className="text-muted-foreground/30">•</span>
                         <span className="flex items-center gap-1 text-foreground">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {cardStats?.pm ?? 0}
+                            <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {pmCapped.value}
                         </span>
                         <span className="text-muted-foreground/30">•</span>
                         <span className="flex items-center gap-1 text-foreground">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {cardStats?.po ?? 0}
+                            <img src="/assets/dofus/stats/po.png" alt="PO" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {poCapped.value}
                         </span>
                         {(cardStats?.cc ?? 0) > 0 && (
                             <>
@@ -1176,6 +1267,19 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 </button>
                                             </div>
                                         </div>
+
+                                        {/* Variante **non calculable** : la cause exacte est affichée
+                                            (panoplies non chargées / non reconnues / incohérentes). */}
+                                        {variantShown && variantResult.refusal && (
+                                            <span
+                                                role="status"
+                                                className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[10px] font-semibold text-warning"
+                                                title={variantResult.refusal.details}
+                                            >
+                                                <AlertTriangle className="w-3 h-3" aria-hidden="true" />
+                                                {variantResult.refusal.message}
+                                            </span>
+                                        )}
 
                                         {/* Un seul état lisible (plus de couple « Enregistré / Enregistrer »). */}
                                         <span
@@ -1318,27 +1422,46 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
 
                                             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-caption">
                                                 {([
-                                                    { label: "Points d'Action (PA)", val: effectiveData?.stats?.pa ?? data.stats?.pa ?? 0, img: "/assets/dofus/stats/pa.png", color: "text-info" },
-                                                    { label: "Points de Mouvement", val: effectiveData?.stats?.pm ?? data.stats?.pm ?? 0, img: "/assets/dofus/stats/pm.png", color: "text-success" },
-                                                    { label: "Portée (PO)", val: effectiveData?.stats?.po ?? data.stats?.po ?? 0, img: "/assets/dofus/stats/po.png", color: "text-success" },
+                                                    { label: "Points d'Action (PA)", val: paCapped.value, hint: paHint, img: "/assets/dofus/stats/pa.png", color: "text-info" },
+                                                    { label: "Points de Mouvement", val: pmCapped.value, hint: pmHint, img: "/assets/dofus/stats/pm.png", color: "text-success" },
+                                                    { label: "Portée (PO)", val: poCapped.value, hint: poHint, img: "/assets/dofus/stats/po.png", color: "text-success" },
                                                     { label: "% Coup Critique", val: `${effectiveData?.stats?.cc ?? data.stats?.cc ?? 0}%`, img: "/assets/dofus/stats/critique.png", color: "text-danger" },
-                                                    { label: "Invocations", val: effectiveData?.stats?.invo ?? data.stats?.invo ?? 0, img: "/assets/dofus/stats/invocation.png", color: "text-warning" },
+                                                    { label: "Invocations", val: invoCapped.value, hint: invoHint, img: "/assets/dofus/stats/invocation.png", color: "text-warning" },
                                                     { label: "Soins", val: effectiveData?.stats?.so ?? data.stats?.so ?? 0, img: "/assets/dofus/stats/soin.png", color: "text-danger" },
                                                     { label: "Initiative", val: effectiveData?.stats?.ini ?? data.stats?.ini ?? 0, img: "/assets/dofus/stats/initiative.png", color: "text-foreground" },
                                                     { label: "Prospection", val: effectiveData?.stats?.pp ?? data.stats?.pp ?? 0, img: "/assets/dofus/stats/pp.png", color: "text-info" },
+                                                    // Capacité (`1000 + 5 × Force` + pods d'équipement, cf. `src/lib/dofus-pods.ts`).
+                                                    // Force inconnue ⇒ « — » : jamais un total par défaut.
+                                                    {
+                                                        label: "Pods",
+                                                        val: formatPods(computePods({
+                                                            force: effectiveData?.elements?.fo ?? data.elements?.fo,
+                                                            itemPods: effectiveData?.stats?.pod ?? data.stats?.pod,
+                                                        })),
+                                                        img: "/assets/dofus/stats/pod.png",
+                                                        color: "text-warning",
+                                                    },
                                                     { label: "Fuite", val: effectiveData?.stats?.fuite ?? data.stats?.fuite ?? 0, img: "/assets/dofus/stats/fuite.png", color: "text-info" },
                                                     { label: "Tacle", val: effectiveData?.stats?.tacle ?? data.stats?.tacle ?? 0, img: "/assets/dofus/stats/tacle.png", color: "text-success" },
                                                     { label: "Retrait PA / PM", val: `${effectiveData?.stats?.retpa ?? data.stats?.retpa ?? 0} / ${effectiveData?.stats?.retpm ?? data.stats?.retpm ?? 0}`, img: "/assets/dofus/stats/sablier.png", color: "text-warning" },
                                                     { label: "Esquive PA / PM", val: `${effectiveData?.stats?.epa ?? data.stats?.epa ?? 0} / ${effectiveData?.stats?.epm ?? data.stats?.epm ?? 0}`, img: "/assets/dofus/stats/sablier.png", color: "text-info" },
                                                     { label: "Do Critique", val: effectiveData?.damages?.critique ?? data.damages?.critique ?? 0, img: "/assets/dofus/stats/dmgCritique.png", color: "text-danger" },
-                                                ] as { label: string; val: number | string; img: string; color: string }[]).map((s) => (
+                                                ] as { label: string; val: number | string; hint?: string; img: string; color: string }[]).map((s) => (
                                                     <div key={s.label} className="flex items-center justify-between py-1 border-b border-border/40 hover:border-border transition-colors">
                                                         <span className="text-muted-foreground truncate inline-flex items-center gap-1.5 min-w-0">
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img src={s.img} alt="" aria-hidden="true" className="w-3.5 h-3.5 object-contain shrink-0" loading="lazy" />
                                                             <span className="truncate">{s.label}</span>
                                                         </span>
-                                                        <span className={cn("font-bold tabular-nums whitespace-nowrap ml-2", s.color)}>{s.val}</span>
+                                                        <span className={cn("font-bold tabular-nums whitespace-nowrap ml-2", s.color)}>
+                                                            {s.val}
+                                                            {/* Plafond du jeu : le bonus excédentaire est **dit**, pas masqué. */}
+                                                            {s.hint && (
+                                                                <span className="ml-1 text-[10px] font-semibold text-warning" title={s.hint}>
+                                                                    ({s.hint})
+                                                                </span>
+                                                            )}
+                                                        </span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -1582,17 +1705,17 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-info/10 border border-info/20 rounded-xl">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="/assets/dofus/stats/pa.png" alt="PA" className="w-4 h-4 object-contain" loading="lazy" />
-                                                <span className="font-bold text-body-sm text-info tabular-nums">{effectiveData?.stats?.pa ?? data.stats?.pa ?? 0} PA</span>
+                                                <span className="font-bold text-body-sm text-info tabular-nums">{paCapped.value} PA</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success/10 border border-success/20 rounded-xl">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="/assets/dofus/stats/pm.png" alt="PM" className="w-4 h-4 object-contain" loading="lazy" />
-                                                <span className="font-bold text-body-sm text-success tabular-nums">{effectiveData?.stats?.pm ?? data.stats?.pm ?? 0} PM</span>
+                                                <span className="font-bold text-body-sm text-success tabular-nums">{pmCapped.value} PM</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success/10 border border-success/20 rounded-xl">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="/assets/dofus/stats/po.png" alt="PO" className="w-4 h-4 object-contain" loading="lazy" />
-                                                <span className="font-bold text-body-sm text-success tabular-nums">{effectiveData?.stats?.po ?? data.stats?.po ?? 0} PO</span>
+                                                <span className="font-bold text-body-sm text-success tabular-nums">{poCapped.value} PO</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-danger/10 border border-danger/20 rounded-xl">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}

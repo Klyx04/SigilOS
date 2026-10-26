@@ -147,7 +147,16 @@ describe("chaîne de synchro — verrous de source", () => {
         expect(actions).toContain("const changed = JSON.stringify(currentLink?.previewData ?? null) !== JSON.stringify(data);");
         expect(actions).toContain("if (!changed) {");
         expect(actions).toContain("changed: false");
-        expect(preview).toContain("if (baked.changed === false) toast.info(");
+        /**
+         * ⚠️ Mesure du 26/10/2026 : un relais qui n'est **pas** la version du dépôt ignore
+         * `force=1` et renvoie le **même** payload, **sans** en-tête `X-Cache`. Un
+         * « changed === false » ne prouve donc **pas** que rien n'a bougé sur Dofusbook : l'UI
+         * le dit et le serveur le journalise (au lieu d'annoncer un faux « aucun changement »).
+         */
+        expect(preview).toContain("if (baked.changed === false) {");
+        expect(preview).toContain("Rien de neuf reçu du relais Dofusbook");
+        expect(actions).toContain("rafraîchissement forcé sans changement");
+        expect(bake).toContain("storeClientDofusbookPreview(guildId, buildUrl, raw, { force: options.force })");
     });
 });
 

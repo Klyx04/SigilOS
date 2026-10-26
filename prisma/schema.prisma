@@ -2275,6 +2275,26 @@ model GameItem {
   @@index([superTypeId])    // filtre « famille » (éditeur FM)
 }
 
+/// 🧩 Référentiel DofusDB `/item-sets` — siphonné (lot « stuff & variantes », 26/10/2026).
+///
+/// Pourquoi : le payload Dofusbook ne porte que le **palier actif** d'une panoplie, donc une
+/// variante qui change une pièce ne peut pas être recalculée sans les **paliers complets**.
+///
+/// `tiers` = `[{ count, effects:[{ code, value, effectId }] }]` — `code` **normalisé**
+/// (`fo`, `ini`, `ta`…) par `normalizeStatCode()`, `count` = nombre de pièces exigées.
+/// Sélection du palier : `activeTierCount()` (`src/lib/dofus-set-bonuses.ts`), jamais ici.
+model GameItemSet {
+  id        Int      @id                 // = id DofusDB de la panoplie
+  name      String
+  itemCount Int      @default(0)         // nombre total de pièces de la panoplie
+  itemsIds  Int[]                        // ids Ankama des pièces
+  tiers     Json                         // paliers complets normalisés (voir ci-dessus)
+  dataHash  String?                      // hash du payload : réécriture seulement si changement
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
 /// 📚 Référentiel DofusDB `/effects` — siphonné (S2.5bis).
 /// Rend les libellés FR, le « % » et la caractéristique **data-driven** :
 /// `CHAR_NAMES` (codé en dur côté composant) est remplacé par cette table.

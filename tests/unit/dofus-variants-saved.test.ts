@@ -168,7 +168,10 @@ describe("chaîne serveur → galerie (verrous de source)", () => {
 
     it("la bascule Stuff ⇄ Variante existe dans la miniature ET la modale", () => {
         expect(preview).toContain("aria-pressed={variantShown}");
-        expect(preview).toContain("applyVariantsToBuild(data, variants)");
+        // Depuis le 26/10/2026 la miniature reçoit aussi les **panoplies du build** (et les
+        // rattrape côté serveur si la page a été rendue avant la synchro) : sans elles, un
+        // changement de pièce ne peut pas recalculer les bonus.
+        expect(preview).toContain("applyVariantsToBuild(data, variants, resolvedItemSets)");
         expect(preview).toContain("saveBuildVariant(guildId, variantBuildId, variants)");
         expect(preview).toContain("Stuff");
         expect(preview).toContain("Variante");

@@ -1,0 +1,311 @@
+/**
+ * 🧩 Siphon du référentiel des **panoplies** (DofusDB `/item-sets`).
+ *
+ * Pourquoi ce siphon existe : le payload Dofusbook ne contient que le **palier actif** d'une
+ * panoplie. Recalculer les bonus quand une variante remplace une pièce exige donc les
+ * **paliers complets** — c'est exactement ce que DofusDB expose :
+ *
+ *   · `effects` est un tableau **indexé par palier** (`index = pièces − 1`) ;
+ *   · chaque ligne porte `{ characteristic, from, to, effectId, elementId }` ;
+ *   · `characteristic` se normalise en code court (`fo`, `ini`, `ta`…) via `normalizeStatCode()`
+ *     — la même table que le reste de l'application (mesuré : `13→ch`, `44→ini`, `48→pp`, `79→ta`).
+ *
+ * Invariants (mêmes que `game-items-siphon`) :
+ *   · **upsert par id** de panoplie (jamais de doublon) ;
+ *   · **hash de changement** sur une sérialisation **stable** (JSONB réordonne les clés) :
+ *     une panoplie inchangée n'est pas réécrite ;
+ *   · **fail-closed** : une caractéristique non normalisable fait **refuser la panoplie**
+ *     (elle sera signalée « inconnue » au calcul, jamais approximée) ;
+ *   · **`--apply` explicite** : le mode par défaut ne fait que mesurer.
+ *
+ * ⚠️ Le payload est volumineux (mesuré : **56 ko par panoplie**, 940 au total) : on ne garde
+ * que `{ id, name, items[].id, effects }` avant toute écriture.
+ */
+
+import crypto from "crypto";
+import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+import { dofusDbFetch } from "@/lib/dofusdb-limiter";
+import {
+    DOFUSDB_THROTTLE_MAX_REPLAYS,
+    dofusDbFailureMessage,
+    isLocalThrottle,
+    throttleWaitMs,
+} from "@/lib/dofusdb-throttle";
+import { DOFUSDB_PAGE_MAX, hasMorePages } from "@/lib/dofusdb-pagination";
+import { normalizeItemSetTiers } from "@/lib/dofus-set-bonuses";
+import { normalizeStatCode } from "@/lib/dofus-variant-utils";
+import { stableStringify } from "@/lib/stable-json";
+
+/** Endpoint de référence (lecture seule). */
+export const ITEM_SETS_API = "https://api.dofusdb.fr/item-sets";
+/** 940 panoplies / 50 par page = 19 pages ; marge de sécurité, jamais une boucle infinie. */
+export const ITEM_SETS_MAX_PAGES = 40;
+
+/** Palier normalisé tel qu'il est persisté dans `GameItemSet.tiers`. */
+export interface SiphonedItemSetTier {
+    count: number;
+    effects: Array<{ code: string; value: number; effectId: number }>;
+}
+
+/** Panoplie normalisée, prête pour l'upsert. */
+export interface SiphonedItemSet {
+    id: number;
+    name: string;
+    itemCount: number;
+    itemsIds: number[];
+    tiers: SiphonedItemSetTier[];
+    dataHash: string;
+}
+
+/** Bilan d'une passe — ce que l'opérateur lit (dry-run ou `--apply`). */
+export interface ItemSetSiphonReport {
+    fetched: number;
+    toWrite: number;
+    written: number;
+    unchanged: number;
+    /** Panoplies refusées : la raison est **explicite**, jamais une écriture partielle. */
+    skipped: Array<{ id: number | null; reason: string }>;
+}
+
+/** `true` quand `normalizeStatCode` n'a pas su traduire (il rend alors l'id brut). */
+function isUnmappedCharacteristic(code: string): boolean {
+    return code.length === 0 || /^\d+$/.test(code);
+}
+
+/** Paliers DofusDB (`effects` indexé par palier) → paliers normalisés. */
+function normalizeTiers(rawTiers: unknown[]): { ok: true; tiers: SiphonedItemSetTier[] } | { ok: false; reason: string } {
+    const tiers: SiphonedItemSetTier[] = [];
+
+    for (let index = 0; index < rawTiers.length; index += 1) {
+        const rawTier = rawTiers[index];
+        if (!Array.isArray(rawTier) || rawTier.length === 0) continue;
+
+        const effects: SiphonedItemSetTier["effects"] = [];
+        for (const rawEffect of rawTier) {
+            if (!rawEffect || typeof rawEffect !== "object") continue;
+            const line = rawEffect as { characteristic?: unknown; from?: unknown; effectId?: unknown };
+            const code = normalizeStatCode(line.characteristic as number);
+            if (isUnmappedCharacteristic(code)) {
+                return { ok: false, reason: `caractéristique ${String(line.characteristic)} non normalisable` };
+            }
+            const value = Number(line.from ?? 0);
+            if (!Number.isFinite(value) || value === 0) continue;
+            const effectId = Number(line.effectId);
+            effects.push({
+                code,
+                value: Math.round(value),
+                effectId: Number.isInteger(effectId) && effectId > 0 ? effectId : 0,
+            });
+        }
+
+        // Palier non vide : `count` = index + 1 (tableau indexé par nombre de pièces, mesuré).
+        if (effects.length > 0) tiers.push({ count: index + 1, effects });
+    }
+
+    /**
+     * Aucun palier exploitable = panoplie **sans bonus** (cosmétique), cas réel et mesuré
+     * (`/item-sets` 504-535 le 26/10/2026). Elle doit être **connue avec zéro bonus**, sinon
+     * un build qui la porte serait déclaré « panoplie inconnue » et ses variantes refusées.
+     */
+    return { ok: true, tiers };
+}
+
+
+/**
+ * Normalise une panoplie DofusDB.
+ *
+ * Renvoie une **raison** en cas de refus : le siphon ne devine jamais une donnée.
+ */
+export function normalizeItemSet(
+    raw: unknown,
+): { ok: true; set: SiphonedItemSet } | { ok: false; id: number | null; reason: string } {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+        return { ok: false, id: null, reason: "panoplie illisible" };
+    }
+    const payload = raw as Record<string, unknown>;
+
+    const id = Number(payload.id);
+    if (!Number.isInteger(id) || id <= 0) return { ok: false, id: null, reason: "id invalide" };
+
+    const rawName = payload.name as { fr?: unknown } | string | undefined;
+    const name = typeof rawName === "string"
+        ? rawName.trim()
+        : typeof rawName?.fr === "string"
+            ? rawName.fr.trim()
+            : "";
+    if (!name) return { ok: false, id, reason: "nom français absent" };
+
+    // `items` = objets complets (56 ko/panoplie) : on ne garde que l'id Ankama.
+    const rawItems = Array.isArray(payload.items) ? payload.items : [];
+    const itemsIds = [...new Set(
+        rawItems
+            .map((entry) => Number((entry as { id?: unknown })?.id))
+            .filter((itemId) => Number.isInteger(itemId) && itemId > 0),
+    )];
+    if (itemsIds.length === 0) return { ok: false, id, reason: "aucune pièce" };
+
+    // Contrat DofusDB : `effects` **doit** être un tableau (indexé par palier). Absent ou d'un
+    // autre type = forme inattendue ⇒ refus explicite (jamais une panoplie « vide » par accident).
+    if (!Array.isArray(payload.effects)) {
+        return { ok: false, id, reason: "paliers absents (contrat DofusDB)" };
+    }
+    const tiers = normalizeTiers(payload.effects);
+    if (!tiers.ok) return { ok: false, id, reason: tiers.reason };
+
+    const dataHash = crypto
+        .createHash("md5")
+        .update(stableStringify({ name, itemsIds, tiers: tiers.tiers }))
+        .digest("hex");
+
+    return {
+        ok: true,
+        set: {
+            id,
+            name: name.slice(0, 120),
+            itemCount: itemsIds.length,
+            itemsIds,
+            // Revalidation par le **même** validateur que la lecture en base.
+            tiers: normalizeItemSetTiers(tiers.tiers) as SiphonedItemSetTier[],
+            dataHash,
+        },
+    };
+}
+
+/** Une page DofusDB : le `total` annoncé fait foi pour savoir s'il reste des pages. */
+async function fetchItemSetPage(skip: number): Promise<{ data: unknown[]; total: number | null }> {
+    for (let attempt = 0; ; attempt += 1) {
+        const res = await dofusDbFetch(`${ITEM_SETS_API}?$limit=${DOFUSDB_PAGE_MAX}&$skip=${skip}`, {
+            headers: {
+                Accept: "application/json",
+                "User-Agent": "SigilOS/1.0 (+https://sigilos.fr)",
+            },
+            signal: AbortSignal.timeout(30_000),
+        });
+
+        if (res.ok) {
+            const payload = await res.json() as { data?: unknown[]; total?: unknown };
+            const total = Number(payload?.total);
+            return {
+                data: Array.isArray(payload?.data) ? payload.data : [],
+                total: Number.isFinite(total) ? total : null,
+            };
+        }
+
+        // Budget local partagé (30 req/min) : on attend le reste de la fenêtre et on rejoue.
+        if (isLocalThrottle(res) && attempt < DOFUSDB_THROTTLE_MAX_REPLAYS) {
+            await new Promise((resolve) => setTimeout(resolve, throttleWaitMs(res)));
+            continue;
+        }
+
+        throw new Error(dofusDbFailureMessage(res.status, isLocalThrottle(res)));
+    }
+}
+
+/**
+ * Avance d'une page : **règle pure**, testable sans réseau.
+ *
+ * ⚠️ Le `total` annoncé par l'API fait foi — jamais `data.length`. L'erreur d'**ordre**
+ * (avancer `skip` **puis** tester la fin) faisait perdre la dernière page : mesuré
+ * 900 panoplies lues sur 940 le 26/10/2026.
+ */
+export function nextPageState(
+    skip: number,
+    pageLength: number,
+    total: number | null,
+): { nextSkip: number; more: boolean } {
+    return {
+        nextSkip: skip + pageLength,
+        more: hasMorePages(skip, pageLength, total),
+    };
+}
+
+/**
+ * Passe complète du référentiel.
+ *
+ * @param apply `false` (défaut) = **dry-run** : rien n'est écrit.
+ */
+export async function siphonItemSetsCore(
+    options: { apply?: boolean; maxPages?: number } = {},
+): Promise<ItemSetSiphonReport> {
+    const apply = options.apply === true;
+    const maxPages = Math.max(1, Math.min(ITEM_SETS_MAX_PAGES, options.maxPages ?? ITEM_SETS_MAX_PAGES));
+
+    const report: ItemSetSiphonReport = {
+        fetched: 0,
+        toWrite: 0,
+        written: 0,
+        unchanged: 0,
+        skipped: [],
+    };
+
+    let skip = 0;
+    for (let page = 0; page < maxPages; page += 1) {
+        const { data, total } = await fetchItemSetPage(skip);
+        if (data.length === 0) break;
+        report.fetched += data.length;
+
+        for (const raw of data) {
+            const normalized = normalizeItemSet(raw);
+            if (!normalized.ok) {
+                report.skipped.push({ id: normalized.id, reason: normalized.reason });
+                continue;
+            }
+            const set = normalized.set;
+
+            const current = await db.gameItemSet.findUnique({
+                where: { id: set.id },
+                select: { dataHash: true },
+            });
+            // Hash identique ⇒ aucune écriture (idempotence : le JSONB réordonne les clés).
+            if (current?.dataHash === set.dataHash) {
+                report.unchanged += 1;
+                continue;
+            }
+
+            report.toWrite += 1;
+            if (!apply) continue;
+
+            await db.gameItemSet.upsert({
+                where: { id: set.id },
+                create: {
+                    id: set.id,
+                    name: set.name,
+                    itemCount: set.itemCount,
+                    itemsIds: set.itemsIds,
+                    tiers: set.tiers,
+                    dataHash: set.dataHash,
+                },
+                update: {
+                    name: set.name,
+                    itemCount: set.itemCount,
+                    itemsIds: set.itemsIds,
+                    tiers: set.tiers,
+                    dataHash: set.dataHash,
+                },
+            });
+            report.written += 1;
+        }
+
+        /**
+         * ⚠️ La fin se déduit du `total` annoncé, **avant** d'avancer `skip` : `hasMorePages`
+         * compare déjà `skip + longueur de page` au total. Avancer d'abord faisait perdre la
+         * dernière page (mesuré : 900/940 panoplies lues au lieu de 940).
+         */
+        const { nextSkip, more } = nextPageState(skip, data.length, total);
+        skip = nextSkip;
+        logger.info("[item-sets-siphon] page lue", { skip, page: page + 1, total });
+        if (!more) break;
+    }
+
+    logger.info("[item-sets-siphon] passe terminée", {
+        apply,
+        fetched: report.fetched,
+        toWrite: report.toWrite,
+        written: report.written,
+        unchanged: report.unchanged,
+        skipped: report.skipped.length,
+    });
+
+    return report;
+}

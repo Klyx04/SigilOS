@@ -612,7 +612,7 @@ export function GalleryClient({
                         stuffBuilds.map((build) => (
                             <div key={build.id} className="group/card flex flex-col gap-3">
                                 <div className="relative">
-                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} savedVariants={build.variants} variantBuildId={build.id} canPersistVariant={currentProfileId === build.author.id} variantView={variantViews.has(build.id) ? "variant" : "base"} onVariantViewChange={() => toggleVariantView(build.id)} />
+                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} savedVariants={build.variants} itemSets={build.itemSets} variantBuildId={build.id} canPersistVariant={currentProfileId === build.author.id} variantView={variantViews.has(build.id) ? "variant" : "base"} onVariantViewChange={() => toggleVariantView(build.id)} />
                                     
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent transition-all duration-300 rounded-[2.5rem] flex flex-col justify-end p-4 z-10 pointer-events-none opacity-90 group-hover/card:opacity-100">
                                         <div className="flex items-center justify-end gap-1.5 backdrop-blur-md bg-black/40 p-1.5 rounded-2xl border border-white/10 w-fit ml-auto shadow-lg">
@@ -707,11 +707,13 @@ export function GalleryClient({
                                     </div>
                                 </div>
                                 {/* Stats clés : celles de la variante quand la bascule est active
-                                    (même donnée que la carte, recalculée par `applyVariantsToBuild`). */}
+                                    (même donnée que la carte, recalculée par `applyVariantsToBuild`,
+                                    panoplies comprises). `null` = panoplies indisponibles : on garde
+                                    le stuff d'origine et la carte l'annonce explicitement. */}
                                 <BuildStatsLine
                                     previewData={
                                         variantViews.has(build.id) && build.variants
-                                            ? applyVariantsToBuild(build.previewData, build.variants ?? {}) ?? build.previewData
+                                            ? applyVariantsToBuild(build.previewData, build.variants ?? {}, build.itemSets) ?? build.previewData
                                             : build.previewData
                                     }
                                 />

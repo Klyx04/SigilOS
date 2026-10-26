@@ -63,6 +63,20 @@ export async function GET(req: Request) {
             logger.warn("[Cron:DataWatch] Diff quêtes impossible:", { error: String(e) });
         }
 
+        /**
+         * 🧩 Veille des **conditions d'équipement** (26/10/2026) : recompte ce que l'évaluateur ne
+         * sait pas traiter (éléments / opérateurs inconnus) et les types d'objet hors
+         * `VARIANT_SLOTS`. C'est ce qui doit alerter **avant** que les variantes se mettent à
+         * refuser en masse. Fail-open : une erreur ici ne casse pas la veille DofusDB.
+         */
+        let conditionsWatch: Awaited<ReturnType<typeof import("@/server/item-conditions-watch").refreshItemConditionsWatch>> = null;
+        try {
+            const { refreshItemConditionsWatch } = await import("@/server/item-conditions-watch");
+            conditionsWatch = await refreshItemConditionsWatch();
+        } catch (e) {
+            logger.warn("[Cron:DataWatch] Veille conditions impossible:", { error: String(e) });
+        }
+
         const parts: string[] = [];
         if (remoteItems !== null && localItems !== null && remoteItems !== localItems) {
             parts.push(`${Math.abs(remoteItems - localItems)} items (distant ${remoteItems} vs local ${localItems})`);
@@ -71,6 +85,20 @@ export async function GET(req: Request) {
         if (questModified > 0) parts.push(`${questModified} quête(s) modifiée(s)`);
         if (remoteDungeons !== null && localDungeons !== null && remoteDungeons !== localDungeons) {
             parts.push(`${Math.abs(remoteDungeons - localDungeons)} donjons (distant ${remoteDungeons} vs local ${localDungeons})`);
+        }
+        // Seule une **nouveauté** d'inconnue alerte (l'état « il reste N inconnues » est stable
+        // par nature : l'inclure ferait sonner le cron toutes les semaines).
+        if (conditionsWatch && conditionsWatch.newUnknown.length > 0) {
+            parts.push(
+                `${conditionsWatch.newUnknown.length} condition(s) d'équipement non évaluable(s) jamais vue(s) `
+                + `(${boundCronList(conditionsWatch.newUnknown.map((b) => `${b.element} ${b.operator}`)).text})`,
+            );
+        }
+        if (conditionsWatch && conditionsWatch.newTypes.length > 0) {
+            parts.push(
+                `${conditionsWatch.newTypes.length} type(s) d'objet hors slots de variante jamais vu(s) `
+                + `(${boundCronList(conditionsWatch.newTypes).text})`,
+            );
         }
 
         const hasNews = parts.length > 0;
@@ -118,6 +146,24 @@ export async function GET(req: Request) {
                     { name: "Objets (DofusDB)", value: `${remoteItems} distants · ${localItems} locaux`, inline: true },
                     { name: "Quêtes", value: `${questNew} nouvelle(s) · ${questModified} modifiée(s)`, inline: true },
                     { name: "Donjons", value: `${remoteDungeons} distants · ${localDungeons} locaux`, inline: true },
+                    ...(conditionsWatch
+                        ? [{
+                            name: "Conditions d'équipement",
+                            value: `${conditionsWatch.summary.items} objets conditionnés · ${conditionsWatch.summary.unknownAtoms} atome(s) non évaluable(s)`,
+                            inline: true,
+                        }]
+                        : []),
+                    ...(conditionsWatch && conditionsWatch.summary.unknownTypes.length > 0
+                        ? [{
+                            // La veille **signale** les types hors slots, elle ne les ajoute pas d'office.
+                            name: "Types d'objet hors variantes",
+                            value: `${conditionsWatch.summary.unknownTypes.length} au total`
+                                + (conditionsWatch.newTypes.length > 0
+                                    ? ` · nouveaux : ${boundCronList(conditionsWatch.newTypes).text}`
+                                    : " · aucun nouveau"),
+                            inline: false,
+                        }]
+                        : []),
                     ...(autoQueued.length > 0
                         ? [{ name: "Veille ciblée mise en file", value: boundCronList(autoQueued).text, inline: false }]
                         : []),
@@ -128,7 +174,7 @@ export async function GET(req: Request) {
                         ? [{ name: "⚠️ File indisponible", value: `${boundCronList(autoUnavailable).text} — à lancer depuis le Tableau god`, inline: false }]
                         : []),
                 ],
-                metadata: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable },
+                metadata: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable, conditions: conditionsWatch?.summary ?? null },
             });
         }
 
@@ -137,10 +183,10 @@ export async function GET(req: Request) {
             success: true,
             durationMs: Date.now() - startedAt,
             summary: autoQueued.length ? `${summary} · veille ciblée: ${autoQueued.join(", ")}` : summary,
-            details: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable },
+            details: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable, conditions: conditionsWatch?.summary ?? null },
         });
 
-        return NextResponse.json({ success: true, hasNews, summary, autoQueued, autoRunning, autoUnavailable });
+        return NextResponse.json({ success: true, hasNews, summary, autoQueued, autoRunning, autoUnavailable, conditions: conditionsWatch });
     } catch (e: any) {
         logger.error("[Cron:DataWatch] Erreur:", e);
         const { recordCronExecution } = await import("@/lib/cron-telemetry");

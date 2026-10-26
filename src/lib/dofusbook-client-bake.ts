@@ -59,7 +59,7 @@ export async function bakeDofusbookFromBrowser(
     }
 
     if (guildId) {
-        const stored = await storeClientDofusbookPreview(guildId, buildUrl, raw);
+        const stored = await storeClientDofusbookPreview(guildId, buildUrl, raw, { force: options.force });
         if (stored.success && stored.data) {
             return {
                 ok: true,

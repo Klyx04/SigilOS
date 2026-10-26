@@ -16,6 +16,7 @@ import path from "node:path";
 import {
     effectiveSlotIds,
     slotAcceptsItemType,
+    unknownVariantItemTypes,
     validateSavedVariants,
     validateVariantSlot,
 } from "@/lib/dofus-variant-rules";
@@ -133,13 +134,39 @@ describe("effectiveSlotIds / validateSavedVariants — variante complète", () =
     });
 });
 
+describe("veille — types d'objet hors slots, et règles versionnées", () => {
+    it("signale un type d'objet qu'aucun slot ne couvre (jamais élargi au hasard)", () => {
+        // « Sac à dos » existe dans Dofus mais n'est dans aucun slot : la veille le SIGNALE.
+        expect(unknownVariantItemTypes(["Chapeau", "Cape", "Sac à dos"])).toEqual(["Sac à dos"]);
+        // Doublons et casse ne produisent pas de faux positif.
+        expect(unknownVariantItemTypes(["chapeau", "CHAPEAU", "Cape"])).toEqual([]);
+        expect(unknownVariantItemTypes([])).toEqual([]);
+    });
+
+    it("chaque module de règles cite sa source et sa date (une MAJ Ankama = 1 fichier + 1 test)", () => {
+        for (const file of [
+            "src/lib/dofus-variant-rules.ts",
+            "src/lib/dofus-set-bonuses.ts",
+            "src/lib/dofus-conditions.ts",
+        ]) {
+            const source = read(file);
+            expect(source, `${file} doit citer une date de mesure`).toMatch(/\d{2}\/\d{2}\/20\d{2}/);
+            expect(source, `${file} doit citer sa source`).toMatch(/doc |Dofus 3\.7|DofusDude|DofusDB/);
+        }
+    });
+});
+
 describe("branchement — serveur autoritaire, client indicatif", () => {
     it("`saveBuildVariant` refuse avant toute écriture", () => {
         const actions = read("src/server/actions/gallery-actions.ts");
         const start = actions.indexOf("export async function saveBuildVariant");
-        // Fenêtre élargie le 25/10/2026 : validation (conditions, arme à deux mains, panoplies)
-        // avant écriture — la garde porte sur le **corps** de l'écriture, pas sur sa position.
-        const body = actions.slice(start, start + 9000);
+        /**
+         * Fenêtre = **la fonction entière** (jusqu'à la déclaration suivante). Une fenêtre en
+         * caractères (9 000 puis 12 000) cassait à chaque ajout de règle serveur sans rien dire
+         * de l'ordre testé : ici la garde reste « valider avant d'écrire », sur tout le corps.
+         */
+        const end = actions.indexOf("\nexport async function", start + 10);
+        const body = actions.slice(start, end > start ? end : undefined);
 
         expect(body).toContain("validateSavedVariants({");
         expect(body).toContain("if (!decision.ok)");

@@ -417,15 +417,24 @@ export function MemberDetailDialog({
     }
 
     /**
-     * F-01 — l'inverse de « Exclure » : `reintegrateMember` remet le profil en ACTIVE mais **ne
-     * lève pas** le tombstone, donc le membre restait bloqué. On appelle l'action dédiée, qui
-     * trace `MEMBER_UNBANNED`, invalide le contexte et purge les sessions.
+     * F-01 — l'inverse de « Exclure » : `liftGuildMemberBan` lève le tombstone (trace
+     * `MEMBER_UNBANNED`, invalidation du contexte, purge des sessions) mais **ne touche pas** au
+     * statut du profil. Or « Exclure » écrit `BANNED` **et** le tombstone, et `getUserContext`
+     * bloque sur les deux : sans réintégration, le bouton semblerait sans effet (mesure du
+     * 25/10/2026). On enchaîne donc les deux, uniquement si le profil est encore « Exclu ».
      */
     function handleLiftExclusion() {
         const discordId = current.discordId;
         if (!discordId) return;
+        const profileId = current.profileId;
+        const needsReactivation = !!profileId && current.status === "BANNED";
         run(
-            () => liftGuildMemberBan(guildId, discordId),
+            async () => {
+                const lifted = await liftGuildMemberBan(guildId, discordId);
+                if (!lifted.success) return lifted;
+                if (!needsReactivation || !profileId) return lifted;
+                return reintegrateMember(guildId, profileId);
+            },
             "Exclusion levée — le membre peut de nouveau accéder au tableau de bord",
             () => setActiveExclusion(null)
         );

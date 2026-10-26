@@ -106,7 +106,7 @@ export async function getDofusbookId(url: string): Promise<string | null> {
  * la requête part de l'edge Cloudflare via le navigateur du membre, le worker reste le
  * seul émetteur vers Dofusbook et **l'IP du VPS n'est jamais exposée**.
  */
-export async function getDofusbookClientFetchUrl(buildUrl: string): Promise<{
+export async function getDofusbookClientFetchUrl(buildUrl: string, options: { force?: boolean } = {}): Promise<{
     success: boolean;
     url?: string;
     id?: string;
@@ -122,7 +122,7 @@ export async function getDofusbookClientFetchUrl(buildUrl: string): Promise<{
     const id = await getDofusbookId(buildUrl);
     if (!id) return { success: false, error: "Identifiant Dofusbook introuvable" };
 
-    const url = buildDofusbookClientFetchUrl(id);
+    const url = buildDofusbookClientFetchUrl(id, { force: options.force });
     if (!url) return { success: false, error: "Proxy Dofusbook non configuré (DOFUSBOOK_CF_WORKER_URL)." };
 
     return { success: true, url, id };

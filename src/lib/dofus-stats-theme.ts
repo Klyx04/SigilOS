@@ -102,8 +102,8 @@ export const STAT_THEMES = {
     fireDamage: { asset: "feu.png", label: "Dommages Feu", color: "text-danger" },
     waterDamage: { asset: "eau.png", label: "Dommages Eau", color: "text-info" },
     airDamage: { asset: "air.png", label: "Dommages Air", color: "text-success" },
-    criticalResistance: { asset: "bouclier.png", label: "Résistance Critiques", color: "text-danger" },
-    pushResistance: { asset: "bouclier.png", label: "Résistance Poussée", color: "text-warning" },
+    criticalResistance: { asset: "resCritique.png", label: "Résistance Critiques", color: "text-danger" },
+    pushResistance: { asset: "resPoussee.png", label: "Résistance Poussée", color: "text-warning" },
     neutralResistance: { asset: "resNeutre.png", label: "Résistance Neutre", color: "text-foreground" },
     earthResistance: { asset: "resTerre.png", label: "Résistance Terre", color: "text-warning" },
     fireResistance: { asset: "resFeu.png", label: "Résistance Feu", color: "text-danger" },
@@ -122,14 +122,18 @@ export const STAT_THEMES = {
      * `Distance (%)` (`tx_distanceRes`) — le **bouclier** est l'asset des autres
      * résistances (`Résistance Critiques`, `Résistance Poussée`).
      */
-    meleeResistance: { asset: "bouclier.png", label: "Résistance Mêlée", color: "text-danger" },
-    distanceResistance: { asset: "bouclier.png", label: "Résistance Distance", color: "text-info" },
+    meleeResistance: { asset: "resMelee.png", label: "Résistance Mêlée", color: "text-danger" },
+    distanceResistance: { asset: "resDistance.png", label: "Résistance Distance", color: "text-info" },
     apReduction: { asset: "retraitPA.png", label: "Retrait PA", color: "text-muted-foreground" },
     mpReduction: { asset: "retraitPM.png", label: "Retrait PM", color: "text-muted-foreground" },
     apDodge: { asset: "esquivePA.png", label: "Esquive PA", color: "text-info" },
     mpDodge: { asset: "esquivePM.png", label: "Esquive PM", color: "text-success" },
     erosion: { asset: "erosion.png", label: "Érosion", color: "text-warning" },
     shield: { asset: "bouclier.png", label: "Bouclier", color: "text-info" },
+    /** **Renvoi de dommages** (`rv`) — icône siphonnée de Dofusbook (`assets/img/elements/rv.png`). */
+    damageReturn: { asset: "renvoi.png", label: "Renvoi de dommages", color: "text-info" },
+    /** `% Do Finaux` (code Dofusbook `deg`) — icône siphonnée (`assets/img/elements/deg.png`). */
+    finalDamage: { asset: "doFinaux.png", label: "Do Finaux", color: "text-danger" },
 } as const satisfies Record<string, DofusStatAsset>;
 
 type StatThemeKey = keyof typeof STAT_THEMES;
@@ -352,6 +356,15 @@ const THEME_BY_CODE: Record<string, StatThemeKey> = {
      * (asset `bouclier.png`) — jamais `critique.png` (coups critiques *infligés*).
      */
     rc: "criticalResistance",
+    /**
+     * Codes Dofusbook mesurés le 25/10/2026 sur un payload réel (`22329554`) :
+     * `rm` = % Ré Mêlée (7), `rd` = % Ré Dist. (4), `rv` = **Renvoi de dommages** (15).
+     * Sans ces entrées, la fiche d'item affichait les codes bruts « rm » / « rd » / « rv ».
+     */
+    rm: "meleeResistance",
+    rd: "distanceResistance",
+    rv: "damageReturn",
+    deg: "finalDamage",
 };
 
 /**
@@ -507,7 +520,15 @@ export function dofusStatHex(asset: string): string {
         case "resFeu.png":
         case "resEau.png":
         case "resAir.png":
+        case "resCritique.png":
+        case "resPoussee.png":
+        case "resMelee.png":
+        case "resDistance.png":
             return DOFUSBOOK_COLORS.resistance;
+        case "renvoi.png":
+            return DOFUSBOOK_COLORS.esquivePA;
+        case "doFinaux.png":
+            return DOFUSBOOK_COLORS.dommages;
         default:
             return "#a855f7";
     }

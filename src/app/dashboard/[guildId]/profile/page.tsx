@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { getUserProfile, getProfileStats } from "@/server/actions/profile-actions";
+import { attachItemSetsToBuilds } from "@/server/build-item-sets";
 import { getUserContext } from "@/server/actions/user-actions";
 import { db } from "@/lib/prisma";
 import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
@@ -52,6 +53,12 @@ export default async function ProfilePage({ params, searchParams }: {
     }
 
     const profile = profileResponse.data;
+    /**
+     * 🔗 Bonus de panoplie des variantes : résolus **côté serveur** (la variante stockée ne
+     * porte pas l'id de panoplie, et le catalogue complet n'a rien à faire côté client).
+     * Sans ce contexte, `applyVariantsToBuild` refuse la variante (fail-closed, message explicite).
+     */
+    const dofusBookLinks = await attachItemSetsToBuilds((profile.dofusBookLinks as any[]) || []);
     const stats = statsResponse.success && statsResponse.data
         ? {
             ...statsResponse.data,
@@ -111,7 +118,7 @@ export default async function ProfilePage({ params, searchParams }: {
                         metamobVerified: profile.metamobVerified,
                         metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
                         altPseudos: (profile.altPseudos as string[]) || [],
-                        dofusBookLinks: (profile.dofusBookLinks as any) || [],
+                        dofusBookLinks,
                         introduction: profile.introduction,
                         objectifs: profile.objectifs,
                         preferredActivities: (profile.preferredActivities as string[]) || [],

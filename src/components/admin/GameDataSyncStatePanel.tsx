@@ -7,8 +7,10 @@ import { cn } from "@/lib/utils";
 import { responsiveTableSlots, useResponsiveTable } from "@/hooks/use-responsive-table";
 import {
     getGameDataSyncStates,
+    getItemConditionsWatch,
     startGameDataSyncInBackground,
 } from "@/server/actions/game-data-sync-actions";
+import type { ItemConditionsWatchSummary } from "@/lib/item-conditions-watch";
 import {
     GAME_DATA_DATASET_LABEL,
     gameDataLaunchKind,
@@ -52,6 +54,8 @@ const ERROR_GROUPS_SHOWN = 4;
 
 export function GameDataSyncStatePanel({ onGo }: { onGo?: (target: string) => void } = {}) {
     const [states, setStates] = useState<GameDataRunState[] | null>(null);
+    /** 🧩 Veille des conditions d'équipement (instantané Redis, lu par le cron `data-watch`). */
+    const [conditionsWatch, setConditionsWatch] = useState<ItemConditionsWatchSummary | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
     const [inlineBusy, setInlineBusy] = useState<string | null>(null);
@@ -72,7 +76,9 @@ export function GameDataSyncStatePanel({ onGo }: { onGo?: (target: string) => vo
     const slots = responsiveTableSlots(useCards);
 
     const load = useCallback(async () => {
-        const res = await getGameDataSyncStates();
+        // 🧩 La veille des conditions voyage avec l'état des datasets : un seul rafraîchissement.
+        const [res, watchRes] = await Promise.all([getGameDataSyncStates(), getItemConditionsWatch()]);
+        if (watchRes.success) setConditionsWatch(watchRes.data ?? null);
         if (res.success && res.data) {
             setStates(res.data);
             setError(null);
@@ -181,6 +187,40 @@ export function GameDataSyncStatePanel({ onGo }: { onGo?: (target: string) => vo
                 <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs font-semibold text-danger">
                     {error}
                 </p>
+            )}
+
+            {/* 🧩 **Veille des conditions d'équipement** (instantané écrit par le cron `data-watch`) :
+                ce que l'évaluateur ne sait pas traiter — donc ce qui fera **refuser** une variante.
+                Lecture seule : aucun bouton ici, la source est le cron. */}
+            {conditionsWatch && (
+                <div className="rounded-xl border border-border/70 bg-surface/40 px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-foreground">
+                            <AlertTriangle className="h-3.5 w-3.5 text-warning" aria-hidden="true" />
+                            Veille des conditions
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                            {conditionsWatch.computedAt ? `calculée le ${formatWhen(conditionsWatch.computedAt)}` : "jamais calculée"}
+                        </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                        <strong className="text-foreground">{conditionsWatch.items}</strong> objets conditionnés ·{" "}
+                        <strong className={conditionsWatch.unknownAtoms > 0 ? "text-warning" : "text-foreground"}>
+                            {conditionsWatch.unknownAtoms}
+                        </strong>{" "}
+                        atome(s) non évaluable(s) ·{" "}
+                        <strong className="text-foreground">{conditionsWatch.unknownTypes.length}</strong> type(s) d&apos;objet hors variantes
+                    </p>
+                    {conditionsWatch.unknown.length > 0 && (
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                            {conditionsWatch.unknown
+                                .slice(0, 4)
+                                .map((bucket) => `${bucket.element} ${bucket.operator} (${bucket.count})`)
+                                .join(" · ")}
+                            {conditionsWatch.unknown.length > 4 ? ` · … +${conditionsWatch.unknown.length - 4}` : ""}
+                        </p>
+                    )}
+                </div>
             )}
 
             {states === null ? (

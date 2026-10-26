@@ -34,6 +34,7 @@ import {
     groupGameDataErrors,
     summarizeGameDataErrors,
 } from "@/lib/game-data-error-causes";
+import type { ConditionUnknownBucket, ItemConditionsWatchSummary } from "@/lib/item-conditions-watch";
 
 const KEY = (dataset: GameDataDataset) => `game-data:sync:${dataset}`;
 const TTL_SECONDS = 7 * 24 * 3600;
@@ -333,3 +334,52 @@ export async function setBountyOrphansSnapshot(
     };
     await withRedis((c) => c.set(BOUNTY_ORPHANS_KEY, JSON.stringify(payload), "EX", TTL_SECONDS));
 }
+
+// ─── Veille des conditions d'équipement (26/10/2026) ─────────────────────────
+// Instantané agrégé des conditions **non évaluables** (par élément + opérateur) et des types
+// d'objet hors `VARIANT_SLOTS`. Écrit par `src/server/item-conditions-watch.ts`, lu par le cron
+// `data-watch` (alerte God) et repassable à la demande. Fail-open comme le reste du store.
+
+const ITEM_CONDITIONS_WATCH_KEY = "game-data:watch:item-conditions";
+
+function hydrateUnknownBuckets(raw: unknown): ConditionUnknownBucket[] {
+    if (!Array.isArray(raw)) return [];
+    const buckets: ConditionUnknownBucket[] = [];
+    for (const entry of raw.slice(0, 100)) {
+        if (!entry || typeof entry !== "object") continue;
+        const element = String((entry as { element?: unknown }).element ?? "").trim().slice(0, 60);
+        const operator = String((entry as { operator?: unknown }).operator ?? "").trim().slice(0, 8);
+        const count = Number((entry as { count?: unknown }).count);
+        if (!Number.isFinite(count) || count <= 0) continue;
+        buckets.push({ element, operator, count: Math.floor(count) });
+    }
+    return buckets;
+}
+
+/** Dernier instantané de veille des conditions (`null` si jamais calculé / Redis indisponible). */
+export async function getItemConditionsWatchState(): Promise<ItemConditionsWatchSummary | null> {
+    const raw = await withRedis((c) => c.get(ITEM_CONDITIONS_WATCH_KEY));
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw) as Partial<ItemConditionsWatchSummary>;
+        const num = (value: unknown) => (Number.isFinite(Number(value)) ? Math.max(0, Math.floor(Number(value))) : 0);
+        return {
+            items: num(parsed.items),
+            atoms: num(parsed.atoms),
+            unknownAtoms: num(parsed.unknownAtoms),
+            unknown: hydrateUnknownBuckets(parsed.unknown),
+            unknownTypes: Array.isArray(parsed.unknownTypes)
+                ? parsed.unknownTypes.filter((t): t is string => typeof t === "string").slice(0, 100)
+                : [],
+            computedAt: typeof parsed.computedAt === "string" ? parsed.computedAt : "",
+        };
+    } catch {
+        return null;
+    }
+}
+
+/** Écrit l'instantané de veille (fail-open : Redis indisponible ⇒ ignoré). */
+export async function setItemConditionsWatchState(state: ItemConditionsWatchSummary): Promise<void> {
+    await withRedis((c) => c.set(ITEM_CONDITIONS_WATCH_KEY, JSON.stringify(state)));
+}
+

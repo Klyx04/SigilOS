@@ -547,6 +547,34 @@ export async function banEntity(type: 'GUILD' | 'USER', discordId: string, reaso
             }
         }
 
+        // 🔒 USER : couper l'accès **tout de suite**. Sans purge des sessions, le JWT (8 h max)
+        // restait valide : le membre banni demeurait « connecté » à l'écran, sur un message
+        // trompeur, alors que ses lectures échouaient déjà en fail-closed (mesure du 25/10/2026).
+        // Même pattern que la branche GUILD ci-dessus et que `liftGuildMemberBan`.
+        if (type === 'USER') {
+            const account = await db.account
+                .findFirst({
+                    where: { provider: 'discord', providerAccountId: discordId },
+                    select: {
+                        userId: true,
+                        user: { select: { profiles: { select: { guildId: true } } } },
+                    },
+                })
+                .catch(() => null);
+
+            if (account?.userId) {
+                await db.session.deleteMany({ where: { userId: account.userId } });
+                try {
+                    const { invalidateUserContextCache } = await import("./user-actions");
+                    for (const profile of account.user.profiles) {
+                        await invalidateUserContextCache(account.userId, profile.guildId).catch(() => {});
+                    }
+                } catch (cacheErr) {
+                    logger.warn(`[Ban] Failed to invalidate user context cache for ${discordId}:`, cacheErr);
+                }
+            }
+        }
+
         // 🔔 NOTIFY GOD
         const adminName = session?.user?.name || "Super Admin";
         const { notifyGod } = await import('./god-notif-actions');

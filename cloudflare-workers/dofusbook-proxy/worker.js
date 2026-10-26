@@ -76,19 +76,25 @@ function jsonError(message, status) {
 }
 
 /** Récupère le build chez Dofusbook et le renvoie tel quel (jamais de cache d'un échec). */
-async function proxyBuild(buildId, ctx) {
+async function proxyBuild(buildId, ctx, force = false) {
     const dofusbookUrl = `https://www.dofusbook.net/api/stuffs/dofus/public/${buildId}`;
     // Clé de cache STABLE (indépendante du jeton du navigateur qui, lui, change à chaque
     // signature) → sinon on rappellerait Dofusbook à chaque rafraîchissement.
     const cacheKey = new Request(dofusbookUrl, { method: "GET" });
 
     let cached = null;
-    try {
-        cached = await caches.default.match(cacheKey);
-    } catch {
-        /* Cache indisponible : on continue sans */
+
+    // `force` = « Actualiser » côté SigilOS (bouton de la fiche / de la galerie). Sans cette
+    // branche, un build modifié sur Dofusbook restait servi depuis le cache edge jusqu'à 24 h
+    // (mesure du 25/10/2026 : un item retiré continuait de s'afficher).
+    if (!force) {
+        try {
+            cached = await caches.default.match(cacheKey);
+        } catch {
+            /* Cache indisponible : on continue sans */
+        }
+        if (cached) return buildResponse(cached.status, await cached.text(), cached.headers.get("Content-Type"), "HIT");
     }
-    if (cached) return buildResponse(cached.status, await cached.text(), cached.headers.get("Content-Type"), "HIT");
 
     const response = await fetch(dofusbookUrl, {
         headers: {
@@ -96,6 +102,9 @@ async function proxyBuild(buildId, ctx) {
             "Referer": `https://www.dofusbook.net/fr/equipement/${buildId}`,
             "Origin": "https://www.dofusbook.net",
         },
+        // Aucun cache intermédiaire Cloudflare : un rafraîchissement explicite doit voir
+        // immédiatement l'état courant du build.
+        cf: force ? { cacheTtl: 0, cacheEverything: false } : undefined,
     });
 
     const body = await response.text();
@@ -103,6 +112,9 @@ async function proxyBuild(buildId, ctx) {
     // ⚠️ On ne met en cache QUE les succès : un 403/5xx est un challenge anti-bot, il ne
     // doit jamais être figé 24 h (sinon plus personne ne reçoit les données).
     if (response.status >= 200 && response.status < 300) {
+        // Une lecture normale garde l'entrée 24 h ; un rafraîchissement explicite la remplace
+        // mais avec une TTL courte, pour que deux clics rapprochés ne martèlent pas Dofusbook.
+        const maxAge = force ? 60 : 86400;
         try {
             ctx?.waitUntil(
                 caches.default.put(
@@ -111,7 +123,7 @@ async function proxyBuild(buildId, ctx) {
                         status: 200,
                         headers: {
                             "Content-Type": response.headers.get("Content-Type") || "application/json",
-                            "Cache-Control": "public, max-age=86400",
+                            "Cache-Control": `public, max-age=${maxAge}`,
                         },
                     })
                 )
@@ -121,7 +133,7 @@ async function proxyBuild(buildId, ctx) {
         }
     }
 
-    return buildResponse(response.status, body, response.headers.get("Content-Type"), "MISS");
+    return buildResponse(response.status, body, response.headers.get("Content-Type"), force ? "BYPASS" : "MISS");
 }
 
 /** Construit la réponse renvoyée au client (navigateur ou SigilOS). */
@@ -206,8 +218,10 @@ export default {
         }
 
         // NOTE: Do NOT forward X-SigilOS-Key to Dofusbook — only used between us and the Worker
+        // `force=1` (ou `force=true`) : rafraîchissement explicite demandé par SigilOS.
+        const force = url.searchParams.get("force") === "1" || url.searchParams.get("force") === "true";
         try {
-            return await proxyBuild(buildId, ctx);
+            return await proxyBuild(buildId, ctx, force);
         } catch (err) {
             // F-27: neutral error — no internal details leaked
             return jsonError("Worker fetch failed", 500);

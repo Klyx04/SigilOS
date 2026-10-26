@@ -901,6 +901,18 @@ export async function recordMemberDeparture(
             metadata: { memberName }
         });
 
+        // Carte Discord du cycle de vie : les boutons « Archiver » / « Exclure » de la fiche
+        // n'envoyaient RIEN, alors que la synchro automatique notifie déjà (mesure du
+        // 25/10/2026 — même événement, deux conduites). Import dynamique : `lifecycle-actions`
+        // charge déjà ce module, on évite un cycle statique.
+        const { sendLifecycleNotification } = await import("./lifecycle-actions");
+        await sendLifecycleNotification(
+            guildId,
+            profile,
+            data.isBan ? "BANNED" : "ARCHIVED",
+            ctx.name || "Un administrateur"
+        ).catch(() => null);
+
         return { success: true, data: { message: data.isBan ? "Membre banni et archivé" : "Départ enregistré" } };
     } catch (err: any) {
         logger.error("[recordMemberDeparture] Erreur:", err);
@@ -931,8 +943,14 @@ export async function reintegrateMember(guildId: string, profileId: string): Pro
             where: { id: profileId, guildId: guild.id },
             select: {
                 id: true,
+                userId: true,
+                // Statut AVANT réintégration : il part dans le journal d'audit (avant/après).
+                status: true,
+                pseudoDofus: true,
+                discordNickname: true,
                 user: {
                     select: {
+                        name: true,
                         accounts: {
                             where: { provider: "discord" },
                             select: { providerAccountId: true }
@@ -978,6 +996,31 @@ export async function reintegrateMember(guildId: string, profileId: string): Pro
                     where: { guildId: guild.id, discordId }
                 });
             }
+        });
+
+        // La réintégration doit être visible **tout de suite** : le contexte utilisateur est mis en
+        // cache 60 s (`MEMORY_CACHE_TTL_MS`) et n'était pas invalidé ici — le membre réintégré
+        // restait vu « archivé » jusqu'à expiration (mesure du 25/10/2026).
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(profile.userId, guild.id, guildId).catch(() => {});
+
+        // 🐛 Mesure du 25/10/2026 : cette action ne laissait **aucune trace**. Le staff pouvait
+        // réintégrer (et donc rouvrir l'accès) sans que le journal d'audit de la guilde en garde
+        // une ligne, alors que l'écran God promet que « toute action est enregistrée ». On trace
+        // avec le statut d'avant, comme `recordMemberDeparture` le fait pour la sortie.
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: ctx.name || "Staff",
+            action: "PROFILE_REACTIVATED",
+            targetType: "USER_PROFILE",
+            targetId: profile.id,
+            oldValue: { status: profile.status },
+            newValue: { status: "ACTIVE" },
+            metadata: {
+                memberName: profile.pseudoDofus || profile.discordNickname || profile.user?.name || "Membre",
+                source: "reintegrateMember",
+            },
         });
 
         return { success: true, data: { message: "Membre réintégré avec succès" } };

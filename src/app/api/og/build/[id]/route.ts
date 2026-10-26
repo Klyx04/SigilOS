@@ -5,6 +5,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { ASSET_DIRS, siphonAndCompressImage } from "@/lib/dofus-asset-siphon";
 import { dofusbookItemIconId } from "@/lib/dofusbook-utils";
+import { resolveVariantPreview } from "@/server/build-item-sets";
 
 // Layout grid matching the Dofusbook / SigilOS web preview
 const SLOT_COORDINATES: Record<string, { x: number; y: number }> = {
@@ -63,8 +64,14 @@ export async function GET(
         }
 
         const pd = build.previewData;
-        const items = pd?.items || {};
-        const classNum = Number(pd?.classId || build.classId || 0);
+        /**
+         * 🟡 **Variante** (arbitrage du 23/10/2026) : l'image d'aperçu montre le stuff **tel qu'il
+         * est proposé**. Si la variante n'est pas calculable (panoplies indisponibles), on garde le
+         * stuff d'origine **sans** tag — on n'annonce jamais une variante qu'on n'a pas appliquée.
+         */
+        const variantView = await resolveVariantPreview(pd, build.variants);
+        const items = variantView.preview?.items || {};
+        const classNum = Number(variantView.preview?.classId || pd?.classId || build.classId || 0);
 
         // 2. Fetch or load item pictures
         const compositeOperations: OverlayOptions[] = [];
@@ -155,6 +162,14 @@ export async function GET(
             <!-- Pedestal central circle -->
             <circle cx="292" cy="190" r="85" fill="url(#pedestalGlow)" />
             <circle cx="292" cy="190" r="68" fill="#141520" stroke="#2a2c3d" stroke-width="2" />
+
+            <!-- 🟡 Tag « Variante » : posé **seulement** quand la variante a été appliquée -->
+            ${variantView.variantApplied ? `
+                <g>
+                    <rect x="217" y="9" width="150" height="28" rx="14" fill="#f59e0b" fill-opacity="0.14" stroke="#f59e0b" stroke-opacity="0.55" stroke-width="1.5" />
+                    <text x="292" y="28" text-anchor="middle" font-family="sans-serif" font-size="12.5" font-weight="800" fill="#f59e0b" letter-spacing="1.2">VARIANTE</text>
+                </g>
+            ` : ""}
 
             <!-- Equipment slot frames -->
             ${slotKeys.map(slot => {

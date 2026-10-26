@@ -292,6 +292,28 @@ export function roleHasDashboardAccess(
     return Array.isArray(perms) && perms.length > 0;
 }
 
+/**
+ * Rôles Discord qui peuvent **gérer les membres** — donc lever une exclusion.
+ *
+ * Source unique : les **mêmes** permissions que `getUserContext` (`user-actions.ts`) —
+ * `STAFF_MEMBER_MGMT` ouvre `canManageMembers`, `SYSTEM_GOD` ouvre l'admin de guilde.
+ * Sert à l'écran « Membre exclu » : on affiche **quels rôles** contacter, jamais des personnes
+ * (décision du 25/10/2026 — pas d'annuaire exposé à un membre exclu).
+ *
+ * `rolesMapping` absent ⇒ aucune liste (l'écran retombe sur « contacte ton staff »).
+ */
+export function rolesGrantingMemberManagement(
+    rolesMapping: Record<string, string[] | null | undefined> | null | undefined,
+): string[] {
+    if (!rolesMapping) return [];
+    return Object.entries(rolesMapping)
+        .filter(([, perms]) => {
+            if (!Array.isArray(perms)) return false;
+            return perms.includes(PERMISSIONS.STAFF_MEMBER_MGMT) || perms.includes(PERMISSIONS.SYSTEM_GOD);
+        })
+        .map(([roleId]) => roleId);
+}
+
 export function getPermissionsByModule(module: PermissionModule): PermissionId[] {
     return (Object.entries(PERMISSION_DETAILS) as [PermissionId, { module: PermissionModule }][])
         .filter(([, details]) => details.module === module)

@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { shareGalleryItemOnDiscord } from "@/server/actions/gallery-actions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ClassFilter, GenderFilter, AdvancedTagFilter, TagWithIcons, getNumericClassId } from "@/components/gallery/gallery-filters";
+import { applyVariantsToBuild } from "@/lib/dofus-variant-utils";
 
 interface GalleryClientProps {
     initialBuilds: GalleryBuild[];
@@ -289,9 +290,14 @@ export function GalleryClient({
             // Dofusbook (Cloudflare) refuse les appels serveur (challenge anti-bot) : c'est
             // le NAVIGATEUR qui récupère les données via le worker CF signé, puis elles
             // sont enregistrées dans le profil du propriétaire.
-            const baked = await bakeDofusbookFromBrowser(build.url, guildId);
+            // `force` = contourne le cache edge du worker (sinon 24 h de données figées).
+            const baked = await bakeDofusbookFromBrowser(build.url, guildId, { force: true });
             if (baked.ok) {
-                toast.success(baked.persisted ? "Build mis à jour !" : "Données récupérées (non enregistrées)");
+                if (baked.changed === false) {
+                    toast.info(`Aucun changement pour « ${build.name} »`);
+                } else {
+                    toast.success(baked.persisted ? "Build mis à jour !" : "Données récupérées (non enregistrées)");
+                }
                 applyFilters(searchQuery, activeTags, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
             } else {
                 toast.error(baked.error || "Échec du rafraîchissement");
@@ -606,7 +612,7 @@ export function GalleryClient({
                         stuffBuilds.map((build) => (
                             <div key={build.id} className="group/card flex flex-col gap-3">
                                 <div className="relative">
-                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} savedVariants={build.variants} variantBuildId={build.id} canPersistVariant={currentProfileId === build.author.id} variantView={variantViews.has(build.id) ? "variant" : "base"} onVariantViewChange={() => toggleVariantView(build.id)} />
+                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} guildId={guildId} savedVariants={build.variants} itemSets={build.itemSets} variantBuildId={build.id} canPersistVariant={currentProfileId === build.author.id} variantView={variantViews.has(build.id) ? "variant" : "base"} onVariantViewChange={() => toggleVariantView(build.id)} />
                                     
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent transition-all duration-300 rounded-[2.5rem] flex flex-col justify-end p-4 z-10 pointer-events-none opacity-90 group-hover/card:opacity-100">
                                         <div className="flex items-center justify-end gap-1.5 backdrop-blur-md bg-black/40 p-1.5 rounded-2xl border border-white/10 w-fit ml-auto shadow-lg">
@@ -627,7 +633,7 @@ export function GalleryClient({
                                                     title={variantViews.has(build.id) ? "Revenir au stuff Dofusbook d'origine" : "Afficher la variante proposée"}
                                                     aria-label={variantViews.has(build.id) ? "Afficher le stuff d'origine" : "Afficher la variante proposée"}
                                                 >
-                                                    Variante
+                                                    Variante ({Object.keys(build.variants).length})
                                                 </button>
                                             )}
                                             <button 
@@ -700,7 +706,17 @@ export function GalleryClient({
                                         </div>
                                     </div>
                                 </div>
-                                <BuildStatsLine previewData={build.previewData} />
+                                {/* Stats clés : celles de la variante quand la bascule est active
+                                    (même donnée que la carte, recalculée par `applyVariantsToBuild`,
+                                    panoplies comprises). `null` = panoplies indisponibles : on garde
+                                    le stuff d'origine et la carte l'annonce explicitement. */}
+                                <BuildStatsLine
+                                    previewData={
+                                        variantViews.has(build.id) && build.variants
+                                            ? applyVariantsToBuild(build.previewData, build.variants ?? {}, build.itemSets) ?? build.previewData
+                                            : build.previewData
+                                    }
+                                />
                                 <div className="flex items-center justify-between px-3 py-1.5 bg-surface/40 rounded-2xl border border-border/50">
                                     <div className="flex items-center gap-2">
                                         <Avatar className="w-6 h-6 border border-border/80 shadow-xs">

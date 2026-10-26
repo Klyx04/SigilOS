@@ -20,14 +20,15 @@ import {
  * VPS n'est jamais exposée.
  */
 export type ClientBakeResult =
-    | { ok: true; data: DofusbookPreviewData; persisted: boolean }
+    | { ok: true; data: DofusbookPreviewData; persisted: boolean; changed?: boolean }
     | { ok: false; status?: number; error: string };
 
 export async function bakeDofusbookFromBrowser(
     buildUrl: string,
-    guildId?: string
+    guildId?: string,
+    options: { force?: boolean } = {}
 ): Promise<ClientBakeResult> {
-    const signed = await getDofusbookClientFetchUrl(buildUrl);
+    const signed = await getDofusbookClientFetchUrl(buildUrl, { force: options.force });
     if (!signed.success || !signed.url) {
         return { ok: false, error: signed.error || "Proxy Dofusbook indisponible" };
     }
@@ -58,9 +59,14 @@ export async function bakeDofusbookFromBrowser(
     }
 
     if (guildId) {
-        const stored = await storeClientDofusbookPreview(guildId, buildUrl, raw);
+        const stored = await storeClientDofusbookPreview(guildId, buildUrl, raw, { force: options.force });
         if (stored.success && stored.data) {
-            return { ok: true, data: stored.data.data, persisted: stored.data.persisted };
+            return {
+                ok: true,
+                data: stored.data.data,
+                persisted: stored.data.persisted,
+                changed: stored.data.changed,
+            };
         }
         return { ok: false, status: response.status, error: stored.error || "Enregistrement impossible" };
     }

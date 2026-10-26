@@ -82,6 +82,21 @@ export default async function DashboardLayout({
 
     // ── GUILD NOT WHITELISTED (getUserContext returns isAuthenticated:false for blocked guilds) ──
     if (!user.isAuthenticated) {
+        // ── PLATFORM BAN (God) : cause **distincte** de la bêta fermée, donc message distinct.
+        // Le contrôle est fait avant tout le reste dans `getUserContext` et à la connexion
+        // (`src/auth.ts`) : aucune action de guilde ne peut le lever.
+        if ((user as any).isPlatformBanned) {
+            return (
+                <AccessDenied
+                    guildId={guildId}
+                    title="Compte suspendu"
+                    message="Ce compte est suspendu de la plateforme SigilOS : l'accès au tableau de bord est fermé, quelle que soit la guilde. Si vous pensez qu'il s'agit d'une erreur, contactez le support SigilOS."
+                    banReason={(user as any).platformBanReason ?? null}
+                    variant="ban"
+                    action={<SignOutButton />}
+                />
+            );
+        }
         return (
             <AccessDenied
                 guildId={guildId}
@@ -121,10 +136,44 @@ export default async function DashboardLayout({
 
     // ── BANNED ──
     if ((user as any).isBanned) {
+        // Option A (décision du 25/10/2026) : dire POURQUOI (motif du tombstone) et QUI peut
+        // réintégrer — des **noms de rôles**, jamais des personnes. Best-effort : sans RBAC
+        // configuré ou sans Discord, l'écran reste exactement celui d'avant (aucune erreur
+        // ajoutée au refus, aucun ralentissement en cas de panne).
+        let contactRoles: string[] = [];
+        try {
+            const { rolesGrantingMemberManagement } = await import("@/lib/permissions");
+            const banGuild = await db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { rolesMapping: true },
+            });
+            const reintegratorRoleIds = rolesGrantingMemberManagement(
+                (banGuild?.rolesMapping as Record<string, string[]> | null) ?? null
+            );
+            if (reintegratorRoleIds.length > 0) {
+                const { fetchGuildRoles } = await import("@/server/discord");
+                const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false }).catch(
+                    () => [] as { id: string; name: string }[]
+                );
+                const nameById = new Map(guildRoles.map((role) => [role.id, role.name]));
+                contactRoles = [
+                    ...new Set(
+                        reintegratorRoleIds
+                            .map((roleId) => nameById.get(roleId))
+                            .filter((name): name is string => typeof name === "string" && name.length > 0)
+                    ),
+                ].slice(0, 4);
+            }
+        } catch {
+            contactRoles = [];
+        }
+
         return (
             <AccessDenied
-                title="Accès Banni"
+                title="Membre exclu"
                 message={`Votre accès au tableau de bord de ${user.guildName} a été révoqué. Contactez votre staff sur Discord si vous pensez qu'il s'agit d'une erreur.`}
+                banReason={(user as any).banReason ?? null}
+                contactRoles={contactRoles}
                 variant="ban"
                 action={<SignOutButton variant="ghost" />}
                 countdownDate={(user as any).scheduledDeletion}

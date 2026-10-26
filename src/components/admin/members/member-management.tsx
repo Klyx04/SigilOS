@@ -25,6 +25,12 @@ interface MemberManagementProps {
     /** Rôles Discord comptés comme « en guilde en jeu » (onglet Mules). */
     inGameGuildRoleIds?: string[];
     stats: { active: number; archived: number; banned: number; total: number; maxMembers: number };
+    /**
+     * Nombre d'exclusions **réellement actives** (profils bannis **+** tombstones sans profil).
+     * `stats.banned` ne compte que les profils, donc un exclu dont le profil a été purgé était
+     * invisible et le compteur affichait 0 (mesure du 25/10/2026).
+     */
+    excludedCount?: number;
     discordAvailable: boolean;
     welcomeBadgeName: string;
     isSuperAdmin: boolean;
@@ -53,6 +59,7 @@ export default function MemberManagement({
     dashboardRoleIds,
     inGameGuildRoleIds,
     stats,
+    excludedCount,
     discordAvailable,
     canManageMembers,
     canDeleteMembers,
@@ -85,7 +92,7 @@ export default function MemberManagement({
             accent: true,
         },
         { label: "Archivés", value: stats.archived, icon: "havre-sac.png", hint: "Hors guilde, réintégrables", fill: false, accent: false },
-        { label: "Exclus", value: stats.banned, icon: "lock.png", hint: "Bannis ou supprimés", fill: false, accent: false, danger: true },
+        { label: "Exclus", value: excludedCount ?? stats.banned, icon: "lock.png", hint: "Bannis ou supprimés", fill: false, accent: false, danger: true },
         { label: "Total gérés", value: stats.total, icon: "guild-xp.png", hint: "Tous statuts confondus", fill: false, accent: false },
     ];
 

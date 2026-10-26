@@ -1,4 +1,5 @@
 import type { DofusbookItem, DofusbookItemEffect, DofusbookPreviewData } from "@/lib/dofusbook-utils";
+import { activeSetBonuses, sumSetBonuses, type ActiveSetBonus, type ItemSetData } from "@/lib/dofus-set-bonuses";
 
 /** Configuration des slots et des types d'items correspondants dans GameItem. */
 export interface SlotTypeInfo {
@@ -191,7 +192,18 @@ export function normalizeStatCode(rawCodeOrName: string | number | undefined | n
             case 83: case 412: return "rpm";
             case 16: case 112: return "df";
             case 418: return "dc";
-            case 85: return "dp";
+            // ⚠️ Corrigé le 26/10/2026 (mesure `GET /characteristics`) : **85** = « Poussée (fixe) »,
+            // c'est-à-dire une **réduction** de dommages de poussée (`rp`) — le code rendait `dp`
+            // (dommages de poussée, qui sont la caractéristique **84**). Sans cela, une panoplie
+            // « Ré Poussée » créditait les dommages.
+            case 84: return "dp";
+            case 85: return "rp";
+            case 0: return "vi";
+            case 58: return "rn";
+            // `40` = Pods (mesuré sur `/characteristics` : `40 = Pods [weight]`). Le modèle
+            // d'aperçu ne porte pas encore les pods (lot B) : le bonus est normalisé des deux
+            // côtés du différentiel, sans effet sur les totaux pour l'instant.
+            case 40: return "pod";
             case 430: case 431: return "dnf";
             case 422: case 423: return "dtf";
             case 424: case 425: return "dff";
@@ -206,6 +218,35 @@ export function normalizeStatCode(rawCodeOrName: string | number | undefined | n
             case 34: case 213: return "rfp";
             case 35: case 211: return "rep";
             case 36: case 212: return "rap";
+            /**
+             * Caractéristiques **mesurées** le 26/10/2026 sur `GET /characteristics`
+             * (référentiel officiel, 123 entrées) — nécessaires aux **bonus de panoplie**
+             * (`/item-sets` les exprime en `characteristic`, pas en `effectId`) :
+             *
+             *   · `50` Renvoi · `54`–`57` réductions **fixes** par élément (Terre/Feu/Eau/Air) ;
+             *   · `86` dommages critiques · `87` réduction critique ;
+             *   · `88`–`92` dommages par élément (Terre, Feu, Eau, Air, Neutre).
+             *
+             * ⚠️ `91`/`92` sont **ambigus** comme `effectId` (« vol de vie ») : les appelants
+             * privilégient `characteristic` — même arbitrage que `CHAR_NAMES`
+             * (`src/lib/market/effects.ts`).
+             *
+             * ⚠️ Les codes `rt/rf/re/rn/ra` (réductions fixes) ne sont **pas** portés par le
+             * modèle d'aperçu (comme dans le parseur Dofusbook) : ils sont normalisés pour que
+             * les deux côtés d'un différentiel parlent la même langue, sans effet sur les totaux.
+             */
+            case 50: return "rv";
+            case 54: return "rt";
+            case 55: return "rf";
+            case 56: return "re";
+            case 57: return "ra";
+            case 86: return "dc";
+            case 87: return "rc";
+            case 88: return "dtf";
+            case 89: return "dff";
+            case 90: return "def";
+            case 91: return "daf";
+            case 92: return "dnf";
         }
     }
 
@@ -277,13 +318,204 @@ export function calculateItemStatTotals(item: DofusbookItem | null | undefined):
 }
 
 /**
+ * Panoplies nécessaires au recalcul d'une variante, **résolues côté serveur**.
+ *
+ * · `sets`   : id de panoplie (DofusDB) → panoplie normalisée (`GameItemSet.tiers`) ;
+ * · `byItem` : id Ankama d'objet → id de panoplie (la variante ne porte pas cette information,
+ *   `normalizeSavedVariants` ne conserve pas `itemSetId` : la base fait foi).
+ */
+export interface VariantItemSets {
+    sets: Record<number, ItemSetData>;
+    byItem: Record<number, number>;
+}
+
+/** Slot **virtuel** : porte le différentiel des bonus de panoplie dans la boucle de stats. */
+export const SET_BONUS_VIRTUAL_SLOT = "__panoplies__";
+
+/**
+ * Pourquoi une variante n'a **pas** pu être calculée.
+ *
+ * 🎯 Constat user du 26/10/2026 : « dommage de ne pas expliciter au user les vraies causes ».
+ * Le refus était correct (fail-closed) mais muet : le message doit dire **ce qui manque** et
+ * **quoi faire**, sans jargon interne.
+ */
+export type VariantRefusalCode = "no-set-context" | "unknown-sets" | "incoherent-context";
+
+export interface VariantRefusal {
+    code: VariantRefusalCode;
+    /** Message **court**, prêt à afficher (utilisé dans le badge). */
+    message: string;
+    /** Détail actionnable (infobulle) : chiffres et noms concernés. */
+    details: string;
+    /** Panoplies présentes sur le stuff mais **absentes** du référentiel. */
+    unknownSetIds?: number[];
+    /** Panoplies déclarées par Dofusbook que le référentiel **n'explique pas**. */
+    unexplainedSetNames?: string[];
+}
+
+/**
+ * Diagnostique un refus de recalcul (ou `null` si la variante est calculable).
+ *
+ * C'est **la** décision : `applyVariantsToBuild` s'appuie dessus, l'UI affiche le message.
+ */
+export function explainVariantRefusal(
+    baseData: DofusbookPreviewData | null | undefined,
+    variants: Record<string, DofusbookItem>,
+    itemSets?: VariantItemSets | null,
+): VariantRefusal | null {
+    if (!baseData) return null;
+    if (Object.keys(variants ?? {}).length === 0) return null;
+
+    const baseCloths = Array.isArray(baseData.cloths) ? baseData.cloths : [];
+
+    if (!itemSets) {
+        if (baseCloths.length === 0) return null;
+        return {
+            code: "no-set-context",
+            message: "Panoplies non chargées — stuff d'origine affiché",
+            details:
+                `Ce build porte ${baseCloths.length} panoplie(s) active(s) ` +
+                `(${baseCloths.map((cloth) => cloth.name).join(", ")}), mais leurs paliers n'ont pas été chargés ` +
+                "pour cette page : le total de la variante ne peut pas être recalculé sans afficher un chiffre faux. " +
+                "Recharge la page ; si le message persiste, la synchronisation des données de jeu n'est pas terminée.",
+        };
+    }
+
+    const piecesBySet = effectivePiecesBySet(baseData.items, variants, itemSets.byItem);
+    const resolution = activeSetBonuses(piecesBySet, Object.values(itemSets.sets));
+
+    if (resolution.unknownIds.length > 0) {
+        return {
+            code: "unknown-sets",
+            message: "Panoplie non reconnue — stuff d'origine affiché",
+            details:
+                `La panoplie ${resolution.unknownIds.map((id) => `#${id}`).join(", ")} est portée par ce build ` +
+                "mais absente du référentiel des panoplies : impossible d'appliquer ses paliers. " +
+                "Demande une synchronisation des données de jeu (siphon des panoplies).",
+            unknownSetIds: resolution.unknownIds,
+        };
+    }
+
+    const baseResolution = activeSetBonuses(
+        effectivePiecesBySet(baseData.items, {}, itemSets.byItem),
+        Object.values(itemSets.sets),
+    );
+    if (baseResolution.unknownIds.length > 0 || baseResolution.active.length !== baseCloths.length) {
+        const resolved = new Set(baseResolution.active.map((set) => set.name.toLowerCase()));
+        const unexplained = baseCloths
+            .map((cloth) => cloth.name)
+            .filter((name) => !resolved.has(String(name).toLowerCase()));
+
+        return {
+            code: "incoherent-context",
+            message: "Panoplies incohérentes — stuff d'origine affiché",
+            details:
+                `Dofusbook déclare ${baseCloths.length} panoplie(s) active(s), le catalogue n'en retrouve que ` +
+                `${baseResolution.active.length}` +
+                (unexplained.length > 0 ? ` (non expliquée(s) : ${unexplained.join(", ")})` : "") +
+                ". Soustraire les anciens bonus pour n'ajouter que les nouveaux donnerait un total faux : " +
+                "la variante n'est donc pas calculée. Vérifie que les objets de ce build sont bien dans le catalogue.",
+            unexplainedSetNames: unexplained,
+        };
+    }
+
+    return null;
+}
+
+
+/** Codes de stat **normalisés** d'un ensemble de bonus de panoplie (clés `ii`, `ic`… → `ini`, `invo`). */
+function normalizedBonusTotals(bonuses: Record<string, number> | null | undefined): Record<string, number> {
+    const totals: Record<string, number> = {};
+    for (const [rawCode, value] of Object.entries(bonuses ?? {})) {
+        const code = normalizeStatCode(rawCode);
+        if (!code || !Number.isFinite(value) || value === 0) continue;
+        totals[code] = (totals[code] ?? 0) + value;
+    }
+    return totals;
+}
+
+/** Somme des bonus de panoplie **d'origine** (palier actif, tel que parsé par Dofusbook). */
+function baseClothBonusTotals(cloths: DofusbookPreviewData["cloths"]): Record<string, number> {
+    const totals: Record<string, number> = {};
+    for (const cloth of cloths ?? []) {
+        const clothTotals = normalizedBonusTotals(cloth.bonuses);
+        for (const [code, value] of Object.entries(clothTotals)) {
+            totals[code] = (totals[code] ?? 0) + value;
+        }
+    }
+    return totals;
+}
+
+/** Un ensemble `code → valeur` transformé en effets d'objet : réutilise le mapping de stats. */
+function effectsFromTotals(totals: Record<string, number>): DofusbookItemEffect[] {
+    return Object.entries(totals)
+        .filter(([, value]) => Number.isFinite(value) && value !== 0)
+        .map(([code, value]) => ({ code, min: value, max: value, value }));
+}
+
+/**
+ * Pièces **effectives** par panoplie (stuff d'origine + variantes), pièces **distinctes**.
+ * L'identité d'un objet est `official || id` (une variante porte l'id Ankama dans `official`).
+ */
+function effectivePiecesBySet(
+    items: DofusbookPreviewData["items"],
+    variants: Record<string, DofusbookItem>,
+    byItem: Record<number, number>,
+): Map<number, Set<number>> {
+    const piecesBySet = new Map<number, Set<number>>();
+    const slots = new Set<string>([...Object.keys(items ?? {}), ...Object.keys(variants ?? {})]);
+
+    for (const slot of slots) {
+        const item = variants[slot] ?? items?.[slot];
+        if (!item) continue;
+        const ankamaId = Number(item.official || item.id || 0);
+        if (!Number.isInteger(ankamaId) || ankamaId <= 0) continue;
+        const setId = Number(byItem[ankamaId] ?? 0);
+        if (!Number.isInteger(setId) || setId <= 0) continue;
+
+        const pieces = piecesBySet.get(setId) ?? new Set<number>();
+        pieces.add(ankamaId); // même objet porté deux fois = **une** pièce
+        piecesBySet.set(setId, pieces);
+    }
+    return piecesBySet;
+}
+
+/** Panoplies actives, prêtes pour l'affichage (`cloths`), avec leurs pièces effectives. */
+function clothsFromActiveSets(
+    active: readonly ActiveSetBonus[],
+    items: DofusbookPreviewData["items"],
+    variants: Record<string, DofusbookItem>,
+    sets: Record<number, ItemSetData>,
+): NonNullable<DofusbookPreviewData["cloths"]> {
+    const effectiveItems: DofusbookItem[] = [];
+    const seen = new Set<string>();
+    for (const slot of new Set<string>([...Object.keys(items ?? {}), ...Object.keys(variants ?? {})])) {
+        const item = variants[slot] ?? items?.[slot];
+        if (!item) continue;
+        const key = `${slot}:${Number(item.official || item.id || 0)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        effectiveItems.push(item);
+    }
+
+    return active.map((set) => ({
+        name: set.name,
+        count: set.pieces,
+        total: sets[set.setId]?.itemCount ?? set.pieces,
+        clothItems: effectiveItems.filter((item) => set.itemIds.includes(Number(item.official || item.id || 0))),
+        bonuses: set.bonuses,
+    }));
+}
+
+/**
  * Applique des variantes locales à un build Dofusbook existant.
  * ⚠️ FONCTION PURE : ne mute jamais `baseData`.
  * Recalcule `stats`, `elements`, `damages`, `resists` et met à jour `items`.
  */
 export function applyVariantsToBuild(
     baseData: DofusbookPreviewData | null | undefined,
-    variants: Record<string, DofusbookItem>
+    variants: Record<string, DofusbookItem>,
+    itemSets?: VariantItemSets | null,
 ): DofusbookPreviewData | null {
     if (!baseData) return null;
     const variantKeys = Object.keys(variants);
@@ -308,11 +540,50 @@ export function applyVariantsToBuild(
         };
     }
 
+    /**
+     * 🔁 **Bonus de panoplie recalculés** (lot A, 26/10/2026).
+     *
+     * Le payload Dofusbook ne porte que le **palier actif** : une variante qui casse (ou active)
+     * une panoplie laissait donc les bonus du stuff d'origine. On retire les bonus d'origine
+     * (`cloths[].bonuses`, déjà inclus dans les totaux parsés) et on réapplique ceux du stuff
+     * **effectif**, calculés par la règle partagée `activeSetBonuses()`.
+     *
+     * ⚠️ **Fail-closed** : contexte absent sur un build qui porte une panoplie, ou panoplie
+     * absente du référentiel ⇒ `null`. L'appelant affiche un refus explicite — jamais une
+     * approximation silencieuse.
+     */
+    type PendingSwap = { slot: string; variantItem: DofusbookItem; originalItem: DofusbookItem | null };
+    const pending: PendingSwap[] = [];
+    const baseCloths = Array.isArray(baseData.cloths) ? baseData.cloths : [];
+
+    // ⚠️ **La** décision de refus vit dans `explainVariantRefusal()` : la règle de calcul et le
+    // message affiché à l'utilisateur ne peuvent pas diverger (constat user du 26/10/2026 :
+    // « dommage de ne pas expliciter au user les vraies causes »).
+    if (explainVariantRefusal(baseData, variants, itemSets)) return null;
+
+    if (itemSets) {
+        const piecesBySet = effectivePiecesBySet(baseData.items, variants, itemSets.byItem);
+        const { active } = activeSetBonuses(piecesBySet, Object.values(itemSets.sets));
+
+        const oldTotals = baseClothBonusTotals(baseCloths);
+        const newTotals = sumSetBonuses(active);
+        pending.push({
+            slot: SET_BONUS_VIRTUAL_SLOT,
+            // Aucun de ces deux objets n'est écrit dans `items` (slot virtuel) : ils ne servent
+            // qu'à porter le **différentiel** dans le mapping de stats existant.
+            originalItem: { id: 0, name: "", picture: 0, official: 0, effects: effectsFromTotals(oldTotals) },
+            variantItem: { id: 0, name: "", picture: 0, official: 0, effects: effectsFromTotals(newTotals) },
+        });
+        result.cloths = clothsFromActiveSets(active, baseData.items, variants, itemSets.sets);
+    }
+
     for (const slot of variantKeys) {
         const variantItem = variants[slot];
         if (!variantItem) continue;
+        pending.push({ slot, variantItem, originalItem: baseData.items?.[slot] ?? null });
+    }
 
-        const originalItem = baseData.items?.[slot];
+    for (const { slot, variantItem, originalItem } of pending) {
         const oldTotals = calculateItemStatTotals(originalItem);
         const newTotals = calculateItemStatTotals(variantItem);
 
@@ -343,14 +614,20 @@ export function applyVariantsToBuild(
                 case "cc": result.stats.cc = (result.stats.cc ?? 0) + delta; break;
                 case "invo": result.stats.invo = Math.max(1, (result.stats.invo ?? 0) + delta); break;
                 case "so": result.stats.so = (result.stats.so ?? 0) + delta; break;
+                // Pods apportés par l'équipement (la capacité se recalcule à l'affichage).
+                case "pod": result.stats.pod = Math.max(0, (result.stats.pod ?? 0) + delta); break;
                 case "rpa": result.stats.retpa = (result.stats.retpa ?? 0) + delta; break;
                 case "rpm": result.stats.retpm = (result.stats.retpm ?? 0) + delta; break;
+                case "epa": result.stats.epa = (result.stats.epa ?? 0) + delta; break;
+                case "epm": result.stats.epm = (result.stats.epm ?? 0) + delta; break;
                 case "ta": result.stats.tacle = (result.stats.tacle ?? 0) + delta; break;
                 case "fu": result.stats.fuite = (result.stats.fuite ?? 0) + delta; break;
 
                 // Éléments
                 case "fo": {
                     result.elements.fo = (result.elements.fo ?? 0) + delta;
+                    // Initiative = somme des 4 éléments ⇒ un delta élémentaire la déplace aussi.
+                    result.stats.ini = (result.stats.ini ?? 0) + delta;
                     if (result.characteristics?.fo) {
                         result.characteristics.fo.items = Math.max(0, (result.characteristics.fo.items ?? 0) + delta);
                         result.characteristics.fo.total = Math.max(0, (result.characteristics.fo.total ?? 0) + delta);
@@ -359,6 +636,7 @@ export function applyVariantsToBuild(
                 }
                 case "in": {
                     result.elements.in = (result.elements.in ?? 0) + delta;
+                    result.stats.ini = (result.stats.ini ?? 0) + delta;
                     if (result.characteristics?.in) {
                         result.characteristics.in.items = Math.max(0, (result.characteristics.in.items ?? 0) + delta);
                         result.characteristics.in.total = Math.max(0, (result.characteristics.in.total ?? 0) + delta);
@@ -367,6 +645,7 @@ export function applyVariantsToBuild(
                 }
                 case "ch": {
                     result.elements.ch = (result.elements.ch ?? 0) + delta;
+                    result.stats.ini = (result.stats.ini ?? 0) + delta;
                     if (result.characteristics?.ch) {
                         result.characteristics.ch.items = Math.max(0, (result.characteristics.ch.items ?? 0) + delta);
                         result.characteristics.ch.total = Math.max(0, (result.characteristics.ch.total ?? 0) + delta);
@@ -375,6 +654,7 @@ export function applyVariantsToBuild(
                 }
                 case "ag": {
                     result.elements.ag = (result.elements.ag ?? 0) + delta;
+                    result.stats.ini = (result.stats.ini ?? 0) + delta;
                     if (result.characteristics?.ag) {
                         result.characteristics.ag.items = Math.max(0, (result.characteristics.ag.items ?? 0) + delta);
                         result.characteristics.ag.total = Math.max(0, (result.characteristics.ag.total ?? 0) + delta);
@@ -405,6 +685,13 @@ export function applyVariantsToBuild(
                 case "rep": result.resists.eau = (result.resists.eau ?? 0) + delta; break;
                 case "rap": result.resists.air = (result.resists.air ?? 0) + delta; break;
 
+                // Résistances secondaires / renvoi (`rc`, `rp`, `rm`, `rd`, `rv`)
+                case "rc": result.resists.critique = (result.resists.critique ?? 0) + delta; break;
+                case "rp": result.resists.poussee = (result.resists.poussee ?? 0) + delta; break;
+                case "rm": result.resists.melee = (result.resists.melee ?? 0) + delta; break;
+                case "rd": result.resists.distance = (result.resists.distance ?? 0) + delta; break;
+                case "rv": result.resists.renvoi = (result.resists.renvoi ?? 0) + delta; break;
+
                 // Dommages fixes & %
                 case "dnf": result.damages.neutre = (result.damages.neutre ?? 0) + delta; break;
                 case "dtf": result.damages.terre = (result.damages.terre ?? 0) + delta; break;
@@ -421,8 +708,8 @@ export function applyVariantsToBuild(
             }
         }
 
-        // Remplacement du slot
-        result.items[slot] = variantItem;
+        // Remplacement du slot — jamais pour le slot **virtuel** des panoplies.
+        if (slot !== SET_BONUS_VIRTUAL_SLOT) result.items[slot] = variantItem;
     }
 
     return result;
@@ -521,6 +808,62 @@ export function normalizeSavedVariants(raw: unknown): SavedVariant {
 /** La variante est-elle vide (aucun slot utile) ? */
 export function hasSavedVariant(variants: SavedVariant | null | undefined): boolean {
     return !!variants && Object.keys(variants).length > 0;
+}
+
+/** Ordre d'équipement stable : sert aux surfaces qui listent une variante (miniature, galerie). */
+const VARIANT_SLOT_ORDER = [
+    "ch", "ca", "am", "a1", "a2", "ce", "bo", "ar", "br", "fa", "mo",
+    "d1", "d2", "d3", "d4", "d5", "d6",
+] as const;
+
+/** Un objet remplacé par la variante, prêt à être affiché (libellé de slot + objet d'origine). */
+export interface SavedVariantDescription {
+    slot: string;
+    slotLabel: string;
+    name: string;
+    originalName: string | null;
+}
+
+/**
+ * Décrit les objets **remplacés** par une variante, dans l'ordre d'équipement.
+ *
+ * Pourquoi : la miniature du profil et la carte de la galerie doivent montrer la variante
+ * **au clic**, sans ouvrir la fiche détaillée (demande user du 25/10/2026). La règle reste
+ * ici — une seule source de vérité, testable sans rendu — et les surfaces se contentent
+ * d'afficher le résultat.
+ *
+ * `originalItems` est optionnel : sans lui, `originalName` vaut `null` (aucune invention
+ * du nom d'origine).
+ */
+export function describeSavedVariants(
+    variants: SavedVariant | null | undefined,
+    originalItems?: Record<string, DofusbookItem | null | undefined> | null,
+): SavedVariantDescription[] {
+    if (!variants) return [];
+
+    const described: SavedVariantDescription[] = [];
+    const seen = new Set<string>();
+
+    const push = (slot: string, name: string) => {
+        seen.add(slot);
+        described.push({
+            slot,
+            slotLabel: VARIANT_SLOTS[slot]?.slotName ?? slot,
+            name,
+            originalName: originalItems?.[slot]?.name ?? null,
+        });
+    };
+
+    for (const slot of VARIANT_SLOT_ORDER) {
+        const item = variants[slot];
+        if (item) push(slot, item.name);
+    }
+    // Ceinture de sécurité : un slot inconnu (donnée ancienne) reste affichable, jamais perdu.
+    for (const [slot, item] of Object.entries(variants)) {
+        if (item && !seen.has(slot)) push(slot, item.name);
+    }
+
+    return described;
 }
 
 /** Deux variantes portent-elles exactement les mêmes objets (évite une écriture inutile) ? */

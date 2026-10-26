@@ -34,9 +34,11 @@ import {
     finishGameDataRun,
     getGameDataRunStates,
     getGameDataWatchState,
+    getItemConditionsWatchState,
     markGameDataRunStale,
     reportGameDataProgress,
 } from "@/server/game-data-sync-state-store";
+import type { ItemConditionsWatchSummary } from "@/lib/item-conditions-watch";
 import {
     enqueueGameDataSync,
     isBackgroundDataset,
@@ -97,6 +99,27 @@ export async function getGameDataSyncStates(): Promise<ActionResponse<GameDataRu
     } catch (error) {
         logger.error("[game-data-sync] getGameDataSyncStates:", error);
         return { success: false, error: "État indisponible" };
+    }
+}
+
+/**
+ * 🧩 **Veille des conditions d'équipement** — instantané lu par le Tableau God.
+ *
+ * Pourquoi cet écran : `evaluateDofusConditions` refuse une condition qu'il ne sait pas évaluer
+ * (fail-closed), mais ce refus n'était **agrégé nulle part**. L'instantané (Redis,
+ * `game-data:watch:item-conditions`, écrit par le cron `data-watch`) dit combien d'objets sont
+ * conditionnés, combien d'atomes sont **non évaluables** (par élément + opérateur) et quels types
+ * d'objet sortent de `VARIANT_SLOTS` — donc **avant** que les variantes se mettent à refuser.
+ *
+ * Lecture seule, fail-open (Redis indisponible ⇒ `data: null`, pas d'erreur bloquante).
+ */
+export async function getItemConditionsWatch(): Promise<ActionResponse<ItemConditionsWatchSummary | null>> {
+    if (!(await canAccessGameData())) return { success: false, error: "Non autorisé" };
+    try {
+        return { success: true, data: await getItemConditionsWatchState() };
+    } catch (error) {
+        logger.error("[game-data-sync] getItemConditionsWatch:", error);
+        return { success: false, error: "Veille indisponible" };
     }
 }
 

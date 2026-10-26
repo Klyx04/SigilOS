@@ -147,7 +147,7 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                 </nav>
             </div>
 
-            <div className="p-4 border-t border-border bg-background/80 backdrop-blur-md flex items-center justify-between gap-2">
+            <div className="p-4 border-t border-border bg-background flex items-center justify-between gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="flex-1 justify-start h-auto p-2 hover:bg-surface group rounded-xl transition-colors">

@@ -2252,6 +2252,11 @@ model GameItem {
   priceNpc      Int?      // `price` DofusDB → prix PNJ de référence
   itemSetId     Int?      // panoplie (-1 = aucune)
   itemSetName   String?   // « Panoplie du Katcheur »
+  // ── Légalité des variantes (25/10/2026) — ADDITIF, siphonné de DofusDB ────────────────
+  criterions    String?   // DSL DofusDB des conditions d'équipement (« CP<12|CM<6 », « pk<2 »)
+  /** Arbre de conditions **structuré** (DofusDude) : `{relation, children:[{operator,int_value,element}]}`. */
+  conditions    Json?
+  twoHanded     Boolean   @default(false) // arme à deux mains (interdit le bouclier)
   isLegendary   Boolean   @default(false)   // familiers / objets légendaires
   isSaleable    Boolean   @default(true)
   superTypeId   Int?      // famille (Arme, Consommable, Ressource…)
@@ -2268,6 +2273,26 @@ model GameItem {
   @@index([level])
   @@index([itemSetId])      // filtre « panoplie » (éditeur FM)
   @@index([superTypeId])    // filtre « famille » (éditeur FM)
+}
+
+/// 🧩 Référentiel DofusDB `/item-sets` — siphonné (lot « stuff & variantes », 26/10/2026).
+///
+/// Pourquoi : le payload Dofusbook ne porte que le **palier actif** d'une panoplie, donc une
+/// variante qui change une pièce ne peut pas être recalculée sans les **paliers complets**.
+///
+/// `tiers` = `[{ count, effects:[{ code, value, effectId }] }]` — `code` **normalisé**
+/// (`fo`, `ini`, `ta`…) par `normalizeStatCode()`, `count` = nombre de pièces exigées.
+/// Sélection du palier : `activeTierCount()` (`src/lib/dofus-set-bonuses.ts`), jamais ici.
+model GameItemSet {
+  id        Int      @id                 // = id DofusDB de la panoplie
+  name      String
+  itemCount Int      @default(0)         // nombre total de pièces de la panoplie
+  itemsIds  Int[]                        // ids Ankama des pièces
+  tiers     Json                         // paliers complets normalisés (voir ci-dessus)
+  dataHash  String?                      // hash du payload : réécriture seulement si changement
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
 }
 
 /// 📚 Référentiel DofusDB `/effects` — siphonné (S2.5bis).

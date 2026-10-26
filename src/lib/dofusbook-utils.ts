@@ -1,4 +1,5 @@
 ﻿import { resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
+import { activeTierCount } from "@/lib/dofus-set-bonuses";
 
 export type DofusbookItemEffect = {
     code: string;
@@ -25,6 +26,18 @@ export type DofusbookItem = {
     level?: number;
     typeName?: string;
     /** Effets au meilleur jet (pour la modale interne, sans appel réseau). */
+    /**
+     * **Conditions d'équipement** fournies par Dofusbook (`items[].constraints.value`) :
+     * ex. Heaume Oplate → `PA < 12` **ou** `PM < 6`. Affichées dans la fiche d'item
+     * (jamais inventées : structure brute conservée).
+     */
+    constraints?: Array<{ name: string; sign: string; value: string }>;
+    /** Arbre de **conditions** structuré (DofusDude) — évalué à la sélection d'une variante. */
+    conditions?: unknown;
+    /** Arme à deux mains (incompatible avec un bouclier). */
+    twoHanded?: boolean;
+    /** Panoplie (id DofusDB) — sert au calcul des panoplies actives. */
+    itemSetId?: number | null;
     effects?: DofusbookItemEffect[];
     /**
      * Icône **locale** de l'objet (asset `/uploads/…` du catalogue) — utilisée en priorité par
@@ -72,6 +85,10 @@ export const DOFUSBOOK_STAT_LABELS: Record<string, string> = {
     rpa: "Retrait PA", rpm: "Retrait PM", pod: "Pods",
     // Réductions de dégâts subis (référentiel 85 / 87)
     rp: "Ré Pouss.", rc: "Ré Crit.",
+    // Mesuré le 25/10/2026 (build `22329554`, page Dofusbook rendue) :
+    //   · `rv` = **Renvoi Dmg** (15 affiché), pas « Ré Armes » ;
+    //   · `rm` / `rd` = % Ré Mêlée / % Ré Dist ; `deg` = **% Do Finaux** (FM « 20% Final »).
+    rv: "Renvoi Dmg", rm: "% Ré Mêlée", rd: "% Ré Dist.", deg: "% Do Finaux",
 };
 
 /**
@@ -264,6 +281,15 @@ function toDofusbookItemEffects(raw: any): DofusbookItemEffect[] | undefined {
 
 function toDofusbookItem(raw: any): DofusbookItem | null {
     if (!raw || raw.id == null) return null;
+    const rawConstraints = Array.isArray(raw.constraints?.value) ? raw.constraints.value : [];
+    const constraints = rawConstraints
+        .map((entry: any) => ({
+            name: String(entry?.name ?? "").trim(),
+            sign: String(entry?.sign ?? "").trim(),
+            value: String(entry?.value ?? "").trim(),
+        }))
+        .filter((entry: { name: string }) => entry.name.length > 0);
+
     return {
         id: Number(raw.id),
         name: String(raw.name || "Équipement"),
@@ -271,6 +297,7 @@ function toDofusbookItem(raw: any): DofusbookItem | null {
         official: Number(raw.official ?? 0),
         level: Number(raw.level ?? raw.item_level ?? 0) || undefined,
         typeName: typeof raw.type === "string" ? raw.type : typeof raw.typeName === "string" ? raw.typeName : undefined,
+        ...(constraints.length > 0 ? { constraints } : {}),
         effects: toDofusbookItemEffects(raw),
     };
 }
@@ -295,8 +322,13 @@ export type DofusbookPreviewData = {
         so: number;
         retpa?: number;
         retpm?: number;
+        /** Esquive PA / PM (socle `floor(Sagesse / 10)` + items + panoplies). */
+        epa?: number;
+        epm?: number;
         tacle?: number;
         fuite?: number;
+        /** Pods apportés par l'**équipement** (items + panoplies) — capacité : `src/lib/dofus-pods.ts`. */
+        pod?: number;
     };
     /** Character real stats = items + capital + scrolls */
     elements: {
@@ -313,6 +345,14 @@ export type DofusbookPreviewData = {
         feu: number;
         eau: number;
         air: number;
+        /** Résistances secondaires : Ré Critique / Ré Poussée (% ou fixe selon la stat). */
+        critique?: number;
+        poussee?: number;
+        /** % Ré Mêlée / % Ré Dist. */
+        melee?: number;
+        distance?: number;
+        /** Renvoi de dommages (`rv`). */
+        renvoi?: number;
     };
     damages?: {
         neutre: number;
@@ -498,13 +538,31 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     // Dofusbook (`équipement` / `base` / `parcho`) — voir `characteristics` plus bas.
     const levelHp = 50 + (level * 5);
     let vit = levelHp;
-    let ini = level * 5; // Rough base initiative approximation
+    /**
+     * Initiative = **somme des quatre caractéristiques élémentaires** (Force + Agilité +
+     * Chance + Intelligence), plus les bonus `ii`/`ini` explicites (items, panoplies, FM).
+     *
+     * ⚠️ Corrigé le 25/10/2026 : le code utilisait `level × 5` (1000 au niveau 200) ⇒ tout
+     * build affichait 1000. Mesure (build `22329554`, page Dofusbook rendue) :
+     * 190 + 185 + 185 + 1323 = **1883** = initiative affichée. Le socle est donc recalculé
+     * **après** capital/parcho/FM, une fois les éléments connus.
+     */
+    let iniBonus = 0;
     let pp = 100;
     let cc = 0;
     let invo = 1;
     let so = 0;
-    let retpa = 0, retpm = 0, tacle = 0, fuite = 0;
+    /**
+     * Pods apportés par l'équipement (caractéristique DofusDB `40` → code `pod`), items **et**
+     * panoplies. La **capacité** se calcule dans `src/lib/dofus-pods.ts` (`1000 + 5 × Force`) :
+     * on ne stocke ici que l'apport de l'équipement.
+     */
+    let pod = 0;
+    let retpa = 0, retpm = 0, epa = 0, epm = 0, tacle = 0, fuite = 0;
     let resN = 0, resT = 0, resF = 0, resE = 0, resA = 0;
+    // Résistances secondaires / renvoi (mesurées le 25/10/2026 sur le build `22329554` :
+    // rc −16+35 = 19 « Ré Crit. », rp −40+8+40 = 8 « Ré Pouss. », rm 7, rd 4, rv 15 « Renvoi »).
+    let resCrit = 0, resPouss = 0, resMelee = 0, resDist = 0, renvoi = 0;
 
     // Damages
     let dn = 0, dt = 0, df = 0, de = 0, da = 0, dom = 0;
@@ -561,6 +619,12 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             case 'rfp': resF += val; break;  // résistance feu %
             case 'rep': resE += val; break;  // résistance eau %
             case 'rap': resA += val; break;  // résistance air %
+            // Résistances secondaires / renvoi (codes mesurés dans les payloads réels)
+            case 'rc': resCrit += val; break;   // Ré Critique
+            case 'rp': resPouss += val; break;  // Ré Poussée
+            case 'rm': resMelee += val; break;  // % Ré Mêlée
+            case 'rd': resDist += val; break;   // % Ré Dist.
+            case 'rv': renvoi += val; break;    // Renvoi de dommages
             // Damages
             case 'dnf': dn += val; break;
             case 'dtf': dt += val; break;
@@ -576,15 +640,24 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             case 'dm':  do_melee += val; break;
             case 'di':  do_dist += val; break;
             case 'dd':  do_dist += val; break;  // DofusBook uses 'dd' for % Do Dist.
-            // Secondary
-            case 'ini': ini += val; break;
+            // Secondaires — ⚠️ Dofusbook utilise **deux codes** par statistique : l'ancien
+            // (`ini`, `invo`) et l'actuel (`ii`, `ic`). Les panoplies portent aussi `ii`/`ic`
+            // (mesuré le 25/10/2026 sur le build `1awml` : `Panoplie de Danathor` = `ii+500`,
+            // `Panoplie de la Fosse` = `ic+1`).
+            case 'ini':
+            case 'ii': iniBonus += val; break;
             case 'cc': cc += val; break;
             case 'pp': pp += val; break;
-            case 'invo': invo += val; break;
+            case 'invo':
+            case 'ic': invo += val; break;
             case 'so': so += val; break;
+            // Pods (capacité d'inventaire) — la formule vit dans `src/lib/dofus-pods.ts`.
+            case 'pod': pod += val; break;
             // Retrait / esquive / tacle / fuite (Dofusbook: rpa, rpm, epa, epm, ta, fu)
             case 'rpa': retpa += val; break;
             case 'rpm': retpm += val; break;
+            case 'epa': epa += val; break;
+            case 'epm': epm += val; break;
             case 'ta': tacle += val; break;
             case 'fu': fuite += val; break;
         }
@@ -618,19 +691,36 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     if (Array.isArray(raw.cloths)) {
         raw.cloths.forEach((cloth: any) => {
             const clothItemIds = new Set((cloth.items || []).map((i: any) => Number(i.id)));
-            const equippedCount = Object.values(stuffItemsSlots).filter(
-                id => clothItemIds.has(Number(id))
-            ).length;
+            // 🧮 Pièces **distinctes** : un même anneau équipé en `a1` ET `a2` ne compte qu'une
+            // seule pièce de panoplie (règle du jeu — doc « Comprendre les interactions
+            // d'équipement dans DOFUS », § Bonus de panoplie).
+            const equippedClothIds = new Set(
+                Object.values(stuffItemsSlots)
+                    .map((id) => Number(id))
+                    .filter((id) => clothItemIds.has(id)),
+            );
+            const equippedCount = equippedClothIds.size;
 
             const total = cloth.count_item || cloth.items?.length || 0;
             const clothName = cloth.name || "Panoplie inconnue";
 
-            // Apply ALL cumulative bonuses up to equippedCount
-            // Dofus pano bonuses are cumulative: 3 pieces = 2-piece bonus + 3-piece bonus
-            const bonuses = (cloth.effects || []).filter(
-                (e: any) => Number(e.count) <= equippedCount
+            /**
+             * ⚠️ **Un palier remplace le précédent** — les lignes de paliers ne s'additionnent
+             * pas (Dofus 3.7, doc « Comprendre les interactions d'équipement » § Bonus).
+             *
+             * La décision (plus haut palier atteint, panoplie active dès 2 pièces) vient de
+             * `activeTierCount()` (`src/lib/dofus-set-bonuses.ts`) : c'est **la même règle**
+             * que celle appliquée au recalcul d'une variante. Ne pas la réécrire ici.
+             */
+            const clothEffects: any[] = Array.isArray(cloth.effects) ? cloth.effects : [];
+            const activeTier = activeTierCount(
+                clothEffects.map((e: any) => ({ count: Number(e.count) || 0 })),
+                equippedCount,
             );
-            
+            const bonuses = activeTier > 0
+                ? clothEffects.filter((e: any) => (Number(e.count) || 0) === activeTier)
+                : [];
+
             const clothBonuses: Record<string, number> = {};
             bonuses.forEach((e: any) => {
                 sumEffect(e);
@@ -679,7 +769,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         el_ag += capital.ag + scrollPoints.ag;
         el_sa += capital.sa + scrollPoints.sa;
         el_pu += capital.pu + scrollPoints.pu;
-        ini   += base('ini') + scroll('ini');
+        iniBonus += base('ini') + scroll('ini');
     }
     
     // Add Chance / 10 to Prospection
@@ -701,13 +791,15 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     el_ch += Number(fmGlobal.ch)  || 0;
     el_ag += Number(fmGlobal.ag)  || 0;
     el_pu += Number(fmGlobal.pu)  || 0;
-    ini   += Number(fmGlobal.ini) || 0;
+    iniBonus += Number(fmGlobal.ini) || 0;
     cc    += Number(fmGlobal.cc)  || 0;
     pp    += Number(fmGlobal.pp)  || 0;
     invo  += Number(fmGlobal.invo)|| 0;
     so    += Number(fmGlobal.so)  || 0;
     retpa += Number(fmGlobal.rpa) || 0;
     retpm += Number(fmGlobal.rpm) || 0;
+    epa   += Number(fmGlobal.epa) || 0;
+    epm   += Number(fmGlobal.epm) || 0;
     tacle += Number(fmGlobal.ta)  || 0;
     fuite += Number(fmGlobal.fu)  || 0;
     dn    += Number(fmGlobal.dnf) || 0;
@@ -722,6 +814,11 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     do_sorts += Number(fmGlobal.ds) || 0;
     do_melee += Number(fmGlobal.dm) || 0;
     do_dist  += Number(fmGlobal.di) || Number(fmGlobal.dd) || 0;
+    resCrit  += Number(fmGlobal.rc) || 0;
+    resPouss += Number(fmGlobal.rp) || 0;
+    resMelee += Number(fmGlobal.rm) || 0;
+    resDist  += Number(fmGlobal.rd) || 0;
+    renvoi   += Number(fmGlobal.rv) || 0;
 
     // B. Per-item exo FM — path: raw.stuff.stuffFmItem (NOT raw.stuff.stuffFm.fmItem!)
     // We already skipped the base values in sumEffect, so now we just blindly ADD every fm value 
@@ -743,13 +840,15 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             resF  += Number(fmStats.rfp) || 0;
             resE  += Number(fmStats.rep) || 0;
             resA  += Number(fmStats.rap) || 0;
-            ini   += Number(fmStats.ini) || 0;
+            iniBonus += Number(fmStats.ini) || 0;
             cc    += Number(fmStats.cc)  || 0;
             pp    += Number(fmStats.pp)  || 0;
             invo  += Number(fmStats.invo)|| 0;
             so    += Number(fmStats.so)  || 0;
             retpa += Number(fmStats.rpa) || 0;
             retpm += Number(fmStats.rpm) || 0;
+            epa   += Number(fmStats.epa) || 0;
+            epm   += Number(fmStats.epm) || 0;
             tacle += Number(fmStats.ta)  || 0;
             fuite += Number(fmStats.fu)  || 0;
             dn    += Number(fmStats.dnf) || 0;
@@ -764,8 +863,32 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             do_sorts += Number(fmStats.ds) || 0;
             do_melee += Number(fmStats.dm) || 0;
             do_dist  += Number(fmStats.di) || Number(fmStats.dd) || 0;
+            resCrit  += Number(fmStats.rc) || 0;
+            resPouss += Number(fmStats.rp) || 0;
+            resMelee += Number(fmStats.rm) || 0;
+            resDist  += Number(fmStats.rd) || 0;
+            renvoi   += Number(fmStats.rv) || 0;
         });
     }
+
+    // 🧮 5bis. Socles « secondaires » — mesurés le 25/10/2026 sur le build `22329554`
+    // (page Dofusbook rendue, valeurs exactes ; le payload ne contient que les items/panoplies) :
+    //   · Esquive PA/PM **et** Retrait PA/PM = floor(Sagesse / 10)  (405 → 40)
+    //   · Tacle **et** Fuite                 = floor(Agilité / 10)  (185 → 18)
+    // Sans ces socles : Retrait 0/28 au lieu de 40/68, Esquive 0/46 au lieu de 40/86,
+    // Tacle 40 au lieu de 58, Fuite 15 au lieu de 33.
+    const sagesseBase = Math.floor(el_sa / 10);
+    const agiliteBase = Math.floor(el_ag / 10);
+    retpa += sagesseBase;
+    retpm += sagesseBase;
+    epa += sagesseBase;
+    epm += sagesseBase;
+    tacle += agiliteBase;
+    fuite += agiliteBase;
+
+    // 🧮 5ter. Initiative = somme des quatre éléments + bonus `ii`/`ini` explicites
+    // (1883 = 190 Force + 185 Agilité + 185 Chance + 1323 Intelligence sur le build mesuré).
+    const ini = el_fo + el_in + el_ch + el_ag + iniBonus;
 
     // 🔧 6. Extract true Exo/Over for the FM Panel
     // We compare stuffFmItem (full modified stats) with the base item effects
@@ -864,9 +987,9 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         level,
         classId: validClassId ?? 0,
         className: validClassId ? getClassName(validClassId) : "",
-        stats: { pa, pm, po, vit, ini, pp, cc, invo, so, retpa, retpm, tacle, fuite },
+        stats: { pa, pm, po, vit, ini, pp, cc, invo, so, retpa, retpm, epa, epm, tacle, fuite, pod },
         elements: { fo: el_fo, in: el_in, ch: el_ch, ag: el_ag, sa: el_sa, pu: el_pu },
-        resists: { neutre: resN, terre: resT, feu: resF, eau: resE, air: resA },
+        resists: { neutre: resN, terre: resT, feu: resF, eau: resE, air: resA, critique: resCrit, poussee: resPouss, melee: resMelee, distance: resDist, renvoi },
         damages: { neutre: dn, terre: dt, feu: df, eau: de, air: da, general: dom, critique: dc, poussee: dp, armes: do_armes, sorts: do_sorts, melee: do_melee, distance: do_dist },
         items: itemsMap,
         cloths: activeCloths,

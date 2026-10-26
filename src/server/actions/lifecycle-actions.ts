@@ -526,6 +526,12 @@ export async function purgeMemberFromGuild(
             },
         });
 
+        // Carte Discord du cycle de vie (type DELETED). Cette action ne notifiait pas, alors que
+        // `deleteProfileByAdmin` (table God) le fait depuis toujours : même événement, deux
+        // conduites (mesure du 25/10/2026). `sendLifecycleNotification` est fail-safe (pas de
+        // salon configuré ou Discord indisponible ⇒ la suppression reste acquise).
+        await sendLifecycleNotification(guildId, target, "DELETED", ctx.name ?? "Un administrateur");
+
         revalidatePath(`/dashboard/${guildId}/admin/members`);
         return { success: true };
     } catch (e) {

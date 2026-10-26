@@ -371,6 +371,93 @@ export function rosterCounts(rows: readonly RosterRow[]): RosterCounts {
     };
 }
 
+// ─── Exclusions actives (tombstones) ───────────────────────────────────────────────────────────
+
+/**
+ * Exclusion **active** d'une guilde (`GuildMemberBan` avec `liftedAt: null`), réduite à ce que la
+ * liste unifiée doit afficher.
+ */
+export interface RosterExclusion {
+    discordId: string;
+    /** Pseudo capturé au moment de l'exclusion (`memberName`, #105) — `null` si absent. */
+    memberName: string | null;
+    reason: string;
+    /** ISO 8601 — date de pose de l'exclusion. */
+    createdAt: string;
+}
+
+/**
+ * Intègre les exclusions actives au roster, pour qu'un exclu **reste visible** dans la liste.
+ *
+ * 🐛 Mesure du 25/10/2026 (cas bêta réel) : un membre dont le profil a été supprimé par un admin
+ * garde une exclusion (`GuildMemberBan.reason = MEMBER_DELETED`) qui lui ferme le dashboard, mais
+ * son profil n'existe plus ⇒ il n'apparaissait dans **aucune** ligne : le compteur « Exclus »
+ * affichait 0 et aucun staff ne pouvait lever l'exclusion (seul le panneau God la voyait).
+ * Second cas mesuré : une ligne de registre pouvait afficher « Actif » alors que la porte refusait
+ * le membre — deux sources qui se contredisaient.
+ *
+ * Règles :
+ *  - exclusion dont le `discordId` **correspond** à une ligne existante ⇒ statut forcé à `BANNED` ;
+ *  - exclusion **sans** ligne ⇒ ligne synthétique non-dashboard (`profileId: null`), ouvrable en
+ *    modale comme n'importe quel membre hors dashboard ;
+ *  - aucun doublon : une exclusion déjà couverte par une ligne `BANNED` ne crée rien.
+ *
+ * Pure : ne mute jamais `rows` et retourne un **nouveau** tableau (lignes non concernées réutilisées).
+ */
+export function mergeExclusions(
+    rows: readonly RosterRow[],
+    exclusions: readonly RosterExclusion[]
+): RosterRow[] {
+    if (exclusions.length === 0) return [...rows];
+
+    const indexByDiscordId = new Map<string, number>();
+    rows.forEach((row, index) => {
+        if (row.discordId) indexByDiscordId.set(row.discordId, index);
+    });
+
+    const merged: RosterRow[] = [...rows];
+    const injected = new Set<string>();
+
+    for (const exclusion of exclusions) {
+        if (!exclusion.discordId) continue;
+
+        const existingIndex = indexByDiscordId.get(exclusion.discordId);
+        if (existingIndex !== undefined) {
+            const row = merged[existingIndex];
+            if (row.status !== "BANNED") merged[existingIndex] = { ...row, status: "BANNED" };
+            continue;
+        }
+
+        if (injected.has(exclusion.discordId)) continue;
+        injected.add(exclusion.discordId);
+        merged.push({
+            key: `discord:${exclusion.discordId}`,
+            profileId: null,
+            discordId: exclusion.discordId,
+            userId: null,
+            displayName: exclusion.memberName ?? "Membre exclu",
+            username: null,
+            avatar: null,
+            status: "BANNED",
+            dashboard: false,
+            roles: [],
+            joinedAt: null,
+            seniorityDays: null,
+            pseudoDofus: null,
+            discordNickname: exclusion.memberName,
+            ankamaId: null,
+            trial: null,
+            recruiter: null,
+            mules: [],
+            comments: [],
+            vacationStart: null,
+            vacationEnd: null,
+        });
+    }
+
+    return merged;
+}
+
 /** Compteurs **facetés** par statut : calculés sur les lignes qui passent **toutes les autres**
  * facettes (recherche, rôle, inscription) — le nombre annoncé est donc celui qu'on voit après clic. */
 export function rosterStatusCounts(

@@ -88,12 +88,21 @@ export const fr = {
         sessionExpiredDesc: "Ta session Discord a expiré. Reconnecte-toi pour continuer.",
         connectWithDiscord: "Se connecter avec Discord",
         safeAccessNotice: "Accès sécurisé via l'API OAuth2 officielle de Discord.",
+        // Mesure du 25/10/2026 : des users racontent « on me demande d'activer la double
+        // authentification pour me connecter ». Le blocage est en réalité le contrôle de
+        // **vérification de compte** de Discord (« Tu dois vérifier ton compte afin de
+        // réaliser cette action »), qui se produit AVANT notre callback : ni 2FA, ni SigilOS
+        // (aucun accès en lecture/écriture privilégié pendant le login — cf. src/auth.ts).
+        discordVerificationNotice: "Si Discord te demande de vérifier ton compte ou t'envoie un code, c'est le contrôle de sécurité de ton compte Discord (nouvel appareil, VPN). SigilOS ne voit jamais ce code.",
         errorTitleDefault: "Oups, petit accroc !",
         errorMessageDefault: "Une erreur d'authentification est survenue. Réessayez, ça devrait passer.",
         errorOAuthTitle: "Connexion interrompue",
         errorOAuthDesc: "L'échange avec Discord a été coupé. Vous avez peut-être annulé la connexion ou le service a eu un hoquet.",
-        errorUnverifiedTitle: "Email Discord non vérifié",
-        errorUnverifiedDesc: "Discord exige que votre adresse email soit vérifiée pour utiliser l'authentification. Ouvrez Discord → Paramètres → Mon Compte → Vérifier votre email, puis réessayez.",
+        // Discord parle de « vérifier ton compte » (e-mail ET, selon l'action, numéro de
+        // téléphone) : l'ancien libellé ne parlait que d'e-mail, ce qui envoyait les users
+        // activer une 2FA qui ne débloque rien. Voir discordVerificationNotice.
+        errorUnverifiedTitle: "Compte Discord non vérifié",
+        errorUnverifiedDesc: "Discord demande de vérifier votre compte avant d'autoriser la connexion. Ouvrez Discord → Paramètres → Mon compte : validez votre email, puis ajoutez un numéro de téléphone si Discord le réclame. La double authentification ne remplace pas cette étape. Réessayez ensuite.",
         errorAccessDeniedTitle: "Accès Refusé",
         errorAccessDeniedDesc: "Désolé, mais vous n'avez pas les accréditations pour entrer ici. Il faut montrer patte blanche !",
         errorBannedTitle: "Accès Révoqué",

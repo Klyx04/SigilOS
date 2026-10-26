@@ -1,0 +1,12 @@
+-- Légalité des variantes (suite) : **arbre de conditions structuré** fourni par DofusDude.
+--
+-- Pourquoi une deuxième colonne ? Le DSL DofusDB (`criterions`, migration précédente) est une
+-- chaîne à codes courts (`CP<12|CM<6`) dont le vocabulaire n'est pas documenté. DofusDude expose
+-- le **même** contenu sous forme d'arbre : `{ relation, children:[{ operator, int_value,
+-- element:{ name, id } }] }` — noms FR (`PA`, `PM`, `Sagesse`, `Bonus de panoplies`…) ⇒ aucune
+-- table de codes écrite à la main. On garde `criterions` (brut, audit) **et** `conditions`
+-- (structuré, évaluation + affichage).
+--
+-- Migration **ADDITIVE** : une colonne `JSONB` nullable, aucune ligne réécrite, aucun index
+-- (lecture à l'unité par `ankamaId`). Écrite à la main (cf. `docs/agents/prisma-schema-change.md` §0).
+ALTER TABLE "GameItem" ADD COLUMN IF NOT EXISTS "conditions" JSONB;

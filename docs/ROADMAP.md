@@ -262,7 +262,7 @@
 | `V-A/V-B` | Rush Sylvestre — agrégation unique + ids/icônes | 10/10/2026 |
 | `R-1 → R-4` | Raccord DofusDB (résistances, tacle/fuite, critiques, icônes) | 15/10/2026 |
 | `STATS-1` | Socle de lecture des stats + 4 bugs d'exploitation (montures 5401, panoplies 9 406 PV, placeholder vert, inventaire siphon, statut PARTIAL, sorts communs officiels) — `fix/socle-stats-siphons`, **0 migration** | 26/10/2026 |
-| `STATS-2` | Encyclopédie + Marché branchés sur le socle (`nativeEffects` résolus transmis par `/api/dofusdb/search`, `% Do Sorts/Armes/Mêlée` avec asset, `isStatBearingNativeEffect` écarte les métadonnées à valeur) — **0 migration** | 26/10/2026 |
+| `STATS-2` | Encyclopédie + Marché branchés sur le socle (`nativeEffects` résolus transmis par `/api/dofusdb/search`, `% Do Sorts/Armes/Mêlée` avec asset, `isStatBearingNativeEffect` écarte les métadonnées à valeur) **+ carte de build : les codes Dofusbook non-stat (`at` = attitude, `sp`) sortent de la liste chiffrée** — **0 migration** | 26/10/2026 |
 | `DOFUSBOOK-2` | Stats Dofusbook : initiative et socles secondaires (détail dans `journal-sessions-2026.md`) | 25/10/2026 |
 | `CAL-1` | Calendrier : statut décidé à un seul endroit + messages Discord | 25/10/2026 |
 | `SLASH-1` | Commandes slash alignées sur Discord (2 PR) | 24/10/2026 |

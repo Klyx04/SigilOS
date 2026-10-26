@@ -24,7 +24,8 @@
 
 1. `npx prisma migrate deploy` (**3** migrations additives : `criterions`/`twoHanded`/`conditions`
    puis `20270120000000_item_sets`) puis `npx prisma generate`.
-2. `node scripts/siphon-item-conditions.mjs --apply` (264 objets attendus).
+2. `GET /api/cron/siphon-item-conditions?apply=1` (264 objets attendus ; sans `apply` = dry-run).
+   En local : `npm run siphon:item-conditions -- --apply`.
 3. **En bêta/prod (conteneur)** : `curl -H "x-cron-secret: $CRON_SECRET"
    "https://beta.sigilos.fr/api/cron/siphon-item-sets?apply=1"` (**938 panoplies** attendues ;
    sans `apply` = dry-run). En local : `npm run siphon:item-sets -- --apply`.

@@ -260,7 +260,7 @@ export async function siphonGameItemsBatchCore(
         const itemSetName = typeof raw.itemSet?.name?.fr === 'string' ? raw.itemSet.name.fr : null;
         // Légalité des variantes (25/10/2026) : conditions d'objet (DSL DofusDB) + arme à deux
         // mains. L'arbre **structuré** (`conditions`) vient d'un second siphon
-        // (`scripts/siphon-item-conditions.mjs`, source DofusDude).
+        // (`src/lib/item-conditions-siphon.ts`, source DofusDude).
         const criterions =
             typeof raw.criterions === 'string' && raw.criterions.trim().length > 0
                 ? raw.criterions.trim().slice(0, 500)

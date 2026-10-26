@@ -144,7 +144,8 @@ Kamas, Niveau d'alignement` ; opérateurs `< = >` ; relations `and` / `or`.
   effectif** : PA, PM, PV, Sagesse/Force/Int/Chance/Agilité, **panoplies actives**, niveau).
 - **Fail-closed** : un élément hors contexte d'un stuff (kamas, abonnement, alignement) ou un
   opérateur inconnu ⇒ `ok:false` (jamais deviné).
-- Siphon : `scripts/siphon-item-conditions.mjs` (`--apply`) → `GameItem.conditions` (JSONB).
+- Siphon : `GET /api/cron/siphon-item-conditions?apply=1` (en local : `npm run siphon:item-conditions -- --apply`)
+  → `GameItem.conditions` (JSONB).
   Le DSL brut reste stocké dans `GameItem.criterions` (audit).
 - Application : le sélecteur **affiche** la condition et **refuse** la sélection ; le serveur
   (`saveBuildVariant`) **revalide** (conditions, arme à deux mains vs bouclier, Prysmaradite).

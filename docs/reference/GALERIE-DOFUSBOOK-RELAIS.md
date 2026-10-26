@@ -363,3 +363,188 @@ proxy assets (spells/12160?url=…) .................... 200 image/webp · 2 484
 ```
 
 
+
+---
+
+## 9. Bonus de panoplie recalculés dans une variante (26/10/2026)
+
+Le payload Dofusbook ne contient que le **palier actif** d'une panoplie (`cloths[].effects[]`
+avec `count`) : il ne permet donc **pas** de recalculer les bonus quand une variante remplace
+une pièce. La source des paliers complets est **DofusDB** (`/item-sets`), siphonnée en base.
+
+| Élément | Où |
+|---|---|
+| Référentiel (`id` = id DofusDB, `tiers`, `itemsIds`) | `GameItemSet` — migration additive `20270120000000_item_sets` |
+| Siphon (940 panoplies, strip immédiat des objets imbriqués) | `src/lib/item-sets-siphon.ts` · `npm run siphon:item-sets` (`--apply` pour écrire) |
+| Règle unique (≥ 2 pièces distinctes, palier le plus haut, jamais d'addition) | `src/lib/dofus-set-bonuses.ts` |
+| Résolution serveur (2 requêtes bornées, par page de galerie) | `src/server/build-item-sets.ts` |
+| Recalcul + refus | `applyVariantsToBuild(base, variants, itemSets)` |
+
+**Mesures du 26/10/2026.** `GET /item-sets/242` (Danathor) : `effects` est un **tableau indexé
+par palier** (`index = pièces − 1`), ligne = `{ from, characteristic, effectId }` ; `56 ko` par
+panoplie (elle embarque ses objets complets) ⇒ **53 Mo** pour les 940 ; `$select` **n'est pas
+supporté**. `GET /characteristics` (123 entrées) a permis de normaliser `characteristic` en code
+court — dont `85` = « Poussée (fixe) » qui était mappé sur les **dommages** de poussée (corrigé).
+Siphon appliqué : **938 panoplies** écrites, **2 refus** explicites (`38` absent du référentiel,
+`121` = multiplicateur de dommages reçus, hors modèle) ; **2ᵉ passage : 0 écriture** (idempotent).
+
+**Fail-closed.** Une panoplie portée mais absente du référentiel, ou un build dont les `cloths`
+ne sont pas expliqués par le contexte, rendent `applyVariantsToBuild` **`null`** : la variante
+n'est pas calculée et la miniature l'annonce (« Panoplie indisponible »), la fiche affiche le
+stuff d'origine. `saveBuildVariant` refuse la même situation côté serveur, et évalue désormais
+les conditions d'objet sur les stats **effectives** (bonus recalculés), plus sur celles du stuff
+d'origine.
+
+
+---
+
+## 10. Pods et veille des conditions (26/10/2026)
+
+### Pods — une **capacité**, pas une charge
+
+Le payload Dofusbook ne porte **aucun poids**. Les deux builds de référence tombent exactement
+sur `1000 + 5 × Force` : **1950** pour 190 de Force (`22329554`) et **1250** pour 50 (`23582119`).
+C'est donc une **capacité d'inventaire** : `GameItem.realWeight` (les kilos) n'entre pas dans le
+calcul, seuls les **pods d'équipement** (caractéristique DofusDB `40`, code `pod`) s'ajoutent.
+
+| Élément | Où |
+|---|---|
+| Règle pure (`—` si Force inconnue, bornes d'affichage) | `src/lib/dofus-pods.ts` |
+| Apport de l'équipement (items **et** panoplies) | `DofusbookPreviewData.stats.pod` (parseur) |
+| Affichage (ligne « Pods » de la fiche, recalculée avec la variante) | `dofusbook-preview.tsx` |
+
+⚠️ La page Dofusbook reste **inaccessible aux robots** (WAF 403) : la formule est prouvée sur **deux**
+builds exacts et verrouillée par test, pas sur un échantillon large.
+
+### Veille des conditions — alerter sur la **nouveauté**, jamais sur l'état
+
+| Élément | Où |
+|---|---|
+| Atomes de condition (élément + opérateur + évaluabilité) | `listConditionAtoms()` — `src/lib/dofus-conditions.ts` |
+| Agrégation par élément/opérateur + types hors slots | `src/lib/item-conditions-watch.ts` |
+| Instantané (Redis, fail-open) | `game-data:watch:item-conditions` — `game-data-sync-state-store.ts` |
+| Recalcul + diff | `src/server/item-conditions-watch.ts` |
+| Planification + alerte God | cron `data-watch` (hebdo, dry-run) |
+
+Mesure du 26/10/2026 en base : **264** objets conditionnés · **403** atomes · **12** non évaluables
+(`Être abonné` 8, `Niveau d'alignement` 2, `Être niveau {0} ou plus` 1, `Kamas` 1) · **13** types
+d'objet hors `VARIANT_SLOTS`. **2ᵉ passe : `changed=false`, 0 nouveauté** — le bruit connu (caution,
+certificat, bannière de percepteur…) ne réveille pas le cron ; seule une **nouveauté** (atome ou type
+jamais vu) part dans l'alerte.
+
+⚠️ Deux pièges corrigés le même jour, tous deux invisibles sans test : une `relation` inconnue était
+traitée comme un **ET** (elle est maintenant refusée), et `Number(null) === 0` faisait satisfaire
+« PA > -1 » **et** affichait `1000` de pods sur une Force absente.
+
+
+
+### Plafonds du jeu — 12 PA / 6 PM / 6 PO / 6 invocations (26/10/2026)
+
+Un build **ne peut pas** dépasser ces valeurs : au-delà, le bonus d'équipement n'est pas compté
+(Dofus Wiki, `Characteristic` : § Action Point « maximum of **12 AP** », § Movement Point
+« maximum of **6 MP** », § Range « maximum of **6 Range** », § Summons « maximum of **6 Summons** » —
+tous avec « the bonus will not be included »).
+
+| Élément | Où |
+|---|---|
+| Règle pure (`capActionPoints`, `capMovementPoints`, `capRange`, `capSummons`) | `src/lib/dofus-caps.ts` |
+| Affichage plafonné (badge de carte, pastilles, fiche) | `dofusbook-preview.tsx` |
+| Point excédentaire **dit** à l'écran (`+1 ignoré (plafond 12)`) | lignes PA/PM/PO/Invocations de la fiche |
+
+⚠️ Le total brut reste dans les données (`stats.pa`), seul l'**affichage** plafonne : on ne
+réécrit pas un calcul, on explique ce que le jeu ignore. Les conditions d'objet (`PA < 12`) sont
+évaluées sur la valeur **plafonnée**, comme en jeu.
+
+### Refus de variante — la cause est dite, et rattrapée (26/10/2026)
+
+Le refus fail-closed était muet (« Panoplie indisponible »). Il distingue maintenant **trois
+causes** (`explainVariantRefusal`, `src/lib/dofus-variant-utils.ts`), affichées dans le badge et
+détaillées dans l'infobulle :
+
+| Code | Message | Ce qui est dit à l'utilisateur |
+|---|---|---|
+| `no-set-context` | « Panoplies non chargées — stuff d'origine affiché » | le build porte N panoplies, leurs paliers ne sont pas chargés → recharger la page |
+| `unknown-sets` | « Panoplie non reconnue — stuff d'origine affiché » | l'id de panoplie manquant → demander une synchronisation |
+| `incoherent-context` | « Panoplies incohérentes — stuff d'origine affiché » | N déclarées / M retrouvées, avec les noms non expliqués |
+
+**Rattrapage** : si la page a été rendue **avant** la synchronisation, la miniature demande
+elle-même le contexte (`getVariantItemSets`, lecture seule bornée à 64 ids) et la variante
+redevient calculable **sans rechargement**.
+
+⚠️ Le même refus reste **serveur** : `saveBuildVariant` refuse une variante non calculable
+
+### Conditions d'équipement — ce qui est évalué, ce qui est refusé (26/10/2026)
+
+Mesure en base sur les **264** objets conditionnés : **252 évalués**, **12 refusés** — et les 12 sont
+tous des propriétés **hors d'un build** (impossible à déduire d'un stuff) :
+
+| Condition | Objets | Traitement |
+|---|---|---|
+| « Être abonné = 1 » | 8 (compagnons, armes basses) | non évaluable ⇒ sélection **refusée**, condition **affichée** |
+| « Niveau d'alignement > N » | 2 (Cape de Mori Arty, Cape du Justicier) | idem |
+| « Kamas > 49 999 » | 1 (Bouclier Fi'Squale) | idem |
+| « Être niveau {0} ou plus » | 1 (Bâton de l'apprenti pèlerin) | placeholder non documenté ⇒ refus, jamais deviné |
+
+**Trophées « Bonus de panoplies < 2 » : évalués.** Mesuré sur le *Dévastateur Feu majeur* :
+accepté à **0** et **1** panoplie active, **refusé dès 2** — c'est la règle du jeu, pas un blocage
+de l'outil (le serveur revalide, `saveBuildVariant`).
+
+⚠️ Ces refus sont **visibles** : la condition est rendue en français dans la fiche de l'objet et la
+sélection est bloquée avec le motif. Aucune n'est « silencieusement acceptée ».
+
+### Rafraîchissement forcé — worker **redéployé** le 26/10/2026
+
+« Actualiser » ne changeait rien après une modification sur Dofusbook. Mesure avant correctif : l'URL
+signée appelée avec `force=1` renvoyait **`X-SigilOS-Cache: HIT`** (au lieu de `BYPASS`) et **le même
+payload** que sans le drapeau ⇒ la version **déployée** du worker était antérieure au correctif du
+25/10 (le code du dépôt, lui, était bon).
+
+| Étape | Preuve |
+|---|---|
+| Logique du dépôt vérifiée **en local** (`wrangler dev --local`) | `MISS` → `HIT` → **`BYPASS`** sur `force=1` |
+| **Déploiement** (`wrangler deploy`, même nom `test-dofusbook`) | Upload 6,13 KiB · **version `175b2e54`** |
+| Contrôle **en production** | `force=1` → **`X-SigilOS-Cache: BYPASS`** ✔ · `X-Proxied-By: SigilOS-CF-Worker` |
+
+⚠️ **En-tête à lire : `X-SigilOS-Cache`** (`HIT`/`MISS`/`BYPASS`/`STALE`), pas `X-Cache` — un diagnostic
+précédent a conclu à tort « ce n'est pas notre worker » en cherchant le mauvais nom.
+
+⚠️ **Blocage source (mesuré juste après le déploiement)** : sur `BYPASS`, Dofusbook répond **403**
+(page de blocage 4 554 o) — y compris depuis une **IP résidentielle** et même sur la page d'accueil du
+site. C'est un **blocage temporaire côté Dofusbook** (bot-management / limiteur, vraisemblablement
+aggravé par nos sondes répétées), pas un défaut du relais. Le produit dégrade proprement : la fiche
+garde les dernières données connues et affiche un avertissement ; il suffit de réessayer plus tard.
+
+Ce que le produit dit maintenant (au lieu d'un faux « aucun changement ») :
+
+- **UI** : à l'issue d'un `force`, si le payload est identique → avertissement « **Rien de neuf reçu
+  du relais Dofusbook** — s'il sert encore son cache, réessaie plus tard (ou fais redéployer le relais). »
+- **Serveur** : `logger.warn` « rafraîchissement forcé sans changement — relais probablement en cache »
+  (avec le `buildId`), pour que l'ops le voie sans capture d'écran.
+
+
+
+⚠️ Le même refus reste **serveur** : `saveBuildVariant` refuse une variante non calculable
+(« Bonus de panoplie indisponibles pour ce build — variante refusée »).
+
+### Variante partagée — image OG et embed Discord (26/10/2026)
+
+`resolveVariantPreview` (`src/server/build-item-sets.ts`) est **la** règle : elle rend l'aperçu
+effectif (variante appliquée) **ou** le stuff d'origine, avec la raison du refus. Trois usages :
+
+| Surface | Comportement |
+|---|---|
+| Image OG (`/api/og/build/[id]`) | icônes de la **variante** + badge « VARIANTE » — posé **seulement** si le calcul a réussi |
+| Embed Discord (`shareGalleryItemOnDiscord`) | titre `… · 🟡 Variante`, stats **effectives**, champ « 🟡 Variante proposée » (objets remplacés, 6 max + « … et N autre(s) ») |
+| Fiche / galerie | déjà couvertes (bascule Stuff ⇄ Variante) |
+
+⚠️ **Fail-closed** : variante non calculable ⇒ **aucun tag**, l'aperçu reste celui du stuff d'origine.
+Un tag qui mentirait sur les stats serait pire que pas de tag.
+
+### Veille des conditions visible côté God (26/10/2026)
+
+`getItemConditionsWatch()` (`src/server/actions/game-data-sync-actions.ts`, réservé à
+`canAccessGameData`) lit l'instantané Redis ; le **Tableau God** (`GameDataSyncStatePanel`) affiche
+un bandeau : objets conditionnés, **atomes non évaluables** (détail élément + opérateur, 4 premiers),
+types d'objet hors variantes, date du calcul. **Lecture seule** : la source reste le cron
+`data-watch` (aucun bouton d'écriture ici).
+

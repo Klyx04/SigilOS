@@ -23,11 +23,20 @@ async function remoteTotal(endpoint: string): Promise<number | null> {
 }
 
 /**
- * 🔭 CRON hebdo (dimanches) : guette les NOUVEAUTÉS DofusDB — dry-run uniquement.
- * Compare les totaux distants (items, quêtes, donjons) aux stocks locaux et
- * réutilise le diff quêtes existant. ZÉRO écriture : en cas d'écart, simple
- * alerte God avec les chiffres (un God synchronise ensuite via les onglets).
- * Télémétrie enregistrée dans tous les cas (même "rien à signaler").
+ * 🔭 CRON hebdo (dimanches) : guette les NOUVEAUTÉS DofusDB **et entretient les référentiels**.
+ *
+ * Deux rôles, volontairement séparés :
+ *  ① **Détection** (lecture seule sur les données métier) : compare les totaux distants (items,
+ *    donjons) et le diff quêtes au stock local, recompte les conditions non évaluables.
+ *    ⇒ **alerte God uniquement en cas de nouveauté** (pas de bruit hebdomadaire).
+ *  ② **Entretien** (écritures bornées, idempotentes) : met en file la **veille ciblée** des items
+ *    et rejoue une passe ciblée des **panoplies**.
+ *    ⚠️ Depuis le 26/10/2026, l'entretien n'est **plus conditionné** à une nouveauté : un
+ *    rééquilibrage de statistiques (refonte des trophées en 3.7, par exemple) **ne change aucun
+ *    compteur** ⇒ l'ancienne garde `if (hasNews)` laissait les fiches et les paliers se périmer
+ *    en silence.
+ *
+ * La machine n'applique **jamais** de suppression : un retrait reste une décision humaine.
  *
  * 🔒 Protégé par verifyCronSecret (x-cron-secret).
  */
@@ -106,24 +115,38 @@ export async function GET(req: Request) {
             ? `Nouveautés détectées : ${parts.join(" · ")}`
             : "Rien à signaler (stocks alignés)";
 
-        // 🔭 Auto-synchronisation CIBLÉE (23/09/2026) : la veille ne se contente plus d'alerter.
-        // Pour les datasets **éligibles** (registre `GAME_DATA_AUTO_SYNC_DATASETS` : cœur `lib`
-        // capable de filtrer par date + passe strictement additive), elle met en file une passe
-        // ciblée `updatedAt[$gt]=filigrane` — mesuré : 46 items au lieu de 21 776. La machine
-        // n'applique **jamais** de suppression : un retrait reste une décision humaine.
+        // 🔭 Auto-synchronisation CIBLÉE (23/09/2026, **inconditionnelle depuis le 26/10/2026**) :
+        // pour les datasets **éligibles** (registre `GAME_DATA_AUTO_SYNC_DATASETS` : cœur `lib`
+        // capable de filtrer par date + passe strictement additive), on met en file une passe
+        // ciblée `updatedAt[$gt]=filigrane` — mesuré : 46 items au lieu de 21 776.
+        // ⚠️ Plus de `if (hasNews)` : une fiche dont **seules** les stats/effets changent ne bouge
+        // aucun total, donc aucune alerte ne la signalerait — et le payload resterait périmé.
+        // La passe est additive (jamais de suppression) et n'écrit que ce qui a changé (`dataHash`).
         const autoQueued: string[] = [];
         const autoUnavailable: string[] = [];
         const autoRunning: string[] = [];
-        if (hasNews) {
-            const { GAME_DATA_AUTO_SYNC_DATASETS, isBackgroundDataset } = await import("@/lib/game-data-sync-state");
-            const { enqueueGameDataSync } = await import("@/lib/queue/game-data-queue");
-            for (const dataset of GAME_DATA_AUTO_SYNC_DATASETS) {
-                if (!isBackgroundDataset(dataset)) continue;
-                const { jobId, outcome } = await enqueueGameDataSync(dataset, { incremental: true });
-                if (outcome === "queued" && jobId) autoQueued.push(dataset);
-                else if (outcome === "already-running") autoRunning.push(dataset);
-                else autoUnavailable.push(dataset);
-            }
+        const { GAME_DATA_AUTO_SYNC_DATASETS, isBackgroundDataset } = await import("@/lib/game-data-sync-state");
+        const { enqueueGameDataSync } = await import("@/lib/queue/game-data-queue");
+        for (const dataset of GAME_DATA_AUTO_SYNC_DATASETS) {
+            if (!isBackgroundDataset(dataset)) continue;
+            const { jobId, outcome } = await enqueueGameDataSync(dataset, { incremental: true });
+            if (outcome === "queued" && jobId) autoQueued.push(dataset);
+            else if (outcome === "already-running") autoRunning.push(dataset);
+            else autoUnavailable.push(dataset);
+        }
+
+        /**
+         * 🔁 **Référentiel des panoplies** (26/10/2026) : les paliers de bonus changent sans que le
+         * nombre de panoplies bouge ⇒ aucun écart de compteur ne les verrait jamais. Passe
+         * **ciblée** (filigrane `updatedAt[$gt]`, Redis), bornée, idempotente. Fail-open : une
+         * erreur ici ne casse pas la veille DofusDB.
+         */
+        let itemSets: Awaited<ReturnType<typeof import("@/server/item-sets-refresh").refreshItemSetsCore>> | null = null;
+        try {
+            const { refreshItemSetsCore } = await import("@/server/item-sets-refresh");
+            itemSets = await refreshItemSetsCore();
+        } catch (e) {
+            logger.warn("[Cron:DataWatch] Rafraîchissement des panoplies impossible:", { error: String(e) });
         }
 
         if (hasNews) {
@@ -135,9 +158,14 @@ export async function GET(req: Request) {
                 : autoUnavailable.length
                 ? ` File indisponible : lancer ${autoUnavailable.join(", ")} depuis le Tableau god.`
                 : "";
+            // Les panoplies se rafraîchissent **même sans nouveauté** ; quand il y en a, la notif
+            // le dit (un palier de bonus faux fausse tous les totaux d'un build).
+            const setsNote = itemSets && itemSets.written > 0
+                ? ` Panoplies rafraîchies : ${itemSets.written} palier(s) mis à jour sur ${itemSets.fetched} relue(s).`
+                : "";
             await notifyGod({
                 title: "🆕 Nouveautés DofusDB détectées",
-                message: `${summary}.${auto} Aucune suppression n'est automatique : voir le Tableau (god → données de jeu).`,
+                message: `${summary}.${auto}${setsNote} Aucune suppression n'est automatique : voir le Tableau (god → données de jeu).`,
                 type: "SYSTEM",
                 success: true,
                 // C4 — les 9 métriques deviennent des **champs français** : l'embed ne
@@ -173,20 +201,32 @@ export async function GET(req: Request) {
                     ...(autoUnavailable.length > 0
                         ? [{ name: "⚠️ File indisponible", value: `${boundCronList(autoUnavailable).text} — à lancer depuis le Tableau god`, inline: false }]
                         : []),
+                    ...(itemSets && itemSets.written > 0
+                        ? [{
+                            name: "Panoplies rafraîchies",
+                            value: `${itemSets.written} palier(s) mis à jour sur ${itemSets.fetched} relue(s)`,
+                            inline: true,
+                        }]
+                        : []),
                 ],
-                metadata: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable, conditions: conditionsWatch?.summary ?? null },
+                metadata: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable, conditions: conditionsWatch?.summary ?? null, itemSets },
             });
         }
 
         const { recordCronExecution } = await import("@/lib/cron-telemetry");
+        const summaryParts = [
+            autoQueued.length ? `${summary} · veille ciblée: ${autoQueued.join(", ")}` : summary,
+            itemSets && itemSets.written > 0 ? `panoplies: ${itemSets.written} écrite(s)` : "",
+            itemSets?.state === "uninitialized" ? "panoplies: référentiel vide" : "",
+        ].filter(Boolean);
         await recordCronExecution("data_watch", {
             success: true,
             durationMs: Date.now() - startedAt,
-            summary: autoQueued.length ? `${summary} · veille ciblée: ${autoQueued.join(", ")}` : summary,
-            details: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable, conditions: conditionsWatch?.summary ?? null },
+            summary: summaryParts.join(" · "),
+            details: { remoteItems, localItems, questNew, questModified, remoteDungeons, localDungeons, autoQueued, autoRunning, autoUnavailable, conditions: conditionsWatch?.summary ?? null, itemSets },
         });
 
-        return NextResponse.json({ success: true, hasNews, summary, autoQueued, autoRunning, autoUnavailable, conditions: conditionsWatch });
+        return NextResponse.json({ success: true, hasNews, summary, autoQueued, autoRunning, autoUnavailable, conditions: conditionsWatch, itemSets });
     } catch (e: any) {
         logger.error("[Cron:DataWatch] Erreur:", e);
         const { recordCronExecution } = await import("@/lib/cron-telemetry");

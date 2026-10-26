@@ -155,7 +155,7 @@ export default async function DashboardLayout({
 
         return (
             <AccessDenied
-                title="Accès Banni"
+                title="Membre exclu"
                 message={`Votre accès au tableau de bord de ${user.guildName} a été révoqué. Contactez votre staff sur Discord si vous pensez qu'il s'agit d'une erreur.`}
                 banReason={(user as any).banReason ?? null}
                 contactRoles={contactRoles}

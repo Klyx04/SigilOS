@@ -297,7 +297,7 @@ export function roleHasDashboardAccess(
  *
  * Source unique : les **mêmes** permissions que `getUserContext` (`user-actions.ts`) —
  * `STAFF_MEMBER_MGMT` ouvre `canManageMembers`, `SYSTEM_GOD` ouvre l'admin de guilde.
- * Sert à l'écran « Accès Banni » : on affiche **quels rôles** contacter, jamais des personnes
+ * Sert à l'écran « Membre exclu » : on affiche **quels rôles** contacter, jamais des personnes
  * (décision du 25/10/2026 — pas d'annuaire exposé à un membre exclu).
  *
  * `rolesMapping` absent ⇒ aucune liste (l'écran retombe sur « contacte ton staff »).

@@ -943,6 +943,7 @@ export async function reintegrateMember(guildId: string, profileId: string): Pro
             where: { id: profileId, guildId: guild.id },
             select: {
                 id: true,
+                userId: true,
                 // Statut AVANT réintégration : il part dans le journal d'audit (avant/après).
                 status: true,
                 pseudoDofus: true,
@@ -996,6 +997,12 @@ export async function reintegrateMember(guildId: string, profileId: string): Pro
                 });
             }
         });
+
+        // La réintégration doit être visible **tout de suite** : le contexte utilisateur est mis en
+        // cache 60 s (`MEMORY_CACHE_TTL_MS`) et n'était pas invalidé ici — le membre réintégré
+        // restait vu « archivé » jusqu'à expiration (mesure du 25/10/2026).
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(profile.userId, guild.id, guildId).catch(() => {});
 
         // 🐛 Mesure du 25/10/2026 : cette action ne laissait **aucune trace**. Le staff pouvait
         // réintégrer (et donc rouvrir l'accès) sans que le journal d'audit de la guilde en garde

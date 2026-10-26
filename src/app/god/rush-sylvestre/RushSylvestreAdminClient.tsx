@@ -15,6 +15,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
+import { readableOn } from "@/lib/rush-dofus-accent";
 import {
   Zap, Plus, Trash2, ChevronDown, ChevronRight, ChevronUp,
   Settings, Construction, Check, X,
@@ -748,7 +749,7 @@ export function RushSylvestreAdminClient({
                   <div key={d.id} className="p-3 bg-zinc-900/40 border border-white/5 rounded-2xl flex flex-col items-center text-center" style={{ borderColor: `${d.color}20` }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={d.imageUrl} alt={d.label} className="w-10 h-10 object-contain mb-1 drop-shadow-lg" />
-                    <p className="text-caption font-black uppercase tracking-widest" style={{ color: d.color }}>{d.label}</p>
+                    <p className="text-caption font-black uppercase tracking-widest" style={{ color: readableOn(d.color, GOD_DOFUS_SURFACE).color }}>{d.label}</p>
                     <p className="text-xs font-bold text-white mt-1">{questCount} quête{questCount !== 1 ? 's' : ''}</p>
                     <p className="text-caption text-zinc-600">{linkedMilestones.length} bloc{linkedMilestones.length !== 1 ? 's' : ''}</p>
                   </div>
@@ -866,7 +867,7 @@ export function RushSylvestreAdminClient({
                                   ? "border-white/40 scale-105"
                                   : "border-white/10 opacity-40 hover:opacity-80"
                               }`}
-                              style={newDofusId === d.id ? { color: d.color, borderColor: d.color, background: d.color + "25" } : { borderColor: d.color + "40", background: d.color + "10" }}
+                              style={newDofusId === d.id ? { color: readableOn(d.color, GOD_MODAL_SURFACE).color, borderColor: d.color, background: d.color + "25" } : { borderColor: d.color + "40", background: d.color + "10" }}
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={d.imageUrl} alt={d.label} className="w-5 h-5 object-contain" />
@@ -2447,6 +2448,16 @@ function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => voi
     </Dialog>
   );
 }
+
+// ─── Identité visuelle du studio ──────────────────────────────────────────────
+/**
+ * Surfaces réelles du studio God (thème sombre) — **mesurées**, pas supposées :
+ * la carte Dofus est en `bg-zinc-900/40` sur `bg-zinc-950` (≈ `#18181b`), la
+ * modale de création sur `bg-zinc-950` (≈ `#09090b`). Un accent Dofus y est
+ * peint en **texte** : on le passe par `readableOn` pour garantir 4,5:1 (T-4/O14).
+ */
+const GOD_DOFUS_SURFACE = "#18181b";
+const GOD_MODAL_SURFACE = "#09090b";
 
 // ─── SequenceEditForm (Sections progressives & Live Preview) ───────────────────
 function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, milestones }: {

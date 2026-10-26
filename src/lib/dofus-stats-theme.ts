@@ -293,6 +293,16 @@ const THEME_BY_CHARACTERISTIC: Record<number, StatThemeKey> = {
     120: "distanceResistance",
     121: "distanceResistance",
     124: "meleeResistance",
+    /**
+     * Constat du 26/10/2026 (encyclopédie, trophée **Arcaniste**) — les caractéristiques
+     * `122` « Armes (%) », `123` « Sorts (%) » et `125` « Mêlée (%) » sont les **dégâts**
+     * (`dealtDamageMultiplier*`), pas des résistances : elles n'avaient aucun thème, donc
+     * l'écran tombait sur le repli lucide. On les rattache à l'asset « Dommages » (aucun
+     * asset dédié n'existe) : le **libellé**, lui, reste exact (« % Do Sorts »).
+     */
+    122: "damage",
+    123: "damage",
+    125: "damage",
 };
 
 /** Code court historique (DofusBook / Solomonk) → thème. */

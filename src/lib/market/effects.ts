@@ -10,6 +10,9 @@
  * optionnel fourni par la base (data-driven) et retombent ici en repli si la
  * base n'est pas encore alimentée (fail-soft).
  */
+import { isNonStatEffectId } from "@/lib/dofus-stat-lines";
+
+
 
 /**
  * Effet natif d'un item (plage min–max issue du CATALOGUE, jamais du client).
@@ -489,7 +492,20 @@ export function normalizeNativeRange(from: number, to: number): { from: number; 
  * et `30 → 0` (malus, valeur fixe) gardent leur valeur et ne sont **jamais**
  * écartés.
  */
-export function isStatBearingNativeEffect(fx: Pick<MarketNativeEffect, "from" | "to">): boolean {
+export function isStatBearingNativeEffect(
+    fx: Pick<MarketNativeEffect, "from" | "to"> & { effectId?: number | null }
+): boolean {
+    /**
+     * 🧨 Correction du 26/10/2026 — **métadonnée à valeur non nulle**.
+     *
+     * La règle historique ne regardait que la plage (`0 → 0` = bruit). Or DofusDB écrit des
+     * métadonnées **avec une valeur** : traits de monture (`3829`/`3831`, `1 → 5000`), portées de
+     * sort (`281`…, `13106` = id de sort), titres (`724`), attitudes (`10`). Elles passaient donc
+     * pour des jets sur les cartes d'annonce et l'éditeur de jet (`+5000 Vitalité` sur un Muldo).
+     * La liste mesurée vit dans `src/lib/dofus-stat-lines.ts` (`NON_STAT_EFFECT_IDS`) — une seule
+     * vérité, partagée avec les variantes et les panoplies.
+     */
+    if (isNonStatEffectId(fx.effectId)) return false;
     const range = normalizeNativeRange(fx.from, fx.to);
     return range.from !== 0 || range.to !== 0;
 }

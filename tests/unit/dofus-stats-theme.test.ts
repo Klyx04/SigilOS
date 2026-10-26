@@ -17,6 +17,19 @@ import {
  *      peut jamais pointer vers un asset absent (jamais d'image cassée).
  */
 describe("dofus-stats-theme — résolution des thèmes", () => {
+    it("résout les % de dégâts et de résistance « contact » (trophée Arcaniste, 26/10/2026)", () => {
+        // Caractéristiques 120-125 : `dealt*` = dégâts, `received*` = résistance (mesuré).
+        expect(resolveDofusStatTheme(121)).toMatchObject({ asset: "resDistance.png" });
+        expect(resolveDofusStatTheme(124)).toMatchObject({ asset: "resMelee.png" });
+        // Aucun asset dédié pour les trois « % de dégâts » : on rattache l'asset Dommages,
+        // le libellé exact venant de la ligne (`Sorts (%)`, `Armes (%)`, `Mêlée (%)`).
+        for (const characteristic of [122, 123, 125]) {
+            expect(resolveDofusStatTheme(characteristic)?.asset).toBe("dommages.png");
+        }
+        // ⚠️ `125` reste **Vitalité** quand c'est un `effectId` (lignes héritées sans caractéristique).
+        expect(resolveDofusStatTheme(11, 125)).toMatchObject({ asset: "pv.png" });
+    });
+
     it("résout par caractéristique officielle (ids vérifiés en base)", () => {
         expect(resolveDofusStatTheme(11)).toMatchObject({ asset: "pv.png", label: "Vitalité" });
         expect(resolveDofusStatTheme(10)).toMatchObject({ asset: "terre.png", label: "Force" });

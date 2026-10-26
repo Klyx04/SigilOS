@@ -74,6 +74,20 @@ interface DofusItem {
     updatedAt?: string | null;
     effects?: DofusItemEffect[];
     possibleEffects?: DofusItemEffect[];
+    /**
+     * Lignes **déjà résolues côté serveur** (libellé officiel + signe, via `GameEffect` /
+     * `GameCharacteristic`) — transmises par `/api/dofusdb/search` depuis le 26/10/2026.
+     * Les métadonnées (traits de monture, portées de sort, titres) ne sont jamais envoyées :
+     * elles n'ont jamais été des statistiques.
+     */
+    nativeEffects?: Array<{
+        effectId?: number | null;
+        characteristic?: number | null;
+        from?: number | null;
+        to?: number | null;
+        label?: string;
+        isNegative?: boolean;
+    }>;
     is_recipe_item?: boolean;
     hasRecipe?: boolean;
     isSaleable?: boolean;
@@ -573,7 +587,48 @@ export function ItemSearchPanel() {
                                                 <h4 className="text-caption font-semibold text-muted-foreground">Effets & Bonus</h4>
                                             </div>
                                             <div className="space-y-4">
-                                                {(selectedItem.effects || selectedItem.possibleEffects || []).length > 0 ? (
+                                                {(selectedItem.nativeEffects?.length ?? 0) > 0 ? (
+                                                    /*
+                                                     * 🧨 Constat du 26/10/2026 (trophée **Arcaniste**) : la fiche affichait
+                                                     * « **Effet** +6 » et une case d'icône vide, alors que les lignes étaient
+                                                     * déjà résolues côté serveur. Priorité à `nativeEffects` (libellé officiel
+                                                     * + signe) ; le rendu historique reste le repli quand la fiche vient du
+                                                     * réseau (aucun référentiel local disponible).
+                                                     */
+                                                    selectedItem.nativeEffects!.map((fx: NonNullable<DofusItem["nativeEffects"]>[number], i: number) => {
+                                                        const from = Number(fx.from ?? 0);
+                                                        const to = Number(fx.to ?? fx.from ?? 0);
+                                                        const value = Math.max(from, to);
+                                                        const negative = fx.isNegative === true || value < 0;
+                                                        const label =
+                                                            fx.label ??
+                                                            sharedGetStatLabel({
+                                                                effectId: fx.effectId ?? undefined,
+                                                                characteristic: fx.characteristic ?? undefined,
+                                                            });
+                                                        return (
+                                                            <div key={`n-${fx.effectId ?? "x"}-${i}`} className="flex items-center justify-between group/fx py-1 border-b border-border/20 last:border-0">
+                                                                <div className="flex items-center gap-3.5 min-w-0 pr-2">
+                                                                    <div className="w-8 h-8 rounded-xl bg-background flex items-center justify-center shrink-0 border border-border shadow-xs">
+                                                                        <StatIcon
+                                                                            characteristicId={fx.characteristic ?? undefined}
+                                                                            effectId={fx.effectId ?? undefined}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-body-sm font-bold text-foreground truncate">{label}</span>
+                                                                </div>
+                                                                <span
+                                                                    className={cn(
+                                                                        "text-body-sm font-black tabular-nums shrink-0 ml-2",
+                                                                        negative ? "text-danger" : "text-success",
+                                                                    )}
+                                                                >
+                                                                    {value > 0 ? `+${value}` : value}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (selectedItem.effects || selectedItem.possibleEffects || []).length > 0 ? (
                                                     (selectedItem.effects || selectedItem.possibleEffects || []).map((fx: any, i: number) => {
                                                         const range = parseEffectRange(fx);
                                                         const numColor = getDofusStatNumberColor(

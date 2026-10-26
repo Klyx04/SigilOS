@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { iconVersionOf, normalizeItemIconUrl, withItemImageVersion } from "@/lib/market/item-image";
+import { isNonStatEffectId } from "@/lib/dofus-stat-lines";
 
 /**
  * GET /api/dofusdb/search?q=...&limit=8
@@ -121,21 +122,33 @@ export async function GET(req: NextRequest) {
             const localRes = await searchLocalGameItems(q, category, limit);
             const formattedLocal =
                 localRes.success && localRes.data
-                    ? localRes.data.map((item) =>
-                          normalizeItem({
+                    ? localRes.data.map((item) => {
+                          /**
+                           * 🧨 Constat du 26/10/2026 (encyclopédie, trophée **Arcaniste**) : la fiche
+                           * affichait « **Effet** +6 » avec une case d'icône vide. Cause : cette route
+                           * **jetait** `nativeEffects`, alors que `searchLocalGameItems` renvoie déjà les
+                           * lignes **résolues** (libellé officiel + signe depuis `GameEffect` /
+                           * `GameCharacteristic`). On transmet ces lignes, métadonnées mesurées écartées
+                           * (traits de monture, portées de sort, titres) — cf. `dofus-stat-lines`.
+                           */
+                          const nativeLines: Array<{ effectId?: number | null }> = Array.isArray(item.nativeEffects)
+                              ? (item.nativeEffects as Array<{ effectId?: number | null }>)
+                              : [];
+                          return normalizeItem({
                               id: item.ankamaId,
                               name: { fr: item.name },
                               level: item.level,
                               type: { name: { fr: item.typeName } },
                               description: item.description ? { fr: item.description } : undefined,
                               effects: item.effects,
+                              nativeEffects: nativeLines.filter((fx) => !isNonStatEffectId(fx.effectId ?? null)),
                               hasRecipe: item.hasRecipe,
                               // Métas déjà siphonnées : la fiche les affiche sans appel réseau.
                               realWeight: item.realWeight,
                               itemSetName: item.itemSetName,
                               img: item.iconUrl || `/uploads/assets-dofus/items/${item.ankamaId}.webp`,
-                          }),
-                      )
+                          });
+                      })
                     : [];
             if (category !== "all") {
                 // Filtre souverain actif : jamais de repli réseau non filtré

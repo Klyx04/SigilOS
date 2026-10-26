@@ -25,7 +25,7 @@ import {
     type ItemSetData,
 } from "@/lib/dofus-set-bonuses";
 import { applyVariantsToBuild, explainVariantRefusal } from "@/lib/dofus-variant-utils";
-import { normalizeItemSet, nextPageState } from "@/lib/item-sets-siphon";
+import { normalizeItemSet, normalizeSince, nextPageState } from "@/lib/item-sets-siphon";
 
 function buildWithSet(stuffItem: Record<string, number>) {
     return {
@@ -396,6 +396,21 @@ describe("siphon des panoplies — reprise et route cron", () => {
         expect(route).toContain("siphonItemSetsCore({ apply, maxPages, startSkip })");
         // Dry-run par défaut : `apply` n'est vrai que sur demande explicite.
         expect(route).toContain('applyParam === "1" || applyParam === "true"');
+    });
+});
+
+describe("veille ciblée des panoplies — un filigrane ne se devine jamais", () => {
+    it("accepte une date ISO (avec ou sans heure) et la normalise en UTC", () => {
+        expect(normalizeSince("2026-10-01T00:00:00.000Z")).toBe("2026-10-01T00:00:00.000Z");
+        expect(normalizeSince("2026-10-01")).toBe("2026-10-01T00:00:00.000Z");
+    });
+
+    it("refuse tout le reste : une valeur illisible ne doit jamais passer pour « à jour »", () => {
+        // Un filigrane invalide accepté ferait relire **zéro** panoplie : le référentiel se
+        // périmerait en silence. On préfère une passe complète (correcte, seulement plus lente).
+        for (const bad of [null, undefined, "", "   ", "hier", "2026-13-45T99:99:99Z", 12345, {}, []]) {
+            expect(normalizeSince(bad)).toBeNull();
+        }
     });
 });
 

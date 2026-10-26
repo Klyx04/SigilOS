@@ -84,6 +84,24 @@
   aucune logique dupliquée, aucun SSH. Ops : `curl -H "x-cron-secret: $CRON_SECRET"
   ".../api/cron/siphon-item-sets?apply=1"`. Verrou `dofus-set-bonuses` **+2 cas** (reprise + garde de la route).
   Le script local reste la voie de dev (`npm run siphon:item-sets -- --apply`).
+- **Livré le 26/10/2026 — Maintien long terme : la veille **entretient** au lieu de seulement alerter.**
+  Demande user : « les items changent régulièrement … tout est géré pour un maintien long terme ? » ⇒ audit
+  mesuré de la chaîne, **trois trous trouvés**, deux fermés. ① **Trou mesuré** : `data-watch` ne mettait la
+  veille ciblée en file que `if (hasNews)` — or un rééquilibrage de statistiques (refonte des trophées en 3.7)
+  **ne change aucun compteur**, donc **aucun siphon** : fiches périmées en silence. L'entretien devient
+  **inconditionnel** (seule la **notification** reste conditionnée à une nouveauté). ② **Trou mesuré** : le
+  référentiel des panoplies n'était rafraîchi par **rien** (siphon manuel uniquement) alors que c'est la seule
+  donnée dont **nous** calculons les totaux. Ajout d'une passe ciblée `updatedAt[$gt]=filigrane` (filtre
+  **mesuré** comme honoré : 555/940 panoplies modifiées depuis le 01/10) dans un module serveur
+  `src/server/item-sets-refresh.ts` : bornée (6 pages), filigrane Redis `game-data:watch:item-sets` **sans TTL**
+  avancé **uniquement sur passe complète**, `uninitialized` si le référentiel est vide (jamais un faux « à
+  jour »), fail-open. ③ **Trou restant, assumé et documenté** : `GameItem.conditions` (DofusDude) reste un
+  **script mensuel** — l'évaluateur est **fail-closed**, donc une condition non siphonnée **refuse** la variante
+  au lieu de produire un total faux. `docs/MAINTENANCE.md` gagne les **deux lignes de crontab** (veille hebdo +
+  conditions mensuelles) et le tableau **« ce qui suit le jeu tout seul / ce qui reste humain »** (dont : les
+  totaux d'un build viennent du **payload Dofusbook**, pas de `GameItem` ; la forgemagie est **hors modèle**).
+  Verrous : `item-sets-refresh` **6 cas** (filigrane sur passe complète seulement, amorçage 60 j, vide, panne) ·
+  `normalizeSince` **2 cas** · `data-watch` **+1 cas** et contrat « stocks alignés » **inversé, motif écrit**.
 
   Deux restes de l'amorce soldés : ① l'arbitrage du 23/10 (« afficher la variante avec un tag explicite ») est
   appliqué par **une seule règle** (`resolveVariantPreview`) : l'image OG montre les icônes de la variante + un

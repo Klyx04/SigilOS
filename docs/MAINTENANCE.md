@@ -158,9 +158,9 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 # quotidienne dans `maintenance.sh` — ne publie jamais deux fois le même sondage.
 # ⚠️ La minute manquée n'est pas perdue : l'exécution suivante rattrape tous les
 #    créneaux échus (c'est ce qui rend le déclencheur « sans état »).
-# ⚠️ `CRON_SECRET`, `APP_URL` et `LOG_DIR` sont définis EN TÊTE du crontab de ce
-#    VPS (relevé du 12/10/2026) : on utilise donc `$CRON_SECRET` (et non
-#    `$(cat ~/.sigilos-cron-secret)`, fichier absent). Le log porte EXACTEMENT le
+# ⚠️ `CRON_SECRET`, `APP_URL`, `LOG_DIR` et `APP_CONTAINER` (`sigilos-beta` / `sigilos-prod`) sont
+#    définis EN TÊTE du crontab de ce VPS (relevé du 12/10/2026) : on utilise donc `$CRON_SECRET`
+#    (et non `$(cat ~/.sigilos-cron-secret)`, fichier absent). Le log porte EXACTEMENT le
 #    nom déclaré dans `KNOWN_CRON_TASKS` (`publish-scheduled-polls.log`), sinon
 #    le panneau God affiche « Inconnu ».
 * * * * * curl -s -o /dev/null -w "publish-scheduled-polls \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/publish-scheduled-polls" >> "$LOG_DIR/publish-scheduled-polls.log" 2>&1
@@ -197,7 +197,42 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 # posés en silence — décision user du 14/10/2026, aucun message rétroactif dans le salon).
 # ⚠️ Sans état : une passe manquée n'est pas perdue, la suivante applique le même diff.
 30 4 * * * curl -s -o /dev/null -w "seniority-roles \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/seniority-roles" >> "$LOG_DIR/seniority-roles.log" 2>&1
+
+# 🔭 Veille DofusDB — UNE FOIS par semaine. Deux rôles dans la même passe :
+#  ① **alerte** God, seulement en cas de nouveauté (objet/quête/donjon/condition jamais vue) ;
+#  ② **entretien** systématique : veille ciblée des objets + passe ciblée des **panoplies**.
+# ⚠️ Sans cette ligne, rien ne se met à jour tout seul : un rééquilibrage de statistiques (mise à
+#    jour 3.7 des trophées, par exemple) ne change **aucun compteur** ⇒ aucun écart à détecter.
+#    La passe est additive et n'écrit que ce qui a changé (`dataHash`) : un retrait reste humain.
+30 4 * * 0 curl -s -o /dev/null -w "data-watch \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/data-watch" >> "$LOG_DIR/data-watch.log" 2>&1
+
+# 📋 Conditions d'équipement structurées (DofusDude → `GameItem.conditions`) — UNE FOIS par mois.
+# C'est ce qui permet d'afficher et de **bloquer** une variante sur un trophée conditionnel
+# (« Bonus de panoplies < 2 », « PA < 12 »…). `scripts/` est copié dans l'image (Dockerfile l. 152)
+# et le script est un `.mjs` autonome : aucun `tsx` requis.
+# ⚠️ Valider une fois en dry-run (`… node scripts/siphon-item-conditions.mjs`, sans `--apply`) ;
+#    à lancer APRÈS la veille des objets, la même semaine.
+0 5 1 * * docker exec "$APP_CONTAINER" node scripts/siphon-item-conditions.mjs --apply >> "$LOG_DIR/siphon-conditions.log" 2>&1
 ```
+
+### Ce qui suit le jeu tout seul — et ce qui reste humain
+
+| Ce qui change côté jeu | Porté par | Automatique ? |
+|---|---|---|
+| Nouvel objet / objet retiré | `GameItem` | ✅ `data-watch` hebdo : alerte God **+** veille ciblée |
+| **Stats / effets d'un objet existant** (rééquilibrage 3.7) | `GameItem.effects` **et** le payload Dofusbook du build | ✅ veille ciblée hebdo (inconditionnelle depuis le 26/10/2026) |
+| **Paliers de bonus d'une panoplie** | `GameItemSet` (référentiel **à nous**) | ✅ passe ciblée `data-watch` (`updatedAt[$gt]`, filigrane Redis `game-data:watch:item-sets`) |
+| Condition d'équipement (trophée conditionnel, `pk<2`…) | `GameItem.conditions` (DofusDude) | ⚠️ **script mensuel** (ligne de crontab ci-dessus) — en attendant, l'évaluateur est **fail-closed** : variante refusée, jamais un total faux |
+| Type d'objet ou atome de condition inconnu | veille des conditions | ✅ **signalé** (alerte God), jamais deviné |
+| Plafonds PA/PM/PO/invocations, pods, formules | `src/lib/dofus-{caps,pods,set-bonuses}.ts` + tests | 👤 humain (lot + PR), versionné et verrouillé par des tests |
+| Forgémagie, potions d'élément, gemmes régénérantes | — | ❌ **hors modèle** : l'app ne simule pas la forgemagie |
+| Suppression d'un objet / d'une panoplie | — | 👤 jamais automatique (décision humaine) |
+
+> ⚠️ **Les totaux d'un build ne viennent pas de `GameItem`** : ils viennent du **payload Dofusbook**
+> enregistré avec le build (c'est lui qui est recalculé quand une variante est appliquée). Notre
+> référentiel sert aux **paliers de panoplie**, aux **conditions**, aux icônes et au marché. Un
+> rééquilibrage arrive donc dans un build au **re-sync de ce build**, et dans nos calculs de
+> panoplie à la passe `data-watch`.
 
 > 📋 **Rappel des 33 tâches lues par God** (`KNOWN_CRON_TASKS`, `src/lib/cron-telemetry.ts`) : chacune
 > n'apparaît « Succès » que si son **log** est écrit (`$LOG_DIR` **codé** dans

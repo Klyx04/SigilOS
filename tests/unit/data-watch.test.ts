@@ -41,6 +41,17 @@ vi.mock("@/lib/queue/game-data-queue", () => ({
     enqueueGameDataSync: (...args: any[]) => mockEnqueue(...args),
 }));
 
+/**
+ * 🔁 Maintien des panoplies : **mocké** — sinon le test ouvrirait Redis
+ * (`game-data:watch:item-sets`) et interrogerait DofusDB pour 300 panoplies. Le comportement du
+ * module est couvert par `tests/unit/item-sets-refresh.test.ts` ; ici on vérifie seulement que le
+ * cron le branche et remonte son bilan.
+ */
+const mockRefreshItemSets = vi.fn();
+vi.mock("@/server/item-sets-refresh", () => ({
+    refreshItemSetsCore: (...args: any[]) => mockRefreshItemSets(...args),
+}));
+
 vi.mock("@/lib/logger", () => ({
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
@@ -69,6 +80,15 @@ beforeEach(() => {
     mockRecordCronExecution.mockResolvedValue(true);
     mockComputeQuestDeltasCore.mockResolvedValue({ totalLocal: 0, totalRemote: 0, deltas: [] });
     mockEnqueue.mockResolvedValue({ jobId: "game-data-ITEMS", outcome: "queued" });
+    mockRefreshItemSets.mockResolvedValue({
+        state: "refreshed",
+        since: "2026-10-19T04:00:00.000Z",
+        fetched: 0,
+        written: 0,
+        unchanged: 0,
+        skipped: 0,
+        nextWatermark: null,
+    });
     vi.unstubAllGlobals();
 });
 
@@ -151,7 +171,7 @@ describe("GET /api/cron/data-watch", () => {
         expect(mockNotifyGod.mock.calls[0][0].message).toContain("Veille déjà en cours");
     });
 
-    it("stocks alignés → pas d'alerte, télémétrie quand même", async () => {
+    it("stocks alignés → pas d'alerte, mais la veille ciblée part quand même (rééquilibrage de stats)", async () => {
         vi.stubGlobal("fetch", vi.fn()
             .mockResolvedValueOnce(totalsJson(19000))
             .mockResolvedValueOnce(totalsJson(100))
@@ -166,9 +186,44 @@ describe("GET /api/cron/data-watch", () => {
         expect(data.hasNews).toBe(false);
         expect(data.summary).toContain("Rien à signaler");
         expect(mockNotifyGod).not.toHaveBeenCalled();
-        // Rien à signaler ⇒ aucune passe ciblée en file (on ne réveille pas le worker pour rien).
-        expect(mockEnqueue).not.toHaveBeenCalled();
+        /**
+         * ⚠️ Contrat **inversé le 26/10/2026**, sur mesure : la mise à jour 3.7 rééquilibre les
+         * trophées (et change des paliers de panoplie) **sans créer ni retirer un seul objet** —
+         * aucun `count()` ne bouge. Conditionner la passe ciblée à une nouveauté laissait donc les
+         * fiches périmées **pour toujours**. Elle part désormais à chaque passage, et seule la
+         * **notification** reste conditionnée (pas de bruit hebdomadaire).
+         */
+        expect(mockEnqueue).toHaveBeenCalledWith("ITEMS", { incremental: true });
+        expect(data.autoQueued).toEqual(["ITEMS"]);
         expect(mockRecordCronExecution).toHaveBeenCalledTimes(1);
+    });
+
+    it("panoplies rafraîchies → le bilan remonte dans la réponse ET la télémétrie", async () => {
+        vi.stubGlobal("fetch", vi.fn()
+            .mockResolvedValueOnce(totalsJson(19000))
+            .mockResolvedValueOnce(totalsJson(100))
+            .mockResolvedValueOnce(totalsJson(140)));
+        mockGameItemCount.mockResolvedValue(19000);
+        mockDungeonCount.mockResolvedValue(140);
+        mockRefreshItemSets.mockResolvedValue({
+            state: "refreshed",
+            since: "2026-10-19T04:00:00.000Z",
+            fetched: 12,
+            written: 3,
+            unchanged: 9,
+            skipped: 0,
+            nextWatermark: "2026-10-26T03:55:00.000Z",
+        });
+
+        const res = await GET(authedReq());
+        const data = await res.json();
+
+        expect(data.itemSets).toMatchObject({ state: "refreshed", fetched: 12, written: 3 });
+        const telemetry = mockRecordCronExecution.mock.calls[0][1];
+        expect(telemetry.summary).toContain("panoplies: 3");
+        expect(telemetry.details.itemSets).toMatchObject({ written: 3 });
+        // Aucune nouveauté ⇒ aucune notification, même quand des paliers ont été corrigés.
+        expect(mockNotifyGod).not.toHaveBeenCalled();
     });
 
     it("DofusDB injoignable → pas de faux positif, pas de crash", async () => {

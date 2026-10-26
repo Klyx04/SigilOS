@@ -71,6 +71,8 @@ export interface ItemSetSiphonReport {
      * Utile quand la passe est bornée (`maxPages`) pour rester sous un timeout de proxy.
      */
     nextSkip: number | null;
+    /** Filigrane effectivement appliqué (`null` = passe complète, pas de filtre de date). */
+    since: string | null;
 }
 
 /** `true` quand `normalizeStatCode` n'a pas su traduire (il rend alors l'id brut). */
@@ -177,10 +179,31 @@ export function normalizeItemSet(
     };
 }
 
+/**
+ * Valide un filigrane de veille ciblée.
+ *
+ * Règle pure : seule une date **ISO parseable** est acceptée ; tout le reste rend `null`, ce qui
+ * signifie « passe complète ». On ne devine jamais un filigrane — un filigrane invalide qui
+ * passerait pour valide ferait relire **zéro** panoplie et laisserait le référentiel se périmer
+ * en silence.
+ */
+export function normalizeSince(value: unknown): string | null {
+    if (typeof value !== "string" || value.trim() === "") return null;
+    const parsed = Date.parse(value);
+    if (!Number.isFinite(parsed)) return null;
+    return new Date(parsed).toISOString();
+}
+
 /** Une page DofusDB : le `total` annoncé fait foi pour savoir s'il reste des pages. */
-async function fetchItemSetPage(skip: number): Promise<{ data: unknown[]; total: number | null }> {
+async function fetchItemSetPage(
+    skip: number,
+    since: string | null = null,
+): Promise<{ data: unknown[]; total: number | null }> {
+    // `updatedAt[$gt]` est **mesuré** comme honoré par DofusDB (26/10/2026 : 555 panoplies sur
+    // 940 modifiées depuis le 01/10) — c'est ce qui rend la veille hebdomadaire supportable.
+    const filter = since ? `&updatedAt%5B%24gt%5D=${encodeURIComponent(since)}` : "";
     for (let attempt = 0; ; attempt += 1) {
-        const res = await dofusDbFetch(`${ITEM_SETS_API}?$limit=${DOFUSDB_PAGE_MAX}&$skip=${skip}`, {
+        const res = await dofusDbFetch(`${ITEM_SETS_API}?$limit=${DOFUSDB_PAGE_MAX}&$skip=${skip}${filter}`, {
             headers: {
                 Accept: "application/json",
                 "User-Agent": "SigilOS/1.0 (+https://sigilos.fr)",
@@ -231,11 +254,15 @@ export function nextPageState(
  * @param apply     `false` (défaut) = **dry-run** : rien n'est écrit.
  * @param maxPages  borne le nombre de pages lues (défaut : le maximum) — utile derrière un proxy.
  * @param startSkip décalage de reprise (permet d'enchaîner plusieurs appels bornés).
+ * @param since     **veille ciblée** : ne lit que les panoplies modifiées depuis cette date ISO
+ *                  (`updatedAt[$gt]`). Un filigrane illisible est **ignoré** (passe complète) —
+ *                  jamais interprété comme « tout est à jour ».
  */
 export async function siphonItemSetsCore(
-    options: { apply?: boolean; maxPages?: number; startSkip?: number } = {},
+    options: { apply?: boolean; maxPages?: number; startSkip?: number; since?: string | null } = {},
 ): Promise<ItemSetSiphonReport> {
     const apply = options.apply === true;
+    const since = normalizeSince(options.since);
     const maxPages = Math.max(1, Math.min(ITEM_SETS_MAX_PAGES, options.maxPages ?? ITEM_SETS_MAX_PAGES));
     const startSkip = Number.isFinite(Number(options.startSkip))
         ? Math.max(0, Math.floor(Number(options.startSkip)))
@@ -248,12 +275,13 @@ export async function siphonItemSetsCore(
         unchanged: 0,
         skipped: [],
         nextSkip: null,
+        since,
     };
 
     let skip = startSkip;
     let more = true;
     for (let page = 0; page < maxPages; page += 1) {
-        const { data, total } = await fetchItemSetPage(skip);
+        const { data, total } = await fetchItemSetPage(skip, since);
         if (data.length === 0) {
             more = false;
             break;
@@ -319,6 +347,7 @@ export async function siphonItemSetsCore(
 
     logger.info("[item-sets-siphon] passe terminée", {
         apply,
+        since,
         fetched: report.fetched,
         toWrite: report.toWrite,
         written: report.written,

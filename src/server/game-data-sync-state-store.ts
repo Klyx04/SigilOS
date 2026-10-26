@@ -219,6 +219,28 @@ export async function setGameDataWatchState(dataset: GameDataDataset, state: Gam
     await withRedis((c) => c.set(WATCH_KEY(dataset), JSON.stringify(state)));
 }
 
+// ─── Filigrane du référentiel des panoplies (26/10/2026) ─────────────────────
+// Les panoplies ne sont pas un `GameDataDataset` (pas de worker : le cœur vit dans
+// `src/lib/item-sets-siphon.ts` et tourne dans le cron `data-watch`). Elles ont donc leur
+// propre filigrane, **sans TTL** comme celui de la veille ciblée : un filigrane perdu provoque
+// une relecture complète (correct, seulement plus lourd).
+
+const ITEM_SETS_WATERMARK_KEY = "game-data:watch:item-sets";
+
+/** Dernier `updatedAt` distant traité pour les panoplies (`null` = jamais de passe ciblée). */
+export async function getItemSetsWatermark(): Promise<string | null> {
+    const raw = await withRedis((c) => c.get(ITEM_SETS_WATERMARK_KEY));
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    return trimmed === "" || !Number.isFinite(Date.parse(trimmed)) ? null : trimmed;
+}
+
+/** Pose le filigrane des panoplies (fail-open : Redis indisponible ⇒ ignoré). */
+export async function setItemSetsWatermark(value: string): Promise<void> {
+    if (!Number.isFinite(Date.parse(value))) return;
+    await withRedis((c) => c.set(ITEM_SETS_WATERMARK_KEY, value));
+}
+
 // ─── Filigrane des veilles delta (« rail » du 27/09/2026) ─────────────────────
 //
 // Les états ci-dessus (`since`/`skip`) décrivent une **passe ciblée** reprenable à l'intérieur

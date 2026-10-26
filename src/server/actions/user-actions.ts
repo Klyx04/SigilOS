@@ -208,6 +208,14 @@ export type UserContext = {
     canManageMembers: boolean;
     /** Suppression DÉFINITIVE d'un profil de guilde (permission dédiée `staff:member_delete`, B-3). */
     canDeleteMembers: boolean;
+    /**
+     * Bannissement **plateforme** (action God) — cause distincte d'une exclusion de guilde.
+     * Retourné avec `isAuthenticated: false`, pour que l'écran dise « compte suspendu » au lieu
+     * de « bêta fermée » (mesure du 25/10/2026).
+     */
+    isPlatformBanned?: boolean;
+    /** Motif du bannissement plateforme, tel que saisi par le God (affiché au membre). */
+    platformBanReason?: string | null;
     // Modules
     canViewMissions: boolean;
     canManageMissions: boolean;
@@ -670,7 +678,14 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     });
     if (platformBan && platformBan.entityType === "USER" && !isGod) {
         logger.warn(`[Security] Blocked access for PLATFORM BANNED user: ${discordUserId}`);
-        return { ...baseContext, isAuthenticated: false };
+        // `isAuthenticated: false` seul ne distinguait pas « guilde non whitelistée » d'un
+        // bannissement plateforme : le membre banni voyait « Bêta Fermée » (mesure du 25/10/2026).
+        return {
+            ...baseContext,
+            isAuthenticated: false,
+            isPlatformBanned: true,
+            platformBanReason: platformBan.reason ?? null,
+        };
     }
 
     // --- GUILD-SCOPED BAN CHECK (GuildMemberBan / tombstone) — F-01 ---

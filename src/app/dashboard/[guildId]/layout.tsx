@@ -82,6 +82,21 @@ export default async function DashboardLayout({
 
     // ── GUILD NOT WHITELISTED (getUserContext returns isAuthenticated:false for blocked guilds) ──
     if (!user.isAuthenticated) {
+        // ── PLATFORM BAN (God) : cause **distincte** de la bêta fermée, donc message distinct.
+        // Le contrôle est fait avant tout le reste dans `getUserContext` et à la connexion
+        // (`src/auth.ts`) : aucune action de guilde ne peut le lever.
+        if ((user as any).isPlatformBanned) {
+            return (
+                <AccessDenied
+                    guildId={guildId}
+                    title="Compte suspendu"
+                    message="Ce compte est suspendu de la plateforme SigilOS : l'accès au tableau de bord est fermé, quelle que soit la guilde. Si vous pensez qu'il s'agit d'une erreur, contactez le support SigilOS."
+                    banReason={(user as any).platformBanReason ?? null}
+                    variant="ban"
+                    action={<SignOutButton />}
+                />
+            );
+        }
         return (
             <AccessDenied
                 guildId={guildId}

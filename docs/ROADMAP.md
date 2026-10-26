@@ -9,13 +9,18 @@
 
 ## 0. Reprise immédiate
 
-- **Livré le 26/10/2026 — identité de quête assistée dans le studio God (`feat/rush-identite-quete`).** Le nom d'une
-  quête ne se tape plus : le picker cherche dans `GameQuest` (siphon game-data, **1 976** quêtes, **530 / 530** des
-  quêtes Tougli présentes) et remplit le **nom** + le lien **DofusDB direct** (`/quest/<id>`), le lien **DPLN restant
-  la première source** (absent du catalogue, jamais écrasé). Règle pure `src/lib/rush-quest-identity.ts` (**8 cas**) :
-  un lien **saisi à la main** n'est jamais remplacé, un lien **généré** (recherche ou direct précédent) l'est.
-  `searchGameQuests` expose désormais `dofusDbId` (additif). **Aucune migration, aucune action God nouvelle.**
-  ⚠️ Reste : `questDbIds` n'est **pas** écrit par `upsertRushSequence` (champ absent de sa signature) — lot séparé.
+- **Livré le 26/10/2026 — Rush : identité assistée, route éditable, import dry-run, contraste (branche
+  `feat/rush-identite-quete`).** ① **Picker de quête** dans les deux formulaires God : le nom et le lien **DofusDB
+  direct** viennent du catalogue `GameQuest` (**1 976** quêtes, **530 / 530** des quêtes Tougli présentes), le lien
+  **DPLN reste la première source** (règle pure `src/lib/rush-quest-identity.ts`, **11 cas**). ② **`questDbIds`
+  persisté** (`upsertRushSequence`, borné : entiers > 0, dédoublonnés, 10 max). ③ **S4-2** : cité / Ordre / palier /
+  classe éditables sur une séquence **existante**. ④ **S4-4** : `importRushGuide(raw, apply)` — **dry-run par défaut**,
+  l'import **ajoute** seulement (aucun `delete`/`update` dans son corps, verrou de source), idempotent. ⑤ **Référentiel
+  d'Ordre corrigé** : le studio écrivait l'id court de `ORDERS` (`vaillant`) alors que la route attend `coeur_vaillant`
+  — source unique `src/lib/rush-order-codes.ts`, comparaison normalisée, jumelles d'Ordre en code canonique.
+  ⑥ **T-4 (O14/T2)** : contraste garanti des **24** accents Dofus (`src/lib/rush-dofus-accent.ts`, 4,5:1 sur fond
+  clair **et** sombre) + état `aria-pressed` du filtre. **Aucune migration.** ⚠️ Restent **T-4** G7/G8/G9/O15
+  (composition visuelle, à juger à l'écran) et **S5-1** (retrait de `alignOrderReq`).
 - **Livré le 26/10/2026 — outil « Trame Rush » hors dépôt (prépare S1).** Siphon Tougli mesuré : **530** quêtes,
   **36** blocs, séries d'alignement **100 / 102**, **30** quêtes d'Ordre (6 × 5), **19** quêtes de classe, **99**
   donjons (**99** rapprochés de `Dungeon`, dont **3** alias), **361 / 384** quêtes Dofusyelle rapprochées et

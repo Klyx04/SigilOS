@@ -157,9 +157,9 @@ God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles re
 | Lot | Contenu | État |
 |---|---|---|
 | **S4-1** | **Vue Branches à 2 étages** (cité → Ordre, paires alignées, manques) — cible **100/102** | **livré** le 23/10/2026 (`src/lib/rush-branches.ts`, onglet God, 9 verrous) |
-| **S4-2** | Édition des champs de route sur une séquence **existante** | à faire |
+| **S4-2** | Édition des champs de route sur une séquence **existante** | ✅ **livré** le 26/10/2026 — section « 7. Route » du formulaire d'édition (cité / Ordre / palier / classe), avec les codes d'Ordre **canoniques** |
 | **S4-3** | Case **optionnel** par donjon (S0-6) | bloqué migration |
-| **S4-4** | Import consolidé (dry-run) : listes ordonnées + 30 Ordres + 19 classes, **jamais de re-seed destructif** | à faire |
+| **S4-4** | Import consolidé (dry-run) : listes ordonnées + 30 Ordres + 19 classes, **jamais de re-seed destructif** | ✅ **livré** le 26/10/2026 — `importRushGuide(raw, apply)` : dry-run par défaut, `src/lib/rush-import.ts` (plan pur), **ajoute seulement** |
 
 ## 7. Bloc S5 — Dette de bascule & performance
 

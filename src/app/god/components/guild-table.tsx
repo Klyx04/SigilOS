@@ -578,7 +578,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
     };
 
     const handleSoftDelete = async () => {
-        if (!confirm(`Soft delete guild "${guild.name}"? This will archive it for 30 days.`)) return;
+        if (!confirm(`Mettre la guilde "${guild.name}" en pause ? Elle sera archivée 30 jours et son accès au dashboard coupé.`)) return;
         setIsUpdating(true);
         try {
             await softDeleteGuild(guild.id, "GOD_ADMIN_SOFT_DELETE");
@@ -603,9 +603,9 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
     };
 
     const handleHardDelete = async () => {
-        if (!confirm(`⚠️ HARD DELETE guild "${guild.name}"? This is irreversible.`)) return;
-        const confirmText = prompt("Type DELETE to confirm:");
-        if (confirmText !== 'DELETE') return;
+        if (!confirm(`⚠️ Supprimer DÉFINITIVEMENT la guilde "${guild.name}" ? Cette action est irréversible.`)) return;
+        const confirmText = prompt("Saisissez SUPPRIMER pour confirmer :");
+        if (confirmText !== 'SUPPRIMER') return;
 
         setIsUpdating(true);
         try {
@@ -856,7 +856,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                                         className={`gap-3 p-3 cursor-pointer ${guild.isActive ? 'focus:bg-red-500/10 focus:text-red-400' : 'focus:bg-emerald-500/10 focus:text-emerald-400'}`}
                                     >
                                         <Snowflake className="w-4 h-4" />
-                                        {guild.isActive ? "Geler la guilde (Kill-switch)" : "Dégeler la guilde"}
+                                        {guild.isActive ? "Geler l'accès au dashboard" : "Dégeler l'accès au dashboard"}
                                     </DropdownMenuItem>
 
                                     <DropdownMenuItem
@@ -877,7 +877,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                                         className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400 font-bold"
                                     >
                                         <Ban className="w-4 h-4" />
-                                        Bannir Définitivement (bloque, garde les données)
+                                        Bannir de la plateforme (accès bloqué, données gardées)
                                     </DropdownMenuItem>
                                 </>
                             )}
@@ -914,7 +914,7 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
                                                     className="gap-3 p-3 cursor-pointer focus:bg-amber-500/10 focus:text-amber-400"
                                                 >
                                                     <Archive className="w-4 h-4" />
-                                                    Mettre en pause
+                                                    Mettre en pause (archive 30 jours)
                                                 </DropdownMenuItem>
                                             ) : (
                                                 <DropdownMenuItem

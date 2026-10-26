@@ -64,7 +64,9 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     return (
         <div className="flex h-screen bg-background font-sans text-foreground selection:bg-primary/20 overflow-hidden dashboard-layout">
             {/* Sidebar for all God pages */}
-            <Suspense fallback={<div className="w-72 bg-surface border-r border-border h-full animate-pulse" />}>
+            {/* Squelette statique : un `animate-pulse` plein écran repeint en boucle pendant toute
+                la durée du Suspense (mesure du 25/10/2026 — charte : pas d'animation décorative). */}
+            <Suspense fallback={<div className="w-72 bg-surface border-r border-border h-full" />}>
                 <GodSidebar 
                     className="hidden lg:flex shrink-0" 
                     user={session.user} 
@@ -100,7 +102,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                                 </span>
                             )}
                         </Link>
-                        <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-surface animate-pulse" />}>
+                        <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-surface" />}>
                             <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} accessibleBricks={accessibleBricks} godRoute={godRoute} />
                         </Suspense>
                     </div>

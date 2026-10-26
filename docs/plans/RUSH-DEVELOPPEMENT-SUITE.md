@@ -171,21 +171,32 @@ God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles re
 ## 7 bis. Hors dépôt — la page « Trame » (outil de construction)
 
 **But** : disposer d'une page **non commitée** qui rassemble les deux sources et sert à **construire
-la trame** (réordonner, annoter, exclure), puis à **exporter** le JSON qui deviendra le contenu du
-guide. Ce n'est **pas** une surface produit : aucun code de `src/app` n'en dépend.
+la trame** avant la saisie dans God. Ce n'est **pas** une surface produit : aucun code de `src/app`
+n'en dépend.
 
-| Élément | Choix |
+**Livré le 26/10/2026 (v1 — consultation + export ; l'édition n'est pas faite).**
+
+| Élément | Réalité mesurée |
 |---|---|
-| Emplacement | `src/temp/trame-rush/` (déjà couvert par `/src/temp/`) |
-| Fichiers | `index.html` · `app.js` · `data.json` (généré) · `build-data.mjs` · `cache/` |
-| Dépendances | **aucune** (vanilla, pas de build, pas de Next) |
-| Données | `tougli-guide-details.json` + `dofusyelle … data.js` locaux + 2 guides Tougli d'alignement (fetch, cache horodaté) |
-| Vues | Trame (57 étapes) · Alignement (100/102) · Ordres (6×5) · Classes (19) · Contraintes (1 085) · Ressources & donjons (union 584 / 99+83) |
-| Édition | réordonner, fusionner, exclure, annoter, marquer `parallèle` / `prise anticipée`, puis **Exporter** |
+| Emplacement | `src/temp/trame-rush/` (couvert par `/src/temp/`, **jamais commité**) |
+| Fichiers | `build-data.mjs` (siphon + corrélation) · `index.html` · `app.js` · `data.json` et `data.js` (générés) · `cache/` (réponses Tougli horodatées, 24 h) |
+| Dépendances | **aucune** (vanilla, aucun build) — ouverture par double-clic, sans serveur |
+| Construction | `node src/temp/trame-rush/build-data.mjs` (`--refresh` refait le fetch, `--no-db` saute l'instantané PostgreSQL) |
+| Sources | `src/temp/archive/siphon-align/tougli-guide-details.json` (RSA) + `dofusyelle … data.js` + `GET api.tougli.barbofus.com/api/guide/details/{100-quetes-alignement-bontarien,100-quetes-alignement-brakmarien}` |
+| Mesures obtenues | **530** quêtes Tougli · **36** blocs · séries **100 / 102** · **30** quêtes d'Ordre (6 × 5) · **19** classes · **381** objets · **99** donjons (**99** rapprochés de notre table, dont **3** alias mesurés) · **530 / 530** quêtes présentes dans `GameQuest` (`dofusDbId`) |
+| Dofusyelle | **57** étapes · **21** piliers · **83** donjons · **531** ressources ; corrélation par nom normalisé : **361 / 384** quêtes rapprochées (les 23 restantes sont des consignes rédactionnelles) |
+| Vues | Trame (route cité/Ordre/classe résolue) · Cités (paliers de 20) · Ordres (6 × 5) · Classes · Dofusyelle (corrélation) · Donjons (correspondance) · Contraintes · Export God |
+| Édition | **non livrée** : pas de réordonnancement, pas de fusion, pas d'exclusion. Seules la route et les cases « fait » sont persistées |
 | Persistance | `localStorage` + export fichier — **aucune** base, aucune guilde |
+| Export | `export-god.json` par route : blocs → séquences avec `order`, `subGuideName`, `questDbIds`, `alignReq`, `alignOrderCode`, `alignLevelReq`, `classReq`, `dungeonIds` (cuid de notre table), `takeEarly`, `tips` + un bloc `_mesure` (palier de cité, niveau, donjons Tougli, contraintes) qui **ne s'écrit pas** en base |
+
+**Ce que l'outil ne fait pas** : il n'écrit rien (aucun import automatique — c'est le lot **S4-4**),
+il ne réordonne pas, et il ne remplace pas la décision éditoriale (les textes se **réécrivent**,
+jamais ils ne se recopient).
 
 **Interdits** : ne rien committer depuis ce dossier, ne pas l'importer dans `src/lib`, ne pas en faire
 un seed automatique. C'est un **brouillon de session** (règle `docs/agents/zone-volatile.md`).
+
 
 ## 8. Dépendances à ne pas inverser
 

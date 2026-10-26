@@ -37,6 +37,8 @@ import {
   seedRushSylvestreFromGuide,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
+import { searchGameQuests, type GameQuestResult } from "@/server/actions/picker-actions";
+import { applyQuestIdentity, type RushQuestPick } from "@/lib/rush-quest-identity";
 import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
@@ -2162,6 +2164,80 @@ function RequiredItemsEditor({
   );
 }
 
+// ─── RushQuestPicker (identité de quête depuis le catalogue GameQuest) ─────────
+/**
+ * Le nom d'une quête du guide n'a plus à être tapé : le catalogue (siphon
+ * game-data, 1 976 quêtes) le fournit, avec son **id DofusDB** — celui que
+ * portent `questDbIds`. Le lien DPLN reste la première source et n'est pas dans
+ * ce catalogue : il reste saisi à la main (règle `applyQuestIdentity`).
+ */
+function RushQuestPicker({ onPick }: { onPick: (pick: RushQuestPick) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<GameQuestResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const run = useCallback((value: string) => {
+    if (value.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    searchGameQuests(value)
+      .then((res) => setResults(res.success ? res.data : []))
+      .finally(() => setSearching(false));
+  }, []);
+
+  const handleChange = (value: string) => {
+    setQuery(value);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => run(value), 250);
+  };
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  return (
+    <div className="relative">
+      <label className="text-caption font-black text-indigo-300/80 uppercase tracking-widest mb-1 block">
+        Chercher dans le catalogue (nom + lien DofusDB)
+      </label>
+      <div className="relative">
+        <Search className="absolute left-2 top-2 w-3 h-3 text-indigo-400" />
+        <input
+          value={query}
+          onChange={(e) => handleChange(e.target.value)}
+          className="w-full bg-black/60 border border-indigo-500/30 rounded-lg pl-7 pr-2 py-1.5 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/60"
+          placeholder="Nom de la quête (2 lettres minimum)…"
+        />
+        {searching && <span className="absolute right-2 top-2 text-caption text-zinc-500 animate-pulse">…</span>}
+      </div>
+      {results.length > 0 && (
+        <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-indigo-500/30 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto p-1 space-y-0.5">
+          {results.map((res) => (
+            <button
+              key={res.id}
+              type="button"
+              onClick={() => {
+                onPick({ name: res.name, dofusDbId: res.dofusDbId });
+                setQuery("");
+                setResults([]);
+              }}
+              className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors"
+            >
+              <span className="block text-xs font-medium text-zinc-200 truncate">{res.name}</span>
+              <span className="block text-[10px] text-zinc-500">
+                {res.category ?? "—"}
+                {res.levelMin ? ` · niv. ${res.levelMin}` : ""}
+                {res.dofusDbId ? ` · DofusDB #${res.dofusDbId}` : ""}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── SequenceEditForm (Sections progressives & Live Preview) ───────────────────
 function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, milestones }: {
   seq: Sequence; milestoneId: string; isPending: boolean;
@@ -2777,6 +2853,15 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
         </button>
         {openSections.identity && (
           <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            {/* Identité assistée : le catalogue `GameQuest` porte le nom ET l'id DofusDB
+                (celui de `questDbIds`). Le lien DPLN n'y est pas : il reste la 1ʳᵉ source. */}
+            <RushQuestPicker
+              onPick={(pick) => {
+                const next = applyQuestIdentity(pick, { name, dofusdbUrl });
+                setName(next.name);
+                setDofusdbUrl(next.dofusdbUrl);
+              }}
+            />
             <div>
               <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Nom *</label>
               <input
@@ -3265,21 +3350,21 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           <div className="p-3 pt-0 space-y-3 border-t border-white/5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
+                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusNoobs (DPLN)</label>
+                <input
+                  value={noobsUrl}
+                  onChange={e => setNoobsUrl(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-cyan-300/80 focus:outline-none focus:border-cyan-500/40"
+                  placeholder="https://dofuspourlesnoobs.com/..."
+                />
+              </div>
+              <div>
                 <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusDB</label>
                 <input
                   value={dofusdbUrl}
                   onChange={e => setDofusdbUrl(e.target.value)}
                   className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-emerald-300/80 focus:outline-none focus:border-emerald-500/40"
                   placeholder="https://dofusdb.fr/fr/..."
-                />
-              </div>
-              <div>
-                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusNoobs</label>
-                <input
-                  value={noobsUrl}
-                  onChange={e => setNoobsUrl(e.target.value)}
-                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-cyan-300/80 focus:outline-none focus:border-cyan-500/40"
-                  placeholder="https://dofuspourlesnoobs.com/..."
                 />
               </div>
             </div>
@@ -3813,6 +3898,15 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
         </button>
       </div>
 
+      {/* Même identité assistée qu'à l'édition : le catalogue fournit le nom et l'id DofusDB. */}
+      <RushQuestPicker
+        onPick={(pick) => {
+          const next = applyQuestIdentity(pick, { name, dofusdbUrl });
+          setName(next.name);
+          setDofusdbUrl(next.dofusdbUrl);
+        }}
+      />
+
       <AnimatePresence>
         {expanded && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
@@ -3892,17 +3986,17 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
+                  <label className="text-caption text-zinc-600 mb-1 block">URL DofusNoobs (DPLN)</label>
+                  <input value={noobsUrl} onChange={e => setNoobsUrl(e.target.value)}
+                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-caption text-cyan-300/80 focus:outline-none"
+                    placeholder="https://dofuspourlesnoobs.com/..."
+                  />
+                </div>
+                <div>
                   <label className="text-caption text-zinc-600 mb-1 block">URL DofusDB</label>
                   <input value={dofusdbUrl} onChange={e => setDofusdbUrl(e.target.value)}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-caption text-emerald-300/80 focus:outline-none"
                     placeholder="https://dofusdb.fr/fr/..."
-                  />
-                </div>
-                <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">URL DofusNoobs</label>
-                  <input value={noobsUrl} onChange={e => setNoobsUrl(e.target.value)}
-                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-caption text-cyan-300/80 focus:outline-none"
-                    placeholder="https://dofuspourlesnoobs.com/..."
                   />
                 </div>
               </div>

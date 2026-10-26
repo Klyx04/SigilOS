@@ -60,6 +60,7 @@ docs/
 │   ├── PLAN-COMMANDES-SLASH.md     chantier Z : commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés)
 │   ├── PLAN-ACTIVITE-GUILDE.md     chantier N : activité de guilde enrichie & notifications (aucune migration)
 │   ├── PLAN-DEMO-PUBLIQUE.md       chantier S : démo publique en lecture seule
+│   ├── AMORCE-STUFF-VARIANTES-RESTE.md  suite du chantier stuff/variantes (panoplies recalculées, Pods, veille)
 │   ├── AMORCE-DEMO-PUBLIQUE.md     amorce du chantier S (S-1 → S-5)
 │   ├── PLAN-DESLOP-ANNUAIRE.md     deslop de l'annuaire (volet membres de M-1)
 │   ├── PLAN-RACCORD-DOFUSDB.md     raccord DofusDB (données de combat + visuels)

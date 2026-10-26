@@ -55,22 +55,139 @@ résidentielle** en secours.
 | Route | Auth | Appelée par | Cache |
 |---|---|---|---|
 | `GET /:id` | header `X-SigilOS-Key` | `getDofusbookPreview()` (serveur) | Cache API, clé stable, **succès uniquement** |
+| `GET /:id?force=true` | header `X-SigilOS-Key` | `fetchBuildData(force)` (route proxy) | **contourné** : appel Dofusbook + remplacement de l'entrée (TTL 60 s) |
 | `GET /s/:id?e=<exp>&t=<hmac>` | jeton HMAC en query | **navigateur** (bake galerie/modale) | idem (clé indépendante du jeton) |
+| `GET /s/:id?e=…&t=…&force=1` | jeton HMAC en query | navigateur, bouton **Actualiser** | **contourné** (idem ci-dessus) |
 | `OPTIONS` | — | CORS preflight | — |
 
 Jeton : `HMAC_SHA256(secret, "<id>.<exp>")` en hex, **TTL 300 s**, généré par
 `src/lib/dofusbook-sign.ts`. L'origine n'entre **pas** dans la signature ⇒ changer
 l'hébergement du relais ne casse aucun jeton.
 
+### Rafraîchissement explicite (`force`)
+
+🐞 **Mesure du 25/10/2026** : le worker mettait **toute** réponse 2xx en cache 24 h sous une clé
+**stable** et **ignorait** `force` — un build modifié sur Dofusbook (item retiré, jet changé)
+restait donc figé jusqu'à 24 h, et la fiche continua de l'afficher après « Actualiser ». Le
+serveur, lui, redatait `updatedAt` à chaque synchro (l'air « à jour » sans l'être).
+
+- `force` est propagé de bout en bout : `DofusbookPreview` / galerie →
+  `bakeDofusbookFromBrowser(url, guildId, { force })` → `buildDofusbookClientFetchUrl(id, { force })`
+  (`&force=1`) → worker (pas de lecture du cache, `cf.cacheTtl: 0`, entrée remplacée avec une TTL
+  de **60 s** pour ne pas marteler Dofusbook sur deux clics rapprochés).
+- `storeClientDofusbookPreview()` renvoie `changed` : **`updatedAt` n'est écrit que si le payload
+  produit a réellement changé**. L'UI affiche « Aucun changement côté Dofusbook » sinon.
+- ⚠️ **Ops** : le worker doit être redéployé (`wrangler deploy` dans
+  `cloudflare-workers/dofusbook-proxy`) — sinon le cache 24 h reste en place.
+
+### Stats : ce que Dofusbook calcule (mesuré, pas deviné)
+
+Vérité terrain = page Dofusbook **rendue** (Chromium) comparée au payload, sur le build
+`22329554` (25/10/2026) :
+
+| Stat | Règle mesurée | Exemple |
+|---|---|---|
+| Initiative | **Force + Agilité + Chance + Intelligence** (+ `ii`/`ini`) | 190+185+185+1323 = **1883** |
+| Esquive PA/PM, Retrait PA/PM | `floor(Sagesse / 10)` + items + panoplies | 405 → **40** |
+| Tacle, Fuite | `floor(Agilité / 10)` + items + panoplies | 185 → **18** |
+| PV | `50 + niveau × 5` + Vitalité (items/base/parcho) | 1050 + 3353 = **4403** |
+| Prospection | 100 + `floor(Chance / 10)` + items | **118** |
+
+⚠️ L'ancien socle d'initiative `level × 5` (1000) était **inventé** : tout build affichait
+1000. Codes Dofusbook : `ii` = initiative, `ic` = invocation (items **et** `cloths`), `rv` =
+**Renvoi Dmg**, `rm`/`rd` = % Ré Mêlée/Dist, `deg` = **% Do Finaux**.
+
+**Pas encore agrégé/affiché** : **Pods** (1950 sur ce build) — le payload ne porte aucun poids,
+il faut joindre `GameItem.realWeight` (DofusDB) ; lot séparé.
+
+**Ajouté le 25/10/2026** : `rc/rp/rm/rd/rv` sont désormais **agrégés**
+(`resists.critique/poussee/melee/distance/renvoi`) et affichés sous les résistances élémentaires ;
+`deg` = **% Do Finaux** ; la **fiche d'item** utilise les icônes réelles (`rm`/`rd`/`rv` mappées dans
+`dofus-stats-theme.ts`) et **colore les malus en rouge** ; les **exo/over** affichent une **pastille
+de rune** sur le slot (miniature + onglet Équipement).
+
+### Règles de jeu (Dofus 3.7) — appliquées ou non
+
+Sources : **MàJ 3.7 du 06/10/2026** (note officielle Ankama) + note de travail « Comprendre les
+interactions d'équipement dans DOFUS » (25/10/2026), croisées avec les payloads réels.
+
+| Règle | État |
+|---|---|
+| Panoplie **active dès 2 pièces** | ✅ appliqué (`equippedCount > 1`) |
+| Le **palier courant remplace** le précédent (jamais d'addition) | ✅ appliqué (seul le plus haut palier atteint compte) |
+| **Pièces distinctes** : le même objet porté 2× ne compte qu'une fois | ✅ appliqué (`Set` d'ids Ankama) |
+| **Une seule Prysmaradite** (1ᵉʳ emplacement Dofus/Trophée) | ✅ appliqué côté serveur (`saveBuildVariant`, type résolu dans `GameItem`) |
+| Trophée à condition « **< 2 panoplies** actives » | ✅ **appliqué** : arbre `Bonus de panoplies < 2` (DofusDude) évalué sur les panoplies actives (≥ 2 pièces distinctes) |
+| Arme à deux mains vs bouclier (`twoHanded`) | ✅ **appliqué** côté serveur (colonne `GameItem.twoHanded`) |
+| Conditions d'objet (`criterions` / `conditions`) | ✅ **appliqué** : arbre structuré (`GameItem.conditions`), évaluateur générique fail-closed, affichage + refus (client) et revalidation (serveur) |
+| Bonus de panoplie **recalculés** quand une variante change une pièce | ⏳ le payload Dofusbook ne contient que le **palier actif** ⇒ impossible sans `GameItemSet` |
+
+⚠️ Les guides antérieurs à la 3.7 comptent les **paliers** (« 3 pièces = 2 bonus ») : c'est
+**périmé**. Le code applique la règle 3.7.
+
+### Conditions d'équipement : source **structurée** (pas une liste de codes)
+
+Mesures du 25/10/2026 : le DSL DofusDB (`criterions`) utilise des codes courts non documentés
+(`CP<12|CM<6`, `pk<2`). **DofusDude** expose le même contenu en **arbre** avec des noms français :
+
+```json
+{ "relation": "or", "children": [
+  { "condition": { "operator": "<", "int_value": 12, "element": { "name": "PA" } } },
+  { "condition": { "operator": "<", "int_value": 6,  "element": { "name": "PM" } } } ] }
+```
+
+Sur les **4 095** équipements (264 portent une condition) : éléments `PA, PM, Vitalité, Sagesse,
+Force, Intelligence, Chance, Agilité, Bonus de panoplies, Être abonné, Être niveau {0} ou plus,
+Kamas, Niveau d'alignement` ; opérateurs `< = >` ; relations `and` / `or`.
+
+- Évaluateur générique : `src/lib/dofus-conditions.ts` (rendu FR + évaluation contre un **build
+  effectif** : PA, PM, PV, Sagesse/Force/Int/Chance/Agilité, **panoplies actives**, niveau).
+- **Fail-closed** : un élément hors contexte d'un stuff (kamas, abonnement, alignement) ou un
+  opérateur inconnu ⇒ `ok:false` (jamais deviné).
+- Siphon : `scripts/siphon-item-conditions.mjs` (`--apply`) → `GameItem.conditions` (JSONB).
+  Le DSL brut reste stocké dans `GameItem.criterions` (audit).
+- Application : le sélecteur **affiche** la condition et **refuse** la sélection ; le serveur
+  (`saveBuildVariant`) **revalide** (conditions, arme à deux mains vs bouclier, Prysmaradite).
+  Le candidat ne se compte pas lui-même dans PA/PM (Heaume Oplate : +1 PA mais exige PA < 12).
+
+### Icônes de stats : assets réels (siphonnés)
+
+Dofusbook sert ses icônes de statistiques sous `/assets/img/elements/<code>.png` (mesuré au DOM le
+25/10/2026 : la ligne « Ré Critique » utilise `<img src="/assets/img/elements/rc.png">`). Les six
+icônes qui manquaient (ou qui tombaient sur le bouclier générique) ont été **siphonnées** dans
+`public/assets/dofus/stats/` :
+
+| Code Dofusbook | Fichier local | Thème |
+|---|---|---|
+| `rc` | `resCritique.png` | `criticalResistance` |
+| `rp` | `resPoussee.png` | `pushResistance` |
+| `rm` | `resMelee.png` | `meleeResistance` |
+| `rd` | `resDistance.png` | `distanceResistance` |
+| `rv` | `renvoi.png` | `damageReturn` |
+| `deg` | `doFinaux.png` | `finalDamage` |
+
+`node scripts/check-media-metadata.mjs` → **0 métadonnée** (règle « zéro empreinte »).
+
+### Stats : deux codes Dofusbook par statistique
+
+Les payloads actuels portent **`ii`** (initiative) et **`ic`** (invocation) — y compris dans
+`cloths[].effects` (panoplies : `Panoplie de Danathor` = `ii+500@2`, `Panoplie de la Fosse` =
+`ic+1@3`). `processDofusbookRawData` ne connaissait que `ini`/`invo` : l'initiative restait au socle
+`level × 5` (1000 au lieu de 1788) et l'invocation à 1. Les deux codes sont désormais mappés
+(verrou `dofusbook-sync-force`). Les codes `sp` (sort) et `at` (atout) **ne sont pas des stats** et
+sont ignorés.
+
+
 ### Les deux flux de récupération
 
 **1. Bake navigateur** (nominal depuis le 18/09) — `src/lib/dofusbook-client-bake.ts`,
-`bakeDofusbookFromBrowser(url, guildId)` : `getDofusbookClientFetchUrl()` (server action,
+`bakeDofusbookFromBrowser(url, guildId, { force })` : `getDofusbookClientFetchUrl()` (server action,
 signature seule) → `fetch()` du navigateur sur `/s/{id}` → `storeClientDofusbookPreview()`
 (server action) qui **valide** (`isUsableDofusbookRawPayload`), traite et **enregistre
 dans le profil du propriétaire** (`persisted`), ou renvoie les données sans persister pour
 un non-propriétaire. Utilisé par la galerie (`gallery-client.tsx`) et la modale
-(`dofusbook-preview.tsx`).
+(`dofusbook-preview.tsx`) ; le bouton **Actualiser** passe `{ force: true }` (cf. § « Rafraîchissement
+explicite »).
 
 **2. Flux serveur** — `getDofusbookPreview(url, force)` (`src/server/actions/dofusbook-actions.ts`) :
 cache Redis 24 h (`sigilos:dofusbook:v12:<id>`, invalidé si la donnée n'a pas d'items) →

@@ -181,10 +181,12 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 - **Non copié** : le DSL en texte (fragile). On garde des champs typés.
 
 **Reste à faire (dans cet ordre)**
-1. **Vue Branches à 2 étages** dans God (cité → Ordre, paires alignées, manques signalés) — cible **100 / 102** (mesuré). Organisation de la suite, blocs S0→S5 : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
-2. **Édition** des champs de route sur une séquence **existante** (aujourd'hui : création seulement).
+1. ~~**Vue Branches à 2 étages** dans God~~ — **livrée** le 23/10/2026 (cible **100 / 102**). Organisation de la suite,
+   blocs S0→S5 : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
+2. ~~**Édition** des champs de route sur une séquence **existante**~~ — **livrée** le 26/10/2026 (section « 7. Route »).
 3. Sélecteur d'**Ordre** dans l'overlay et le guide public (aujourd'hui : cité seule).
-4. Saisie du contenu : 2 × 100 quêtes de cité + 30 quêtes d'Ordre.
+4. Saisie du contenu : 2 × 100 quêtes de cité + 30 quêtes d'Ordre — **outillée** : export JSON de la trame + import
+   **dry-run** dans God (`S4-4`). Reste l'écriture éditoriale (textes réécrits, jamais recopiés).
 5. Supprimer `alignOrderReq` et `alignmentLevel` quand la bascule est terminée.
 
 ### G — Liaison Metamob **dans l'overlay** (fin du cul-de-sac)

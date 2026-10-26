@@ -124,6 +124,8 @@ export const DofusProgressStrip = memo(function DofusProgressStrip({
             <button
               key={d.id}
               onClick={() => onFilterChange(isActive ? null : d.id)}
+              aria-pressed={isActive}
+              aria-label={`Filtrer sur le Dofus ${d.label} (${d.done}/${d.total})`}
               className={`relative flex flex-col items-center gap-1.5 p-2.5 rounded-xl border transition-all ${
                 isActive
                   ? "border-emerald-500/40 bg-zinc-900/60 scale-[1.02]"

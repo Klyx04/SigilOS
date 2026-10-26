@@ -46,7 +46,7 @@ describe("duplicateRushSequenceAsTwin — slot miroir", () => {
 describe("jumelle d'ORDRE (1 → 3)", () => {
   const code = read(ACTIONS);
   const start = code.indexOf("export async function duplicateRushSequenceAsOrderTwins");
-  const body = code.slice(start, start + 2200);
+  const body = code.slice(start, start + 3200);
 
   it("est protégée et fail-closed sans cité ou sans Ordre", () => {
     expect(start).toBeGreaterThan(-1);
@@ -55,17 +55,41 @@ describe("jumelle d'ORDRE (1 → 3)", () => {
     expect(body).toMatch(/n'a pas d'Ordre/);
   });
 
-  it("crée les 2 AUTRES Ordres de la même cité, sans doublon", () => {
-    expect(body).toMatch(/if \(other\.id === sourceOrder\) continue;/);
-    expect(body).toMatch(/alignOrderCode: other\.id/);
-    expect(body).toMatch(/findFirst\(\{/);
-    expect(body).toMatch(/if \(exists\) continue;/);
+  it("crée les 2 AUTRES Ordres de la même cité, sans doublon (codes canoniques)", () => {
+    // Les codes écrits sont les **codes canoniques** (`coeur_vaillant`…), pas les ids
+    // courts du référentiel de guilde (`vaillant`) : la règle de route compare ces codes.
+    expect(body).toMatch(/orderCodesForCamp\(camp\)/);
+    expect(body).toMatch(/if \(other\.code === sourceCode\) continue;/);
+    expect(body).toMatch(/alignOrderCode: other\.code/);
+    // L'idempotence lit la base **avant** de créer, et normalise les codes déjà écrits
+    // (une jumelle créée avec l'ancien vocabulaire ne doit pas être recréée).
+    expect(body).toMatch(/findMany\(\{/);
+    expect(body).toMatch(/normalizeOrderCode\(s\.alignOrderCode\)/);
+    expect(body).toMatch(/if \(existingCodes\.has\(other\.code\)\) continue;/);
   });
 
   it("le studio God expose le bouton sur les seules quêtes d'Ordre", () => {
     const god = read(GOD);
     expect(god).toContain('{seq.alignOrderCode && <OrderTwinButton sequenceId={seq.id} />}');
     expect(god).toContain("duplicateRushSequenceAsOrderTwins");
+  });
+});
+
+describe("studio God — identité de quête et route éditables", () => {
+  const god = read(GOD);
+
+  it("les deux formulaires (édition ET création) envoient les ids de quête et portent le picker", () => {
+    expect(god.match(/questDbIds,/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(god.match(/<RushQuestPicker/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
+  it("l'Ordre est écrit en code canonique, jamais avec l'id court de `ORDERS`", () => {
+    expect(god).toContain("orderCodesForCamp(alignReq)");
+    expect(god).not.toMatch(/ORDERS\[alignReq\]/);
+  });
+
+  it("une séquence existante peut changer de route (cité / Ordre / palier / classe)", () => {
+    expect(god).toContain("7. 🧭 Route (cité / Ordre / palier / classe)");
   });
 });
 

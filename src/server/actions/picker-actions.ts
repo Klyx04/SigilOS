@@ -78,6 +78,8 @@ export async function searchDungeons(
 export interface GameQuestResult {
     id: string;
     name: string;
+    /** Id DofusDB de la quête — c'est la valeur que portent `GuideSequence.questDbIds`. */
+    dofusDbId: number | null;
     category: string | null;
     levelMin: number | null;
     levelMax: number | null;
@@ -99,6 +101,7 @@ export async function searchGameQuests(
             select: {
                 id: true,
                 name: true,
+                dofusDbId: true,
                 category: true,
                 levelMin: true,
                 levelMax: true,
@@ -131,6 +134,9 @@ export async function searchGameQuests(
             data: fallbackData.map((quest) => ({
                 id: quest.id,
                 name: quest.name,
+                // Le repli DofusDB renvoie l'id de quête sous forme de chaîne : on ne le
+                // convertit que s'il est numérique (sinon la fiche directe n'a pas de sens).
+                dofusDbId: /^\d+$/.test(String(quest.id)) ? Number(quest.id) : null,
                 category: quest.category ?? null,
                 levelMin: quest.levelMin ?? null,
                 // DofusDB n'expose pas levelMax dans ce fallback.

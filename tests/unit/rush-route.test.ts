@@ -72,6 +72,21 @@ describe("isSequenceOnRoute", () => {
     expect(isSequenceOnRoute(seq("b", "bontarien"), null)).toBe(true);
     expect(isSequenceOnRoute(seq("b", "brakmarien"), undefined)).toBe(true);
   });
+
+  it("tolère les deux vocabulaires d'Ordre (code canonique et id court historique)", () => {
+    const withOrder = (code: string) =>
+      ({ ...seq("o", "bontarien"), alignOrderCode: code }) as unknown as RushSequence;
+
+    // Le studio écrivait `vaillant`, la règle attend `coeur_vaillant` : même Ordre.
+    expect(isSequenceOnRoute(withOrder("vaillant"), { camp: "bontarien", order: "coeur_vaillant" })).toBe(true);
+    expect(isSequenceOnRoute(withOrder("coeur_vaillant"), { camp: "bontarien", order: "vaillant" })).toBe(true);
+    // Un autre Ordre reste masqué.
+    expect(isSequenceOnRoute(withOrder("attentif"), { camp: "bontarien", order: "coeur_vaillant" })).toBe(false);
+    // Une valeur inconnue ne correspond à aucun code : elle est masquée face à un Ordre
+    // connu, et ne reste visible que si le joueur porte **exactement** la même valeur brute.
+    expect(isSequenceOnRoute(withOrder("pirate"), { camp: "bontarien", order: "coeur_vaillant" })).toBe(false);
+    expect(isSequenceOnRoute(withOrder("pirate"), { camp: "bontarien", order: "pirate" })).toBe(true);
+  });
 });
 
 describe("resolveRushRoute", () => {

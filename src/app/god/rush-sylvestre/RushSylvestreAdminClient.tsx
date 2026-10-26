@@ -15,6 +15,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
+import { readableOn } from "@/lib/rush-dofus-accent";
 import {
   Zap, Plus, Trash2, ChevronDown, ChevronRight, ChevronUp,
   Settings, Construction, Check, X,
@@ -35,8 +36,11 @@ import {
   duplicateRushSequenceAsTwin,
   duplicateRushSequenceAsOrderTwins,
   seedRushSylvestreFromGuide,
+  importRushGuide,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
+import { searchGameQuests, type GameQuestResult } from "@/server/actions/picker-actions";
+import { applyQuestIdentity, type RushQuestPick } from "@/lib/rush-quest-identity";
 import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
@@ -45,7 +49,7 @@ import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { ORDERS } from "@/lib/dofus-assets";
+import { RUSH_ORDER_CODES, normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
 import {
@@ -56,6 +60,7 @@ import {
 } from "@/components/dofus-quests/rush/RushRichText";
 import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { countMissingOrderSlots, type RushBranchesView } from "@/lib/rush-branches";
+import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
 // composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
 import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
@@ -99,6 +104,8 @@ type Sequence = {
   alignLevelReq?: number | null;
   classReq?: string | null;
   alignOrderReq?: number | null;
+  /** Ids DofusDB des quêtes incarnées (`GameQuest.dofusDbId`) — bornés côté serveur. */
+  questDbIds?: number[];
   dungeon?: { id: string; name: string; bossName: string; imageUrl?: string | null } | null;
   /** Donjons li├®s ; `isOptional` = affich├® mais non bloquant (S0-6). */
   dungeons?: { id: string; name: string; bossName: string; imageUrl?: string | null; isOptional?: boolean }[];
@@ -316,6 +323,8 @@ export function RushSylvestreAdminClient({
   // styler, ni lister ce qui part avec le bloc (ses quêtes), et certains navigateurs le
   // bloquent : on garde la cible en état et la modale Radix se charge du reste (`E4`).
   const [pendingDelete, setPendingDelete] = useState<Milestone | null>(null);
+  /** S4-4 — dialogue d'import consolidé (dry-run obligatoire avant d'écrire). */
+  const [importJsonOpen, setImportJsonOpen] = useState(false);
 
   const runSeed = useCallback(async (apply: boolean) => {
     startImport(async () => {
@@ -664,6 +673,11 @@ export function RushSylvestreAdminClient({
                 </button>
               ))}
             </div>
+            <button onClick={() => setImportJsonOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/20 transition-all"
+              title="Importer un export JSON du guide — analyse (dry-run) avant toute écriture">
+              <ClipboardList className="w-3 h-3" /> JSON
+            </button>
             <button onClick={() => runSeed(false)} disabled={importing}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/20 transition-all disabled:opacity-50"
               title="Importer le guide Laniyelle (métiers, ressources, donjons)">
@@ -735,7 +749,7 @@ export function RushSylvestreAdminClient({
                   <div key={d.id} className="p-3 bg-zinc-900/40 border border-white/5 rounded-2xl flex flex-col items-center text-center" style={{ borderColor: `${d.color}20` }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={d.imageUrl} alt={d.label} className="w-10 h-10 object-contain mb-1 drop-shadow-lg" />
-                    <p className="text-caption font-black uppercase tracking-widest" style={{ color: d.color }}>{d.label}</p>
+                    <p className="text-caption font-black uppercase tracking-widest" style={{ color: readableOn(d.color, GOD_DOFUS_SURFACE).color }}>{d.label}</p>
                     <p className="text-xs font-bold text-white mt-1">{questCount} quête{questCount !== 1 ? 's' : ''}</p>
                     <p className="text-caption text-zinc-600">{linkedMilestones.length} bloc{linkedMilestones.length !== 1 ? 's' : ''}</p>
                   </div>
@@ -853,7 +867,7 @@ export function RushSylvestreAdminClient({
                                   ? "border-white/40 scale-105"
                                   : "border-white/10 opacity-40 hover:opacity-80"
                               }`}
-                              style={newDofusId === d.id ? { color: d.color, borderColor: d.color, background: d.color + "25" } : { borderColor: d.color + "40", background: d.color + "10" }}
+                              style={newDofusId === d.id ? { color: readableOn(d.color, GOD_MODAL_SURFACE).color, borderColor: d.color, background: d.color + "25" } : { borderColor: d.color + "40", background: d.color + "10" }}
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={d.imageUrl} alt={d.label} className="w-5 h-5 object-contain" />
@@ -1150,6 +1164,9 @@ export function RushSylvestreAdminClient({
         )}
 
       </div>
+      {/* S4-4 — import consolidé : dry-run obligatoire, jamais destructif. */}
+      <RushImportDialog open={importJsonOpen} onClose={() => setImportJsonOpen(false)} />
+
       {/* Confirmation de suppression — `Dialog` Radix (Échap, focus piégé, `aria-*`) au lieu
           du `confirm()` natif : on peut enfin dire ce qui part avec le bloc (`E4`). */}
       <Dialog open={!!pendingDelete} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
@@ -2162,6 +2179,286 @@ function RequiredItemsEditor({
   );
 }
 
+// ─── RushQuestPicker (identité de quête depuis le catalogue GameQuest) ─────────
+/**
+ * Le nom d'une quête du guide n'a plus à être tapé : le catalogue (siphon
+ * game-data, 1 976 quêtes) le fournit, avec son **id DofusDB** — celui que
+ * portent `questDbIds`. Le lien DPLN reste la première source et n'est pas dans
+ * ce catalogue : il reste saisi à la main (règle `applyQuestIdentity`).
+ */
+function RushQuestPicker({ onPick }: { onPick: (pick: RushQuestPick) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<GameQuestResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const run = useCallback((value: string) => {
+    if (value.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    searchGameQuests(value)
+      .then((res) => setResults(res.success ? res.data : []))
+      .finally(() => setSearching(false));
+  }, []);
+
+  const handleChange = (value: string) => {
+    setQuery(value);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => run(value), 250);
+  };
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  return (
+    <div className="relative">
+      <label className="text-caption font-black text-indigo-300/80 uppercase tracking-widest mb-1 block">
+        Chercher dans le catalogue (nom + lien DofusDB)
+      </label>
+      <div className="relative">
+        <Search className="absolute left-2 top-2 w-3 h-3 text-indigo-400" />
+        <input
+          value={query}
+          onChange={(e) => handleChange(e.target.value)}
+          className="w-full bg-black/60 border border-indigo-500/30 rounded-lg pl-7 pr-2 py-1.5 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/60"
+          placeholder="Nom de la quête (2 lettres minimum)…"
+        />
+        {searching && <span className="absolute right-2 top-2 text-caption text-zinc-500 animate-pulse">…</span>}
+      </div>
+      {results.length > 0 && (
+        <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-indigo-500/30 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto p-1 space-y-0.5">
+          {results.map((res) => (
+            <button
+              key={res.id}
+              type="button"
+              onClick={() => {
+                onPick({ name: res.name, dofusDbId: res.dofusDbId });
+                setQuery("");
+                setResults([]);
+              }}
+              className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors"
+            >
+              <span className="block text-xs font-medium text-zinc-200 truncate">{res.name}</span>
+              <span className="block text-[10px] text-zinc-500">
+                {res.category ?? "—"}
+                {res.levelMin ? ` · niv. ${res.levelMin}` : ""}
+                {res.dofusDbId ? ` · DofusDB #${res.dofusDbId}` : ""}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Corps du dialogue d'import : fichier + zone JSON + plan lisible. */
+function RushImportDialogBody({
+  text, setText, plan, issues, onTextChange,
+}: {
+  text: string;
+  setText: (value: string) => void;
+  plan: RushImportPlan | null;
+  issues: string[];
+  onTextChange: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <input
+          type="file"
+          accept="application/json,.json"
+          aria-label="Charger un fichier JSON"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            file.text().then((content) => { setText(content); onTextChange(); });
+          }}
+          className="text-caption text-zinc-400 file:mr-2 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-2 file:py-1 file:text-caption file:text-zinc-200"
+        />
+        <span className="text-caption text-zinc-500">{text.length.toLocaleString("fr-FR")} caractères</span>
+      </div>
+
+      <textarea
+        value={text}
+        onChange={(event) => { setText(event.target.value); onTextChange(); }}
+        placeholder='{ "blocks": [ { "title": "...", "sequences": [ { "subGuideName": "#55 ..." } ] } ] }'
+        className="h-40 w-full resize-y rounded-xl border border-white/10 bg-black/50 p-2 font-mono text-caption text-zinc-200 focus:outline-none focus:border-emerald-500/40"
+        aria-label="Contenu JSON à importer"
+      />
+
+      {issues.length > 0 && (
+        <ul className="max-h-32 space-y-1 overflow-y-auto rounded-xl border border-amber-500/30 bg-amber-500/5 p-2 text-caption text-amber-200">
+          {issues.slice(0, 12).map((issue, index) => (
+            <li key={index}>• {issue}</li>
+          ))}
+        </ul>
+      )}
+
+      {plan && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2 text-caption">
+            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
+              {plan.totals.blocksNew} bloc(s) à créer · {plan.totals.blocksExisting} déjà là
+            </span>
+            <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-sky-300">
+              {plan.totals.sequencesNew} quête(s) à créer
+            </span>
+            <span className="rounded-full border border-white/10 bg-zinc-800 px-2 py-0.5 text-zinc-400">
+              {plan.totals.sequencesExisting} déjà présentes · {plan.totals.sequencesSkipped} écartée(s)
+            </span>
+          </div>
+          <div className="max-h-56 overflow-y-auto rounded-xl border border-white/10">
+            <table className="w-full text-caption">
+              <thead className="bg-zinc-900/80 text-zinc-500">
+                <tr>
+                  <th className="px-2 py-1 text-left">Bloc</th>
+                  <th className="px-2 py-1 text-left">État</th>
+                  <th className="px-2 py-1 text-right">À créer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plan.blocks.map((block) => (
+                  <tr key={block.title} className="border-t border-white/5">
+                    <td className="px-2 py-1 text-zinc-200">{block.title}</td>
+                    <td className="px-2 py-1">
+                      <span className={block.status === "new" ? "text-emerald-400" : "text-zinc-500"}>
+                        {block.status === "new" ? "nouveau" : "existant"}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1 text-right tabular-nums text-zinc-300">{block.toCreate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isRushImportNoop(plan) && (
+            <p className="text-caption text-zinc-400">Rien à créer : ce fichier est déjà dans le guide.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── RushImportDialog (S4-4 : import consolidé, dry-run obligatoire) ──────────
+/**
+ * Colle (ou charge) un `export-god.json`, **analyse** ce qu'il ajouterait, puis
+ * applique. L'analyse est obligatoire : le bouton « Appliquer » reste inactif
+ * tant qu'un dry-run n'a pas réussi sur le **même** texte. L'import ne supprime
+ * et ne réécrit jamais rien — il n'ajoute que ce qui manque.
+ */
+function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const [text, setText] = useState("");
+  const [analysedFor, setAnalysedFor] = useState<string | null>(null);
+  const [plan, setPlan] = useState<RushImportPlan | null>(null);
+  const [issues, setIssues] = useState<string[]>([]);
+  const [busy, startTransition] = useTransition();
+
+  const payload = useCallback((): { ok: true; value: unknown } | { ok: false; error: string } => {
+    try {
+      return { ok: true, value: JSON.parse(text) };
+    } catch {
+      return { ok: false, error: "Le texte n'est pas un JSON valide." };
+    }
+  }, [text]);
+
+  const analyse = useCallback(() => {
+    const parsed = payload();
+    if (!parsed.ok) {
+      setIssues([parsed.error]);
+      setPlan(null);
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const res = await importRushGuide(parsed.value, false);
+        if (res.success) {
+          setPlan(res.data.plan);
+          setIssues(res.data.plan.warnings);
+          setAnalysedFor(text);
+        } else {
+          setPlan(null);
+          setIssues(res.issues ?? [res.error]);
+        }
+      } catch (error) {
+        setIssues([error instanceof Error ? error.message : "Erreur d'analyse"]);
+      }
+    });
+  }, [payload, text]);
+
+  const applyImport = useCallback(() => {
+    const parsed = payload();
+    if (!parsed.ok) return;
+    startTransition(async () => {
+      try {
+        const res = await importRushGuide(parsed.value, true);
+        if (res.success) {
+          const applied = ("applied" in res.data ? res.data.applied : null) ?? { blocks: 0, sequences: 0 };
+          toast.success(`Import appliqué : ${applied.blocks} bloc(s), ${applied.sequences} quête(s)`);
+          onClose();
+          router.refresh();
+        } else {
+          toast.error(res.error);
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Erreur d'import");
+      }
+    });
+  }, [payload, onClose, router]);
+
+  const canApply = analysedFor !== null && analysedFor === text && !!plan && !isRushImportNoop(plan);
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Import consolidé — dry-run d&apos;abord</DialogTitle>
+          <DialogDescription>
+            Colle un <code>export-god.json</code> (ou le JSON d&apos;un bloc). L&apos;analyse liste ce qui serait
+            créé ; rien n&apos;est écrit avant « Appliquer ». Aucun bloc ni aucune quête existants ne sont modifiés.
+          </DialogDescription>
+        </DialogHeader>
+        <RushImportDialogBody
+          text={text} setText={setText} plan={plan} issues={issues}
+          onTextChange={() => { setAnalysedFor(null); setPlan(null); }}
+        />
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={analyse}
+            disabled={busy || text.trim().length === 0}
+            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-caption font-bold text-emerald-300 disabled:opacity-40"
+          >
+            {busy ? "Analyse…" : "Analyser (dry-run)"}
+          </button>
+          <button
+            type="button"
+            onClick={applyImport}
+            disabled={busy || !canApply}
+            className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-caption font-bold text-amber-300 disabled:opacity-40"
+            title={canApply ? "Crée les blocs et quêtes manquants" : "Analyse d'abord le même contenu"}
+          >
+            Appliquer
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Identité visuelle du studio ──────────────────────────────────────────────
+/**
+ * Surfaces réelles du studio God (thème sombre) — **mesurées**, pas supposées :
+ * la carte Dofus est en `bg-zinc-900/40` sur `bg-zinc-950` (≈ `#18181b`), la
+ * modale de création sur `bg-zinc-950` (≈ `#09090b`). Un accent Dofus y est
+ * peint en **texte** : on le passe par `readableOn` pour garantir 4,5:1 (T-4/O14).
+ */
+const GOD_DOFUS_SURFACE = "#18181b";
+const GOD_MODAL_SURFACE = "#09090b";
+
 // ─── SequenceEditForm (Sections progressives & Live Preview) ───────────────────
 function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, milestones }: {
   seq: Sequence; milestoneId: string; isPending: boolean;
@@ -2173,7 +2470,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   const [noobsUrl, setNoobsUrl] = useState(seq.dofuspourlesnoobsUrl || "");
   const [tips, setTips] = useState(seq.tips || "");
   const [alignReq, setAlignReq] = useState(seq.alignReq || "");
+  const [alignOrderCode, setAlignOrderCode] = useState(normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || ""));
+  const [alignLevelReq, setAlignLevelReq] = useState(seq.alignLevelReq ? String(seq.alignLevelReq) : "");
+  const [classReq, setClassReq] = useState(seq.classReq || "");
   const [alignOrderReq, setAlignOrderReq] = useState(seq.alignOrderReq ? String(seq.alignOrderReq) : "");
+  const [questDbIds, setQuestDbIds] = useState<number[]>(Array.isArray(seq.questDbIds) ? seq.questDbIds : []);
   const [note, setNote] = useState(seq.note || "");
   const [isSuccess, setIsSuccess] = useState(seq.isSuccess ?? false);
   const [icon, setIcon] = useState(seq.icon || "");
@@ -2205,6 +2506,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     activities: false,
     resources: false,
     links: false,
+    route: false,
     hints: false,
     advanced: false,
   });
@@ -2608,7 +2910,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       noobsUrl !== (seq.dofuspourlesnoobsUrl || "") ||
       tips !== (seq.tips || "") ||
       alignReq !== (seq.alignReq || "") ||
+      alignOrderCode !== (normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || "")) ||
+      alignLevelReq !== (seq.alignLevelReq ? String(seq.alignLevelReq) : "") ||
+      classReq !== (seq.classReq || "") ||
       alignOrderReq !== (seq.alignOrderReq ? String(seq.alignOrderReq) : "") ||
+      questDbIds.join(",") !== (Array.isArray(seq.questDbIds) ? seq.questDbIds.join(",") : "") ||
       note !== (seq.note || "") ||
       isSuccess !== (seq.isSuccess ?? false) ||
       icon !== (seq.icon || "") ||
@@ -2618,7 +2924,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       optionalDungeonIds.slice().sort().join(",") !==
         (seq.dungeons ?? []).filter((d: any) => d.isOptional).map((d: any) => d.id).sort().join(",")
     );
-  }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderReq, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
+  }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, alignOrderReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
 
   // ── Aperçu « côté membre » (`E5`) ──────────────────────────────────────────
   // ⚠️ On ne réinvente PAS une vignette : la ligne de quête et la fiche « Détails » rendues plus
@@ -2647,12 +2953,15 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     dofuspourlesnoobsUrl: noobsUrl.trim() || null,
     tips: tips.trim() || null,
     alignReq: alignReq.trim() || null,
+    alignOrderCode: alignOrderCode.trim() || null,
+    alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
+    classReq: classReq.trim() || null,
     alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
     isSuccess,
     icon: icon.trim() || null,
     metamobMonsterId: metamobMonsterId ? parseInt(metamobMonsterId, 10) : null,
     activityTags: activityTags as RushActivityTag[],
-  }), [seq.id, seq.subGuideRef, seq.order, name, note, selectedDungeons, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderReq, isSuccess, icon, metamobMonsterId, activityTags]);
+  }), [seq.id, seq.subGuideRef, seq.order, name, note, selectedDungeons, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, alignOrderReq, isSuccess, icon, metamobMonsterId, activityTags]);
 
   /** Bloc qui porte la quête éditée : la fiche « Détails » y lit son titre et son illustration. */
   const previewMilestone: RushMilestone = useMemo(() => {
@@ -2689,7 +2998,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       dofuspourlesnoobsUrl: noobsUrl.trim() || null,
       tips: tips.trim() || null,
       alignReq: alignReq.trim() || null,
+      alignOrderCode: alignOrderCode.trim() || null,
+      alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
+      classReq: classReq.trim() || null,
       alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
+      questDbIds,
       note: note.trim() || undefined,
       isSuccess,
       icon: icon.trim() || null,
@@ -2777,6 +3090,38 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
         </button>
         {openSections.identity && (
           <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            {/* Identité assistée : le catalogue `GameQuest` porte le nom ET l'id DofusDB
+                (celui de `questDbIds`). Le lien DPLN n'y est pas : il reste la 1ʳᵉ source. */}
+            <RushQuestPicker
+              onPick={(pick) => {
+                const next = applyQuestIdentity(pick, { name, dofusdbUrl });
+                setName(next.name);
+                setDofusdbUrl(next.dofusdbUrl);
+                // La liaison forte : l'id DofusDB est celui que porte `questDbIds`.
+                if (pick.dofusDbId) setQuestDbIds([pick.dofusDbId]);
+              }}
+            />
+            {questDbIds.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Quête liée</span>
+                {questDbIds.map((id) => (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-caption font-bold text-emerald-300"
+                  >
+                    DofusDB #{id}
+                    <button
+                      type="button"
+                      onClick={() => setQuestDbIds(prev => prev.filter((x) => x !== id))}
+                      className="text-emerald-400/70 hover:text-red-400"
+                      aria-label={`Retirer la liaison avec la quête ${id}`}
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             <div>
               <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Nom *</label>
               <input
@@ -3265,21 +3610,21 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           <div className="p-3 pt-0 space-y-3 border-t border-white/5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
+                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusNoobs (DPLN)</label>
+                <input
+                  value={noobsUrl}
+                  onChange={e => setNoobsUrl(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-cyan-300/80 focus:outline-none focus:border-cyan-500/40"
+                  placeholder="https://dofuspourlesnoobs.com/..."
+                />
+              </div>
+              <div>
                 <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusDB</label>
                 <input
                   value={dofusdbUrl}
                   onChange={e => setDofusdbUrl(e.target.value)}
                   className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-emerald-300/80 focus:outline-none focus:border-emerald-500/40"
                   placeholder="https://dofusdb.fr/fr/..."
-                />
-              </div>
-              <div>
-                <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">URL DofusNoobs</label>
-                <input
-                  value={noobsUrl}
-                  onChange={e => setNoobsUrl(e.target.value)}
-                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-caption text-cyan-300/80 focus:outline-none focus:border-cyan-500/40"
-                  placeholder="https://dofuspourlesnoobs.com/..."
                 />
               </div>
             </div>
@@ -3367,7 +3712,71 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
         )}
       </div>
 
-      {/* ── Section 7 : Conseils & Style Tougli ── */}
+      {/* ── Section 7 : Route (cité / Ordre / palier / classe) ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+        <button
+          type="button"
+          onClick={() => toggleSection("route")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-sky-400/90">
+            7. 🧭 Route (cité / Ordre / palier / classe)
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.route ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.route && (
+          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Cité (route)</label>
+                <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                >
+                  <option value="">— Aucune (commune) —</option>
+                  <option value="bontarien">Bontarien</option>
+                  <option value="brakmarien">Brakmarien</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Ordre (quêtes d'Ordre)</label>
+                <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
+                  disabled={!alignReq}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
+                >
+                  <option value="">— Aucun —</option>
+                  {orderCodesForCamp(alignReq).map(o => (
+                    <option key={o.code} value={o.code}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Palier requis (verrou)</label>
+                <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                >
+                  <option value="">— Aucun —</option>
+                  {[20, 40, 60, 80, 100].map(n => (
+                    <option key={n} value={n}>Alignement ≥ {n}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
+                <input value={classReq} onChange={e => setClassReq(e.target.value)}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                  placeholder="feca, osa…"
+                />
+              </div>
+            </div>
+            <p className="text-caption text-zinc-500">
+              L'Ordre s'écrit en <strong>code canonique</strong> ({RUSH_ORDER_CODES.map(o => o.code).slice(0, 2).join(", ")}…).
+              Le palier d'une quête d'Ordre se déduit de sa position (20/40/60/80/100) : le verrou compte les quêtes de cité validées.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 8 : Conseils & Style Tougli ── */}
       <div className="rounded-xl border border-white/5 bg-zinc-900/40">
         <button
           type="button"
@@ -3375,7 +3784,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
-            7. 💡 Conseils, Notes & Style Tougli
+            8. 💡 Conseils, Notes & Style Tougli
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
         </button>
@@ -3452,7 +3861,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-rose-400/90">
-            8. ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
+            9. ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.advanced ? "rotate-180" : ""}`} />
         </button>
@@ -3663,6 +4072,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [alignLevelReq, setAlignLevelReq] = useState("");
   const [classReq, setClassReq] = useState("");
   const [alignOrderReq, setAlignOrderReq] = useState("");
+  const [questDbIds, setQuestDbIds] = useState<number[]>([]);
   const [note, setNote] = useState("");
   const [activityTags, setActivityTags] = useState<ActivityTag[]>([]);
   const [selectedDungeons, setSelectedDungeons] = useState<DungeonResult[]>([]);
@@ -3783,11 +4193,13 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
       alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
       classReq: classReq.trim() || null,
       alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
+      questDbIds,
       note: note.trim() || undefined,
       activityTags,
     });
     setName(""); setDofusdbUrl(""); setNoobsUrl(""); setTips(""); setAlignReq("");
     setAlignOrderReq(""); setAlignOrderCode(""); setAlignLevelReq(""); setClassReq("");
+    setQuestDbIds([]);
     setNote(""); setActivityTags([]); setSelectedDungeons([]); setOptionalDungeonIds([]); setDungeonQuery("");
     setSelectedDofusId(""); setPrereqs([]); setPrereqQuery("");
     setExpanded(false);
@@ -3812,6 +4224,37 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
           <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {/* Même identité assistée qu'à l'édition : le catalogue fournit le nom et l'id DofusDB. */}
+      <RushQuestPicker
+        onPick={(pick) => {
+          const next = applyQuestIdentity(pick, { name, dofusdbUrl });
+          setName(next.name);
+          setDofusdbUrl(next.dofusdbUrl);
+          if (pick.dofusDbId) setQuestDbIds([pick.dofusDbId]);
+        }}
+      />
+      {questDbIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Quête liée</span>
+          {questDbIds.map((id) => (
+            <span
+              key={id}
+              className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-caption font-bold text-emerald-300"
+            >
+              DofusDB #{id}
+              <button
+                type="button"
+                onClick={() => setQuestDbIds(prev => prev.filter((x) => x !== id))}
+                className="text-emerald-400/70 hover:text-red-400"
+                aria-label={`Retirer la liaison avec la quête ${id}`}
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <AnimatePresence>
         {expanded && (
@@ -3892,17 +4335,17 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
+                  <label className="text-caption text-zinc-600 mb-1 block">URL DofusNoobs (DPLN)</label>
+                  <input value={noobsUrl} onChange={e => setNoobsUrl(e.target.value)}
+                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-caption text-cyan-300/80 focus:outline-none"
+                    placeholder="https://dofuspourlesnoobs.com/..."
+                  />
+                </div>
+                <div>
                   <label className="text-caption text-zinc-600 mb-1 block">URL DofusDB</label>
                   <input value={dofusdbUrl} onChange={e => setDofusdbUrl(e.target.value)}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-caption text-emerald-300/80 focus:outline-none"
                     placeholder="https://dofusdb.fr/fr/..."
-                  />
-                </div>
-                <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">URL DofusNoobs</label>
-                  <input value={noobsUrl} onChange={e => setNoobsUrl(e.target.value)}
-                    className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-caption text-cyan-300/80 focus:outline-none"
-                    placeholder="https://dofuspourlesnoobs.com/..."
                   />
                 </div>
               </div>
@@ -3924,8 +4367,8 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
                   >
                     <option value="">— Aucun —</option>
-                    {((ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[alignReq] || []).map(o => (
-                      <option key={o.id} value={o.id}>{o.name}</option>
+                    {orderCodesForCamp(alignReq).map(o => (
+                      <option key={o.code} value={o.code}>{o.label}</option>
                     ))}
                   </select>
                 </div>

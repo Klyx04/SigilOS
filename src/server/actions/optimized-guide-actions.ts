@@ -13,13 +13,17 @@ import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { resetAlignmentQuests } from "@/server/rush-alignment";
-import { ORDERS } from "@/lib/dofus-assets";
+import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
+import { importKey, isRushImportNoop, planRushImport } from "@/lib/rush-import";
+import { normalizeAlignmentCamp } from "@/lib/rush-route";
+import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { z } from "zod";
 import { rushResourceKey } from "@/lib/rush-guide-utils";
 import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
+import { boundQuestDbIds } from "@/lib/rush-quest-identity";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -3712,6 +3716,11 @@ export async function upsertRushSequence(data: {
   dungeonIds?: string[];
   /** Sous-ensemble de `dungeonIds` : ces donjons ne bloquent pas la validation. */
   dungeonOptionalIds?: string[];
+  /**
+   * Ids **DofusDB** des quêtes que cette séquence incarne (`GameQuest.dofusDbId`).
+   * Absent ⇒ la colonne n'est pas touchée ; fourni ⇒ borné ici (voir `boundQuestDbIds`).
+   */
+  questDbIds?: number[];
   dofusdbUrl?: string | null;
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
@@ -3764,8 +3773,11 @@ export async function upsertRushSequence(data: {
     metamobMonsterId: data.metamobMonsterId ?? null,
     activityTags: data.activityTags ?? [],
     dungeonIds: data.dungeonIds ?? undefined,
-    // Absent ÔçÆ la colonne n'est pas touch├®e (on ne ┬½ d├®-optionnalise ┬╗ pas par oubli).
+    // Absent ⇒ la colonne n'est pas touchée (on ne « dé-optionnalise » pas par oubli).
     ...(dungeonOptionalIds !== undefined ? { dungeonOptionalIds } : {}),
+    // Idem pour la liaison de quête : fournie, elle est **bornée côté serveur**
+    // (ids DofusDB > 0, dédoublonnés, 10 au plus) — le client n'est jamais cru.
+    ...(data.questDbIds !== undefined ? { questDbIds: boundQuestDbIds(data.questDbIds) } : {}),
   };
 
   if (data.id) {
@@ -3828,6 +3840,188 @@ export async function deleteRushSequence(sequenceId: string) {
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, alreadyDeleted: false };
+}
+
+// ---------------------------------------------------------------------------
+// S4-4 — Import consolidé du guide (dry-run par défaut, jamais destructif)
+// ---------------------------------------------------------------------------
+
+/**
+ * Schéma **borné** du payload d'import (l'`export-god.json` de l'outil local, ou
+ * un JSON écrit à la main). Toute valeur hors bornes est refusée : l'import écrit
+ * des centaines de lignes, il ne peut pas dépendre de la bonne foi du client.
+ */
+const RushImportSequenceSchema = z.object({
+  subGuideName: z.string().trim().min(1).max(200),
+  questDbIds: z.array(z.number().int().positive()).max(10).optional(),
+  alignReq: z.string().trim().max(32).nullish(),
+  alignOrderCode: z.string().trim().max(48).nullish(),
+  alignLevelReq: z.number().int().min(1).max(200).nullish(),
+  classReq: z.string().trim().max(32).nullish(),
+  dungeonIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
+  dungeonOptionalIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
+  takeEarly: z.boolean().optional(),
+  isOptional: z.boolean().optional(),
+  tips: z.string().max(4000).nullish(),
+  note: z.string().max(4000).nullish(),
+});
+
+const RushImportBlockSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  order: z.number().int().min(0).max(1000).optional(),
+  sequences: z.array(RushImportSequenceSchema).max(80),
+});
+
+const RushImportPayloadSchema = z.object({
+  blocks: z.array(RushImportBlockSchema).min(1).max(80),
+});
+
+/**
+ * (God) Importe un guide au format consolidé — **dry-run par défaut**.
+ *
+ * - `apply = false` : renvoie le **plan** (ce qui serait créé, ce qui existe déjà,
+ *   ce qui est douteux) sans la moindre écriture ;
+ * - `apply = true` : **ajoute** les blocs et les quêtes manquants. Aucune
+ *   suppression, aucune réécriture : un bloc ou une quête déjà présents (même
+ *   titre / même nom, à la casse et aux accents près) sont laissés **tels quels**.
+ *
+ * Un second passage sur le même fichier est donc un no-op (`isRushImportNoop`).
+ */
+export async function importRushGuide(raw: unknown, apply = false) {
+  await requireRushAccess();
+
+  const parsed = RushImportPayloadSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      error: "Payload invalide",
+      issues: parsed.error.issues.slice(0, 8).map((issue) => `${issue.path.join(".") || "(racine)"} : ${issue.message}`),
+    };
+  }
+
+  const guide = await getOrCreateRushSylvestreGuide();
+  if (!guide) return { success: false as const, error: "Guide Rush introuvable" };
+
+  const knownDungeonIds = new Set((await db.dungeon.findMany({ select: { id: true } })).map((d) => d.id));
+  const knownClassIds = new Set(DOFUS_CLASSES.map((c) => c.id));
+
+  const plan = planRushImport(
+    parsed.data,
+    {
+      milestones: guide.milestones.map((m) => ({
+        id: m.id,
+        title: m.title,
+        sequences: m.sequences.map((s) => ({ id: s.id, subGuideName: s.subGuideName })),
+      })),
+    },
+    { knownDungeonIds, knownClassIds }
+  );
+
+  if (!apply) return { success: true as const, data: { dryRun: true as const, plan } };
+
+  const session = await auth();
+  const { success: rateOk } = await rateLimit(`guide-import-rush:${session?.user?.id ?? "anon"}`, 3, 60_000);
+  if (!rateOk) return { success: false as const, error: "Trop d'imports d'affilée, veuillez patienter." };
+
+  if (isRushImportNoop(plan)) {
+    return { success: true as const, data: { dryRun: false as const, applied: { blocks: 0, sequences: 0 }, plan } };
+  }
+
+  const tail = guide.milestones[guide.milestones.length - 1] ?? null;
+  let nextOrder = guide.milestones.reduce((max, m) => Math.max(max, m.order), -1) + 1;
+  const chapter = tail && tail.chapter > 0 ? tail.chapter : 1;
+  const chapterLabel = tail?.chapterLabel ?? "Import";
+
+  let createdBlocks = 0;
+  let createdSequences = 0;
+  // Deux blocs du fichier peuvent porter le même titre : on consomme chaque bloc du
+  // payload **une seule fois** (sinon les quêtes du second seraient perdues).
+  const payloadQueue = [...parsed.data.blocks];
+
+  for (const blockPlan of plan.blocks) {
+    const newNames = new Set(blockPlan.sequences.filter((s) => s.status === "new").map((s) => importKey(s.name)));
+    if (newNames.size === 0) continue;
+
+    const queueIndex = payloadQueue.findIndex((b) => importKey(b.title) === importKey(blockPlan.title));
+    if (queueIndex < 0) continue;
+    const payloadBlock = payloadQueue.splice(queueIndex, 1)[0];
+
+    let milestoneId = blockPlan.existingMilestoneId;
+    if (!milestoneId) {
+      const created = await db.guideMilestone.create({
+        data: {
+          guideId: guide.id,
+          type: "QUETE_SERIE",
+          chapter,
+          chapterLabel,
+          title: blockPlan.title,
+          accentColor: "#10b981",
+          order: nextOrder,
+          isOptional: false,
+        },
+        select: { id: true },
+      });
+      milestoneId = created.id;
+      nextOrder += 1;
+      createdBlocks += 1;
+    }
+
+    const existing = guide.milestones.find((m) => m.id === milestoneId);
+    let sequenceOrder = (existing?.sequences ?? []).reduce((max, s) => Math.max(max, s.order), -1) + 1;
+    const seen = new Set<string>();
+    const rows = [];
+
+    for (const sequence of payloadBlock.sequences) {
+      const key = importKey(sequence.subGuideName);
+      if (!newNames.has(key) || seen.has(key)) continue;
+      seen.add(key);
+
+      rows.push({
+        milestoneId,
+        order: sequenceOrder,
+        subGuideRef: sequence.subGuideName.trim(),
+        subGuideName: sequence.subGuideName.trim(),
+        isPartial: false,
+        isOptional: sequence.isOptional ?? false,
+        alignReq: normalizeAlignmentCamp(sequence.alignReq) ?? null,
+        // Code **canonique** seulement : une valeur inconnue n'est pas écrite.
+        alignOrderCode: normalizeOrderCode(sequence.alignOrderCode),
+        alignLevelReq: sequence.alignLevelReq ?? null,
+        classReq: (sequence.classReq ?? "").trim().toLowerCase() || null,
+        questDbIds: boundQuestDbIds(sequence.questDbIds),
+        dungeonIds: (sequence.dungeonIds ?? []).filter((id) => knownDungeonIds.has(id)),
+        dungeonOptionalIds: (sequence.dungeonOptionalIds ?? []).filter(
+          (id) => knownDungeonIds.has(id) && (sequence.dungeonIds ?? []).includes(id)
+        ),
+        tips: sequence.tips ?? null,
+        note: sequence.note ?? null,
+      });
+      sequenceOrder += 1;
+    }
+
+    if (!rows.length) continue;
+    await db.guideSequence.createMany({ data: rows });
+    createdSequences += rows.length;
+  }
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guide.id,
+    metadata: {
+      op: "import-rush-guide",
+      blocks: createdBlocks,
+      sequences: createdSequences,
+      plannedNew: plan.totals.sequencesNew,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return {
+    success: true as const,
+    data: { dryRun: false as const, applied: { blocks: createdBlocks, sequences: createdSequences }, plan },
+  };
 }
 
 /**
@@ -3918,29 +4112,37 @@ export async function duplicateRushSequenceAsOrderTwins(sequenceId: string) {
   if (!source) return { success: false as const, error: "Séquence introuvable" };
 
   const camp = (source.alignReq ?? "").trim().toLowerCase();
-  const orders = (ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[camp];
-  if (!orders) return { success: false as const, error: "Cette séquence n'a pas de cité (Bontarien / Brâkmarien)" };
+  const campaignOrders = orderCodesForCamp(camp);
+  if (!campaignOrders.length) return { success: false as const, error: "Cette séquence n'a pas de cité (Bontarien / Brâkmarien)" };
 
-  const sourceOrder = (source.alignOrderCode ?? "").trim();
-  if (!sourceOrder) {
+  // ⚠️ `alignOrderCode` a reçu deux vocabulaires : l'id court de `ORDERS` (`vaillant`,
+  // écrit par l'ancien studio et par cette action) et le code canonique
+  // (`coeur_vaillant`, attendu par la règle de route). On **normalise** avant de comparer,
+  // sinon une jumelle déjà présente serait recréée en double.
+  const sourceCode = normalizeOrderCode(source.alignOrderCode);
+  if (!sourceCode) {
     return { success: false as const, error: "Cette séquence n'a pas d'Ordre : renseigne-le d'abord" };
   }
 
+  const existing = await db.guideSequence.findMany({
+    where: { milestoneId: source.milestoneId, order: source.order, alignOrderCode: { not: null } },
+    select: { alignOrderCode: true },
+  });
+  const existingCodes = new Set(
+    existing.map((s) => normalizeOrderCode(s.alignOrderCode) ?? (s.alignOrderCode ?? "").trim())
+  );
+
   let created = 0;
-  for (const other of orders) {
-    if (other.id === sourceOrder) continue;
-    const exists = await db.guideSequence.findFirst({
-      where: { milestoneId: source.milestoneId, order: source.order, alignOrderCode: other.id },
-      select: { id: true },
-    });
-    if (exists) continue;
+  for (const other of campaignOrders) {
+    if (other.code === sourceCode) continue;
+    if (existingCodes.has(other.code)) continue;
 
     await db.guideSequence.create({
       data: {
         milestoneId: source.milestoneId,
         order: source.order,
-        subGuideRef: `${source.subGuideRef} [${other.id}]`,
-        subGuideName: `${source.subGuideName} [${other.id}]`,
+        subGuideRef: `${source.subGuideRef} [${other.label}]`,
+        subGuideName: `${source.subGuideName} [${other.label}]`,
         stepFrom: source.stepFrom,
         stepTo: source.stepTo,
         isPartial: source.isPartial,
@@ -3951,7 +4153,7 @@ export async function duplicateRushSequenceAsOrderTwins(sequenceId: string) {
         dofuspourlesnoobsUrl: source.dofuspourlesnoobsUrl,
         tips: source.tips,
         alignReq: source.alignReq,
-        alignOrderCode: other.id,
+        alignOrderCode: other.code,
         alignLevelReq: source.alignLevelReq,
         classReq: source.classReq,
         isSuccess: source.isSuccess,
@@ -3963,6 +4165,7 @@ export async function duplicateRushSequenceAsOrderTwins(sequenceId: string) {
       },
       select: { id: true },
     });
+    existingCodes.add(other.code);
     created += 1;
   }
 

@@ -9,6 +9,28 @@
 
 ## 0. Reprise immédiate
 
+- **Livré le 26/10/2026 — Rush : identité assistée, route éditable, import dry-run, contraste (branche
+  `feat/rush-identite-quete`).** ① **Picker de quête** dans les deux formulaires God : le nom et le lien **DofusDB
+  direct** viennent du catalogue `GameQuest` (**1 976** quêtes, **530 / 530** des quêtes Tougli présentes), le lien
+  **DPLN reste la première source** (règle pure `src/lib/rush-quest-identity.ts`, **11 cas**). ② **`questDbIds`
+  persisté** (`upsertRushSequence`, borné : entiers > 0, dédoublonnés, 10 max). ③ **S4-2** : cité / Ordre / palier /
+  classe éditables sur une séquence **existante**. ④ **S4-4** : `importRushGuide(raw, apply)` — **dry-run par défaut**,
+  l'import **ajoute** seulement (aucun `delete`/`update` dans son corps, verrou de source), idempotent. ⑤ **Référentiel
+  d'Ordre corrigé** : le studio écrivait l'id court de `ORDERS` (`vaillant`) alors que la route attend `coeur_vaillant`
+  — source unique `src/lib/rush-order-codes.ts`, comparaison normalisée, jumelles d'Ordre en code canonique.
+  ⑥ **T-4 (O14/T2)** : contraste garanti des **24** accents Dofus (`src/lib/rush-dofus-accent.ts`, 4,5:1 sur fond
+  clair **et** sombre) + état `aria-pressed` du filtre. **Aucune migration.** ⚠️ Restent **T-4** G7/G8/G9/O15
+  (composition visuelle, à juger à l'écran) et **S5-1** (retrait de `alignOrderReq`).
+- **Livré le 26/10/2026 — outil « Trame Rush » hors dépôt (prépare S1).** Siphon Tougli mesuré : **530** quêtes,
+  **36** blocs, séries d'alignement **100 / 102**, **30** quêtes d'Ordre (6 × 5), **19** quêtes de classe, **99**
+  donjons (**99** rapprochés de `Dungeon`, dont **3** alias), **361 / 384** quêtes Dofusyelle rapprochées et
+  **530 / 530** quêtes présentes dans `GameQuest` (`dofusDbId`) ⇒ l'export ne crée **aucune référence morte**.
+  Sortie : `export-god.json` par route (**34** blocs, **434** séquences côté Bonta / **436** côté Brâkmar, **127**
+  avec `dungeonIds` résolus) avec les champs de `GuideSequence` **pré-remplis**. **Non versionné**
+  (`src/temp/trame-rush/`, `/src/temp/` ignoré) : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` §7bis.
+  ⚠️ L'outil **n'écrit rien** : l'import automatique reste le lot **S4-4**. Mesure du guide en base : **336**
+  séquences / 96 blocs, `alignOrderCode` et `classReq` **à zéro** — c'est le trou que S1 doit combler.
+
 - ⏳ **En attente de prod (26/10/2026)** — la **bêta** tourne `dev` `2a06ef26` (**287 migrations**, `sigilos-beta`) ; la
   **prod** reste sur `main` `66040052` (**267 migrations** ⇒ **20 en attente**). Lots non déployés : calendrier/membres/
   blacklist/succès (25/10) **puis stuff & variantes** (panoplies recalculées, pods, plafonds, veille auto-entretenue).
@@ -157,7 +179,7 @@
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |
 |---|---|---|---|---|---|---|
 | 9 | `rush-refonte` (T) | Rush Sylvestre : ergonomie, temps réel, éditeur God, habillage Dofus, perf | **T-1, T-2, T-2b, T-3 livrés** le 08/10 · **T-2c livré** le 20/10 | **T-4** (habillage Dofus) → T-5 → T-6 | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
-| 10 | `rush-donnees` (V) | Rush Sylvestre : agrégation unique des ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B livrés** le 10/10 · **V-G livré** · **V-F partiel** · **consolidation Tougli × Dofusyelle mesurée le 21/10** (100/102, 584 ressources, 30 Ordres, 19 classes) · **donjons cochables livrés** (S0-1 → S0-5bis, **S0-6**, **S0-7**) · **S4-1 livré** le 23/10/2026 (vue Branches 2 étages, `src/lib/rush-branches.ts`) | **S1** (contenu) → V-C → V-D → V-H | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` · `docs/plans/MAPPING-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
+| 10 | `rush-donnees` (V) | Rush Sylvestre : agrégation unique des ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B livrés** le 10/10 · **V-G livré** · **V-F partiel** · **consolidation Tougli × Dofusyelle mesurée le 21/10** (100/102, 584 ressources, 30 Ordres, 19 classes) · **donjons cochables livrés** (S0-1 → S0-5bis, **S0-6**, **S0-7**) · **S4-1 livré** le 23/10/2026 (vue Branches 2 étages, `src/lib/rush-branches.ts`) · **outil Trame hors dépôt livré** le 26/10 | **S1** (contenu) → V-C → V-D → V-H | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` · `docs/plans/MAPPING-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
 | 11 | `tickets-v2` (C) | Module Tickets : finir la v2 (SLA, auto-fermeture, i18n, doublons) | 5 chantiers UX livrés le 20/10 ; **commandes slash personnalisées livrées le 21/10** ; **perfectionnements UX embed, custom CSAT, variables {staff}/{moderateur} et RBAC staff commandes le 22/10** · **renommage Discord suivi par le salon (cron `sync-members`) le 25/10** · **renommage temps réel par le bot (surnom ou nom d'utilisateur) le 25/10** | C-1 → C-4 | `docs/plans/PLAN-REFONTE-TICKETS-V2.md` | — |
 | 12 | `roles-multi` (Y+) | Moteur unique de rôles : ancienneté (projection) + vocal + contribution | cadré le 18/10, **aucun code** | R-1 (évaluateur + stockage) → R-2 (cron + annonces) → R-3 (onglet) | `docs/plans/PLAN-MOTEUR-ROLES-MULTI-SOURCES.md` | **D-R1** |
 | 13 | `commandes-slash` (Z) | Commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés) | **Z-1/Z-2 livrés le 24/10** (sync réelle rôles + salons, payloads dérivés du catalogue, scope God par guilde) · **25/10 : `/valider-recrue` fix pérenne anti-timeout** (résolution 0 ms à l'ouverture, deferred reply type 5 à la soumission) ; reste Z-3/Z-4 | Z-3 → Z-4 | `docs/plans/PLAN-COMMANDES-SLASH.md` | — |

@@ -47,6 +47,8 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 ### 1.4 Composants liés
 `ResourceImage` · `OcreProgressModal` · `DofusOcreMetamob` · `AlignmentModal` · `components/ocre/*` (dashboard ocre, `not-linked-state`, `OcreTargetBits`, panneau pierres) · `components/profile/metamob-link.tsx` · `hooks/use-ocre-write-queue`
 
+> ⚠️ **Code mort connu (26/10/2026)** : `dashboard/[guildId]/quetes-dofus/guide/[slug]/DofusProgressStrip.tsx` **n'est monté nulle part** — le bandeau réellement affiché est `GuildStatusPanel.tsx` (modale par Dofus depuis le 26/10). Le fichier porte un `aria-pressed` inutile. **Suppression à trancher** (règle « pas de code mort »).
+
 ### 1.5 Libs (`src/lib`)
 `rush-guide-utils.ts` (`resolveItemImage`, `rushResourceKey`, `isSequenceBlockedByPrereqs`, `getAlignmentSet`, `collectCascadeUncheck`…) · `rush-guide-view.ts` (`buildRushGuideView`, `computeRushAlignment`) · `rush-resources-preheat.ts` (pur, client-safe) · `rush-dofus-meta.ts` · `rush-rich-meta.ts` · `rush-ui-config.ts` · `guest-progress.ts` · `dofus-asset-siphon.ts` (`siphonAndCompressImage`, `siphonItemIconsBatchCore`) · `dofusdb-limiter.ts` / `dofusdb-throttle.ts` · `ocre-soul-stones.ts` · `ocre-write-queue.ts` · `metamob-client.ts` · `class-spells-siphon.ts`
 
@@ -59,8 +61,10 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 ### 1.8 Scripts
 `scripts/correlate-rush-guides.mjs` (Tougli ∪ Dofusyelle ∪ NOOBS — **rapport dry-run**) · `enrich-rush-guide-items.mjs` · `seed-rush-sylvestre-cli.mjs` · `seed-rush-sylvestre-enriched-cli.mjs` · `inspect-rush-sylvestre-guide.mjs` · `prune-rush-guide-orphans.mjs` · `dofus-asset-siphoner.ts` · `siphon-guide-images.ts`
 
-### 1.9 Tests (33 fichiers)
-`rush-guide-utils` · `rush-guide-view` · `rush-overlay-utils` · `rush-resource-checks` · `rush-public-parity` · `rush-resources-preheat` · `rush-overlay-ocre` · `rush-dofus-meta` · `rush-rich-meta` · `rush-rich-text` · `rush-prereq-target` · `rush-god-studio-robustesse` · `rush-delete-idempotent` · `rush-block-image-rendered` · `rush-dashboard-members` · `rush-guide-ui-polish` · `rush-info-sequence-banner` · `rush-live-presence` · `rush-overlay-chapitre-bulles` · `rush-overlay-chapter-bar` · `rush-overlay-dungeons` · `rush-overlay-non-checkable-blocks` · `rush-quest-state-colors` · `rush-separator-banner` · `rush-sylvestre-construction` · `rush-tips-block-studio` · `siphon-sorts-niveau` · `siphon-stats` · `dofus-asset-siphon-url` · `bounty-siphon` · `metamob-ocre-match` · `ocre-write-queue` · `calendar-krala-metamob-ui`
+### 1.9 Tests (**49** fichiers `tests/unit/rush-*.test.ts`)
+
+Le détail suit le préfixe `rush-*` (`Get-ChildItem tests/unit -Filter 'rush-*.test.ts'`). **Ajoutés le 26/10/2026** : `rush-quest-identity` (identité de quête + borne des `questDbIds`), `rush-order-codes` (référentiel des 6 Ordres),
+`rush-import` (plan de dry-run + verrou « l'import n'efface rien »), `rush-dofus-accent` (contraste 4,5:1 des 24 accents + accessibilité du filtre), `rush-dofus-progress` (progression d'un membre **quête par quête** dans la modale par Dofus).
 
 ## 2. Chantiers du module
 
@@ -68,8 +72,8 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 > L'**ordre** vit dans `docs/ROADMAP.md` ; ici, le **quoi**.
 
 ### T — Refonte rush (plan durable : `PLAN-REFONTE-RUSH-SYLVESTRE.md`)
-- **Reste** : T-2c (id de quête dans `prereq_text`) · lot 4 habillage Dofus (O14/O15, G7, G8, G9, T2) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
-- **Statut** : T-1 / T-2 / T-2b / T-3 livrés (PR #851 / #853 / #856 / #857).
+- **Reste** : T-2c (id de quête dans `prereq_text`) · **lot 4** — **O14** (contraste ✓ le 26/10 ; reste l'application générale des accents) et **T2** (filtre Dofus ✓) faits, restent **O15** motion sobre, **G7** hero, **G8** dépli `grid-template-rows`, **G9** célébration (**à arbitrer**) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
+- **Statut** : T-1 / T-2 / T-2b / T-3 livrés (PR #851 / #853 / #856 / #857) · **T-4 partiel** le 26/10/2026 (O14 + T2, PR #1136).
 
 ### U — Zéro dépendance DofusDB (cadré, aucun lot commencé)
 - **Lots** : U-1 inventaire / ratchet · U-2 réécrire les `img` des `*-compiled.json` · **U-3 plus de repli réseau** · U-4 recherches sur catalogue local · U-5 ops (health / crons / allowlist).

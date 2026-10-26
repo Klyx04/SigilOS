@@ -795,11 +795,28 @@ export function MemberDetailDialog({
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
+                                                {/* Lot 3 — les deux sorties restent désactivées tant que le
+                                                    motif n'est pas saisi. Le motif est obligatoire et tracé ; sans
+                                                    explication, le bouton passait pour un bug (mesure du 25/10/2026). */}
+                                                {departureReason.trim().length < 3 && (
+                                                    <p className="text-caption text-warning">
+                                                        Renseignez le <strong>motif de départ</strong> ci-dessus (3 caractères
+                                                        minimum) pour activer « Archiver » et « Exclure » : il est obligatoire et tracé.
+                                                    </p>
+                                                )}
                                                 <div className="flex flex-wrap gap-2">
-                                                    {/* Lot 3 — aucune sortie sans lire sa conséquence. */}
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <Button size="sm" variant="outline" disabled={isPending}>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                disabled={isPending || departureReason.trim().length < 3}
+                                                                title={
+                                                                    departureReason.trim().length < 3
+                                                                        ? "Motif de départ requis (3 caractères minimum)"
+                                                                        : undefined
+                                                                }
+                                                            >
                                                                 <Archive className="h-3.5 w-3.5" />
                                                                 Archiver
                                                             </Button>
@@ -829,7 +846,17 @@ export function MemberDetailDialog({
                                                     </AlertDialog>
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <Button size="sm" variant="outline" className="text-danger" disabled={isPending}>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="text-danger"
+                                                                disabled={isPending || departureReason.trim().length < 3}
+                                                                title={
+                                                                    departureReason.trim().length < 3
+                                                                        ? "Motif de départ requis (3 caractères minimum)"
+                                                                        : undefined
+                                                                }
+                                                            >
                                                                 <Ban className="h-3.5 w-3.5" />
                                                                 Exclure
                                                             </Button>
@@ -858,11 +885,6 @@ export function MemberDetailDialog({
                                                         </AlertDialogContent>
                                                     </AlertDialog>
                                                 </div>
-                                                {departureReason.trim().length < 3 && (
-                                                    <p className="text-caption text-muted-foreground">
-                                                        Renseignez un motif (3 caractères minimum) : il est obligatoire et tracé.
-                                                    </p>
-                                                )}
                                             </div>
                                         </>
                                     )}
@@ -1092,7 +1114,7 @@ export function MemberDetailDialog({
                             </p>
                             <p className="mt-1">
                                 {canDeleteMembers
-                                    ? "La suppression définitive efface les données de guilde de ce membre et pose une exclusion (il ne peut pas revenir de lui-même). Elle reste réversible ici : « Lever l'exclusion » rétablit son accès."
+                                    ? "La suppression définitive efface les données de guilde de ce membre et ne laisse aucune exclusion : s'il revient, il repart comme un nouvel arrivant. Pour fermer durablement l'accès, utilisez « Exclure » — l'exclusion, elle, se lève depuis cette fiche."
                                     : "Permission « Supprimer un profil de guilde » absente de votre rôle : la suppression reste hors de portée."}
                             </p>
                         </div>
@@ -1121,9 +1143,8 @@ export function MemberDetailDialog({
                                                         journal) sont effacés ;
                                                     </li>
                                                     <li>
-                                                        une <strong>exclusion</strong> est posée : s&apos;il revient,
-                                                        son accès reste fermé tant qu&apos;elle n&apos;est pas levée
-                                                        depuis cette fiche (« Lever l&apos;exclusion ») ;
+                                                        <strong>aucune exclusion n&apos;est conservée</strong> — s&apos;il
+                                                        revient, il repart comme un nouvel arrivant ;
                                                     </li>
                                                     <li>
                                                         {showAccountPurge

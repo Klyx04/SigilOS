@@ -901,6 +901,18 @@ export async function recordMemberDeparture(
             metadata: { memberName }
         });
 
+        // Carte Discord du cycle de vie : les boutons « Archiver » / « Exclure » de la fiche
+        // n'envoyaient RIEN, alors que la synchro automatique notifie déjà (mesure du
+        // 25/10/2026 — même événement, deux conduites). Import dynamique : `lifecycle-actions`
+        // charge déjà ce module, on évite un cycle statique.
+        const { sendLifecycleNotification } = await import("./lifecycle-actions");
+        await sendLifecycleNotification(
+            guildId,
+            profile,
+            data.isBan ? "BANNED" : "ARCHIVED",
+            ctx.name || "Un administrateur"
+        ).catch(() => null);
+
         return { success: true, data: { message: data.isBan ? "Membre banni et archivé" : "Départ enregistré" } };
     } catch (err: any) {
         logger.error("[recordMemberDeparture] Erreur:", err);

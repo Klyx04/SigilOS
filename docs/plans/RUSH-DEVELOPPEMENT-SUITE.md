@@ -190,9 +190,9 @@ n'en dépend.
 | Persistance | `localStorage` + export fichier — **aucune** base, aucune guilde |
 | Export | `export-god.json` par route : blocs → séquences avec `order`, `subGuideName`, `questDbIds`, `alignReq`, `alignOrderCode`, `alignLevelReq`, `classReq`, `dungeonIds` (cuid de notre table), `takeEarly`, `tips` + un bloc `_mesure` (palier de cité, niveau, donjons Tougli, contraintes) qui **ne s'écrit pas** en base |
 
-**Ce que l'outil ne fait pas** : il n'écrit rien (aucun import automatique — c'est le lot **S4-4**),
-il ne réordonne pas, et il ne remplace pas la décision éditoriale (les textes se **réécrivent**,
-jamais ils ne se recopient).
+**Ce que l'outil ne fait pas** : il n'écrit rien lui-même — il produit un fichier. L'écriture se fait **dans God**, via
+le lot **S4-4** (`importRushGuide` : dry-run puis application, qui **ajoute seulement**) ; l'outil ne réordonne pas, et
+il ne remplace pas la décision éditoriale (les textes se **réécrivent**, jamais ils ne se recopient).
 
 **Interdits** : ne rien committer depuis ce dossier, ne pas l'importer dans `src/lib`, ne pas en faire
 un seed automatique. C'est un **brouillon de session** (règle `docs/agents/zone-volatile.md`).

@@ -25,7 +25,9 @@
 1. `npx prisma migrate deploy` (**3** migrations additives : `criterions`/`twoHanded`/`conditions`
    puis `20270120000000_item_sets`) puis `npx prisma generate`.
 2. `node scripts/siphon-item-conditions.mjs --apply` (264 objets attendus).
-3. `npm run siphon:item-sets -- --apply` (**938 panoplies** attendues ; dry-run d'abord).
+3. **En bêta/prod (conteneur)** : `curl -H "x-cron-secret: $CRON_SECRET"
+   "https://beta.sigilos.fr/api/cron/siphon-item-sets?apply=1"` (**938 panoplies** attendues ;
+   sans `apply` = dry-run). En local : `npm run siphon:item-sets -- --apply`.
 4. Redémarrer l'app (client Prisma en mémoire).
 5. Redéployer le worker CF (`wrangler deploy` dans `cloudflare-workers/dofusbook-proxy`) —
    sans ça, le cache Dofusbook de 24 h reste actif.

@@ -42,6 +42,9 @@ async function main(): Promise<void> {
         if (report.skipped.length > 20) {
             console.log(`[item-sets] … ${report.skipped.length - 20} autre(s) refus`);
         }
+        if (report.nextSkip !== null) {
+            console.log(`[item-sets] reprise possible : relancer avec startSkip=${report.nextSkip}`);
+        }
     } finally {
         await db.$disconnect();
     }

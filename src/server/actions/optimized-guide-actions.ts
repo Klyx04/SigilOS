@@ -14,6 +14,9 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { resetAlignmentQuests } from "@/server/rush-alignment";
 import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
+import { importKey, isRushImportNoop, planRushImport } from "@/lib/rush-import";
+import { normalizeAlignmentCamp } from "@/lib/rush-route";
+import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
@@ -3837,6 +3840,188 @@ export async function deleteRushSequence(sequenceId: string) {
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, alreadyDeleted: false };
+}
+
+// ---------------------------------------------------------------------------
+// S4-4 — Import consolidé du guide (dry-run par défaut, jamais destructif)
+// ---------------------------------------------------------------------------
+
+/**
+ * Schéma **borné** du payload d'import (l'`export-god.json` de l'outil local, ou
+ * un JSON écrit à la main). Toute valeur hors bornes est refusée : l'import écrit
+ * des centaines de lignes, il ne peut pas dépendre de la bonne foi du client.
+ */
+const RushImportSequenceSchema = z.object({
+  subGuideName: z.string().trim().min(1).max(200),
+  questDbIds: z.array(z.number().int().positive()).max(10).optional(),
+  alignReq: z.string().trim().max(32).nullish(),
+  alignOrderCode: z.string().trim().max(48).nullish(),
+  alignLevelReq: z.number().int().min(1).max(200).nullish(),
+  classReq: z.string().trim().max(32).nullish(),
+  dungeonIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
+  dungeonOptionalIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
+  takeEarly: z.boolean().optional(),
+  isOptional: z.boolean().optional(),
+  tips: z.string().max(4000).nullish(),
+  note: z.string().max(4000).nullish(),
+});
+
+const RushImportBlockSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  order: z.number().int().min(0).max(1000).optional(),
+  sequences: z.array(RushImportSequenceSchema).max(80),
+});
+
+const RushImportPayloadSchema = z.object({
+  blocks: z.array(RushImportBlockSchema).min(1).max(80),
+});
+
+/**
+ * (God) Importe un guide au format consolidé — **dry-run par défaut**.
+ *
+ * - `apply = false` : renvoie le **plan** (ce qui serait créé, ce qui existe déjà,
+ *   ce qui est douteux) sans la moindre écriture ;
+ * - `apply = true` : **ajoute** les blocs et les quêtes manquants. Aucune
+ *   suppression, aucune réécriture : un bloc ou une quête déjà présents (même
+ *   titre / même nom, à la casse et aux accents près) sont laissés **tels quels**.
+ *
+ * Un second passage sur le même fichier est donc un no-op (`isRushImportNoop`).
+ */
+export async function importRushGuide(raw: unknown, apply = false) {
+  await requireRushAccess();
+
+  const parsed = RushImportPayloadSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      error: "Payload invalide",
+      issues: parsed.error.issues.slice(0, 8).map((issue) => `${issue.path.join(".") || "(racine)"} : ${issue.message}`),
+    };
+  }
+
+  const guide = await getOrCreateRushSylvestreGuide();
+  if (!guide) return { success: false as const, error: "Guide Rush introuvable" };
+
+  const knownDungeonIds = new Set((await db.dungeon.findMany({ select: { id: true } })).map((d) => d.id));
+  const knownClassIds = new Set(DOFUS_CLASSES.map((c) => c.id));
+
+  const plan = planRushImport(
+    parsed.data,
+    {
+      milestones: guide.milestones.map((m) => ({
+        id: m.id,
+        title: m.title,
+        sequences: m.sequences.map((s) => ({ id: s.id, subGuideName: s.subGuideName })),
+      })),
+    },
+    { knownDungeonIds, knownClassIds }
+  );
+
+  if (!apply) return { success: true as const, data: { dryRun: true as const, plan } };
+
+  const session = await auth();
+  const { success: rateOk } = await rateLimit(`guide-import-rush:${session?.user?.id ?? "anon"}`, 3, 60_000);
+  if (!rateOk) return { success: false as const, error: "Trop d'imports d'affilée, veuillez patienter." };
+
+  if (isRushImportNoop(plan)) {
+    return { success: true as const, data: { dryRun: false as const, applied: { blocks: 0, sequences: 0 }, plan } };
+  }
+
+  const tail = guide.milestones[guide.milestones.length - 1] ?? null;
+  let nextOrder = guide.milestones.reduce((max, m) => Math.max(max, m.order), -1) + 1;
+  const chapter = tail && tail.chapter > 0 ? tail.chapter : 1;
+  const chapterLabel = tail?.chapterLabel ?? "Import";
+
+  let createdBlocks = 0;
+  let createdSequences = 0;
+  // Deux blocs du fichier peuvent porter le même titre : on consomme chaque bloc du
+  // payload **une seule fois** (sinon les quêtes du second seraient perdues).
+  const payloadQueue = [...parsed.data.blocks];
+
+  for (const blockPlan of plan.blocks) {
+    const newNames = new Set(blockPlan.sequences.filter((s) => s.status === "new").map((s) => importKey(s.name)));
+    if (newNames.size === 0) continue;
+
+    const queueIndex = payloadQueue.findIndex((b) => importKey(b.title) === importKey(blockPlan.title));
+    if (queueIndex < 0) continue;
+    const payloadBlock = payloadQueue.splice(queueIndex, 1)[0];
+
+    let milestoneId = blockPlan.existingMilestoneId;
+    if (!milestoneId) {
+      const created = await db.guideMilestone.create({
+        data: {
+          guideId: guide.id,
+          type: "QUETE_SERIE",
+          chapter,
+          chapterLabel,
+          title: blockPlan.title,
+          accentColor: "#10b981",
+          order: nextOrder,
+          isOptional: false,
+        },
+        select: { id: true },
+      });
+      milestoneId = created.id;
+      nextOrder += 1;
+      createdBlocks += 1;
+    }
+
+    const existing = guide.milestones.find((m) => m.id === milestoneId);
+    let sequenceOrder = (existing?.sequences ?? []).reduce((max, s) => Math.max(max, s.order), -1) + 1;
+    const seen = new Set<string>();
+    const rows = [];
+
+    for (const sequence of payloadBlock.sequences) {
+      const key = importKey(sequence.subGuideName);
+      if (!newNames.has(key) || seen.has(key)) continue;
+      seen.add(key);
+
+      rows.push({
+        milestoneId,
+        order: sequenceOrder,
+        subGuideRef: sequence.subGuideName.trim(),
+        subGuideName: sequence.subGuideName.trim(),
+        isPartial: false,
+        isOptional: sequence.isOptional ?? false,
+        alignReq: normalizeAlignmentCamp(sequence.alignReq) ?? null,
+        // Code **canonique** seulement : une valeur inconnue n'est pas écrite.
+        alignOrderCode: normalizeOrderCode(sequence.alignOrderCode),
+        alignLevelReq: sequence.alignLevelReq ?? null,
+        classReq: (sequence.classReq ?? "").trim().toLowerCase() || null,
+        questDbIds: boundQuestDbIds(sequence.questDbIds),
+        dungeonIds: (sequence.dungeonIds ?? []).filter((id) => knownDungeonIds.has(id)),
+        dungeonOptionalIds: (sequence.dungeonOptionalIds ?? []).filter(
+          (id) => knownDungeonIds.has(id) && (sequence.dungeonIds ?? []).includes(id)
+        ),
+        tips: sequence.tips ?? null,
+        note: sequence.note ?? null,
+      });
+      sequenceOrder += 1;
+    }
+
+    if (!rows.length) continue;
+    await db.guideSequence.createMany({ data: rows });
+    createdSequences += rows.length;
+  }
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guide.id,
+    metadata: {
+      op: "import-rush-guide",
+      blocks: createdBlocks,
+      sequences: createdSequences,
+      plannedNew: plan.totals.sequencesNew,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return {
+    success: true as const,
+    data: { dryRun: false as const, applied: { blocks: createdBlocks, sequences: createdSequences }, plan },
+  };
 }
 
 /**

@@ -35,6 +35,7 @@ import {
   duplicateRushSequenceAsTwin,
   duplicateRushSequenceAsOrderTwins,
   seedRushSylvestreFromGuide,
+  importRushGuide,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, searchNpcsLocal } from "@/server/actions/dofus-search-actions";
 import { searchGameQuests, type GameQuestResult } from "@/server/actions/picker-actions";
@@ -58,6 +59,7 @@ import {
 } from "@/components/dofus-quests/rush/RushRichText";
 import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { countMissingOrderSlots, type RushBranchesView } from "@/lib/rush-branches";
+import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
 // composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
 import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
@@ -320,6 +322,8 @@ export function RushSylvestreAdminClient({
   // styler, ni lister ce qui part avec le bloc (ses quêtes), et certains navigateurs le
   // bloquent : on garde la cible en état et la modale Radix se charge du reste (`E4`).
   const [pendingDelete, setPendingDelete] = useState<Milestone | null>(null);
+  /** S4-4 — dialogue d'import consolidé (dry-run obligatoire avant d'écrire). */
+  const [importJsonOpen, setImportJsonOpen] = useState(false);
 
   const runSeed = useCallback(async (apply: boolean) => {
     startImport(async () => {
@@ -668,6 +672,11 @@ export function RushSylvestreAdminClient({
                 </button>
               ))}
             </div>
+            <button onClick={() => setImportJsonOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/20 transition-all"
+              title="Importer un export JSON du guide — analyse (dry-run) avant toute écriture">
+              <ClipboardList className="w-3 h-3" /> JSON
+            </button>
             <button onClick={() => runSeed(false)} disabled={importing}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-caption font-black uppercase tracking-widest bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/20 transition-all disabled:opacity-50"
               title="Importer le guide Laniyelle (métiers, ressources, donjons)">
@@ -1154,6 +1163,9 @@ export function RushSylvestreAdminClient({
         )}
 
       </div>
+      {/* S4-4 — import consolidé : dry-run obligatoire, jamais destructif. */}
+      <RushImportDialog open={importJsonOpen} onClose={() => setImportJsonOpen(false)} />
+
       {/* Confirmation de suppression — `Dialog` Radix (Échap, focus piégé, `aria-*`) au lieu
           du `confirm()` natif : on peut enfin dire ce qui part avec le bloc (`E4`). */}
       <Dialog open={!!pendingDelete} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
@@ -2237,6 +2249,202 @@ function RushQuestPicker({ onPick }: { onPick: (pick: RushQuestPick) => void }) 
         </div>
       )}
     </div>
+  );
+}
+
+/** Corps du dialogue d'import : fichier + zone JSON + plan lisible. */
+function RushImportDialogBody({
+  text, setText, plan, issues, onTextChange,
+}: {
+  text: string;
+  setText: (value: string) => void;
+  plan: RushImportPlan | null;
+  issues: string[];
+  onTextChange: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <input
+          type="file"
+          accept="application/json,.json"
+          aria-label="Charger un fichier JSON"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            file.text().then((content) => { setText(content); onTextChange(); });
+          }}
+          className="text-caption text-zinc-400 file:mr-2 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-2 file:py-1 file:text-caption file:text-zinc-200"
+        />
+        <span className="text-caption text-zinc-500">{text.length.toLocaleString("fr-FR")} caractères</span>
+      </div>
+
+      <textarea
+        value={text}
+        onChange={(event) => { setText(event.target.value); onTextChange(); }}
+        placeholder='{ "blocks": [ { "title": "...", "sequences": [ { "subGuideName": "#55 ..." } ] } ] }'
+        className="h-40 w-full resize-y rounded-xl border border-white/10 bg-black/50 p-2 font-mono text-caption text-zinc-200 focus:outline-none focus:border-emerald-500/40"
+        aria-label="Contenu JSON à importer"
+      />
+
+      {issues.length > 0 && (
+        <ul className="max-h-32 space-y-1 overflow-y-auto rounded-xl border border-amber-500/30 bg-amber-500/5 p-2 text-caption text-amber-200">
+          {issues.slice(0, 12).map((issue, index) => (
+            <li key={index}>• {issue}</li>
+          ))}
+        </ul>
+      )}
+
+      {plan && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2 text-caption">
+            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
+              {plan.totals.blocksNew} bloc(s) à créer · {plan.totals.blocksExisting} déjà là
+            </span>
+            <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-sky-300">
+              {plan.totals.sequencesNew} quête(s) à créer
+            </span>
+            <span className="rounded-full border border-white/10 bg-zinc-800 px-2 py-0.5 text-zinc-400">
+              {plan.totals.sequencesExisting} déjà présentes · {plan.totals.sequencesSkipped} écartée(s)
+            </span>
+          </div>
+          <div className="max-h-56 overflow-y-auto rounded-xl border border-white/10">
+            <table className="w-full text-caption">
+              <thead className="bg-zinc-900/80 text-zinc-500">
+                <tr>
+                  <th className="px-2 py-1 text-left">Bloc</th>
+                  <th className="px-2 py-1 text-left">État</th>
+                  <th className="px-2 py-1 text-right">À créer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plan.blocks.map((block) => (
+                  <tr key={block.title} className="border-t border-white/5">
+                    <td className="px-2 py-1 text-zinc-200">{block.title}</td>
+                    <td className="px-2 py-1">
+                      <span className={block.status === "new" ? "text-emerald-400" : "text-zinc-500"}>
+                        {block.status === "new" ? "nouveau" : "existant"}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1 text-right tabular-nums text-zinc-300">{block.toCreate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isRushImportNoop(plan) && (
+            <p className="text-caption text-zinc-400">Rien à créer : ce fichier est déjà dans le guide.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── RushImportDialog (S4-4 : import consolidé, dry-run obligatoire) ──────────
+/**
+ * Colle (ou charge) un `export-god.json`, **analyse** ce qu'il ajouterait, puis
+ * applique. L'analyse est obligatoire : le bouton « Appliquer » reste inactif
+ * tant qu'un dry-run n'a pas réussi sur le **même** texte. L'import ne supprime
+ * et ne réécrit jamais rien — il n'ajoute que ce qui manque.
+ */
+function RushImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const [text, setText] = useState("");
+  const [analysedFor, setAnalysedFor] = useState<string | null>(null);
+  const [plan, setPlan] = useState<RushImportPlan | null>(null);
+  const [issues, setIssues] = useState<string[]>([]);
+  const [busy, startTransition] = useTransition();
+
+  const payload = useCallback((): { ok: true; value: unknown } | { ok: false; error: string } => {
+    try {
+      return { ok: true, value: JSON.parse(text) };
+    } catch {
+      return { ok: false, error: "Le texte n'est pas un JSON valide." };
+    }
+  }, [text]);
+
+  const analyse = useCallback(() => {
+    const parsed = payload();
+    if (!parsed.ok) {
+      setIssues([parsed.error]);
+      setPlan(null);
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const res = await importRushGuide(parsed.value, false);
+        if (res.success) {
+          setPlan(res.data.plan);
+          setIssues(res.data.plan.warnings);
+          setAnalysedFor(text);
+        } else {
+          setPlan(null);
+          setIssues(res.issues ?? [res.error]);
+        }
+      } catch (error) {
+        setIssues([error instanceof Error ? error.message : "Erreur d'analyse"]);
+      }
+    });
+  }, [payload, text]);
+
+  const applyImport = useCallback(() => {
+    const parsed = payload();
+    if (!parsed.ok) return;
+    startTransition(async () => {
+      try {
+        const res = await importRushGuide(parsed.value, true);
+        if (res.success) {
+          const applied = ("applied" in res.data ? res.data.applied : null) ?? { blocks: 0, sequences: 0 };
+          toast.success(`Import appliqué : ${applied.blocks} bloc(s), ${applied.sequences} quête(s)`);
+          onClose();
+          router.refresh();
+        } else {
+          toast.error(res.error);
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Erreur d'import");
+      }
+    });
+  }, [payload, onClose, router]);
+
+  const canApply = analysedFor !== null && analysedFor === text && !!plan && !isRushImportNoop(plan);
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Import consolidé — dry-run d&apos;abord</DialogTitle>
+          <DialogDescription>
+            Colle un <code>export-god.json</code> (ou le JSON d&apos;un bloc). L&apos;analyse liste ce qui serait
+            créé ; rien n&apos;est écrit avant « Appliquer ». Aucun bloc ni aucune quête existants ne sont modifiés.
+          </DialogDescription>
+        </DialogHeader>
+        <RushImportDialogBody
+          text={text} setText={setText} plan={plan} issues={issues}
+          onTextChange={() => { setAnalysedFor(null); setPlan(null); }}
+        />
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={analyse}
+            disabled={busy || text.trim().length === 0}
+            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-caption font-bold text-emerald-300 disabled:opacity-40"
+          >
+            {busy ? "Analyse…" : "Analyser (dry-run)"}
+          </button>
+          <button
+            type="button"
+            onClick={applyImport}
+            disabled={busy || !canApply}
+            className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-caption font-bold text-amber-300 disabled:opacity-40"
+            title={canApply ? "Crée les blocs et quêtes manquants" : "Analyse d'abord le même contenu"}
+          >
+            Appliquer
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

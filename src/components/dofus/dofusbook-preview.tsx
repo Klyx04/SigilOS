@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, memo } from "react";
-import { getClassName, processDofusbookRawData, dofusbookItemIconUrl, dofusbookItemIconId, dofusbookCharacteristicRows, DOFUSBOOK_STAT_LABELS as statLabelMapping, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
+import { getClassName, processDofusbookRawData, dofusbookItemIconUrl, dofusbookItemIconId, dofusbookCharacteristicRows, isDofusbookNonStatCode, DOFUSBOOK_STAT_LABELS as statLabelMapping, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
 import { bakeDofusbookFromBrowser } from "@/lib/dofusbook-client-bake";
 import { ExternalLink, Users, Loader2, Zap, Move, Shield, Sparkles, RefreshCw, Copy, X, RotateCcw, Check, AlertTriangle } from "lucide-react";
 import NextImage from "next/image";
@@ -271,7 +271,16 @@ function ItemDetailModal({
                 {(() => {
                     const passive = resolveItemPassive(item);
                     const hasSp = (item.effects || []).some((fx) => fx.code === "sp");
-                    const regularEffects = (item.effects || []).filter((fx) => fx.code !== "sp");
+                    /**
+                     * 🧨 Constat du 26/10/2026 (capture user « **at** +185 » sur un Dofus Ocre) : le
+                     * payload Dofusbook contient aussi des effets **non statistiques**. Le rendu
+                     * imprimait le code brut faute de libellé — la ligne « at » est une **attitude**
+                     * (émote) dont la valeur est un id, jamais un montant. Elle sort de la liste, comme
+                     * `sp` (rendu dans « Pouvoir Passif »).
+                     */
+                    const regularEffects = (item.effects || []).filter(
+                        (fx) => !isDofusbookNonStatCode(fx.code),
+                    );
                     const hasPassive = !!passive || hasSp;
                     // Conditions réelles fournies par Dofusbook (`constraints`) — jamais inventées.
                     const restriction = renderDofusbookConstraints(item.constraints);

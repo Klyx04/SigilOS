@@ -38,17 +38,22 @@ Logs: /home/sigiladmin/SigilOS/logs/maintenance.log
 Appelés depuis le crontab VPS (`crontab -l`) via
 `curl -s -H "x-cron-secret: $CRON_SECRET" https://beta.sigilos.fr/api/cron/<name>` :
 
-⚠️ **Depuis un shell SSH**, `$CRON_SECRET` n'est **pas exporté** (il vit dans l'environnement des
-conteneurs) : un `curl` manuel part avec un header **vide** et reçoit `{"error":"Unauthorized"}`.
-Pour un appel à la main, lire le secret là où il est :
+⚠️ **Depuis un shell SSH, `$CRON_SECRET` est vide** (mesuré le 26/10/2026) : la variable est définie
+**en tête du crontab** (`CRON_SECRET=…`, § « Tâches planifiées »), pas dans l'environnement du shell.
+Le header part alors **vide** et la route répond `{"error":"Unauthorized"}` — ce n'est **pas** un
+problème de route.
+
+Pour un appel **manuel**, lire le secret là où il est réellement (jamais l'afficher) :
 
 ```bash
-# fichier posé pour la crontab (cf. § « Tâches planifiées »)
-curl -sS -H "x-cron-secret: $(cat /home/sigiladmin/.sigilos-cron-secret)" \
+# ✅ méthode fiable : l'environnement du conteneur applicatif (sigilos-beta / sigilos-prod)
+curl -sS -H "x-cron-secret: $(docker exec sigilos-beta printenv CRON_SECRET)" \
   "https://beta.sigilos.fr/api/cron/<name>"
-# ou, à défaut, dans l'environnement du conteneur applicatif
-docker exec sigilos-beta printenv CRON_SECRET
 ```
+
+⚠️ Le fichier `~/.sigilos-cron-secret` **n'existe pas** sur ce VPS (`cat: No such file or directory`,
+relevé du 26/10/2026) : les exemples plus bas qui l'utilisent ne valent que si on l'a créé
+(`umask 077 && printf '%s' '<secret>' > ~/.sigilos-cron-secret`).
 
 - `/api/cron/sync-members` — rattrapage départs/bans Discord (toutes les 30 min / 1h)
 - `/api/cron/avatar-resync` — **resync des hashs d'avatars Discord (#134)** : `GET /guilds/{id}/members`, mise à jour de `User.image` uniquement si le hash a changé ; `null` → avatar par défaut côté UI. Fréquence recommandée : quotidien (`0 5 * * *`).

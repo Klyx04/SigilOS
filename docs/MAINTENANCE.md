@@ -162,9 +162,9 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 # quotidienne dans `maintenance.sh` — ne publie jamais deux fois le même sondage.
 # ⚠️ La minute manquée n'est pas perdue : l'exécution suivante rattrape tous les
 #    créneaux échus (c'est ce qui rend le déclencheur « sans état »).
-# ⚠️ `CRON_SECRET`, `APP_URL`, `LOG_DIR` et `APP_CONTAINER` (`sigilos-beta` / `sigilos-prod`) sont
-#    définis EN TÊTE du crontab de ce VPS (relevé du 12/10/2026) : on utilise donc `$CRON_SECRET`
-#    (et non `$(cat ~/.sigilos-cron-secret)`, fichier absent). Le log porte EXACTEMENT le
+# ⚠️ `CRON_SECRET`, `APP_URL` et `LOG_DIR` sont définis EN TÊTE du crontab de ce VPS (relevé du
+#    12/10/2026) : on utilise donc `$CRON_SECRET` (et non `$(cat ~/.sigilos-cron-secret)`, fichier
+#    absent). Le log porte EXACTEMENT le
 #    nom déclaré dans `KNOWN_CRON_TASKS` (`publish-scheduled-polls.log`), sinon
 #    le panneau God affiche « Inconnu ».
 * * * * * curl -s -o /dev/null -w "publish-scheduled-polls \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/publish-scheduled-polls" >> "$LOG_DIR/publish-scheduled-polls.log" 2>&1
@@ -202,13 +202,15 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 # ⚠️ Sans état : une passe manquée n'est pas perdue, la suivante applique le même diff.
 30 4 * * * curl -s -o /dev/null -w "seniority-roles \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/seniority-roles" >> "$LOG_DIR/seniority-roles.log" 2>&1
 
-# 🔭 Veille DofusDB — UNE FOIS par semaine. Deux rôles dans la même passe :
+# 🔭 Veille DofusDB — UNE FOIS par semaine (dimanche 05h00 UTC : **ligne déjà en place** avant le
+# 26/10/2026). Deux rôles dans la même passe :
 #  ① **alerte** God, seulement en cas de nouveauté (objet/quête/donjon/condition jamais vue) ;
 #  ② **entretien** systématique : veille ciblée des objets + passe ciblée des **panoplies**.
-# ⚠️ Sans cette ligne, rien ne se met à jour tout seul : un rééquilibrage de statistiques (mise à
-#    jour 3.7 des trophées, par exemple) ne change **aucun compteur** ⇒ aucun écart à détecter.
-#    La passe est additive et n'écrit que ce qui a changé (`dataHash`) : un retrait reste humain.
-30 4 * * 0 curl -s -o /dev/null -w "data-watch \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/data-watch" >> "$LOG_DIR/data-watch.log" 2>&1
+# ⚠️ Ce qui manquait n'était PAS cette ligne mais le **code** : jusqu'au 26/10/2026 l'entretien était
+#    conditionné à une nouveauté, or un rééquilibrage de statistiques (mise à jour 3.7 des trophées)
+#    ne change **aucun compteur** ⇒ aucun siphon. Ne pas ajouter une seconde ligne (double passe).
+# ⚠️ `flock` + `-m 300` : après une longue coupure, la passe relit les panoplies des 60 derniers jours.
+0 5 * * 0 /usr/bin/flock -n /tmp/data-watch.lock curl -s -m 300 -o /dev/null -w "data-watch \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/data-watch" >> "$LOG_DIR/data-watch.log" 2>&1
 
 # 📋 Conditions d'équipement (DofusDude → `GameItem.conditions`) — UNE FOIS par mois.
 # C'est ce qui permet d'afficher et de **bloquer** une variante sur un trophée conditionnel

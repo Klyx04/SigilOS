@@ -18,6 +18,9 @@
  *
  * ⚠️ Aucun import : ce module reste utilisable côté client **et** serveur, et testable seul.
  */
+import { isNonStatEffectId } from "./dofus-stat-lines";
+
+
 
 /**
  * Une panoplie n'est active qu'à partir de **2 pièces distinctes** (règle 3.7).
@@ -232,6 +235,20 @@ export function normalizeItemSetTiers(raw: unknown): ItemSetTier[] {
             const value = boundedValue(line.value);
             if (!code || value === null || value === 0) continue;
             const effectId = Number(line.effectId);
+            /**
+             * 🧨 Correction du 26/10/2026 — **métadonnée ≠ bonus de panoplie**.
+             *
+             * Le siphon des panoplies résolvait le `code` depuis la **caractéristique**, et une
+             * caractéristique `0` donnait `vi` (Vitalité). Résultat mesuré en base : **9
+             * panoplies / 63 lignes de palier** portaient `effectId 724` (« Titre : », cosmétique)
+             * codé `vi` — de +2 à **+471 PV fantômes** par palier (Panoplie d'apparat Obvijevan :
+             * `+469` aux 6 paliers ; total **9 406** PV distribués au calcul des panoplies).
+             *
+             * Le filtre est **à la lecture** (aucune migration, aucun resiphon obligatoire) : les
+             * paliers stockent aussi l'`effectId`, qui suffit à reconnaître les métadonnées.
+             * Une ligne écartée ici est une ligne **qui n'a jamais été un bonus**.
+             */
+            if (Number.isInteger(effectId) && effectId > 0 && isNonStatEffectId(effectId)) continue;
             effects.push({
                 code,
                 value,

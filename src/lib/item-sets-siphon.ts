@@ -7,8 +7,9 @@
  *
  *   · `effects` est un tableau **indexé par palier** (`index = pièces − 1`) ;
  *   · chaque ligne porte `{ characteristic, from, to, effectId, elementId }` ;
- *   · `characteristic` se normalise en code court (`fo`, `ini`, `ta`…) via `normalizeStatCode()`
- *     — la même table que le reste de l'application (mesuré : `13→ch`, `44→ini`, `48→pp`, `79→ta`).
+ *   · `characteristic` se normalise en code court (`fo`, `ini`, `ta`…) via la règle partagée
+ *     `resolveStatLineCode()` (`src/lib/dofus-stat-lines.ts`) — caractéristique d'abord, puis
+ *     `effectId`, et **jamais** de métadonnée (titre, trait, portée de sort) comptée en bonus ;
  *
  * Invariants (mêmes que `game-items-siphon`) :
  *   · **upsert par id** de panoplie (jamais de doublon) ;
@@ -34,7 +35,7 @@ import {
 } from "@/lib/dofusdb-throttle";
 import { DOFUSDB_PAGE_MAX, hasMorePages } from "@/lib/dofusdb-pagination";
 import { normalizeItemSetTiers } from "@/lib/dofus-set-bonuses";
-import { normalizeStatCode } from "@/lib/dofus-variant-utils";
+import { isNonStatEffectId, resolveStatLineCode } from "@/lib/dofus-stat-lines";
 import { stableStringify } from "@/lib/stable-json";
 
 /** Endpoint de référence (lecture seule). */
@@ -75,11 +76,6 @@ export interface ItemSetSiphonReport {
     since: string | null;
 }
 
-/** `true` quand `normalizeStatCode` n'a pas su traduire (il rend alors l'id brut). */
-function isUnmappedCharacteristic(code: string): boolean {
-    return code.length === 0 || /^\d+$/.test(code);
-}
-
 /** Paliers DofusDB (`effects` indexé par palier) → paliers normalisés. */
 function normalizeTiers(rawTiers: unknown[]): { ok: true; tiers: SiphonedItemSetTier[] } | { ok: false; reason: string } {
     const tiers: SiphonedItemSetTier[] = [];
@@ -92,13 +88,22 @@ function normalizeTiers(rawTiers: unknown[]): { ok: true; tiers: SiphonedItemSet
         for (const rawEffect of rawTier) {
             if (!rawEffect || typeof rawEffect !== "object") continue;
             const line = rawEffect as { characteristic?: unknown; from?: unknown; effectId?: unknown };
-            const code = normalizeStatCode(line.characteristic as number);
-            if (isUnmappedCharacteristic(code)) {
+            const effectId = Number(line.effectId);
+            const value = Number(line.from ?? 0);
+            /**
+             * 🧨 Correction du 26/10/2026 — **une métadonnée n'est pas un bonus**.
+             *
+             * L'ancien code résolvait le code depuis `characteristic` via `normalizeStatCode`,
+             * où `0 → "vi"` : les lignes cosmétiques (`effectId 724` « Titre : ») entraient dans
+             * les paliers comme de la **Vitalité** (9 panoplies / 63 lignes / 9 406 PV fantômes).
+             * On écarte la ligne **avant** la garde fail-closed, pour ne jamais refuser une
+             * panoplie à cause d'un trait décoratif.
+             */
+            if (isNonStatEffectId(effectId) || !Number.isFinite(value) || value === 0) continue;
+            const code = resolveStatLineCode({ characteristic: line.characteristic, effectId });
+            if (!code) {
                 return { ok: false, reason: `caractéristique ${String(line.characteristic)} non normalisable` };
             }
-            const value = Number(line.from ?? 0);
-            if (!Number.isFinite(value) || value === 0) continue;
-            const effectId = Number(line.effectId);
             effects.push({
                 code,
                 value: Math.round(value),

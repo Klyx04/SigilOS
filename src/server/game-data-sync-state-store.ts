@@ -108,7 +108,11 @@ export async function reportGameDataProgress(
 }
 
 /**
- * Fin de run : succès (OK, 100 %) ou échec (ERROR + message lisible).
+ * Fin de run : succès (OK, 100 %), succès **partiel** (PARTIAL) ou échec (ERROR + message lisible).
+ *
+ * `partial` (constat du 26/10/2026) : passe exécutée jusqu'au bout, mais des ressources
+ * secondaires ont échoué sans invalider le travail (icônes de sorts, par exemple). Le run reste
+ * « ok » (100 %, aucune erreur bloquante) mais son statut cesse de mentir : `PARTIAL`.
  *
  * 🔢 **Erreurs regroupées par cause** (chantier A3, 28/09/2026) : l'appelant peut désormais passer
  * le **lot complet** (`errors`, messages bruts) au lieu d'en choisir trois. Le regroupement et la
@@ -122,6 +126,8 @@ export async function finishGameDataRun(
     dataset: GameDataDataset,
     opts: {
         ok: boolean;
+        /** Passe exécutée mais **partielle** (ressources secondaires en échec) ⇒ statut `PARTIAL`. */
+        partial?: boolean;
         message?: string;
         error?: string;
         /** Messages bruts du lot (jamais tronqués à 3 par l'appelant : le compteur vient d'ici). */
@@ -134,7 +140,7 @@ export async function finishGameDataRun(
     const groups = failures.length > 0 ? capGameDataErrorGroups(groupGameDataErrors(failures)) : null;
     await writeState({
         ...current,
-        status: opts.ok ? "OK" : "ERROR",
+        status: opts.ok ? (opts.partial ? "PARTIAL" : "OK") : "ERROR",
         percent: opts.ok ? 100 : current.percent,
         done: opts.ok && current.total ? current.total : current.done,
         message: opts.message ?? current.message,

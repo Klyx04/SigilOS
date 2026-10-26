@@ -4,7 +4,8 @@ import { db } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { auth } from '@/auth';
 import { rateLimit } from '@/lib/ratelimit';
-import { VARIANT_SLOTS, normalizeStatCode, getStatLabel } from '@/lib/dofus-variant-utils';
+import { VARIANT_SLOTS } from '@/lib/dofus-variant-utils';
+import { readItemStatLines } from '@/lib/dofus-stat-lines';
 import { normalizeItemIconUrl } from '@/lib/market/item-image';
 import { Prisma } from '@prisma/client';
 
@@ -58,57 +59,23 @@ export type ActionResponse<T = void> = {
 };
 
 /**
- * Extrait les statistiques et effets d'un GameItem de la base.
+ * Extrait les statistiques d'un `GameItem` — **délègue à la règle pure** `readItemStatLines`
+ * (`src/lib/dofus-stat-lines.ts`).
+ *
+ * 🧨 Correction du 26/10/2026 : cette fonction portait sa **propre** boucle
+ * (`characteristic ?? effectId` + `normalizeStatCode`) et créditait en Vitalité toute ligne à
+ * caractéristique `0` (traits de monture, portées de sort, titres) :
+ *   · Dragodinde Dorée et Indigo → `Vitalité 5401` (= `400 + 1 + 5000`) au lieu de `400` ;
+ *   · Volkorne/Muldo → `5001` fantômes ; Casque Keutumedi → `93 545` ;
+ *   · caractéristiques `121`/`123`/`124` (« Distance (%) », « Sorts (%) », « Mêlée (%) ») lues
+ *     « Chance »/« Sagesse »/rien sur les trophées et les boucliers (Arcaniste).
+ * Les montures, les panoplies et la carte de build partagent désormais **la même** règle.
  */
 function extractStatsFromGameItem(item: {
     nativeEffects?: unknown;
     effects?: unknown;
 }): VariantItemSummary['stats'] {
-    const rawEffects: any[] =
-        Array.isArray(item.nativeEffects) && item.nativeEffects.length > 0
-            ? (item.nativeEffects as any[])
-            : Array.isArray(item.effects)
-              ? (item.effects as any[])
-              : [];
-
-    const statsMap: Record<string, {
-        code: string;
-        label: string;
-        value: number;
-        min: number;
-        max: number;
-        isNegative?: boolean;
-    }> = {};
-
-    for (const fx of rawEffects) {
-        const from = fx.from ?? fx.min ?? fx.value ?? 0;
-        const to = fx.to ?? fx.max ?? fx.value ?? from;
-        const val = to !== undefined && from !== undefined ? Math.max(from, to) : (to ?? from ?? 0);
-
-        const rawKey = fx.characteristic ?? fx.effectId ?? fx.label ?? fx.name;
-        const code = normalizeStatCode(rawKey);
-        if (!code || val === 0) continue;
-
-        const label = fx.label || getStatLabel(code);
-        const isNeg = fx.isNegative || val < 0;
-
-        if (!statsMap[code]) {
-            statsMap[code] = {
-                code,
-                label,
-                value: isNeg ? -Math.abs(val) : Math.abs(val),
-                min: Math.min(from, to),
-                max: Math.max(from, to),
-                isNegative: isNeg,
-            };
-        } else {
-            // Cumul si plusieurs lignes pour le même code
-            statsMap[code].value += isNeg ? -Math.abs(val) : Math.abs(val);
-            statsMap[code].max += Math.max(from, to);
-        }
-    }
-
-    return Object.values(statsMap);
+    return readItemStatLines(item);
 }
 
 /**

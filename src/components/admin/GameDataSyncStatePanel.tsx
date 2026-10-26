@@ -398,21 +398,25 @@ function StateChip({ state }: { state: GameDataRunState }) {
                 "inline-flex items-center gap-1.5 font-semibold",
                 state.status === "RUNNING" && "text-info",
                 state.status === "OK" && "text-success",
+                state.status === "PARTIAL" && "text-warning",
                 state.status === "ERROR" && "text-danger",
                 state.status === "IDLE" && "text-muted-foreground",
             )}
         >
             {state.status === "RUNNING" && <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />}
             {state.status === "OK" && <CheckCircle2 className="h-3 w-3" aria-hidden="true" />}
+            {state.status === "PARTIAL" && <AlertTriangle className="h-3 w-3" aria-hidden="true" />}
             {state.status === "ERROR" && <AlertTriangle className="h-3 w-3" aria-hidden="true" />}
             {state.status === "IDLE" && <Clock className="h-3 w-3" aria-hidden="true" />}
             {state.status === "RUNNING"
                 ? "En cours"
                 : state.status === "OK"
                   ? "OK"
-                  : state.status === "ERROR"
-                    ? "Échec"
-                    : "Jamais exécuté"}
+                  : state.status === "PARTIAL"
+                    ? "Partiel"
+                    : state.status === "ERROR"
+                      ? "Échec"
+                      : "Jamais exécuté"}
         </span>
     );
 }

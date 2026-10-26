@@ -66,7 +66,17 @@ export interface SiphonDashboardStats {
 }
 
 export interface SiphonInventoryItem {
-    id: number | string;
+    /**
+     * Id **Ankama/DofusDB** du monstre — `null` quand le donjon n'expose aucun id numérique
+     * (`dofusdbId` absent, aucune ligne `MonsterStat`).
+     *
+     * 🧨 Correction du 26/10/2026 : l'ancien code faisait `numericMonsterId || dj.id`, c'est-à-dire
+     * qu'il **retombait sur le cuid Prisma du donjon** — affiché tel quel à l'opérateur
+     * (`ID: #cmtb8m88…`) et transmis au proxy d'images (`/api/assets-dofus/monsters/<cuid>`),
+     * qui ne peut rien résoudre. Mesure : **131 donjons sur 145** n'ont pas de `dofusdbId` ⇒ 90 %
+     * de l'inventaire affichait un identifiant interne et une vignette sans source.
+     */
+    id: number | null;
     name: string;
     type: 'boss' | 'monster' | 'map';
     dungeonName?: string;
@@ -199,7 +209,10 @@ export async function getSiphonInventory(filters: {
                 numericMonsterId = dj.dofusdbId;
             }
 
-            const itemIdentifier = numericMonsterId || dj.id;
+            // ⚠️ Jamais de repli sur `dj.id` (cuid Prisma) : un identifiant interne n'est ni
+            // affichable ni siphonnable (cf. `SiphonInventoryItem.id`). `null` = « id non résolu »,
+            // que l'UI dit explicitement au lieu d'inventer une cible.
+            const itemIdentifier = numericMonsterId ?? null;
             const remoteImg = statsData?.img || null;
 
             // Vérification de l'image locale sur disque

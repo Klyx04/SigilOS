@@ -943,8 +943,13 @@ export async function reintegrateMember(guildId: string, profileId: string): Pro
             where: { id: profileId, guildId: guild.id },
             select: {
                 id: true,
+                // Statut AVANT réintégration : il part dans le journal d'audit (avant/après).
+                status: true,
+                pseudoDofus: true,
+                discordNickname: true,
                 user: {
                     select: {
+                        name: true,
                         accounts: {
                             where: { provider: "discord" },
                             select: { providerAccountId: true }
@@ -990,6 +995,25 @@ export async function reintegrateMember(guildId: string, profileId: string): Pro
                     where: { guildId: guild.id, discordId }
                 });
             }
+        });
+
+        // 🐛 Mesure du 25/10/2026 : cette action ne laissait **aucune trace**. Le staff pouvait
+        // réintégrer (et donc rouvrir l'accès) sans que le journal d'audit de la guilde en garde
+        // une ligne, alors que l'écran God promet que « toute action est enregistrée ». On trace
+        // avec le statut d'avant, comme `recordMemberDeparture` le fait pour la sortie.
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: ctx.name || "Staff",
+            action: "PROFILE_REACTIVATED",
+            targetType: "USER_PROFILE",
+            targetId: profile.id,
+            oldValue: { status: profile.status },
+            newValue: { status: "ACTIVE" },
+            metadata: {
+                memberName: profile.pseudoDofus || profile.discordNickname || profile.user?.name || "Membre",
+                source: "reintegrateMember",
+            },
         });
 
         return { success: true, data: { message: "Membre réintégré avec succès" } };

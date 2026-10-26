@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   DOFUSDB_QUEST_BASE,
+  MAX_QUEST_DB_IDS,
   applyQuestIdentity,
+  boundQuestDbIds,
   dofusDbQuestUrl,
   isGeneratedDofusDbQuestUrl,
 } from "@/lib/rush-quest-identity";
@@ -69,5 +71,22 @@ describe("rush-quest-identity — choisir une quête remplit l'identité", () =>
     const identity = applyQuestIdentity({ name: "   ", dofusDbId: 55 }, { name: "Nom saisi", dofusdbUrl: "" });
     expect(identity.name).toBe("Nom saisi");
     expect(identity.dofusdbUrl).toBe(`${DOFUSDB_QUEST_BASE}/55`);
+  });
+});
+
+describe("rush-quest-identity — borne des ids de quête (questDbIds)", () => {
+  it("ne garde que des entiers positifs, dédoublonnés", () => {
+    expect(boundQuestDbIds([55, "1903", 55, 0, -4, 12.5, null, undefined, "abc"])).toEqual([55, 1903]);
+  });
+
+  it("accepte des chaînes numériques (export JSON) et écarte le reste", () => {
+    expect(boundQuestDbIds([" 2502 ", "007"])).toEqual([2502, 7]);
+    expect(boundQuestDbIds("2502")).toEqual([]);
+    expect(boundQuestDbIds(null)).toEqual([]);
+  });
+
+  it("plafonne à 10 ids — l'ordre d'arrivée est conservé", () => {
+    expect(boundQuestDbIds([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(MAX_QUEST_DB_IDS).toBe(10);
   });
 });

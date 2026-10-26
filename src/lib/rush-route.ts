@@ -12,6 +12,7 @@
  */
 
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import { normalizeOrderCode } from "@/lib/rush-order-codes";
 
 export type RushAlignmentCamp = "bontarien" | "brakmarien";
 
@@ -69,7 +70,15 @@ export function isSequenceOnRoute(
   const rawOrder = (seq.alignOrderCode ?? "").trim().toLowerCase();
   if (rawOrder) {
     const chosenOrder = (route.order ?? "").trim().toLowerCase();
-    if (chosenOrder && rawOrder !== chosenOrder) return false;
+    if (chosenOrder) {
+      // Deux vocabulaires ont cohabité dans `alignOrderCode` : le code canonique
+      // (`coeur_vaillant`) et l'id court du référentiel de guilde (`vaillant`). On
+      // compare les codes **ramenés au canonique** ; une valeur inconnue garde la
+      // comparaison brute (fail-closed, on ne rend rien visible par consolation).
+      const required = normalizeOrderCode(rawOrder) ?? rawOrder;
+      const chosen = normalizeOrderCode(chosenOrder) ?? chosenOrder;
+      if (required !== chosen) return false;
+    }
   }
 
   // Classe : idem, uniquement les quêtes de classe.

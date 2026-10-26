@@ -73,3 +73,30 @@ export function applyQuestIdentity(
 
     return { name, dofusdbUrl };
 }
+
+/** Nombre maximal d'ids de quête portés par une séquence. */
+export const MAX_QUEST_DB_IDS = 10;
+
+/**
+ * Borne les `questDbIds` reçus (client **ou** import) : entiers **> 0**,
+ * dédoublonnés, **10 au plus**. Une valeur illisible est **écartée**, jamais
+ * convertie en 0 ni en `NaN` — la colonne ne doit contenir que des ids DofusDB
+ * réels, sinon la liaison `GameQuest` est morte.
+ */
+export function boundQuestDbIds(ids: unknown): number[] {
+    if (!Array.isArray(ids)) return [];
+    const out: number[] = [];
+    for (const raw of ids) {
+        const value =
+            typeof raw === "number"
+                ? raw
+                : typeof raw === "string" && /^\d+$/.test(raw.trim())
+                    ? Number(raw.trim())
+                    : Number.NaN;
+        if (!Number.isInteger(value) || value <= 0) continue;
+        if (out.includes(value)) continue;
+        out.push(value);
+        if (out.length >= MAX_QUEST_DB_IDS) break;
+    }
+    return out;
+}

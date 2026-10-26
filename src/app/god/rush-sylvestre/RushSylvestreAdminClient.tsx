@@ -47,7 +47,7 @@ import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { ORDERS } from "@/lib/dofus-assets";
+import { RUSH_ORDER_CODES, normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
 import {
@@ -101,6 +101,8 @@ type Sequence = {
   alignLevelReq?: number | null;
   classReq?: string | null;
   alignOrderReq?: number | null;
+  /** Ids DofusDB des quêtes incarnées (`GameQuest.dofusDbId`) — bornés côté serveur. */
+  questDbIds?: number[];
   dungeon?: { id: string; name: string; bossName: string; imageUrl?: string | null } | null;
   /** Donjons li├®s ; `isOptional` = affich├® mais non bloquant (S0-6). */
   dungeons?: { id: string; name: string; bossName: string; imageUrl?: string | null; isOptional?: boolean }[];
@@ -2249,7 +2251,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   const [noobsUrl, setNoobsUrl] = useState(seq.dofuspourlesnoobsUrl || "");
   const [tips, setTips] = useState(seq.tips || "");
   const [alignReq, setAlignReq] = useState(seq.alignReq || "");
+  const [alignOrderCode, setAlignOrderCode] = useState(normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || ""));
+  const [alignLevelReq, setAlignLevelReq] = useState(seq.alignLevelReq ? String(seq.alignLevelReq) : "");
+  const [classReq, setClassReq] = useState(seq.classReq || "");
   const [alignOrderReq, setAlignOrderReq] = useState(seq.alignOrderReq ? String(seq.alignOrderReq) : "");
+  const [questDbIds, setQuestDbIds] = useState<number[]>(Array.isArray(seq.questDbIds) ? seq.questDbIds : []);
   const [note, setNote] = useState(seq.note || "");
   const [isSuccess, setIsSuccess] = useState(seq.isSuccess ?? false);
   const [icon, setIcon] = useState(seq.icon || "");
@@ -2281,6 +2287,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     activities: false,
     resources: false,
     links: false,
+    route: false,
     hints: false,
     advanced: false,
   });
@@ -2684,7 +2691,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       noobsUrl !== (seq.dofuspourlesnoobsUrl || "") ||
       tips !== (seq.tips || "") ||
       alignReq !== (seq.alignReq || "") ||
+      alignOrderCode !== (normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || "")) ||
+      alignLevelReq !== (seq.alignLevelReq ? String(seq.alignLevelReq) : "") ||
+      classReq !== (seq.classReq || "") ||
       alignOrderReq !== (seq.alignOrderReq ? String(seq.alignOrderReq) : "") ||
+      questDbIds.join(",") !== (Array.isArray(seq.questDbIds) ? seq.questDbIds.join(",") : "") ||
       note !== (seq.note || "") ||
       isSuccess !== (seq.isSuccess ?? false) ||
       icon !== (seq.icon || "") ||
@@ -2694,7 +2705,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       optionalDungeonIds.slice().sort().join(",") !==
         (seq.dungeons ?? []).filter((d: any) => d.isOptional).map((d: any) => d.id).sort().join(",")
     );
-  }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderReq, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
+  }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, alignOrderReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
 
   // ── Aperçu « côté membre » (`E5`) ──────────────────────────────────────────
   // ⚠️ On ne réinvente PAS une vignette : la ligne de quête et la fiche « Détails » rendues plus
@@ -2723,12 +2734,15 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     dofuspourlesnoobsUrl: noobsUrl.trim() || null,
     tips: tips.trim() || null,
     alignReq: alignReq.trim() || null,
+    alignOrderCode: alignOrderCode.trim() || null,
+    alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
+    classReq: classReq.trim() || null,
     alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
     isSuccess,
     icon: icon.trim() || null,
     metamobMonsterId: metamobMonsterId ? parseInt(metamobMonsterId, 10) : null,
     activityTags: activityTags as RushActivityTag[],
-  }), [seq.id, seq.subGuideRef, seq.order, name, note, selectedDungeons, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderReq, isSuccess, icon, metamobMonsterId, activityTags]);
+  }), [seq.id, seq.subGuideRef, seq.order, name, note, selectedDungeons, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, alignOrderReq, isSuccess, icon, metamobMonsterId, activityTags]);
 
   /** Bloc qui porte la quête éditée : la fiche « Détails » y lit son titre et son illustration. */
   const previewMilestone: RushMilestone = useMemo(() => {
@@ -2765,7 +2779,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       dofuspourlesnoobsUrl: noobsUrl.trim() || null,
       tips: tips.trim() || null,
       alignReq: alignReq.trim() || null,
+      alignOrderCode: alignOrderCode.trim() || null,
+      alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
+      classReq: classReq.trim() || null,
       alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
+      questDbIds,
       note: note.trim() || undefined,
       isSuccess,
       icon: icon.trim() || null,
@@ -2860,8 +2878,31 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                 const next = applyQuestIdentity(pick, { name, dofusdbUrl });
                 setName(next.name);
                 setDofusdbUrl(next.dofusdbUrl);
+                // La liaison forte : l'id DofusDB est celui que porte `questDbIds`.
+                if (pick.dofusDbId) setQuestDbIds([pick.dofusDbId]);
               }}
             />
+            {questDbIds.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Quête liée</span>
+                {questDbIds.map((id) => (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-caption font-bold text-emerald-300"
+                  >
+                    DofusDB #{id}
+                    <button
+                      type="button"
+                      onClick={() => setQuestDbIds(prev => prev.filter((x) => x !== id))}
+                      className="text-emerald-400/70 hover:text-red-400"
+                      aria-label={`Retirer la liaison avec la quête ${id}`}
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             <div>
               <label className="text-caption font-black text-zinc-500 uppercase tracking-widest mb-1 block">Nom *</label>
               <input
@@ -3452,7 +3493,71 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
         )}
       </div>
 
-      {/* ── Section 7 : Conseils & Style Tougli ── */}
+      {/* ── Section 7 : Route (cité / Ordre / palier / classe) ── */}
+      <div className="rounded-xl border border-white/5 bg-zinc-900/40">
+        <button
+          type="button"
+          onClick={() => toggleSection("route")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-sky-400/90">
+            7. 🧭 Route (cité / Ordre / palier / classe)
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.route ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.route && (
+          <div className="p-3 pt-0 space-y-2 border-t border-white/5">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Cité (route)</label>
+                <select value={alignReq} onChange={e => { setAlignReq(e.target.value); setAlignOrderCode(""); }}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                >
+                  <option value="">— Aucune (commune) —</option>
+                  <option value="bontarien">Bontarien</option>
+                  <option value="brakmarien">Brakmarien</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Ordre (quêtes d'Ordre)</label>
+                <select value={alignOrderCode} onChange={e => setAlignOrderCode(e.target.value)}
+                  disabled={!alignReq}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
+                >
+                  <option value="">— Aucun —</option>
+                  {orderCodesForCamp(alignReq).map(o => (
+                    <option key={o.code} value={o.code}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Palier requis (verrou)</label>
+                <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                >
+                  <option value="">— Aucun —</option>
+                  {[20, 40, 60, 80, 100].map(n => (
+                    <option key={n} value={n}>Alignement ≥ {n}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
+                <input value={classReq} onChange={e => setClassReq(e.target.value)}
+                  className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                  placeholder="feca, osa…"
+                />
+              </div>
+            </div>
+            <p className="text-caption text-zinc-500">
+              L'Ordre s'écrit en <strong>code canonique</strong> ({RUSH_ORDER_CODES.map(o => o.code).slice(0, 2).join(", ")}…).
+              Le palier d'une quête d'Ordre se déduit de sa position (20/40/60/80/100) : le verrou compte les quêtes de cité validées.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 8 : Conseils & Style Tougli ── */}
       <div className="rounded-xl border border-white/5 bg-zinc-900/40">
         <button
           type="button"
@@ -3460,7 +3565,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-purple-400/90">
-            7. 💡 Conseils, Notes & Style Tougli
+            8. 💡 Conseils, Notes & Style Tougli
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.hints ? "rotate-180" : ""}`} />
         </button>
@@ -3537,7 +3642,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-zinc-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-rose-400/90">
-            8. ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
+            9. ⚔️ Donjons ({selectedDungeons.length}), Info Sequence & Transfert
           </span>
           <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${openSections.advanced ? "rotate-180" : ""}`} />
         </button>
@@ -3748,6 +3853,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [alignLevelReq, setAlignLevelReq] = useState("");
   const [classReq, setClassReq] = useState("");
   const [alignOrderReq, setAlignOrderReq] = useState("");
+  const [questDbIds, setQuestDbIds] = useState<number[]>([]);
   const [note, setNote] = useState("");
   const [activityTags, setActivityTags] = useState<ActivityTag[]>([]);
   const [selectedDungeons, setSelectedDungeons] = useState<DungeonResult[]>([]);
@@ -3868,11 +3974,13 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
       alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
       classReq: classReq.trim() || null,
       alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
+      questDbIds,
       note: note.trim() || undefined,
       activityTags,
     });
     setName(""); setDofusdbUrl(""); setNoobsUrl(""); setTips(""); setAlignReq("");
     setAlignOrderReq(""); setAlignOrderCode(""); setAlignLevelReq(""); setClassReq("");
+    setQuestDbIds([]);
     setNote(""); setActivityTags([]); setSelectedDungeons([]); setOptionalDungeonIds([]); setDungeonQuery("");
     setSelectedDofusId(""); setPrereqs([]); setPrereqQuery("");
     setExpanded(false);
@@ -3904,8 +4012,30 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
           const next = applyQuestIdentity(pick, { name, dofusdbUrl });
           setName(next.name);
           setDofusdbUrl(next.dofusdbUrl);
+          if (pick.dofusDbId) setQuestDbIds([pick.dofusDbId]);
         }}
       />
+      {questDbIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-caption font-black text-zinc-500 uppercase tracking-widest">Quête liée</span>
+          {questDbIds.map((id) => (
+            <span
+              key={id}
+              className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-caption font-bold text-emerald-300"
+            >
+              DofusDB #{id}
+              <button
+                type="button"
+                onClick={() => setQuestDbIds(prev => prev.filter((x) => x !== id))}
+                className="text-emerald-400/70 hover:text-red-400"
+                aria-label={`Retirer la liaison avec la quête ${id}`}
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <AnimatePresence>
         {expanded && (
@@ -4018,8 +4148,8 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none disabled:opacity-40"
                   >
                     <option value="">— Aucun —</option>
-                    {((ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[alignReq] || []).map(o => (
-                      <option key={o.id} value={o.id}>{o.name}</option>
+                    {orderCodesForCamp(alignReq).map(o => (
+                      <option key={o.code} value={o.code}>{o.label}</option>
                     ))}
                   </select>
                 </div>

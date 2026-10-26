@@ -13,13 +13,14 @@ import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { resetAlignmentQuests } from "@/server/rush-alignment";
-import { ORDERS } from "@/lib/dofus-assets";
+import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { z } from "zod";
 import { rushResourceKey } from "@/lib/rush-guide-utils";
 import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
+import { boundQuestDbIds } from "@/lib/rush-quest-identity";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -3712,6 +3713,11 @@ export async function upsertRushSequence(data: {
   dungeonIds?: string[];
   /** Sous-ensemble de `dungeonIds` : ces donjons ne bloquent pas la validation. */
   dungeonOptionalIds?: string[];
+  /**
+   * Ids **DofusDB** des quêtes que cette séquence incarne (`GameQuest.dofusDbId`).
+   * Absent ⇒ la colonne n'est pas touchée ; fourni ⇒ borné ici (voir `boundQuestDbIds`).
+   */
+  questDbIds?: number[];
   dofusdbUrl?: string | null;
   dofuspourlesnoobsUrl?: string | null;
   tips?: string | null;
@@ -3764,8 +3770,11 @@ export async function upsertRushSequence(data: {
     metamobMonsterId: data.metamobMonsterId ?? null,
     activityTags: data.activityTags ?? [],
     dungeonIds: data.dungeonIds ?? undefined,
-    // Absent ÔçÆ la colonne n'est pas touch├®e (on ne ┬½ d├®-optionnalise ┬╗ pas par oubli).
+    // Absent ⇒ la colonne n'est pas touchée (on ne « dé-optionnalise » pas par oubli).
     ...(dungeonOptionalIds !== undefined ? { dungeonOptionalIds } : {}),
+    // Idem pour la liaison de quête : fournie, elle est **bornée côté serveur**
+    // (ids DofusDB > 0, dédoublonnés, 10 au plus) — le client n'est jamais cru.
+    ...(data.questDbIds !== undefined ? { questDbIds: boundQuestDbIds(data.questDbIds) } : {}),
   };
 
   if (data.id) {
@@ -3918,29 +3927,37 @@ export async function duplicateRushSequenceAsOrderTwins(sequenceId: string) {
   if (!source) return { success: false as const, error: "Séquence introuvable" };
 
   const camp = (source.alignReq ?? "").trim().toLowerCase();
-  const orders = (ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[camp];
-  if (!orders) return { success: false as const, error: "Cette séquence n'a pas de cité (Bontarien / Brâkmarien)" };
+  const campaignOrders = orderCodesForCamp(camp);
+  if (!campaignOrders.length) return { success: false as const, error: "Cette séquence n'a pas de cité (Bontarien / Brâkmarien)" };
 
-  const sourceOrder = (source.alignOrderCode ?? "").trim();
-  if (!sourceOrder) {
+  // ⚠️ `alignOrderCode` a reçu deux vocabulaires : l'id court de `ORDERS` (`vaillant`,
+  // écrit par l'ancien studio et par cette action) et le code canonique
+  // (`coeur_vaillant`, attendu par la règle de route). On **normalise** avant de comparer,
+  // sinon une jumelle déjà présente serait recréée en double.
+  const sourceCode = normalizeOrderCode(source.alignOrderCode);
+  if (!sourceCode) {
     return { success: false as const, error: "Cette séquence n'a pas d'Ordre : renseigne-le d'abord" };
   }
 
+  const existing = await db.guideSequence.findMany({
+    where: { milestoneId: source.milestoneId, order: source.order, alignOrderCode: { not: null } },
+    select: { alignOrderCode: true },
+  });
+  const existingCodes = new Set(
+    existing.map((s) => normalizeOrderCode(s.alignOrderCode) ?? (s.alignOrderCode ?? "").trim())
+  );
+
   let created = 0;
-  for (const other of orders) {
-    if (other.id === sourceOrder) continue;
-    const exists = await db.guideSequence.findFirst({
-      where: { milestoneId: source.milestoneId, order: source.order, alignOrderCode: other.id },
-      select: { id: true },
-    });
-    if (exists) continue;
+  for (const other of campaignOrders) {
+    if (other.code === sourceCode) continue;
+    if (existingCodes.has(other.code)) continue;
 
     await db.guideSequence.create({
       data: {
         milestoneId: source.milestoneId,
         order: source.order,
-        subGuideRef: `${source.subGuideRef} [${other.id}]`,
-        subGuideName: `${source.subGuideName} [${other.id}]`,
+        subGuideRef: `${source.subGuideRef} [${other.label}]`,
+        subGuideName: `${source.subGuideName} [${other.label}]`,
         stepFrom: source.stepFrom,
         stepTo: source.stepTo,
         isPartial: source.isPartial,
@@ -3951,7 +3968,7 @@ export async function duplicateRushSequenceAsOrderTwins(sequenceId: string) {
         dofuspourlesnoobsUrl: source.dofuspourlesnoobsUrl,
         tips: source.tips,
         alignReq: source.alignReq,
-        alignOrderCode: other.id,
+        alignOrderCode: other.code,
         alignLevelReq: source.alignLevelReq,
         classReq: source.classReq,
         isSuccess: source.isSuccess,
@@ -3963,6 +3980,7 @@ export async function duplicateRushSequenceAsOrderTwins(sequenceId: string) {
       },
       select: { id: true },
     });
+    existingCodes.add(other.code);
     created += 1;
   }
 

@@ -195,7 +195,7 @@ npx prisma@7.9.1 migrate deploy
 | 5 | **Fiches Boss & Sorts** | `/dashboard/[guildId]/succes` | Maps Dofensive chargées, géométrie isométrique OK. |
 | 6 | **Recherche Cmd+K** | Raccourci `Cmd+K` / `Ctrl+K` | Recherche fonctionnelle sur Items, Dofus, Quêtes et Membres. |
 | 7 | **Interactions Bot** | Bouton Discord (Ticket / Sortie Donjon) | Réponse éphémère immédiate du bot PROD. |
-| 8 | **Crons & Sauvegardes** | Vérifier crontab VPS | `backup_db.sh prod` tourne à 4h00 vers R2. |
+| 8 | **Crons & Sauvegardes** | Vérifier crontab VPS | `backup_db.sh prod` tourne à 4h00 vers R2. **`APP_URL` bascule sur `prod`** (toute la crontab le suit) ; une **seule** ligne `data-watch` (dim. 05h00) et une **seule** ligne `siphon-item-conditions` (1er du mois) ; les siphons `siphon-item-sets` puis `siphon-item-conditions` sont joués **avant** d'ouvrir les variantes (`docs/plans/AMORCE-STUFF-VARIANTES-RESTE.md` §1). |
 
 ---
 

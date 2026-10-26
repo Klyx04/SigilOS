@@ -9,7 +9,15 @@
 
 ## 0. Reprise immédiate
 
-- ⏳ **En attente de prod (25/10/2026)** — la **bêta** tourne `dev` `1d1fc3d3` (les 4 lots du 25/10 livrés : calendrier/membres/blacklist/succès, **284 migrations**, `sigilos-beta`) ; la **prod** reste sur `main` `07c0500e` (12/10, **267 migrations**) ⇒ ces lots ne sont **pas** en production. Bascule : PR `dev` → `main` → CI verte → `./scripts/deploy-cd.sh prod` → rattrapage `docker exec sigilos-prod node scripts/backfill-dungeon-completion.js` puis `--apply` (`docs/MAINTENANCE.md` § Rattrapage « Donjon validé »). ⚠️ La crontab vise `beta.sigilos.fr` (`APP_URL`) : la **clôture d'office ne tourne donc qu'en bêta** — la prod garde l'ancien comportement (clôture à l'ouverture des pages) jusqu'à sa bascule, donc aucun trou, mais aucune purge Discord non plus.
+- ⏳ **En attente de prod (26/10/2026)** — la **bêta** tourne `dev` `2a06ef26` (**287 migrations**, `sigilos-beta`) ; la
+  **prod** reste sur `main` `66040052` (**267 migrations** ⇒ **20 en attente**). Lots non déployés : calendrier/membres/
+  blacklist/succès (25/10) **puis stuff & variantes** (panoplies recalculées, pods, plafonds, veille auto-entretenue).
+  Bascule : PR `dev` → `main` → CI verte → `./scripts/deploy-cd.sh prod` → **puis, dans cet ordre** :
+  ① `backfill-dungeon-completion` (`docs/MAINTENANCE.md` § Rattrapage) ; ② `siphon-item-sets?apply=1` — **en premier**,
+  le référentiel prod est **vide** et sans lui les variantes à panoplie sont refusées (fail-closed) ; ③
+  `siphon-item-conditions?apply=1` (264) ; ④ un `data-watch` manuel (pose le filigrane des panoplies) ; ⑤ les lignes de
+  crontab prod (`docs/MAINTENANCE.md` § Tâches planifiées — **une seule** `data-watch`, elle existe déjà sur le VPS).
+  ⚠️ La crontab du VPS vise `beta.sigilos.fr` (`APP_URL`). Détail ordonné : `docs/plans/AMORCE-STUFF-VARIANTES-RESTE.md` §1.
 - **Livré le 26/10/2026 — Bonus de panoplie recalculés dans une variante (lot A de l'amorce stuff/variantes).**
   Mesures : ① `GET /item-sets/242` (Danathor) → `effects` est un **tableau indexé par palier** (`index = pièces − 1`),
   ligne `{ characteristic, from, effectId }` ; **56 ko par panoplie** (elle embarque ses objets complets), 940 au

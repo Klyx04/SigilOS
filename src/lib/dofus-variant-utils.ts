@@ -126,6 +126,16 @@ export const VARIANT_STAT_FILTERS: StatFilterOption[] = [
     { code: "so", label: "Soins", category: "secondaires", icon: "/assets/dofus/stats/soin.png" },
     { code: "pp", label: "Prospection", category: "secondaires", icon: "/assets/dofus/stats/pp.png" },
     { code: "ini", label: "Initiative", category: "secondaires", icon: "/assets/dofus/stats/initiative.png" },
+    /**
+     * Constat du 26/10/2026 — ces codes existaient dans `normalizeStatCode` mais **pas** ici :
+     * `getStatLabel()` les rendait donc en majuscules brutes (« POD », « RP ») dans la modale.
+     * Mesure : Pods = caractéristique `40` / `effectId` `159` (3 fiches, dont les certificats),
+     * Ré Poussée = `85`/`416` (Ré Poussée d'un Volkorne), Renvoi = `50`, Ré Crit. = `87`.
+     */
+    { code: "pod", label: "Pods", category: "secondaires" },
+    { code: "rp", label: "Ré Pouss.", category: "secondaires" },
+    { code: "rv", label: "Renvoi", category: "secondaires" },
+    { code: "rc", label: "Ré Crit.", category: "secondaires" },
 
     // Dommages
     { code: "df", label: "Dommages", category: "damages", icon: "/assets/dofus/stats/dmg.png" },
@@ -136,6 +146,9 @@ export const VARIANT_STAT_FILTERS: StatFilterOption[] = [
     { code: "def", label: "Do Eau", category: "damages", icon: "/assets/dofus/stats/dmgEau.png" },
     { code: "daf", label: "Do Air", category: "damages", icon: "/assets/dofus/stats/dmgAir.png" },
     { code: "dp", label: "Do Pou", category: "damages", icon: "/assets/dofus/stats/dmgPoussee.png" },
+    // Pièges (caractéristiques 69/70 — mesurées sur `/characteristics` le 26/10/2026)
+    { code: "ppi", label: "Puiss. Pièges", category: "damages" },
+    { code: "dpi", label: "Do Pièges", category: "damages" },
     { code: "da", label: "% Do Armes", category: "damages" },
     { code: "ds", label: "% Do Sorts", category: "damages" },
     { code: "dm", label: "% Do Mêlée", category: "damages" },
@@ -147,6 +160,14 @@ export const VARIANT_STAT_FILTERS: StatFilterOption[] = [
     { code: "rfp", label: "% Res Feu", category: "resists", icon: "/assets/dofus/stats/resFeu.png" },
     { code: "rep", label: "% Res Eau", category: "resists", icon: "/assets/dofus/stats/resEau.png" },
     { code: "rap", label: "% Res Air", category: "resists", icon: "/assets/dofus/stats/resAir.png" },
+    /**
+     * Constat du 26/10/2026 — les caractéristiques `121` (« Distance (%) ») et `124`
+     * (« Mêlée (%) ») sont des **résistances** (`receivedDamageMultiplier*`), distinctes des
+     * dommages correspondants (`120`/`125`). La table plate les confondait avec les `effectId`
+     * `121`/`124` : un trophée Arcaniste affichait « Sagesse » là où il donne `-6 % Rés. mêlée`.
+     */
+    { code: "rd", label: "% Rés. Dist.", category: "resists" },
+    { code: "rm", label: "% Rés. Mêlée", category: "resists" },
 
     // Esquives & Retraits
     { code: "fu", label: "Fuite", category: "secondaires", icon: "/assets/dofus/stats/fuite.png" },

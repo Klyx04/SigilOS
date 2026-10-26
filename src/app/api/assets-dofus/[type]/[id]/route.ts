@@ -28,15 +28,22 @@ const ALLOWED_IMAGE_HOSTS = new Set(['api.dofusdb.fr']);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /**
- * Fallback PNG neutre (1×1 transparent) — **jamais** de 404 rouge, ni de SVG (Discord ne sait
- * pas le rendre dans un embed ; symptôme mesuré le 10/10/2026 : l'image d'embed « tente de se
- * générer puis rien »). `no-store` OBLIGATOIRE : un échec TRANSITOIRE de siphonnage ne doit pas
- * être figé dans le cache du navigateur, sinon l'icône reste cassée alors que la source est
- * revenue.
+ * Fallback PNG **réellement transparent** (1×1, alpha = 0) — **jamais** de 404 rouge, ni de SVG
+ * (Discord ne sait pas le rendre dans un embed ; symptôme mesuré le 10/10/2026 : l'image d'embed
+ * « tente de se générer puis rien »). `no-store` OBLIGATOIRE : un échec TRANSITOIRE de siphonnage
+ * ne doit pas être figé dans le cache du navigateur, sinon l'icône reste cassée alors que la
+ * source est revenue.
+ *
+ * 🧨 Constat du 26/10/2026 (captures God « Gelée Royale »/« Tynril » et modale variante « sorts
+ * communs » : des **carrés verts** partout) : le PNG précédent était censé être « neutre » mais
+ * son unique pixel valait **RGBA(0, 254, 0, 127)** — un vert vif à 50 % d'opacité, étiré par la
+ * vignette en aplat vert. Un placeholder doit être **invisible** ; c'est au composant de décider
+ * d'un repli visible (icône), jamais au proxy. Le base64 ci-dessous est un 1×1 **transparent**
+ * (vérifié octet par octet par `tests/unit/assets-dofus-route.test.ts`).
  */
 function placeholderResponse(): NextResponse {
     const placeholderPng = Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAALSURBVBhXY2AAAgAABQABqtXIUQAAAABJRU5ErkJggg==",
         "base64"
     );
     return new NextResponse(placeholderPng, {

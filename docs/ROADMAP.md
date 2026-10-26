@@ -5,7 +5,7 @@
 > **Mémoire.** 6 dernières sessions : `docs/agents/activeContext.md`.
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
-> **Dernière MàJ** : 24/10/2026 · SHA courant injecté par le hook `TaskStart`.
+> **Dernière MàJ** : 26/10/2026 · SHA courant injecté par le hook `TaskStart`.
 
 ## 0. Reprise immédiate
 
@@ -37,6 +37,7 @@
   `dofus-set-bonuses` **5 → 24** (dont la pagination et le payload réel mesuré). Suite **5 442 ✓ / 517 fichiers**,
   `tsc` 0, ESLint 0 erreur. **1 migration additive.** ⚠️ **Ops** :
   `migrate deploy` + `generate`, `npm run siphon:item-sets -- --apply`, redémarrage de l'app.
+
 
 
 - **Livré le 26/10/2026 — Pods, veille des conditions et finitions (lots B, C, E de l'amorce stuff/variantes).**
@@ -244,6 +245,7 @@
 | `T-1/T-2/T-2b/T-3` | Rush Sylvestre — affichage, temps réel, prérequis, studio God | 08/10/2026 |
 | `V-A/V-B` | Rush Sylvestre — agrégation unique + ids/icônes | 10/10/2026 |
 | `R-1 → R-4` | Raccord DofusDB (résistances, tacle/fuite, critiques, icônes) | 15/10/2026 |
+| `STATS-1` | Socle de lecture des stats + 4 bugs d'exploitation (montures 5401, panoplies 9 406 PV, placeholder vert, inventaire siphon, statut PARTIAL, sorts communs officiels) — `fix/socle-stats-siphons`, **0 migration** | 26/10/2026 |
 | `DEMO S-0/S-1` | Démo publique — mesure + route `/demo` | 02/10/2026 |
 | `M-1 membres` | Deslop de l'annuaire (volet membres) | 05/10/2026 |
 | `menage A/B-1` | 7 dépendances mortes + 24 fichiers morts | 19/10/2026 |

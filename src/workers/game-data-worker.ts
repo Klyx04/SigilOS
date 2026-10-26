@@ -88,6 +88,12 @@ async function runBackgroundDataset(
         reportErrorBatch("CLASS_SPELLS", result.errors);
         await finishGameDataRun("CLASS_SPELLS", {
             ok: result.errors.length === 0,
+            /**
+             * 🧨 Constat du 26/10/2026 : le Tableau affichait « ✓ OK » à côté de
+             * « 622 icône(s) (214 en échec) » — le verdict ne regardait que `errors`, jamais
+             * `failedIcons`. Une passe qui rate 214 icônes n'est pas « OK » : elle est `PARTIAL`.
+             */
+            partial: result.failedIcons > 0,
             message:
                 `${result.classes}/${CLASS_SPELLBOOK_CLASS_IDS.length} grimoire(s) · ${result.spells} sort(s) · ` +
                 `${result.icons} icône(s)${result.failedIcons > 0 ? ` (${result.failedIcons} en échec)` : ""}`,

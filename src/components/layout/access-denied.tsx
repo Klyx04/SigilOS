@@ -34,6 +34,14 @@ interface AccessDeniedProps {
     expiredLabel?: string;
     guildId?: string; // Optional, to help re-sync specific guild
     hasPendingReactivation?: boolean;
+    /** Motif renseigné par le staff (exclusion) — dit au membre au lieu d'un texte générique.
+     *  Nom distinct de `reason` (état du formulaire de demande de réintégration). */
+    banReason?: string | null;
+    /**
+     * Rôles Discord qui peuvent réintégrer le membre — **noms de rôles uniquement**, jamais de
+     * personnes (décision du 25/10/2026 : pas d'annuaire de staff exposé à un exclu).
+     */
+    contactRoles?: string[];
 }
 
 import { useState, useEffect } from "react";
@@ -91,7 +99,9 @@ export function AccessDenied({
     countdownLabel,
     expiredLabel,
     guildId,
-    hasPendingReactivation = false
+    hasPendingReactivation = false,
+    banReason,
+    contactRoles = []
 }: AccessDeniedProps) {
     const { data: session } = useSession();
     const [isPending, startTransition] = useTransition();
@@ -162,6 +172,24 @@ export function AccessDenied({
                     <p className="text-body-sm leading-relaxed text-muted-foreground">
                         {message}
                     </p>
+
+                    {/* Ce que le membre peut réellement faire : le motif (jamais un texte
+                        générique) et les RÔLES à contacter, sans exposer de personnes. */}
+                    {banReason && (
+                        <div className="rounded-md border border-border bg-surface p-3 text-left">
+                            <p className="text-caption uppercase tracking-wide text-muted-foreground">
+                                Motif renseigné par le staff
+                            </p>
+                            <p className="mt-1 text-body-sm text-foreground">{banReason}</p>
+                        </div>
+                    )}
+                    {contactRoles.length > 0 && (
+                        <p className="text-body-sm leading-relaxed text-muted-foreground">
+                            Pour demander une réintégration, contacte une personne portant l&apos;un de ces rôles
+                            sur le Discord de la guilde :{" "}
+                            <strong className="text-foreground">{contactRoles.join(", ")}</strong>.
+                        </p>
+                    )}
 
                     {countdownDate && (
                         <Countdown date={countdownDate} label={countdownLabel} expiredLabel={expiredLabel} />

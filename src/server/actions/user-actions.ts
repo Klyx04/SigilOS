@@ -695,6 +695,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 image: session.user.image || undefined,
                 isMember: false,
                 isBanned: true,
+                // Motif de l'exclusion (F-01) — affiché au membre sur l'écran « Accès Banni ».
+                banReason: guildBan.reason,
                 guildName: guildConfig?.name || "Serveur Inconnu",
             } as any;
         }
@@ -802,6 +804,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             isMember: false,
             guildName: guildConfig?.name || "Serveur Inconnu",
             isBanned: true,
+            // Cause réelle du blocage, dite au membre (jamais un texte générique) : le motif
+            // saisi à l'exclusion, ou celui du départ enregistré.
+            banReason: profile.departureReason ?? null,
             scheduledDeletion: profile.scheduledDeletion?.toISOString() || null
         } as any;
     }
@@ -871,6 +876,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             isMember: false,
             isArchived: profile?.status === "ARCHIVED",
             isBanned: profile?.status === "BANNED",
+            banReason: profile?.status === "BANNED" ? profile.departureReason ?? null : null,
             guildName: guildConfig?.name || "Serveur Inconnu",
             isSuperAdmin: !!isGod,
         } as any;

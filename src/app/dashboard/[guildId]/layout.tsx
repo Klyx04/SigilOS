@@ -121,10 +121,44 @@ export default async function DashboardLayout({
 
     // ── BANNED ──
     if ((user as any).isBanned) {
+        // Option A (décision du 25/10/2026) : dire POURQUOI (motif du tombstone) et QUI peut
+        // réintégrer — des **noms de rôles**, jamais des personnes. Best-effort : sans RBAC
+        // configuré ou sans Discord, l'écran reste exactement celui d'avant (aucune erreur
+        // ajoutée au refus, aucun ralentissement en cas de panne).
+        let contactRoles: string[] = [];
+        try {
+            const { rolesGrantingMemberManagement } = await import("@/lib/permissions");
+            const banGuild = await db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { rolesMapping: true },
+            });
+            const reintegratorRoleIds = rolesGrantingMemberManagement(
+                (banGuild?.rolesMapping as Record<string, string[]> | null) ?? null
+            );
+            if (reintegratorRoleIds.length > 0) {
+                const { fetchGuildRoles } = await import("@/server/discord");
+                const guildRoles = await fetchGuildRoles(guildId, { excludeManaged: false }).catch(
+                    () => [] as { id: string; name: string }[]
+                );
+                const nameById = new Map(guildRoles.map((role) => [role.id, role.name]));
+                contactRoles = [
+                    ...new Set(
+                        reintegratorRoleIds
+                            .map((roleId) => nameById.get(roleId))
+                            .filter((name): name is string => typeof name === "string" && name.length > 0)
+                    ),
+                ].slice(0, 4);
+            }
+        } catch {
+            contactRoles = [];
+        }
+
         return (
             <AccessDenied
                 title="Accès Banni"
                 message={`Votre accès au tableau de bord de ${user.guildName} a été révoqué. Contactez votre staff sur Discord si vous pensez qu'il s'agit d'une erreur.`}
+                banReason={(user as any).banReason ?? null}
+                contactRoles={contactRoles}
                 variant="ban"
                 action={<SignOutButton variant="ghost" />}
                 countdownDate={(user as any).scheduledDeletion}

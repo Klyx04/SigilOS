@@ -37,7 +37,7 @@ describe("dofus-stats-theme — résolution des thèmes", () => {
         expect(resolveDofusStatTheme(null, 128)).toMatchObject({ asset: "pm.png" });
         expect(resolveDofusStatTheme(null, 117)).toMatchObject({ asset: "po.png" });
         expect(resolveDofusStatTheme(null, 182)).toMatchObject({ asset: "invocation.png" });
-        expect(resolveDofusStatTheme(null, 163)).toMatchObject({ asset: "bouclier.png" });
+        expect(resolveDofusStatTheme(null, 163)).toMatchObject({ asset: "resCritique.png" });
         expect(resolveDofusStatTheme(null, 424)).toMatchObject({ asset: "feu.png" });
         expect(resolveDofusStatTheme(null, 752)).toMatchObject({ asset: "fuite.png" });
     });
@@ -71,7 +71,7 @@ describe("dofus-stats-theme — résolution des thèmes", () => {
 
     it("`rc` = réduction des dégâts critiques subis (jamais l'icône « coups critiques »)", () => {
         // Payload brut Dofusbook : {"id":430,"name":"rc"} ; référentiel DofusDB 87 = « Critiques (fixe) ».
-        expect(resolveDofusStatTheme(null, null, "rc")).toMatchObject({ asset: "bouclier.png", label: "Résistance Critiques" });
+        expect(resolveDofusStatTheme(null, null, "rc")).toMatchObject({ asset: "resCritique.png", label: "Résistance Critiques" });
         expect(resolveDofusStatTheme(null, null, "rc")?.asset).not.toBe("critique.png");
     });
 

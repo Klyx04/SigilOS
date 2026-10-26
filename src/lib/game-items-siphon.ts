@@ -42,7 +42,7 @@ import { diffFields, recordGameDataChanges, type GameDataChangeEntry } from '@/l
 const ITEM_CHANGE_KEYS = [
     'name', 'level', 'description', 'typeId', 'typeName', 'category', 'hasRecipe', 'recipe',
     'realWeight', 'priceNpc', 'itemSetId', 'itemSetName', 'isLegendary', 'isSaleable',
-    'superTypeId', 'superTypeName', 'effects',
+    'superTypeId', 'superTypeName', 'effects', 'criterions', 'twoHanded',
 ] as const;
 
 /** Recette normalisée telle que persistée en `GameItem.recipe` (forme consommée par le panneau encyclopédie). */
@@ -258,6 +258,14 @@ export async function siphonGameItemsBatchCore(
                 ? Number(raw.itemSet.id)
                 : null;
         const itemSetName = typeof raw.itemSet?.name?.fr === 'string' ? raw.itemSet.name.fr : null;
+        // Légalité des variantes (25/10/2026) : conditions d'objet (DSL DofusDB) + arme à deux
+        // mains. L'arbre **structuré** (`conditions`) vient d'un second siphon
+        // (`scripts/siphon-item-conditions.mjs`, source DofusDude).
+        const criterions =
+            typeof raw.criterions === 'string' && raw.criterions.trim().length > 0
+                ? raw.criterions.trim().slice(0, 500)
+                : null;
+        const twoHanded = raw.twoHanded === true;
         const isLegendary = Boolean(raw.isLegendary);
         const isSaleable = raw.isSaleable === undefined ? true : Boolean(raw.isSaleable);
         // BUG-11 — DofusDB expose la famille dans `type.superTypeId` (et non
@@ -348,6 +356,7 @@ export async function siphonGameItemsBatchCore(
             name, level, description, typeId, imageSrc, typeName, effects, hasRecipe, recipe,
             realWeight, priceNpc, itemSetId, itemSetName,
             isLegendary, isSaleable, superTypeId, superTypeName, nativeEffects,
+            criterions, twoHanded,
         });
         const dataHash = crypto.createHash('md5').update(hashPayload).digest('hex');
 
@@ -361,6 +370,8 @@ export async function siphonGameItemsBatchCore(
             isSaleable,
             superTypeId,
             superTypeName,
+            criterions,
+            twoHanded,
             nativeEffects: (nativeEffects ?? undefined) as any,
             recipe: (recipe ?? undefined) as any,
         };

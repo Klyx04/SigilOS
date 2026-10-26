@@ -337,7 +337,9 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                 guildId={guildId}
                                 savedVariants={(link as any).variants}
                                 variantBuildId={link.id}
-                                canPersistVariant
+                                // Écriture réservée au propriétaire : un profil consulté en
+                                // lecture seule ne propose ni édition ni publication de variante.
+                                canPersistVariant={!readOnly}
                             />
 
                             {/* Upload / Update Date Bar (Gallery parity) */}

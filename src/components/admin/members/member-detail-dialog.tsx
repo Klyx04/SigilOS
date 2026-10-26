@@ -556,7 +556,7 @@ export function MemberDetailDialog({
                     {activeExclusion && (
                         <div
                             role="status"
-                            className="flex flex-col gap-2 rounded-md border border-danger/40 bg-danger/5 px-3 py-2.5 text-xs sm:flex-row sm:items-center sm:justify-between"
+                            className="flex flex-col gap-2 rounded-md border border-danger/40 bg-surface px-3 py-2.5 text-xs sm:flex-row sm:items-center sm:justify-between"
                         >
                             <span className="leading-relaxed text-muted-foreground">
                                 <strong className="text-danger">Exclusion active</strong> depuis le{" "}

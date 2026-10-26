@@ -15,6 +15,12 @@ export interface VariantItemSummary {
     level: number;
     typeName: string;
     itemSetName?: string | null;
+    /** Panoplie (id DofusDB) — sert au calcul des panoplies **actives** (conditions `pk`). */
+    itemSetId?: number | null;
+    /** Arbre de conditions **structuré** (DofusDude) — affichage + blocage. */
+    conditions?: unknown;
+    /** Arme à deux mains : incompatible avec un bouclier. */
+    twoHanded?: boolean;
     iconUrl: string | null;
     /** Description officielle de l'objet (texte DofusDB) — Prysmaradites, objets légendaires… */
     description?: string | null;
@@ -195,6 +201,9 @@ export async function searchVariantItems(
                 level: true,
                 typeName: true,
                 itemSetName: true,
+                itemSetId: true,
+                conditions: true,
+                twoHanded: true,
                 iconUrl: true,
                 description: true,
                 nativeEffects: true,
@@ -212,6 +221,9 @@ export async function searchVariantItems(
                 level: item.level,
                 typeName: item.typeName,
                 itemSetName: item.itemSetName,
+                itemSetId: item.itemSetId ?? null,
+                conditions: item.conditions ?? null,
+                twoHanded: item.twoHanded === true,
                 iconUrl: normalizeItemIconUrl(item.iconUrl, item.ankamaId),
                 description: item.description ?? null,
                 passiveSpellId: extractPassiveSpellId(item),

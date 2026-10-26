@@ -2252,6 +2252,11 @@ model GameItem {
   priceNpc      Int?      // `price` DofusDB → prix PNJ de référence
   itemSetId     Int?      // panoplie (-1 = aucune)
   itemSetName   String?   // « Panoplie du Katcheur »
+  // ── Légalité des variantes (25/10/2026) — ADDITIF, siphonné de DofusDB ────────────────
+  criterions    String?   // DSL DofusDB des conditions d'équipement (« CP<12|CM<6 », « pk<2 »)
+  /** Arbre de conditions **structuré** (DofusDude) : `{relation, children:[{operator,int_value,element}]}`. */
+  conditions    Json?
+  twoHanded     Boolean   @default(false) // arme à deux mains (interdit le bouclier)
   isLegendary   Boolean   @default(false)   // familiers / objets légendaires
   isSaleable    Boolean   @default(true)
   superTypeId   Int?      // famille (Arme, Consommable, Ressource…)

@@ -145,7 +145,10 @@ describe("chaîne serveur → galerie (verrous de source)", () => {
 
     it("l'écriture ajoute `variants` sans réécrire l'URL ni l'aperçu", () => {
         const start = actions.indexOf("export async function saveBuildVariant");
-        const body = actions.slice(start, start + 2600);
+        // Borné à la **fonction** elle-même (elle a grossi avec la validation de légalité) :
+        // la garde porte sur le corps de l'écriture, pas sur une position fixe.
+        const next = actions.indexOf("export async function", start + 10);
+        const body = actions.slice(start, next === -1 ? undefined : next);
         expect(body).toContain("{ ...link, variants, updatedAt: now }");
         expect(body).toContain("normalizeSavedVariants");
         expect(body).not.toContain("previewData:");

@@ -7,6 +7,9 @@ import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { canonicalClassId, getClassName, isUsableDofusbookRawPayload, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
 import { hasSavedVariant, normalizeSavedVariants, type SavedVariant } from "@/lib/dofus-variant-utils";
+import { validateSavedVariants, effectiveSlotIds, validatePrysmaraditeLimit } from "@/lib/dofus-variant-rules";
+import { evaluateDofusConditions } from "@/lib/dofus-conditions";
+import type { DofusbookItem } from "@/lib/dofusbook-utils";
 import { z } from "zod";
 import { rateLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
@@ -386,7 +389,7 @@ export async function storeClientDofusbookPreview(
     guildId: string,
     buildUrl: string,
     raw: unknown
-): Promise<ActionResponse<{ data: DofusbookPreviewData; persisted: boolean }>> {
+): Promise<ActionResponse<{ data: DofusbookPreviewData; persisted: boolean; changed?: boolean }>> {
     if (!guildId || !buildUrl) return { success: false, error: "Paramètres manquants" };
 
     const user = await getUserContext(guildId);
@@ -429,7 +432,20 @@ export async function storeClientDofusbookPreview(
         }
 
         const now = new Date().toISOString();
-        const updatedLinks = ((owner.dofusBookLinks as any[]) || []).map((link) =>
+        const ownerLinks = (owner.dofusBookLinks as any[]) || [];
+        const currentLink = ownerLinks.find((l) => l?.url === buildUrl);
+        /**
+         * ⚠️ Le worker Cloudflare peut renvoyer son **cache edge** (24 h) : dater `updatedAt`
+         * sans comparer ferait croire à une mise à jour réelle alors que rien n'a bougé
+         * (constat user du 25/10/2026 : un item retiré sur Dofusbook restait affiché).
+         * On ne réécrit donc la ligne que si le payload produit a **vraiment** changé.
+         */
+        const changed = JSON.stringify(currentLink?.previewData ?? null) !== JSON.stringify(data);
+        if (!changed) {
+            return { success: true, data: { data, persisted: true, changed: false } };
+        }
+
+        const updatedLinks = ownerLinks.map((link) =>
             link?.url === buildUrl
                 ? { ...link, previewData: data, source: "dofusbook" as const, updatedAt: now }
                 : link
@@ -444,7 +460,7 @@ export async function storeClientDofusbookPreview(
         // 🔗 #126 : la page membre est servie sous /members/<slug> → on revalide le pattern
         revalidatePath(`/dashboard/${guildId}/members/[slug]`);
 
-        return { success: true, data: { data, persisted: true } };
+        return { success: true, data: { data, persisted: true, changed: true } };
     } catch (error) {
         logger.error("[Dofusbook] Client bake storage error:", { error });
         return { success: false, error: "Erreur serveur lors de l'enregistrement" };
@@ -508,6 +524,110 @@ export async function saveBuildVariant(
         if (index < 0) return { success: false, error: "Build introuvable" };
 
         const variants = normalizeSavedVariants(parsed.data.variants);
+        /**
+         * 🔒 **Légalité de la variante** (fail-closed) : slots/type d'objet, niveau ≤ build,
+         * aucun doublon. Le client ne fait qu'afficher le refus — l'autorité est ici.
+         * (Armes à deux mains, `criterions` et règles de panoplie : données absentes de
+         * `GameItem`, lot séparé avec migration.)
+         */
+        const previewData = (links[index] as { previewData?: DofusbookPreviewData | null })?.previewData ?? null;
+        const buildLevel = Number(previewData?.level);
+        const decision = validateSavedVariants({
+            baseItems: (previewData?.items ?? null) as Record<string, DofusbookItem | null> | null,
+            variants,
+            buildLevel: Number.isFinite(buildLevel) && buildLevel > 0 ? buildLevel : 200,
+        });
+        if (!decision.ok) {
+            return { success: false, error: decision.violation.message };
+        }
+
+        /**
+         * Règles **serveur** (fail-closed) qui exigent les données du catalogue :
+         *  · une seule **Prysmaradite** (partage le 1ᵉʳ emplacement Dofus/Trophée) ;
+         *  · **arme à deux mains** ⇒ pas de bouclier ;
+         *  · **conditions d'objet** (`GameItem.conditions`, arbre DofusDude) évaluées sur le
+         *    build effectif, sans l'apport propre de l'objet (Heaume Oplate : +1 PA mais PA < 12).
+         * Les valeurs du client ne sont **jamais** utilisées : tout est relu en base par id Ankama.
+         */
+        const effective = effectiveSlotIds(
+            (previewData?.items ?? null) as Record<string, DofusbookItem | null> | null,
+            variants,
+        );
+        if (effective.length > 0) {
+            const catalog = await db.gameItem.findMany({
+                where: { ankamaId: { in: effective.map((entry) => entry.id) } },
+                select: { ankamaId: true, typeName: true, conditions: true, twoHanded: true, itemSetId: true },
+            });
+            const byAnkamaId = new Map(catalog.map((item) => [item.ankamaId, item]));
+
+            const prysmaradite = validatePrysmaraditeLimit(catalog.map((item) => item.typeName));
+            if (!prysmaradite.ok) {
+                return { success: false, error: prysmaradite.violation.message };
+            }
+
+            const weapon = effective.find((entry) => entry.slot === "ar");
+            const hasShield = effective.some((entry) => entry.slot === "br");
+            if (weapon && hasShield && byAnkamaId.get(weapon.id)?.twoHanded === true) {
+                return {
+                    success: false,
+                    error: "Arme à deux mains : aucun bouclier ne peut être équipé en même temps.",
+                };
+            }
+
+            // Panoplies **actives** : ≥ 2 pièces **distinctes** du même `itemSetId`.
+            const piecesBySet = new Map<number, Set<number>>();
+            for (const entry of effective) {
+                const setId = Number(byAnkamaId.get(entry.id)?.itemSetId ?? -1);
+                if (!Number.isInteger(setId) || setId <= 0) continue;
+                const pieces = piecesBySet.get(setId) ?? new Set<number>();
+                pieces.add(entry.id);
+                piecesBySet.set(setId, pieces);
+            }
+            const activeSets = [...piecesBySet.values()].filter((pieces) => pieces.size >= 2).length;
+
+            const elements = previewData?.elements;
+            const stats = previewData?.stats;
+            const baseContext = {
+                pa: Number(stats?.pa ?? 0),
+                pm: Number(stats?.pm ?? 0),
+                vit: Number(stats?.vit ?? 0),
+                sa: Number(elements?.sa ?? 0),
+                fo: Number(elements?.fo ?? 0),
+                in: Number(elements?.in ?? 0),
+                ch: Number(elements?.ch ?? 0),
+                ag: Number(elements?.ag ?? 0),
+                activeSets,
+                level: Number.isFinite(buildLevel) && buildLevel > 0 ? buildLevel : 200,
+            };
+
+            for (const [slot, variant] of Object.entries(variants)) {
+                const info = byAnkamaId.get(Number(variant.official || variant.id));
+                if (!info?.conditions) continue;
+
+                // Le candidat ne se compte pas lui-même dans PA/PM (règle du jeu).
+                const own = (code: "pa" | "pm") =>
+                    (variant.effects ?? [])
+                        .filter((effect) => effect.code === code)
+                        .reduce((sum, effect) => sum + Math.max(0, Number(effect.value ?? effect.max ?? 0)), 0);
+
+                const evaluation = evaluateDofusConditions(info.conditions, {
+                    ...baseContext,
+                    pa: baseContext.pa - own("pa"),
+                    pm: baseContext.pm - own("pm"),
+                });
+
+                if (!evaluation.ok) {
+                    const reason = evaluation.unsupported.length > 0
+                        ? `condition non vérifiable (${evaluation.unsupported.join(", ")})`
+                        : `condition non remplie (${evaluation.failed.join(", ")})`;
+                    return {
+                        success: false,
+                        error: `« ${variant.name} » (${slot}) — ${reason}.`,
+                    };
+                }
+            }
+        }
+
         const now = new Date().toISOString();
         const updatedLinks = links.map((link, i) =>
             i === index ? { ...link, variants, updatedAt: now } : link,

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, memo } from "react";
 import { getClassName, processDofusbookRawData, dofusbookItemIconUrl, dofusbookItemIconId, dofusbookCharacteristicRows, DOFUSBOOK_STAT_LABELS as statLabelMapping, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
 import { bakeDofusbookFromBrowser } from "@/lib/dofusbook-client-bake";
-import { ExternalLink, Users, Loader2, Zap, Move, Shield, Sparkles, RefreshCw, Copy, X } from "lucide-react";
+import { ExternalLink, Users, Loader2, Zap, Move, Shield, Sparkles, RefreshCw, Copy, X, RotateCcw, Check, AlertTriangle } from "lucide-react";
 import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 import { DO_TAGS } from "@/lib/dofus-tags";
@@ -19,8 +19,10 @@ import { DofusbookSimulationTab } from "@/components/dofus/dofusbook-simulation-
 import type { BuildStatsForSpells } from "@/lib/dofus-spells";
 import { getRuneForStat } from "@/lib/dofus-runes";
 import { ItemVariantModal } from "@/components/dofus/item-variant-modal";
-import { applyVariantsToBuild, hasSavedVariant, normalizeSavedVariants, sameSavedVariant, type SavedVariant } from "@/lib/dofus-variant-utils";
+import { applyVariantsToBuild, describeSavedVariants, hasSavedVariant, normalizeSavedVariants, sameSavedVariant, type SavedVariant } from "@/lib/dofus-variant-utils";
 import { clearLocalVariant, readLocalVariant, writeLocalVariant } from "@/lib/dofus-variant-storage";
+import { effectiveSlotIds } from "@/lib/dofus-variant-rules";
+import { renderDofusbookConstraints } from "@/lib/dofus-criteria";
 import { saveBuildVariant } from "@/server/actions/gallery-actions";
 import { resolveItemPassive } from "@/lib/dofus-passives";
 
@@ -177,6 +179,38 @@ function ItemIcon({ item, size = 44, className }: { item: DofusbookItem; size?: 
 
 export type SelectedBuildItem = { item: DofusbookItem; slotLabel: string };
 
+/**
+ * Pastilles de **forgemagie** sur un slot (exo PA/PM/PO, over Do Feu…) — vrais assets de runes,
+ * comme Dofusbook. `smithmagic` porte déjà le **delta** par code (`computedSmithmagic`) : une
+ * PA exo sur un anneau affiche donc l'icône de la rune Ga Pa sur l'anneau, à l'œil.
+ */
+function FmBadges({ stats, className }: { stats?: Record<string, number> | null; className?: string }) {
+    const entries = Object.entries(stats ?? {})
+        .filter(([, value]) => Number(value) !== 0)
+        .slice(0, 3);
+    if (entries.length === 0) return null;
+
+    return (
+        <span className={cn("absolute z-20 inline-flex items-center gap-0.5", className)}>
+            {entries.map(([code, value]) => {
+                const rune = getRuneForStat(statLabelMapping[code] ?? code, Number(value));
+                return (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        key={code}
+                        src={rune.assetUrl}
+                        alt=""
+                        aria-hidden="true"
+                        title={`${rune.runeName} ${value > 0 ? "+" : ""}${value}`}
+                        className="w-3.5 h-3.5 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]"
+                        loading="lazy"
+                    />
+                );
+            })}
+        </span>
+    );
+}
+
 /** Modale interne d'item : infos + effets du build + forgemagie, assets du jeu, aucun lien externe. */
 function ItemDetailModal({
     selection,
@@ -228,6 +262,8 @@ function ItemDetailModal({
                     const hasSp = (item.effects || []).some((fx) => fx.code === "sp");
                     const regularEffects = (item.effects || []).filter((fx) => fx.code !== "sp");
                     const hasPassive = !!passive || hasSp;
+                    // Conditions réelles fournies par Dofusbook (`constraints`) — jamais inventées.
+                    const restriction = renderDofusbookConstraints(item.constraints);
 
                     return (
                         <div className="flex flex-col gap-2.5 border-t border-border pt-3">
@@ -253,12 +289,12 @@ function ItemDetailModal({
                             {/* Effets & Caractéristiques numériques standard */}
                             {regularEffects.length > 0 ? (
                                 <div className="flex flex-col gap-1">
-                                    {regularEffects.map((fx) => {
+                                    {regularEffects.map((fx, index) => {
                                         const theme = resolveDofusStatTheme(null, null, fx.code, null);
                                         const label = statLabelMapping[fx.code] || fx.code;
                                         const range = fx.min !== fx.max ? `${fx.min}–${fx.max}` : `${fx.value}`;
                                         return (
-                                            <div key={fx.code} className="flex items-center justify-between py-1 border-b border-border/40 last:border-0">
+                                            <div key={`${fx.code}-${index}`} className="flex items-center justify-between py-1 border-b border-border/40 last:border-0">
                                                 <span className="inline-flex items-center gap-1.5 text-caption text-muted-foreground min-w-0">
                                                     {theme && (
                                                         // eslint-disable-next-line @next/next/no-img-element
@@ -266,7 +302,17 @@ function ItemDetailModal({
                                                     )}
                                                     <span className="truncate">{label}</span>
                                                 </span>
-                                                <span className="font-bold tabular-nums text-caption text-foreground whitespace-nowrap ml-2">
+                                                <span
+                                                    className={cn(
+                                                        "font-bold tabular-nums text-caption whitespace-nowrap ml-2",
+                                                        // Malus en rouge, bonus en vert — comme Dofusbook.
+                                                        fx.value < 0 || fx.max < 0
+                                                            ? "text-danger"
+                                                            : fx.value > 0 || fx.max > 0
+                                                                ? "text-success"
+                                                                : "text-foreground",
+                                                    )}
+                                                >
                                                     {fx.value > 0 && fx.min === fx.max ? `+${range}` : range}
                                                 </span>
                                             </div>
@@ -278,6 +324,16 @@ function ItemDetailModal({
                                     Caractéristiques détaillées non exposées par ce build.
                                 </p>
                             ) : null}
+
+                            {/* Conditions d'équipement (iso Dofusbook : « PA < 12 ou PM < 6 ») */}
+                            {restriction && (
+                                <div className="flex items-start gap-1.5 rounded-[4px] border border-warning/30 bg-warning/5 px-2 py-1.5">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" aria-hidden="true" />
+                                    <p className="text-[11px] leading-snug text-foreground">
+                                        <span className="font-semibold text-warning">Condition</span> : {restriction}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     );
                 })()}
@@ -315,11 +371,14 @@ function ItemDetailModal({
 function EquipmentGrid({
     items,
     variants = {},
+    smithmagic,
     onSelect,
     onOpenVariant,
 }: {
     items?: Record<string, DofusbookItem | null>;
     variants?: Record<string, DofusbookItem>;
+    /** Exo/over par slot (`smithmagic` du build) → pastilles de runes sur les icônes. */
+    smithmagic?: Record<string, Record<string, number>> | null;
     onSelect: (sel: SelectedBuildItem) => void;
     onOpenVariant?: (slot: string) => void;
 }) {
@@ -363,6 +422,7 @@ function EquipmentGrid({
                                         VAR
                                     </span>
                                 )}
+                                <FmBadges stats={smithmagic?.[slot]} className="-top-1 -right-1" />
                             </div>
                             <div className="min-w-0 flex-1 pr-14">
                                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
@@ -522,13 +582,15 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             setVariantStatus("saved");
             return;
         }
-        const draft = readLocalVariant(variantBuildId);
+        // 🔒 Lecture seule (stuff d'un autre membre) : **aucun** brouillon local n'est relu. Sinon
+        // l'édition d'un visiteur se superposerait à la variante affichée de l'auteur.
+        const draft = canPersistVariant ? readLocalVariant(variantBuildId) : {};
         if (hasSavedVariant(draft)) {
             setVariants(draft);
             setShowVariant(true);
             setVariantStatus("local");
         }
-    }, [variantBuildId, savedVariants]);
+    }, [variantBuildId, savedVariants, canPersistVariant]);
 
     // 2. Le serveur a changé (republication) et aucune édition n'est en cours : on s'aligne.
     useEffect(() => {
@@ -545,6 +607,9 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     //    la modale, l'écran ou en rechargeant la page.
     useEffect(() => {
         if (!variantBuildId || restoredVariantBuildRef.current !== variantBuildId) return;
+        // 🔒 Un visiteur ne modifie **rien** : ni brouillon local, ni publication. Le stuff d'un
+        // autre membre reste en lecture seule (la bascule d'affichage, elle, reste disponible).
+        if (!canPersistVariant) return;
         const unchanged = sameSavedVariant(variants, persistedVariantRef.current);
         if (unchanged) return;
 
@@ -557,7 +622,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             return;
         }
 
-        const canPublish = canPersistVariant && !!guildId;
+        const canPublish = !!guildId;
         const timer = setTimeout(async () => {
             if (!canPublish) {
                 setVariantStatus("local");
@@ -590,6 +655,11 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
     /** Affichage piloté par la surface (galerie) ou par l'état interne (profil, fiche). */
     const controlledVariantView = variantView !== undefined;
     const variantShown = controlledVariantView ? variantView === "variant" : showVariant;
+    /**
+     * Ouvre l'éditeur de variante d'un slot — **réservé à l'auteur**. `undefined` ⇒ le bouton
+     * n'est pas rendu (un visiteur ne peut pas éditer le stuff d'un autre membre).
+     */
+    const openVariantSlot = canPersistVariant ? setVariantModalSlot : undefined;
     const setVariantView = (next: boolean) => {
         if (controlledVariantView) onVariantViewChange?.(next ? "variant" : "base");
         else setShowVariant(next);
@@ -629,11 +699,14 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             // 1) Bake « navigateur » : Dofusbook (Cloudflare) refuse les clients serveur
             //    → seul un vrai navigateur passe. Il appelle le worker CF via une URL
             //    signée, puis les données sont enregistrées côté serveur (profil propriétaire).
-            const baked = await bakeDofusbookFromBrowser(url, guildId);
+            const baked = await bakeDofusbookFromBrowser(url, guildId, { force });
             if (baked.ok) {
                 setData(baked.data);
                 if (force && !silent) {
-                    toast.success(baked.persisted ? "Données actualisées" : "Données actualisées (affichage seul)");
+                    // `changed === false` = le worker a servi son cache edge (24 h) : on le dit,
+                    // au lieu d'annoncer une mise à jour qui n'a pas eu lieu.
+                    if (baked.changed === false) toast.info("Aucun changement côté Dofusbook pour l'instant");
+                    else toast.success(baked.persisted ? "Données actualisées" : "Données actualisées (affichage seul)");
                 }
                 return;
             }
@@ -762,7 +835,59 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
 
     // Stats affichées sur la miniature : celles du stuff d'origine, ou celles de la variante quand
     // la bascule est active (les calculs sont déjà faits par `applyVariantsToBuild`).
-    const cardStats = (showVariant && effectiveData ? effectiveData.stats : null) ?? data?.stats ?? null;
+    // ⚠️ `variantShown` (et non `showVariant`) : en galerie l'affichage est piloté par la carte,
+    // sinon les stats resteraient celles de la variante alors que la bascule est sur « Stuff ».
+    const cardStats = (variantShown && effectiveData ? effectiveData.stats : null) ?? data?.stats ?? null;
+
+    /**
+     * Objets **affichés** dans la miniature : ceux de la variante quand la bascule est active.
+     * Avant, la grille lisait `data.items` en dur ⇒ cliquer « Variante » ne changeait que les
+     * stats, jamais les icônes (constat user du 25/10/2026).
+     */
+    const cardItems = variantShown && effectiveData ? effectiveData.items : data?.items;
+
+    /** Récapitulatif des objets remplacés, affiché sous la grille quand la variante est active. */
+    const variantDescriptions = describeSavedVariants(variants, data?.items);
+
+    /** La variante affichée diffère-t-elle de la version publiée (bouton « Publier » utile) ? */
+    const variantDirty = hasVariant && !sameSavedVariant(variants, persistedVariantRef.current);
+
+    /**
+     * Contexte d'évaluation des **conditions d'objet** d'une variante (valeurs du build effectif).
+     * `activeSets` = panoplies déjà actives (≥ 2 pièces) — la règle `pk` (Dofus 3.7) se base
+     * dessus. Le candidat retire ensuite son propre apport PA/PM (cf. `ItemVariantModal`).
+     */
+    const conditionContext = {
+        pa: Number(effectiveData?.stats?.pa ?? data?.stats?.pa ?? 0),
+        pm: Number(effectiveData?.stats?.pm ?? data?.stats?.pm ?? 0),
+        vit: Number(effectiveData?.stats?.vit ?? data?.stats?.vit ?? 0),
+        sa: Number(effectiveData?.elements?.sa ?? data?.elements?.sa ?? 0),
+        fo: Number(effectiveData?.elements?.fo ?? data?.elements?.fo ?? 0),
+        in: Number(effectiveData?.elements?.in ?? data?.elements?.in ?? 0),
+        ch: Number(effectiveData?.elements?.ch ?? data?.elements?.ch ?? 0),
+        ag: Number(effectiveData?.elements?.ag ?? data?.elements?.ag ?? 0),
+        activeSets: Array.isArray(effectiveData?.cloths) ? effectiveData.cloths.length : 0,
+        level: Number(data?.level ?? 200),
+    };
+
+    /** État lisible de la variante : plus de couple ambigu « Enregistré / Enregistrer ». */
+    const variantStatusLabel = savingVariant || variantStatus === "saving"
+        ? "Publication en cours…"
+        : variantStatus === "saved" && !variantDirty
+            ? "Publiée dans la galerie"
+            : "Brouillon local — non publié";
+    const variantStatusTone = savingVariant || variantStatus === "saving"
+        ? "border-warning/30 bg-warning/10 text-warning"
+        : variantStatus === "saved" && !variantDirty
+            ? "border-success/30 bg-success/10 text-success"
+            : "border-border bg-background text-muted-foreground";
+
+    /** Retire tous les objets variés et revient au stuff Dofusbook d'origine. */
+    const resetVariant = () => {
+        variantEditedRef.current = true;
+        setVariants({});
+        setVariantView(false);
+    };
 
     const cardContent = (
         <div className={cn("group w-full max-w-[320px] mx-auto relative overflow-hidden bg-surface border border-border rounded-[4px] p-5 sm:p-6 transition-colors hover:border-border-strong cursor-pointer", className)}>
@@ -779,15 +904,17 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                         e.stopPropagation();
                         setVariantView(!variantShown);
                     }}
-                    title={variantShown ? "Revenir au stuff Dofusbook d'origine" : "Afficher la variante proposée"}
+                    title={variantShown ? "Revenir au stuff Dofusbook d'origine" : "Afficher la variante dans cette miniature"}
+                    aria-label={variantShown ? "Afficher le stuff d'origine" : "Afficher la variante proposée"}
                     className={cn(
-                        "absolute top-2 right-2 z-30 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors",
+                        "absolute top-2 right-2 z-30 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-colors",
                         variantShown
                             ? "border-warning/50 bg-warning/20 text-warning"
                             : "border-border bg-background/80 text-muted-foreground hover:text-foreground",
                     )}
                 >
-                    Variante
+                    <span aria-hidden="true" className={cn("w-1.5 h-1.5 rounded-full", variantShown ? "bg-warning" : "bg-muted-foreground/50")} />
+                    Variante ({Object.keys(variants).length})
                 </button>
             )}
 
@@ -845,7 +972,13 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     { s: 'd1', c: 1, r: 5 }, { s: 'd2', c: 2, r: 5 }, { s: 'd3', c: 3, r: 5 },
                                     { s: 'd4', c: 4, r: 5 }, { s: 'd5', c: 5, r: 5 }, { s: 'd6', c: 6, r: 5 },
                                 ].map((slot) => {
-                                    const item = slot.s === 'fa' ? (data.items?.['fa'] || data.items?.['mo']) : data.items?.[slot.s];
+                                    const source = cardItems ?? data.items;
+                                    const originalSource = data.items;
+                                    const item = slot.s === 'fa' ? (source?.['fa'] || source?.['mo']) : source?.[slot.s];
+                                    const originalItem = slot.s === 'fa'
+                                        ? (originalSource?.['fa'] || originalSource?.['mo'])
+                                        : originalSource?.[slot.s];
+                                    const isVariantSlot = variantShown && !!variants[slot.s];
                                     const iconId = dofusbookItemIconId(item);
                                     return (
                                         <Tooltip key={slot.s}>
@@ -853,7 +986,8 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 <div
                                                     className={cn(
                                                         "w-[33px] h-[33px] rounded-[4px] flex items-center justify-center p-1 relative group/mini-slot",
-                                                        item ? "bg-elevated border border-border" : "bg-surface border border-border opacity-40"
+                                                        item ? "bg-elevated border border-border" : "bg-surface border border-border opacity-40",
+                                                        isVariantSlot && "border-warning/70 bg-warning/10 ring-1 ring-warning/30"
                                                     )}
                                                     style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
                                                 >
@@ -861,18 +995,32 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                         // eslint-disable-next-line @next/next/no-img-element
                                                         <img
                                                             src={dofusbookItemIconUrl(iconId)}
-                                                            alt={item.name}
+                                                            alt={isVariantSlot ? `Variante — ${item.name}` : item.name}
                                                             width={30}
                                                             height={30}
                                                             className="object-contain"
                                                             loading="lazy"
                                                         />
                                                     )}
+                                                    {isVariantSlot && (
+                                                        <span
+                                                            aria-hidden="true"
+                                                            className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-warning"
+                                                        />
+                                                    )}
+                                                    {/* Exo/over du slot : pastille de rune (comme Dofusbook). */}
+                                                    <FmBadges stats={data.smithmagic?.[slot.s]} className="-top-1 -left-1" />
                                                 </div>
                                             </TooltipTrigger>
                                             {item && (
-                                                <TooltipContent className="bg-background border-border text-foreground p-2 rounded-xl text-caption font-bold shadow-2xl max-w-[200px]">
-                                                    {item.name}
+                                                <TooltipContent className="bg-background border-border text-foreground p-2 rounded-lg text-caption shadow-lg max-w-[220px]">
+                                                    {isVariantSlot && (
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-warning">Variante</p>
+                                                    )}
+                                                    <p className="font-bold">{item.name}</p>
+                                                    {isVariantSlot && originalItem && originalItem.name !== item.name && (
+                                                        <p className="text-muted-foreground">au lieu de {originalItem.name}</p>
+                                                    )}
                                                 </TooltipContent>
                                             )}
                                         </Tooltip>
@@ -909,10 +1057,38 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                 <span className="text-muted-foreground/30">•</span>
                                 <span className="flex items-center gap-1 text-foreground">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src="/assets/dofus/stats/critique.png" alt="Critique" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {data.stats?.cc}%
+                                    <img src="/assets/dofus/stats/critique.png" alt="Critique" className="w-3.5 h-3.5 object-contain" loading="lazy" /> {cardStats?.cc ?? 0}%
                                 </span>
                             </>
                         )}
+                    </div>
+                )}
+
+                {/* Récapitulatif de la variante — visible **sans ouvrir la fiche** : un clic sur
+                    « Variante » remplace les icônes ci-dessus et liste ici les objets échangés. */}
+                {variantShown && variantDescriptions.length > 0 && (
+                    <div className="flex items-center gap-2 rounded-[4px] border border-warning/30 bg-warning/5 px-2 py-1.5">
+                        <span className="text-[9px] font-semibold uppercase tracking-wide text-warning shrink-0">
+                            Variante
+                        </span>
+                        <div className="flex items-center gap-1 min-w-0">
+                            {variantDescriptions.slice(0, 6).map((entry) => (
+                                <span
+                                    key={entry.slot}
+                                    role="img"
+                                    aria-label={`${entry.slotLabel} : ${entry.name}${entry.originalName ? ` (au lieu de ${entry.originalName})` : ""}`}
+                                    title={`${entry.slotLabel} : ${entry.name}${entry.originalName ? ` — au lieu de ${entry.originalName}` : ""}`}
+                                    className="w-6 h-6 rounded-[3px] bg-background border border-warning/40 flex items-center justify-center overflow-hidden shrink-0"
+                                >
+                                    <ItemIcon item={variants[entry.slot]} size={22} />
+                                </span>
+                            ))}
+                            {variantDescriptions.length > 6 && (
+                                <span className="text-caption font-semibold text-muted-foreground tabular-nums">
+                                    +{variantDescriptions.length - 6}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -947,7 +1123,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                 <TooltipProvider>
                     <div className="relative p-5 sm:p-6 lg:p-8 flex flex-col gap-6">
                         {/* Navigation des Onglets : Build / Sorts / Équipement */}
-                        <div className="relative z-10 w-full flex items-center justify-between gap-3 bg-surface p-1.5 rounded-[4px] border border-border">
+                        <div className="relative z-10 w-full flex flex-wrap items-center justify-between gap-3 bg-surface p-2 rounded-lg border border-border">
                             <div className="flex items-center gap-1.5 flex-1 max-w-2xl">
                                 {BUILD_TABS.map((tab) => (
                                     <button
@@ -967,78 +1143,86 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                 ))}
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
                                 {hasVariant && (
-                                    <div className="flex items-center gap-1.5">
-                                        {/* Bascule Stuff ⇄ Variante (modale) — même état que la miniature. */}
-                                        <div className="flex items-center rounded-xl border border-warning/30 bg-warning/10 p-0.5" role="group" aria-label="Stuff d'origine ou variante proposée">
-                                            <button
-                                                type="button"
-                                                aria-pressed={!variantShown}
-                                                onClick={() => setVariantView(false)}
-                                                className={cn(
-                                                    "px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors",
-                                                    !variantShown ? "bg-background text-foreground" : "text-warning",
-                                                )}
-                                            >
-                                                Stuff
-                                            </button>
-                                            <button
-                                                type="button"
-                                                aria-pressed={variantShown}
-                                                onClick={() => setVariantView(true)}
-                                                className={cn(
-                                                    "px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors",
-                                                    variantShown ? "bg-warning text-black" : "text-warning",
-                                                )}
-                                            >
-                                                Variante ({Object.keys(variants).length})
-                                            </button>
-                                        </div>
-                                        {variantStatus !== "idle" && (
-                                            <span
-                                                className={cn(
-                                                    "text-[10px] font-bold",
-                                                    variantStatus === "saved"
-                                                        ? "text-success"
-                                                        : variantStatus === "saving"
-                                                            ? "text-warning"
-                                                            : "text-muted-foreground",
-                                                )}
-                                                title={
-                                                    variantStatus === "saved"
-                                                        ? "Variante enregistrée : visible par la guilde"
-                                                        : variantStatus === "saving"
-                                                            ? "Enregistrement en cours…"
-                                                            : "Brouillon local : conservé sur cet appareil, pas encore publié"
-                                                }
-                                            >
-                                                {variantStatus === "saving"
-                                                    ? "Enregistrement…"
-                                                    : variantStatus === "saved"
-                                                        ? "Enregistré"
-                                                        : "Brouillon local"}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <div className="inline-flex items-center gap-2">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                Affichage
                                             </span>
-                                        )}
-                                        {canPersistVariant && variantBuildId && guildId && (
-                                            <button
+                                            {/* Bascule Stuff ⇄ Variante (modale) — même état que la miniature. */}
+                                            <div className="flex items-center rounded-lg border border-border bg-background p-0.5" role="group" aria-label="Stuff d'origine ou variante proposée">
+                                                <button
+                                                    type="button"
+                                                    aria-pressed={!variantShown}
+                                                    onClick={() => setVariantView(false)}
+                                                    className={cn(
+                                                        "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
+                                                        !variantShown ? "bg-elevated text-foreground" : "text-muted-foreground hover:text-foreground",
+                                                    )}
+                                                >
+                                                    Stuff
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    aria-pressed={variantShown}
+                                                    onClick={() => setVariantView(true)}
+                                                    className={cn(
+                                                        "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors",
+                                                        variantShown ? "bg-warning/20 text-warning" : "text-muted-foreground hover:text-foreground",
+                                                    )}
+                                                >
+                                                    Variante ({Object.keys(variants).length})
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Un seul état lisible (plus de couple « Enregistré / Enregistrer »). */}
+                                        <span
+                                            role="status"
+                                            className={cn(
+                                                "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold",
+                                                variantStatusTone,
+                                            )}
+                                            title={
+                                                variantStatusLabel === "Publiée dans la galerie"
+                                                    ? "Variante publiée : visible par la guilde (le stuff Dofusbook reste inchangé)"
+                                                    : variantStatusLabel === "Publication en cours…"
+                                                        ? "Enregistrement de la variante en cours…"
+                                                        : "Conservée sur cet appareil, pas encore visible par la guilde"
+                                            }
+                                        >
+                                            <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-current" />
+                                            {variantStatusLabel}
+                                        </span>
+                                        {/* Publication : uniquement quand la variante diffère de la version publiée. */}
+                                        {canPersistVariant && variantBuildId && guildId && variantDirty && (
+                                            <Button
                                                 type="button"
+                                                size="sm"
+                                                variant="outline"
                                                 onClick={persistVariant}
                                                 disabled={savingVariant}
-                                                className="px-2 py-1 rounded-lg border border-warning/40 bg-warning/15 text-[10px] font-bold text-warning hover:bg-warning/25 transition-colors disabled:opacity-50"
+                                                className="h-8 gap-1.5 rounded-lg border-warning/40 bg-warning/10 text-caption font-semibold text-warning hover:bg-warning/20 hover:text-warning"
                                                 title="Publier cette variante dans la galerie (le stuff Dofusbook reste inchangé)"
                                             >
-                                                {savingVariant ? "Enregistrement…" : "Enregistrer"}
-                                            </button>
+                                                <Check className="w-3.5 h-3.5" />
+                                                {savingVariant ? "Publication…" : "Publier la variante"}
+                                            </Button>
                                         )}
-                                        <button
-                                            type="button"
-                                            onClick={() => { variantEditedRef.current = true; setVariants({}); setVariantView(false); }}
-                                            className="text-[10px] font-black text-foreground hover:underline cursor-pointer"
-                                            title="Rétablir le build d'origine"
-                                        >
-                                            (Réinitialiser)
-                                        </button>
+                                        {canPersistVariant && (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={resetVariant}
+                                                className="h-8 gap-1.5 rounded-lg text-caption font-semibold text-muted-foreground hover:text-foreground"
+                                                title="Retirer les objets variés et revenir au stuff Dofusbook d'origine"
+                                            >
+                                                <RotateCcw className="w-3.5 h-3.5" />
+                                                Réinitialiser
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
                                 <Button 
@@ -1050,7 +1234,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         fetchBuild(true);
                                     }}
                                     disabled={loading}
-                                    className="bg-surface/80 border-border hover:bg-elevated text-muted-foreground hover:text-foreground rounded-xl h-9 px-3 text-caption font-bold"
+                                    className="bg-surface/80 border-border hover:bg-elevated text-muted-foreground hover:text-foreground rounded-lg h-9 px-3 text-caption font-semibold"
                                 >
                                     <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5", loading && "animate-spin")} />
                                     Actualiser
@@ -1145,6 +1329,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                     { label: "Fuite", val: effectiveData?.stats?.fuite ?? data.stats?.fuite ?? 0, img: "/assets/dofus/stats/fuite.png", color: "text-info" },
                                                     { label: "Tacle", val: effectiveData?.stats?.tacle ?? data.stats?.tacle ?? 0, img: "/assets/dofus/stats/tacle.png", color: "text-success" },
                                                     { label: "Retrait PA / PM", val: `${effectiveData?.stats?.retpa ?? data.stats?.retpa ?? 0} / ${effectiveData?.stats?.retpm ?? data.stats?.retpm ?? 0}`, img: "/assets/dofus/stats/sablier.png", color: "text-warning" },
+                                                    { label: "Esquive PA / PM", val: `${effectiveData?.stats?.epa ?? data.stats?.epa ?? 0} / ${effectiveData?.stats?.epm ?? data.stats?.epm ?? 0}`, img: "/assets/dofus/stats/sablier.png", color: "text-info" },
                                                     { label: "Do Critique", val: effectiveData?.damages?.critique ?? data.damages?.critique ?? 0, img: "/assets/dofus/stats/dmgCritique.png", color: "text-danger" },
                                                 ] as { label: string; val: number | string; img: string; color: string }[]).map((s) => (
                                                     <div key={s.label} className="flex items-center justify-between py-1 border-b border-border/40 hover:border-border transition-colors">
@@ -1228,6 +1413,28 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                             ))}
                                         </div>
 
+                                        {/* 5. Résistances secondaires & renvoi (mêmes assets bouclier, mesurées 25/10/2026) */}
+                                        <div className="bg-surface px-3.5 py-2 rounded-xl border border-border flex items-center justify-between gap-1.5">
+                                            {[
+                                                { label: "Ré Crit.", val: effectiveData?.resists?.critique ?? data.resists?.critique ?? 0, suffix: "", img: "/assets/dofus/stats/resCritique.png", color: "text-danger" },
+                                                { label: "Ré Pouss.", val: effectiveData?.resists?.poussee ?? data.resists?.poussee ?? 0, suffix: "", img: "/assets/dofus/stats/resPoussee.png", color: "text-warning" },
+                                                { label: "Mêlée", val: effectiveData?.resists?.melee ?? data.resists?.melee ?? 0, suffix: "%", img: "/assets/dofus/stats/resMelee.png", color: "text-danger" },
+                                                { label: "Dist.", val: effectiveData?.resists?.distance ?? data.resists?.distance ?? 0, suffix: "%", img: "/assets/dofus/stats/resDistance.png", color: "text-info" },
+                                                { label: "Renvoi", val: effectiveData?.resists?.renvoi ?? data.resists?.renvoi ?? 0, suffix: "", img: "/assets/dofus/stats/renvoi.png", color: "text-info" },
+                                            ].map((r) => (
+                                                <div key={r.label} className="flex-1 flex flex-col items-center">
+                                                    <span className="text-[10px] text-muted-foreground font-semibold uppercase inline-flex items-center gap-1">
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img src={r.img} alt="" aria-hidden="true" className="w-3 h-3 object-contain" loading="lazy" />
+                                                        {r.label}
+                                                    </span>
+                                                    <span className={cn("font-bold text-caption tabular-nums", r.color)}>
+                                                        {r.val}{r.suffix}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+
                                     </div>
 
                                     {/* ─── COLONNE CENTRALE (4 cols) : Personnage, Slots Symétriques & Vitals ─── */}
@@ -1279,7 +1486,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                         label="Coiffe"
                                                         isVariant={!!variants['ch']}
                                                         onSelect={setSelected}
-                                                        onOpenVariant={setVariantModalSlot}
+                                                        onOpenVariant={openVariantSlot}
                                                     />
                                                     <GearSlotItem
                                                         slot="ca"
@@ -1287,7 +1494,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                         label="Cape"
                                                         isVariant={!!variants['ca']}
                                                         onSelect={setSelected}
-                                                        onOpenVariant={setVariantModalSlot}
+                                                        onOpenVariant={openVariantSlot}
                                                     />
                                                     <GearSlotItem
                                                         slot="ce"
@@ -1295,7 +1502,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                         label="Ceinture"
                                                         isVariant={!!variants['ce']}
                                                         onSelect={setSelected}
-                                                        onOpenVariant={setVariantModalSlot}
+                                                        onOpenVariant={openVariantSlot}
                                                     />
                                                     <GearSlotItem
                                                         slot="bo"
@@ -1303,7 +1510,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                         label="Bottes"
                                                         isVariant={!!variants['bo']}
                                                         onSelect={setSelected}
-                                                        onOpenVariant={setVariantModalSlot}
+                                                        onOpenVariant={openVariantSlot}
                                                     />
                                                 </div>
 
@@ -1315,7 +1522,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                         label="Amulette"
                                                         isVariant={!!variants['am']}
                                                         onSelect={setSelected}
-                                                        onOpenVariant={setVariantModalSlot}
+                                                        onOpenVariant={openVariantSlot}
                                                     />
                                                     <GearSlotItem
                                                         slot="a1"
@@ -1323,7 +1530,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                         label="Anneau 1"
                                                         isVariant={!!variants['a1']}
                                                         onSelect={setSelected}
-                                                        onOpenVariant={setVariantModalSlot}
+                                                        onOpenVariant={openVariantSlot}
                                                     />
                                                     <GearSlotItem
                                                         slot="a2"
@@ -1331,7 +1538,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                         label="Anneau 2"
                                                         isVariant={!!variants['a2']}
                                                         onSelect={setSelected}
-                                                        onOpenVariant={setVariantModalSlot}
+                                                        onOpenVariant={openVariantSlot}
                                                     />
                                                     <GearSlotItem
                                                         slot="br"
@@ -1339,7 +1546,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                         label="Bouclier"
                                                         isVariant={!!variants['br']}
                                                         onSelect={setSelected}
-                                                        onOpenVariant={setVariantModalSlot}
+                                                        onOpenVariant={openVariantSlot}
                                                     />
                                                 </div>
                                             </div>
@@ -1352,7 +1559,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                     label="Arme"
                                                     isVariant={!!variants['ar']}
                                                     onSelect={setSelected}
-                                                    onOpenVariant={setVariantModalSlot}
+                                                    onOpenVariant={openVariantSlot}
                                                 />
                                                 <GearSlotItem
                                                     slot="fa"
@@ -1360,7 +1567,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                     label="Familier / Monture"
                                                     isVariant={!!variants['fa'] || !!variants['mo']}
                                                     onSelect={setSelected}
-                                                    onOpenVariant={setVariantModalSlot}
+                                                    onOpenVariant={openVariantSlot}
                                                 />
                                             </div>
                                         </div>
@@ -1404,7 +1611,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                     label={`Dofus / Trophée ${idx + 1}`}
                                                     isVariant={!!variants[slot]}
                                                     onSelect={setSelected}
-                                                    onOpenVariant={setVariantModalSlot}
+                                                    onOpenVariant={openVariantSlot}
                                                 />
                                             ))}
                                         </div>
@@ -1590,13 +1797,15 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         {/* 3. Boutons d'Action */}
                                         <div className="flex flex-col gap-2 pt-1">
                                             <Button
+                                                variant="outline"
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(url);
                                                     toast.success("Lien copié !");
                                                 }}
-                                                className="w-full h-11 rounded-xl text-label font-bold gap-2 flex items-center justify-center shadow-md cursor-pointer"
+                                                aria-label="Copier le lien du build"
+                                                className="w-full h-11 rounded-lg bg-surface/80 border-border text-label font-semibold text-foreground hover:bg-elevated"
                                             >
-                                                <Copy className="w-4 h-4" /> Copier le lien du build
+                                                <Copy className="w-4 h-4 text-muted-foreground" /> Copier le lien du build
                                             </Button>
                                             <a
                                                 href={url}
@@ -1648,8 +1857,11 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                     <EquipmentGrid
                                         items={effectiveData?.items}
                                         variants={variants}
+                                        smithmagic={data?.smithmagic}
                                         onSelect={setSelected}
-                                        onOpenVariant={setVariantModalSlot}
+                                        // 🔒 Seul l'auteur peut changer une variante : la fiche d'un
+                                        // autre membre s'ouvre en lecture seule (galerie, profil visité).
+                                        onOpenVariant={canPersistVariant ? setVariantModalSlot : undefined}
                                     />
                                 </div>
                             )}
@@ -1670,28 +1882,36 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                         );
                     })()}
 
-                    {/* Modale de sélection de variante interactive (style Duffus) */}
-                    <ItemVariantModal
-                        slot={variantModalSlot}
-                        currentVariant={variantModalSlot ? variants[variantModalSlot] : null}
-                        originalItem={variantModalSlot ? data?.items?.[variantModalSlot] : null}
-                        buildLevel={data?.level || 200}
-                        onSelect={(s, it) => {
-                            variantEditedRef.current = true;
-                            setVariants((prev) => ({ ...prev, [s]: it }));
-                            toast.success(`Variante appliquée : ${it.name} — Caractéristiques & dégâts recalculés en direct !`);
-                        }}
-                        onRemoveVariant={(s) => {
-                            variantEditedRef.current = true;
-                            setVariants((prev) => {
-                                const next = { ...prev };
-                                delete next[s];
-                                return next;
-                            });
-                            toast.info("Variante retirée : objet d'origine restauré.");
-                        }}
-                        onClose={() => setVariantModalSlot(null)}
-                    />
+                    {/* Modale de sélection de variante interactive (style Duffus) —
+                        réservée à l'auteur du build : aucune édition sur le stuff d'un autre membre. */}
+                    {canPersistVariant && (
+                        <ItemVariantModal
+                            slot={variantModalSlot}
+                            currentVariant={variantModalSlot ? variants[variantModalSlot] : null}
+                            originalItem={variantModalSlot ? data?.items?.[variantModalSlot] : null}
+                            buildLevel={data?.level || 200}
+                            unavailableIds={effectiveSlotIds(effectiveData?.items, variants)
+                                .filter((entry) => entry.slot !== variantModalSlot)
+                                .map((entry) => entry.id)}
+                            conditionContext={conditionContext}
+                            hasShield={!!effectiveData?.items?.br}
+                            onSelect={(s, it) => {
+                                variantEditedRef.current = true;
+                                setVariants((prev) => ({ ...prev, [s]: it }));
+                                toast.success(`Variante appliquée : ${it.name} — Caractéristiques & dégâts recalculés en direct !`);
+                            }}
+                            onRemoveVariant={(s) => {
+                                variantEditedRef.current = true;
+                                setVariants((prev) => {
+                                    const next = { ...prev };
+                                    delete next[s];
+                                    return next;
+                                });
+                                toast.info("Variante retirée : objet d'origine restauré.");
+                            }}
+                            onClose={() => setVariantModalSlot(null)}
+                        />
+                    )}
                 </TooltipProvider>
             </DialogContent>
         </Dialog>

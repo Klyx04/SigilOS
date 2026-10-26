@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Search, X, RotateCcw, Sparkles } from "lucide-react";
 import { searchVariantItems, type VariantItemSummary } from "@/server/actions/dofus-variants-actions";
+import { evaluateDofusConditions, renderDofusConditions, type DofusConditionContext } from "@/lib/dofus-conditions";
+import { toast } from "sonner";
 import {
     VARIANT_STAT_FILTERS,
     VARIANT_SLOTS,
@@ -21,6 +23,15 @@ interface ItemVariantModalProps {
     currentVariant?: DofusbookItem | null;
     originalItem?: DofusbookItem | null;
     buildLevel?: number;
+    /**
+     * Objets **déjà équipés ailleurs** (base + variantes) : masqués de la liste, car un objet
+     * ne peut pas être posé deux fois (règle serveur `validateSavedVariants`).
+     */
+    unavailableIds?: number[];
+    /** Valeurs du build **effectif** (pour évaluer les conditions d'objet). */
+    conditionContext?: DofusConditionContext;
+    /** Un bouclier est-il équipé ? (une arme à deux mains l'interdit). */
+    hasShield?: boolean;
     onSelect: (slot: string, item: DofusbookItem) => void;
     onRemoveVariant: (slot: string) => void;
     onClose: () => void;
@@ -31,6 +42,9 @@ export function ItemVariantModal({
     currentVariant,
     originalItem,
     buildLevel = 200,
+    unavailableIds,
+    conditionContext,
+    hasShield,
     onSelect,
     onRemoveVariant,
     onClose,
@@ -92,6 +106,32 @@ export function ItemVariantModal({
 
     const handleSelectItem = (item: VariantItemSummary) => {
         if (!slot) return;
+
+        // 🔒 Une arme à deux mains ne cohabite pas avec un bouclier.
+        if (item.twoHanded && hasShield) {
+            toast.error(`« ${item.name} » est une arme à deux mains : retire le bouclier d'abord.`);
+            return;
+        }
+
+        // 🔒 Conditions d'objet : évaluées sur le build **sans** l'apport propre de l'objet
+        // (le Heaume Oplate donne +1 PA mais exige PA < 12 : Dofus l'autorise).
+        if (conditionContext && item.conditions) {
+            const ownPa = item.stats.filter((stat) => stat.code === "pa").reduce((sum, stat) => sum + Math.max(0, stat.value), 0);
+            const ownPm = item.stats.filter((stat) => stat.code === "pm").reduce((sum, stat) => sum + Math.max(0, stat.value), 0);
+            const evaluation = evaluateDofusConditions(item.conditions, {
+                ...conditionContext,
+                pa: conditionContext.pa - ownPa,
+                pm: conditionContext.pm - ownPm,
+            });
+            if (!evaluation.ok) {
+                const reason = evaluation.unsupported.length > 0
+                    ? `condition non vérifiable (${evaluation.unsupported.join(", ")})`
+                    : `condition non remplie (${evaluation.failed.join(", ")})`;
+                toast.error(`« ${item.name} » — ${reason}.`);
+                return;
+            }
+        }
+
         const dofusbookItem: DofusbookItem = {
             id: item.ankamaId,
             name: item.name,
@@ -102,6 +142,9 @@ export function ItemVariantModal({
             level: item.level,
             typeName: item.typeName,
             ...(item.iconUrl ? { iconUrl: item.iconUrl } : {}),
+            ...(item.conditions ? { conditions: item.conditions } : {}),
+            ...(item.twoHanded ? { twoHanded: true } : {}),
+            ...(item.itemSetId != null ? { itemSetId: item.itemSetId } : {}),
             effects: item.stats.map((s) => ({
                 code: s.code,
                 min: s.min,
@@ -224,6 +267,11 @@ export function ItemVariantModal({
                 <div className="flex-1 flex overflow-hidden">
                     {/* Zone d'affichage des items */}
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        {(() => {
+                            const hidden = unavailableIds ?? [];
+                            const visibleItems = items.filter((item) => !hidden.includes(item.ankamaId));
+                            return (
+                                <>
                         {isPending && items.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-28 gap-3">
                                 <Loader2 className="w-8 h-8 animate-spin text-success" />
@@ -235,7 +283,7 @@ export function ItemVariantModal({
                             <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
                                 <p className="text-sm">{error}</p>
                             </div>
-                        ) : items.length === 0 ? (
+                        ) : visibleItems.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-center gap-2">
                                 <p className="text-base font-extrabold text-foreground">
                                     Aucun équipement trouvé
@@ -246,7 +294,12 @@ export function ItemVariantModal({
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                                {items.map((item) => {
+                                {items.length > visibleItems.length && (
+                                    <p className="col-span-full text-caption text-muted-foreground">
+                                        {items.length - visibleItems.length} objet(s) déjà équipé(s) masqué(s) : un objet ne peut pas être posé deux fois.
+                                    </p>
+                                )}
+                                {visibleItems.map((item) => {
                                     const isCurrent = currentVariant?.id === item.ankamaId;
                                     const isOriginal = originalItem?.id === item.ankamaId;
 
@@ -286,6 +339,14 @@ export function ItemVariantModal({
                                                         {item.itemSetName}
                                                     </p>
                                                 )}
+                                                {item.conditions ? (
+                                                    <p
+                                                        className="text-[10px] font-semibold text-warning line-clamp-2"
+                                                        title={`Condition : ${renderDofusConditions(item.conditions)}`}
+                                                    >
+                                                        {renderDofusConditions(item.conditions)}
+                                                    </p>
+                                                ) : null}
                                                 <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase">
                                                     <span>Niv. {item.level} ★</span>
                                                     {isCurrent && (
@@ -365,6 +426,9 @@ export function ItemVariantModal({
                                 })}
                             </div>
                         )}
+                                </>
+                            );
+                        })()}
                     </div>
 
                     {/* ─── COLONNE DROITE : FILTRES DE STATS (STYLE DUFFUS) ─ */}

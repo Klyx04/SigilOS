@@ -345,12 +345,16 @@ export function applyVariantsToBuild(
                 case "so": result.stats.so = (result.stats.so ?? 0) + delta; break;
                 case "rpa": result.stats.retpa = (result.stats.retpa ?? 0) + delta; break;
                 case "rpm": result.stats.retpm = (result.stats.retpm ?? 0) + delta; break;
+                case "epa": result.stats.epa = (result.stats.epa ?? 0) + delta; break;
+                case "epm": result.stats.epm = (result.stats.epm ?? 0) + delta; break;
                 case "ta": result.stats.tacle = (result.stats.tacle ?? 0) + delta; break;
                 case "fu": result.stats.fuite = (result.stats.fuite ?? 0) + delta; break;
 
                 // Éléments
                 case "fo": {
                     result.elements.fo = (result.elements.fo ?? 0) + delta;
+                    // Initiative = somme des 4 éléments ⇒ un delta élémentaire la déplace aussi.
+                    result.stats.ini = (result.stats.ini ?? 0) + delta;
                     if (result.characteristics?.fo) {
                         result.characteristics.fo.items = Math.max(0, (result.characteristics.fo.items ?? 0) + delta);
                         result.characteristics.fo.total = Math.max(0, (result.characteristics.fo.total ?? 0) + delta);
@@ -359,6 +363,7 @@ export function applyVariantsToBuild(
                 }
                 case "in": {
                     result.elements.in = (result.elements.in ?? 0) + delta;
+                    result.stats.ini = (result.stats.ini ?? 0) + delta;
                     if (result.characteristics?.in) {
                         result.characteristics.in.items = Math.max(0, (result.characteristics.in.items ?? 0) + delta);
                         result.characteristics.in.total = Math.max(0, (result.characteristics.in.total ?? 0) + delta);
@@ -367,6 +372,7 @@ export function applyVariantsToBuild(
                 }
                 case "ch": {
                     result.elements.ch = (result.elements.ch ?? 0) + delta;
+                    result.stats.ini = (result.stats.ini ?? 0) + delta;
                     if (result.characteristics?.ch) {
                         result.characteristics.ch.items = Math.max(0, (result.characteristics.ch.items ?? 0) + delta);
                         result.characteristics.ch.total = Math.max(0, (result.characteristics.ch.total ?? 0) + delta);
@@ -375,6 +381,7 @@ export function applyVariantsToBuild(
                 }
                 case "ag": {
                     result.elements.ag = (result.elements.ag ?? 0) + delta;
+                    result.stats.ini = (result.stats.ini ?? 0) + delta;
                     if (result.characteristics?.ag) {
                         result.characteristics.ag.items = Math.max(0, (result.characteristics.ag.items ?? 0) + delta);
                         result.characteristics.ag.total = Math.max(0, (result.characteristics.ag.total ?? 0) + delta);
@@ -404,6 +411,13 @@ export function applyVariantsToBuild(
                 case "rfp": result.resists.feu = (result.resists.feu ?? 0) + delta; break;
                 case "rep": result.resists.eau = (result.resists.eau ?? 0) + delta; break;
                 case "rap": result.resists.air = (result.resists.air ?? 0) + delta; break;
+
+                // Résistances secondaires / renvoi (`rc`, `rp`, `rm`, `rd`, `rv`)
+                case "rc": result.resists.critique = (result.resists.critique ?? 0) + delta; break;
+                case "rp": result.resists.poussee = (result.resists.poussee ?? 0) + delta; break;
+                case "rm": result.resists.melee = (result.resists.melee ?? 0) + delta; break;
+                case "rd": result.resists.distance = (result.resists.distance ?? 0) + delta; break;
+                case "rv": result.resists.renvoi = (result.resists.renvoi ?? 0) + delta; break;
 
                 // Dommages fixes & %
                 case "dnf": result.damages.neutre = (result.damages.neutre ?? 0) + delta; break;
@@ -521,6 +535,62 @@ export function normalizeSavedVariants(raw: unknown): SavedVariant {
 /** La variante est-elle vide (aucun slot utile) ? */
 export function hasSavedVariant(variants: SavedVariant | null | undefined): boolean {
     return !!variants && Object.keys(variants).length > 0;
+}
+
+/** Ordre d'équipement stable : sert aux surfaces qui listent une variante (miniature, galerie). */
+const VARIANT_SLOT_ORDER = [
+    "ch", "ca", "am", "a1", "a2", "ce", "bo", "ar", "br", "fa", "mo",
+    "d1", "d2", "d3", "d4", "d5", "d6",
+] as const;
+
+/** Un objet remplacé par la variante, prêt à être affiché (libellé de slot + objet d'origine). */
+export interface SavedVariantDescription {
+    slot: string;
+    slotLabel: string;
+    name: string;
+    originalName: string | null;
+}
+
+/**
+ * Décrit les objets **remplacés** par une variante, dans l'ordre d'équipement.
+ *
+ * Pourquoi : la miniature du profil et la carte de la galerie doivent montrer la variante
+ * **au clic**, sans ouvrir la fiche détaillée (demande user du 25/10/2026). La règle reste
+ * ici — une seule source de vérité, testable sans rendu — et les surfaces se contentent
+ * d'afficher le résultat.
+ *
+ * `originalItems` est optionnel : sans lui, `originalName` vaut `null` (aucune invention
+ * du nom d'origine).
+ */
+export function describeSavedVariants(
+    variants: SavedVariant | null | undefined,
+    originalItems?: Record<string, DofusbookItem | null | undefined> | null,
+): SavedVariantDescription[] {
+    if (!variants) return [];
+
+    const described: SavedVariantDescription[] = [];
+    const seen = new Set<string>();
+
+    const push = (slot: string, name: string) => {
+        seen.add(slot);
+        described.push({
+            slot,
+            slotLabel: VARIANT_SLOTS[slot]?.slotName ?? slot,
+            name,
+            originalName: originalItems?.[slot]?.name ?? null,
+        });
+    };
+
+    for (const slot of VARIANT_SLOT_ORDER) {
+        const item = variants[slot];
+        if (item) push(slot, item.name);
+    }
+    // Ceinture de sécurité : un slot inconnu (donnée ancienne) reste affichable, jamais perdu.
+    for (const [slot, item] of Object.entries(variants)) {
+        if (item && !seen.has(slot)) push(slot, item.name);
+    }
+
+    return described;
 }
 
 /** Deux variantes portent-elles exactement les mêmes objets (évite une écriture inutile) ? */

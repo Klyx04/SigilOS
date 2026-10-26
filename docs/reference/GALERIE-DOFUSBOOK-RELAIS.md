@@ -492,7 +492,31 @@ de l'outil (le serveur revalide, `saveBuildVariant`).
 ⚠️ Ces refus sont **visibles** : la condition est rendue en français dans la fiche de l'objet et la
 sélection est bloquée avec le motif. Aucune n'est « silencieusement acceptée ».
 
-### Rafraîchissement forcé — worker **redéployé** le 26/10/2026
+### Siphon du référentiel — en local et **en production** (26/10/2026)
+
+| Où | Commande |
+|---|---|
+| Poste de dev | `npm run siphon:item-sets -- --apply` (script `scripts/siphon-item-sets.ts`, `tsx` + alias `@/`) |
+| **Bêta / prod (conteneur)** | `curl -sS -H "x-cron-secret: $CRON_SECRET" "https://beta.sigilos.fr/api/cron/siphon-item-sets?apply=1"` |
+
+Pourquoi deux chemins : l'image de production est un **build standalone** — elle ne porte **ni `tsx`
+ni les alias `@/`**, donc le script TypeScript ne peut pas tourner dans le conteneur. La route
+`GET /api/cron/siphon-item-sets` exécute le **même cœur** (`siphonItemSetsCore`, une seule source)
+avec le bon `DATABASE_URL` : aucun SSH, aucun outil à installer.
+
+- `apply` = **0 par défaut** ⇒ **dry-run** (mesure seule) ;
+- `pages` borne la passe (19 pages au total) pour rester sous les timeouts de proxy ;
+- `startSkip` reprend au `nextSkip` rendu par l'appel précédent — on enchaîne jusqu'à `nextSkip: null`.
+
+Exemple borné (4 appels) :
+
+```bash
+for skip in 0 250 500 750; do
+  curl -sS -H "x-cron-secret: $CRON_SECRET" \
+    "https://beta.sigilos.fr/api/cron/siphon-item-sets?apply=1&pages=5&startSkip=$skip"
+done
+```
+
 
 « Actualiser » ne changeait rien après une modification sur Dofusbook. Mesure avant correctif : l'URL
 signée appelée avec `force=1` renvoyait **`X-SigilOS-Cache: HIT`** (au lieu de `BYPASS`) et **le même

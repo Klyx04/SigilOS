@@ -75,6 +75,16 @@
   Verrous `dofus-caps` **6** · `dofus-set-bonuses` **+4 cas** (refus motivés). Suite **5 471 ✓ / 520 fichiers**,
   `tsc` 0, ESLint 0 erreur. **Aucune migration.**
 - **Livré le 26/10/2026 — Variante **partagée** (image OG + embed Discord) et veille des conditions **visible côté God**.**
+- **Livré le 26/10/2026 — Siphon des panoplies **exécutable en production** (route cron + curseur).**
+  Constat mesuré : l'image de prod est un **build standalone** (le `Dockerfile` ne copie que `scripts/` et
+  `.next/standalone`) ⇒ **ni `tsx` ni alias `@/`** dans le conteneur : `scripts/siphon-item-sets.ts` ne peut pas y
+  tourner, et le référentiel restait **vide en bêta** (variantes refusées, faute de paliers). Fait : route
+  **`GET /api/cron/siphon-item-sets`** (`x-cron-secret`, **dry-run par défaut**, `pages` borné pour rester sous les
+  timeouts de proxy, `startSkip`/`nextSkip` pour enchaîner) qui exécute le **même cœur** `siphonItemSetsCore` —
+  aucune logique dupliquée, aucun SSH. Ops : `curl -H "x-cron-secret: $CRON_SECRET"
+  ".../api/cron/siphon-item-sets?apply=1"`. Verrou `dofus-set-bonuses` **+2 cas** (reprise + garde de la route).
+  Le script local reste la voie de dev (`npm run siphon:item-sets -- --apply`).
+
   Deux restes de l'amorce soldés : ① l'arbitrage du 23/10 (« afficher la variante avec un tag explicite ») est
   appliqué par **une seule règle** (`resolveVariantPreview`) : l'image OG montre les icônes de la variante + un
   badge **VARIANTE**, l'embed Discord met `· 🟡 Variante` dans le titre, affiche les stats **effectives** et liste

@@ -382,6 +382,23 @@ describe("refus de variante — la cause est dite, et elle est actionnable", () 
     });
 });
 
+describe("siphon des panoplies — reprise et route cron", () => {
+    it("une passe bornée rend un curseur de reprise (`nextSkip` = null quand c'est fini)", () => {
+        // Page 850 → il reste la 900 ; page 900 → plus rien.
+        expect(nextPageState(850, 50, 940).more).toBe(true);
+        expect(nextPageState(900, 50, 940)).toEqual({ nextSkip: 950, more: false });
+    });
+
+    it("la route cron est protégée et lance le même cœur (aucune logique dupliquée)", () => {
+        const route = readFileSync(path.join(process.cwd(), "src/app/api/cron/siphon-item-sets/route.ts"), "utf8");
+
+        expect(route).toContain("verifyCronSecret(req)");
+        expect(route).toContain("siphonItemSetsCore({ apply, maxPages, startSkip })");
+        // Dry-run par défaut : `apply` n'est vrai que sur demande explicite.
+        expect(route).toContain('applyParam === "1" || applyParam === "true"');
+    });
+});
+
 describe("branchement — les surfaces passent les panoplies du build", () => {
     const read = (rel: string) => readFileSync(path.join(process.cwd(), rel), "utf8");
 

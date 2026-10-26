@@ -66,6 +66,11 @@ export interface ItemSetSiphonReport {
     unchanged: number;
     /** Panoplies refusées : la raison est **explicite**, jamais une écriture partielle. */
     skipped: Array<{ id: number | null; reason: string }>;
+    /**
+     * Décalage à repasser pour **continuer** la passe (`null` = référentiel couvert).
+     * Utile quand la passe est bornée (`maxPages`) pour rester sous un timeout de proxy.
+     */
+    nextSkip: number | null;
 }
 
 /** `true` quand `normalizeStatCode` n'a pas su traduire (il rend alors l'id brut). */
@@ -221,15 +226,20 @@ export function nextPageState(
 }
 
 /**
- * Passe complète du référentiel.
+ * Passe du référentiel.
  *
- * @param apply `false` (défaut) = **dry-run** : rien n'est écrit.
+ * @param apply     `false` (défaut) = **dry-run** : rien n'est écrit.
+ * @param maxPages  borne le nombre de pages lues (défaut : le maximum) — utile derrière un proxy.
+ * @param startSkip décalage de reprise (permet d'enchaîner plusieurs appels bornés).
  */
 export async function siphonItemSetsCore(
-    options: { apply?: boolean; maxPages?: number } = {},
+    options: { apply?: boolean; maxPages?: number; startSkip?: number } = {},
 ): Promise<ItemSetSiphonReport> {
     const apply = options.apply === true;
     const maxPages = Math.max(1, Math.min(ITEM_SETS_MAX_PAGES, options.maxPages ?? ITEM_SETS_MAX_PAGES));
+    const startSkip = Number.isFinite(Number(options.startSkip))
+        ? Math.max(0, Math.floor(Number(options.startSkip)))
+        : 0;
 
     const report: ItemSetSiphonReport = {
         fetched: 0,
@@ -237,12 +247,17 @@ export async function siphonItemSetsCore(
         written: 0,
         unchanged: 0,
         skipped: [],
+        nextSkip: null,
     };
 
-    let skip = 0;
+    let skip = startSkip;
+    let more = true;
     for (let page = 0; page < maxPages; page += 1) {
         const { data, total } = await fetchItemSetPage(skip);
-        if (data.length === 0) break;
+        if (data.length === 0) {
+            more = false;
+            break;
+        }
         report.fetched += data.length;
 
         for (const raw of data) {
@@ -292,11 +307,15 @@ export async function siphonItemSetsCore(
          * compare déjà `skip + longueur de page` au total. Avancer d'abord faisait perdre la
          * dernière page (mesuré : 900/940 panoplies lues au lieu de 940).
          */
-        const { nextSkip, more } = nextPageState(skip, data.length, total);
-        skip = nextSkip;
+        const state = nextPageState(skip, data.length, total);
+        skip = state.nextSkip;
+        more = state.more;
         logger.info("[item-sets-siphon] page lue", { skip, page: page + 1, total });
         if (!more) break;
     }
+
+    // Reprise : `null` = référentiel couvert ; sinon le prochain `skip` à demander.
+    report.nextSkip = more ? skip : null;
 
     logger.info("[item-sets-siphon] passe terminée", {
         apply,
@@ -305,6 +324,7 @@ export async function siphonItemSetsCore(
         written: report.written,
         unchanged: report.unchanged,
         skipped: report.skipped.length,
+        nextSkip: report.nextSkip,
     });
 
     return report;

@@ -1044,13 +1044,13 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
 });
 
 // ─── CharacterSelectorDropdown ─────────────────────────────────────────────
-function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules,guildId}:{selectedCharacter:string;mainPseudo:string;mainClass:string|null;mules:any[];guildId:string}){
+function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules,guildId,onRequestReset}:{selectedCharacter:string;mainPseudo:string;mainClass:string|null;mules:any[];guildId:string;onRequestReset?:()=>void}){
   const router=useRouter();
   const currentLabel=selectedCharacter==="PRINCIPAL"?mainPseudo:selectedCharacter;
   const selClass=selectedCharacter==="PRINCIPAL"?mainClass:mules.find((m:any)=>m.pseudo===selectedCharacter)?.classe||null;
   const selIcon=selClass?(()=>{const d=getClass(selClass);return d?<img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/>:null;})():selectedCharacter==="PRINCIPAL"?<Crown className="size-3.5 text-warning"/>:<Users className="size-3.5 text-info"/>;
   const handleSelect=(char:string)=>{const params=new URLSearchParams(window.location.search);if(char==="PRINCIPAL")params.delete("character");else params.set("character",char);router.push(`${window.location.pathname}?${params.toString()}`);};
-  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" role="combobox" aria-expanded={false} aria-label="Choisir le personnage actif" className="justify-between gap-2 min-w-0 max-w-full text-xs font-medium cursor-pointer"><span className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></span><ChevronDown className="size-3 opacity-40 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-background/95 border-border text-foreground min-w-[200px] rounded-[4px] p-1.5 z-[100]"><DropdownMenuRadioGroup value={selectedCharacter} onValueChange={handleSelect}><DropdownMenuRadioItem value="PRINCIPAL" className="gap-2.5 py-2 cursor-pointer">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="size-3.5 text-warning"/>}<span className="flex flex-col text-left"><span className="text-xs font-medium">{mainPseudo}</span><span className="text-caption text-muted-foreground">{mainClass||"Principal"}</span></span></DropdownMenuRadioItem>{mules.length>0&&<DropdownMenuSeparator className="my-1 h-px bg-border"/>}{mules.map((mule:any)=><DropdownMenuRadioItem key={mule.pseudo} value={mule.pseudo} className="gap-2.5 py-2 cursor-pointer">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="size-3.5 text-info"/>}<span className="flex flex-col text-left"><span className="text-xs font-medium">{mule.pseudo}</span><span className="text-caption text-muted-foreground">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></span></DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>;
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm" role="combobox" aria-expanded={false} aria-label="Choisir le personnage actif" className="justify-between gap-1.5 min-w-0 max-w-full px-1.5 text-xs font-medium cursor-pointer hover:bg-elevated"><span className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></span><ChevronDown className="size-3 opacity-40 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-background/95 border-border text-foreground min-w-[200px] rounded-[4px] p-1.5 z-[100]"><DropdownMenuRadioGroup value={selectedCharacter} onValueChange={handleSelect}><DropdownMenuRadioItem value="PRINCIPAL" className="gap-2.5 py-2 cursor-pointer">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="size-3.5 text-warning"/>}<span className="flex flex-col text-left"><span className="text-xs font-medium">{mainPseudo}</span><span className="text-caption text-muted-foreground">{mainClass||"Principal"}</span></span></DropdownMenuRadioItem>{mules.length>0&&<DropdownMenuSeparator className="my-1 h-px bg-border"/>}{mules.map((mule:any)=><DropdownMenuRadioItem key={mule.pseudo} value={mule.pseudo} className="gap-2.5 py-2 cursor-pointer">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="size-3.5 text-info"/>}<span className="flex flex-col text-left"><span className="text-xs font-medium">{mule.pseudo}</span><span className="text-caption text-muted-foreground">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></span></DropdownMenuRadioItem>)}</DropdownMenuRadioGroup>{onRequestReset&&<><DropdownMenuSeparator className="my-1 h-px bg-border"/><DropdownMenuItem onClick={onRequestReset} className="gap-2.5 px-2.5 py-2 cursor-pointer text-danger focus:text-danger"><RotateCcw className="size-3.5"/><span className="text-xs font-medium">Réinitialiser « {currentLabel} »</span></DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1393,6 +1393,24 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // Temps réel WS (Phase 1) : plus de polling router.refresh() toutes les 2 min.
   // La présence est portée par useGuidePresence (voir plus bas).
 const contentMilestones=useMemo(()=>milestones.filter(ms=>ms.type!=="SEPARATEUR"&&ms.type!=="INFO"&&ms.type!=="DOFUS_OBTAINED"),[milestones]);
+/**
+ * Quêtes ordonnées par Dofus, pour la modale « Progression Guilde par Dofus ».
+ * Le serveur ne transmet que des **clés d'étapes** (`<subGuideRef>-<n>` / `-all`) :
+ * il faut donc la table inverse (clé → libellé + catégorie) côté client pour dire
+ * « il en est à telle quête, dans telle catégorie » sans requête supplémentaire.
+ */
+const dofusQuestsByDofus=useMemo(()=>{
+  const map:Record<string,Array<{milestoneId:string;category:string;label:string;step:string;steps:number}>>={};
+  for(const ms of contentMilestones){
+    if(!ms.dofusId) continue;
+    const list=(map[ms.dofusId]??=[]);
+    for(const seq of ms.sequences){
+      const steps=seq.stepFrom!=null&&seq.stepTo!=null?Math.max(1,seq.stepTo-seq.stepFrom+1):1;
+      list.push({milestoneId:ms.id,category:ms.chapterLabel||ms.title,label:seq.subGuideName||seq.subGuideRef,step:seq.subGuideRef,steps});
+    }
+  }
+  return map;
+},[contentMilestones]);
 // Dernier bloc (milestone) de chaque chapitre — pour la célébration « Chapitre terminé ».
 const lastMsOfChapterIds = useMemo(() => {
   const byChapter = new Map<number, Milestone[]>();
@@ -2118,32 +2136,19 @@ const timelineItems=useMemo(()=>{
         </div>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-[4px] border border-border/70 bg-surface/60 px-4 py-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-10 h-10 rounded-[4px] bg-surface border border-border flex items-center justify-center overflow-hidden shrink-0">{(()=>{const d=localProfile?.dofusClass?getClass(localProfile.dofusClass):null;return d?<img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/>:<span className="text-caption font-semibold text-muted-foreground">?</span>;})()}</div>
+            <div className="w-7 h-7 flex items-center justify-center shrink-0 overflow-hidden">{(()=>{const d=localProfile?.dofusClass?getClass(localProfile.dofusClass):null;return d?<img src={d.icon} alt={d.name} className="w-full h-full object-contain"/>:<span className="text-caption font-semibold text-muted-foreground">?</span>;})()}</div>
             <div className="text-left min-w-0 flex-1">
               <div className="flex items-center justify-between gap-1">
-                <p className="text-[10px] font-semibold text-muted-foreground  font-serif">Personnage Actif</p>
+                <p className="text-[11px] text-muted-foreground">Personnage actif</p>
                 <ContextualHelp label="Aide Personnage">
                   <p className="font-bold text-foreground mb-1">🎭 Personnages & Mules</p>
                   <p>Basculez facilement entre votre personnage principal et vos mules. La validation des étapes et la position de reprise sont sauvegardées séparément par personnage.</p>
                 </ContextualHelp>
               </div>
               <div className="flex flex-nowrap items-center gap-1.5 min-w-0 mt-0.5">
-                {(() => {
-                  const isMain = selectedCharacter === "PRINCIPAL";
-                  return (
-                    <Badge
-                      variant="outline"
-                      className={`gap-1 rounded-[3px] px-1.5 py-0.5 text-caption font-medium shrink-0 ${isMain ? "border-warning/40 text-warning" : "border-info/40 text-info"}`}
-                      title={isMain ? "Personnage principal" : "Mule"}
-                    >
-                      {isMain ? <Crown /> : <Users />}
-                      {isMain ? "Main" : "Mule"}
-                    </Badge>
-                  );
-                })()}
                 <div className="min-w-0 shrink">
                   {localProfile?.pseudoDofus ? (
-                    <CharacterSelectorDropdown selectedCharacter={selectedCharacter} mainPseudo={localProfile.pseudoDofus} mainClass={localProfile?.dofusClass||null} mules={mules||[]} guildId={guildId} />
+                    <CharacterSelectorDropdown selectedCharacter={selectedCharacter} mainPseudo={localProfile.pseudoDofus} mainClass={localProfile?.dofusClass||null} mules={mules||[]} guildId={guildId} onRequestReset={() => setResetModalOpen(true)} />
                   ) : (
                     <Button variant="outline" size="sm" asChild className="text-xs font-medium text-warning hover:border-warning/40 hover:bg-warning/10 hover:text-warning">
                       <Link href={`/dashboard/${guildId}/profile`} title="Le pseudo Dofus se renseigne sur la page Profil">
@@ -2154,21 +2159,11 @@ const timelineItems=useMemo(()=>{
                     </Button>
                   )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  onClick={() => setResetModalOpen(true)}
-                  className="shrink-0 text-danger hover:border-danger/40 hover:bg-danger/10 hover:text-danger"
-                  title={`Réinitialiser ${selectedCharacter}`}
-                  aria-label={`Réinitialiser la progression de ${selectedCharacter}`}
-                >
-                  <RotateCcw />
-                </Button>
               </div>
             </div>
           </div>
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
-          <button type="button" onClick={()=>setGuildAlignmentOpen(true)} aria-label="Voir les alignements de la guilde" title="Voir qui est bontarien ou brâkmarien, par Ordre et par tranche" className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer">{(()=>{const{alignment,alignmentOrder}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><img src="/ordres/neutre.png" alt="" className="w-7 h-7 object-contain shrink-0 opacity-50"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><p className="text-xs font-bold text-muted-foreground mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";return<><img src={od.icon} alt="" className="w-7 h-7 object-contain shrink-0"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Ordre</p><p className={`text-xs font-semibold mt-0.5 ${ib?"text-info":"text-danger"}`}>{od.name}</p></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;}return<>{ad&&<img src={ad.icon} alt="" className="w-7 h-7 object-contain shrink-0"/>}<div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-foreground">{ad?.name||alignment}</span></div></div><Pencil className="w-3.5 h-3.5 text-muted-foreground shrink-0"/></>;})()}</button>
+          <button type="button" onClick={()=>setGuildAlignmentOpen(true)} aria-label="Voir les alignements de la guilde" title="Voir qui est bontarien ou brâkmarien, par Ordre et par tranche" className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer">{(()=>{const{alignment,alignmentOrder}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><img src="/ordres/neutre.png" alt="" className="w-7 h-7 object-contain shrink-0 opacity-50"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><p className="text-xs font-bold text-muted-foreground mt-0.5">{!alignment?"Non défini":"Neutre"}</p></div></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";return<><img src={od.icon} alt="" className="w-7 h-7 object-contain shrink-0"/><div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Ordre</p><p className={`text-xs font-semibold mt-0.5 ${ib?"text-info":"text-danger"}`}>{od.name}</p></div></>;}return<>{ad&&<img src={ad.icon} alt="" className="w-7 h-7 object-contain shrink-0"/>}<div className="text-left min-w-0 flex-1"><p className="text-[11px] text-muted-foreground">Alignement</p><div className="flex items-center gap-1.5 mt-0.5"><span className="text-xs font-bold text-foreground">{ad?.name||alignment}</span></div></div></>;})()}</button>
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Asset Ocre posé NU (plus de tuile teintée sous le picto). */}
@@ -2194,12 +2189,12 @@ const timelineItems=useMemo(()=>{
           </div>
           <span aria-hidden="true" className="hidden md:block w-px self-stretch bg-border" />
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-10 h-10 rounded-[4px] bg-success/15 border border-success/30 flex items-center justify-center shrink-0">
-              <Users className="w-5 h-5 text-success" />
-            </div>
+            {/* Asset du jeu posé NU, comme l'Ocre et l'Ordre : plus de tuile teintée. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/dofus/modules/guild.png" alt="" className="w-7 h-7 object-contain shrink-0" />
             <div className="text-left min-w-0 flex-1">
               <div className="flex items-center justify-between gap-1">
-                <p className="text-[10px] font-semibold text-success/80  font-serif">Rush Live</p>
+                <p className="text-[11px] text-muted-foreground">Rush Live</p>
                 {guideLive.connectionStatus === "connected" && (
                   <span className="flex items-center gap-1 text-caption font-medium text-success/80">
                     <span className="w-1.5 h-1.5 rounded-full bg-success" /> LIVE
@@ -2408,7 +2403,7 @@ const timelineItems=useMemo(()=>{
     <AnimatePresence>
       {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? "#e6b96b"} />}
     </AnimatePresence>
-    <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
+    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
     {/* ── CSS grid responsive (timeline + sidebar) ── */}
     <style>{`
       .rush-content-grid {

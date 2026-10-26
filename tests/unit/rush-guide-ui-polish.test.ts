@@ -127,32 +127,59 @@ describe("guide public — le rail de droite reste affiché au scroll (retour us
 const DASHBOARD_RUSH = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
 
 describe("guide interne — encart « Personnage Actif » aligné sur le design system", () => {
-    it("le statut du personnage est un `Badge` (plus de `span` teinté fait main)", () => {
+    it("le statut Main/Mule n'est plus une pastille faite main : il vit dans le menu du personnage", () => {
         const code = codeOf(DASHBOARD_RUSH);
-        expect(code).toMatch(/<Badge\s+variant="outline"/);
+        // 26/10/2026 — le `Badge` « Main » de la rangée a été retiré à la demande du
+        // propriétaire (« vire le bandeau ai slop autour du pseudo ») : le statut est
+        // porté par le menu du personnage, pas par une pastille collée à côté du nom.
+        expect(code).not.toMatch(/<Badge/);
         expect(code).not.toMatch(/inline-flex items-center gap-1 text-caption font-medium text-warning border/);
         expect(code).not.toMatch(/inline-flex items-center gap-1 text-caption font-medium text-info border/);
+        expect(code).toMatch(/<DropdownMenuRadioItem value="PRINCIPAL"/);
     });
 
-    it("le choix du perso passe par `Button` + des RadioItems (l'actif porte la pastille)", () => {
+    it("le choix du perso est un menu (role combobox) + RadioItems, sans pastille", () => {
         const code = codeOf(DASHBOARD_RUSH);
-        expect(code).toMatch(/<Button variant="outline" size="sm" role="combobox"/);
+        // Déclencheur sobre : plus de bouton à bordure qui doublait le badge.
+        expect(code).toMatch(/<Button variant="ghost" size="sm" role="combobox"/);
         expect(code).toMatch(/<DropdownMenuRadioGroup value=\{selectedCharacter\} onValueChange=\{handleSelect\}>/);
         expect(code).toMatch(/<DropdownMenuRadioItem value="PRINCIPAL"/);
         // Plus d'item maison souligné en vert.
         expect(code).not.toMatch(/rounded-lg cursor-pointer transition-colors \$\{selectedCharacter/);
     });
 
-    it("le reset est un `Button` sobre et nommé pour les lecteurs d'écran", () => {
+    it("le reset est atteignable depuis le menu du personnage, et nommé", () => {
         const code = codeOf(DASHBOARD_RUSH);
-        expect(code).toMatch(/size="icon-sm"[\s\S]{0,400}onClick=\{\(\) => setResetModalOpen\(true\)\}[\s\S]{0,400}aria-label=\{`Réinitialiser la progression de/);
-        expect(code).not.toMatch(/bg-danger\/10 hover:bg-danger\/20 border border-danger\/20 text-danger transition-all shadow-sm/);
+        // Le gros bouton rouge de la rangée a été retiré (même demande) ; l'action
+        // reste disponible, par personnage, depuis le menu.
+        expect(code).toMatch(/onRequestReset/);
+        expect(code).toMatch(/Réinitialiser \{?"?«? ?\{currentLabel\}/);
+        expect(code).toMatch(/<RotateCcw className="size-3\.5"\/>/);
+        expect(code).not.toMatch(/size="icon-sm"[\s\S]{0,200}setResetModalOpen/);
     });
 
     it("les appairages (pseudo, Metamob) passent par `Button` : plus de pastille ambre qui brille", () => {
         const code = codeOf(DASHBOARD_RUSH);
-        expect(code.match(/variant="outline" size="sm"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+        // Deux appairages restants (pseudo + Metamob) : le troisième bouton de la
+        // rangée était le reset, désormais dans le menu (voir cas précédent).
+        expect(code.match(/variant="outline" size="sm"/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
         expect(code).not.toMatch(/bg-warning\/10 hover:bg-warning\/20 px-2\.5 py-1/);
+    });
+
+    it("une seule anatomie pour les cinq blocs : asset nu 28 px, libellé 11 px (pas de `font-serif`)", () => {
+        const code = codeOf(DASHBOARD_RUSH);
+        expect(code).toContain('text-[11px] text-muted-foreground">Personnage actif');
+        expect(code).toContain('text-[11px] text-muted-foreground">Rush Live');
+        // La seule `font-serif` restante est le titre du guide (H1), pas un libellé.
+        expect(code.match(/font-serif/g)?.length ?? 0).toBe(1);
+        const serifLine = code.split("\n").find((line) => line.includes("font-serif"));
+        expect(serifLine).toContain("<h1");
+    });
+
+    it("« Rush Live » porte un asset du jeu, pas un picto générique dans une tuile", () => {
+        const code = codeOf(DASHBOARD_RUSH);
+        expect(code).toContain("/assets/dofus/modules/guild.png");
+        expect(code).not.toMatch(/bg-success\/15 border border-success\/30 flex items-center justify-center/);
     });
 });
 

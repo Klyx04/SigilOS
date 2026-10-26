@@ -1,10 +1,10 @@
 "use client";
-import { useMemo, memo, useState, useEffect } from "react";
-import { Users } from "lucide-react";
+import { useMemo, memo, useState } from "react";
+import { Users, ChevronRight } from "lucide-react";
 import { dofusMetaIndex } from "@/lib/rush-dofus-meta";
+import { memberDofusProgress, type DofusQuestRef, type MemberDofusProgress } from "@/lib/rush-dofus-progress";
 import { MemberAvatar } from "@/components/shared/member-avatar";
-
-const MEMBERS_CUTOFF = 8;
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,12 +23,22 @@ type GuildMemberProgress = {
   isCompleted: boolean;
   userName: string;
   userAvatar?: string;
+  /** Clés d'étapes cochées (`<subGuideRef>-<n>` / `-all`) — fournies par `GuideProgressRow`. */
+  completedSteps?: string[];
+  /** Étape en cours du joueur (même format), s'il en a une. */
+  currentStep?: string | null;
 };
 
 // Dofus definitions — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`), partagée avec
 // le studio God, le guide interne/public et l'overlay. (Cinq copies divergentes
 // avant le 08/10/2026 : `ebene` y valait #27272a, #52525b ou #6366f1.)
 const DOFUS_DEFS: Record<string, { label: string; color: string; imageUrl: string }> = dofusMetaIndex();
+
+type DofusMemberStat = MemberDofusProgress & {
+  profileId: string;
+  userName: string;
+  userAvatar?: string;
+};
 
 type DofusStat = {
   id: string;
@@ -38,25 +48,27 @@ type DofusStat = {
   totalMilestones: number;
   completedMilestones: number;
   pct: number;
-  membersInProgress: { profileId: string; userName: string; userAvatar?: string; completed: number; total: number; pct: number; alignment?: string | null; alignmentOrder?: string | null; alignmentLevel?: number | null }[];
+  membersInProgress: DofusMemberStat[];
 };
 
 // ─── GuildStatusPanel ─────────────────────────────────────────────────────────
 
 export const GuildStatusPanel = memo(function GuildStatusPanel({
   milestones,
+  questsByDofus,
   guildProgress,
   activeFilter,
   onFilterChange,
 }: {
   milestones: Milestone[];
+  /** Quêtes ordonnées de chaque Dofus (`subGuideRef`, libellé, catégorie, nb d'étapes). */
+  questsByDofus: Record<string, DofusQuestRef[]>;
   guildProgress: GuildMemberProgress[];
   activeFilter: string | null;
   onFilterChange: (id: string | null) => void;
 }) {
-  const [showAllMembers, setShowAllMembers] = useState(false);
-  // Replier la liste à chaque changement de Dofus sélectionné
-  useEffect(() => { setShowAllMembers(false); }, [activeFilter]);
+  /** Dofus dont la modale de détail est ouverte (un clic sur un Dofus). */
+  const [openDofusId, setOpenDofusId] = useState<string | null>(null);
 
   const dofusStats = useMemo(() => {
     const map = new Map<string, DofusStat>();
@@ -97,37 +109,48 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         : 0;
     });
 
-    // Avancement par membre et par Dofus (détail en ligne sous les cartes)
+    // Avancement par membre et par Dofus — au niveau **quête** (et non plus seulement
+    // « bloc validé ») : on réutilise les clés d'étapes déjà fournies par le serveur.
     const profileIds = [...new Set(guildProgress.map((p) => p.profileId))];
 
     map.forEach((stat, dofusId) => {
       const dofusMilestoneIds = new Set(
         milestones.filter((m) => m.dofusId === dofusId).map((m) => m.id)
       );
+      const quests = questsByDofus[dofusId] ?? [];
 
       stat.membersInProgress = profileIds
         .map((profileId) => {
-          const memberProgress = guildProgress.filter(
+          const rows = guildProgress.filter(
             (p) => p.profileId === profileId && dofusMilestoneIds.has(p.milestoneId)
           );
-          const userName = memberProgress[0]?.userName || "Inconnu";
-          const userAvatar = memberProgress[0]?.userAvatar;
-          const completed = memberProgress.filter((p) => p.isCompleted).length;
-          const total = dofusMilestoneIds.size;
-          const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-          return { profileId, userName, userAvatar, completed, total, pct };
+          if (!rows.length) return null;
+
+          const completedSteps = new Set<string>();
+          for (const row of rows) for (const step of row.completedSteps ?? []) completedSteps.add(step);
+          const currentStep = rows.find((row) => row.currentStep)?.currentStep ?? null;
+
+          return {
+            profileId,
+            userName: rows[0]?.userName || "Inconnu",
+            userAvatar: rows[0]?.userAvatar,
+            ...memberDofusProgress(quests, completedSteps, currentStep),
+          } as DofusMemberStat;
         })
-        .filter((m) => m.total > 0)
+        .filter((member): member is DofusMemberStat => member !== null)
         .sort((a, b) => b.pct - a.pct);
     });
 
     return Array.from(map.values()).sort((a, b) => b.totalMilestones - a.totalMilestones);
-  }, [milestones, guildProgress]);
+  }, [milestones, questsByDofus, guildProgress]);
 
   const totalMembers = useMemo(
     () => new Set(guildProgress.map((p) => p.profileId)).size,
     [guildProgress]
   );
+
+  /** Dofus dont la modale est ouverte (un seul à la fois). */
+  const selected = openDofusId ? dofusStats.find((d) => d.id === openDofusId) ?? null : null;
 
   if (dofusStats.length === 0) return null;
 
@@ -156,11 +179,13 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
             return (
               <button
                 key={d.id}
-                onClick={() => onFilterChange(isActive ? null : d.id)}
+                type="button"
+                onClick={() => setOpenDofusId(d.id)}
+                aria-label={`Voir où en sont les membres sur le Dofus ${d.label} — ${d.pct} %, ${d.membersInProgress.length} membre(s) engagé(s)`}
                 className={`relative flex flex-col items-center gap-1 p-1.5 text-center cursor-pointer shrink-0 w-[78px] rounded-[4px] border transition-colors ${
                   isActive ? "border-success" : "border-transparent hover:border-border"
                 }`}
-                title={isActive ? `${d.label} — filtre actif, cliquer pour annuler` : `${d.label} — ${d.pct}% — cliquer pour filtrer`}
+                title={`${d.label} — ${d.pct} % — cliquer pour le détail par membre`}
               >
                 {/* Dofus icon */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -195,72 +220,107 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
           })}
         </div>
 
-        {/* Détail en ligne du Dofus filtré : avancement des membres */}
-        {(() => {
-          const sel = activeFilter ? dofusStats.find((d) => d.id === activeFilter) : null;
-          if (!sel) return null;
-          if (sel.membersInProgress.length === 0) {
-            return (
-              <p className="text-xs text-zinc-600 italic text-center pt-3">
-                Aucun membre n'a encore commencé ce Dofus.
-              </p>
-            );
-          }
-          const visibleMembers = showAllMembers
-            ? sel.membersInProgress
-            : sel.membersInProgress.slice(0, MEMBERS_CUTOFF);
-          const hiddenCount = sel.membersInProgress.length - visibleMembers.length;
-          return (
-            <div className="space-y-1.5 pt-3 mt-1 border-t border-border">
-              <p className="text-caption font-medium text-zinc-500">
-                Membres — {sel.label} ({sel.membersInProgress.length})
-              </p>
-              <div className="max-h-[220px] overflow-y-auto custom-scrollbar space-y-1.5 pr-0.5">
-                {visibleMembers.map((m) => (
-                  <div
-                    key={m.profileId}
-                    className="flex items-center gap-3 p-2 rounded-[4px] bg-[#181e25] border border-border"
-                  >
-                    <div className="w-7 h-7 rounded-full bg-elevated border border-[#384352] flex items-center justify-center text-caption font-semibold text-zinc-300 overflow-hidden shrink-0">
-                      <MemberAvatar
-                        src={m.userAvatar}
-                        name={m.userName}
-                        alt={m.userName}
-                        fallbackClassName="text-caption font-semibold text-zinc-300"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-bold text-white truncate">{m.userName}</p>
-                        <span className="text-caption font-mono font-semibold shrink-0" style={{ color: sel.color }}>
-                          {m.pct}%
+      {/* ── Modale par Dofus : où en est chaque membre, **quête par quête** ──
+          Un clic sur un Dofus ouvre ce détail (avant : un panneau en ligne qui
+          poussait la timeline). Le filtre de timeline reste accessible d'ici. */}
+      <Dialog open={!!selected} onOpenChange={(open) => { if (!open) setOpenDofusId(null); }}>
+        <DialogContent className="sm:max-w-lg bg-background border-border">
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={selected.imageUrl} alt="" className="w-7 h-7 object-contain" />
+                  {selected.label}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  {selected.completedMilestones}/{selected.totalMilestones} blocs validés par au moins un membre ·{" "}
+                  {selected.membersInProgress.length} membre(s) engagé(s)
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="max-h-[55vh] space-y-2 overflow-y-auto custom-scrollbar pr-0.5">
+                {selected.membersInProgress.length === 0 ? (
+                  <p className="py-6 text-center text-xs italic text-muted-foreground">
+                    Aucun membre n&apos;a encore commencé ce Dofus.
+                  </p>
+                ) : (
+                  selected.membersInProgress.map((member) => (
+                    <div key={member.profileId} className="rounded-[6px] border border-border bg-surface p-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-border bg-elevated">
+                          <MemberAvatar
+                            src={member.userAvatar}
+                            name={member.userName}
+                            alt={member.userName}
+                            fallbackClassName="text-caption font-semibold text-muted-foreground"
+                          />
                         </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <p className="truncate text-xs font-semibold text-foreground">{member.userName}</p>
+                            <span className="shrink-0 font-mono text-caption tabular-nums text-muted-foreground">
+                              {member.done}/{member.total} quêtes · {member.pct} %
+                            </span>
+                          </div>
+                          <div className="mt-1 h-1 overflow-hidden rounded-[2px] bg-elevated">
+                            <div
+                              className="h-full rounded-[2px]"
+                              style={{
+                                width: `${member.pct}%`,
+                                background: member.pct === 100 ? "var(--success)" : selected.color,
+                              }}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="h-1 bg-elevated rounded-full overflow-hidden mt-1">
-                        <div
-                          className="h-full rounded-full transition-all duration-300"
-                          style={{ width: `${m.pct}%`, background: sel.color }}
-                        />
+
+                      <div className="mt-1.5 space-y-0.5 text-caption">
+                        {member.current ? (
+                          <p className="flex flex-wrap items-center gap-1.5 text-foreground">
+                            <span className="text-muted-foreground">En cours</span>
+                            <span className="font-semibold">{member.current.label}</span>
+                            <span className="rounded-[3px] border border-border px-1.5 py-0.5 text-muted-foreground">
+                              {member.current.category}
+                            </span>
+                            <span className="font-mono tabular-nums text-muted-foreground">
+                              ({member.currentIndex}/{member.total})
+                            </span>
+                          </p>
+                        ) : member.total > 0 ? (
+                          <p className="font-semibold text-success">Dofus terminé</p>
+                        ) : (
+                          <p className="italic text-muted-foreground">
+                            Aucune quête de ce Dofus n&apos;est encore liée dans le guide.
+                          </p>
+                        )}
+                        {member.lastDone && member.current && (
+                          <p className="truncate text-muted-foreground">Dernière validée : {member.lastDone.label}</p>
+                        )}
                       </div>
-                      <p className="text-caption text-zinc-500 mt-0.5 font-mono">
-                        {m.completed}/{m.total} blocs
-                      </p>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
-              {(hiddenCount > 0 || showAllMembers) && sel.membersInProgress.length > MEMBERS_CUTOFF && (
+
+              <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
                 <button
                   type="button"
-                  onClick={() => setShowAllMembers((v) => !v)}
-                  className="w-full py-1.5 rounded-lg text-caption font-bold text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors"
+                  onClick={() => {
+                    onFilterChange(activeFilter === selected.id ? null : selected.id);
+                    setOpenDofusId(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-[4px] border border-border px-2.5 py-1.5 text-caption font-semibold text-foreground transition-colors hover:bg-elevated"
                 >
-                  {showAllMembers ? "Réduire la liste" : `Afficher les ${hiddenCount} autres membres`}
+                  {activeFilter === selected.id ? "Retirer le filtre" : "Filtrer les quêtes sur ce Dofus"}
+                  <ChevronRight className="h-3 w-3" />
                 </button>
-              )}
-            </div>
-          );
-        })()}
-      </div>
+                <span className="text-caption text-muted-foreground">Progression par quête</span>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 });

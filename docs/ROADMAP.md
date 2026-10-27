@@ -22,7 +22,10 @@
   classement passe désormais par `normalizeOrderCode` (source unique `rush-order-codes`), **+3 cas**. ⑤ **S1-4 (classes)** :
   export `export-god-classes.json` (1 bloc, **19** quêtes, `dofusDbId` 19/19, DPLN 19/19) et **filtre de classe** branché
   côté guide interne — `resolveDofusClassId` (le profil stocke un **libellé** « Féca », la route compare l'id `feca`) ⇒
-  chaque membre ne voit que sa quête ; côté visiteur les 19 restent visibles (sélecteur public à venir).
+  chaque membre ne voit que sa quête ; côté visiteur les 19 restent visibles (sélecteur public à venir). ⑥ **Cités remesurées
+  PAR NOM** : Bontarien **98/100** (2 à créer) dont **32 présentes sans `alignReq`** (visibles aux deux camps, non comptées) ;
+  Brâkmarien **0/102** ⇒ `export-god-cites.json` (**6 blocs / 104 quêtes**, plan vérifié 104 neuves / 0 avertissement) et
+  `tag-bonta-alignment.mjs` (dry-run : **32**, `WHERE alignReq IS NULL`) prêts.
 - **Livré le 27/10/2026 — Rush : code mort retiré, `alignOrderReq` supprimé, un rang n'est pas une cité (branche
   `fix/rush-code-mort-legacy`).** ① `DofusProgressStrip.tsx` **supprimé** (composant **jamais monté**, 0 import) et le
   verrou T2 **repointé** sur le bandeau réel `GuildStatusPanel` (bouton + `aria-label`, titre/description de la modale,

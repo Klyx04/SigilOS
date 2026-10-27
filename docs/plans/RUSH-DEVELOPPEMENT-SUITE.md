@@ -15,7 +15,7 @@ description: Rush Sylvestre — organisation de la suite : 4 surfaces, blocs S0�
 | Sujet | Source qui fait foi | Mesure |
 |---|---|---|
 | Série Bonta | Tougli `100-quetes-alignement-bontarien` | **100** quêtes (`Tarche` → `L'exorciste`) |
-| Série Brâkmar | Tougli `100-quetes-alignement-brakmarien` | **102** quêtes (`Cliquetis fou` → `La danse macabre`) · ⚠️ mesuré le 27/10/2026 : DPLN numérote **100 étapes** mais décrit **105 quêtes** (les n°**55** et **66** regroupent plusieurs quêtes), et Tougli **omet 3** de ces quêtes — `Les kamas résolvent tout` (272), `Assassinat effectué` (274), `On m'appelle l'Escargot` (312), toutes trois **présentes dans `GameQuest`** ⇒ la série complète est **105**, le « 102 » est le compte Tougli |
+| Série Brâkmar | Tougli `100-quetes-alignement-brakmarien` | **102** quêtes (`Cliquetis fou` → `La danse macabre`) · **mesuré le 27/10/2026** : DPLN numérote **100 étapes** ; les n° **55** et **66** listent des **variantes EXCLUSIVES** (« Ces trois quêtes seront identiques, juste le nom change ! » — on n'en joue qu'une : *Le magnanime* / *Les kamas résolvent tout* / *Assassinat effectué*) ⇒ Tougli = **100 étapes + 2 étapes dédoublées** (partie 1 + variante retenue) = **102**, et **rien ne manque** |
 | Chronologie / préparation / saves | **Dofusyelle** | 57 étapes, 21 préparations, 83 donjons (40 saves) |
 | Quêtes détaillées + contraintes | **Tougli** RSA | 530 occurrences (529), 1 085 détails |
 | Classes | Tougli (1 nœud, 19 branches) | 19 substitutions |

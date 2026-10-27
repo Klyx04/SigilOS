@@ -178,6 +178,39 @@ describe("codes d'Ordre — les deux vocabulaires remplissent les mêmes paliers
     });
 });
 
+/**
+ * Position dans la série = **ordre du bloc** puis ordre interne. `order` seul repart à 0
+ * dans chaque bloc : sans `blockOrder`, la vue triait par nom (alphabet) et « L'exorciste »
+ * (100ᵉ quête) apparaissait en position 68 (mesure du 27/10/2026).
+ */
+describe("position — l'ordre du GUIDE, ni le `order` local, ni l'alphabet", () => {
+    it("trie par bloc puis par ordre interne", () => {
+        const view = buildRushBranches([
+            // Alphabétiquement « Zébulon » < « Alfred » ? non : Alfred d'abord. On inverse donc
+            // les blocs pour prouver que c'est le BLOC qui tranche, pas le nom.
+            seq({ id: "b-zeb", alignReq: "bontarien", order: 0, blockOrder: 2, subGuideName: "Zébulon" }),
+            seq({ id: "b-alf", alignReq: "bontarien", order: 0, blockOrder: 1, subGuideName: "Alfred" }),
+        ]);
+        expect(view.pairs.map((p) => p.bontarien?.subGuideName)).toEqual(["Alfred", "Zébulon"]);
+    });
+
+    it("apparie les deux camps par rang dans l'ordre du guide", () => {
+        const view = buildRushBranches([
+            // Dans le même bloc, « B deux » précède « B un » dans l'alphabet : l'ordre interne
+            // doit gagner.
+            seq({ id: "b-2", alignReq: "bontarien", order: 1, blockOrder: 1, subGuideName: "B deux" }),
+            seq({ id: "b-1", alignReq: "bontarien", order: 0, blockOrder: 1, subGuideName: "B un" }),
+            // Brâkmar arrive plus tard dans le guide (bloc 9) : l'appariement se fait au RANG.
+            seq({ id: "k-2", alignReq: "brakmarien", order: 1, blockOrder: 9, subGuideName: "K deux" }),
+            seq({ id: "k-1", alignReq: "brakmarien", order: 0, blockOrder: 9, subGuideName: "K un" }),
+        ]);
+        expect(view.pairs.map((p) => [p.bontarien?.subGuideName, p.brakmarien?.subGuideName])).toEqual([
+            ["B un", "K un"],
+            ["B deux", "K deux"],
+        ]);
+    });
+});
+
 describe("orphelins — aucune perte silencieuse", () => {
     it("une cité inconnue finit en orphelin", () => {
         const view = buildRushBranches([

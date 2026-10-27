@@ -25,7 +25,9 @@
   chaque membre ne voit que sa quête ; côté visiteur les 19 restent visibles (sélecteur public à venir). ⑥ **Cités remesurées
   PAR NOM** : Bontarien **98/100** (2 à créer) dont **32 présentes sans `alignReq`** (visibles aux deux camps, non comptées) ;
   Brâkmarien **0/102** ⇒ `export-god-cites.json` (**6 blocs / 104 quêtes**, plan vérifié 104 neuves / 0 avertissement) et
-  `tag-bonta-alignment.mjs` (dry-run : **32**, `WHERE alignReq IS NULL`) prêts.
+  `tag-bonta-alignment.mjs` (dry-run : **32**, `WHERE alignReq IS NULL`) prêts. ⑦ **Paires alignées corrigées** : le tri utilise
+  l'**ordre du bloc** puis l'ordre interne (`seq.order` repart à 0 dans chaque bloc ⇒ la table sortait en **alphabet** ;
+  « L'exorciste » passe de la position **68** à **99**, vérifié en base), **+2 cas**.
 - **Livré le 27/10/2026 — Rush : code mort retiré, `alignOrderReq` supprimé, un rang n'est pas une cité (branche
   `fix/rush-code-mort-legacy`).** ① `DofusProgressStrip.tsx` **supprimé** (composant **jamais monté**, 0 import) et le
   verrou T2 **repointé** sur le bandeau réel `GuildStatusPanel` (bouton + `aria-label`, titre/description de la modale,

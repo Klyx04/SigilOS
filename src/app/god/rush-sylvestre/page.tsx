@@ -19,6 +19,9 @@ export default async function RushSylvestreGodPage() {
     (milestone.sequences ?? []).map((seq) => ({
       id: seq.id,
       order: seq.order,
+      // La position dans la SÉRIE = (ordre du bloc, ordre interne) : `seq.order` seul repart
+      // à 0 dans chaque bloc, ce qui faisait trier la vue par nom (alphabet).
+      blockOrder: milestone.order,
       subGuideName: seq.subGuideName,
       alignReq: seq.alignReq ?? null,
       alignOrderCode: seq.alignOrderCode ?? null,

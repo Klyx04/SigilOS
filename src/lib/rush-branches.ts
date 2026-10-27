@@ -30,7 +30,18 @@ export type RushOrderLevel = (typeof RUSH_ORDER_LEVELS)[number];
 
 export type RushBranchSequence = {
     id: string;
+    /**
+     * Ordre **dans son bloc** — il repart à 0 dans chaque bloc, donc il ne donne PAS la
+     * position dans la série. Le tri de la vue utilise `blockOrder` d'abord.
+     */
     order: number;
+    /**
+     * Ordre du **bloc** dans le guide (`GuideMilestone.order`). Sans lui, deux séquences de
+     * blocs différents partagent le même `order` (0, 1, 2…) et le tri retombait sur le nom :
+     * les « paires alignées par position » sortaient en **alphabet** (mesuré le 27/10/2026 —
+     * « L'exorciste », 100ᵉ quête, apparaissait en position 68).
+     */
+    blockOrder?: number;
     subGuideName: string;
     alignReq?: string | null;
     alignOrderCode?: string | null;
@@ -90,10 +101,16 @@ const CAMP_LABELS: Record<RushAlignmentCamp, string> = {
 
 const CAMPS: RushAlignmentCamp[] = ["bontarien", "brakmarien"];
 
-/** Tri stable : `order` puis nom puis id (l'ordre d'entrée ne doit rien changer). */
+/**
+ * Tri stable : **bloc**, puis `order` interne, puis nom, puis id.
+ *
+ * Le `order` d'une séquence est **local au bloc** : sans l'ordre du bloc, toutes les
+ * séquences de même index se mélangeaient et le nom tranchait (alphabet).
+ */
 function sortSequences(list: RushBranchSequence[]): RushBranchSequence[] {
     return [...list].sort(
         (a, b) =>
+            (a.blockOrder ?? 0) - (b.blockOrder ?? 0) ||
             a.order - b.order ||
             a.subGuideName.localeCompare(b.subGuideName, "fr") ||
             a.id.localeCompare(b.id),

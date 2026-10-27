@@ -19,6 +19,7 @@
  */
 
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
+import { safeExternalUrl } from "@/lib/security";
 
 export type RushImportSequence = {
     subGuideName: string;
@@ -27,6 +28,10 @@ export type RushImportSequence = {
     alignOrderCode?: string | null;
     alignLevelReq?: number | null;
     classReq?: string | null;
+    /** Lien de la fiche DofusDB (`dofusdb.fr` uniquement) — validé, jamais deviné. */
+    dofusdbUrl?: string | null;
+    /** Lien DPLN (`dofuspourlesnoobs.com` uniquement) — première source du module. */
+    dofuspourlesnoobsUrl?: string | null;
     dungeonIds?: string[];
     dungeonOptionalIds?: string[];
     takeEarly?: boolean;
@@ -105,6 +110,39 @@ function cite(value: string | null | undefined): "bontarien" | "brakmarien" | nu
 }
 
 /**
+ * Lien externe d'une quête importée — **allowlist d'hôte**, `https` seulement.
+ *
+ * Pourquoi une allowlist : le payload d'import vient d'un fichier (outil Trame ou
+ * saisie manuelle). Recopier tel quel un `javascript:` ou un lien vers un site tiers
+ * ferait entrer une URL arbitraire dans le guide, affichée ensuite sur les 4 surfaces.
+ * Le lien reste **optionnel** : un refus n'empêche jamais l'import, il produit un
+ * avertissement dans le plan (dry-run) et la séquence est créée sans ce lien.
+ */
+export const RUSH_GUIDE_LINK_HOSTS = {
+    dofusdb: ["dofusdb.fr", "www.dofusdb.fr"],
+    noobs: ["dofuspourlesnoobs.com", "www.dofuspourlesnoobs.com"],
+} as const;
+
+export type RushGuideLinkKind = keyof typeof RUSH_GUIDE_LINK_HOSTS;
+
+/** Lien sûr pour ce type de fiche, ou `null` (URL invalide, hôte non autorisé, http). */
+export function safeRushGuideLink(
+    kind: RushGuideLinkKind,
+    value: string | null | undefined
+): string | null {
+    const safe = safeExternalUrl(value);
+    if (!safe) return null;
+    try {
+        const parsed = new URL(safe);
+        if (parsed.protocol !== "https:") return null;
+        const host = parsed.hostname.toLowerCase();
+        return (RUSH_GUIDE_LINK_HOSTS[kind] as readonly string[]).includes(host) ? safe : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Calcule le plan d'import : ce qui existe déjà, ce qui serait créé, et ce qui
  * pose problème. **Aucune écriture**, aucune mutation des entrées.
  */
@@ -159,6 +197,21 @@ export function planRushImport(
             for (const dungeonId of sequence.dungeonIds ?? []) {
                 if (options.knownDungeonIds && !options.knownDungeonIds.has(dungeonId)) {
                     sequenceWarnings.push(`Donjon inconnu « ${dungeonId} » : il sera ignoré.`);
+                }
+            }
+            // Liens externes : un refus n'arrête pas l'import (le lien est optionnel), mais
+            // il est **annoncé** dans le dry-run — jamais recopié silencieusement.
+            const links: Array<[RushGuideLinkKind, string | null | undefined, string]> = [
+                ["dofusdb", sequence.dofusdbUrl, "DofusDB"],
+                ["noobs", sequence.dofuspourlesnoobsUrl, "DPLN"],
+            ];
+            for (const [kind, value, label] of links) {
+                const raw = (value ?? "").trim();
+                if (!raw) continue;
+                if (!safeRushGuideLink(kind, raw)) {
+                    sequenceWarnings.push(
+                        `Lien ${label} ignoré (URL invalide ou hôte non autorisé) : « ${raw.slice(0, 80)} »`
+                    );
                 }
             }
 

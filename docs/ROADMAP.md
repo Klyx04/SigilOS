@@ -9,6 +9,14 @@
 
 ## 0. Reprise immédiate
 
+- **Préparé le 27/10/2026 — S1 : les 30 quêtes d'Ordre prêtes à importer (branche `fix/rush-code-mort-legacy`).**
+  ① L'**import** porte désormais les **liens de fiche** (`dofusdbUrl` / `dofuspourlesnoobsUrl`) : allowlist d'hôte
+  (`dofusdb.fr`, `dofuspourlesnoobs.com`) + `https`, règle pure `safeRushGuideLink` — un lien refusé devient un
+  **avertissement** dans le dry-run, jamais une URL arbitraire en base ; ② l'outil Trame a produit
+  `export-god-ordres.json` : **6 blocs × 5 paliers = 30 quêtes**, `dofusDbId` **résolu par le nom** dans `GameQuest`
+  (**30/30**) et DPLN **30/30**, vérifié contre `planRushImport` (**6 blocs neufs, 30 quêtes neuves, 0 avertissement**) ;
+  ③ **rien n'est appliqué** : le dry-run se fait dans God ▸ IMPORTER, par le mainteneur. Suite **5 567 ✓ / 530**. L'export
+  vit dans `src/temp/` (zone volatile, jamais commitée).
 - **Livré le 27/10/2026 — Rush : code mort retiré, `alignOrderReq` supprimé, un rang n'est pas une cité (branche
   `fix/rush-code-mort-legacy`).** ① `DofusProgressStrip.tsx` **supprimé** (composant **jamais monté**, 0 import) et le
   verrou T2 **repointé** sur le bandeau réel `GuildStatusPanel` (bouton + `aria-label`, titre/description de la modale,

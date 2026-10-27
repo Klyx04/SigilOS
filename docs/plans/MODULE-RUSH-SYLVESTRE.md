@@ -53,7 +53,7 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 > titre/description de la modale, geste de filtre) — il ne gardait auparavant qu'un composant mort.
 
 ### 1.5 Libs (`src/lib`)
-`rush-guide-utils.ts` (`resolveItemImage`, `rushResourceKey`, `isSequenceBlockedByPrereqs`, `getAlignmentSet`, `collectCascadeUncheck`…) · `rush-guide-view.ts` (`buildRushGuideView`, `computeRushAlignment`) · `rush-resources-preheat.ts` (pur, client-safe) · `rush-dofus-meta.ts` · `rush-rich-meta.ts` · `rush-ui-config.ts` · `guest-progress.ts` · `dofus-asset-siphon.ts` (`siphonAndCompressImage`, `siphonItemIconsBatchCore`) · `dofusdb-limiter.ts` / `dofusdb-throttle.ts` · `ocre-soul-stones.ts` · `ocre-write-queue.ts` · `metamob-client.ts` · `class-spells-siphon.ts`
+`rush-guide-utils.ts` (`resolveItemImage`, `rushResourceKey`, `isSequenceBlockedByPrereqs`, `getAlignmentSet`, `collectCascadeUncheck`…) · `rush-guide-view.ts` (`buildRushGuideView`, `computeRushAlignment`) · `rush-resources-preheat.ts` (pur, client-safe) · `rush-import.ts` (`planRushImport`, `safeRushGuideLink`, `boundQuestDbIds` via `rush-quest-identity`) · `rush-dofus-meta.ts` · `rush-rich-meta.ts` · `rush-ui-config.ts` · `guest-progress.ts` · `dofus-asset-siphon.ts` (`siphonAndCompressImage`, `siphonItemIconsBatchCore`) · `dofusdb-limiter.ts` / `dofusdb-throttle.ts` · `ocre-soul-stones.ts` · `ocre-write-queue.ts` · `metamob-client.ts` · `class-spells-siphon.ts`
 
 ### 1.6 Actions serveur
 `optimized-guide-actions.ts` (lecture du guide, coches de ressources, reset d'alignement) · `asset-siphon-actions.ts` (pré-chauffage) · `ocre-actions.ts` (liaison Metamob, progression) · `rush-actions.ts` · `game-data-admin-actions.ts` · `game-data-sync-actions.ts`

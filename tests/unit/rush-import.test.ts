@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { importKey, isRushImportNoop, planRushImport } from "@/lib/rush-import";
+import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "@/lib/rush-import";
 
 /**
  * Garde du **dry-run d'import** (S4-4) : le plan dit ce qui serait créé, ce qui
@@ -140,6 +140,56 @@ describe("rush-import — plan (dry-run)", () => {
     expect(plan.totals.sequencesSkipped).toBe(1);
     expect(plan.totals.blocksNew).toBe(1);
   });
+
+  it("signale un lien de quête refusé sans bloquer l'import", () => {
+    const plan = planRushImport(
+      {
+        blocks: [
+          {
+            title: "Ordres",
+            sequences: [
+              {
+                subGuideName: "Quête avec liens",
+                dofusdbUrl: "javascript:alert(1)",
+                dofuspourlesnoobsUrl: "https://exemple.test/autre-site.html",
+              },
+            ],
+          },
+        ],
+      },
+      EMPTY
+    );
+    const warnings = plan.blocks[0].sequences[0].warnings.join(" ");
+    expect(warnings).toMatch(/Lien DofusDB ignoré/);
+    expect(warnings).toMatch(/Lien DPLN ignoré/);
+    // Un lien refusé n'empêche jamais la création : la quête reste « new ».
+    expect(plan.blocks[0].sequences[0].status).toBe("new");
+    expect(plan.totals.sequencesNew).toBe(1);
+  });
+});
+
+/**
+ * Liens d'une quête importée : allowlist d'hôte + `https` seulement.
+ * Le payload vient d'un fichier — il n'a aucun droit de poser une URL arbitraire.
+ */
+describe("rush-import — liens de quête (allowlist d'hôte)", () => {
+  it("accepte les deux fiches du module en https", () => {
+    expect(safeRushGuideLink("dofusdb", "https://dofusdb.fr/fr/database/quest/433")).toBe(
+      "https://dofusdb.fr/fr/database/quest/433"
+    );
+    expect(
+      safeRushGuideLink("noobs", "https://www.dofuspourlesnoobs.com/apprentissage--disciple-de-meacutenalt.html")
+    ).toBe("https://www.dofuspourlesnoobs.com/apprentissage--disciple-de-meacutenalt.html");
+  });
+
+  it("refuse un schéma dangereux, un hôte tiers ou un http nu", () => {
+    expect(safeRushGuideLink("dofusdb", "javascript:alert(1)")).toBeNull();
+    expect(safeRushGuideLink("dofusdb", "https://exemple.test/quest/433")).toBeNull();
+    expect(safeRushGuideLink("noobs", "https://dofusdb.fr/fr/database/quest/433")).toBeNull();
+    expect(safeRushGuideLink("dofusdb", "http://dofusdb.fr/fr/database/quest/433")).toBeNull();
+    expect(safeRushGuideLink("dofusdb", null)).toBeNull();
+    expect(safeRushGuideLink("dofusdb", "   ")).toBeNull();
+  });
 });
 
 /** Verrou de source : l'action serveur ne peut pas être destructive ni écrire en dry-run. */
@@ -158,8 +208,11 @@ describe("importRushGuide — garde de l'action serveur", () => {
     expect(body).not.toMatch(/\.deleteMany\(|\.delete\(|\.update\(|\.updateMany\(/);
   });
 
-  it("borne les ids de quête et ne garde que les codes d'Ordre canoniques", () => {
+  it("borne les ids de quête, ne garde que les codes d'Ordre canoniques et valide les liens", () => {
     expect(body).toContain("boundQuestDbIds(sequence.questDbIds)");
     expect(body).toContain("normalizeOrderCode(sequence.alignOrderCode)");
+    // Les liens passent par l'allowlist d'hôte — jamais recopiés tels quels.
+    expect(body).toContain('safeRushGuideLink("dofusdb", sequence.dofusdbUrl)');
+    expect(body).toContain('safeRushGuideLink("noobs", sequence.dofuspourlesnoobsUrl)');
   });
 });

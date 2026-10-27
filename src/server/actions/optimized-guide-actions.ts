@@ -14,7 +14,7 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { resetAlignmentQuests } from "@/server/rush-alignment";
 import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
-import { importKey, isRushImportNoop, planRushImport } from "@/lib/rush-import";
+import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "@/lib/rush-import";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
@@ -3865,6 +3865,9 @@ const RushImportSequenceSchema = z.object({
   alignOrderCode: z.string().trim().max(48).nullish(),
   alignLevelReq: z.number().int().min(1).max(200).nullish(),
   classReq: z.string().trim().max(32).nullish(),
+  // Liens de fiche : bornés ici, **validés** (hôte + https) par `safeRushGuideLink`.
+  dofusdbUrl: z.string().trim().max(500).nullish(),
+  dofuspourlesnoobsUrl: z.string().trim().max(500).nullish(),
   dungeonIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
   dungeonOptionalIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
   takeEarly: z.boolean().optional(),
@@ -3995,6 +3998,9 @@ export async function importRushGuide(raw: unknown, apply = false) {
         alignOrderCode: normalizeOrderCode(sequence.alignOrderCode),
         alignLevelReq: sequence.alignLevelReq ?? null,
         classReq: (sequence.classReq ?? "").trim().toLowerCase() || null,
+        // Liens : allowlist d'hôte (`https` seulement) — même règle que le dry-run.
+        dofusdbUrl: safeRushGuideLink("dofusdb", sequence.dofusdbUrl),
+        dofuspourlesnoobsUrl: safeRushGuideLink("noobs", sequence.dofuspourlesnoobsUrl),
         questDbIds: boundQuestDbIds(sequence.questDbIds),
         dungeonIds: (sequence.dungeonIds ?? []).filter((id) => knownDungeonIds.has(id)),
         dungeonOptionalIds: (sequence.dungeonOptionalIds ?? []).filter(

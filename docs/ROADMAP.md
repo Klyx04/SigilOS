@@ -9,6 +9,18 @@
 
 ## 0. Reprise immédiate
 
+- **Livré le 27/10/2026 — Rush : code mort retiré, `alignOrderReq` supprimé, un rang n'est pas une cité (branche
+  `fix/rush-code-mort-legacy`).** ① `DofusProgressStrip.tsx` **supprimé** (composant **jamais monté**, 0 import) et le
+  verrou T2 **repointé** sur le bandeau réel `GuildStatusPanel` (bouton + `aria-label`, titre/description de la modale,
+  geste de filtre) : il ne gardait qu'un fichier mort. ② **S5-1 (partie sans migration)** : `alignOrderReq` n'est plus
+  **ni lu ni écrit** (client, les 2 formulaires God, jumeau serveur, 2 seeds, sync enrichie) — mesuré : il valait `1` sur
+  les **66** séquences qui le portaient, donc « Bontarien lv.1 » ne verrouillait rien ; le palier réel reste
+  `alignLevelReq` + `alignmentCountForCamp`. La **colonne** reste en base (drop = **migration** ⇒ lot séparé + accord).
+  ③ **Défaut mesuré, corrigé** : le payload enrichi porte un **rang** dans `alignReq` (1…99, **104** entrées) et le camp
+  dans `alignment.camp` — écrire ce rang dans la colonne **masquait** la quête pour tout le monde (route fail-closed sur
+  une cité inconnue) ; les deux chemins d'écriture n'écrivent plus qu'un **camp reconnu**. Suite **604 ✓ / 49 fichiers**
+  `rush-*`, `tsc` 0, `lint` 0 erreur. **Aucune migration, aucune donnée touchée.**
+
 - **Livré le 26/10/2026 — Guide interne : modale par Dofus + déslop du bandeau personnage.** Le clic sur un Dofus
   ouvre une **modale** (au lieu d'un panneau en ligne) qui dit **où en est chaque membre quête par quête** : X/Y quêtes,
   quête en cours **et sa catégorie**, dernière validée ; le filtre de timeline reste accessible depuis la modale
@@ -29,10 +41,10 @@
   d'Ordre corrigé** : le studio écrivait l'id court de `ORDERS` (`vaillant`) alors que la route attend `coeur_vaillant`
   — source unique `src/lib/rush-order-codes.ts`, comparaison normalisée, jumelles d'Ordre en code canonique.
   ⑥ **T-4 (O14/T2)** : contraste garanti des **24** accents Dofus (`src/lib/rush-dofus-accent.ts`, 4,5:1 sur fond
-  clair **et** sombre). ⚠️ L'`aria-pressed` posé dans #1136 l'a été sur `DofusProgressStrip.tsx`, **non monté** (code
-  mort consigné dans `docs/plans/MODULE-RUSH-SYLVESTRE.md` §1.4) ; l'`aria-label` utile est sur le bandeau réel, livré
-  avec #1137. **Aucune migration.** ⚠️ Restent **T-4** G7/G8/G9/O15 (composition visuelle, à juger à l'écran), **S5-1**
-  (retrait de `alignOrderReq`) et le sort de `questDbIds` (écrit, **lu par aucune surface** aujourd'hui).
+  clair **et** sombre). ⚠️ L'`aria-pressed` posé dans #1136 visait `DofusProgressStrip.tsx`, **jamais monté** : le
+  fichier a été **supprimé le 27/10/2026** et le verrou T2 **repointé** sur le bandeau réel (`GuildStatusPanel`), livré
+  avec #1137. **Aucune migration.** ⚠️ Restent **T-4** G7/G8/G9/O15 (composition visuelle, à juger à l'écran) et le sort
+  de `questDbIds` (écrit ; seule la puce du studio God l'affiche, **aucune surface joueur**).
 - **Livré le 26/10/2026 — outil « Trame Rush » hors dépôt (prépare S1).** Siphon Tougli mesuré : **530** quêtes,
   **36** blocs, séries d'alignement **100 / 102**, **30** quêtes d'Ordre (6 × 5), **19** quêtes de classe, **99**
   donjons (**99** rapprochés de `Dungeon`, dont **3** alias), **361 / 384** quêtes Dofusyelle rapprochées et
@@ -190,8 +202,8 @@
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |
 |---|---|---|---|---|---|---|
-| 9 | `rush-refonte` (T) | Rush Sylvestre : ergonomie, temps réel, éditeur God, habillage Dofus, perf | **T-1, T-2, T-2b, T-3 livrés** le 08/10 · **T-2c livré** le 20/10 · **T-4 partiel** le 26/10 (**O14** contraste des **24** accents Dofus + **T2** état accessible du filtre) | **T-4** reste G7/G8/G9/O15 → T-5 → T-6 | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
-| 10 | `rush-donnees` (V) | Rush Sylvestre : agrégation unique des ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B livrés** le 10/10 · **V-G livré** · **V-F partiel** · **consolidation Tougli × Dofusyelle mesurée le 21/10** (100/102, 584 ressources, 30 Ordres, 19 classes) · **donjons cochables livrés** (S0-1 → S0-5bis, **S0-6**, **S0-7**) · **S4-1 livré** le 23/10/2026 (vue Branches 2 étages, `src/lib/rush-branches.ts`) · **outil Trame hors dépôt livré** le 26/10 · **S4-2 + S4-4 livrés** le 26/10 (route éditable sur une séquence **existante**, import **dry-run**, identité de quête assistée + `questDbIds` persistés) | **S1** (contenu) → V-C → V-D → V-H | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` · `docs/plans/MAPPING-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
+| 9 | `rush-refonte` (T) | Rush Sylvestre : ergonomie, temps réel, éditeur God, habillage Dofus, perf | **T-1, T-2, T-2b, T-3 livrés** le 08/10 · **T-2c livré** le 20/10 · **T-4 partiel** le 26/10 (**O14** contraste des **24** accents Dofus + **T2** état accessible du **bandeau réel**, verrou T2 repointé le 27/10 après suppression du composant mort) | **T-4** reste G7/G8/G9/O15 → T-5 → T-6 | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
+| 10 | `rush-donnees` (V) | Rush Sylvestre : agrégation unique des ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B livrés** le 10/10 · **V-G livré** · **V-F partiel** · **consolidation Tougli × Dofusyelle mesurée le 21/10** (100/102, 584 ressources, 30 Ordres, 19 classes) · **donjons cochables livrés** (S0-1 → S0-5bis, **S0-6**, **S0-7**) · **S4-1 livré** le 23/10/2026 (vue Branches 2 étages, `src/lib/rush-branches.ts`) · **outil Trame hors dépôt livré** le 26/10 · **S4-2 + S4-4 livrés** le 26/10 (route éditable sur une séquence **existante**, import **dry-run**, identité de quête assistée + `questDbIds` persistés) · **S5-1 partiel livré** le 27/10 (`alignOrderReq` ni lu ni écrit ; colonne conservée — drop = migration) | **S1** (contenu) → V-C → V-D → V-H | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` · `docs/plans/MAPPING-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
 | 11 | `tickets-v2` (C) | Module Tickets : finir la v2 (SLA, auto-fermeture, i18n, doublons) | 5 chantiers UX livrés le 20/10 ; **commandes slash personnalisées livrées le 21/10** ; **perfectionnements UX embed, custom CSAT, variables {staff}/{moderateur} et RBAC staff commandes le 22/10** · **renommage Discord suivi par le salon (cron `sync-members`) le 25/10** · **renommage temps réel par le bot (surnom ou nom d'utilisateur) le 25/10** | C-1 → C-4 | `docs/plans/PLAN-REFONTE-TICKETS-V2.md` | — |
 | 12 | `roles-multi` (Y+) | Moteur unique de rôles : ancienneté (projection) + vocal + contribution | cadré le 18/10, **aucun code** | R-1 (évaluateur + stockage) → R-2 (cron + annonces) → R-3 (onglet) | `docs/plans/PLAN-MOTEUR-ROLES-MULTI-SOURCES.md` | **D-R1** |
 | 13 | `commandes-slash` (Z) | Commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés) | **Z-1/Z-2 livrés le 24/10** (sync réelle rôles + salons, payloads dérivés du catalogue, scope God par guilde) · **25/10 : `/valider-recrue` fix pérenne anti-timeout** (résolution 0 ms à l'ouverture, deferred reply type 5 à la soumission) ; reste Z-3/Z-4 | Z-3 → Z-4 | `docs/plans/PLAN-COMMANDES-SLASH.md` | — |

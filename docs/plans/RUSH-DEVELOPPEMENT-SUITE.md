@@ -165,7 +165,7 @@ God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles re
 
 | Lot | Contenu |
 |---|---|
-| **S5-1** | Supprimer `alignOrderReq` et `alignmentLevel` quand toutes les surfaces sont migrées |
+| **S5-1** | Supprimer `alignOrderReq` et `alignmentLevel` quand toutes les surfaces sont migrées — ✅ **partiel le 27/10/2026** : `alignOrderReq` n'est **plus lu ni écrit** (client, 2 formulaires God, jumeau serveur, 2 seeds, sync enrichie) ; la **colonne** reste en base (**drop = migration ⇒ accord explicite**). `Profile.alignmentLevel` **reste** : c'est le palier du joueur, affiché par le profil et le panneau de guilde |
 | **S5-2** | Perf : **mesure d'abord** (profiler), puis compilateur React, `useOptimistic`, abonnements fins, virtualisation |
 
 ## 7 bis. Hors dépôt — la page « Trame » (outil de construction)

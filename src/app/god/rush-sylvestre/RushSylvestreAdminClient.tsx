@@ -103,7 +103,6 @@ type Sequence = {
   alignOrderCode?: string | null;
   alignLevelReq?: number | null;
   classReq?: string | null;
-  alignOrderReq?: number | null;
   /** Ids DofusDB des quêtes incarnées (`GameQuest.dofusDbId`) — bornés côté serveur. */
   questDbIds?: number[];
   dungeon?: { id: string; name: string; bossName: string; imageUrl?: string | null } | null;
@@ -1988,7 +1987,7 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
           {seq.alignReq && (
             <>
               <span className="px-1 py-0.5 rounded text-caption font-semibold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                {seq.alignReq}{seq.alignOrderReq ? ` lv.${seq.alignOrderReq}` : ""}
+                {seq.alignReq}
               </span>
               <TwinButton sequenceId={seq.id} />
               {seq.alignOrderCode && <OrderTwinButton sequenceId={seq.id} />}
@@ -2473,7 +2472,6 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   const [alignOrderCode, setAlignOrderCode] = useState(normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || ""));
   const [alignLevelReq, setAlignLevelReq] = useState(seq.alignLevelReq ? String(seq.alignLevelReq) : "");
   const [classReq, setClassReq] = useState(seq.classReq || "");
-  const [alignOrderReq, setAlignOrderReq] = useState(seq.alignOrderReq ? String(seq.alignOrderReq) : "");
   const [questDbIds, setQuestDbIds] = useState<number[]>(Array.isArray(seq.questDbIds) ? seq.questDbIds : []);
   const [note, setNote] = useState(seq.note || "");
   const [isSuccess, setIsSuccess] = useState(seq.isSuccess ?? false);
@@ -2913,7 +2911,6 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       alignOrderCode !== (normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || "")) ||
       alignLevelReq !== (seq.alignLevelReq ? String(seq.alignLevelReq) : "") ||
       classReq !== (seq.classReq || "") ||
-      alignOrderReq !== (seq.alignOrderReq ? String(seq.alignOrderReq) : "") ||
       questDbIds.join(",") !== (Array.isArray(seq.questDbIds) ? seq.questDbIds.join(",") : "") ||
       note !== (seq.note || "") ||
       isSuccess !== (seq.isSuccess ?? false) ||
@@ -2924,7 +2921,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       optionalDungeonIds.slice().sort().join(",") !==
         (seq.dungeons ?? []).filter((d: any) => d.isOptional).map((d: any) => d.id).sort().join(",")
     );
-  }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, alignOrderReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
+  }, [name, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
 
   // ── Aperçu « côté membre » (`E5`) ──────────────────────────────────────────
   // ⚠️ On ne réinvente PAS une vignette : la ligne de quête et la fiche « Détails » rendues plus
@@ -2956,12 +2953,11 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     alignOrderCode: alignOrderCode.trim() || null,
     alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
     classReq: classReq.trim() || null,
-    alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
     isSuccess,
     icon: icon.trim() || null,
     metamobMonsterId: metamobMonsterId ? parseInt(metamobMonsterId, 10) : null,
     activityTags: activityTags as RushActivityTag[],
-  }), [seq.id, seq.subGuideRef, seq.order, name, note, selectedDungeons, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, alignOrderReq, isSuccess, icon, metamobMonsterId, activityTags]);
+  }), [seq.id, seq.subGuideRef, seq.order, name, note, selectedDungeons, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, isSuccess, icon, metamobMonsterId, activityTags]);
 
   /** Bloc qui porte la quête éditée : la fiche « Détails » y lit son titre et son illustration. */
   const previewMilestone: RushMilestone = useMemo(() => {
@@ -3001,7 +2997,6 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
       alignOrderCode: alignOrderCode.trim() || null,
       alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
       classReq: classReq.trim() || null,
-      alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
       questDbIds,
       note: note.trim() || undefined,
       isSuccess,
@@ -4071,7 +4066,6 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [alignOrderCode, setAlignOrderCode] = useState("");
   const [alignLevelReq, setAlignLevelReq] = useState("");
   const [classReq, setClassReq] = useState("");
-  const [alignOrderReq, setAlignOrderReq] = useState("");
   const [questDbIds, setQuestDbIds] = useState<number[]>([]);
   const [note, setNote] = useState("");
   const [activityTags, setActivityTags] = useState<ActivityTag[]>([]);
@@ -4192,13 +4186,12 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
       alignOrderCode: alignOrderCode.trim() || null,
       alignLevelReq: alignLevelReq ? parseInt(alignLevelReq, 10) : null,
       classReq: classReq.trim() || null,
-      alignOrderReq: alignOrderReq ? parseInt(alignOrderReq, 10) : null,
       questDbIds,
       note: note.trim() || undefined,
       activityTags,
     });
     setName(""); setDofusdbUrl(""); setNoobsUrl(""); setTips(""); setAlignReq("");
-    setAlignOrderReq(""); setAlignOrderCode(""); setAlignLevelReq(""); setClassReq("");
+    setAlignOrderCode(""); setAlignLevelReq(""); setClassReq("");
     setQuestDbIds([]);
     setNote(""); setActivityTags([]); setSelectedDungeons([]); setOptionalDungeonIds([]); setDungeonQuery("");
     setSelectedDofusId(""); setPrereqs([]); setPrereqQuery("");

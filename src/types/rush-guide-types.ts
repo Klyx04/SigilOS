@@ -73,8 +73,6 @@ export type RushSequence = {
   alignLevelReq?: number | null;
   /** Classe requise (fec | osa | enu | …) — quêtes de classe. */
   classReq?: string | null;
-  /** @deprecated seuil de niveau historique, remplacé par `alignLevelReq`. */
-  alignOrderReq?: number | null;
   isSuccess?: boolean;
   icon?: string | null;
   metamobMonsterId?: number | null;

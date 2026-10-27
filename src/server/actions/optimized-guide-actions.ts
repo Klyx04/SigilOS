@@ -3063,8 +3063,17 @@ function enrBuildUpdate(seq: any, q: any) {
   if (q.dofuspourlesnoobsUrl && !seq.dofuspourlesnoobsUrl) data.dofuspourlesnoobsUrl = q.dofuspourlesnoobsUrl;
   if (q.questDbIds && Array.isArray(q.questDbIds) && q.questDbIds.length && (!Array.isArray(seq.questDbIds) || !seq.questDbIds.length)) data.questDbIds = q.questDbIds;
   if (q.mapPositions && Array.isArray(q.mapPositions) && q.mapPositions.length && (!Array.isArray(seq.mapPositions) || !seq.mapPositions.length)) data.mapPositions = q.mapPositions;
-  if (q.alignReq != null && seq.alignReq == null) data.alignReq = String(q.alignReq);
-  if (q.alignOrderReq != null && seq.alignOrderReq == null) data.alignOrderReq = q.alignOrderReq;
+  // Cité : on n'écrit qu'un CAMP reconnu, jamais un rang.
+  //
+  // Le payload enrichi porte un **rang** dans `alignReq` (1…99 : la position de la quête
+  // dans la série) et le camp dans `alignment.camp` — mesuré le 27/10/2026 : **104**
+  // entrées numériques. Écrire ce rang dans `alignReq` **masquait** la quête pour tout le
+  // monde : la route est fail-closed sur une cité inconnue (`isSequenceOnRoute`). Le champ
+  // legacy `alignOrderReq` (seuil de niveau) n'est plus écrit du tout (S5-1).
+  if (seq.alignReq == null) {
+    const camp = normalizeAlignmentCamp(q.alignment?.camp);
+    if (camp) data.alignReq = camp;
+  }
   if (q.dungeonIds && Array.isArray(q.dungeonIds) && q.dungeonIds.length && (!Array.isArray(seq.dungeonIds) || !seq.dungeonIds.length)) data.dungeonIds = q.dungeonIds;
   // Positions GPS : mapPositions (structuré x,y) -> tag « pos_tags » (lu par GOD/Dashboard/Overlay).
   // L'UI ne consomme que activityTags[pos_tags], jamais mapPositions directement.
@@ -3160,7 +3169,6 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
         dofuspourlesnoobsUrl?: string | null;
         dofusdbUrl?: string | null;
         alignReq?: string | null;
-        alignOrderReq?: number | null;
         dungeonNames?: string[];
         dungeonDbIds?: number[];
         mapPositions?: any;
@@ -3394,8 +3402,9 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
         subGuideName: seqName,
         dofuspourlesnoobsUrl: s.dofuspourlesnoobsUrl || null,
         dofusdbUrl: s.dofusdbUrl || null,
-        alignReq: s.alignReq || null,
-        alignOrderReq: s.alignOrderReq || null,
+        // Camp normalisé : un rang (`alignReq: 50`) devient `null` — on n'invente jamais
+        // une cité, et on ne masque jamais la quête (fail-closed de la route).
+        alignReq: normalizeAlignmentCamp(s.alignReq) ?? null,
         dungeonId: resolvedDungeonIds[0] ?? null,
         dungeonIds: resolvedDungeonIds,
         mapPositions: s.mapPositions || undefined,
@@ -3728,7 +3737,6 @@ export async function upsertRushSequence(data: {
   alignOrderCode?: string | null;
   alignLevelReq?: number | null;
   classReq?: string | null;
-  alignOrderReq?: number | null;
   note?: string;
   order?: number;
   isSuccess?: boolean;
@@ -3765,7 +3773,6 @@ export async function upsertRushSequence(data: {
     alignOrderCode: data.alignOrderCode ?? null,
     alignLevelReq: data.alignLevelReq ?? null,
     classReq: data.classReq ?? null,
-    alignOrderReq: data.alignOrderReq,
     note: data.note,
     order: data.order ?? undefined,
     isSuccess: data.isSuccess ?? false,
@@ -4030,7 +4037,9 @@ export async function importRushGuide(raw: unknown, apply = false) {
  * lisent ensuite en deux colonnes parallèles (slot miroir), sans dupliquer le guide.
  *
  * Fail-closed : une séquence sans `alignReq` exploitable est refusée (on ne devine pas
- * un camp). L'alignement d'Ordre (`alignOrderReq`, un seuil de niveau) est recopié.
+ * un camp). Le code d'Ordre (`alignOrderCode`) et son palier (`alignLevelReq`) sont
+ * recopiés : la jumelle est une quête d'Ordre **du camp opposé**. Le seuil legacy
+ * `alignOrderReq` n'est plus recopié (retiré le 27/10/2026, S5-1).
  */
 export async function duplicateRushSequenceAsTwin(sequenceId: string) {
   await requireRushAccess();
@@ -4063,7 +4072,10 @@ export async function duplicateRushSequenceAsTwin(sequenceId: string) {
       dofuspourlesnoobsUrl: source.dofuspourlesnoobsUrl,
       tips: source.tips,
       alignReq: twinCamp,
-      alignOrderReq: source.alignOrderReq,
+      // Le PALIER se recopie (il est symétrique entre les deux camps) ; le code d'Ordre,
+      // lui, appartient au camp d'origine : c'est la jumelle d'Ordre qui l'attribue
+      // (`duplicateRushSequenceOrderTwin`). L'ancien seuil `alignOrderReq` n'existe plus.
+      alignLevelReq: source.alignLevelReq,
       isSuccess: source.isSuccess,
       icon: source.icon,
       metamobMonsterId: source.metamobMonsterId,

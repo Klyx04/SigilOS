@@ -6,9 +6,9 @@
  * agrégation des ressources) : un prérequis masqué ne doit jamais bloquer une quête
  * visible — invariant n°1 du module.
  *
- * ⚠️ `alignOrderReq` est un **seuil de niveau** (il est comparé à `alignmentLevel`),
- * pas un code d'Ordre. Il ne sert donc PAS au filtrage : le guide doit montrer les
- * quêtes d'alignement à venir même si le niveau n'est pas encore atteint.
+ * ⚠️ Le seuil legacy `alignOrderReq` (comparé à `alignmentLevel`) a été **retiré** le
+ * 27/10/2026 (S5-1) : il valait `1` sur les 66 séquences qui le portaient, donc il ne
+ * verrouillait rien. Le palier réel est `alignLevelReq` + `alignmentCountForCamp`.
  */
 
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";

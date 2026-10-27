@@ -87,15 +87,34 @@ describe("rush-dofus-accent — lisibilité des accents", () => {
   });
 });
 
-/** T2 — le filtre Dofus est un bouton : son état doit être **annoncé**, pas seulement peint. */
-describe("rush-dofus-accent — état accessible du filtre Dofus (T2)", () => {
-  const strip = readFileSync(
-    path.join(process.cwd(), "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/DofusProgressStrip.tsx"),
+/**
+ * T2 — l'accessibilité du bandeau Dofus doit être **annoncée**, pas seulement peinte.
+ *
+ * GARDE REPOINTÉE le 27/10/2026 : elle lisait `DofusProgressStrip.tsx`, composant
+ * **jamais monté** (aucun import dans le dépôt) — supprimé au titre de la règle « pas de
+ * code mort ». Le bandeau réellement affiché est `GuildStatusPanel.tsx` : chaque Dofus y
+ * est un **bouton** qui ouvre sa modale, et la modale porte un titre + une description.
+ * Le verrou ne s'affaiblit pas : il vise le code rendu, et il garde l'action de filtre.
+ */
+describe("rush-dofus-accent — état accessible du bandeau Dofus (T2)", () => {
+  const panel = readFileSync(
+    path.join(process.cwd(), "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/GuildStatusPanel.tsx"),
     "utf8"
   );
 
-  it("expose aria-pressed et un libellé explicite sur chaque bouton de Dofus", () => {
-    expect(strip).toContain("aria-pressed={isActive}");
-    expect(strip).toMatch(/aria-label=\{`Filtrer sur le Dofus/);
+  it("annonce chaque Dofus du bandeau (nom, avancement, membres) sur un vrai bouton", () => {
+    expect(panel).toMatch(/<button[\s\S]{0,400}?aria-label=\{`Voir où en sont les membres sur le Dofus/);
+    expect(panel).toContain("${d.pct} %, ${d.membersInProgress.length} membre(s) engagé(s)");
+  });
+
+  it("annonce le titre et la description de la modale ouverte", () => {
+    expect(panel).toContain("<DialogTitle");
+    expect(panel).toContain("<DialogDescription");
+    expect(panel).toContain("{selected.completedMilestones}/{selected.totalMilestones} blocs validés");
+  });
+
+  it("garde le geste de filtre dans la modale (le seul filtre Dofus réel)", () => {
+    expect(panel).toContain("Filtrer les quêtes sur ce Dofus");
+    expect(panel).toContain("onFilterChange(activeFilter === selected.id ? null : selected.id)");
   });
 });

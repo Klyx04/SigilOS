@@ -13,7 +13,7 @@ description: Module Rush Sylvestre — agrégateur (carte des fichiers + chantie
 > - **Ordre d'exécution** (jamais dupliqué ici) → `docs/ROADMAP.md`
 > - Backlog + ordre → `docs/ROADMAP.md` ; blocs de session → `docs/agents/journal-sessions-2026.md`
 >
-> **Dernière MAJ : 10/10/2026.**
+> **Dernière MAJ : 27/10/2026.**
 
 ## 0. Gouvernance (3 niveaux)
 
@@ -47,7 +47,10 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 ### 1.4 Composants liés
 `ResourceImage` · `OcreProgressModal` · `DofusOcreMetamob` · `AlignmentModal` · `components/ocre/*` (dashboard ocre, `not-linked-state`, `OcreTargetBits`, panneau pierres) · `components/profile/metamob-link.tsx` · `hooks/use-ocre-write-queue`
 
-> ⚠️ **Code mort connu (26/10/2026)** : `dashboard/[guildId]/quetes-dofus/guide/[slug]/DofusProgressStrip.tsx` **n'est monté nulle part** — le bandeau réellement affiché est `GuildStatusPanel.tsx` (modale par Dofus depuis le 26/10). Le fichier porte un `aria-pressed` inutile. **Suppression à trancher** (règle « pas de code mort »).
+> ✅ **Code mort retiré (27/10/2026)** : `dashboard/[guildId]/quetes-dofus/guide/[slug]/DofusProgressStrip.tsx`
+> n'était monté nulle part (0 import) — il est **supprimé**. Le bandeau réellement affiché est `GuildStatusPanel.tsx`
+> (modale par Dofus depuis le 26/10), et c'est **lui** que le verrou T2 garde désormais (bouton + `aria-label`,
+> titre/description de la modale, geste de filtre) — il ne gardait auparavant qu'un composant mort.
 
 ### 1.5 Libs (`src/lib`)
 `rush-guide-utils.ts` (`resolveItemImage`, `rushResourceKey`, `isSequenceBlockedByPrereqs`, `getAlignmentSet`, `collectCascadeUncheck`…) · `rush-guide-view.ts` (`buildRushGuideView`, `computeRushAlignment`) · `rush-resources-preheat.ts` (pur, client-safe) · `rush-dofus-meta.ts` · `rush-rich-meta.ts` · `rush-ui-config.ts` · `guest-progress.ts` · `dofus-asset-siphon.ts` (`siphonAndCompressImage`, `siphonItemIconsBatchCore`) · `dofusdb-limiter.ts` / `dofusdb-throttle.ts` · `ocre-soul-stones.ts` · `ocre-write-queue.ts` · `metamob-client.ts` · `class-spells-siphon.ts`
@@ -72,8 +75,8 @@ Le détail suit le préfixe `rush-*` (`Get-ChildItem tests/unit -Filter 'rush-*.
 > L'**ordre** vit dans `docs/ROADMAP.md` ; ici, le **quoi**.
 
 ### T — Refonte rush (plan durable : `PLAN-REFONTE-RUSH-SYLVESTRE.md`)
-- **Reste** : T-2c (id de quête dans `prereq_text`) · **lot 4** — **O14** (contraste ✓ le 26/10 ; reste l'application générale des accents) et **T2** (filtre Dofus ✓) faits, restent **O15** motion sobre, **G7** hero, **G8** dépli `grid-template-rows`, **G9** célébration (**à arbitrer**) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
-- **Statut** : T-1 / T-2 / T-2b / T-3 livrés (PR #851 / #853 / #856 / #857) · **T-4 partiel** le 26/10/2026 (O14 + T2, PR #1136).
+- **Reste** : T-2c (id de quête dans `prereq_text`) · **lot 4** — **O14** (contraste ✓ le 26/10 ; reste l'application générale des accents) et **T2** (**bandeau réel** `GuildStatusPanel` ✓ ; verrou repointé le 27/10 après suppression de `DofusProgressStrip`) faits, restent **O15** motion sobre, **G7** hero, **G8** dépli `grid-template-rows`, **G9** célébration (**à arbitrer**) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
+- **Statut** : T-1 / T-2 / T-2b / T-3 livrés (PR #851 / #853 / #856 / #857) · **T-4 partiel** le 26/10/2026 (O14 + T2, PR #1136) · **T2 consolidé** le 27/10/2026 (composant mort supprimé, verrou sur le code rendu).
 
 ### U — Zéro dépendance DofusDB (cadré, aucun lot commencé)
 - **Lots** : U-1 inventaire / ratchet · U-2 réécrire les `img` des `*-compiled.json` · **U-3 plus de repli réseau** · U-4 recherches sur catalogue local · U-5 ops (health / crons / allowlist).

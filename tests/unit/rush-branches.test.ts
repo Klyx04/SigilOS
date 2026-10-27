@@ -139,6 +139,45 @@ describe("étage 2 — 3 Ordres × 5 paliers", () => {
     });
 });
 
+/**
+ * Le studio (S4-2) et l'import écrivent le code **canonique** (`coeur_vaillant`), le
+ * catalogue `ORDERS` porte l'id **court** (`vaillant`) : les deux doivent remplir le
+ * MÊME palier. C'est ce qui manquait le 27/10/2026 — les 30 quêtes importées tombaient
+ * toutes « hors branche » et la vue restait à 0/5.
+ */
+describe("codes d'Ordre — les deux vocabulaires remplissent les mêmes paliers", () => {
+    it("un code canonique remplit son palier (et n'est pas orphelin)", () => {
+        const view = buildRushBranches([
+            seq({ id: "ordre-cv", alignReq: "bontarien", alignOrderCode: "coeur_vaillant", alignLevelReq: 20 }),
+        ]);
+
+        const vaillant = view.camps[0].orders.find((o) => o.id === BONTA.id)!;
+        expect(vaillant.slots.find((s) => s.level === 20)?.sequences).toHaveLength(1);
+        expect(vaillant.missing).toBe(4);
+        expect(view.orphans).toEqual([]);
+        expect(countMissingOrderSlots(view)).toBe(29);
+    });
+
+    it("l'id court du catalogue remplit le même palier", () => {
+        const view = buildRushBranches([
+            seq({ id: "ordre-court", alignReq: "bontarien", alignOrderCode: BONTA.id, alignLevelReq: 40 }),
+        ]);
+
+        const vaillant = view.camps[0].orders.find((o) => o.id === BONTA.id)!;
+        expect(vaillant.slots.find((s) => s.level === 40)?.sequences).toHaveLength(1);
+        expect(view.orphans).toEqual([]);
+    });
+
+    it("un Ordre de l'autre cité est signalé, jamais rattaché d'office", () => {
+        const view = buildRushBranches([
+            seq({ id: "croise", alignReq: "bontarien", alignOrderCode: "coeur_saignant", alignLevelReq: 20 }),
+        ]);
+
+        expect(view.orphans.map((s) => s.id)).toEqual(["croise"]);
+        expect(countMissingOrderSlots(view)).toBe(30);
+    });
+});
+
 describe("orphelins — aucune perte silencieuse", () => {
     it("une cité inconnue finit en orphelin", () => {
         const view = buildRushBranches([

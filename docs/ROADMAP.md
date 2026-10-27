@@ -16,7 +16,10 @@
   `export-god-ordres.json` : **6 blocs × 5 paliers = 30 quêtes**, `dofusDbId` **résolu par le nom** dans `GameQuest`
   (**30/30**) et DPLN **30/30**, vérifié contre `planRushImport` (**6 blocs neufs, 30 quêtes neuves, 0 avertissement**) ;
   ③ **rien n'est appliqué** : le dry-run se fait dans God ▸ IMPORTER, par le mainteneur. Suite **5 567 ✓ / 530**. L'export
-  vit dans `src/temp/` (zone volatile, jamais commitée).
+  vit dans `src/temp/` (zone volatile, jamais commitée). ④ **Import appliqué le 27/10 puis bug de la vue Branches corrigé** :
+  les 30 quêtes sont **correctes en base** (`alignOrderCode` canonique, 5 par Ordre, 6 par palier), mais S4-1 comparait ces
+  codes aux **ids courts** du catalogue ⇒ tout tombait « hors branche » et les 30 emplacements restaient à `0/5` ; le
+  classement passe désormais par `normalizeOrderCode` (source unique `rush-order-codes`), **+3 cas**.
 - **Livré le 27/10/2026 — Rush : code mort retiré, `alignOrderReq` supprimé, un rang n'est pas une cité (branche
   `fix/rush-code-mort-legacy`).** ① `DofusProgressStrip.tsx` **supprimé** (composant **jamais monté**, 0 import) et le
   verrou T2 **repointé** sur le bandeau réel `GuildStatusPanel` (bouton + `aria-label`, titre/description de la modale,

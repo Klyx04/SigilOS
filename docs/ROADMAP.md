@@ -19,7 +19,10 @@
   vit dans `src/temp/` (zone volatile, jamais commitée). ④ **Import appliqué le 27/10 puis bug de la vue Branches corrigé** :
   les 30 quêtes sont **correctes en base** (`alignOrderCode` canonique, 5 par Ordre, 6 par palier), mais S4-1 comparait ces
   codes aux **ids courts** du catalogue ⇒ tout tombait « hors branche » et les 30 emplacements restaient à `0/5` ; le
-  classement passe désormais par `normalizeOrderCode` (source unique `rush-order-codes`), **+3 cas**.
+  classement passe désormais par `normalizeOrderCode` (source unique `rush-order-codes`), **+3 cas**. ⑤ **S1-4 (classes)** :
+  export `export-god-classes.json` (1 bloc, **19** quêtes, `dofusDbId` 19/19, DPLN 19/19) et **filtre de classe** branché
+  côté guide interne — `resolveDofusClassId` (le profil stocke un **libellé** « Féca », la route compare l'id `feca`) ⇒
+  chaque membre ne voit que sa quête ; côté visiteur les 19 restent visibles (sélecteur public à venir).
 - **Livré le 27/10/2026 — Rush : code mort retiré, `alignOrderReq` supprimé, un rang n'est pas une cité (branche
   `fix/rush-code-mort-legacy`).** ① `DofusProgressStrip.tsx` **supprimé** (composant **jamais monté**, 0 import) et le
   verrou T2 **repointé** sur le bandeau réel `GuildStatusPanel` (bouton + `aria-label`, titre/description de la modale,

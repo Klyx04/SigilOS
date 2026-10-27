@@ -121,12 +121,14 @@ voir §3 et `MAPPING-RUSH-SYLVESTRE.md`).
 | Lot | Contenu | Cible mesurée | Taille |
 |---|---|---|---|
 | **S1-1** | Série **Bontarien** : 100 quêtes ordonnées, `alignReq="bontarien"`, pas d'Ordre | 100 (66 déjà présentes → **34** à créer) | M |
-| **S1-2** | Série **Brâkmarien** : 102 quêtes ordonnées | **102** (0 aujourd'hui) | M |
-| **S1-3** | **30 quêtes d'Ordre** : `alignReq` + `alignOrderCode` + `alignLevelReq` **dérivé par position** (20/40/60/80/100) | 6 × 5 | M |
-| **S1-4** | **19 quêtes de classe** : `classReq` sur la branche Astrub (1 seule s'affiche) | 19 | S |
+| **S1-2** | Série **Brâkmarien** : 102 quêtes ordonnées | **102** (1 présente aujourd'hui → **101** à créer) | M |
+| **S1-3** | **30 quêtes d'Ordre** : `alignReq` + `alignOrderCode` + `alignLevelReq` **dérivé par position** (20/40/60/80/100) | 6 × 5 | ✅ **livré le 27/10/2026** — export `export-god-ordres.json` (6 blocs × 5, `dofusDbId` résolu par nom 30/30, DPLN 30/30) importé dans God ▸ JSON ; **vue Branches à 5/5 × 6** après correctif du classement (`normalizeOrderCode`) |
+| **S1-4** | **19 quêtes de classe** : `classReq` sur la branche Astrub (1 seule s'affiche) | 19 | ✅ **export prêt le 27/10/2026** — `export-god-classes.json` (1 bloc, 19 quêtes, `dofusDbId` 19/19, DPLN 19/19) ; le **filtre de classe** est branché côté guide interne (`resolveDofusClassId` : le profil stocke un **libellé**, la route compare des **ids**) ⇒ chaque membre ne voit que sa quête |
 | **S1-5** | **Prérequis** : chaîne commune (1958→1859) sans les 19 liens de `1960` | 11 lignes | S |
 | **S1-6** | **Groupes parallèles** (16) : les quêtes d'un groupe ne s'ordonnent pas entre elles | 16 groupes | S |
 | **S1-7** | **Prises anticipées** (49) : `takeEarly` sur la séquence cible | 49 | S |
+
+**Reste à trancher** : côté **visiteur** (guide public), ni la cité ni la classe ne sont connues ⇒ les 19 quêtes de classe s'affichent toutes jusqu'à un **sélecteur de classe** public (même famille que le sélecteur d'Ordre).
 
 **Méthode de saisie** : partir de la liste ordonnée (index = `order`), pas du nom ; les **jumelles**
 God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles recopient les noms).

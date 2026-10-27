@@ -11,6 +11,7 @@ import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuest
 import OptimizedGuideClient from "./OptimizedGuideClient";
 import RushTimelineClient from "./RushTimelineClient";
 import { resolveRushRoute } from "@/lib/rush-route";
+import { resolveDofusClassId } from "@/lib/dofus-assets";
 
 type Props = {
     params: Promise<{ guildId: string; slug: string }>;
@@ -164,12 +165,19 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     const mules = (user.altPseudos as any[] | undefined) || [];
 
     // Route d'alignement (lot 5) : on filtre AVANT la vue, les prérequis et l'agrégation.
-    // Le camp vient du personnage SÉLECTIONNÉ (mule incluse), sinon du profil principal.
-    // Sans choix renseigné, rien n'est masqué : on ne vide jamais le guide par défaut.
-    const routeCamp = altPseudo
-        ? (userProfile.altPseudos as any[] | undefined)?.find((m) => m?.pseudo === altPseudo)?.alignment ?? null
-        : userProfile.alignment ?? null;
-    const routeMilestones = resolveRushRoute((guide.milestones as any[]) || [], { camp: routeCamp });
+    // Le camp et la **classe** viennent du personnage SÉLECTIONNÉ (mule incluse), sinon du
+    // profil principal. Sans choix renseigné, rien n'est masqué : on ne vide jamais le guide.
+    // ⚠️ `UserProfile.classe` est un **libellé** (« Féca », « sram ») : on le ramène à l'**id**
+    // (`feca`) avant la route, sinon la comparaison stricte masquerait les quêtes de classe.
+    const selectedMule = altPseudo
+        ? (userProfile.altPseudos as any[] | undefined)?.find((m) => m?.pseudo === altPseudo) ?? null
+        : null;
+    const routeCamp = selectedMule ? selectedMule.alignment ?? null : userProfile.alignment ?? null;
+    const routeClass = resolveDofusClassId(selectedMule ? selectedMule.classe : userProfile.dofusClass);
+    const routeMilestones = resolveRushRoute((guide.milestones as any[]) || [], {
+        camp: routeCamp,
+        playerClass: routeClass,
+    });
 
     return (
         <div className="flex flex-col w-full h-full">

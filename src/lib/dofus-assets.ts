@@ -87,6 +87,21 @@ export function matchDofusClass(value: string | null | undefined): string | null
 }
 
 /**
+ * **Id** de classe à partir d'un id **ou** d'un libellé (`feca`, `Féca`, `FECA`), `null` si
+ * inconnue.
+ *
+ * Pourquoi : `UserProfile.classe` stocke un **libellé** (« Féca », « sram » — mesuré en base
+ * le 27/10/2026) alors que `GuideSequence.classReq` et la route du guide comparent des **ids**
+ * (`feca`). Comparer les deux tels quels masquerait toutes les quêtes de classe (la route est
+ * fail-closed sur une valeur inconnue).
+ */
+export function resolveDofusClassId(value: string | null | undefined): string | null {
+    const n = normalizeDofusClass(value);
+    if (!n) return null;
+    return DOFUS_CLASSES.find((c) => c.id === n || normalizeDofusClass(c.name) === n)?.id ?? null;
+}
+
+/**
  * Classe **effective** d'un inscrit : celle choisie pour l'inscription, sinon celle du
  * profil Dofus du membre, sinon `null` (« Sans classe » au regroupement).
  *

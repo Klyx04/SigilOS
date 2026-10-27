@@ -214,5 +214,7 @@ describe("importRushGuide — garde de l'action serveur", () => {
     // Les liens passent par l'allowlist d'hôte — jamais recopiés tels quels.
     expect(body).toContain('safeRushGuideLink("dofusdb", sequence.dofusdbUrl)');
     expect(body).toContain('safeRushGuideLink("noobs", sequence.dofuspourlesnoobsUrl)');
+    // Étape à variantes exclusives : le tag est construit par la règle pure, jamais à la main.
+    expect(body).toContain("activityTags: choiceGroupTag(sequence.choiceGroup) ?? []");
   });
 });

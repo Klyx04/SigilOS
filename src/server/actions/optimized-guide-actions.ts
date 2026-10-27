@@ -15,6 +15,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { resetAlignmentQuests } from "@/server/rush-alignment";
 import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
 import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "@/lib/rush-import";
+import { applyChoiceExclusivity, choiceGroupTag, stepCounts } from "@/lib/rush-choice-groups";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
@@ -1082,13 +1083,12 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
   const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
     Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
 
-  const contentIds = (milestone.sequences || []).filter((s) => !isInfoSeq(s)).map((s) => s.id);
+  const contentSeqs = (milestone.sequences || []).filter((s) => !isInfoSeq(s));
+  const contentIds = contentSeqs.map((s) => s.id);
   const contentSet = new Set(contentIds);
-  const incoming = Array.isArray(seqIds)
+  const requested = Array.isArray(seqIds)
     ? [...new Set(seqIds.filter((id): id is string => typeof id === "string" && contentSet.has(id)))].slice(0, 500)
     : [];
-  const checkedSet = new Set(incoming);
-  const isCompleted = contentIds.length > 0 && contentIds.every((id) => checkedSet.has(id));
 
   // État AVANT écriture : les séquences cochées qui ne le sont plus = INVALIDÉES.
   // (Une quête invalidée fait repartir à zéro les coches manuelles de ses ressources.)
@@ -1099,13 +1099,21 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
   const previouslyChecked = Array.isArray(before?.completedSteps)
     ? (before!.completedSteps as string[])
     : [];
+  const newlyChecked = requested.filter((id) => !previouslyChecked.includes(id));
+
+  // ── Variantes EXCLUSIVES (étape à choix) ────────────────────────────────────
+  // Cocher une variante retire ses sœurs de l'étape ; la première du lot gagne. Une étape
+  // à choix compte pour **une** étape : `stepCounts` porte la règle (aucune copie ici).
+  const incoming = applyChoiceExclusivity(contentSeqs, requested, newlyChecked);
+  const checkedSet = new Set(incoming);
+  const counts = stepCounts(contentSeqs, checkedSet);
+  const isCompleted = counts.total > 0 && counts.done === counts.total;
   const unvalidatedSeqIds = previouslyChecked.filter((id) => !checkedSet.has(id));
 
   // ── Verrou de DONJONS (S0-4) ────────────────────────────────────────────────
   // Une quête **nouvellement** cochée dont un donjon **requis** n'est pas marqué
   // « fait » est refusée : le client ne fait pas foi, la règle est ici. Un donjon
   // optionnel ne bloque jamais, et décocher reste toujours possible.
-  const newlyChecked = incoming.filter((id) => !previouslyChecked.includes(id));
   if (newlyChecked.length > 0) {
     const stateRows = await db.playerGuideDungeonState.findMany({
       where: { profileId, guideId: milestone.guide.id, characterSlot },
@@ -3865,6 +3873,9 @@ const RushImportSequenceSchema = z.object({
   alignOrderCode: z.string().trim().max(48).nullish(),
   alignLevelReq: z.number().int().min(1).max(200).nullish(),
   classReq: z.string().trim().max(32).nullish(),
+  // Étape à variantes exclusives : la valeur est bornée ici, le tag est construit par la
+  // règle pure `choiceGroupTag` (une seule source pour la convention).
+  choiceGroup: z.string().trim().max(48).nullish(),
   // Liens de fiche : bornés ici, **validés** (hôte + https) par `safeRushGuideLink`.
   dofusdbUrl: z.string().trim().max(500).nullish(),
   dofuspourlesnoobsUrl: z.string().trim().max(500).nullish(),
@@ -3998,6 +4009,8 @@ export async function importRushGuide(raw: unknown, apply = false) {
         alignOrderCode: normalizeOrderCode(sequence.alignOrderCode),
         alignLevelReq: sequence.alignLevelReq ?? null,
         classReq: (sequence.classReq ?? "").trim().toLowerCase() || null,
+        // Variante exclusive : le tag `choice_group` (même convention que le studio).
+        activityTags: choiceGroupTag(sequence.choiceGroup) ?? [],
         // Liens : allowlist d'hôte (`https` seulement) — même règle que le dry-run.
         dofusdbUrl: safeRushGuideLink("dofusdb", sequence.dofusdbUrl),
         dofuspourlesnoobsUrl: safeRushGuideLink("noobs", sequence.dofuspourlesnoobsUrl),

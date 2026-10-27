@@ -28,6 +28,8 @@ export type RushImportSequence = {
     alignOrderCode?: string | null;
     alignLevelReq?: number | null;
     classReq?: string | null;
+    /** Étape à **variantes exclusives** : même valeur = même étape (une seule est jouée). */
+    choiceGroup?: string | null;
     /** Lien de la fiche DofusDB (`dofusdb.fr` uniquement) — validé, jamais deviné. */
     dofusdbUrl?: string | null;
     /** Lien DPLN (`dofuspourlesnoobs.com` uniquement) — première source du module. */

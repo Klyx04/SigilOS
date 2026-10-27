@@ -38,6 +38,7 @@ import {
   type DungeonInfo,
   type RushResourceAgg,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import { stepCounts } from "@/lib/rush-choice-groups";
 
 /** Coordonnée telle que la résout le module (`pos_tags` > titre > tips > note). */
 export type RushCoord = NonNullable<ReturnType<typeof getSequenceCoord>>;
@@ -265,11 +266,11 @@ export function buildRushGuideView(input: RushGuideViewInput): RushGuideView {
   let totalSteps = 0;
   let doneSteps = 0;
   for (const ms of countableBlocks) {
-    for (const seq of ms.sequences) {
-      if (isInfoSequence(seq)) continue;
-      totalSteps += 1;
-      if (completed.has(seq.id)) doneSteps += 1;
-    }
+    // Les étapes à **variantes exclusives** comptent pour UNE étape (règle partagée).
+    const steps = ms.sequences.filter((s) => !isInfoSequence(s));
+    const counts = stepCounts(steps, completed);
+    totalSteps += counts.total;
+    doneSteps += counts.done;
   }
   const remainingSteps = Math.max(0, totalSteps - doneSteps);
   const percent = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
@@ -283,8 +284,9 @@ export function buildRushGuideView(input: RushGuideViewInput): RushGuideView {
 
   const journal: RushBlockView[] = countableBlocks.map((ms) => {
     const steps = ms.sequences.filter((s) => !isInfoSequence(s));
-    const done = steps.filter((s) => completed.has(s.id)).length;
-    const isDone = steps.length > 0 && done === steps.length;
+    const stepTotals = stepCounts(steps, completed);
+    const done = stepTotals.done;
+    const isDone = stepTotals.total > 0 && stepTotals.done === stepTotals.total;
 
     // La dépendance affichée est celle de la PREMIÈRE étape encore à faire :
     // c'est elle qui explique pourquoi le bloc est verrouillé.
@@ -312,7 +314,7 @@ export function buildRushGuideView(input: RushGuideViewInput): RushGuideView {
       chapter: ms.chapter,
       chapterLabel: ms.chapterLabel,
       isOptional: !!ms.isOptional,
-      steps: steps.length,
+      steps: stepTotals.total,
       done,
       state,
       coord: coordSeq ? getSequenceCoord(coordSeq) : null,

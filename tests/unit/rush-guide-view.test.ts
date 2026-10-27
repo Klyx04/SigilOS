@@ -167,6 +167,39 @@ describe("rush-guide-view (vue partagée public ↔ guilde)", () => {
       expect(isCountableBlock({ type: "INFO" })).toBe(false);
       expect(isCountableBlock({ type: "SEPARATEUR" })).toBe(false);
     });
+
+    /**
+     * Étape 55 (DPLN) : « Un maître ès pion » puis **une** des trois variantes. Le groupe doit
+     * compter pour UNE étape et être terminé dès qu'une variante est cochée — sinon le bloc
+     * affiche 1/3 à vie et la progression ne peut jamais atteindre 100 %.
+     */
+    it("une étape à variantes exclusives compte pour UNE étape, terminée par n'importe laquelle", () => {
+      const tag = { type: "choice_group", name: "55" };
+      const guide: RushMilestone[] = [
+        block("m-p60", "QUETE_SERIE", 1, [
+          seq("magnanime", { activityTags: [tag], order: 1 }),
+          seq("kamas", { activityTags: [tag], order: 2, isOptional: true }),
+          seq("assassinat", { activityTags: [tag], order: 3, isOptional: true }),
+          seq("supermilicien", { order: 4 }),
+        ]),
+      ];
+
+      const empty = buildRushGuideView({ milestones: guide });
+      expect(empty.counters.totalSteps).toBe(2);
+      expect(empty.counters.doneSteps).toBe(0);
+      expect(empty.journal[0].steps).toBe(2);
+
+      const oneVariant = buildRushGuideView({ milestones: guide, completedSeqIds: ["assassinat"] });
+      expect(oneVariant.counters.doneSteps).toBe(1);
+      expect(oneVariant.journal[0].done).toBe(1);
+
+      const complete = buildRushGuideView({
+        milestones: guide,
+        completedSeqIds: ["assassinat", "supermilicien"],
+      });
+      expect(complete.counters.percent).toBe(100);
+      expect(complete.journal[0].state).toBe("done");
+    });
   });
 
   describe("étape active — une seule action", () => {

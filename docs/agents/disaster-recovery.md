@@ -29,14 +29,25 @@ gpg --version      # GPG (déchiffrement AES-256)
 docker ps          # Docker opérationnel
 ```
 
+> 🔑 **`BACKUP_ENCRYPTION_KEY` doit être disponible HORS du VPS** (gestionnaire de mots de passe
+> du mainteneur, coffre hors ligne). La clé ne vit que dans `.env.prod` / `.env.beta` : si le VPS
+> est perdu, elle part avec lui et **toutes les archives R2 deviennent illisibles**. Un PRA sans
+> cette clé rangée ailleurs n'est pas un PRA.
+
 ---
 
 ## 🚀 Procédure de Restauration Rapide (1-Clic Automatisé)
 
+> ⚠️ **Arrêter les conteneurs applicatifs avant** (`sigilos-prod`, `sigilos-beta`, worker, bot, ws) :
+> `pg_dumpall -c` commence par des `DROP DATABASE`, qu'une connexion active fait échouer. Depuis le
+> 29/10/2026 le script s'arrête à la première erreur (`ON_ERROR_STOP=1`) et sort en **code 1** au
+> lieu d'annoncer un faux succès : un échec est visible, mais il ne répare rien.
+
 ### A. Restauration de la Prod depuis le dernier backup Beta (Bascule Jour J)
 ```bash
-# Télécharge automatiquement le dernier backup Beta sur R2, le déchiffre et l'injecte dans sigilos-db-prod :
-./scripts/restore_db.sh prod --download-latest
+# `--from beta` = on lit la SOURCE (beta) et on écrit dans la CIBLE (prod).
+# Sans `--from`, le script restaure le dernier backup de la cible (`sigilos_prod_`).
+./scripts/restore_db.sh prod --download-latest --from beta
 ```
 
 ### B. Restauration d'Urgence Prod (Dernier backup Prod)
@@ -47,7 +58,7 @@ docker ps          # Docker opérationnel
 
 ### C. Restauration d'un fichier spécifique
 ```bash
-# Si tu souhaites cibler un timestamp précis :
+# Le nom nu est résolu dans `backups/db/` (plus besoin du chemin complet) :
 ./scripts/restore_db.sh prod sigilos_prod_2026-08-31_04-00-00.sql.gz.gpg
 ```
 
@@ -80,7 +91,26 @@ docker restart sigilos-prod
 ---
 
 ## 🕐 Fréquence & Rétention des Backups
-- **Fréquence :** Chaque nuit à **4h00** via `scripts/backup_db.sh` dans le crontab.
-- **Chiffrement :** Symétrique AES-256 avec la clé `BACKUP_ENCRYPTION_KEY`.
-- **Rétention Locale :** 3 jours (purgé automatiquement).
-- **Rétention R2 :** Géré par la Lifecycle Rule du bucket Cloudflare R2 `sigilos-backups`.
+- **Fréquence :** chaque nuit à **3h00 UTC** (4h00 Paris l'hiver) via `scripts/backup_db.sh` dans le crontab.
+- **Chiffrement :** symétrique AES-256 avec la clé `BACKUP_ENCRYPTION_KEY` (voir le prérequis hors site).
+- **Rétention locale :** les **5** derniers `.gpg` (`BACKUP_LOCAL_KEEP`), jamais supprimés « au temps »
+  sans tenir compte de ce qui reste — l'ancien `-mtime +3` pouvait emporter la seule copie restante
+  pendant une panne d'upload.
+- **Rétention R2 :** **bornée par le script lui-même**, pas par une Lifecycle Rule externe (celle-ci se
+  perd avec l'abonnement Cloudflare — mesuré le 29/10/2026) :
+  **7 derniers dumps** (`BACKUP_KEEP_DAILY`) + **le dernier de chacun des 3 derniers mois**
+  (`BACKUP_KEEP_MONTHLY`), avec un **plafond dur de 4 Go** (`BACKUP_R2_MAX_MB`, soit 40 % des 10 Go du
+  plan gratuit). Au-delà, le script purge du plus ancien et **alerte** si le plafond reste dépassé.
+- **Coût :** plan gratuit R2 (10 Go, 1 M op. A, 10 M op. B / mois). Écritures et suppressions d'un dump
+  par nuit = quelques opérations par mois ; la sortie de données est gratuite. **Aucune facture tant
+  que le bucket reste sous le plafond** — d'où le plafond dans le script plutôt qu'une confiance dans
+  la règle Cloudflare.
+
+## ⚠️ Ce qui n'est PAS dans le dump
+
+| Non sauvegardé | Conséquence | Contournement |
+|---|---|---|
+| `private_uploads` (preuves, visuels de guilde, médias marché) | images cassées après restauration | volume Docker sur le VPS : à copier à part si le disque est perdu |
+| Redis (files BullMQ, caches) | jobs en attente perdus, aucun impact sur les données | — |
+| `.env.*` (secrets, dont `BACKUP_ENCRYPTION_KEY`) | réinstallation complète impossible sans eux | coffre hors ligne obligatoire |
+| État antérieur à J-1 | RPO = 24 h (pas d'archivage WAL) | — |

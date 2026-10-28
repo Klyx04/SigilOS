@@ -9,25 +9,16 @@
 
 ## 0. Reprise immédiate
 
-- **Préparé le 27/10/2026 — S1 : les 30 quêtes d'Ordre prêtes à importer (branche `fix/rush-code-mort-legacy`).**
-  ① L'**import** porte désormais les **liens de fiche** (`dofusdbUrl` / `dofuspourlesnoobsUrl`) : allowlist d'hôte
-  (`dofusdb.fr`, `dofuspourlesnoobs.com`) + `https`, règle pure `safeRushGuideLink` — un lien refusé devient un
-  **avertissement** dans le dry-run, jamais une URL arbitraire en base ; ② l'outil Trame a produit
-  `export-god-ordres.json` : **6 blocs × 5 paliers = 30 quêtes**, `dofusDbId` **résolu par le nom** dans `GameQuest`
-  (**30/30**) et DPLN **30/30**, vérifié contre `planRushImport` (**6 blocs neufs, 30 quêtes neuves, 0 avertissement**) ;
-  ③ **rien n'est appliqué** : le dry-run se fait dans God ▸ IMPORTER, par le mainteneur. Suite **5 567 ✓ / 530**. L'export
-  vit dans `src/temp/` (zone volatile, jamais commitée). ④ **Import appliqué le 27/10 puis bug de la vue Branches corrigé** :
-  les 30 quêtes sont **correctes en base** (`alignOrderCode` canonique, 5 par Ordre, 6 par palier), mais S4-1 comparait ces
-  codes aux **ids courts** du catalogue ⇒ tout tombait « hors branche » et les 30 emplacements restaient à `0/5` ; le
-  classement passe désormais par `normalizeOrderCode` (source unique `rush-order-codes`), **+3 cas**. ⑤ **S1-4 (classes)** :
-  export `export-god-classes.json` (1 bloc, **19** quêtes, `dofusDbId` 19/19, DPLN 19/19) et **filtre de classe** branché
-  côté guide interne — `resolveDofusClassId` (le profil stocke un **libellé** « Féca », la route compare l'id `feca`) ⇒
-  chaque membre ne voit que sa quête ; côté visiteur les 19 restent visibles (sélecteur public à venir). ⑥ **Cités remesurées
-  PAR NOM** : Bontarien **98/100** (2 à créer) dont **32 présentes sans `alignReq`** (visibles aux deux camps, non comptées) ;
-  Brâkmarien **0/102** ⇒ `export-god-cites.json` (**6 blocs / 104 quêtes**, plan vérifié 104 neuves / 0 avertissement) et
-  `tag-bonta-alignment.mjs` (dry-run : **32**, `WHERE alignReq IS NULL`) prêts. ⑦ **Paires alignées corrigées** : le tri utilise
-  l'**ordre du bloc** puis l'ordre interne (`seq.order` repart à 0 dans chaque bloc ⇒ la table sortait en **alphabet** ;
-  « L'exorciste » passe de la position **68** à **99**, vérifié en base), **+2 cas**.
+- **Livré le 27/10/2026 — S1 : le contenu est entré, l'étape à choix modélisée (branche `fix/rush-code-mort-legacy`, PR #1139).**
+  ① **Import outillé** : liens de fiche (`dofusdbUrl`/`dofuspourlesnoobsUrl`) portés par le payload, **allowlist d'hôte + https**
+  (`safeRushGuideLink`) ; ② **30 quêtes d'Ordre** importées (**6 × 5/5**) — la vue Branches comparait les codes **canoniques** aux
+  **ids courts** du catalogue, tout tombait « hors branche » : classement via `normalizeOrderCode` ; ③ **19 classes** + **filtre de
+  classe** (`resolveDofusClassId` : libellé « Féca » → id `feca`) ; ④ **cités** : Bontarien **100/100** (doublon « Entraînement
+  avec JF » supprimé — c'était Tarche, `quest 55` ; Bandanarthrie #65 et Le subterfuge #70 remis dans leurs blocs) et Brâkmarien
+  **102 + 3 variantes** ; **32 quêtes taguées** `alignReq` ; ⑤ **paires alignées** triées par **ordre de bloc** (« L'exorciste »
+  68 → **100**) ; ⑥ **étape à choix** : tag `choice_group` (**sans migration**), règle pure `rush-choice-groups` (un groupe =
+  **1** étape ; cocher une variante **dé-coche** ses sœurs côté serveur), **5 variantes** taguées ; ⑦ lot parallèle **boss
+  multi-boss** englobé (commit séparé). Suite **5 584 ✓ / 533**, `tsc` 0, `lint` 0. **Aucune migration, aucune donnée perdue.**
 - **Livré le 27/10/2026 — Rush : code mort retiré, `alignOrderReq` supprimé, un rang n'est pas une cité (branche
   `fix/rush-code-mort-legacy`).** ① `DofusProgressStrip.tsx` **supprimé** (composant **jamais monté**, 0 import) et le
   verrou T2 **repointé** sur le bandeau réel `GuildStatusPanel` (bouton + `aria-label`, titre/description de la modale,
@@ -222,7 +213,7 @@
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |
 |---|---|---|---|---|---|---|
 | 9 | `rush-refonte` (T) | Rush Sylvestre : ergonomie, temps réel, éditeur God, habillage Dofus, perf | **T-1, T-2, T-2b, T-3 livrés** le 08/10 · **T-2c livré** le 20/10 · **T-4 partiel** le 26/10 (**O14** contraste des **24** accents Dofus + **T2** état accessible du **bandeau réel**, verrou T2 repointé le 27/10 après suppression du composant mort) | **T-4** reste G7/G8/G9/O15 → T-5 → T-6 | `docs/plans/PLAN-REFONTE-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
-| 10 | `rush-donnees` (V) | Rush Sylvestre : agrégation unique des ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B livrés** le 10/10 · **V-G livré** · **V-F partiel** · **consolidation Tougli × Dofusyelle mesurée le 21/10** (100/102, 584 ressources, 30 Ordres, 19 classes) · **donjons cochables livrés** (S0-1 → S0-5bis, **S0-6**, **S0-7**) · **S4-1 livré** le 23/10/2026 (vue Branches 2 étages, `src/lib/rush-branches.ts`) · **outil Trame hors dépôt livré** le 26/10 · **S4-2 + S4-4 livrés** le 26/10 (route éditable sur une séquence **existante**, import **dry-run**, identité de quête assistée + `questDbIds` persistés) · **S5-1 partiel livré** le 27/10 (`alignOrderReq` ni lu ni écrit ; colonne conservée — drop = migration) | **S1** (contenu) → V-C → V-D → V-H | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` · `docs/plans/MAPPING-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
+| 10 | `rush-donnees` (V) | Rush Sylvestre : agrégation unique des ressources, ids/icônes, alignement, ocre, Metamob | **V-A, V-B livrés** le 10/10 · **V-G livré** · **V-F partiel** · **consolidation Tougli × Dofusyelle mesurée le 21/10** (100/102, 584 ressources, 30 Ordres, 19 classes) · **donjons cochables livrés** (S0-1 → S0-5bis, **S0-6**, **S0-7**) · **S4-1 livré** le 23/10/2026 (vue Branches 2 étages, `src/lib/rush-branches.ts`) · **outil Trame hors dépôt livré** le 26/10 · **S4-2 + S4-4 livrés** le 26/10 (route éditable sur une séquence **existante**, import **dry-run**, identité de quête assistée + `questDbIds` persistés) · **S5-1 partiel livré** le 27/10 (`alignOrderReq` ni lu ni écrit ; colonne conservée — drop = migration) · **S1 avancé le 27/10** (PR #1139) : cités **100/102 + 3 variantes**, **30** quêtes d'Ordre (**6 × 5/5**), **19** classes + filtre de classe, modèle **étape à choix** (`choice_group`) | **textes** (tips) → sélecteur d'Ordre → V-C → V-D → V-H | `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` · `docs/plans/MAPPING-RUSH-SYLVESTRE.md` · `docs/plans/MODULE-RUSH-SYLVESTRE.md` | — |
 | 11 | `tickets-v2` (C) | Module Tickets : finir la v2 (SLA, auto-fermeture, i18n, doublons) | 5 chantiers UX livrés le 20/10 ; **commandes slash personnalisées livrées le 21/10** ; **perfectionnements UX embed, custom CSAT, variables {staff}/{moderateur} et RBAC staff commandes le 22/10** · **renommage Discord suivi par le salon (cron `sync-members`) le 25/10** · **renommage temps réel par le bot (surnom ou nom d'utilisateur) le 25/10** | C-1 → C-4 | `docs/plans/PLAN-REFONTE-TICKETS-V2.md` | — |
 | 12 | `roles-multi` (Y+) | Moteur unique de rôles : ancienneté (projection) + vocal + contribution | cadré le 18/10, **aucun code** | R-1 (évaluateur + stockage) → R-2 (cron + annonces) → R-3 (onglet) | `docs/plans/PLAN-MOTEUR-ROLES-MULTI-SOURCES.md` | **D-R1** |
 | 13 | `commandes-slash` (Z) | Commandes slash personnalisées (catalogue ∪ guilde, payloads dérivés) | **Z-1/Z-2 livrés le 24/10** (sync réelle rôles + salons, payloads dérivés du catalogue, scope God par guilde) · **25/10 : `/valider-recrue` fix pérenne anti-timeout** (résolution 0 ms à l'ouverture, deferred reply type 5 à la soumission) ; reste Z-3/Z-4 | Z-3 → Z-4 | `docs/plans/PLAN-COMMANDES-SLASH.md` | — |

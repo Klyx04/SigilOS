@@ -17,7 +17,7 @@ Logs: /home/sigiladmin/SigilOS/logs/backup.log
 2. Compression gzip
 3. Chiffrement GPG
 4. Upload vers Cloudflare R2
-5. Rotation locale (**3 jours** — `find … -mtime +3 -delete`, `scripts/backup_db.sh`) : **R2 est l'archive**, pas la copie locale
+5. Rotation locale (**5** derniers fichiers — `BACKUP_LOCAL_KEEP`, `scripts/backup_db.sh`) et rotation R2 **bornée par le script** (7 quotidiens + dernier de 3 mois, plafond **4 Go**) : **R2 est l'archive**, pas la copie locale
 
 ### Maintenance (4h00 UTC)
 ```bash
@@ -520,9 +520,10 @@ sudo docker compose -f docker-compose.prod.yml --env-file .env.beta exec app-bet
 - **Critique**: app-prod, app-beta, db-prod, db-beta, caddy, redis
 
 ### Backups
-- **Fréquence**: Quotidien @ 3h UTC
-- **Rétention**: 30 jours local, illimité R2
-- **Vérification**: `ls -lh backups/db/`
+- **Fréquence**: Quotidien @ 3h UTC (`scripts/backup_db.sh`, plan gratuit R2)
+- **Rétention locale**: 5 derniers `.gpg` (`BACKUP_LOCAL_KEEP`)
+- **Rétention R2**: 7 dumps + le dernier de chacun des 3 derniers mois, **plafond 4 Go** (`BACKUP_R2_MAX_MB`) — plan gratuit 10 Go, aucune facture
+- **Vérification**: `ls -lh backups/db/` · la notification God du matin porte le poids du bucket (`r2_total_mb`)
 
 ---
 

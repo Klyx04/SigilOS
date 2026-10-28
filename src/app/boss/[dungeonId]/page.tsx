@@ -21,6 +21,7 @@ import { getPublicLinkedQuests, getPublicDungeonAchievements } from "@/server/ac
 import { bossSovereigntyKey } from "@/lib/boss-sovereignty";
 import { readLocalDungeonCatalogue } from "@/lib/dungeon-monsters-siphon";
 import { resolveDungeonBossPair } from "@/lib/dungeon-boss-pair";
+import { getMultiBossConfig } from "@/lib/dungeon-multi-boss";
 
 export const revalidate = 3600;
 
@@ -199,7 +200,8 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
         dofensiveDungeonName: dungeon.dofensiveDungeonName,
       })
     : { focus: bossName, partner: null, isDoubleBoss: false };
-  const focusMonsterName = bossPair.focus;
+  const multiBossConfig = dungeon ? getMultiBossConfig(dungeon) : null;
+  const focusMonsterName = multiBossConfig ? multiBossConfig.bossNames[0] : bossPair.focus;
   // 🌀 Boss d'anomalie (« Gardiens des anomalies ») : Dofensive n'expose PAS ces donjons.
   // Sans branchement dédié, la landing publique restait sans carte ⇒ ni « Salle », ni
   // « Placements de départ », ni Placement/Butin (constat user du 15/09/2026).
@@ -246,6 +248,12 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
   ]);
 
   let monsterStats = statsRes.success ? statsRes.data : null;
+  if (monsterStats && multiBossConfig) {
+    monsterStats = {
+      ...monsterStats,
+      coordinates: multiBossConfig.coordinates,
+    };
+  }
   const spellsData = spellsRes.success ? spellsRes.data : null;
   if (monsterStats && spellsData) {
     // Lot 6 — garde d'appartenance : seuls les sorts du monstre (DofusDB +
@@ -375,7 +383,7 @@ export default async function PublicBossDetailPage({ params }: PageProps) {
                   name: dungeon.name,
                   bossName: dungeon.bossName,
                   level: dungeon.level,
-                  imageUrl: dungeon.imageUrl,
+                  imageUrl: dungeon.imageUrl || multiBossConfig?.dungeonImageUrl || null,
                   dofensiveUrl: dungeon.dofensiveUrl,
                   dofuspourlesnoobsUrl: dungeon.dofuspourlesnoobsUrl,
                   dofensiveMonsterName: dungeon.dofensiveMonsterName,

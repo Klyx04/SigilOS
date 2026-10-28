@@ -1043,3 +1043,158 @@ Le guide vit **en base** (`GuideMilestone` / `GuideSequence`), seedé depuis le 
   d'objets) est un outil de **session** — il lui faut la trame HTML ; on le joue là où le siphon est
   fait, **avant** de committer le dataset (il n'écrit rien en base : re-seeder ensuite).
 
+### Rejouer le contenu **S1** (Ordres, classes, cités, variantes) après un déploiement
+
+> **Mesuré le 27/10/2026.** Le contenu S1 n'est **pas** dans le dataset seedé : il a été produit par
+> l'outil Trame (`src/temp/trame-rush/`, **hors dépôt**) puis **importé** dans God ▸ JSON, suivi de
+> **3 correctifs SQL**. Les exports sont **portables** : tout se rapproche **par nom** (aucun cuid de
+> donjon, aucun id de guilde), et les `questDbIds` sont des ids DofusDB (universels).
+
+**Ordre obligatoire : le code d'abord, les données ensuite** — l'import n'écrit le tag
+`choice_group` que si le serveur porte le modèle (`src/lib/rush-choice-groups.ts`).
+
+| # | Action | Où | Attendu sur un environnement vierge |
+|---|---|---|---|
+| 1 | `./scripts/deploy-cd.sh <env>` | VPS | l'app tourne (bouton **`JSON`** disponible) |
+| 2 | `export-god-ordres.json` | God ▸ **JSON** ▸ dry-run ▸ Appliquer | 6 blocs · **30** quêtes · 0 avertissement |
+| 3 | `export-god-classes.json` | idem | 1 bloc · **19** quêtes |
+| 4 | `export-god-cites.json` | idem | 6 blocs · **104** quêtes |
+| 5 | `export-god-variantes.json` | idem | 0 bloc · **3** quêtes |
+| 6 | SQL `01` → `02` → `03` (ci-dessous) | `docker exec -i sigilos-db-<env> sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f -'` | contrôles dans chaque fichier |
+
+```bash
+# sur le VPS, après les 5 étapes ci-dessus
+for f in 01-tag-alignreq 02-tag-choice-groups 03-fix-bonta-order; do
+  echo "── $f ──"
+  docker exec -i sigilos-db-<env> sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f -' < ~/$f.sql
+done
+```
+
+**Pièges mesurés**
+- Jouer les SQL **avant** les imports ne casse rien mais **ne fait rien** (les 5 variantes et les 2 quêtes
+  n'existent pas encore) — constaté en bêta le 27/10/2026.
+- Les scripts de `src/temp/` ne sont **pas** dans l'image (non tracés) : d'où le SQL. Les CLI de
+  `scripts/` (seed / prune) sont, elles, embarquées par `outputFileTracingIncludes`.
+- Le doublon « Entraînement avec JF » n'est supprimé **que s'il ne porte aucune progression** :
+  `doublon_jf = 1` en fin de `03` = un joueur l'avait cochée, on ne force pas.
+- **Idempotence** : un second passage affiche `UPDATE 0` / `DELETE 0`. C'est normal, pas un échec.
+
+**État au 27/10/2026** : bêta **rejouée** (contrôles : `100` · `55 → 3` · `66 → 2` · `0` doublon) ·
+**prod à faire** avec la même séquence.
+
+#### `01-tag-alignreq.sql` — repose le camp sur les quêtes de cité déjà présentes
+
+```sql
+BEGIN;
+
+UPDATE "GuideSequence" s
+SET "alignReq" = 'bontarien'
+FROM "GuideMilestone" m, "OptimizedGuide" g
+WHERE m.id = s."milestoneId"
+  AND g.id = m."guideId"
+  AND g.slug = 'rush-sylvestre'
+  AND m.title LIKE 'Alignement Bonta (%'
+  AND s."alignReq" IS NULL;
+
+COMMIT;
+
+-- Contrôle : 100 quêtes de cité bontariennes attendues.
+SELECT count(*) AS cites_bontariennes
+FROM "GuideSequence" s
+JOIN "GuideMilestone" m ON m.id = s."milestoneId"
+JOIN "OptimizedGuide" g ON g.id = m."guideId"
+WHERE g.slug = 'rush-sylvestre' AND s."alignReq" = 'bontarien' AND s."alignOrderCode" IS NULL;
+```
+
+#### `02-tag-choice-groups.sql` — pose le groupe de choix (55 / 66)
+
+```sql
+-- 02 — étapes à choix : tag choice_group (55 = 3 variantes, 66 = 2). Idempotent.
+BEGIN;
+
+UPDATE "GuideSequence" SET "activityTags" = "activityTags" || '[{"type":"choice_group","name":"55"}]'::jsonb
+WHERE "subGuideName" = 'Le magnanime' AND NOT ("activityTags" @> '[{"type":"choice_group"}]'::jsonb)
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre');
+
+UPDATE "GuideSequence" SET "activityTags" = "activityTags" || '[{"type":"choice_group","name":"55"}]'::jsonb
+WHERE "subGuideName" = 'Les kamas résolvent tout' AND NOT ("activityTags" @> '[{"type":"choice_group"}]'::jsonb)
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre');
+
+UPDATE "GuideSequence" SET "activityTags" = "activityTags" || '[{"type":"choice_group","name":"55"}]'::jsonb
+WHERE "subGuideName" = 'Assassinat effectué' AND NOT ("activityTags" @> '[{"type":"choice_group"}]'::jsonb)
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre');
+
+UPDATE "GuideSequence" SET "activityTags" = "activityTags" || '[{"type":"choice_group","name":"66"}]'::jsonb
+WHERE "subGuideName" = 'Les ordres sont-ils les ordres ?' AND NOT ("activityTags" @> '[{"type":"choice_group"}]'::jsonb)
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre');
+
+UPDATE "GuideSequence" SET "activityTags" = "activityTags" || '[{"type":"choice_group","name":"66"}]'::jsonb
+WHERE "subGuideName" = 'On m''appelle l''Escargot' AND NOT ("activityTags" @> '[{"type":"choice_group"}]'::jsonb)
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre');
+
+COMMIT;
+
+-- Contrôle : 55 → 3, 66 → 2 (lecture du tag PARMI les tags, pas seulement en position 0).
+SELECT (SELECT t->>'name' FROM jsonb_array_elements(s."activityTags") t WHERE t->>'type' = 'choice_group') AS groupe,
+       count(*) AS sequences
+FROM "GuideSequence" s
+JOIN "GuideMilestone" m ON m.id = s."milestoneId"
+JOIN "OptimizedGuide" g ON g.id = m."guideId"
+WHERE g.slug = 'rush-sylvestre' AND s."activityTags" @> '[{"type":"choice_group"}]'::jsonb
+GROUP BY 1 ORDER BY 1;
+```
+
+#### `03-fix-bonta-order.sql` — doublon, remise en place, bloc vide
+
+```sql
+BEGIN;
+
+-- a) « Entraînement avec JF » = copie de « Entraînement avec Tarche » (DofusDB 55), nom inexistant
+--    dans le jeu. Supprimé UNIQUEMENT s'il ne porte aucune progression.
+WITH cible AS (
+  SELECT s.id FROM "GuideSequence" s
+  WHERE s."subGuideName" = 'Entraînement avec JF'
+    AND s."dofusdbUrl" LIKE '%/quest/55'
+    AND s."milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre')
+    AND NOT EXISTS (SELECT 1 FROM "PlayerGuideProgress" p WHERE p."completedSteps" @> to_jsonb(s.id::text))
+)
+DELETE FROM "GuideSequence" WHERE id IN (SELECT id FROM cible);
+
+-- b) Bandanarthrie (#65) = 1re quête de « Alignement Bonta (65 à 70) » (le bloc commence à 1).
+UPDATE "GuideSequence"
+SET "milestoneId" = (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre' AND m.title = 'Alignement Bonta (65 à 70)'),
+    "order" = 0
+WHERE "subGuideName" = 'Bandanarthrie'
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre')
+  AND EXISTS (SELECT 1 FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre' AND m.title = 'Alignement Bonta (65 à 70)');
+
+-- c) Le subterfuge de la corne (#70) = 1re quête de « Alignement Bonta (70 à 85 + Ordre 4) ».
+UPDATE "GuideSequence"
+SET "milestoneId" = (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre' AND m.title = 'Alignement Bonta (70 à 85 + Ordre 4)'),
+    "order" = 0
+WHERE "subGuideName" = 'Le subterfuge de la corne'
+  AND "milestoneId" IN (SELECT m.id FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre')
+  AND EXISTS (SELECT 1 FROM "GuideMilestone" m JOIN "OptimizedGuide" g ON g.id = m."guideId" WHERE g.slug = 'rush-sylvestre' AND m.title = 'Alignement Bonta (70 à 85 + Ordre 4)');
+
+-- d) Bloc créé par l'import, devenu vide : supprimé (jamais un bloc porteur de quêtes).
+DELETE FROM "GuideMilestone"
+WHERE title = 'Alignement Bontarien — palier 80'
+  AND "guideId" IN (SELECT id FROM "OptimizedGuide" WHERE slug = 'rush-sylvestre')
+  AND NOT EXISTS (SELECT 1 FROM "GuideSequence" s WHERE s."milestoneId" = "GuideMilestone".id);
+
+COMMIT;
+
+-- Contrôle : 100 cités bontariennes attendues, 0 doublon « JF ».
+SELECT count(*) FILTER (WHERE s."alignReq" = 'bontarien' AND s."alignOrderCode" IS NULL) AS cites_bonta,
+       count(*) FILTER (WHERE s."subGuideName" = 'Entraînement avec JF') AS doublon_jf
+FROM "GuideSequence" s
+JOIN "GuideMilestone" m ON m.id = s."milestoneId"
+JOIN "OptimizedGuide" g ON g.id = m."guideId"
+WHERE g.slug = 'rush-sylvestre';
+```
+
+> **Encodage** : les noms comportent des accents (`é`, `à`). Passe les fichiers **en flux** (`< ~/01-….sql`)
+> ou colle-les depuis un client en `UTF8` (`SHOW client_encoding;`) — un pipe qui ré-encode (PowerShell →
+> psql) casse les correspondances par nom (mesuré : 2 lignes sur 5 muettes).
+
+

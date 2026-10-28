@@ -3,8 +3,9 @@
  *
  * Pourquoi ce module : la même liste de Dofus existait en **cinq** copies divergentes
  * (mesuré le 08/10/2026) — `DOFUS_LIST` dans le studio God et `DOFUS_DEFS` dans
- * `RushTimelineClient`, `DofusProgressStrip`, `GuildStatusPanel` et
- * `GuideOverlayClient`. Elles ne disaient pas la même chose : `argente` valait
+ * `RushTimelineClient`, `GuildStatusPanel` et
+ * `GuideOverlayClient` (la 5ᵉ copie, `DofusProgressStrip`, **jamais montée**, a été
+ * supprimée le 27/10/2026). Elles ne disaient pas la même chose : `argente` valait
  * `#a1a1aa` ici et `#a8c0d6` là, `pourpre` `#a855f7` ou `#ef4444`, `ebene`
  * `#27272a`, `#52525b` ou `#6366f1`, `sylvestre` `#d4a017` ou `#39bc95`. Une
  * couleur corrigée à un endroit ne l'était donc nulle part ailleurs.
@@ -50,8 +51,8 @@ export const RUSH_DOFUS_META: RushDofusMeta[] = [
     { id: "dorigami", label: "Dorigami", color: "#f472b6", imageUrl: "/module-dofus/Dofus_Dorigami.png" },
     { id: "tachete", label: "Tacheté", color: "#c084fc", imageUrl: "/module-dofus/Dofus_Tachete.png" },
     { id: "dom_de_pin", label: "Dom de Pin", color: "#a3e635", imageUrl: "/module-dofus/Dom_De_Pin.png" },
-    // Le Dofus du rush lui-même : présent dans le rail de progression
-    // (`DofusProgressStrip`) et dans les œufs de l'overlay, absent du studio God.
+    // Le Dofus du rush lui-même : présent dans le bandeau de progression
+    // (`GuildStatusPanel`) et dans les œufs de l'overlay, absent du studio God.
     // Couleur : **mesurée** (tracé dominant du visuel, 112,144,48 — feuille verte) —
     // c'est le seul cas sans référence canonique ailleurs dans le dépôt.
     { id: "sylvestre", label: "Sylvestre", color: "#709030", imageUrl: "/module-dofus/Dofus_Sylvestre.png" },

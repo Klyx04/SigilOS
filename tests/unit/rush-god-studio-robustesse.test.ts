@@ -193,7 +193,6 @@ describe("E5 — l'aperçu live rend les composants du MEMBRE", () => {
       dofuspourlesnoobsUrl: null,
       tips: "Prendre la quête\nAller en [-55,15]",
       alignReq: null,
-      alignOrderReq: null,
       isSuccess: false,
       icon: null,
       metamobMonsterId: null,

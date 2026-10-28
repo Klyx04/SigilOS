@@ -45,6 +45,7 @@ import { BossMechanicsView, type BossPassiveData } from "@/components/boss/BossM
 import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "@/lib/dofus-effects-formatter";
 import { enrichPassiveIfNeeded, normalizeSpellEffectDetails } from "@/lib/dofus-spells";
 import { encycloProperties } from "@/lib/dofus-encyclo";
+import { getMultiBossConfig } from "@/lib/dungeon-multi-boss";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -456,6 +457,10 @@ export function BossOverlayClient({
   const searchInputRef = useRef<HTMLInputElement>(null);
   // Empêche le deep-link initial de re-sélectionner le boss après un retour manuel.
   const deepLinkedRef = useRef(false);
+  const multiConfig = useMemo(() => (selected ? getMultiBossConfig(selected) : null), [selected]);
+  const isMultiBoss = !!multiConfig;
+  const multiBossNames = multiConfig?.bossNames ?? [];
+  const effectiveBossName = isMultiBoss && multiConfig ? multiConfig.bossNames[0] : (selected?.bossName ?? "");
 
   // 1. Charger le catalogue unifié
   useEffect(() => {
@@ -508,6 +513,9 @@ export function BossOverlayClient({
     if (match) {
       setSelected(match);
       setSearch(match.bossName);
+      if (initialMonsterName && initialMonsterName.toLowerCase() !== match.bossName.toLowerCase()) {
+        setActiveMonsterName(initialMonsterName);
+      }
     }
   }, [catalog, initialMonsterName, initialDungeonName]);
 
@@ -517,7 +525,7 @@ export function BossOverlayClient({
       setStats(null);
       return;
     }
-    const target = activeMonsterName ?? selected.bossName;
+    const target = activeMonsterName ?? (isMultiBoss ? effectiveBossName : selected.bossName);
     setLoadingStats(true);
     setStats(null);
     setDungeonMaps(undefined);
@@ -600,7 +608,8 @@ export function BossOverlayClient({
     return pool.filter(
       (d) =>
         d.bossName.toLowerCase().includes(q) ||
-        d.name.toLowerCase().includes(q)
+        d.name.toLowerCase().includes(q) ||
+        !!(getMultiBossConfig(d)?.bossNames.some((b) => b.toLowerCase().includes(q)))
     ).slice(0, 40);
   }, [catalog, catalogFilter, search, monsterResults]);
 
@@ -662,7 +671,7 @@ export function BossOverlayClient({
             className="w-4 h-4 object-contain opacity-75 shrink-0"
           />
           <span className="text-[13px] font-semibold text-white/90 truncate">
-            {selected ? (activeMonsterName ?? selected.bossName) : (isEn ? "Bestiary" : "Bestiaire")}
+            {selected ? (activeMonsterName ?? (isMultiBoss ? effectiveBossName : selected.bossName)) : (isEn ? "Bestiary" : "Bestiaire")}
           </span>
           {/* Niveau : donnée, pas décoration — mono discret, aucun badge coloré. */}
           {selected && (
@@ -754,8 +763,8 @@ export function BossOverlayClient({
                   <Loader2 className="w-5 h-5 animate-spin text-white/20" />
                 ) : (
                   <MonsterImage
-                    src={stats?.imageUrl ?? selected.imageUrl}
-                    alt={selected.bossName}
+                    src={isMultiBoss && !activeMonsterName ? (multiConfig?.dungeonImageUrl ?? selected.imageUrl) : (stats?.imageUrl ?? selected.imageUrl)}
+                    alt={activeMonsterName ?? (isMultiBoss ? effectiveBossName : selected.bossName)}
                     monsterId={stats?.id ?? selected.dofusdbId ?? undefined}
                     className="max-h-full max-w-full object-contain"
                   />
@@ -842,13 +851,13 @@ export function BossOverlayClient({
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-5 h-5 rounded bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                   <MonsterImage
-                    src={stats?.imageUrl ?? selected.imageUrl}
-                    alt={selected.bossName}
+                    src={isMultiBoss && !activeMonsterName ? (multiConfig?.dungeonImageUrl ?? selected.imageUrl) : (stats?.imageUrl ?? selected.imageUrl)}
+                    alt={activeMonsterName ?? (isMultiBoss ? effectiveBossName : selected.bossName)}
                     monsterId={stats?.id ?? selected.dofusdbId ?? undefined}
                     className="max-h-full max-w-full object-contain"
                   />
                 </div>
-                <span className="font-semibold text-white/90 truncate text-[11px]">{selected.bossName}</span>
+                <span className="font-semibold text-white/90 truncate text-[11px]">{activeMonsterName ?? (isMultiBoss ? effectiveBossName : selected.bossName)}</span>
                 <span className="text-[10px] text-white/40 truncate">· {selected.name}</span>
                 {stats?.grades && stats.grades.length > 1 && (
                   <span className="font-mono text-[10px] text-white/40 shrink-0">
@@ -865,6 +874,37 @@ export function BossOverlayClient({
                 <span>{isEn ? "Expand" : "Déplier"}</span>
                 <ChevronDown className="w-3 h-3" />
               </button>
+            </div>
+          )}
+
+          {/* Sélecteur Quatuor / Multi-boss */}
+          {isMultiBoss && (
+            <div className="flex items-center gap-1 px-3 py-1.5 bg-white/[0.03] border-b border-white/[0.06] overflow-x-auto">
+              <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider shrink-0 mr-1">
+                {multiConfig?.label ?? "Quatuor"}
+              </span>
+              {multiBossNames.map((name) => {
+                const active = (activeMonsterName === name) || (!activeMonsterName && name === effectiveBossName);
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => {
+                      setActiveMonsterName(name);
+                      setActiveGradeIndex(0);
+                      setActiveSpellId(undefined);
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 rounded text-[10px] font-medium transition-colors shrink-0 cursor-pointer",
+                      active
+                        ? "bg-white/[0.16] text-white font-bold"
+                        : "text-white/45 hover:text-white/75 bg-white/[0.04]"
+                    )}
+                  >
+                    {name}
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -1366,7 +1406,7 @@ export function BossOverlayClient({
 
           <div className="flex-1 overflow-y-auto p-2.5 space-y-1 overlay-scroll">
             {family.monsters.map((m) => {
-              const isCurrent = (activeMonsterName === m.name) || (!activeMonsterName && m.name === selected?.bossName);
+              const isCurrent = (activeMonsterName === m.name) || (!activeMonsterName && m.name === (isMultiBoss ? effectiveBossName : selected?.bossName));
               return (
                 <button
                   key={m.id}
@@ -1375,7 +1415,7 @@ export function BossOverlayClient({
                     // légitime (double boss Frigost, 4 Cavaliers de l'Apocalypse) : seul le
                     // boss de l'en-tête ramène au monstre principal (`null`). Avant ce
                     // correctif, cliquer sur Sylargh renvoyait sur la fiche du Comte.
-                    setActiveMonsterName(m.name === selected?.bossName ? null : m.name);
+                    setActiveMonsterName(m.name === (isMultiBoss ? effectiveBossName : selected?.bossName) ? null : m.name);
                     setShowFamilyModal(false);
                   }}
                   className={cn(
@@ -1410,7 +1450,7 @@ export function BossOverlayClient({
         <span className="text-[9px] text-white/25">SigilOS · {isEn ? "Bestiary" : "Bestiaire"}</span>
         {selected && (
           <span className="text-[9px] text-white/30 truncate ml-2">
-            {activeMonsterName ?? selected.bossName}
+            {activeMonsterName ?? (isMultiBoss ? effectiveBossName : selected.bossName)}
           </span>
         )}
       </div>

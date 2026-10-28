@@ -16,6 +16,7 @@
 
 import { ORDERS } from "@/lib/dofus-assets";
 import { normalizeAlignmentCamp, type RushAlignmentCamp } from "@/lib/rush-route";
+import { RUSH_ORDER_CODES, normalizeOrderCode } from "@/lib/rush-order-codes";
 
 /** Cible mesurée par cité (Tougli, 21/10/2026). */
 export const RUSH_CAMP_TARGETS: Record<RushAlignmentCamp, number> = {
@@ -29,7 +30,18 @@ export type RushOrderLevel = (typeof RUSH_ORDER_LEVELS)[number];
 
 export type RushBranchSequence = {
     id: string;
+    /**
+     * Ordre **dans son bloc** — il repart à 0 dans chaque bloc, donc il ne donne PAS la
+     * position dans la série. Le tri de la vue utilise `blockOrder` d'abord.
+     */
     order: number;
+    /**
+     * Ordre du **bloc** dans le guide (`GuideMilestone.order`). Sans lui, deux séquences de
+     * blocs différents partagent le même `order` (0, 1, 2…) et le tri retombait sur le nom :
+     * les « paires alignées par position » sortaient en **alphabet** (mesuré le 27/10/2026 —
+     * « L'exorciste », 100ᵉ quête, apparaissait en position 68).
+     */
+    blockOrder?: number;
     subGuideName: string;
     alignReq?: string | null;
     alignOrderCode?: string | null;
@@ -89,10 +101,16 @@ const CAMP_LABELS: Record<RushAlignmentCamp, string> = {
 
 const CAMPS: RushAlignmentCamp[] = ["bontarien", "brakmarien"];
 
-/** Tri stable : `order` puis nom puis id (l'ordre d'entrée ne doit rien changer). */
+/**
+ * Tri stable : **bloc**, puis `order` interne, puis nom, puis id.
+ *
+ * Le `order` d'une séquence est **local au bloc** : sans l'ordre du bloc, toutes les
+ * séquences de même index se mélangeaient et le nom tranchait (alphabet).
+ */
 function sortSequences(list: RushBranchSequence[]): RushBranchSequence[] {
     return [...list].sort(
         (a, b) =>
+            (a.blockOrder ?? 0) - (b.blockOrder ?? 0) ||
             a.order - b.order ||
             a.subGuideName.localeCompare(b.subGuideName, "fr") ||
             a.id.localeCompare(b.id),
@@ -152,18 +170,29 @@ export function buildRushBranches(sequences: readonly RushBranchSequence[]): Rus
             Array<{ id: string; name: string; icon: string; levels: Record<number, string> }>
         >)[camp] ?? [];
         const ownQuests = orderQuests[camp];
-        const knownOrderIds = new Set(catalog.map((o) => o.id.toLowerCase()));
 
-        // Un code d'Ordre inconnu du catalogue ne se fond dans aucun autre : il est signalé.
+        // ⚠️ Deux vocabulaires cohabitent : le catalogue `ORDERS` porte des ids **courts**
+        // (`vaillant`, `attentif`…), alors que le studio (S4-2) et l'import écrivent le code
+        // **canonique** (`coeur_vaillant`…). Comparer les deux tels quels faisait tomber
+        // TOUTES les quêtes d'Ordre en « hors branche » et laissait les 30 emplacements vides
+        // (mesuré le 27/10/2026, juste après l'import des 30 quêtes). On ramène donc chaque
+        // code au canonique avec la source unique `rush-order-codes`.
+        const knownCodes = new Set(
+            RUSH_ORDER_CODES.filter((o) => o.camp === camp).map((o) => o.code),
+        );
+
+        // Un code d'Ordre inconnu — ou appartenant à l'autre cité — ne se fond dans aucun
+        // autre : il est signalé, jamais rattaché d'office.
         for (const seq of ownQuests) {
-            const code = (seq.alignOrderCode ?? "").trim().toLowerCase();
-            if (!knownOrderIds.has(code)) orphans.push(seq);
+            const code = normalizeOrderCode(seq.alignOrderCode);
+            if (!code || !knownCodes.has(code)) orphans.push(seq);
         }
 
         const orders: RushBranchOrder[] = catalog.map((order) => {
-            const mine = ownQuests.filter(
-                (seq) => (seq.alignOrderCode ?? "").trim().toLowerCase() === order.id.toLowerCase(),
-            );
+            const canonical = normalizeOrderCode(order.id);
+            const mine = canonical
+                ? ownQuests.filter((seq) => normalizeOrderCode(seq.alignOrderCode) === canonical)
+                : [];
             const unlevelled: RushBranchSequence[] = [];
             const slots: RushOrderSlot[] = RUSH_ORDER_LEVELS.map((level) => ({
                 level,

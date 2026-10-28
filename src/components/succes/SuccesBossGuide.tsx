@@ -43,6 +43,7 @@ import {
 } from "@/lib/level-brackets";
 import { buildBossFicheTabs } from "@/lib/boss-fiche-tabs";
 import { resolveDungeonBossPair } from "@/lib/dungeon-boss-pair";
+import { getMultiBossConfig } from "@/lib/dungeon-multi-boss";
 import { monsterFicheHref } from "@/lib/monster-fiche";
 
 /**
@@ -293,9 +294,16 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
         dofensiveMonsterName: d.dofensiveMonsterName,
         dofensiveDungeonName: d.dofensiveDungeonName,
     });
-    const focusOf = (d: BossDungeon) => pairOf(d).focus;
+    const multiConfigOf = (d: BossDungeon) => getMultiBossConfig(d);
+    const focusOf = (d: BossDungeon) => {
+        const multi = multiConfigOf(d);
+        if (multi) return multi.bossNames[0];
+        return pairOf(d).focus;
+    };
     const selectedPair = selected ? pairOf(selected) : null;
-    const selectedFocus = selected ? pairOf(selected).focus : "";
+    const selectedMulti = selected ? multiConfigOf(selected) : null;
+    const isSelectedMulti = !!selectedMulti;
+    const selectedFocus = selected ? focusOf(selected) : "";
     // Deep-link : l'overlay Rush ou un lien peut arriver sur `?dungeon={id}&view=boss`.
     // On lit le paramètre pour ouvrir directement la fiche du bon boss (sinon on reste
     // sur la liste de toutes les fiches).
@@ -571,7 +579,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
         statsByBoss[activeMonsterName && d.id === selected?.id ? `${d.id}::${activeMonsterName}` : d.id];
 
     const selectMonster = (d: BossDungeon, m: FamilyMember) => {
-        if (m.isBoss || m.name === focusOf(d)) {
+        if (m.name === (activeMonsterName ?? focusOf(d))) {
             setActiveMonsterName(null);
             setActiveGradeIndex(null);
             setSelectedSpellId(undefined);
@@ -736,9 +744,10 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                         const activeGrade = grades.length > 0 ? grades[Math.min(gradeIdx, grades.length - 1)] : null;
                         const resists = readGradeResists(activeGrade) ?? EMPTY_GRADE_RESISTS;
                         const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
-                        const travelCmd = coords ? `/travel ${coords.x} ${coords.y}` : null;
-                        const hasZoneLocation = !!(coords || selected.mapId);
-                        const zoneWorldId = Number(coords?.worldMapId ?? 0) > 0 ? (coords!.worldMapId as number) : 1;
+                        const effectiveCoords = (isSelectedMulti && selectedMulti) ? selectedMulti.coordinates : coords;
+                        const travelCmd = effectiveCoords ? `/travel ${effectiveCoords.x} ${effectiveCoords.y}` : null;
+                        const hasZoneLocation = !!(effectiveCoords || selected.mapId);
+                        const zoneWorldId = Number(effectiveCoords?.worldMapId ?? 0) > 0 ? (effectiveCoords!.worldMapId as number) : 1;
                         const dpnlUrl = selected.dpnlUrl ?? selected.dofuspourlesnoobsUrl ?? null;
 
                         return (
@@ -787,7 +796,11 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                         <div className="flex items-center gap-4 min-w-0">
                                             <div className="w-16 h-16 rounded-xl border border-border bg-background/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden shadow-xs">
                                                 <MonsterImage
-                                                    src={currentStats?.imageUrl ?? selected.imageUrl}
+                                                    src={
+                                                        isSelectedMulti
+                                                            ? (activeMonsterName ? (currentStats?.imageUrl ?? selected.imageUrl) : (selected.imageUrl ?? currentStats?.imageUrl))
+                                                            : (currentStats?.imageUrl ?? selected.imageUrl)
+                                                    }
                                                     alt={activeMonsterName ?? selectedFocus}
                                                     monsterId={currentStats?.id ?? selected.dofusdbId ?? undefined}
                                                     className="max-w-full max-h-full object-contain"
@@ -799,7 +812,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                                     <span className="font-mono normal-case">Niv. {selected.level ?? 200}</span>
                                                 </p>
                                                 <h3 className="mt-0.5 truncate text-2xl font-bold text-foreground">
-                                                    {activeMonsterName ?? (selectedPair?.isDoubleBoss ? selected.name : selectedFocus)}
+                                                    {activeMonsterName ?? (selectedPair?.isDoubleBoss || isSelectedMulti ? selected.name : selectedFocus)}
                                                 </h3>
                                                 <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
                                                     <Compass className="w-3.5 h-3.5 opacity-70" />
@@ -813,21 +826,42 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                         </div>
 
                                         {/* Entrée du donjon : coordonnées copiables (clic) + zone. */}
-                                        {selectedPair?.isDoubleBoss && (
+                                        {(selectedPair?.isDoubleBoss || isSelectedMulti) && (
                                             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Double boss</span>
-                                                {[selectedPair.partner, selectedPair.focus].filter((n): n is string => !!n).map((name) => {
+                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{isSelectedMulti ? (selectedMulti?.label ?? "Quatuor") : "Double boss"}</span>
+                                                {(isSelectedMulti && selectedMulti ? selectedMulti.bossNames : (selectedPair ? [selectedPair.partner, selectedPair.focus].filter((n): n is string => !!n) : [])).map((name) => {
                                                     const m = (familyByDungeon[selected.id]?.monsters ?? []).find((x) => x.name === name);
                                                     const active = (activeMonsterName ?? selectedFocus) === name;
                                                     return (
-                                                        <button key={name} type="button" onClick={() => m && selectMonster(selected, m)} className={cn("inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] transition-colors", active ? "border-border-strong bg-surface/80 text-foreground" : "border-border bg-surface/40 text-muted-foreground hover:text-foreground")}>
+                                                        <button
+                                                            key={name}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (m) {
+                                                                    selectMonster(selected, m);
+                                                                } else {
+                                                                    setActiveMonsterName(name);
+                                                                    setActiveGradeIndex(null);
+                                                                    setSelectedSpellId(undefined);
+                                                                }
+                                                            }}
+                                                            className={cn("inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] transition-colors", active ? "border-border-strong bg-surface/80 text-foreground" : "border-border bg-surface/40 text-muted-foreground hover:text-foreground")}
+                                                        >
+                                                            {m?.imageUrl ? (
+                                                                <MonsterImage
+                                                                    src={m.imageUrl}
+                                                                    alt=""
+                                                                    monsterId={m.id}
+                                                                    className="h-3.5 w-3.5 object-contain"
+                                                                />
+                                                            ) : null}
                                                             {name}
                                                         </button>
                                                     );
                                                 })}
                                             </div>
                                         )}
-                                        {coords && (
+                                        {effectiveCoords && (
                                             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
                                                 <button
                                                     type="button"
@@ -846,7 +880,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                                     <span>
                                                         Entrée du donjon :{" "}
                                                         <strong className="font-mono text-foreground/90">
-                                                            [{coords.x}, {coords.y}]
+                                                            [{effectiveCoords.x}, {effectiveCoords.y}]
                                                         </strong>
                                                     </span>
                                                     {copiedTravel ? (
@@ -858,7 +892,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                                     )}
                                                 </button>
                                                 <span className="text-xs font-semibold text-muted-foreground">
-                                                    Zone : <strong className="text-foreground">{getWorldName(coords.worldMapId)}</strong>
+                                                    Zone : <strong className="text-foreground">{selectedMulti?.zoneName ?? getWorldName(effectiveCoords.worldMapId)}</strong>
                                                 </span>
                                             </div>
                                         )}
@@ -867,7 +901,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                         {isLoadingCurrent ? (
                                             <div className="flex items-center gap-3 rounded-xl border border-border bg-surface/60 px-3.5 py-3 text-muted-foreground">
                                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? selectedFocus}…</span>
+                                                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? (isSelectedMulti ? (selectedMulti?.bossNames[0] ?? selectedFocus) : selectedFocus)}…</span>
                                             </div>
                                         ) : (
                                             <>
@@ -987,13 +1021,36 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                     </div>
 
                                     {/* ── Colonne droite : minimap / aperçu de la zone ── */}
-                                    {hasZoneLocation && (
+                                    {selectedMulti?.locationImageUrl ? (
+                                        <div className="overflow-hidden rounded-xl border border-border bg-surface/60 lg:max-w-md lg:ml-auto w-full">
+                                            <div className="border-b border-border px-4 py-2.5 text-sm font-semibold text-foreground">
+                                                Localisation du donjon
+                                            </div>
+                                            <div className="relative aspect-[5/3] w-full overflow-hidden bg-black/40">
+                                                <img
+                                                    src={selectedMulti.locationImageUrl}
+                                                    alt={selectedMulti.zoneName ?? selected.name}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                    <img
+                                                        src="/assets/worldmap/dungeon-boss.png"
+                                                        alt=""
+                                                        className="w-7 h-7 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="border-t border-border px-4 py-2.5 text-sm font-medium text-foreground/90">
+                                                {selectedMulti.zoneName ?? selected.name}
+                                            </div>
+                                        </div>
+                                    ) : hasZoneLocation && (
                                         <ZoneLocationCard
                                             mapId={selected.mapId ?? null}
                                             worldId={zoneWorldId}
                                             mapHref={
-                                                coords
-                                                    ? `/carte-du-monde?play=1&x=${coords.x}&y=${coords.y}&zoom=-2&world=${zoneWorldId}`
+                                                effectiveCoords
+                                                    ? `/carte-du-monde?play=1&x=${effectiveCoords.x}&y=${effectiveCoords.y}&zoom=-2&world=${zoneWorldId}`
                                                     : null
                                             }
                                             title="Localisation du donjon"
@@ -1001,11 +1058,11 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                             openLabel="Explorer sur la carte"
                                             markerIcon="/assets/worldmap/dungeon-boss.png"
                                             fallback={
-                                                coords ? (
+                                                effectiveCoords ? (
                                                     <DungeonMinimapCard
-                                                        x={coords.x}
-                                                        y={coords.y}
-                                                        worldMapId={coords.worldMapId}
+                                                        x={effectiveCoords.x}
+                                                        y={effectiveCoords.y}
+                                                        worldMapId={effectiveCoords.worldMapId}
                                                         title="Localisation du donjon"
                                                         placeName={selected.name}
                                                         openLabel="Explorer sur la carte"
@@ -1469,9 +1526,9 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                     )}
 
                     {/* Coordonnées (toujours visibles et cliquables en /travel) */}
-                    {statsOf(selected)?.coordinates && (() => {
-                        const coords = statsOf(selected)!.coordinates!;
-                        const worldName = getWorldName(coords.worldMapId);
+                    {(selectedMulti?.coordinates || statsOf(selected)?.coordinates) && (() => {
+                        const coords = selectedMulti?.coordinates ?? statsOf(selected)!.coordinates!;
+                        const worldName = selectedMulti?.zoneName ?? getWorldName(coords.worldMapId);
                         const travelCmd = `/travel ${coords.x} ${coords.y}`;
 
                         return (

@@ -6,7 +6,8 @@
  *
  * 🛡️ Ce que ce test verrouille :
  *  • l'action est protégée (`requireRushAccess`) et **fail-closed** sans camp ;
- *  • le camp est **inversé**, l'ordre et le seuil de niveau sont **recopiés** ;
+ *  • le camp est **inversé**, l'ordre et le **palier** sont recopiés ;
+ *  • le seuil legacy `alignOrderReq` n'est **plus** recopié (retiré le 27/10/2026, S5-1) ;
  *  • le studio God expose le bouton sur les seules séquences marquées.
  */
 
@@ -35,11 +36,13 @@ describe("duplicateRushSequenceAsTwin — slot miroir", () => {
     expect(body).toMatch(/success: false as const/);
   });
 
-  it("inverse le camp et recopie l'ordre + le seuil de niveau", () => {
+  it("inverse le camp, recopie l'ordre et le palier, sans le seuil legacy", () => {
     expect(body).toMatch(/camp === "bontarien" \? "brakmarien" : "bontarien"/);
     expect(body).toMatch(/order: source\.order/);
-    expect(body).toMatch(/alignOrderReq: source\.alignOrderReq/);
+    expect(body).toMatch(/alignLevelReq: source\.alignLevelReq/);
     expect(body).toMatch(/alignReq: twinCamp/);
+    // S5-1 : plus AUCUNE écriture du seuil legacy `alignOrderReq` (il valait `1` partout).
+    expect(body).not.toMatch(/alignOrderReq\s*:/);
   });
 });
 

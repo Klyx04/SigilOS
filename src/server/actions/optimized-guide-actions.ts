@@ -14,7 +14,8 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { resetAlignmentQuests } from "@/server/rush-alignment";
 import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
-import { importKey, isRushImportNoop, planRushImport } from "@/lib/rush-import";
+import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "@/lib/rush-import";
+import { applyChoiceExclusivity, choiceGroupTag, stepCounts } from "@/lib/rush-choice-groups";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
@@ -1082,13 +1083,12 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
   const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
     Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
 
-  const contentIds = (milestone.sequences || []).filter((s) => !isInfoSeq(s)).map((s) => s.id);
+  const contentSeqs = (milestone.sequences || []).filter((s) => !isInfoSeq(s));
+  const contentIds = contentSeqs.map((s) => s.id);
   const contentSet = new Set(contentIds);
-  const incoming = Array.isArray(seqIds)
+  const requested = Array.isArray(seqIds)
     ? [...new Set(seqIds.filter((id): id is string => typeof id === "string" && contentSet.has(id)))].slice(0, 500)
     : [];
-  const checkedSet = new Set(incoming);
-  const isCompleted = contentIds.length > 0 && contentIds.every((id) => checkedSet.has(id));
 
   // État AVANT écriture : les séquences cochées qui ne le sont plus = INVALIDÉES.
   // (Une quête invalidée fait repartir à zéro les coches manuelles de ses ressources.)
@@ -1099,13 +1099,21 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
   const previouslyChecked = Array.isArray(before?.completedSteps)
     ? (before!.completedSteps as string[])
     : [];
+  const newlyChecked = requested.filter((id) => !previouslyChecked.includes(id));
+
+  // ── Variantes EXCLUSIVES (étape à choix) ────────────────────────────────────
+  // Cocher une variante retire ses sœurs de l'étape ; la première du lot gagne. Une étape
+  // à choix compte pour **une** étape : `stepCounts` porte la règle (aucune copie ici).
+  const incoming = applyChoiceExclusivity(contentSeqs, requested, newlyChecked);
+  const checkedSet = new Set(incoming);
+  const counts = stepCounts(contentSeqs, checkedSet);
+  const isCompleted = counts.total > 0 && counts.done === counts.total;
   const unvalidatedSeqIds = previouslyChecked.filter((id) => !checkedSet.has(id));
 
   // ── Verrou de DONJONS (S0-4) ────────────────────────────────────────────────
   // Une quête **nouvellement** cochée dont un donjon **requis** n'est pas marqué
   // « fait » est refusée : le client ne fait pas foi, la règle est ici. Un donjon
   // optionnel ne bloque jamais, et décocher reste toujours possible.
-  const newlyChecked = incoming.filter((id) => !previouslyChecked.includes(id));
   if (newlyChecked.length > 0) {
     const stateRows = await db.playerGuideDungeonState.findMany({
       where: { profileId, guideId: milestone.guide.id, characterSlot },
@@ -3063,8 +3071,17 @@ function enrBuildUpdate(seq: any, q: any) {
   if (q.dofuspourlesnoobsUrl && !seq.dofuspourlesnoobsUrl) data.dofuspourlesnoobsUrl = q.dofuspourlesnoobsUrl;
   if (q.questDbIds && Array.isArray(q.questDbIds) && q.questDbIds.length && (!Array.isArray(seq.questDbIds) || !seq.questDbIds.length)) data.questDbIds = q.questDbIds;
   if (q.mapPositions && Array.isArray(q.mapPositions) && q.mapPositions.length && (!Array.isArray(seq.mapPositions) || !seq.mapPositions.length)) data.mapPositions = q.mapPositions;
-  if (q.alignReq != null && seq.alignReq == null) data.alignReq = String(q.alignReq);
-  if (q.alignOrderReq != null && seq.alignOrderReq == null) data.alignOrderReq = q.alignOrderReq;
+  // Cité : on n'écrit qu'un CAMP reconnu, jamais un rang.
+  //
+  // Le payload enrichi porte un **rang** dans `alignReq` (1…99 : la position de la quête
+  // dans la série) et le camp dans `alignment.camp` — mesuré le 27/10/2026 : **104**
+  // entrées numériques. Écrire ce rang dans `alignReq` **masquait** la quête pour tout le
+  // monde : la route est fail-closed sur une cité inconnue (`isSequenceOnRoute`). Le champ
+  // legacy `alignOrderReq` (seuil de niveau) n'est plus écrit du tout (S5-1).
+  if (seq.alignReq == null) {
+    const camp = normalizeAlignmentCamp(q.alignment?.camp);
+    if (camp) data.alignReq = camp;
+  }
   if (q.dungeonIds && Array.isArray(q.dungeonIds) && q.dungeonIds.length && (!Array.isArray(seq.dungeonIds) || !seq.dungeonIds.length)) data.dungeonIds = q.dungeonIds;
   // Positions GPS : mapPositions (structuré x,y) -> tag « pos_tags » (lu par GOD/Dashboard/Overlay).
   // L'UI ne consomme que activityTags[pos_tags], jamais mapPositions directement.
@@ -3160,7 +3177,6 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
         dofuspourlesnoobsUrl?: string | null;
         dofusdbUrl?: string | null;
         alignReq?: string | null;
-        alignOrderReq?: number | null;
         dungeonNames?: string[];
         dungeonDbIds?: number[];
         mapPositions?: any;
@@ -3394,8 +3410,9 @@ export async function seedRushSylvestreFromGuide(opts: { apply?: boolean } = {})
         subGuideName: seqName,
         dofuspourlesnoobsUrl: s.dofuspourlesnoobsUrl || null,
         dofusdbUrl: s.dofusdbUrl || null,
-        alignReq: s.alignReq || null,
-        alignOrderReq: s.alignOrderReq || null,
+        // Camp normalisé : un rang (`alignReq: 50`) devient `null` — on n'invente jamais
+        // une cité, et on ne masque jamais la quête (fail-closed de la route).
+        alignReq: normalizeAlignmentCamp(s.alignReq) ?? null,
         dungeonId: resolvedDungeonIds[0] ?? null,
         dungeonIds: resolvedDungeonIds,
         mapPositions: s.mapPositions || undefined,
@@ -3728,7 +3745,6 @@ export async function upsertRushSequence(data: {
   alignOrderCode?: string | null;
   alignLevelReq?: number | null;
   classReq?: string | null;
-  alignOrderReq?: number | null;
   note?: string;
   order?: number;
   isSuccess?: boolean;
@@ -3765,7 +3781,6 @@ export async function upsertRushSequence(data: {
     alignOrderCode: data.alignOrderCode ?? null,
     alignLevelReq: data.alignLevelReq ?? null,
     classReq: data.classReq ?? null,
-    alignOrderReq: data.alignOrderReq,
     note: data.note,
     order: data.order ?? undefined,
     isSuccess: data.isSuccess ?? false,
@@ -3858,6 +3873,12 @@ const RushImportSequenceSchema = z.object({
   alignOrderCode: z.string().trim().max(48).nullish(),
   alignLevelReq: z.number().int().min(1).max(200).nullish(),
   classReq: z.string().trim().max(32).nullish(),
+  // Étape à variantes exclusives : la valeur est bornée ici, le tag est construit par la
+  // règle pure `choiceGroupTag` (une seule source pour la convention).
+  choiceGroup: z.string().trim().max(48).nullish(),
+  // Liens de fiche : bornés ici, **validés** (hôte + https) par `safeRushGuideLink`.
+  dofusdbUrl: z.string().trim().max(500).nullish(),
+  dofuspourlesnoobsUrl: z.string().trim().max(500).nullish(),
   dungeonIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
   dungeonOptionalIds: z.array(z.string().trim().min(1).max(64)).max(12).optional(),
   takeEarly: z.boolean().optional(),
@@ -3988,6 +4009,11 @@ export async function importRushGuide(raw: unknown, apply = false) {
         alignOrderCode: normalizeOrderCode(sequence.alignOrderCode),
         alignLevelReq: sequence.alignLevelReq ?? null,
         classReq: (sequence.classReq ?? "").trim().toLowerCase() || null,
+        // Variante exclusive : le tag `choice_group` (même convention que le studio).
+        activityTags: choiceGroupTag(sequence.choiceGroup) ?? [],
+        // Liens : allowlist d'hôte (`https` seulement) — même règle que le dry-run.
+        dofusdbUrl: safeRushGuideLink("dofusdb", sequence.dofusdbUrl),
+        dofuspourlesnoobsUrl: safeRushGuideLink("noobs", sequence.dofuspourlesnoobsUrl),
         questDbIds: boundQuestDbIds(sequence.questDbIds),
         dungeonIds: (sequence.dungeonIds ?? []).filter((id) => knownDungeonIds.has(id)),
         dungeonOptionalIds: (sequence.dungeonOptionalIds ?? []).filter(
@@ -4030,7 +4056,9 @@ export async function importRushGuide(raw: unknown, apply = false) {
  * lisent ensuite en deux colonnes parallèles (slot miroir), sans dupliquer le guide.
  *
  * Fail-closed : une séquence sans `alignReq` exploitable est refusée (on ne devine pas
- * un camp). L'alignement d'Ordre (`alignOrderReq`, un seuil de niveau) est recopié.
+ * un camp). Le code d'Ordre (`alignOrderCode`) et son palier (`alignLevelReq`) sont
+ * recopiés : la jumelle est une quête d'Ordre **du camp opposé**. Le seuil legacy
+ * `alignOrderReq` n'est plus recopié (retiré le 27/10/2026, S5-1).
  */
 export async function duplicateRushSequenceAsTwin(sequenceId: string) {
   await requireRushAccess();
@@ -4063,7 +4091,10 @@ export async function duplicateRushSequenceAsTwin(sequenceId: string) {
       dofuspourlesnoobsUrl: source.dofuspourlesnoobsUrl,
       tips: source.tips,
       alignReq: twinCamp,
-      alignOrderReq: source.alignOrderReq,
+      // Le PALIER se recopie (il est symétrique entre les deux camps) ; le code d'Ordre,
+      // lui, appartient au camp d'origine : c'est la jumelle d'Ordre qui l'attribue
+      // (`duplicateRushSequenceOrderTwin`). L'ancien seuil `alignOrderReq` n'existe plus.
+      alignLevelReq: source.alignLevelReq,
       isSuccess: source.isSuccess,
       icon: source.icon,
       metamobMonsterId: source.metamobMonsterId,

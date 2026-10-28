@@ -15,7 +15,7 @@ description: Rush Sylvestre — organisation de la suite : 4 surfaces, blocs S0�
 | Sujet | Source qui fait foi | Mesure |
 |---|---|---|
 | Série Bonta | Tougli `100-quetes-alignement-bontarien` | **100** quêtes (`Tarche` → `L'exorciste`) |
-| Série Brâkmar | Tougli `100-quetes-alignement-brakmarien` | **102** quêtes (`Cliquetis fou` → `La danse macabre`) |
+| Série Brâkmar | Tougli `100-quetes-alignement-brakmarien` | **102** quêtes (`Cliquetis fou` → `La danse macabre`) · **mesuré le 27/10/2026** : DPLN numérote **100 étapes** ; les n° **55** et **66** listent des **variantes EXCLUSIVES** (« Ces trois quêtes seront identiques, juste le nom change ! » — on n'en joue qu'une : *Le magnanime* / *Les kamas résolvent tout* / *Assassinat effectué*) ⇒ Tougli = **100 étapes + 2 étapes dédoublées** (partie 1 + variante retenue) = **102**, et **rien ne manque** |
 | Chronologie / préparation / saves | **Dofusyelle** | 57 étapes, 21 préparations, 83 donjons (40 saves) |
 | Quêtes détaillées + contraintes | **Tougli** RSA | 530 occurrences (529), 1 085 détails |
 | Classes | Tougli (1 nœud, 19 branches) | 19 substitutions |
@@ -120,13 +120,16 @@ voir §3 et `MAPPING-RUSH-SYLVESTRE.md`).
 
 | Lot | Contenu | Cible mesurée | Taille |
 |---|---|---|---|
-| **S1-1** | Série **Bontarien** : 100 quêtes ordonnées, `alignReq="bontarien"`, pas d'Ordre | 100 (66 déjà présentes → **34** à créer) | M |
-| **S1-2** | Série **Brâkmarien** : 102 quêtes ordonnées | **102** (0 aujourd'hui) | M |
-| **S1-3** | **30 quêtes d'Ordre** : `alignReq` + `alignOrderCode` + `alignLevelReq` **dérivé par position** (20/40/60/80/100) | 6 × 5 | M |
-| **S1-4** | **19 quêtes de classe** : `classReq` sur la branche Astrub (1 seule s'affiche) | 19 | S |
+| **S1-1** | Série **Bontarien** : 100 quêtes ordonnées, `alignReq="bontarien"`, pas d'Ordre | ✅ **100 / 100** (mesure par nom, 27/10/2026) · **32 présentes sans `alignReq`** (#2 à #33) **taguées** · doublon « Entraînement avec JF » **supprimé** (c'était « Entraînement avec Tarche », DofusDB 55, nom inexistant) · **Bandanarthrie** (#65) et **Le subterfuge de la corne** (#70) **remises dans leurs blocs** (ordre 0) · **L'exorciste = position 100** (vérifié en base) | M |
+| **S1-2** | Série **Brâkmarien** : 102 quêtes ordonnées | **0 présente** par nom (la jumelle « Entraînement avec Tarche [brakmarien] » n'est pas la série) → **102 à créer** ; export prêt `export-god-cites.json` (**6 blocs** : 2 Bonta palier 80 + 5 Brâkmar 20/40/60/80/100) · **variantes exclusives** (mesuré le 27/10/2026) : l'étape **55** offre **3 quêtes au choix** (« Le magnanime » / « Les kamas résolvent tout » / « Assassinat effectué », cette dernière **publiée le 26/09/2026**) et l'étape **66** en offre **2 selon le temps de trajet** (« Les ordres sont-ils les ordres ? » / « On m'appelle l'Escargot ») — le guide n'en porte qu'**une branche** ; `export-god-variantes.json` ajoute les **3 manquantes** en **optionnel** avec la note « variante exclusive » (dry-run : 0 nouveau bloc, 3 quêtes, 0 avertissement) | M |
+| **S1-3** | **30 quêtes d'Ordre** : `alignReq` + `alignOrderCode` + `alignLevelReq` **dérivé par position** (20/40/60/80/100) | 6 × 5 | ✅ **livré le 27/10/2026** — export `export-god-ordres.json` (6 blocs × 5, `dofusDbId` résolu par nom 30/30, DPLN 30/30) importé dans God ▸ JSON ; **vue Branches à 5/5 × 6** après correctif du classement (`normalizeOrderCode`) |
+| **S1-4** | **19 quêtes de classe** : `classReq` sur la branche Astrub (1 seule s'affiche) | 19 | ✅ **export prêt le 27/10/2026** — `export-god-classes.json` (1 bloc, 19 quêtes, `dofusDbId` 19/19, DPLN 19/19) ; le **filtre de classe** est branché côté guide interne (`resolveDofusClassId` : le profil stocke un **libellé**, la route compare des **ids**) ⇒ chaque membre ne voit que sa quête |
 | **S1-5** | **Prérequis** : chaîne commune (1958→1859) sans les 19 liens de `1960` | 11 lignes | S |
 | **S1-6** | **Groupes parallèles** (16) : les quêtes d'un groupe ne s'ordonnent pas entre elles | 16 groupes | S |
 | **S1-7** | **Prises anticipées** (49) : `takeEarly` sur la séquence cible | 49 | S |
+| **S2-3 bis** | **Étape à variantes EXCLUSIVES** (modèle, livré le 27/10/2026) : une étape, N quêtes dont **une seule** est jouée (étape 55 = 3 variantes, étape 66 = 2). Convention **sans migration** : tag `choice_group` dans `activityTags` ; règle pure `src/lib/rush-choice-groups.ts` (`getChoiceGroup`, `stepCounts`, `applyChoiceExclusivity`) ; l'**import** porte `choiceGroup` ; les **compteurs** comptent le groupe pour 1 ; le **serveur** (`setRushSequenceProgress`) dé-coche les sœurs et termine le bloc dès qu'une variante est cochée. **6 cas** dans `rush-choice-groups` + **1 cas** de vue. **Tag appliqué le 27/10/2026** sur les **5** variantes (2 déjà en base + 3 importées) : groupe **55** = Le magnanime · Les kamas résolvent tout · Assassinat effectué, groupe **66** = Les ordres sont-ils les ordres ? · On m'appelle l'Escargot — écriture **additive** et idempotente. **Vérifié en base** : le bloc « palier 60 » passe de **22 séquences à 20 étapes** (les 3 variantes comptent pour une) et cocher une variante suffit à terminer l'étape | — | M |
+
+**Reste à trancher** : côté **visiteur** (guide public), ni la cité ni la classe ne sont connues ⇒ les 19 quêtes de classe s'affichent toutes jusqu'à un **sélecteur de classe** public (même famille que le sélecteur d'Ordre).
 
 **Méthode de saisie** : partir de la liste ordonnée (index = `order`), pas du nom ; les **jumelles**
 God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles recopient les noms).
@@ -156,16 +159,16 @@ God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles re
 
 | Lot | Contenu | État |
 |---|---|---|
-| **S4-1** | **Vue Branches à 2 étages** (cité → Ordre, paires alignées, manques) — cible **100/102** | **livré** le 23/10/2026 (`src/lib/rush-branches.ts`, onglet God, 9 verrous) |
+| **S4-1** | **Vue Branches à 2 étages** (cité → Ordre, paires alignées, manques) — cible **100/102** | **livré** le 23/10/2026 (`src/lib/rush-branches.ts`, onglet God, 9 verrous) · **corrigé le 27/10/2026** : ① le classement compare les codes d'Ordre **normalisés** (source unique `rush-order-codes`) au lieu des ids courts du catalogue — sans quoi les **30 quêtes d'Ordre importées** tombaient « hors branche » (**+3 cas**) ; ② le tri des « paires » utilise l'**ordre du bloc** puis l'ordre interne (`blockOrder`), et non plus `seq.order` seul qui repart à 0 dans chaque bloc ⇒ la table était triée **par alphabet** (« L'exorciste », 100ᵉ quête, en position **68** → **99** après correctif, mesuré en base) (**+2 cas**) |
 | **S4-2** | Édition des champs de route sur une séquence **existante** | ✅ **livré** le 26/10/2026 — section « 7. Route » du formulaire d'édition (cité / Ordre / palier / classe), avec les codes d'Ordre **canoniques** |
 | **S4-3** | Case **optionnel** par donjon (S0-6) | bloqué migration |
-| **S4-4** | Import consolidé (dry-run) : listes ordonnées + 30 Ordres + 19 classes, **jamais de re-seed destructif** | ✅ **livré** le 26/10/2026 — `importRushGuide(raw, apply)` : dry-run par défaut, `src/lib/rush-import.ts` (plan pur), **ajoute seulement** |
+| **S4-4** | Import consolidé (dry-run) : listes ordonnées + 30 Ordres + 19 classes, **jamais de re-seed destructif** | ✅ **livré** le 26/10/2026 — `importRushGuide(raw, apply)` : dry-run par défaut, `src/lib/rush-import.ts` (plan pur), **ajoute seulement** · ✅ **complété le 27/10/2026** : le payload porte aussi les **liens** de la fiche (`dofusdbUrl`, `dofuspourlesnoobsUrl`), validés par **allowlist d'hôte + `https`** (`safeRushGuideLink`) — un lien refusé produit un avertissement dans le dry-run, jamais une URL arbitraire en base |
 
 ## 7. Bloc S5 — Dette de bascule & performance
 
 | Lot | Contenu |
 |---|---|
-| **S5-1** | Supprimer `alignOrderReq` et `alignmentLevel` quand toutes les surfaces sont migrées |
+| **S5-1** | Supprimer `alignOrderReq` et `alignmentLevel` quand toutes les surfaces sont migrées — ✅ **partiel le 27/10/2026** : `alignOrderReq` n'est **plus lu ni écrit** (client, 2 formulaires God, jumeau serveur, 2 seeds, sync enrichie) ; la **colonne** reste en base (**drop = migration ⇒ accord explicite**). `Profile.alignmentLevel` **reste** : c'est le palier du joueur, affiché par le profil et le panneau de guilde |
 | **S5-2** | Perf : **mesure d'abord** (profiler), puis compilateur React, `useOptimistic`, abonnements fins, virtualisation |
 
 ## 7 bis. Hors dépôt — la page « Trame » (outil de construction)

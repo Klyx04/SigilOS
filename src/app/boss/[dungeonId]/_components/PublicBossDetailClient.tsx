@@ -54,6 +54,7 @@ import { DocContent } from "@/components/doc/doc-content";
 import { buildBossFicheTabs } from "@/lib/boss-fiche-tabs";
 import { monsterFicheHref } from "@/lib/monster-fiche";
 import { resolveDungeonBossPair } from "@/lib/dungeon-boss-pair";
+import { getMultiBossConfig, type MultiBossConfig } from "@/lib/dungeon-multi-boss";
 
 interface PublicDungeon {
   id: string;
@@ -262,6 +263,10 @@ export function PublicBossDetailClient({
   const doubleBossNames = bossPair.isDoubleBoss
     ? [bossPair.partner, bossPair.focus].filter((n): n is string => !!n)
     : [];
+  const multiBossConfig = useMemo(() => getMultiBossConfig(dungeon), [dungeon]);
+  const isMultiBoss = !!multiBossConfig;
+  const multiBossNames = multiBossConfig?.bossNames ?? [];
+  const effectiveBossName = isMultiBoss && multiBossConfig ? multiBossConfig.bossNames[0] : bossName;
   // 📜 Onglets « quêtes liées » / « succès du donjon » : le serveur ne fournit ces données que
   // pour les **vrais donjons** (ni titan, ni avis de recherche) ⇒ l'onglet disparaît quand il n'y
   // a rien à montrer, jamais un onglet vide.
@@ -314,7 +319,7 @@ export function PublicBossDetailClient({
   const drops: any[] = displayStats?.drops ?? currentStats?.drops ?? [];
   const roomMonsters = familyByDungeon[dungeon.id]?.monsters ?? [];
   const hasRoomMonsters = roomMonsters.length > 1;
-  const activeBossKey = activeMonsterName ?? bossName;
+  const activeBossKey = activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName);
   const dungeonMaps = mapsByBoss[activeBossKey];
 
   // Passif enrichi : 100% intact si déjà des effets (Tal Kasha), enrichi via StartingSpell sinon (Kwakwa)
@@ -339,7 +344,7 @@ export function PublicBossDetailClient({
     if (statsByKey[entityKey] || loadingByKey[entityKey]) return;
     let cancelled = false;
     setLoadingByKey((p) => ({ ...p, [entityKey]: true }));
-    const target = activeMonsterName ?? bossName;
+    const target = activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName);
     getMonsterStats(target, dungeon.name, false, undefined, locale)
       .then(async (res) => {
         if (cancelled) return;
@@ -373,7 +378,7 @@ export function PublicBossDetailClient({
   // Lazy-load sorts pour le grade actif (si le monstre a plusieurs grades)
   useEffect(() => {
     if (grades.length <= 1 || !currentStats) return;
-    const target = activeMonsterName ?? bossName;
+    const target = activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName);
     const targetGrade = gradeIdx + 1;
     const targetGradeKey = `${entityKey}::g${targetGrade}`;
     if (statsByKey[targetGradeKey] || loadingByKey[targetGradeKey]) return;
@@ -463,7 +468,7 @@ export function PublicBossDetailClient({
     const gradeNumber = activeGradeIndex + 1;
     let cancelled = false;
     getBossDofensiveSpells(
-      activeMonsterName ?? bossName,
+      activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName),
       dungeon.name,
       gradeNumber,
       false,
@@ -523,12 +528,13 @@ export function PublicBossDetailClient({
 
   const resists = readGradeResists(activeGrade) ?? EMPTY_GRADE_RESISTS;
   const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
-  const travelCmd = coords ? `/travel ${coords.x} ${coords.y}` : null;
+  const effectiveCoords = (isMultiBoss && multiBossConfig) ? multiBossConfig.coordinates : coords;
+  const travelCmd = effectiveCoords ? `/travel ${effectiveCoords.x} ${effectiveCoords.y}` : null;
   /* Encart « Localisation » : la zone de l'avis (subareaIds) ou du donjon (mapId),
      avec repli sur la carte de l'entrée (coordonnées seules). */
   const bountySubareaIds = bountyMeta?.subareaIds ?? [];
-  const hasZoneLocation = !!(coords || dungeon.mapId || bountySubareaIds.length > 0);
-  const zoneWorldId = Number(coords?.worldMapId ?? 0) > 0 ? (coords!.worldMapId as number) : 1;
+  const hasZoneLocation = !!(effectiveCoords || dungeon.mapId || bountySubareaIds.length > 0);
+  const zoneWorldId = Number(effectiveCoords?.worldMapId ?? 0) > 0 ? (effectiveCoords!.worldMapId as number) : 1;
   const resolvedBossName =
     dungeon.dofensiveMonsterName ?? (activeMonsterName ?? deriveDofensiveMonsterName(bossName) ?? bossName);
 
@@ -541,7 +547,7 @@ export function PublicBossDetailClient({
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
           <BossOverlayButton
-            monsterName={activeMonsterName ?? bossName}
+            monsterName={activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName)}
             dungeonName={dungeon.name}
           />
         </div>
@@ -552,9 +558,13 @@ export function PublicBossDetailClient({
             <div className="flex items-center gap-4 min-w-0">
               <div className="w-16 h-16 rounded-lg border border-border bg-background/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
                 <MonsterImage
-                  src={currentStats?.imageUrl ?? dungeon.imageUrl}
-                  alt={activeMonsterName ?? bossName}
-                  monsterId={currentStats?.id}
+                  src={
+                    isMultiBoss
+                      ? (activeMonsterName ? (currentStats?.imageUrl ?? dungeon.imageUrl) : (dungeon.imageUrl ?? currentStats?.imageUrl))
+                      : (currentStats?.imageUrl ?? dungeon.imageUrl)
+                  }
+                  alt={activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName)}
+                  monsterId={isMultiBoss && !activeMonsterName ? undefined : currentStats?.id}
                   className="max-w-full max-h-full object-contain"
                 />
               </div>
@@ -564,7 +574,7 @@ export function PublicBossDetailClient({
                   <span className="font-mono normal-case">{t.bossPage.levelShort} {dungeon.level ?? 200}</span>
                 </p>
                 <h1 className="mt-0.5 truncate text-2xl font-semibold text-foreground sm:text-3xl">
-                  {activeMonsterName ?? (bossPair.isDoubleBoss ? dungeon.name : bossName)}
+                  {activeMonsterName ?? (bossPair.isDoubleBoss || isMultiBoss ? dungeon.name : bossName)}
                 </h1>
                 <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
                   <Compass className="w-3.5 h-3.5 opacity-70" />
@@ -576,19 +586,27 @@ export function PublicBossDetailClient({
 
             {/* Double boss — les deux combattants de la salle, cliquables (mesure du 20/10/2026) :
                 sans ce bandeau, la fiche annonçait « Comte et Nileza » mais ne montrait que le Comte. */}
-            {bossPair.isDoubleBoss && (
+            {(bossPair.isDoubleBoss || isMultiBoss) && (
               <div className="flex flex-wrap items-center gap-1.5" data-testid="boss-pair">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Double boss
+                  {isMultiBoss ? (multiBossConfig?.label ?? "Quatuor") : "Double boss"}
                 </span>
-                {doubleBossNames.map((name) => {
+                {(isMultiBoss ? multiBossNames : doubleBossNames).map((name) => {
                   const monster = roomMonsters.find((m) => m.name === name);
-                  const active = (activeMonsterName ?? bossName) === name;
+                  const active = (activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName)) === name;
                   return (
                     <button
                       key={name}
                       type="button"
-                      onClick={() => monster && selectMonster(monster)}
+                      onClick={() => {
+                        if (monster) {
+                          selectMonster(monster);
+                        } else {
+                          setActiveMonsterName(name);
+                          setActiveGradeIndex(null);
+                          setSelectedSpellId(undefined);
+                        }
+                      }}
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] transition-colors",
                         active
@@ -613,7 +631,7 @@ export function PublicBossDetailClient({
             )}
 
             {/* Entrée du donjon : coordonnées copiables (clic) + zone. */}
-            {coords && (
+            {effectiveCoords && (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
                 <button
                   type="button"
@@ -631,7 +649,7 @@ export function PublicBossDetailClient({
                   <span>
                     {t.bossPage.dungeonEntrance}{" "}
                     <strong className="font-mono text-foreground/90">
-                      [{coords.x}, {coords.y}]
+                      [{effectiveCoords.x}, {effectiveCoords.y}]
                     </strong>
                   </span>
                   {copiedTravel ? (
@@ -644,7 +662,7 @@ export function PublicBossDetailClient({
                 </button>
                 <span className="text-xs font-semibold text-muted-foreground">
                   {t.bossPage.zoneLabel}{" "}
-                  <strong className="text-foreground">{getWorldName(coords.worldMapId, locale)}</strong>
+                  <strong className="text-foreground">{multiBossConfig?.zoneName ?? getWorldName(effectiveCoords.worldMapId, locale)}</strong>
                 </span>
               </div>
             )}
@@ -653,7 +671,7 @@ export function PublicBossDetailClient({
             {isLoadingCurrent ? (
               <div className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 px-3.5 py-3 text-muted-foreground">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? bossName}…</span>
+                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName)}…</span>
               </div>
             ) : (
               <>
@@ -867,14 +885,37 @@ export function PublicBossDetailClient({
           </div>
 
           {/* ── Colonne droite : où se trouve le donjon / l'avis (zone encadrée, sinon entrée seule) ── */}
-          {hasZoneLocation && (
+          {multiBossConfig?.locationImageUrl ? (
+            <div className="overflow-hidden rounded-xl border border-border bg-surface/60 lg:max-w-md lg:ml-auto w-full">
+              <div className="border-b border-border px-4 py-2.5 text-sm font-semibold text-foreground">
+                {t.bossPage.minimapTitle}
+              </div>
+              <div className="relative aspect-[5/3] w-full overflow-hidden bg-black/40">
+                <img
+                  src={multiBossConfig.locationImageUrl}
+                  alt={multiBossConfig.zoneName ?? dungeon.name}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <img
+                    src="/assets/worldmap/dungeon-boss.png"
+                    alt=""
+                    className="w-7 h-7 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                  />
+                </div>
+              </div>
+              <div className="border-t border-border px-4 py-2.5 text-sm font-medium text-foreground/90">
+                {multiBossConfig.zoneName ?? dungeon.name}
+              </div>
+            </div>
+          ) : hasZoneLocation && (
             <ZoneLocationCard
               subareaIds={bountySubareaIds}
               mapId={dungeon.mapId ?? null}
               worldId={zoneWorldId}
               mapHref={
-                coords
-                  ? `/carte-du-monde?play=1&x=${coords.x}&y=${coords.y}&zoom=-2&world=${zoneWorldId}`
+                effectiveCoords
+                  ? `/carte-du-monde?play=1&x=${effectiveCoords.x}&y=${effectiveCoords.y}&zoom=-2&world=${zoneWorldId}`
                   : null
               }
               title={isBounty ? (locale === "en" ? "Hunt Zone" : "Zone de traque") : t.bossPage.minimapTitle}
@@ -883,11 +924,11 @@ export function PublicBossDetailClient({
               markerIcon="/assets/worldmap/dungeon-boss.png"
               className="lg:max-w-md lg:ml-auto w-full"
               fallback={
-                coords ? (
+                effectiveCoords ? (
                   <DungeonMinimapCard
-                    x={coords.x}
-                    y={coords.y}
-                    worldMapId={coords.worldMapId}
+                    x={effectiveCoords.x}
+                    y={effectiveCoords.y}
+                    worldMapId={effectiveCoords.worldMapId}
                     title={isBounty ? (locale === "en" ? "Hunt Zone" : "Zone de traque") : t.bossPage.minimapTitle}
                     placeName={dungeon.name}
                     openLabel={t.bossPage.minimapOpen}

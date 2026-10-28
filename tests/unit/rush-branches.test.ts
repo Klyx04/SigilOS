@@ -139,6 +139,78 @@ describe("étage 2 — 3 Ordres × 5 paliers", () => {
     });
 });
 
+/**
+ * Le studio (S4-2) et l'import écrivent le code **canonique** (`coeur_vaillant`), le
+ * catalogue `ORDERS` porte l'id **court** (`vaillant`) : les deux doivent remplir le
+ * MÊME palier. C'est ce qui manquait le 27/10/2026 — les 30 quêtes importées tombaient
+ * toutes « hors branche » et la vue restait à 0/5.
+ */
+describe("codes d'Ordre — les deux vocabulaires remplissent les mêmes paliers", () => {
+    it("un code canonique remplit son palier (et n'est pas orphelin)", () => {
+        const view = buildRushBranches([
+            seq({ id: "ordre-cv", alignReq: "bontarien", alignOrderCode: "coeur_vaillant", alignLevelReq: 20 }),
+        ]);
+
+        const vaillant = view.camps[0].orders.find((o) => o.id === BONTA.id)!;
+        expect(vaillant.slots.find((s) => s.level === 20)?.sequences).toHaveLength(1);
+        expect(vaillant.missing).toBe(4);
+        expect(view.orphans).toEqual([]);
+        expect(countMissingOrderSlots(view)).toBe(29);
+    });
+
+    it("l'id court du catalogue remplit le même palier", () => {
+        const view = buildRushBranches([
+            seq({ id: "ordre-court", alignReq: "bontarien", alignOrderCode: BONTA.id, alignLevelReq: 40 }),
+        ]);
+
+        const vaillant = view.camps[0].orders.find((o) => o.id === BONTA.id)!;
+        expect(vaillant.slots.find((s) => s.level === 40)?.sequences).toHaveLength(1);
+        expect(view.orphans).toEqual([]);
+    });
+
+    it("un Ordre de l'autre cité est signalé, jamais rattaché d'office", () => {
+        const view = buildRushBranches([
+            seq({ id: "croise", alignReq: "bontarien", alignOrderCode: "coeur_saignant", alignLevelReq: 20 }),
+        ]);
+
+        expect(view.orphans.map((s) => s.id)).toEqual(["croise"]);
+        expect(countMissingOrderSlots(view)).toBe(30);
+    });
+});
+
+/**
+ * Position dans la série = **ordre du bloc** puis ordre interne. `order` seul repart à 0
+ * dans chaque bloc : sans `blockOrder`, la vue triait par nom (alphabet) et « L'exorciste »
+ * (100ᵉ quête) apparaissait en position 68 (mesure du 27/10/2026).
+ */
+describe("position — l'ordre du GUIDE, ni le `order` local, ni l'alphabet", () => {
+    it("trie par bloc puis par ordre interne", () => {
+        const view = buildRushBranches([
+            // Alphabétiquement « Zébulon » < « Alfred » ? non : Alfred d'abord. On inverse donc
+            // les blocs pour prouver que c'est le BLOC qui tranche, pas le nom.
+            seq({ id: "b-zeb", alignReq: "bontarien", order: 0, blockOrder: 2, subGuideName: "Zébulon" }),
+            seq({ id: "b-alf", alignReq: "bontarien", order: 0, blockOrder: 1, subGuideName: "Alfred" }),
+        ]);
+        expect(view.pairs.map((p) => p.bontarien?.subGuideName)).toEqual(["Alfred", "Zébulon"]);
+    });
+
+    it("apparie les deux camps par rang dans l'ordre du guide", () => {
+        const view = buildRushBranches([
+            // Dans le même bloc, « B deux » précède « B un » dans l'alphabet : l'ordre interne
+            // doit gagner.
+            seq({ id: "b-2", alignReq: "bontarien", order: 1, blockOrder: 1, subGuideName: "B deux" }),
+            seq({ id: "b-1", alignReq: "bontarien", order: 0, blockOrder: 1, subGuideName: "B un" }),
+            // Brâkmar arrive plus tard dans le guide (bloc 9) : l'appariement se fait au RANG.
+            seq({ id: "k-2", alignReq: "brakmarien", order: 1, blockOrder: 9, subGuideName: "K deux" }),
+            seq({ id: "k-1", alignReq: "brakmarien", order: 0, blockOrder: 9, subGuideName: "K un" }),
+        ]);
+        expect(view.pairs.map((p) => [p.bontarien?.subGuideName, p.brakmarien?.subGuideName])).toEqual([
+            ["B un", "K un"],
+            ["B deux", "K deux"],
+        ]);
+    });
+});
+
 describe("orphelins — aucune perte silencieuse", () => {
     it("une cité inconnue finit en orphelin", () => {
         const view = buildRushBranches([

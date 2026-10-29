@@ -203,7 +203,6 @@
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan | Bloqué par |
 |---|---|---|---|---|---|---|
 | 3 | `ouverture-prod` (#57) | `robots.txt`, `sitemap.xml` et `llms.txt` renvoient la page d'attente (HTML) ; 2 apps Discord à isoler ; hardlinks ; rewrite Caddy à retirer | mesuré le 21/09/2026 | robots/sitemap statiques + `noindex` ; checklist Jour J | `docs/ops/GUIDE-DEPLOIEMENT-PROD-JOUR-J.md` · `docs/plans/SEO_REPRISE.md` | **D7** (landing) |
-| 4 | `restore-db` (F7) | La restauration n'a jamais été jouée (scripts durcis le 29/10 : rétention alignée, `ON_ERROR_STOP`, `--from`, banc d'essai `restore-drill.sh`) | `scripts/backup_db.sh` → 7 j + 3 mois + plafond 4 Go | jouer `restore-drill.sh` + écrire date et RTO | `docs/agents/disaster-recovery.md` | — |
 | 5 | `migrations-ops` | 2 migrations additives + bot + crontabs non déployés | `20270112000000` (GodNotification.details), `20270113000000` (DiscordMemberActivity) | jouer bêta puis prod ; redéployer le bot ; poser les 4 crontabs | `docs/MAINTENANCE.md` | — |
 | 6 | `caddy-post-503` | Pendant une maintenance, un POST reçoit du HTML au lieu d'un `503 text/plain` | cause racine du 16/10 | durcir le `Caddyfile` (POST → 503) | `docs/MAINTENANCE.md` | — |
 | 7 | `csp-enforce` (F10) | CSP en Report-Only : la protection XSS ne bloque rien | `CSP_ENFORCE` présent dans `src/proxy.ts` | poser `CSP_ENFORCE=true` après 48 h de rapports | `docs/SECURITY.md` | — |
@@ -316,6 +315,7 @@
 
 
 | `rush-consolidation` | Rush — siphon exhaustif des 2 sources (Tougli API + Dofusyelle) : séries **100 / 102** (Dofusyelle = préfixe exact de 99), 30 quêtes d'Ordre (palier dérivé par position), 19 classes, 1 085 contraintes inventoriées, **584** ressources (408 communes), 99 + 83 donjons (67 slugs), 62 succès ; **verrou de donjons** (requis/optionnel, multi-donjons) en règle pure + 12 tests | 21/10/2026 |
+| `restore-db` (F7) | Restauration **prouvee** : banc d'essai jetable (compteurs source/copie), dumps portables `--if-exists`, GPG loopback, retention bornee -- 8 tables verifiees le 29/10 | 29/10/2026 |
 
 ## 6. Archives et mémoire froide
 

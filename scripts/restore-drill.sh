@@ -18,6 +18,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+DRILL_START_TS=$(date +%s)
 
 TARGET_ENV="${1:-beta}"
 if [ "$TARGET_ENV" != "beta" ] && [ "$TARGET_ENV" != "prod" ]; then
@@ -196,5 +197,6 @@ done
 
 echo ""
 echo "✅ Répétition terminée : $LATEST restauré intégralement dans $DRILL_IMAGE."
-echo "   Durée et volumes ci-dessus valent comme RTO/RPO mesurés (docs/agents/disaster-recovery.md)."
+echo "   Durée totale : $(( $(date +%s) - DRILL_START_TS )) s (téléchargement + déchiffrement + restauration)."
+echo "   Cette durée et les compteurs ci-dessus valent comme RTO/RPO mesurés (docs/agents/disaster-recovery.md)."
 

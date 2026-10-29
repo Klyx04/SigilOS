@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { MountInfo } from "@/data/mount-data";
+import { MountStatBadges } from "./MountStatBadges";
 
 export interface MountSelectComboboxProps {
     value: string;
@@ -107,7 +108,7 @@ export function MountSelectCombobox({
                     <span>{label}</span>
                 </span>
                 {selectedMount && (
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-muted/60 text-muted-foreground border border-border">
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50">
                         Gen {selectedMount.generation}
                     </span>
                 )}
@@ -120,9 +121,9 @@ export function MountSelectCombobox({
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
                 aria-controls={listboxId}
-                className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 group cursor-pointer ${
+                className={`w-full text-left p-2.5 rounded-lg border transition-all flex items-center justify-between gap-3 group cursor-pointer ${
                     isOpen
-                        ? "bg-surface border-foreground/30 shadow-lg shadow-black/20 ring-1 ring-foreground/20"
+                        ? "bg-surface border-foreground text-foreground shadow-xs"
                         : "bg-surface/50 hover:bg-surface border-border hover:border-border-strong"
                 }`}
             >
@@ -138,15 +139,13 @@ export function MountSelectCombobox({
                                 className="object-contain"
                             />
                         </div>
-                        <div className="min-w-0 flex-1 space-y-0.5">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-foreground truncate block">
-                                    {selectedMount.name}
-                                </span>
-                            </div>
-                            <span className="text-[11px] text-muted-foreground truncate block font-mono">
-                                {selectedMount.stats}
+                        <div className="min-w-0 flex-1 space-y-1">
+                            <span className="text-xs font-bold text-foreground truncate block">
+                                {selectedMount.name}
                             </span>
+                            <div className="truncate block">
+                                <MountStatBadges stats={selectedMount.stats} variant="inline" />
+                            </div>
                         </div>
                     </div>
                 ) : (
@@ -168,7 +167,7 @@ export function MountSelectCombobox({
                     id={listboxId}
                     role="listbox"
                     aria-label={label}
-                    className="absolute z-50 left-0 right-0 top-full mt-2 rounded-2xl border border-border bg-elevated/95 backdrop-blur-2xl shadow-2xl p-2.5 space-y-2.5 animate-in fade-in-0 zoom-in-95 duration-150"
+                    className="absolute z-50 left-0 right-0 top-full mt-1.5 rounded-lg border border-border bg-surface shadow-xl p-2.5 space-y-2 animate-in fade-in-0 duration-150"
                     style={{ minWidth: "300px" }}
                 >
                     {/* Search Field */}
@@ -186,7 +185,7 @@ export function MountSelectCombobox({
                             <button
                                 type="button"
                                 onClick={() => setSearchQuery("")}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
                                 title="Effacer la recherche"
                             >
                                 <X className="w-3.5 h-3.5" />
@@ -199,7 +198,7 @@ export function MountSelectCombobox({
                         <button
                             type="button"
                             onClick={() => setSelectedGen("all")}
-                            className={`px-2 py-0.5 rounded-md font-semibold shrink-0 transition-colors ${
+                            className={`px-2 py-0.5 rounded-md font-semibold shrink-0 transition-colors cursor-pointer ${
                                 selectedGen === "all"
                                     ? "bg-foreground text-background"
                                     : "bg-surface text-muted-foreground hover:text-foreground hover:bg-surface/80"
@@ -212,7 +211,7 @@ export function MountSelectCombobox({
                                 key={gen}
                                 type="button"
                                 onClick={() => setSelectedGen(gen)}
-                                className={`px-2 py-0.5 rounded-md font-mono shrink-0 transition-colors ${
+                                className={`px-2 py-0.5 rounded-md font-mono shrink-0 transition-colors cursor-pointer ${
                                     selectedGen === gen
                                         ? "bg-foreground text-background font-bold"
                                         : "bg-surface text-muted-foreground hover:text-foreground hover:bg-surface/80"
@@ -256,7 +255,7 @@ export function MountSelectCombobox({
                                                     className="object-contain"
                                                 />
                                             </div>
-                                            <div className="min-w-0 flex-1">
+                                            <div className="min-w-0 flex-1 space-y-0.5">
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-muted/50 text-muted-foreground shrink-0">
                                                         G{mount.generation}
@@ -265,9 +264,9 @@ export function MountSelectCombobox({
                                                         {mount.name}
                                                     </span>
                                                 </div>
-                                                <span className="text-[10px] text-muted-foreground truncate block font-mono">
-                                                    {mount.stats}
-                                                </span>
+                                                <div className="truncate block">
+                                                    <MountStatBadges stats={mount.stats} variant="inline" />
+                                                </div>
                                             </div>
                                         </div>
 

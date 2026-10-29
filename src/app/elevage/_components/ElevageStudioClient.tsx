@@ -1,49 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { 
     Calculator, 
-    Sparkles, 
     Clock, 
-    ShieldAlert, 
     Coins, 
     GitBranch, 
     BookOpen, 
-    CheckCircle2, 
-    HelpCircle,
-    ArrowRight,
-    Flame,
-    Search,
-    Filter,
-    GitMerge,
-    Info
+    ArrowRight, 
+    Search, 
+    GitMerge, 
+    Calendar
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
-import { MOUNT_DATABASE, MountInfo, StatTag } from "@/data/mount-data";
+import { MOUNT_DATABASE, StatTag } from "@/data/mount-data";
 import { MountSelectCombobox } from "./MountSelectCombobox";
+import { MountStatBadges } from "./MountStatBadges";
 
 type MountFamily = "dragodinde" | "muldo" | "volkorne";
 type ActiveTab = "croisements" | "serenite" | "xp" | "arbres";
 type CatalystTier = 1 | 2 | 3 | 4;
 
-const FAMILY_CONFIG: Record<MountFamily, { name: string; maxGen: number; icon: string; bonus: string }> = {
+const FAMILY_CONFIG: Record<MountFamily, { 
+    name: string; 
+    count: number; 
+    icon: string; 
+    bonus: string;
+}> = {
     dragodinde: {
         name: "Dragodindes",
-        maxGen: 10,
+        count: 66,
         icon: "/images/guides/elevage/dragodindes.png",
         bonus: "Vitalité (jusqu'à 400), Puissance & Caractéristiques",
     },
     muldo: {
         name: "Muldos",
-        maxGen: 10,
+        count: 82,
         icon: "/images/guides/elevage/muldos.png",
         bonus: "+1 PM garanti (lvl 100+), Résistances % & Stats",
     },
     volkorne: {
         name: "Volkornes",
-        maxGen: 10,
+        count: 80,
         icon: "/images/guides/elevage/volkornes.png",
         bonus: "+1 PA garanti (lvl 100+), Coups Critiques & Stats",
     },
@@ -63,10 +63,10 @@ const GENETON_TABLE: Record<number, number> = {
 };
 
 const XP_TIERS: Record<CatalystTier, { name: string; xpPer10s: number; item: string; img: string }> = {
-    1: { name: "Tier 1", xpPer10s: 10, item: "Extrait de Mangeoire", img: "/images/guides/elevage/carburant_extrait.png" },
-    2: { name: "Tier 2", xpPer10s: 20, item: "Philtre de Mangeoire", img: "/images/guides/elevage/carburant_philtre.png" },
-    3: { name: "Tier 3", xpPer10s: 30, item: "Potion de Mangeoire", img: "/images/guides/elevage/carburant_potion.png" },
-    4: { name: "Tier 4", xpPer10s: 40, item: "Élixir de Mangeoire", img: "/images/guides/elevage/carburant_elixir.png" },
+    1: { name: "Tier 1", xpPer10s: 20, item: "Extrait de Mangeoire", img: "/images/guides/elevage/carburant_extrait.png" },
+    2: { name: "Tier 2", xpPer10s: 40, item: "Philtre de Mangeoire", img: "/images/guides/elevage/carburant_philtre.png" },
+    3: { name: "Tier 3", xpPer10s: 60, item: "Potion de Mangeoire", img: "/images/guides/elevage/carburant_potion.png" },
+    4: { name: "Tier 4", xpPer10s: 80, item: "Élixir de Mangeoire", img: "/images/guides/elevage/carburant_elixir.png" },
 };
 
 export function ElevageStudioClient() {
@@ -76,7 +76,7 @@ export function ElevageStudioClient() {
     const [activeTab, setActiveTab] = useState<ActiveTab>("croisements");
     const [selectedFamily, setSelectedFamily] = useState<MountFamily>("dragodinde");
 
-    // Calculateur de croisement
+    // Onglet 1 : Niveaux des parents et catalyseurs
     const [parent1Lvl, setParent1Lvl] = useState<number>(100);
     const [parent2Lvl, setParent2Lvl] = useState<number>(100);
     const [useOptimakina, setUseOptimakina] = useState<boolean>(true);
@@ -84,185 +84,202 @@ export function ElevageStudioClient() {
     const [useAnimakina, setUseAnimakina] = useState<boolean>(false);
     const [selectedSex, setSelectedSex] = useState<"male" | "female">("female");
 
-    // Simulateur de Sérénité
-    const [currentSerenity, setCurrentSerenity] = useState<number>(-1500);
+    // Onglet 2 : Minuteur de sérénité
+    const [currentSerenity, setCurrentSerenity] = useState<number>(3700);
     const [targetZone, setTargetZone] = useState<"endurance" | "maturite" | "amour">("maturite");
     const [catalystTier, setCatalystTier] = useState<CatalystTier>(2);
 
-    // Calculateur XP & Génétons
+    // Onglet 3 : Calculateur XP
     const [startLvl, setStartLvl] = useState<number>(1);
     const [targetLvl, setTargetLvl] = useState<number>(200);
     const [hasSage, setHasSage] = useState<boolean>(false);
-    const [selectedGen, setSelectedGen] = useState<number>(10);
+    const [selectedGen, setSelectedGen] = useState<number>(3);
 
-    // Onglet Arbres & Matrice de croisement
-    const [mountSearch, setMountSearch] = useState<string>("");
+    // Onglet 4 : Matrice de croisement & Recherche catalogue
+    const [searchQuery, setSearchQuery] = useState<string>("");
     const [selectedGenFilter, setSelectedGenFilter] = useState<number | "all">("all");
     const [selectedStatTag, setSelectedStatTag] = useState<StatTag | "all">("all");
     const [matrixParent1, setMatrixParent1] = useState<string>("Dragodinde Amande");
     const [matrixParent2, setMatrixParent2] = useState<string>("Dragodinde Rousse");
+    const [flashSimulator, setFlashSimulator] = useState<boolean>(false);
+    const simulatorRef = useRef<HTMLDivElement>(null);
 
-    // Données des montures pour l'espèce sélectionnée
-    const familyMounts = MOUNT_DATABASE.filter(m => m.family === selectedFamily);
+    // Chargement de recette avec bascule d'onglet et scroll propre vers le haut du simulateur
+    const handleLoadRecipe = (p1: string, p2: string) => {
+        setActiveTab("arbres");
+        setMatrixParent1(p1);
+        setMatrixParent2(p2);
+        setFlashSimulator(true);
+        setTimeout(() => setFlashSimulator(false), 1400);
 
-    // Changement d'espèce : on recale aussi les parents du simulateur (sinon
-    // ils pointent vers l'ancienne espèce : select vide + résultat incohérent).
-    const handleFamilyChange = (famKey: MountFamily) => {
-        setSelectedFamily(famKey);
-        const next = MOUNT_DATABASE.filter((m) => m.family === famKey);
-        setMatrixParent1(next[0]?.name ?? "");
-        setMatrixParent2(next[1]?.name ?? next[0]?.name ?? "");
+        setTimeout(() => {
+            if (simulatorRef.current) {
+                simulatorRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }, 60);
     };
 
-    // Recherche insensible aux accents (« émeraude » trouve « Emeraude » et inversement).
-    const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    // Données des montures pour l'espèce sélectionnée
+    const familyMounts = useMemo(() => {
+        return MOUNT_DATABASE.filter(m => m.family === selectedFamily);
+    }, [selectedFamily]);
 
-    // Filtrage du catalogue
-    const filteredMounts = familyMounts.filter(mount => {
-        if (selectedGenFilter !== "all" && mount.generation !== selectedGenFilter) {
-            return false;
-        }
-        if (selectedStatTag !== "all" && !mount.statTags.includes(selectedStatTag)) {
-            return false;
-        }
-        if (mountSearch.trim()) {
-            const query = norm(mountSearch);
-            const matchName = norm(mount.name).includes(query);
-            const matchStats = norm(mount.stats).includes(query);
-            return matchName || matchStats;
-        }
-        return true;
-    });
-
-    // Données des parents pour le simulateur de croisement direct
+    // Parent 1 & 2 pour la matrice
     const parent1Info = familyMounts.find(m => m.name === matrixParent1) || familyMounts[0] || MOUNT_DATABASE[0];
     const parent2Info = familyMounts.find(m => m.name === matrixParent2) || familyMounts[1] || familyMounts[0] || MOUNT_DATABASE[0];
 
-    // Recherche d'une éventuelle mutation connue issue de ces deux parents
-    const potentialMutation = familyMounts.find(m => {
-        if (!m.parents) return false;
-        const [pA, pB] = m.parents;
-        return (pA === parent1Info.name && pB === parent2Info.name) ||
-               (pB === parent1Info.name && pA === parent2Info.name);
-    });
+    // Recherche de la descendance directe
+    const potentialMutation = useMemo(() => {
+        if (!parent1Info || !parent2Info) return null;
+        return familyMounts.find(m => {
+            if (!m.parents) return false;
+            return (
+                (m.parents[0] === parent1Info.name && m.parents[1] === parent2Info.name) ||
+                (m.parents[1] === parent1Info.name && m.parents[0] === parent2Info.name)
+            );
+        });
+    }, [familyMounts, parent1Info, parent2Info]);
 
     const isSameBreed = parent1Info.name === parent2Info.name;
 
-    // Formule probabilité génération cible (MàJ 3.7)
-    // Base 30% + (lvl1 * 0.15%) + (lvl2 * 0.15%) + Optimakina (+20%) + Takeza (+20%)
+    // Calcul de probabilité de génération cible 3.7
     const baseChance = 30;
     const parent1Bonus = parent1Lvl * 0.15;
     const parent2Bonus = parent2Lvl * 0.15;
-    const optiBonus = useOptimakina ? 20 : 0;
+    const optimakinaBonus = useOptimakina ? 20 : 0;
     const takezaBonus = useTakeza ? 20 : 0;
-    const rawTotalChance = baseChance + parent1Bonus + parent2Bonus + optiBonus + takezaBonus;
+    const rawTotalChance = baseChance + parent1Bonus + parent2Bonus + optimakinaBonus + takezaBonus;
     const totalChance = Math.min(100, Math.round(rawTotalChance * 10) / 10);
 
-    // Calcul du niveau moyen requis pour 100% avec les bonus actifs
-    const neededFromParents = Math.max(0, 100 - baseChance - optiBonus - takezaBonus);
+    // Niveaux requis pour atteindre 100%
+    const neededFromParents = Math.max(0, 100 - baseChance - optimakinaBonus - takezaBonus);
     const totalLevelsNeeded = Math.ceil(neededFromParents / 0.15);
     const avgLevelNeeded = Math.ceil(totalLevelsNeeded / 2);
 
-    // Calcul Sérénité & temps estimé
-    // Vitesse de déplacement sérénité :
-    // Tier 1: 10 pts/10s, Tier 2: 20 pts/10s, Tier 3: 30 pts/10s, Tier 4: 40 pts/10s
-    // (Note: en 3.7, l'effet est doublé = 20, 40, 60, 80 pts/10s)
-    const serenitySpeedPer10s = catalystTier * 20; // 3.7 boosted
-    let targetRangeDesc = "";
-    let distanceToRange = 0;
-    let actionDevice = "";
+    // Calculs de sérénité
+    const currentSpeed = catalystTier * 20; // 20, 40, 60, 80 pts / 10s
+    let targetRange = { min: -2000, max: 2000, label: "Maturité (Neutre)" };
+    let requiredAction = "Aucun (Déjà dans la zone)";
 
     if (targetZone === "endurance") {
-        targetRangeDesc = "Zone Négative (< 0) — Smiley Bleu :( ou Rouge :C";
-        actionDevice = "Baffeur (-) pour baisser la sérénité";
-        if (currentSerenity >= 0) distanceToRange = currentSerenity + 1;
-    } else if (targetZone === "maturite") {
-        targetRangeDesc = "Zone Neutre (-2000 à +2000) — Smiley Bleu :( ou Violet :)";
-        actionDevice = currentSerenity < -2000 ? "Caresseur (+) pour monter" : "Baffeur (-) pour descendre";
-        if (currentSerenity < -2000) distanceToRange = -2000 - currentSerenity;
-        else if (currentSerenity > 2000) distanceToRange = currentSerenity - 2000;
+        targetRange = { min: -5000, max: -2001, label: "Endurance (Négative)" };
+        if (currentSerenity >= -2000) {
+            requiredAction = "Baffeur (-) pour descendre sous -2 000";
+        }
+    } else if (targetZone === "amour") {
+        targetRange = { min: 2001, max: 5000, label: "Amour (Positive)" };
+        if (currentSerenity <= 2000) {
+            requiredAction = "Caresseur (+) pour monter au-dessus de +2 000";
+        }
     } else {
-        targetRangeDesc = "Zone Positive (> 0) — Smiley Violet :) ou Vert :D";
-        actionDevice = "Caresseur (+) pour monter la sérénité";
-        if (currentSerenity <= 0) distanceToRange = 1 - currentSerenity;
+        if (currentSerenity < -2000) {
+            requiredAction = "Caresseur (+) pour remonter entre -2 000 et +2 000";
+        } else if (currentSerenity > 2000) {
+            requiredAction = "Baffeur (-) pour redescendre entre -2 000 et +2 000";
+        }
     }
 
-    const secondsToTarget = (distanceToRange / serenitySpeedPer10s) * 10;
-    const minutesToTarget = Math.round(secondsToTarget / 60);
+    let distanceToRange = 0;
+    if (currentSerenity < targetRange.min) {
+        distanceToRange = targetRange.min - currentSerenity;
+    } else if (currentSerenity > targetRange.max) {
+        distanceToRange = currentSerenity - targetRange.max;
+    }
+    const secondsToTarget = (distanceToRange / currentSpeed) * 10;
+    const minutesToTarget = Math.ceil(secondsToTarget / 60);
 
-    // Calcul XP Monture (1 à 200 = 867 582 XP)
-    // Au niveau 100: 172 668 XP
-    const TOTAL_XP_200 = 867582;
-    const TOTAL_XP_100 = 172668;
-    const calcXPNeeded = (start: number, target: number) => {
-        if (target <= start) return 0;
-        const xpRatio = (target / 200) ** 2.2;
-        const startRatio = (start / 200) ** 2.2;
-        return Math.round((xpRatio - startRatio) * TOTAL_XP_200);
-    };
+    // Calculs XP
+    const XP_TABLE_TOTAL = 867582; // Niv 1 -> 200
+    const xpRatio = (targetLvl ** 2.2 - startLvl ** 2.2) / (200 ** 2.2 - 1);
+    const xpNeeded = Math.max(0, Math.round(XP_TABLE_TOTAL * Math.max(0, Math.min(1, xpRatio))));
+    const xpSpeedPer10s = XP_TIERS[catalystTier].xpPer10s * (hasSage ? 2 : 1);
+    const totalSecondsXp = (xpNeeded / xpSpeedPer10s) * 10;
+    const hoursXp = Math.round((totalSecondsXp / 3600) * 10) / 10;
+    const daysXp = Math.round((hoursXp / 24) * 10) / 10;
+    const currentGenetons = GENETON_TABLE[selectedGen] || 1;
 
-    const xpNeeded = calcXPNeeded(startLvl, targetLvl);
-    const xpPer10s = XP_TIERS[catalystTier].xpPer10s * (hasSage ? 2 : 1);
-    const xpSeconds = Math.ceil(xpNeeded / xpPer10s) * 10;
-    const xpHours = Math.round((xpSeconds / 3600) * 10) / 10;
+    // Filtrage du catalogue
+    const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const filteredMounts = useMemo(() => {
+        return familyMounts.filter(mount => {
+            if (selectedGenFilter !== "all" && mount.generation !== selectedGenFilter) {
+                return false;
+            }
+            if (selectedStatTag !== "all" && !mount.statTags.includes(selectedStatTag)) {
+                return false;
+            }
+            if (!searchQuery.trim()) return true;
+            const q = norm(searchQuery.trim());
+            const matchName = norm(mount.name).includes(q);
+            const matchStats = norm(mount.stats).includes(q);
+            const matchGen = `gen ${mount.generation}`.includes(q) || `g${mount.generation}` === q;
+            return matchName || matchStats || matchGen;
+        });
+    }, [familyMounts, selectedGenFilter, selectedStatTag, searchQuery]);
 
     return (
         <div className="space-y-8">
-            {/* ── BANNIÈRE HERO COCKPIT ────────────────────────────────────────── */}
-            <div className="p-6 sm:p-8 rounded-2xl bg-surface border border-border">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            {/* ── EN-TÊTE FACTUEL & ÉPURÉ DU STUDIO ─────────────────────────── */}
+            <div className="border-b border-border pb-8">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                     <div className="space-y-2 max-w-2xl">
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 border border-border text-xs font-medium text-muted-foreground">
-                            <Sparkles className="w-3.5 h-3.5 text-foreground/70" />
+                        <p className="reg-eyebrow flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent" aria-hidden="true" />
                             <span>{l10n.heroTag}</span>
-                        </div>
+                        </p>
                         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                             {l10n.heroTitle}
                         </h1>
-                        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
                             {l10n.heroSubtitle}
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        <Link
-                            href="/guides/guide-elevage-enclos-guilde-dofus"
-                            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-border bg-surface hover:bg-elevated text-xs font-medium text-foreground transition-colors"
-                        >
-                            <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span>{l10n.guideLinkText}</span>
-                        </Link>
-                    </div>
+                    <Link
+                        href={locale === "en" ? "/en/guides/guide-elevage-enclos-guilde-dofus" : "/guides/guide-elevage-enclos-guilde-dofus"}
+                        className="reg-btn reg-btn-secondary text-xs shrink-0 self-start"
+                    >
+                        <BookOpen className="w-4 h-4" />
+                        <span>{l10n.guideLinkText}</span>
+                        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+                    </Link>
                 </div>
 
-                {/* Sélecteur d'espèce */}
-                <div className="mt-6 pt-5 border-t border-border grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* SÉLECTEUR D'ESPÈCE (DRAGODINDES, MULDOS, VOLKORNES) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
                     {(Object.keys(FAMILY_CONFIG) as MountFamily[]).map((famKey) => {
                         const fam = FAMILY_CONFIG[famKey];
                         const isSelected = selectedFamily === famKey;
+
                         return (
                             <button
                                 key={famKey}
                                 type="button"
-                                onClick={() => handleFamilyChange(famKey)}
-                                className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
+                                onClick={() => setSelectedFamily(famKey)}
+                                className={`p-3.5 rounded-lg border text-left transition-all cursor-pointer flex items-center gap-3 ${
                                     isSelected
-                                        ? "border-primary/50 bg-primary/5 text-foreground font-semibold"
-                                        : "border-border bg-surface/40 hover:bg-surface text-muted-foreground hover:text-foreground"
+                                        ? "border-foreground bg-surface text-foreground shadow-xs"
+                                        : "border-border bg-surface/30 text-muted-foreground hover:text-foreground hover:bg-surface/60 hover:border-border-strong"
                                 }`}
                             >
-                                <div className="relative w-11 h-11 shrink-0 rounded-lg bg-background border border-border p-1 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-md bg-background border border-border flex items-center justify-center p-1 shrink-0">
                                     <Image
                                         src={fam.icon}
                                         alt={fam.name}
-                                        width={36}
-                                        height={36}
+                                        width={32}
+                                        height={32}
+                                        unoptimized
                                         className="object-contain"
                                     />
                                 </div>
-                                <div className="min-w-0">
-                                    <strong className="text-xs font-semibold block truncate text-foreground">{fam.name}</strong>
-                                    <span className="text-[11px] text-muted-foreground block truncate">{fam.bonus}</span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="font-bold text-sm text-foreground">{fam.name}</span>
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/60">
+                                            {fam.count} races
+                                        </span>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">{fam.bonus}</p>
                                 </div>
                             </button>
                         );
@@ -270,50 +287,53 @@ export function ElevageStudioClient() {
                 </div>
             </div>
 
-            {/* ── ONGLETS PRINCIPAUX ────────────────────────────────────────── */}
-            <div className="flex items-center gap-2 border-b border-border overflow-x-auto pb-px">
+            {/* ── BARRE D'ONGLETS FACTUELLE STYLE PRODUIT / LANDING ─────────── */}
+            <div className="flex border-b border-border gap-6 overflow-x-auto text-xs font-semibold scrollbar-none pb-px">
                 <button
                     type="button"
                     onClick={() => setActiveTab("croisements")}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                    className={`pb-3 border-b-2 inline-flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
                         activeTab === "croisements"
-                            ? "border-foreground text-foreground"
+                            ? "border-foreground text-foreground font-bold"
                             : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                 >
                     <Calculator className="w-4 h-4" />
                     <span>{l10n.tabs.croisements}</span>
                 </button>
+
                 <button
                     type="button"
                     onClick={() => setActiveTab("serenite")}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                    className={`pb-3 border-b-2 inline-flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
                         activeTab === "serenite"
-                            ? "border-foreground text-foreground"
+                            ? "border-foreground text-foreground font-bold"
                             : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                 >
                     <Clock className="w-4 h-4" />
                     <span>{l10n.tabs.serenite}</span>
                 </button>
+
                 <button
                     type="button"
                     onClick={() => setActiveTab("xp")}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                    className={`pb-3 border-b-2 inline-flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
                         activeTab === "xp"
-                            ? "border-foreground text-foreground"
+                            ? "border-foreground text-foreground font-bold"
                             : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                 >
                     <Coins className="w-4 h-4" />
                     <span>{l10n.tabs.xp}</span>
                 </button>
+
                 <button
                     type="button"
                     onClick={() => setActiveTab("arbres")}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                    className={`pb-3 border-b-2 inline-flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
                         activeTab === "arbres"
-                            ? "border-foreground text-foreground"
+                            ? "border-foreground text-foreground font-bold"
                             : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                 >
@@ -325,22 +345,23 @@ export function ElevageStudioClient() {
             {/* ── ONGLET 1 : CALCULATEUR DE CROISEMENT ───────────────────────── */}
             {activeTab === "croisements" && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Colonne Gauche : Configuration des Parents */}
+                    {/* Colonne Gauche : Configuration des Parents & Catalyseurs */}
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">
-                            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                <Calculator className="w-4 h-4 text-foreground/70" />
-                                <span>Paramètres d'Accouplement & Niveaux</span>
+                        <div className="p-6 rounded-xl border border-border bg-surface/40 space-y-5">
+                            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                Paramètres d'Accouplement & Niveaux
                             </h2>
 
                             {/* Parent 1 (Mâle) */}
-                            <div className="space-y-3 p-4 rounded-xl bg-surface/50 border border-border">
+                            <div className="space-y-3 p-4 rounded-lg border border-border bg-surface/50">
                                 <div className="flex items-center justify-between text-xs">
-                                    <strong className="text-foreground flex items-center gap-2">
-                                        <span className="text-cyan-400 font-bold">♂</span>
-                                        {l10n.parentsSection.parent1}
-                                    </strong>
-                                    <span className="font-mono text-foreground font-semibold">Niveau {parent1Lvl} (+{(parent1Lvl * 0.15).toFixed(1)}%)</span>
+                                    <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                        <span className="text-muted-foreground font-mono">♂</span>
+                                        <span>{l10n.parentsSection.parent1}</span>
+                                    </span>
+                                    <span className="font-mono text-xs font-semibold text-foreground px-2 py-0.5 rounded bg-muted/60 border border-border/50">
+                                        Niveau {parent1Lvl} <span className="text-muted-foreground font-normal">+{(parent1Lvl * 0.15).toFixed(1)}%</span>
+                                    </span>
                                 </div>
                                 <input
                                     type="range"
@@ -348,9 +369,9 @@ export function ElevageStudioClient() {
                                     max="200"
                                     value={parent1Lvl}
                                     onChange={(e) => setParent1Lvl(parseInt(e.target.value, 10))}
-                                    className="w-full accent-foreground"
+                                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-foreground"
                                 />
-                                <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+                                <div className="flex justify-between text-[11px] text-muted-foreground font-mono">
                                     <span>Lvl 1 (+0.15%)</span>
                                     <span>Lvl 100 (+15%)</span>
                                     <span>Lvl 167 (+25%)</span>
@@ -359,13 +380,15 @@ export function ElevageStudioClient() {
                             </div>
 
                             {/* Parent 2 (Femelle) */}
-                            <div className="space-y-3 p-4 rounded-xl bg-surface/50 border border-border">
+                            <div className="space-y-3 p-4 rounded-lg border border-border bg-surface/50">
                                 <div className="flex items-center justify-between text-xs">
-                                    <strong className="text-foreground flex items-center gap-2">
-                                        <span className="text-rose-400 font-bold">♀</span>
-                                        {l10n.parentsSection.parent2}
-                                    </strong>
-                                    <span className="font-mono text-foreground font-semibold">Niveau {parent2Lvl} (+{(parent2Lvl * 0.15).toFixed(1)}%)</span>
+                                    <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                        <span className="text-muted-foreground font-mono">♀</span>
+                                        <span>{l10n.parentsSection.parent2}</span>
+                                    </span>
+                                    <span className="font-mono text-xs font-semibold text-foreground px-2 py-0.5 rounded bg-muted/60 border border-border/50">
+                                        Niveau {parent2Lvl} <span className="text-muted-foreground font-normal">+{(parent2Lvl * 0.15).toFixed(1)}%</span>
+                                    </span>
                                 </div>
                                 <input
                                     type="range"
@@ -373,9 +396,9 @@ export function ElevageStudioClient() {
                                     max="200"
                                     value={parent2Lvl}
                                     onChange={(e) => setParent2Lvl(parseInt(e.target.value, 10))}
-                                    className="w-full accent-foreground"
+                                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-foreground"
                                 />
-                                <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+                                <div className="flex justify-between text-[11px] text-muted-foreground font-mono">
                                     <span>Lvl 1 (+0.15%)</span>
                                     <span>Lvl 100 (+15%)</span>
                                     <span>Lvl 167 (+25%)</span>
@@ -384,69 +407,120 @@ export function ElevageStudioClient() {
                             </div>
 
                             {/* Catalyseurs & Makinas 3.7 */}
-                            <div className="space-y-3 pt-4 border-t border-border">
-                                <strong className="text-xs font-semibold text-foreground block">Catalyseurs & Bonus Spéciaux (3.7) :</strong>
+                            <div className="space-y-2.5 pt-2 border-t border-border">
+                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+                                    Catalyseurs & Bonus (MàJ 3.7)
+                                </span>
 
-                                <label className="flex items-start gap-3 p-3.5 rounded-xl border border-border bg-surface/50 cursor-pointer hover:bg-surface transition-colors">
+                                {/* Optimakina */}
+                                <label className={`flex items-start gap-3 p-3.5 rounded-lg border transition-all cursor-pointer ${
+                                    useOptimakina ? "border-border-strong bg-surface" : "border-border bg-surface/30 hover:bg-surface/60"
+                                }`}>
                                     <input
                                         type="checkbox"
                                         checked={useOptimakina}
                                         onChange={(e) => setUseOptimakina(e.target.checked)}
-                                        className="mt-0.5 rounded text-foreground focus:ring-foreground w-4 h-4"
+                                        className="mt-1 rounded text-foreground focus:ring-0 w-4 h-4 shrink-0"
                                     />
-                                    <div className="space-y-1">
-                                        <strong className="text-xs text-foreground block">{l10n.options.optimakina}</strong>
-                                        <p className="text-[11px] text-muted-foreground">Passé de +10% à +20% avec la MàJ 3.7. Réduit considérablement l'XP parent requise pour 100%.</p>
+                                    <div className="w-8 h-8 shrink-0 rounded bg-background border border-border p-1 flex items-center justify-center">
+                                        <Image
+                                            src="/images/guides/elevage/optimakina.png"
+                                            alt="Optimakina"
+                                            width={28}
+                                            height={28}
+                                            unoptimized
+                                            className="object-contain"
+                                        />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs font-bold text-foreground">{l10n.options.optimakina}</span>
+                                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50">+20% Fixe</span>
+                                        </div>
+                                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                                            Passé de +10% à +20% avec la MàJ 3.7. Réduit considérablement l'XP parent requise pour 100%.
+                                        </p>
                                     </div>
                                 </label>
 
-                                <label className="flex items-start gap-3 p-3.5 rounded-xl border border-border bg-surface/50 cursor-pointer hover:bg-surface transition-colors">
+                                {/* Takeza */}
+                                <label className={`flex items-start gap-3 p-3.5 rounded-lg border transition-all cursor-pointer ${
+                                    useTakeza ? "border-border-strong bg-surface" : "border-border bg-surface/30 hover:bg-surface/60"
+                                }`}>
                                     <input
                                         type="checkbox"
                                         checked={useTakeza}
                                         onChange={(e) => setUseTakeza(e.target.checked)}
-                                        className="mt-0.5 rounded text-foreground focus:ring-foreground w-4 h-4"
+                                        className="mt-1 rounded text-foreground focus:ring-0 w-4 h-4 shrink-0"
                                     />
-                                    <div className="space-y-1">
-                                        <strong className="text-xs text-foreground block">{l10n.options.takeza}</strong>
-                                        <p className="text-[11px] text-muted-foreground">Bonus Méryde du 12 Octobre. Confère +20% à tous les accouplements de la journée.</p>
+                                    <div className="w-8 h-8 shrink-0 rounded bg-background border border-border p-1 flex items-center justify-center text-muted-foreground">
+                                        <Calendar className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs font-bold text-foreground">{l10n.options.takeza}</span>
+                                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50">11 Octobre 2027</span>
+                                        </div>
+                                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                                            {locale === "fr"
+                                                ? "Bonus Méryde Takeza (Action de grâce, 11 Octobre 2027). Confère +20% à la génération cible sur tous les accouplements."
+                                                : "Takeza Meridia bonus (Thanksgiving, October 11, 2027). Confers +20% target generation chance on all matings."}
+                                        </p>
                                     </div>
                                 </label>
 
-                                <label className="flex items-start gap-3 p-3.5 rounded-xl border border-border bg-surface/50 cursor-pointer hover:bg-surface transition-colors">
+                                {/* Animakina */}
+                                <label className={`flex items-start gap-3 p-3.5 rounded-lg border transition-all cursor-pointer ${
+                                    useAnimakina ? "border-border-strong bg-surface" : "border-border bg-surface/30 hover:bg-surface/60"
+                                }`}>
                                     <input
                                         type="checkbox"
                                         checked={useAnimakina}
                                         onChange={(e) => setUseAnimakina(e.target.checked)}
-                                        className="mt-0.5 rounded text-foreground focus:ring-foreground w-4 h-4"
+                                        className="mt-1 rounded text-foreground focus:ring-0 w-4 h-4 shrink-0"
                                     />
-                                    <div className="space-y-1">
-                                        <strong className="text-xs text-foreground block">{l10n.options.animakina}</strong>
-                                        <p className="text-[11px] text-muted-foreground">Nouveauté 3.7 : Ne donne plus de capacité aléatoire mais verrouille le sexe du bébé souhaité.</p>
-                                        
+                                    <div className="w-8 h-8 shrink-0 rounded bg-background border border-border p-1 flex items-center justify-center">
+                                        <Image
+                                            src="/images/guides/elevage/animakina.png"
+                                            alt="Animakina"
+                                            width={28}
+                                            height={28}
+                                            unoptimized
+                                            className="object-contain"
+                                        />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs font-bold text-foreground">{l10n.options.animakina}</span>
+                                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50">Sexe Choisi</span>
+                                        </div>
+                                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                                            Nouveauté 3.7 : Verrouille et garantit le sexe du bébé souhaité à 100%.
+                                        </p>
+
                                         {useAnimakina && (
-                                            <div className="flex items-center gap-3 pt-2">
+                                            <div className="flex items-center gap-2 pt-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setSelectedSex("male")}
-                                                    className={`px-3 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                                                    onClick={(e) => { e.preventDefault(); setSelectedSex("male"); }}
+                                                    className={`px-2.5 py-1 rounded text-xs font-semibold border transition-all cursor-pointer ${
                                                         selectedSex === "male"
                                                             ? "bg-foreground text-background border-foreground"
                                                             : "bg-surface border-border text-muted-foreground hover:text-foreground"
                                                     }`}
                                                 >
-                                                    {l10n.options.male}
+                                                    ♂ {l10n.options.male}
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setSelectedSex("female")}
-                                                    className={`px-3 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                                                    onClick={(e) => { e.preventDefault(); setSelectedSex("female"); }}
+                                                    className={`px-2.5 py-1 rounded text-xs font-semibold border transition-all cursor-pointer ${
                                                         selectedSex === "female"
                                                             ? "bg-foreground text-background border-foreground"
                                                             : "bg-surface border-border text-muted-foreground hover:text-foreground"
                                                     }`}
                                                 >
-                                                    {l10n.options.female}
+                                                    ♀ {l10n.options.female}
                                                 </button>
                                             </div>
                                         )}
@@ -456,70 +530,79 @@ export function ElevageStudioClient() {
                         </div>
                     </div>
 
-                    {/* Colonne Droite : Carte de Verdict & Optimisation */}
+                    {/* Colonne Droite : Scorecard / Verdict */}
                     <div className="space-y-6">
-                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Résultat du Croisement 3.7
+                        <div className="p-6 rounded-xl border border-border bg-surface/40 space-y-5">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                Synthèse du Croisement 3.7
                             </h3>
 
-                            {/* Jauge Principale de Chance */}
-                            <div className="text-center py-4 space-y-2">
-                                <span className="text-xs text-muted-foreground block">{l10n.results.targetGenChance}</span>
-                                <div className="text-4xl font-bold tracking-tight text-foreground flex items-center justify-center gap-1 font-mono">
-                                    <span>{totalChance}%</span>
+                            {/* Probabilité de génération cible */}
+                            <div className="p-5 rounded-lg border border-border bg-surface/50 text-center space-y-3">
+                                <span className="text-xs text-muted-foreground block font-medium">
+                                    Probabilité de Génération Cible
+                                </span>
+                                <div className="text-4xl font-extrabold font-mono tracking-tight text-foreground">
+                                    {totalChance}%
                                 </div>
-                                {totalChance >= 100 && (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-success/10 border border-success/30 text-success text-[11px] font-semibold">
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        100% Garanti
-                                    </span>
-                                )}
+
+                                <div className="w-full bg-muted/80 rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                        className="h-full bg-foreground transition-all duration-300 rounded-full"
+                                        style={{ width: `${Math.min(100, totalChance)}%` }}
+                                    />
+                                </div>
+
+                                <span className="text-[11px] text-muted-foreground block font-mono">
+                                    {totalChance >= 100 
+                                        ? "Seuil garanti à 100%" 
+                                        : `Manque ${(100 - totalChance).toFixed(1)}% pour le 100% garanti`}
+                                </span>
                             </div>
 
-                            {/* Décomposition mathématique */}
-                            <div className="p-4 rounded-xl bg-surface/50 border border-border text-xs space-y-2 font-mono">
-                                <div className="flex justify-between text-muted-foreground">
-                                    <span>Probabilité de Base :</span>
-                                    <span>+30.0%</span>
+                            {/* Décomposition du calcul */}
+                            <div className="divide-y divide-border/60 text-xs font-mono">
+                                <div className="py-2 flex justify-between text-muted-foreground">
+                                    <span>Probabilité de base</span>
+                                    <span className="text-foreground">+30.0%</span>
                                 </div>
-                                <div className="flex justify-between text-muted-foreground">
-                                    <span>Parent 1 (Lvl {parent1Lvl}) :</span>
-                                    <span>+{parent1Bonus.toFixed(1)}%</span>
+                                <div className="py-2 flex justify-between text-muted-foreground">
+                                    <span>Parent 1 (Niv. {parent1Lvl})</span>
+                                    <span className="text-foreground">+{(parent1Lvl * 0.15).toFixed(1)}%</span>
                                 </div>
-                                <div className="flex justify-between text-muted-foreground">
-                                    <span>Parent 2 (Lvl {parent2Lvl}) :</span>
-                                    <span>+{parent2Bonus.toFixed(1)}%</span>
+                                <div className="py-2 flex justify-between text-muted-foreground">
+                                    <span>Parent 2 (Niv. {parent2Lvl})</span>
+                                    <span className="text-foreground">+{(parent2Lvl * 0.15).toFixed(1)}%</span>
                                 </div>
                                 {useOptimakina && (
-                                    <div className="flex justify-between text-foreground font-semibold">
-                                        <span>Optimakina 3.7 :</span>
-                                        <span>+20.0%</span>
+                                    <div className="py-2 flex justify-between text-muted-foreground">
+                                        <span>Optimakina 3.7</span>
+                                        <span className="text-foreground">+20.0%</span>
                                     </div>
                                 )}
                                 {useTakeza && (
-                                    <div className="flex justify-between text-foreground font-semibold">
-                                        <span>Almanax Takeza :</span>
-                                        <span>+20.0%</span>
+                                    <div className="py-2 flex justify-between text-muted-foreground">
+                                        <span>Almanax Takeza</span>
+                                        <span className="text-foreground">+20.0%</span>
                                     </div>
                                 )}
-                                <div className="pt-2 border-t border-border flex justify-between font-bold text-foreground">
-                                    <span>Total Calculé :</span>
+                                <div className="py-2.5 flex justify-between font-bold text-foreground text-sm">
+                                    <span>Total Calculé</span>
                                     <span>{rawTotalChance.toFixed(1)}%</span>
                                 </div>
                             </div>
 
-                            {/* Conseil d'ingénieur Élevage */}
-                            <div className="p-4 rounded-xl bg-surface/50 border border-border text-xs space-y-1.5">
-                                <strong className="text-foreground font-semibold flex items-center gap-1.5">
-                                    <Flame className="w-4 h-4 text-muted-foreground shrink-0" />
-                                    {l10n.results.optimalLevelTip}
-                                </strong>
-                                <p className="text-muted-foreground text-[11px] leading-relaxed">
+                            {/* Conseil technique d'élevage */}
+                            <div className="p-4 rounded-lg border border-border bg-surface/60 text-xs space-y-1.5">
+                                <span className="font-bold text-foreground block">{l10n.results.optimalLevelTip}</span>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">
                                     {l10n.results.optimalLevelDesc}
                                 </p>
-                                <div className="mt-2 pt-2 border-t border-border text-muted-foreground text-[11px] font-mono">
-                                    Cumul de niveaux requis : <strong className="text-foreground">{totalLevelsNeeded}</strong> (ex: {avgLevelNeeded} + {totalLevelsNeeded - avgLevelNeeded})
+                                <div className="pt-2 border-t border-border/60 flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                                    <span>Cumul requis :</span>
+                                    <span className="font-bold text-foreground">
+                                        {totalLevelsNeeded} niveaux (ex: {avgLevelNeeded} + {Math.max(0, totalLevelsNeeded - avgLevelNeeded)})
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -531,11 +614,10 @@ export function ElevageStudioClient() {
             {activeTab === "serenite" && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">
+                        <div className="p-6 rounded-xl border border-border bg-surface/40 space-y-5">
                             <div>
-                                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-foreground/70" />
-                                    <span>{l10n.sereniteTool.title}</span>
+                                <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                    {l10n.sereniteTool.title}
                                 </h2>
                                 <p className="text-xs text-muted-foreground mt-1">
                                     {l10n.sereniteTool.desc}
@@ -543,11 +625,14 @@ export function ElevageStudioClient() {
                             </div>
 
                             {/* Curseur de sérénité */}
-                            <div className="space-y-4 p-4 rounded-xl bg-surface/50 border border-border">
+                            <div className="space-y-4 p-4 rounded-lg border border-border bg-surface/50">
                                 <div className="flex items-center justify-between text-xs">
-                                    <strong className="text-foreground">{l10n.sereniteTool.currentSerenity}</strong>
-                                    <span className="font-mono text-base font-bold text-foreground">{currentSerenity}</span>
+                                    <span className="font-semibold text-foreground">{l10n.sereniteTool.currentSerenity}</span>
+                                    <span className="font-mono text-sm font-bold text-foreground px-2 py-0.5 rounded bg-muted/60 border border-border/50">
+                                        {currentSerenity > 0 ? `+${currentSerenity}` : currentSerenity}
+                                    </span>
                                 </div>
+
                                 <input
                                     type="range"
                                     min="-5000"
@@ -555,82 +640,120 @@ export function ElevageStudioClient() {
                                     step="50"
                                     value={currentSerenity}
                                     onChange={(e) => setCurrentSerenity(parseInt(e.target.value, 10))}
-                                    className="w-full accent-foreground"
+                                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-foreground"
                                 />
 
-                                {/* Repères visuels des 4 zones */}
-                                <div className="grid grid-cols-3 gap-1.5 text-center font-mono text-[10px]">
-                                    <div className={`p-2 rounded-lg border ${currentSerenity < -2000 ? "bg-muted/70 border-border-strong text-foreground font-semibold" : "bg-surface/30 border-border text-muted-foreground"}`}>
-                                        -5000 à -2000<br /><span className="text-[9px]">Endurance pure :C</span>
+                                {/* 3 Plages de sérénité sobres */}
+                                <div className="grid grid-cols-3 gap-2 text-center font-mono text-[11px]">
+                                    <div className={`p-2.5 rounded-lg border transition-all ${
+                                        currentSerenity < -2000 
+                                            ? "bg-surface border-foreground text-foreground font-bold shadow-xs" 
+                                            : "bg-surface/30 border-border text-muted-foreground"
+                                    }`}>
+                                        <span className="block font-semibold">Endurance</span>
+                                        <span className="text-[10px] text-muted-foreground">-5 000 à -2 000</span>
                                     </div>
-                                    <div className={`p-2 rounded-lg border ${currentSerenity >= -2000 && currentSerenity <= 2000 ? "bg-muted/70 border-border-strong text-foreground font-semibold" : "bg-surface/30 border-border text-muted-foreground"}`}>
-                                        -2000 à +2000<br /><span className="text-[9px]">Maturité & Mix :)</span>
+
+                                    <div className={`p-2.5 rounded-lg border transition-all ${
+                                        currentSerenity >= -2000 && currentSerenity <= 2000 
+                                            ? "bg-surface border-foreground text-foreground font-bold shadow-xs" 
+                                            : "bg-surface/30 border-border text-muted-foreground"
+                                    }`}>
+                                        <span className="block font-semibold">Maturité</span>
+                                        <span className="text-[10px] text-muted-foreground">-2 000 à +2 000</span>
                                     </div>
-                                    <div className={`p-2 rounded-lg border ${currentSerenity > 2000 ? "bg-muted/70 border-border-strong text-foreground font-semibold" : "bg-surface/30 border-border text-muted-foreground"}`}>
-                                        +2000 à +5000<br /><span className="text-[9px]">Amour pur :D</span>
+
+                                    <div className={`p-2.5 rounded-lg border transition-all ${
+                                        currentSerenity > 2000 
+                                            ? "bg-surface border-foreground text-foreground font-bold shadow-xs" 
+                                            : "bg-surface/30 border-border text-muted-foreground"
+                                    }`}>
+                                        <span className="block font-semibold">Amour</span>
+                                        <span className="text-[10px] text-muted-foreground">+2 000 à +5 000</span>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Choix de l'objectif */}
-                            <div className="space-y-2.5">
-                                <strong className="text-xs font-semibold text-foreground block">{l10n.sereniteTool.targetZone}</strong>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            <div className="space-y-2">
+                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+                                    {l10n.sereniteTool.targetZone}
+                                </span>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                     <button
                                         type="button"
                                         onClick={() => setTargetZone("endurance")}
-                                        className={`p-3 rounded-xl border text-xs font-semibold text-left transition-colors ${
+                                        className={`p-3 rounded-lg border text-xs font-semibold text-left transition-all cursor-pointer ${
                                             targetZone === "endurance"
-                                                ? "border-primary/50 bg-primary/5 text-foreground"
-                                                : "border-border bg-surface/50 text-muted-foreground hover:text-foreground"
+                                                ? "border-foreground bg-surface text-foreground shadow-xs"
+                                                : "border-border bg-surface/30 text-muted-foreground hover:text-foreground hover:bg-surface/60"
                                         }`}
                                     >
-                                        ⚡ Endurance (&lt; 0)
+                                        Endurance (&lt; -2 000)
                                     </button>
+
                                     <button
                                         type="button"
                                         onClick={() => setTargetZone("maturite")}
-                                        className={`p-3 rounded-xl border text-xs font-semibold text-left transition-colors ${
+                                        className={`p-3 rounded-lg border text-xs font-semibold text-left transition-all cursor-pointer ${
                                             targetZone === "maturite"
-                                                ? "border-primary/50 bg-primary/5 text-foreground"
-                                                : "border-border bg-surface/50 text-muted-foreground hover:text-foreground"
+                                                ? "border-foreground bg-surface text-foreground shadow-xs"
+                                                : "border-border bg-surface/30 text-muted-foreground hover:text-foreground hover:bg-surface/60"
                                         }`}
                                     >
-                                        💧 Maturité ([-2k, +2k])
+                                        Maturité ([-2 000, +2 000])
                                     </button>
+
                                     <button
                                         type="button"
                                         onClick={() => setTargetZone("amour")}
-                                        className={`p-3 rounded-xl border text-xs font-semibold text-left transition-colors ${
+                                        className={`p-3 rounded-lg border text-xs font-semibold text-left transition-all cursor-pointer ${
                                             targetZone === "amour"
-                                                ? "border-primary/50 bg-primary/5 text-foreground"
-                                                : "border-border bg-surface/50 text-muted-foreground hover:text-foreground"
+                                                ? "border-foreground bg-surface text-foreground shadow-xs"
+                                                : "border-border bg-surface/30 text-muted-foreground hover:text-foreground hover:bg-surface/60"
                                         }`}
                                     >
-                                        ❤️ Amour (&gt; 0)
+                                        Amour (&gt; +2 000)
                                     </button>
                                 </div>
                             </div>
 
                             {/* Choix du Tier de Carburant */}
-                            <div className="space-y-2.5">
-                                <strong className="text-xs font-semibold text-foreground block">{l10n.sereniteTool.tierSelect}</strong>
+                            <div className="space-y-2">
+                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+                                    {l10n.sereniteTool.tierSelect} (Efficacité doublée 3.7)
+                                </span>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     {(Object.keys(XP_TIERS) as unknown as CatalystTier[]).map((tierNum) => {
                                         const tInfo = XP_TIERS[tierNum];
+                                        const isSelected = catalystTier === tierNum;
                                         return (
                                             <button
                                                 key={tierNum}
                                                 type="button"
                                                 onClick={() => setCatalystTier(tierNum)}
-                                                className={`p-2.5 rounded-lg border text-xs text-center transition-colors ${
-                                                    catalystTier === tierNum
-                                                        ? "border-foreground/40 bg-surface-elevated text-foreground font-semibold"
-                                                        : "border-border bg-surface/40 text-muted-foreground hover:text-foreground"
+                                                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                                                    isSelected
+                                                        ? "border-foreground bg-surface text-foreground shadow-xs"
+                                                        : "border-border bg-surface/30 text-muted-foreground hover:text-foreground hover:bg-surface/60"
                                                 }`}
                                             >
-                                                <span className="block font-semibold">{tInfo.name}</span>
-                                                <span className="text-[10px] text-muted-foreground">{tierNum * 20} pts/10s</span>
+                                                <div className="w-7 h-7 shrink-0 rounded bg-background border border-border p-0.5 flex items-center justify-center">
+                                                    <Image
+                                                        src={tInfo.img}
+                                                        alt={tInfo.name}
+                                                        width={24}
+                                                        height={24}
+                                                        unoptimized
+                                                        className="object-contain"
+                                                    />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <span className="block font-bold text-xs truncate">{tInfo.name}</span>
+                                                    <span className="text-[10px] text-muted-foreground font-mono block">
+                                                        {tierNum * 20} pts/10s
+                                                    </span>
+                                                </div>
                                             </button>
                                         );
                                     })}
@@ -641,59 +764,56 @@ export function ElevageStudioClient() {
 
                     {/* Verdict de Chrono & Consignes */}
                     <div className="space-y-6">
-                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-5">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <div className="p-6 rounded-xl border border-border bg-surface/40 space-y-5">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                 Horodateur d'Enclos 3.7
                             </h3>
 
-                            <div className="p-4 rounded-xl bg-surface/50 border border-border space-y-2 text-center">
-                                <span className="text-xs text-muted-foreground block">{l10n.sereniteTool.timeNeeded}</span>
-                                <div className="text-3xl font-bold text-foreground font-mono">
-                                    {distanceToRange === 0 ? "Déjà atteint !" : `${minutesToTarget} min`}
+                            <div className="p-5 rounded-lg border border-border bg-surface/50 space-y-2 text-center">
+                                <span className="text-xs text-muted-foreground font-medium block">{l10n.sereniteTool.timeNeeded}</span>
+                                <div className="text-3xl font-extrabold text-foreground font-mono tracking-tight">
+                                    {distanceToRange === 0 ? "Déjà atteint" : `${minutesToTarget} min`}
                                 </div>
                                 <span className="text-[11px] text-muted-foreground block font-mono">
                                     Écart à combler : {distanceToRange} points
                                 </span>
                             </div>
 
-                            <div className="space-y-1.5 text-xs">
-                                <strong className="text-foreground block font-semibold">Actionneur requis :</strong>
-                                <div className="p-2.5 rounded-lg bg-surface/50 border border-border text-foreground/80 font-mono text-[11px]">
-                                    {actionDevice}
+                            <div className="space-y-3 text-xs">
+                                <div>
+                                    <span className="text-muted-foreground block">Actionneur requis :</span>
+                                    <strong className="text-foreground font-mono block mt-0.5">{requiredAction}</strong>
                                 </div>
-                            </div>
 
-                            <div className="p-3.5 rounded-xl border border-warning/30 bg-warning/5 text-xs space-y-1">
-                                <div className="flex items-center gap-1.5 text-warning font-semibold">
-                                    <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-                                    <span>Piège de Sur-Dérive (3.7)</span>
+                                <div className="p-3.5 rounded-lg border border-border bg-surface/60 space-y-1 text-muted-foreground text-[11px]">
+                                    <strong className="text-foreground block">⚠️ Vigilance Sur-Dérive (3.7)</strong>
+                                    <p className="leading-relaxed">
+                                        Retirez votre monture dès que l'horloge atteint zéro pour éviter de basculer dans l'extrême opposé.
+                                    </p>
                                 </div>
-                                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    {l10n.sereniteTool.warningOvershoot}
-                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ── ONGLET 3 : CALCULATEUR XP & GÉNÉTONS ──────────────────────── */}
+            {/* ── ONGLET 3 : CALCULATEUR XP & DURABILITÉ ───────────────────── */}
             {activeTab === "xp" && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-6">
+                        <div className="p-6 rounded-xl border border-border bg-surface/40 space-y-5">
                             <div>
-                                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                    <Coins className="w-4 h-4 text-foreground/70" />
-                                    <span>{l10n.xpTool.title}</span>
+                                <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                    {l10n.xpTool.title}
                                 </h2>
                                 <p className="text-xs text-muted-foreground mt-1">
                                     {l10n.xpTool.desc}
                                 </p>
                             </div>
 
+                            {/* Paliers de niveau */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="p-4 rounded-xl bg-surface/50 border border-border space-y-1.5">
+                                <div className="p-4 rounded-lg border border-border bg-surface/50 space-y-1.5">
                                     <span className="text-xs text-muted-foreground font-semibold">{l10n.xpTool.currentLvl}</span>
                                     <input
                                         type="number"
@@ -701,10 +821,10 @@ export function ElevageStudioClient() {
                                         max="199"
                                         value={startLvl}
                                         onChange={(e) => setStartLvl(Math.max(1, Math.min(199, parseInt(e.target.value, 10) || 1)))}
-                                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:border-border-strong font-mono"
+                                        className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm font-bold text-foreground focus:outline-none focus:border-foreground font-mono"
                                     />
                                 </div>
-                                <div className="p-4 rounded-xl bg-surface/50 border border-border space-y-1.5">
+                                <div className="p-4 rounded-lg border border-border bg-surface/50 space-y-1.5">
                                     <span className="text-xs text-muted-foreground font-semibold">{l10n.xpTool.targetLvl}</span>
                                     <input
                                         type="number"
@@ -712,81 +832,125 @@ export function ElevageStudioClient() {
                                         max="200"
                                         value={targetLvl}
                                         onChange={(e) => setTargetLvl(Math.max(2, Math.min(200, parseInt(e.target.value, 10) || 200)))}
-                                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:border-border-strong font-mono"
+                                        className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm font-bold text-foreground focus:outline-none focus:border-foreground font-mono"
                                     />
                                 </div>
                             </div>
 
-                            <label className="flex items-center gap-3 p-3.5 rounded-xl border border-border bg-surface/50 cursor-pointer hover:bg-surface transition-colors">
+                            {/* Raccourcis de paliers */}
+                            <div className="flex items-center gap-2 flex-wrap text-xs">
+                                <span className="text-muted-foreground font-medium">Paliers :</span>
+                                <button
+                                    type="button"
+                                    onClick={() => { setStartLvl(1); setTargetLvl(100); }}
+                                    className="px-2.5 py-1 rounded border border-border bg-surface/50 hover:bg-surface text-foreground font-mono transition-colors cursor-pointer"
+                                >
+                                    Lvl 1 ➔ 100
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setStartLvl(1); setTargetLvl(167); }}
+                                    className="px-2.5 py-1 rounded border border-border bg-surface/50 hover:bg-surface text-foreground font-mono font-semibold transition-colors cursor-pointer"
+                                >
+                                    Lvl 1 ➔ 167 (Seuil Optimakina)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setStartLvl(1); setTargetLvl(200); }}
+                                    className="px-2.5 py-1 rounded border border-border bg-surface/50 hover:bg-surface text-foreground font-mono transition-colors cursor-pointer"
+                                >
+                                    Lvl 1 ➔ 200 (Max)
+                                </button>
+                            </div>
+
+                            {/* Capacité Sage */}
+                            <label className={`flex items-start gap-3 p-3.5 rounded-lg border transition-all cursor-pointer ${
+                                hasSage ? "border-border-strong bg-surface" : "border-border bg-surface/30 hover:bg-surface/60"
+                            }`}>
                                 <input
                                     type="checkbox"
                                     checked={hasSage}
                                     onChange={(e) => setHasSage(e.target.checked)}
-                                    className="rounded text-foreground focus:ring-foreground w-4 h-4"
+                                    className="mt-1 rounded text-foreground focus:ring-0 w-4 h-4 shrink-0"
                                 />
                                 <div>
-                                    <strong className="text-xs text-foreground block">{l10n.xpTool.hasSage}</strong>
-                                    <span className="text-[11px] text-muted-foreground">Double tout le gain d'XP en mangeoire. Permet d'atteindre le niveau 200 en ~30h chrono.</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-foreground">{l10n.xpTool.hasSage}</span>
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50">
+                                            XP ×2
+                                        </span>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                                        Double tout le gain d'XP en mangeoire. Permet d'atteindre le niveau 200 en ~30h chrono.
+                                    </p>
                                 </div>
                             </label>
 
                             {/* Sélecteur de Génération pour les Génétons */}
-                            <div className="space-y-2.5 pt-4 border-t border-border">
+                            <div className="space-y-2.5 pt-2 border-t border-border">
                                 <div className="flex items-center justify-between text-xs">
-                                    <strong className="text-foreground">{l10n.xpTool.genSelect}</strong>
-                                    <span className="font-mono text-muted-foreground font-semibold">Génération {selectedGen}</span>
+                                    <span className="text-muted-foreground uppercase tracking-wider font-semibold">{l10n.xpTool.genSelect}</span>
+                                    <span className="font-mono text-xs font-semibold text-foreground inline-flex items-center gap-1.5">
+                                        <Image src="/images/guides/elevage/geneton.png" alt="" width={15} height={15} unoptimized className="object-contain" />
+                                        <span>Génération {selectedGen} (+{currentGenetons} Génétons)</span>
+                                    </span>
                                 </div>
                                 <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
-                                    {Array.from({ length: FAMILY_CONFIG[selectedFamily].maxGen }, (_, i) => i + 1).map((gen) => (
-                                        <button
-                                            key={gen}
-                                            type="button"
-                                            onClick={() => setSelectedGen(gen)}
-                                            className={`p-2 rounded-lg border text-xs font-mono font-semibold transition-colors ${
-                                                selectedGen === gen
-                                                    ? "bg-foreground text-background border-foreground"
-                                                    : "bg-surface/50 border-border text-muted-foreground hover:text-foreground"
-                                            }`}
-                                        >
-                                            {gen}
-                                        </button>
-                                    ))}
+                                    {Array.from({ length: 10 }, (_, i) => i + 1).map((gen) => {
+                                        const isSelected = selectedGen === gen;
+                                        return (
+                                            <button
+                                                key={gen}
+                                                type="button"
+                                                onClick={() => setSelectedGen(gen)}
+                                                className={`py-2 rounded border text-xs font-mono font-semibold transition-all cursor-pointer ${
+                                                    isSelected
+                                                        ? "border-foreground bg-foreground text-background shadow-xs"
+                                                        : "border-border bg-surface/40 text-muted-foreground hover:text-foreground hover:bg-surface"
+                                                }`}
+                                            >
+                                                G{gen}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Résumé des Durées & Génétons */}
+                    {/* Synthèse Droite */}
                     <div className="space-y-6">
-                        <div className="p-6 rounded-2xl bg-surface border border-border space-y-4">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <div className="p-6 rounded-xl border border-border bg-surface/40 space-y-5">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                 Synthèse de Production
                             </h3>
 
-                            <div className="space-y-2.5 text-xs">
-                                <div className="p-3.5 rounded-xl bg-surface/50 border border-border space-y-1">
-                                    <span className="text-muted-foreground">XP Total Requise :</span>
-                                    <div className="text-xl font-bold text-foreground font-mono">
-                                        {xpNeeded.toLocaleString("fr-FR")} XP
-                                    </div>
+                            <div className="divide-y divide-border/60 text-xs font-mono">
+                                <div className="py-2.5 flex justify-between text-muted-foreground">
+                                    <span>XP Requise</span>
+                                    <span className="text-foreground font-bold">{xpNeeded.toLocaleString()} XP</span>
                                 </div>
-
-                                <div className="p-3.5 rounded-xl bg-surface/50 border border-border space-y-1">
-                                    <span className="text-muted-foreground">Temps estimé (Tier {catalystTier}) :</span>
-                                    <div className="text-xl font-bold text-foreground font-mono">
-                                        {xpHours} heures (~{(xpHours / 24).toFixed(1)} jours)
-                                    </div>
+                                <div className="py-2.5 flex justify-between text-muted-foreground">
+                                    <span>Temps estimé ({XP_TIERS[catalystTier].name})</span>
+                                    <span className="text-foreground font-bold">{hoursXp}h (~{daysXp}j)</span>
                                 </div>
-
-                                <div className="p-3.5 rounded-xl bg-surface/50 border border-border space-y-1">
-                                    <span className="text-foreground font-semibold">{l10n.xpTool.genetonsWon}</span>
-                                    <div className="text-xl font-bold text-foreground font-mono">
-                                        +{GENETON_TABLE[selectedGen] || 1} Génétons
-                                    </div>
-                                    <span className="text-[10px] text-muted-foreground block">
-                                        Gen 10 : 500 Génétons par accouplement (3.7)
+                                <div className="py-2.5 flex justify-between items-center text-muted-foreground">
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <Image src="/images/guides/elevage/geneton.png" alt="" width={14} height={14} unoptimized className="object-contain" />
+                                        <span>Génétons à l'accouplement</span>
                                     </span>
+                                    <span className="text-foreground font-bold">+{currentGenetons} Génétons</span>
                                 </div>
+                            </div>
+
+                            <div className="p-3.5 rounded-lg border border-border bg-surface/60 text-[11px] text-muted-foreground space-y-1">
+                                <span className="font-semibold text-foreground inline-flex items-center gap-1.5">
+                                    <Image src="/images/guides/elevage/geneton.png" alt="" width={14} height={14} unoptimized className="object-contain" />
+                                    <span>Astuce Génétons 3.7</span>
+                                </span>
+                                <p className="leading-relaxed">
+                                    Les Génétons sont attribués seulement si le bébé dépasse tous les ancêtres. Au palier 9 et 10, le gain atteint 500 Génétons par portée.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -795,19 +959,23 @@ export function ElevageStudioClient() {
 
             {/* ── ONGLET 4 : ARBRES & MATRICE DE CROISEMENTS ───────────────── */}
             {activeTab === "arbres" && (
-                <div className="space-y-6">
-                    {/* Simulateur de croisement direct */}
-                    <div className="p-6 rounded-2xl bg-surface border border-border space-y-5">
+                <div className="space-y-8">
+                    {/* SIMULATEUR DE CROISEMENT DIRECT AVEC SCROLL PROPRE */}
+                    <div 
+                        id="simulateur-croisement"
+                        ref={simulatorRef}
+                        className={`scroll-mt-24 p-6 rounded-xl border transition-all duration-300 space-y-5 ${
+                            flashSimulator 
+                                ? "border-foreground ring-2 ring-foreground/20 bg-surface shadow-md" 
+                                : "border-border bg-surface/40"
+                        }`}
+                    >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="space-y-1">
-                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/60 border border-border text-[11px] font-medium text-muted-foreground">
-                                    <GitMerge className="w-3 h-3 text-foreground/70" />
-                                    <span>{l10n.treesTool.crossSimulatorTitle}</span>
-                                </div>
-                                <h2 className="text-base font-bold text-foreground">
+                            <div>
+                                <h2 className="text-sm font-bold text-foreground">
                                     {l10n.treesTool.crossSimulatorTitle} — {FAMILY_CONFIG[selectedFamily].name}
                                 </h2>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-muted-foreground mt-0.5">
                                     {l10n.treesTool.crossSimulatorDesc}
                                 </p>
                             </div>
@@ -815,300 +983,257 @@ export function ElevageStudioClient() {
 
                         {/* Sélecteurs des deux parents */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-4 rounded-2xl bg-surface/50 border border-border hover:border-border-strong transition-colors">
+                            <div className="p-3.5 rounded-lg border border-border bg-surface/50">
                                 <MountSelectCombobox
                                     value={matrixParent1}
                                     onChange={setMatrixParent1}
                                     mounts={familyMounts}
                                     label={l10n.treesTool.selectParent1}
                                     genderLabel="♂ Mâle"
-                                    genderColor="text-cyan-400 font-bold"
                                 />
                             </div>
 
-                            <div className="p-4 rounded-2xl bg-surface/50 border border-border hover:border-border-strong transition-colors">
+                            <div className="p-3.5 rounded-lg border border-border bg-surface/50">
                                 <MountSelectCombobox
                                     value={matrixParent2}
                                     onChange={setMatrixParent2}
                                     mounts={familyMounts}
                                     label={l10n.treesTool.selectParent2}
                                     genderLabel="♀ Femelle"
-                                    genderColor="text-rose-400 font-bold"
                                 />
                             </div>
                         </div>
 
-                        {/* Résultat du croisement */}
-                        <div className="p-4 rounded-xl bg-surface/40 border border-border space-y-3">
-                            <span className="text-xs font-semibold text-foreground block">
+                        {/* Résultat du croisement direct */}
+                        <div className="p-4 rounded-lg border border-border bg-surface/50 space-y-3">
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
                                 {l10n.treesTool.possibleOutcomes}
                             </span>
 
                             {potentialMutation ? (
-                                <div className="p-4 rounded-lg bg-background border border-primary/40 space-y-3">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
-                                                Mutation Nouvelle Race !
-                                            </span>
-                                            <span className="text-xs font-mono text-muted-foreground">
-                                                Génération {potentialMutation.generation}
-                                            </span>
-                                        </div>
-                                        <div className="text-xs font-bold text-foreground font-mono">
-                                            {totalChance}% de chance de mutation
-                                        </div>
+                                <div className="p-4 rounded-lg border border-border bg-surface/80 space-y-3 shadow-xs">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-muted/60 text-foreground font-semibold border border-border/50">
+                                            Mutation Débloquée (Gen {potentialMutation.generation})
+                                        </span>
+                                        <span className="text-xs font-mono font-bold text-foreground">
+                                            {totalChance}% de chance
+                                        </span>
                                     </div>
 
-                                    <div className="flex items-start gap-3 pt-1">
-                                        <div className="relative w-14 h-14 shrink-0 rounded-lg bg-surface border border-border p-1 flex items-center justify-center overflow-hidden">
+                                    <div className="flex items-start gap-3.5 pt-1">
+                                        <div className="w-12 h-12 shrink-0 rounded-lg bg-background border border-border p-1 flex items-center justify-center overflow-hidden">
                                             <Image
                                                 src={potentialMutation.img}
                                                 alt={potentialMutation.name}
-                                                width={48}
-                                                height={48}
+                                                width={40}
+                                                height={40}
                                                 unoptimized
                                                 className="object-contain"
                                             />
                                         </div>
-                                        <div className="min-w-0 space-y-1">
+                                        <div className="min-w-0 space-y-1.5 flex-1">
                                             <h3 className="text-sm font-bold text-foreground">
                                                 {potentialMutation.name}
                                             </h3>
-                                            <p className="text-xs text-muted-foreground">
-                                                {potentialMutation.stats}
-                                            </p>
-                                            <div className="flex items-center gap-3 pt-1 text-[11px] text-muted-foreground">
-                                                <span>+{GENETON_TABLE[potentialMutation.generation] || 1} Génétons</span>
+                                            <div>
+                                                <MountStatBadges stats={potentialMutation.stats} variant="badges" />
+                                            </div>
+                                            <div className="text-[11px] text-muted-foreground font-mono pt-0.5 inline-flex items-center gap-1.5 flex-wrap">
+                                                <span className="inline-flex items-center gap-1">
+                                                    <Image src="/images/guides/elevage/geneton.png" alt="" width={13} height={13} unoptimized className="object-contain" />
+                                                    <span>+{GENETON_TABLE[potentialMutation.generation] || 1} Génétons</span>
+                                                </span>
                                                 <span>•</span>
                                                 <span>{potentialMutation.type === "pure" ? l10n.treesTool.pureRace : l10n.treesTool.bicoloreRace}</span>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="pt-2 border-t border-border flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                                        <span>
-                                            Chances restantes (arbre génétique) : ~{Math.round((100 - totalChance) / 2)}% {parent1Info.name} et ~{Math.round((100 - totalChance) / 2)}% {parent2Info.name}
-                                        </span>
-                                        <span className="text-[10px] font-mono text-muted-foreground/80">
-                                            Formule 3.7 : Base 30% + Niveaux + Catalyseurs
-                                        </span>
-                                    </div>
                                 </div>
                             ) : isSameBreed ? (
-                                <div className="p-4 rounded-lg bg-background border border-border space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-muted text-foreground border border-border">
-                                            Lignée Identique
-                                        </span>
-                                        <span className="text-xs font-mono text-foreground font-bold">
-                                            100% {parent1Info.name} (si arbre pur)
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Croiser deux montures de même race permet de stabiliser et purifier un arbre généalogique pour maximiser la transmission héréditaire de la race et des capacités.
+                                <div className="p-4 rounded-lg border border-border bg-surface/60 space-y-1 text-xs">
+                                    <span className="font-bold text-foreground block">Lignée Identique</span>
+                                    <p className="text-muted-foreground leading-relaxed">
+                                        100% {parent1Info.name} (si arbre pur). Stabilise et purifie un arbre généalogique.
                                     </p>
                                 </div>
                             ) : (
-                                <div className="p-4 rounded-lg bg-background border border-border space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-muted text-foreground border border-border">
-                                            Croisement sans mutation directe
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Ce croisement ne débloque pas de nouvelle race directe au palier supérieur. La descendance se répartira à ~50% sur <strong>{parent1Info.name}</strong> et ~50% sur <strong>{parent2Info.name}</strong> (ou régressions vers les ancêtres non purs).
+                                <div className="p-4 rounded-lg border border-border bg-surface/60 space-y-1 text-xs">
+                                    <span className="font-bold text-foreground block">Croisement sans mutation directe</span>
+                                    <p className="text-muted-foreground leading-relaxed">
+                                        Ce croisement ne débloque pas de nouvelle race au palier supérieur. La descendance se répartit entre {parent1Info.name} et {parent2Info.name}.
                                     </p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Catalogue complet & filtres */}
-                    <div className="p-6 rounded-2xl bg-surface border border-border space-y-5">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    {/* CATALOGUE DES MONTURES & RECHERCHE */}
+                    <div className="space-y-4 pt-4 border-t border-border">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
-                                <h2 className="text-base font-bold text-foreground">
+                                <h3 className="text-base font-bold text-foreground">
                                     {l10n.treesTool.title} — {FAMILY_CONFIG[selectedFamily].name}
-                                </h2>
+                                </h3>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    {l10n.treesTool.desc}
+                                    {filteredMounts.length} montures répertoriées. Cliquez sur une recette pour la simuler instantanément.
                                 </p>
-                            </div>
-                            <div className="text-xs font-mono text-muted-foreground">
-                                {filteredMounts.length} race{filteredMounts.length > 1 ? "s" : ""} affichée{filteredMounts.length > 1 ? "s" : ""}
                             </div>
                         </div>
 
-                        {/* Barre de filtres et recherche */}
-                        <div className="space-y-3">
-                            <div className="relative">
-                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                <input
-                                    type="text"
-                                    value={mountSearch}
-                                    onChange={(e) => setMountSearch(e.target.value)}
-                                    placeholder={l10n.treesTool.searchPlaceholder}
-                                    className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground transition-colors"
-                                />
-                            </div>
+                        {/* Barre de recherche */}
+                        <div className="relative">
+                            <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder={l10n.treesTool.searchPlaceholder}
+                                className="w-full pl-9 pr-4 py-2.5 text-xs rounded-lg bg-surface/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground transition-colors"
+                            />
+                        </div>
 
-                            {/* Filtres par Génération */}
-                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                        {/* Filtres de Générations sobres */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs font-mono">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedGenFilter("all")}
+                                className={`px-2.5 py-1 rounded text-xs transition-colors cursor-pointer ${
+                                    selectedGenFilter === "all"
+                                        ? "bg-foreground text-background font-bold"
+                                        : "bg-surface border border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                            >
+                                Toutes
+                            </button>
+                            {Array.from({ length: 10 }, (_, i) => i + 1).map((gen) => (
                                 <button
+                                    key={gen}
                                     type="button"
-                                    onClick={() => setSelectedGenFilter("all")}
-                                    className={`px-2.5 py-1 rounded-lg border text-xs font-medium whitespace-nowrap transition-colors ${
-                                        selectedGenFilter === "all"
-                                            ? "border-foreground bg-foreground text-background font-semibold"
-                                            : "border-border bg-surface/50 text-muted-foreground hover:text-foreground"
+                                    onClick={() => setSelectedGenFilter(gen)}
+                                    className={`px-2.5 py-1 rounded text-xs transition-colors cursor-pointer ${
+                                        selectedGenFilter === gen
+                                            ? "bg-foreground text-background font-bold"
+                                            : "bg-surface border border-border text-muted-foreground hover:text-foreground"
                                     }`}
                                 >
-                                    {l10n.treesTool.allGens}
+                                    G{gen}
                                 </button>
-                                {Array.from({ length: FAMILY_CONFIG[selectedFamily].maxGen }, (_, idx) => {
-                                    const g = idx + 1;
-                                    const isSel = selectedGenFilter === g;
-                                    return (
-                                        <button
-                                            key={g}
-                                            type="button"
-                                            onClick={() => setSelectedGenFilter(g)}
-                                            className={`px-2.5 py-1 rounded-lg border text-xs font-medium whitespace-nowrap transition-colors ${
-                                                isSel
-                                                    ? "border-foreground bg-foreground text-background font-semibold"
-                                                    : "border-border bg-surface/50 text-muted-foreground hover:text-foreground"
-                                            }`}
-                                        >
-                                            Gen {g}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Filtres par Statistiques */}
-                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-                                {[
-                                    { tag: "all" as const, label: l10n.treesTool.filterAllStats },
-                                    { tag: "pm" as const, label: l10n.treesTool.filterPm },
-                                    { tag: "pa" as const, label: l10n.treesTool.filterPa },
-                                    { tag: "po" as const, label: l10n.treesTool.filterPo },
-                                    { tag: "vita" as const, label: l10n.treesTool.filterVita },
-                                    { tag: "stats" as const, label: l10n.treesTool.filterStats },
-                                    { tag: "puissance" as const, label: l10n.treesTool.filterPuissance },
-                                    { tag: "invoc" as const, label: l10n.treesTool.filterInvoc },
-                                    { tag: "ini" as const, label: l10n.treesTool.filterIni },
-                                    { tag: "prosp" as const, label: l10n.treesTool.filterProsp },
-                                ].map((filter) => {
-                                    const isSel = selectedStatTag === filter.tag;
-                                    return (
-                                        <button
-                                            key={filter.tag}
-                                            type="button"
-                                            onClick={() => setSelectedStatTag(filter.tag)}
-                                            className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium whitespace-nowrap transition-colors ${
-                                                isSel
-                                                    ? "border-primary/50 bg-primary/10 text-foreground font-semibold"
-                                                    : "border-border bg-surface/50 text-muted-foreground hover:text-foreground"
-                                            }`}
-                                        >
-                                            {filter.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            ))}
                         </div>
 
-                        {/* Grille de montures */}
-                        {filteredMounts.length === 0 ? (
-                            <div className="p-8 text-center rounded-xl bg-surface/40 border border-border space-y-2">
-                                <p className="text-xs text-muted-foreground">
-                                    {l10n.treesTool.emptySearch}
-                                </p>
+                        {/* Filtres de Stats sobres */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedStatTag("all")}
+                                className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                                    selectedStatTag === "all"
+                                        ? "bg-foreground text-background font-bold"
+                                        : "bg-surface border border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                            >
+                                Toutes les stats
+                            </button>
+                            {(["pm", "pa", "po", "vita", "stats", "puissance", "invoc", "ini", "prosp", "cc", "sagesse", "res"] as StatTag[]).map((tag) => (
                                 <button
+                                    key={tag}
                                     type="button"
-                                    onClick={() => {
-                                        setMountSearch("");
-                                        setSelectedGenFilter("all");
-                                        setSelectedStatTag("all");
-                                    }}
-                                    className="text-xs font-semibold text-foreground underline underline-offset-4"
+                                    onClick={() => setSelectedStatTag(tag)}
+                                    className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                                        selectedStatTag === tag
+                                            ? "bg-foreground text-background font-bold"
+                                            : "bg-surface border border-border text-muted-foreground hover:text-foreground"
+                                    }`}
                                 >
-                                    Réinitialiser les filtres
+                                    {tag === "pm" ? "+1 PM" : tag === "pa" ? "+1 PA" : tag === "po" ? "+1 PO" : tag === "vita" ? "Vitalité" : tag === "stats" ? "Caractéristique" : tag === "puissance" ? "Puissance" : tag === "invoc" ? "Invocation" : tag === "ini" ? "Initiative" : tag === "prosp" ? "Prospection" : tag === "cc" ? "Coup Critique" : tag === "sagesse" ? "Sagesse" : "Résistances"}
                                 </button>
+                            ))}
+                        </div>
+
+                        {/* Grille des montures */}
+                        {filteredMounts.length === 0 ? (
+                            <div className="text-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
+                                Aucune monture ne correspond à vos critères de recherche.
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
                                 {filteredMounts.map((mount) => {
                                     const genetons = GENETON_TABLE[mount.generation] || 1;
                                     return (
                                         <div
                                             key={mount.id}
-                                            className="p-4 rounded-xl bg-surface/50 border border-border hover:border-border-strong transition-all flex flex-col justify-between space-y-3"
+                                            className="p-4 rounded-lg border border-border bg-surface/40 hover:bg-surface/80 hover:border-border-strong transition-all flex flex-col justify-between space-y-3.5 shadow-2xs group"
                                         >
                                             <div className="space-y-2.5">
                                                 <div className="flex items-start gap-3">
-                                                    <div className="relative w-12 h-12 shrink-0 rounded-lg bg-background border border-border p-1 flex items-center justify-center overflow-hidden">
+                                                    <div className="w-12 h-12 shrink-0 rounded-md bg-background border border-border p-1 flex items-center justify-center overflow-hidden">
                                                         <Image
                                                             src={mount.img}
                                                             alt={mount.name}
-                                                            width={44}
-                                                            height={44}
+                                                            width={40}
+                                                            height={40}
                                                             unoptimized
                                                             className="object-contain"
                                                         />
                                                     </div>
-                                                    <div className="min-w-0 flex-1">
+                                                    <div className="min-w-0 flex-1 space-y-0.5">
                                                         <div className="flex items-center justify-between gap-1">
-                                                            <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-semibold">
+                                                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50 uppercase">
                                                                 Gen {mount.generation}
                                                             </span>
-                                                            <span className="text-[11px] font-mono text-muted-foreground">
-                                                                +{genetons} {l10n.treesTool.genetonYield}
+                                                            <span className="text-[11px] font-mono text-muted-foreground inline-flex items-center gap-1">
+                                                                <Image src="/images/guides/elevage/geneton.png" alt="" width={12} height={12} unoptimized className="object-contain" />
+                                                                <span>+{genetons}</span>
                                                             </span>
                                                         </div>
-                                                        <h3 className="text-xs font-bold text-foreground mt-1 truncate">
+                                                        <h4 className="text-xs font-bold text-foreground truncate block pt-0.5">
                                                             {mount.name}
-                                                        </h3>
+                                                        </h4>
                                                     </div>
                                                 </div>
 
-                                                <p className="text-xs text-foreground/90 font-medium leading-snug">
-                                                    {mount.stats}
-                                                </p>
+                                                <div>
+                                                    <MountStatBadges stats={mount.stats} variant="compact" />
+                                                </div>
                                             </div>
 
-                                            <div className="pt-2.5 border-t border-border/80 text-[11px] text-muted-foreground space-y-1.5">
+                                            {/* Action & Recette */}
+                                            <div className="pt-2.5 border-t border-border/60 space-y-2">
                                                 {mount.parents ? (
-                                                    <div className="space-y-1">
-                                                        <span className="block text-[10px] text-muted-foreground uppercase font-semibold">
-                                                            {l10n.treesTool.parentsFormula}
-                                                        </span>
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="text-[11px] text-foreground truncate">
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                                                            <span>Croisement :</span>
+                                                            <span className="text-foreground font-semibold truncate max-w-[65%]">
                                                                 {mount.parents[0].replace(/Dragodinde |Muldo |Volkorne /g, "")} + {mount.parents[1].replace(/Dragodinde |Muldo |Volkorne /g, "")}
                                                             </span>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    if (mount.parents) {
-                                                                        setMatrixParent1(mount.parents[0]);
-                                                                        setMatrixParent2(mount.parents[1]);
-                                                                        window.scrollTo({ top: 400, behavior: "smooth" });
-                                                                    }
-                                                                }}
-                                                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted/80 hover:bg-muted text-foreground font-medium text-[10px] transition-colors shrink-0"
-                                                                title="Charger dans le simulateur de croisement"
-                                                            >
-                                                                <GitMerge className="w-2.5 h-2.5" />
-                                                                <span>{l10n.treesTool.simulateCrossBtn}</span>
-                                                            </button>
                                                         </div>
+
+                                                        {/* Bouton CTA propre, style landing */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleLoadRecipe(mount.parents![0], mount.parents![1])}
+                                                            className="reg-btn reg-btn-secondary !min-h-0 w-full py-1.5 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                                                        >
+                                                            <GitMerge className="w-3.5 h-3.5" />
+                                                            <span>Simuler ce croisement</span>
+                                                        </button>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[11px] text-muted-foreground block italic">
-                                                        {l10n.treesTool.pureAncestry}
-                                                    </span>
+                                                    <div className="space-y-2 pt-0.5">
+                                                        <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                                                            <span>Lignée :</span>
+                                                            <span className="text-foreground font-semibold">Race Pure Sauvage</span>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleLoadRecipe(mount.name, matrixParent2)}
+                                                            className="reg-btn reg-btn-secondary !min-h-0 w-full py-1.5 text-xs flex items-center justify-center gap-1.5 cursor-pointer opacity-80 hover:opacity-100"
+                                                        >
+                                                            <GitMerge className="w-3.5 h-3.5" />
+                                                            <span>Utiliser comme parent</span>
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>

@@ -46,7 +46,7 @@ export const guide = {
             <span class="text-xs text-zinc-400 mt-2 block font-medium">The 3 mount families across 10 generations: Dragoturkeys, Seemyools and Rhineetles — levels 1 to 200</span>
         </div>
 
-        <!-- ── DYNAMIC 4 TABS CONTAINER ───────────────────────────────────── -->
+        <!-- ── DYNAMIC 6 TABS CONTAINER ───────────────────────────────────── -->
         <div class="guide-tabs my-8" data-default-tab="demarrer">
             <!-- Navigation tab bar -->
             <div class="guide-tab-nav flex flex-wrap border-b border-border gap-2 mb-8 pb-px">
@@ -60,7 +60,13 @@ export const guide = {
                     <span>🧬 3. Mating & Family Trees</span>
                 </button>
                 <button type="button" class="guide-tab-btn px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-all flex items-center gap-2" data-tab="rentabilite">
-                    <span>💰 4. Level 200 XP & Profit</span>
+                    <span>🪙 4. Level 200 XP & Genetons</span>
+                </button>
+                <button type="button" class="guide-tab-btn px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-all flex items-center gap-2" data-tab="almanax">
+                    <span>📅 5. Breeder's Almanax</span>
+                </button>
+                <button type="button" class="guide-tab-btn px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-all flex items-center gap-2" data-tab="succes">
+                    <span>🏆 6. Breeding Achievements (1,211 pts)</span>
                 </button>
             </div>
 
@@ -380,19 +386,20 @@ export const guide = {
 
                 <h2>III. Family Trees & Pure Lineages</h2>
                 <p>
-                    Family trees record ancestry across <strong>4 generations (14 ancestors)</strong>.
-                    Each ancestral generation influences the newborn coat roll:
+                    Since Update 3.5, <strong>the genealogy tree stops at grandparents</strong> (only 2 generations of ancestry, meaning 6 ancestors for the future newborn).
+                    Wild-caught mounts have an empty tree with no ancestors.
                 </p>
 
                 <div class="my-4 text-center">
                     <img src="/images/guides/elevage/arbre_genetique.jpg" alt="Dofus mount family tree" class="rounded-xl mx-auto max-h-[280px] border border-white/10" />
-                    <span class="text-xs text-zinc-400 mt-2 block">Genetic weights: Parents (50%), Grandparents (25%), Great-grandparents (12.5%), Great-great-grandparents (6.25%)</span>
+                    <span class="text-xs text-zinc-400 mt-2 block">Simplified genetic tree (Parents and Grandparents only)</span>
                 </div>
 
                 <div class="p-4 rounded-xl bg-zinc-900/70 border border-white/10 text-xs text-zinc-300 space-y-1.5 my-4">
                     <strong class="text-amber-300 block mb-1">Why purify lineages?</strong>
-                    <p>• A <strong>pure lineage</strong> mount has all 14 ancestors of the identical breed.</p>
-                    <p>• Crossing two pure lineage parents guarantees <strong>100% coat transmission</strong> without regression to earlier ancestors.</p>
+                    <p>• Parents hold the primary weight in newborn coat determination, while grandparents exert a secondary influence.</p>
+                    <p>• A <strong>pure lineage</strong> mount has parents and grandparents belonging to the exact same breed.</p>
+                    <p>• Crossing two pure lineage parents secures color transmission without risk of regressing to an earlier unwanted breed from a mixed ancestor.</p>
                 </div>
 
                 <h2>IV. The 6 Major Genetic Capacities</h2>
@@ -408,7 +415,7 @@ export const guide = {
                         <tr>
                             <td><strong>Reproductive</strong></td>
                             <td>Gives <strong>1 additional newborn</strong> per litter (2 babies instead of 1).</td>
-                            <td>Essential trait for mass breeding: double yield per generation climb.</td>
+                            <td>Essential trait for mass breeding: double yield per generation climb. Also works on males.</td>
                         </tr>
                         <tr>
                             <td><strong>Wise (Sage)</strong></td>
@@ -418,22 +425,22 @@ export const guide = {
                         <tr>
                             <td><strong>Chameleon</strong></td>
                             <td>Mount adopts player character colors when ridden.</td>
-                            <td>High market value in public trade marketplaces.</td>
+                            <td>High market value in public trade marketplaces (100% via Kromakina).</td>
                         </tr>
                         <tr>
                             <td><strong>Precocious</strong></td>
-                            <td>Maturity gains <strong>doubled</strong> on drinking troughs.</td>
-                            <td>Drastically accelerates neutral paddock duration.</td>
+                            <td>Maturity gains <strong>doubled</strong> in paddock.</td>
+                            <td>Greatly speeds up filling the blue gauge (Maturity).</td>
                         </tr>
                         <tr>
                             <td><strong>In Love</strong></td>
-                            <td>Love gains <strong>doubled</strong> on dragobutts.</td>
-                            <td>Halves time needed for positive red gauge.</td>
+                            <td>Love gains <strong>doubled</strong> in paddock.</td>
+                            <td>Halves time needed for positive red gauge (Love).</td>
                         </tr>
                         <tr>
                             <td><strong>Enduring</strong></td>
-                            <td>Endurance gains <strong>doubled</strong> on lightning rods.</td>
-                            <td>Halves time needed for negative yellow gauge.</td>
+                            <td>Endurance gains <strong>doubled</strong> in paddock.</td>
+                            <td>Halves time needed for negative yellow gauge (Endurance).</td>
                         </tr>
                     </tbody>
                 </table>
@@ -515,25 +522,97 @@ export const guide = {
                 </div>
 
                 <h2>III. Geneton Rewards 3.7 & Extraction</h2>
-                <p>
-                    Mating yields <strong>Genetons</strong> only when the newborn surpasses <strong>all ancestors</strong> in both lineages.
-                    Exchanged at the Breeder Village at <strong>[-18, 1]</strong> with NPC <strong>Eugene Eton</strong> for stat scrolls and tourmalines.
-                </p>
-
-                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 my-4 text-center">
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 1: <strong class="text-zinc-300">2</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 2: <strong class="text-zinc-300">4</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 3: <strong class="text-zinc-300">8</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 4: <strong class="text-zinc-300">16</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 5: <strong class="text-zinc-300">30</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 6: <strong class="text-zinc-300">60</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 7: <strong class="text-zinc-300">120</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 8: <strong class="text-zinc-300">240</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-amber-500/30 text-xs text-amber-300">Gen 9: <strong>500</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-amber-500/30 text-xs text-amber-300">Gen 10: <strong>500</strong></div>
+                <div class="my-6 p-4 rounded-xl border border-border bg-surface/50 flex flex-col sm:flex-row items-center gap-4">
+                    <img src="/images/guides/elevage/geneton.png" alt="Geneton Dofus 3.7" class="no-zoom w-14 h-14 object-contain shrink-0" />
+                    <div>
+                        <strong class="text-xs text-foreground uppercase tracking-wider block">The Geneton — 3.7 Breeding Currency</strong>
+                        <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+                            Introduced in Update 3.7, <strong>Genetons</strong> reward genetic progress. They are automatically awarded upon mating whenever the newborn surpasses <strong>all ancestors</strong> in both lineages. Exchange them at the Breeder Village at <strong>[-18, 1]</strong> with NPC <strong>Eugene Eton</strong> for stat scrolls and tourmalines.
+                        </p>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-6">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 my-4 text-center font-mono text-xs">
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 1</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +2
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 2</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +4
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 3</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +8
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 4</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +16
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 5</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +30
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 6</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +60
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 7</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +120
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 8</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +240
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 9</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +500
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 10</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +500
+                        </span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 my-6">
+                    <div class="p-3.5 rounded-xl border border-border bg-surface/50 flex items-center gap-3">
+                        <img src="/images/guides/elevage/geneton.png" alt="Geneton" class="no-zoom w-10 h-10 object-contain shrink-0" />
+                        <div>
+                            <strong class="text-xs text-foreground block">Geneton</strong>
+                            <span class="text-[11px] text-muted-foreground block">Awarded when newborn surpasses genetic ancestors.</span>
+                        </div>
+                    </div>
                     <div class="p-3.5 rounded-xl border border-border bg-surface/50 flex items-center gap-3">
                         <img src="/images/guides/elevage/neurone_dragodinde.png" alt="Dragoturkey Neuron" class="no-zoom w-10 h-10 object-contain shrink-0" />
                         <div>
@@ -556,43 +635,438 @@ export const guide = {
                         </div>
                     </div>
                 </div>
+            </div>
+            <!-- END PANE 4 : LEVEL 200 XP & GENETONS -->
 
-                <h2>IV. Breeder Almanax Calendar: 13 Key Dates</h2>
+            <!-- ========================================== -->
+            <!-- 📅 TAB 5 : BREEDER'S ALMANAX CALENDAR      -->
+            <!-- ========================================== -->
+            <div class="guide-tab-pane hidden" data-pane="almanax">
+                <h2>I. Breeder Almanax Calendar: 13 Key Dates (Verified Dofus 3.7)</h2>
+                <p>The Almanax sets the tempo of the breeding year with pivotal bonuses. In 3.7, with mounts leveling up to 200 and industrial production of Fuels and Makinas, certain days are essential economic milestones.</p>
+
+                <div class="my-4 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-muted-foreground leading-relaxed">
+                    <strong class="text-foreground">⚠️ Dofus 3 Correction & Legacy Wikis:</strong>
+                    Several outdated community guides incorrectly state <em>October 12</em> for the rising generation bonus. In Dofus 3 (verified via official Almanax data), <strong>Takeza is a dynamic holiday tied to Canadian Thanksgiving (the 2nd Monday of October)</strong>: in 2027 it takes place on <strong>Monday, October 11, 2027</strong> (+20% target generation chance with 4x Onion Shepherd's Pie). October 12 is a Divine Dimensions bonus with no breeding link. In addition, crafting bonuses (May 10 and August 10) now apply directly to <strong>Paddock Fuel and Makinas</strong> in 3.7.
+                </div>
+
                 <table>
                     <thead>
                         <tr>
-                            <th>Date</th>
+                            <th>Date (2027)</th>
                             <th>Meridia</th>
-                            <th>Breeding Bonus & Strategy</th>
+                            <th>Official Tribute</th>
+                            <th>Breeding Bonus 3.7</th>
+                            <th>Breeder Strategy & Profit</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td><strong>January 10</strong></td><td>Troma</td><td>Effect of <strong>Drinking Troughs</strong> doubled (Maturity ×2).</td></tr>
-                        <tr><td><strong>February 10</strong></td><td>Meash</td><td>100% of babies born with <strong>Enduring</strong> capacity.</td></tr>
-                        <tr><td><strong>March 10</strong></td><td>Inndo</td><td>Effect of <strong>Lightning Rods</strong> doubled (Endurance ×2).</td></tr>
-                        <tr><td><strong>April 10</strong></td><td>Nunu</td><td>Effect of <strong>Slappers</strong> doubled (faster mood drop).</td></tr>
-                        <tr><td><strong>May 10</strong></td><td>Loumi</td><td>Saves <strong>15% of ingredients</strong> when crafting paddock items.</td></tr>
-                        <tr><td><strong>June 10</strong></td><td>Jibejan</td><td>Effect of <strong>Mangers</strong> doubled (Mount XP ×2).</td></tr>
-                        <tr><td><strong>July 10</strong></td><td>Jihelair</td><td>100% of babies born with <strong>In Love</strong> capacity.</td></tr>
-                        <tr><td><strong>August 10</strong></td><td>Rigamix</td><td><strong>25% chance</strong> to craft a second breeding item.</td></tr>
-                        <tr><td><strong>September 10</strong></td><td>Mau</td><td>Effect of <strong>Strokers</strong> doubled (faster mood rise).</td></tr>
-                        <tr><td><strong>October 10</strong></td><td>Benjo</td><td>100% of babies born with <strong>Wise</strong> capacity (XP doubled!).</td></tr>
                         <tr>
-                            <td><strong>October 12</strong></td>
-                            <td><strong>Takeza</strong></td>
-                            <td><strong>+20% target generation chance</strong> on all matings! Most vital date of the year.</td>
+                            <td><strong>January 10</strong></td>
+                            <td>Troma</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-janvier-ceinture-celerite.png" alt="Celerity Belt" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>1x Celerity Belt</code></span>
+                                </div>
+                            </td>
+                            <td><strong>Drinking Troughs</strong> effect doubled</td>
+                            <td>Maturity ×2 in the neutral zone (-2,000 to +2,000). Accelerates rideability threshold.</td>
                         </tr>
-                        <tr><td><strong>November 10</strong></td><td>Otoul</td><td>100% of babies born with <strong>Precocious</strong> capacity.</td></tr>
-                        <tr><td><strong>December 10</strong></td><td>Foya</td><td>Effect of <strong>Dragobutts</strong> doubled (Love ×2).</td></tr>
+                        <tr>
+                            <td><strong>February 10</strong></td>
+                            <td>Meash</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-fevrier-pic-dragodinde-doree.png" alt="Golden Dragoturkey Spike" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>6x Golden Dragoturkey Spike</code></span>
+                                </div>
+                            </td>
+                            <td>100% babies <strong>Enduring</strong></td>
+                            <td>Permanent accelerated endurance gain for all offspring born on this day.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>March 10</strong></td>
+                            <td>Inndo</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-mars-petit-extrait-foudroyeur.png" alt="Small Lightning Thrower Extract" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>5x Small Lightning Thrower Extract</code></span>
+                                </div>
+                            </td>
+                            <td><strong>Lightning Throwers</strong> effect doubled</td>
+                            <td>Endurance ×2 in negative mood. Cuts mount preparation cycles in half.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>April 10</strong></td>
+                            <td>Nunu</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-avril-anneau-fortifiant.png" alt="Fortifying Ring" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>2x Fortifying Ring</code></span>
+                                </div>
+                            </td>
+                            <td><strong>Slappers</strong> effect doubled</td>
+                            <td>2× faster mood drop towards the negative pole (endurance).</td>
+                        </tr>
+                        <tr>
+                            <td><strong>May 10</strong></td>
+                            <td>Loumi</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-mai-petit-extrait-baffeur.png" alt="Small Slapper Extract" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>5x Small Slapper Extract</code></span>
+                                </div>
+                            </td>
+                            <td><strong>15% ingredient economy</strong> on crafts</td>
+                            <td><strong>Massive 3.7 Economy:</strong> Save 15% of your resources when mass-crafting paddock Fuels and Makinas.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>June 10</strong></td>
+                            <td>Jibejan</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-juin-lailait-amande.png" alt="Almond Lailait" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>1x Almond Lailait</code></span>
+                                </div>
+                            </td>
+                            <td><strong>Mangers</strong> effect doubled (XP ×2)</td>
+                            <td><strong>3.7 Essential:</strong> Halves the time needed to level breeders to 200 (stacks with Wise to reach lvl 200 in ~30h!).</td>
+                        </tr>
+                        <tr>
+                            <td><strong>July 10</strong></td>
+                            <td>Jihelair</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-juillet-arc-sifflant.png" alt="Whistling Bow" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>1x Whistling Bow</code></span>
+                                </div>
+                            </td>
+                            <td>100% babies <strong>In Love</strong></td>
+                            <td>Accelerated love gain to prepare continuous breeding cycles.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>August 10</strong></td>
+                            <td>Rigamix</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-aout-petit-extrait-mangeoire.png" alt="Small Manger Extract" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>5x Small Manger Extract</code></span>
+                                </div>
+                            </td>
+                            <td><strong>+25% duplicate craft chance</strong></td>
+                            <td><strong>Maximum Profit:</strong> 25% free bonus Makinas (Optimakina, Animakina) and Fuels when crafting!</td>
+                        </tr>
+                        <tr>
+                            <td><strong>September 10</strong></td>
+                            <td>Mau</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-septembre-petit-extrait-caresseur.png" alt="Small Stroker Extract" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>5x Small Stroker Extract</code></span>
+                                </div>
+                            </td>
+                            <td><strong>Strokers</strong> effect doubled</td>
+                            <td>2× faster mood increase towards the positive pole (love).</td>
+                        </tr>
+                        <tr>
+                            <td><strong>October 10</strong></td>
+                            <td>Benjo</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-octobre-dent-dragodinde.png" alt="Dragoturkey Tooth" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>6x Dragoturkey Tooth</code></span>
+                                </div>
+                            </td>
+                            <td>100% babies <strong>Wise</strong> (XP ×2 for life)</td>
+                            <td><strong>The Queen Ability in 3.7:</strong> Doubles manger and combat XP permanently. A Wise mount reaches lvl 200 twice as fast.</td>
+                        </tr>
+                        <tr class="bg-primary/5">
+                            <td><strong>October 11, 2027</strong><br/><span class="text-[10px] text-muted-foreground font-mono">2nd Monday of Oct</span></td>
+                            <td><strong>Takeza</strong></td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/11-octobre-parmentier-oignon.png" alt="Onion Shepherd's Pie" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>4x Onion Shepherd's Pie</code></span>
+                                </div>
+                            </td>
+                            <td><strong>+20% target generation chance</strong></td>
+                            <td><strong>Most Important Day of the Year:</strong> Stacking with Optimakina (+20%) and parent levels (+30%) guarantees 100% breeding success without maxing both parents to level 200.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>November 10</strong></td>
+                            <td>Otoul</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-novembre-goujon.png" alt="Gudgeon" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>40x Gudgeon</code></span>
+                                </div>
+                            </td>
+                            <td>100% babies <strong>Precocious</strong></td>
+                            <td>Faster maturity gain in troughs for future generations.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>December 10</strong></td>
+                            <td>Foya</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-decembre-queue-dragodinde-sauvage.png" alt="Wild Dragoturkey Tail" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>6x Wild Dragoturkey Tail</code></span>
+                                </div>
+                            </td>
+                            <td><strong>Dragobutts</strong> effect doubled</td>
+                            <td>Love ×2 in positive mood. Maxes out love gauges in record time.</td>
+                        </tr>
                     </tbody>
                 </table>
 
-                <h2>V. Unity Breeding Achievements</h2>
-                <p>Breeding progression unlocks prestigious achievement score points and cosmetic titles:</p>
+                <h2>II. Strategic Tribute Stockpiling</h2>
+                <p>Experienced breeders build their stocks weeks in advance. Nearing Takeza (October 11) or duplicate crafting days (August 10), tribute market prices (e.g., Onion Shepherd's Pie) skyrocket on the marketplace. Crafting and storing ingredients early unlocks massive profit margins.</p>
+            </div>
+            <!-- END PANE 5 : ALMANAX -->
+
+            <!-- ========================================== -->
+            <!-- 🏆 TAB 6 : BREEDING ACHIEVEMENTS (1,211 PTS)-->
+            <!-- ========================================== -->
+            <div class="guide-tab-pane hidden" data-pane="succes">
+                <h2>I. Complete Overview of Unity Breeding Achievements (1,211 Points)</h2>
+                <p>Breeding in Dofus 3 is one of the game's most lucrative and prestigious achievement lines, granting a total of <strong>1,211 achievement points</strong> across 4 major families: General (161 pts), Dragoturkeys (350 pts), Seemyools (350 pts), and Rhineetles (350 pts).</p>
+
+                <!-- ORNAMENT REWARD SCORECARD -->
+                <div class="my-6 p-5 rounded-2xl border border-amber-500/30 bg-surface/80 flex flex-col md:flex-row items-center gap-6">
+                    <div class="w-20 h-20 shrink-0 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center p-2">
+                        <img src="/images/guides/elevage/achievements/ornement-dragomaitre.png" alt="Imposing Dragomaster Ornament" class="no-zoom w-16 h-16 object-contain" />
+                    </div>
+                    <div class="flex-1 text-center md:text-left">
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500 text-[11px] font-bold uppercase tracking-wider mb-1">
+                            Ultimate Reward
+                        </div>
+                        <h3 class="text-base font-bold text-foreground">« Imposing Dragomaster » Ornament & Title</h3>
+                        <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+                            Unlocked by completing the master achievement <strong>« Who's The Daddy? »</strong> (100 pts). Requires 1,000 births, wild captures, and the 10 generations meta-achievements for all 3 species.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-4 shrink-0 text-center">
+                        <div class="p-3 rounded-xl border border-border bg-surface/50 min-w-24">
+                            <span class="text-xl font-bold font-mono text-foreground block">1,211</span>
+                            <span class="text-[10px] text-muted-foreground uppercase font-semibold">Total Points</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. GENERAL & BIRTHS -->
+                <h2>II. General Breeding & Birth Milestones (161 Points)</h2>
+                <p>These achievements complete automatically across all your matings and mount species:</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 my-4">
+                    <div class="p-3.5 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/naissance-1.png" alt="" class="no-zoom w-10 h-10 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-xs text-foreground">Did She Eat Too Much?</strong>
+                                <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">1 pt</span>
+                            </div>
+                            <span class="text-[11px] text-muted-foreground block">Give birth to 1 mount.</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/naissance-10.png" alt="" class="no-zoom w-10 h-10 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-xs text-foreground">Matron</strong>
+                                <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">10 pts</span>
+                            </div>
+                            <span class="text-[11px] text-muted-foreground block">Give birth to 10 mounts.</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/naissance-100.png" alt="" class="no-zoom w-10 h-10 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-xs text-foreground">Midwife</strong>
+                                <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">20 pts</span>
+                            </div>
+                            <span class="text-[11px] text-muted-foreground block">Give birth to 100 mounts.</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/naissance-1000.png" alt="" class="no-zoom w-10 h-10 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-xs text-foreground">One More Push!</strong>
+                                <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">30 pts</span>
+                            </div>
+                            <span class="text-[11px] text-muted-foreground block">Give birth to 1,000 mounts.</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-amber-500/40 bg-amber-500/5 flex items-center gap-3 md:col-span-2">
+                        <img src="/images/guides/elevage/achievements/trophee-or.png" alt="" class="no-zoom w-12 h-12 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-xs text-foreground font-bold">Who's The Daddy? (Meta-Achievement)</strong>
+                                <span class="text-xs font-mono font-bold text-amber-500 bg-amber-500/20 px-2.5 py-0.5 rounded">100 pts</span>
+                            </div>
+                            <span class="text-[11px] text-muted-foreground block mt-0.5">Complete: One More Push, Wild Captures, From Generation to Generation, Aquatic Generations, and Generation R.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. DRAGOTURKEYS -->
+                <h2>III. Dragoturkeys: The 10 Generations (350 Points)</h2>
+                <p>Capture wild species and breed all varieties across all 10 generations (66 distinct breeds):</p>
+
+                <div class="space-y-2.5 my-4">
+                    <div class="p-3 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/capture-dragodinde.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1 flex items-center justify-between">
+                            <div>
+                                <strong class="text-xs text-foreground block">Just a Sample</strong>
+                                <span class="text-[11px] text-muted-foreground">Capture wild Dragoturkeys (Almond, Ginger, Golden) using the Mount Taming spell.</span>
+                            </div>
+                            <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">10 pts</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-2.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Second Generation</span>
+                                <span class="text-[10px] text-muted-foreground">All Gen 2 breeds (10 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-3.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Third Generation</span>
+                                <span class="text-[10px] text-muted-foreground">All Gen 3 breeds (20 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-4.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Fourth Generation</span>
+                                <span class="text-[10px] text-muted-foreground">All Gen 4 breeds (20 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-5.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Fifth Generation</span>
+                                <span class="text-[10px] text-muted-foreground">All Gen 5 breeds (30 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-6.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Sixth Generation</span>
+                                <span class="text-[10px] text-muted-foreground">All Gen 6 breeds (30 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-7.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Seventh Generation</span>
+                                <span class="text-[10px] text-muted-foreground">All Gen 7 breeds (40 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-8.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Eighth Generation</span>
+                                <span class="text-[10px] text-muted-foreground">All Gen 8 breeds (40 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-9.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Ninth Generation</span>
+                                <span class="text-[10px] text-muted-foreground">All Gen 9 breeds (50 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-10.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Tenth Generation</span>
+                                <span class="text-[10px] text-muted-foreground">All Gen 10 breeds (50 pts)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <img src="/images/guides/elevage/achievements/trophee-or.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                            <div>
+                                <strong class="text-xs text-foreground block">From Generation to Generation (Meta Dragoturkeys)</strong>
+                                <span class="text-[11px] text-muted-foreground">Give birth to all generations of Dragoturkeys.</span>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-amber-500 bg-amber-500/20 px-2.5 py-0.5 rounded">50 pts</span>
+                    </div>
+                </div>
+
+                <!-- 3. SEEMYOOLS -->
+                <h2>IV. Seemyools: The Underwater Depths (350 Points)</h2>
+                <p>Capture wild specimens in Sufokia Abysses and breed all 10 generations (82 breeds):</p>
+
+                <div class="space-y-2.5 my-4">
+                    <div class="p-3 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/capture-muldo.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1 flex items-center justify-between">
+                            <div>
+                                <strong class="text-xs text-foreground block">Marine Sampling</strong>
+                                <span class="text-[11px] text-muted-foreground">Capture all 4 wild Seemyools (Golden, Ebony, Indigo, Crimson) in Abyssal zones.</span>
+                            </div>
+                            <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">10 pts</span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <img src="/images/guides/elevage/achievements/trophee-or.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                            <div>
+                                <strong class="text-xs text-foreground block">Aquatic Generations (Meta Seemyools)</strong>
+                                <span class="text-[11px] text-muted-foreground">Validate births for Seemyool Generations 2 to 10 (290 cumulative pts).</span>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-amber-500 bg-amber-500/20 px-2.5 py-0.5 rounded">50 pts</span>
+                    </div>
+                </div>
+
+                <!-- 4. RHINEETLES -->
+                <h2>V. Rhineetles: The Wild Peaks (350 Points)</h2>
+                <p>Track rare wild Rhineetles on mountain peaks and unlock all 10 generations (80 breeds):</p>
+
+                <div class="space-y-2.5 my-4">
+                    <div class="p-3 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/capture-volkorne.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1 flex items-center justify-between">
+                            <div>
+                                <strong class="text-xs text-foreground block">Horned Sampling</strong>
+                                <span class="text-[11px] text-muted-foreground">Capture all 4 wild Rhineetles (Almond, Golden, Ebony, Indigo).</span>
+                            </div>
+                            <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">10 pts</span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <img src="/images/guides/elevage/achievements/trophee-or.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                            <div>
+                                <strong class="text-xs text-foreground block">Generation R (Meta Rhineetles)</strong>
+                                <span class="text-[11px] text-muted-foreground">Validate births for Rhineetle Generations 2 to 10 (290 cumulative pts).</span>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-amber-500 bg-amber-500/20 px-2.5 py-0.5 rounded">50 pts</span>
+                    </div>
+                </div>
+
+                <!-- 5. STRATEGY -->
+                <h2>VI. Optimization Strategy: Rushing 1,211 Points</h2>
                 <ul>
-                    <li><strong>Birth Milestones:</strong> cumulative steps of 1, 10, 50, 100, 500 up to <strong>1,000 births</strong>.</li>
-                    <li><strong>Seemyool Achievements:</strong> <em>Seemyool: First generation</em> to <em>Seemyool: Tenth generation</em> ending with meta-achievement <strong>Aquatic Generations</strong>.</li>
-                    <li><strong>Rhineetle Achievements:</strong> <em>Rhineetle: First generation</em> to <em>Rhineetle: Tenth generation</em> ending with meta-achievement <strong>Generation V</strong>.</li>
+                    <li><strong>Pure Line Rule:</strong> Always keep a pure breeding pair for each unlocked color. Heterogeneous ancestry ruins your chances of producing high-tier offspring.</li>
+                    <li><strong>Takeza Mating Day:</strong> Plan your toughest generation unlocks (Gen 8, 9, 10) during the Takeza bonus (+20%) combined with Optimakina (+20%) for guaranteed 100% success.</li>
+                    <li><strong>1,000 Births Grinding:</strong> Catch wild generation 1 Dragoturkeys in Koalak Mountain (instant level 60 fights). Their gauges fill up quickly using low-tier fuel extracts. Since births are instant upon mating, systematically clone sterile parents (2 sterile parents = 1 fresh fertile mount) to loop births and hit the 1,000 threshold at minimum cost without mount shortage.</li>
                 </ul>
 
                 <!-- FINAL GRAND STUDIO CTA -->
@@ -605,6 +1079,7 @@ export const guide = {
                     </a>
                 </div>
             </div>
+            <!-- END PANE 6 : ACHIEVEMENTS -->
         </div>
     `,
 };

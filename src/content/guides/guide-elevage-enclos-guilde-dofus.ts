@@ -46,7 +46,7 @@ export const guide = {
             <span class="text-xs text-zinc-400 mt-2 block font-medium">Les 3 familles de montures sur 10 générations : Dragodindes, Muldos et Volkornes — niveaux 1 à 200</span>
         </div>
 
-        <!-- ── STRUCTURE EN 4 ONGLETS DYNAMIQUES ───────────────────────────── -->
+        <!-- ── STRUCTURE EN 6 ONGLETS DYNAMIQUES ───────────────────────────── -->
         <div class="guide-tabs my-8" data-default-tab="demarrer">
             <!-- Barre de navigation des onglets -->
             <div class="guide-tab-nav flex flex-wrap border-b border-border gap-2 mb-8 pb-px">
@@ -60,7 +60,13 @@ export const guide = {
                     <span>🧬 3. Reproduction & Arbres</span>
                 </button>
                 <button type="button" class="guide-tab-btn px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-all flex items-center gap-2" data-tab="rentabilite">
-                    <span>💰 4. XP 200 & Rentabilité</span>
+                    <span>🪙 4. XP 200 & Génétons</span>
+                </button>
+                <button type="button" class="guide-tab-btn px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-all flex items-center gap-2" data-tab="almanax">
+                    <span>📅 5. Almanax de l'Éleveur</span>
+                </button>
+                <button type="button" class="guide-tab-btn px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-all flex items-center gap-2" data-tab="succes">
+                    <span>🏆 6. Succès & Quêtes (1 211 pts)</span>
                 </button>
             </div>
 
@@ -380,19 +386,20 @@ export const guide = {
 
                 <h2>III. L'Arbre Généalogique & Les Lignées Pures</h2>
                 <p>
-                    L'arbre généalogique enregistre les ancêtres sur <strong>4 générations (14 ancêtres)</strong>.
-                    Chaque génération d'ancêtres pèse dans le tirage aléatoire de la couleur du bébé :
+                    Depuis la mise à jour 3.5, <strong>l'arbre généalogique s'arrête désormais aux grands-parents</strong> (2 générations d'ascendance, soit 6 ancêtres pour le futur bébé).
+                    Si la monture a été capturée à l'état sauvage, son arbre est vierge de tout ancêtre.
                 </p>
 
                 <div class="my-4 text-center">
                     <img src="/images/guides/elevage/arbre_genetique.jpg" alt="Arbre généalogique d'élevage Dofus" class="rounded-xl mx-auto max-h-[280px] border border-white/10" />
-                    <span class="text-xs text-zinc-400 mt-2 block">Pondération génétique : Parents (50%), Grands-parents (25%), Arrière-grands-parents (12,5%), Arrière-arrière-grands-parents (6,25%)</span>
+                    <span class="text-xs text-zinc-400 mt-2 block">L'arbre génétique simplifié (Parents et Grands-parents uniquement)</span>
                 </div>
 
                 <div class="p-4 rounded-xl bg-zinc-900/70 border border-white/10 text-xs text-zinc-300 space-y-1.5 my-4">
                     <strong class="text-amber-300 block mb-1">Pourquoi épurer ses lignées ?</strong>
-                    <p>• Une <strong>lignée pure</strong> est une monture dont les 14 ancêtres sont de la même race exacte.</p>
-                    <p>• Deux parents de lignée pure croisés ensemble ont <strong>100% de chance</strong> de transmettre leur couleur sans risque de régression vers une génération antérieure.</p>
+                    <p>• Les parents ont le poids prépondérant dans la couleur du bébé, et les grands-parents exercent une influence secondaire.</p>
+                    <p>• Une <strong>lignée pure</strong> est une monture dont les parents et grands-parents appartiennent à la même race exacte.</p>
+                    <p>• Deux parents de lignée pure croisés ensemble sécurisent la transmission de leur couleur sans risque de régression vers une génération antérieure issue d'un ancêtre hétérogène.</p>
                 </div>
 
                 <h2>IV. Les 6 Capacités Génétiques Majeures</h2>
@@ -408,7 +415,7 @@ export const guide = {
                         <tr>
                             <td><strong>Reproductrice</strong></td>
                             <td>Donne <strong>1 bébé supplémentaire</strong> par portée (2 bébés au lieu d'un seul).</td>
-                            <td>La capacité reine de l'élevage de masse : rentabilité doublée.</td>
+                            <td>La capacité reine de l'élevage de masse : rentabilité doublée. Fonctionne aussi sur les mâles.</td>
                         </tr>
                         <tr>
                             <td><strong>Sage</strong></td>
@@ -418,22 +425,22 @@ export const guide = {
                         <tr>
                             <td><strong>Caméléone</strong></td>
                             <td>La monture prend les couleurs exactes du personnage équipé.</td>
-                            <td>Très forte valeur commerciale en hôtel des ventes.</td>
+                            <td>Très forte valeur commerciale en hôtel des ventes (obtenable à 100% via Kromakina).</td>
                         </tr>
                         <tr>
                             <td><strong>Précoce</strong></td>
-                            <td>Gains de maturité <strong>doublés</strong> lors des passages en abreuvoir.</td>
-                            <td>Accélère considérablement la phase d'enclos neutre.</td>
+                            <td>Gains de maturité <strong>doublés</strong> dans l'enclos.</td>
+                            <td>Accélère considérablement la montée de la jauge bleue (Maturité).</td>
                         </tr>
                         <tr>
                             <td><strong>Amoureuse</strong></td>
-                            <td>Gains d'amour <strong>doublés</strong> lors des passages en dragofesse.</td>
-                            <td>Raccourcit de moitié le temps nécessaire pour la jauge rouge.</td>
+                            <td>Gains d'amour <strong>doublés</strong> dans l'enclos.</td>
+                            <td>Raccourcit de moitié le temps nécessaire pour remplir la jauge rouge (Amour).</td>
                         </tr>
                         <tr>
                             <td><strong>Endurante</strong></td>
-                            <td>Gains d'endurance <strong>doublés</strong> lors des passages en foudroyeur.</td>
-                            <td>Raccourcit de moitié le temps nécessaire pour la jauge jaune.</td>
+                            <td>Gains d'endurance <strong>doublés</strong> dans l'enclos.</td>
+                            <td>Raccourcit de moitié le temps nécessaire pour remplir la jauge jaune (Endurance).</td>
                         </tr>
                     </tbody>
                 </table>
@@ -515,25 +522,97 @@ export const guide = {
                 </div>
 
                 <h2>III. Barème des Génétons 3.7 & Extraction</h2>
-                <p>
-                    Un accouplement rapporte des <strong>Génétons</strong> seulement si le bébé dépasse <strong>toutes</strong> les montures des deux arbres généalogiques.
-                    Échangeables au Village des Éleveurs en <strong>[-18, 1]</strong> auprès du PNJ <strong>Eugène Éton</strong> contre des parchemins de caractéristiques et des tourmalines.
-                </p>
-
-                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 my-4 text-center">
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 1 : <strong class="text-zinc-300">2</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 2 : <strong class="text-zinc-300">4</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 3 : <strong class="text-zinc-300">8</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 4 : <strong class="text-zinc-300">16</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 5 : <strong class="text-zinc-300">30</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 6 : <strong class="text-zinc-300">60</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 7 : <strong class="text-zinc-300">120</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 text-xs">Gen 8 : <strong class="text-zinc-300">240</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-amber-500/30 text-xs text-amber-300">Gen 9 : <strong>500</strong></div>
-                    <div class="p-2 rounded-lg bg-zinc-900 border border-amber-500/30 text-xs text-amber-300">Gen 10 : <strong>500</strong></div>
+                <div class="my-6 p-4 rounded-xl border border-border bg-surface/50 flex flex-col sm:flex-row items-center gap-4">
+                    <img src="/images/guides/elevage/geneton.png" alt="Généton Dofus 3.7" class="no-zoom w-14 h-14 object-contain shrink-0" />
+                    <div>
+                        <strong class="text-xs text-foreground uppercase tracking-wider block">Le Généton — Monnaie d'Échange d'Élevage 3.7</strong>
+                        <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+                            Introduit avec la refonte, le <strong>Généton</strong> récompense le perfectionnement génétique. Il s'obtient automatiquement lors d'un accouplement si le bébé dépasse <strong>toutes</strong> les montures des deux arbres généalogiques. Échangeables au Village des Éleveurs en <strong>[-18, 1]</strong> auprès du PNJ <strong>Eugène Éton</strong> contre des parchemins de caractéristiques et des tourmalines.
+                        </p>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-6">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 my-4 text-center font-mono text-xs">
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 1</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +2
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 2</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +4
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 3</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +8
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 4</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +16
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 5</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +30
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 6</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +60
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 7</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +120
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 8</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +240
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 9</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +500
+                        </span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-surface/50 border border-border flex items-center justify-between px-3">
+                        <span class="text-muted-foreground">Gen 10</span>
+                        <span class="inline-flex items-center gap-1 font-bold text-foreground">
+                            <img src="/images/guides/elevage/geneton.png" alt="" class="no-zoom w-3.5 h-3.5 object-contain" />
+                            +500
+                        </span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 my-6">
+                    <div class="p-3.5 rounded-xl border border-border bg-surface/50 flex items-center gap-3">
+                        <img src="/images/guides/elevage/geneton.png" alt="Généton" class="no-zoom w-10 h-10 object-contain shrink-0" />
+                        <div>
+                            <strong class="text-xs text-foreground block">Généton</strong>
+                            <span class="text-[11px] text-muted-foreground block">Obtenu si le bébé dépasse ses ancêtres génétiques.</span>
+                        </div>
+                    </div>
                     <div class="p-3.5 rounded-xl border border-border bg-surface/50 flex items-center gap-3">
                         <img src="/images/guides/elevage/neurone_dragodinde.png" alt="Neurone de Dragodinde" class="no-zoom w-10 h-10 object-contain shrink-0" />
                         <div>
@@ -556,43 +635,438 @@ export const guide = {
                         </div>
                     </div>
                 </div>
+            </div>
+            <!-- FIN PANE 4 : XP 200 & GÉNETONS -->
 
-                <h2>IV. Calendrier Almanax de l'Éleveur : Les 13 Dates Clés</h2>
+            <!-- ========================================== -->
+            <!-- 📅 ONGLET 5 : CALENDRIER ALMANAX DE L'ÉLEVEUR -->
+            <!-- ========================================== -->
+            <div class="guide-tab-pane hidden" data-pane="almanax">
+                <h2>I. Calendrier Almanax de l'Éleveur : Les 13 Dates Clés (Dofus 3.7)</h2>
+                <p>L'Almanax rythme l'année d'élevage avec des bonus capitaux. En 3.7, avec la montée au niveau 200 et la production industrielle de Carburants et Makinas, certaines journées deviennent des rendez-vous économiques incontournables.</p>
+
+                <div class="my-4 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-muted-foreground leading-relaxed">
+                    <strong class="text-foreground">⚠️ Rectificatif Dofus 3 & Fin des Mythes Communautaires :</strong>
+                    Plusieurs guides historiques mentionnent à tort le <em>12 Octobre</em> pour le bonus de génération montante. Dans Dofus 3 (vérifié via les données officielles de l'Almanax), <strong>Takeza est une fête mobile indexée sur l'Action de Grâce canadienne (le 2e lundi d'octobre)</strong> : elle a lieu le <strong>lundi 11 Octobre en 2027</strong> (+20% de probabilité d'obtenir la génération cible avec 4x Parmentier à l'Oignon). Le 12 Octobre est un bonus de dimensions divines sans lien avec l'élevage. De même, les bonus de craft (10 Mai et 10 Août) s'appliquent désormais sur les <strong>Carburants et Makinas</strong> de la 3.7.
+                </div>
+
                 <table>
                     <thead>
                         <tr>
-                            <th>Date</th>
+                            <th>Date (2027)</th>
                             <th>Méryde</th>
-                            <th>Bonus Élevage & Impact Stratégique</th>
+                            <th>Offrande Officielle</th>
+                            <th>Bonus Élevage 3.7</th>
+                            <th>Impact Stratégique & Rentabilité</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td><strong>10 Janvier</strong></td><td>Trôma</td><td>Effet des <strong>Abreuvoirs</strong> doublé en enclos (Maturité ×2).</td></tr>
-                        <tr><td><strong>10 Février</strong></td><td>Meash</td><td>100% des bébés naissent avec la capacité <strong>Endurante</strong>.</td></tr>
-                        <tr><td><strong>10 Mars</strong></td><td>Inndo</td><td>Effet des <strong>Foudroyeurs</strong> doublé en enclos (Endurance ×2).</td></tr>
-                        <tr><td><strong>10 Avril</strong></td><td>Nunu</td><td>Effet des <strong>Baffeurs</strong> doublé (baisse de sérénité accélérée).</td></tr>
-                        <tr><td><strong>10 Mai</strong></td><td>Loumi</td><td>Économie de <strong>15% des ingrédients</strong> lors des crafts d'objets d'élevage.</td></tr>
-                        <tr><td><strong>10 Juin</strong></td><td>Jibejan</td><td>Effet des <strong>Mangeoires</strong> doublé (XP monture ×2).</td></tr>
-                        <tr><td><strong>10 Juillet</strong></td><td>Jihelair</td><td>100% des bébés naissent avec la capacité <strong>Amoureuse</strong>.</td></tr>
-                        <tr><td><strong>10 Août</strong></td><td>Rigamix</td><td><strong>25% de chance</strong> d'obtenir un second objet lors des crafts d'élevage.</td></tr>
-                        <tr><td><strong>10 Septembre</strong></td><td>Mau</td><td>Effet des <strong>Caresseurs</strong> doublé (hausse de sérénité accélérée).</td></tr>
-                        <tr><td><strong>10 Octobre</strong></td><td>Benjo</td><td>100% des bébés naissent avec la capacité <strong>Sage</strong> (XP doublée à vie !).</td></tr>
                         <tr>
-                            <td><strong>12 Octobre</strong></td>
-                            <td><strong>Takeza</strong></td>
-                            <td><strong>+20% de probabilité d'obtenir la génération cible</strong> lors de tous les accouplements ! Le jour le plus important de l'année.</td>
+                            <td><strong>10 Janvier</strong></td>
+                            <td>Trôma</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-janvier-ceinture-celerite.png" alt="Ceinture de Célérité" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>1x Ceinture de Célérité</code></span>
+                                </div>
+                            </td>
+                            <td>Effet des <strong>Abreuvoirs</strong> doublé</td>
+                            <td>Maturité ×2 en zone neutre (-2 000 à +2 000). Accélère la transition vers la montabilité.</td>
                         </tr>
-                        <tr><td><strong>10 Novembre</strong></td><td>Otoul</td><td>100% des bébés naissent avec la capacité <strong>Précoce</strong>.</td></tr>
-                        <tr><td><strong>10 Décembre</strong></td><td>Foya</td><td>Effet des <strong>Dragofesses</strong> doublé en enclos (Amour ×2).</td></tr>
+                        <tr>
+                            <td><strong>10 Février</strong></td>
+                            <td>Meash</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-fevrier-pic-dragodinde-doree.png" alt="Pic de dragodinde dorée" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>6x Pic de dragodinde dorée</code></span>
+                                </div>
+                            </td>
+                            <td>100% bébés <strong>Endurante</strong></td>
+                            <td>Gain d'endurance accéléré à vie pour tous les poulains nés ce jour.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10 Mars</strong></td>
+                            <td>Inndo</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-mars-petit-extrait-foudroyeur.png" alt="Petit Extrait de Foudroyeur" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>5x Petit Extrait de Foudroyeur</code></span>
+                                </div>
+                            </td>
+                            <td>Effet des <strong>Foudroyeurs</strong> doublé</td>
+                            <td>Endurance ×2 en sérénité négative. Divise par deux le temps de préparation des montures.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10 Avril</strong></td>
+                            <td>Nunu</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-avril-anneau-fortifiant.png" alt="Anneau Fortifiant" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>2x Anneau Fortifiant</code></span>
+                                </div>
+                            </td>
+                            <td>Effet des <strong>Baffeurs</strong> doublé</td>
+                            <td>Baisse de sérénité 2× plus rapide pour basculer les montures vers l'endurance.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10 Mai</strong></td>
+                            <td>Loumi</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-mai-petit-extrait-baffeur.png" alt="Petit Extrait de Baffeur" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>5x Petit Extrait de Baffeur</code></span>
+                                </div>
+                            </td>
+                            <td><strong>-15% d'ingrédients</strong> sur les crafts</td>
+                            <td><strong>Économie massive 3.7 :</strong> Économisez 15% de vos ressources lors du craft en masse de Carburants et Makinas.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10 Juin</strong></td>
+                            <td>Jibejan</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-juin-lailait-amande.png" alt="Lailait d'amande" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>1x Lailait d'amande</code></span>
+                                </div>
+                            </td>
+                            <td>Effet des <strong>Mangeoires</strong> doublé (XP ×2)</td>
+                            <td><strong>Indispensable 3.7 :</strong> Divise par deux le temps pour monter vos parents au niveau 200 (cumulable avec Sage pour atteindre le lvl 200 en ~30h chrono !).</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10 Juillet</strong></td>
+                            <td>Jihelair</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-juillet-arc-sifflant.png" alt="Arc Sifflant" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>1x Arc Sifflant</code></span>
+                                </div>
+                            </td>
+                            <td>100% bébés <strong>Amoureuse</strong></td>
+                            <td>Gain d'amour accéléré pour préparer les cycles de reproduction en chaîne.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10 Août</strong></td>
+                            <td>Rigamix</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-aout-petit-extrait-mangeoire.png" alt="Petit Extrait de Mangeoire" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>5x Petit Extrait de Mangeoire</code></span>
+                                </div>
+                            </td>
+                            <td><strong>+25% chance de double craft</strong></td>
+                            <td><strong>Rentabilité maximale :</strong> 25% de Makinas (Optimakina, Animakina) et de Carburants créés gratuitement en bonus !</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10 Septembre</strong></td>
+                            <td>Mau</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-septembre-petit-extrait-caresseur.png" alt="Petit Extrait de Caresseur" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>5x Petit Extrait de Caresseur</code></span>
+                                </div>
+                            </td>
+                            <td>Effet des <strong>Caresseurs</strong> doublé</td>
+                            <td>Hausse de sérénité 2× plus rapide pour basculer les montures vers l'amour.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10 Octobre</strong></td>
+                            <td>Benjo</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-octobre-dent-dragodinde.png" alt="Dent de dragodinde" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>6x Dent de dragodinde</code></span>
+                                </div>
+                            </td>
+                            <td>100% bébés <strong>Sage</strong> (XP ×2 à vie)</td>
+                            <td><strong>La capacité reine en 3.7 :</strong> Double l'XP en mangeoire et en combat à vie. Une monture Sage atteint le niveau 200 deux fois plus vite.</td>
+                        </tr>
+                        <tr class="bg-primary/5">
+                            <td><strong>11 Octobre 2027</strong><br/><span class="text-[10px] text-muted-foreground font-mono">2e lundi d'octobre</span></td>
+                            <td><strong>Takeza</strong></td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/11-octobre-parmentier-oignon.png" alt="Parmentier à l'Oignon" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>4x Parmentier à l'Oignon</code></span>
+                                </div>
+                            </td>
+                            <td><strong>+20% probabilité génération cible</strong></td>
+                            <td><strong>Le jour le plus important de l'année :</strong> Cumulé avec l'Optimakina (+20%) et le niveau des parents (+30%), garantit 100% de réussite sur les croisements les plus difficiles sans avoir à monter deux parents niveau 200.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10 Novembre</strong></td>
+                            <td>Otoul</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-novembre-goujon.png" alt="Goujon" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>40x Goujon</code></span>
+                                </div>
+                            </td>
+                            <td>100% bébés <strong>Précoce</strong></td>
+                            <td>Gain de maturité accéléré en abreuvoirs pour les futures générations.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10 Décembre</strong></td>
+                            <td>Foya</td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <img src="/images/guides/elevage/almanax/10-decembre-queue-dragodinde-sauvage.png" alt="Queue de dragodinde sauvage" class="no-zoom w-6 h-6 object-contain shrink-0" />
+                                    <span><code>6x Queue de dragodinde sauvage</code></span>
+                                </div>
+                            </td>
+                            <td>Effet des <strong>Dragofesses</strong> doublé</td>
+                            <td>Amour ×2 en sérénité positive. Permet de remplir les jauges en un temps record.</td>
+                        </tr>
                     </tbody>
                 </table>
 
-                <h2>V. Les Succès d'Élevage Unity</h2>
-                <p>La progression en élevage débloque de précieux points de succès et des titres d'apparat :</p>
+                <h2>II. Planification Stratégique des Stocks d'Offrandes</h2>
+                <p>Les éleveurs expérimentés préparent leurs stocks plusieurs semaines à l'avance. À l'approche de Takeza (11 Octobre) ou des journées de double craft (10 Août), le prix des offrandes (ex : Parmentier à l'Oignon) flambe en Hôtel des Ventes. Stocker les ressources ou les cuisiner en amont génère des marges colossales.</p>
+            </div>
+            <!-- FIN PANE 5 : ALMANAX -->
+
+            <!-- ========================================== -->
+            <!-- 🏆 ONGLET 6 : LES SUCCÈS D'ÉLEVAGE (1 211 POINTS) -->
+            <!-- ========================================== -->
+            <div class="guide-tab-pane hidden" data-pane="succes">
+                <h2>I. Panorama Complet des Succès d'Élevage Unity (1 211 Points)</h2>
+                <p>L'élevage dans Dofus 3 représente l'une des branches de succès les plus lucratives et prestigieuses du jeu, cumulant <strong>1 211 points de succès</strong> répartis en 4 grandes familles : Général (161 pts), Dragodindes (350 pts), Muldos (350 pts) et Volkornes (350 pts).</p>
+
+                <!-- SCORECARD RECOMPENSE ORNEMENT -->
+                <div class="my-6 p-5 rounded-2xl border border-amber-500/30 bg-surface/80 flex flex-col md:flex-row items-center gap-6">
+                    <div class="w-20 h-20 shrink-0 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center p-2">
+                        <img src="/images/guides/elevage/achievements/ornement-dragomaitre.png" alt="Ornement Dragomaître imposant" class="no-zoom w-16 h-16 object-contain" />
+                    </div>
+                    <div class="flex-1 text-center md:text-left">
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500 text-[11px] font-bold uppercase tracking-wider mb-1">
+                            Récompense Ultime
+                        </div>
+                        <h3 class="text-base font-bold text-foreground">Ornement « Dragomaître imposant » & Titre Associé</h3>
+                        <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+                            Débloqué en accomplissant le méta-succès <strong>« L'éleveur c'est moi »</strong> (100 pts). Nécessite de valider les 1 000 naissances, les prélèvements sauvages et les méta-succès de reproduction des 3 espèces.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-4 shrink-0 text-center">
+                        <div class="p-3 rounded-xl border border-border bg-surface/50 min-w-24">
+                            <span class="text-xl font-bold font-mono text-foreground block">1 211</span>
+                            <span class="text-[10px] text-muted-foreground uppercase font-semibold">Points Totaux</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. GÉNÉRAL & NAISSANCES -->
+                <h2>II. Élevage Général & Naissances (161 Points)</h2>
+                <p>Ces succès se valident automatiquement au fil de vos accouplements, toutes espèces confondues :</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 my-4">
+                    <div class="p-3.5 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/naissance-1.png" alt="" class="no-zoom w-10 h-10 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-xs text-foreground">Elle a peut-être trop mangé ?</strong>
+                                <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">1 pt</span>
+                            </div>
+                            <span class="text-[11px] text-muted-foreground block">Faire naître 1 monture.</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/naissance-10.png" alt="" class="no-zoom w-10 h-10 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-xs text-foreground">Matrone</strong>
+                                <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">10 pts</span>
+                            </div>
+                            <span class="text-[11px] text-muted-foreground block">Faire naître 10 montures.</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/naissance-100.png" alt="" class="no-zoom w-10 h-10 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-xs text-foreground">Sage-femme</strong>
+                                <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">20 pts</span>
+                            </div>
+                            <span class="text-[11px] text-muted-foreground block">Faire naître 100 montures.</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/naissance-1000.png" alt="" class="no-zoom w-10 h-10 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-xs text-foreground">Allez on pousse !</strong>
+                                <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">30 pts</span>
+                            </div>
+                            <span class="text-[11px] text-muted-foreground block">Faire naître 1 000 montures.</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-amber-500/40 bg-amber-500/5 flex items-center gap-3 md:col-span-2">
+                        <img src="/images/guides/elevage/achievements/trophee-or.png" alt="" class="no-zoom w-12 h-12 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center justify-between">
+                                <strong class="text-xs text-foreground font-bold">L'éleveur c'est moi (Méta-Succès)</strong>
+                                <span class="text-xs font-mono font-bold text-amber-500 bg-amber-500/20 px-2.5 py-0.5 rounded">100 pts</span>
+                            </div>
+                            <span class="text-[11px] text-muted-foreground block mt-0.5">Accomplir : Allez on pousse, Ce n'est qu'un prélèvement, Prélèvement marin, Prélèvement cornu, De génération en génération, Générations aquatiques et Génération V.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. DRAGODINDES -->
+                <h2>III. Succès Dragodindes : Les 10 Générations (350 Points)</h2>
+                <p>Capturer les espèces sauvages puis obtenir au moins une naissance de chaque race pour chaque palier de génération (66 races au total) :</p>
+
+                <div class="space-y-2.5 my-4">
+                    <div class="p-3 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/capture-dragodinde.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1 flex items-center justify-between">
+                            <div>
+                                <strong class="text-xs text-foreground block">Ce n'est qu'un prélèvement</strong>
+                                <span class="text-[11px] text-muted-foreground">Capturer les Dragodindes sauvages (Amande, Rousse, Dorée) avec le sort Apprivoisement de monture.</span>
+                            </div>
+                            <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">10 pts</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-2.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Deuxième génération</span>
+                                <span class="text-[10px] text-muted-foreground">Toutes les Gen 2 (10 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-3.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Troisième génération</span>
+                                <span class="text-[10px] text-muted-foreground">Toutes les Gen 3 (20 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-4.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Quatrième génération</span>
+                                <span class="text-[10px] text-muted-foreground">Toutes les Gen 4 (20 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-5.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Cinquième génération</span>
+                                <span class="text-[10px] text-muted-foreground">Toutes les Gen 5 (30 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-6.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Sixième génération</span>
+                                <span class="text-[10px] text-muted-foreground">Toutes les Gen 6 (30 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-7.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Septième génération</span>
+                                <span class="text-[10px] text-muted-foreground">Toutes les Gen 7 (40 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-8.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Huitième génération</span>
+                                <span class="text-[10px] text-muted-foreground">Toutes les Gen 8 (40 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-9.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Neuvième génération</span>
+                                <span class="text-[10px] text-muted-foreground">Toutes les Gen 9 (50 pts)</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-border bg-surface/30 flex items-center gap-2.5">
+                            <img src="/images/guides/elevage/achievements/generation-10.png" alt="" class="no-zoom w-7 h-7 object-contain shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="text-xs font-semibold text-foreground block">Dixième génération</span>
+                                <span class="text-[10px] text-muted-foreground">Toutes les Gen 10 (50 pts)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <img src="/images/guides/elevage/achievements/trophee-or.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                            <div>
+                                <strong class="text-xs text-foreground block">De génération en génération (Méta Dragodindes)</strong>
+                                <span class="text-[11px] text-muted-foreground">Obtenir la naissance de toutes les générations de Dragodindes.</span>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-amber-500 bg-amber-500/20 px-2.5 py-0.5 rounded">50 pts</span>
+                    </div>
+                </div>
+
+                <!-- 3. MULDOS -->
+                <h2>IV. Succès Muldos : Les Profondeurs Sous-Marines (350 Points)</h2>
+                <p>Capturer les spécimens sauvages dans les Abysses de Sufokia et gravir les 10 générations (82 races) :</p>
+
+                <div class="space-y-2.5 my-4">
+                    <div class="p-3 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/capture-muldo.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1 flex items-center justify-between">
+                            <div>
+                                <strong class="text-xs text-foreground block">Prélèvement marin</strong>
+                                <span class="text-[11px] text-muted-foreground">Capturer les 4 Muldos sauvages (Doré, Ébène, Indigo, Pourpre) en zone Abysses.</span>
+                            </div>
+                            <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">10 pts</span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <img src="/images/guides/elevage/achievements/trophee-or.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                            <div>
+                                <strong class="text-xs text-foreground block">Générations aquatiques (Méta Muldos)</strong>
+                                <span class="text-[11px] text-muted-foreground">Valider les naissances des Générations 2 à 10 de Muldos (290 pts cumulés).</span>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-amber-500 bg-amber-500/20 px-2.5 py-0.5 rounded">50 pts</span>
+                    </div>
+                </div>
+
+                <!-- 4. VOLKORNES -->
+                <h2>V. Succès Volkornes : Les Crêtes Sauvages (350 Points)</h2>
+                <p>Débusquer les Volkornes sauvages rares sur les plateaux montagneux et débloquer les 10 générations (80 races) :</p>
+
+                <div class="space-y-2.5 my-4">
+                    <div class="p-3 rounded-xl border border-border bg-surface/40 flex items-center gap-3">
+                        <img src="/images/guides/elevage/achievements/capture-volkorne.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                        <div class="min-w-0 flex-1 flex items-center justify-between">
+                            <div>
+                                <strong class="text-xs text-foreground block">Prélèvement cornu</strong>
+                                <span class="text-[11px] text-muted-foreground">Capturer les 4 Volkornes sauvages (Amande, Doré, Ébène, Indigo).</span>
+                            </div>
+                            <span class="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">10 pts</span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <img src="/images/guides/elevage/achievements/trophee-or.png" alt="" class="no-zoom w-8 h-8 object-contain shrink-0" />
+                            <div>
+                                <strong class="text-xs text-foreground block">Génération V (Méta Volkornes)</strong>
+                                <span class="text-[11px] text-muted-foreground">Valider les naissances des Générations 2 à 10 de Volkornes (290 pts cumulés).</span>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-amber-500 bg-amber-500/20 px-2.5 py-0.5 rounded">50 pts</span>
+                    </div>
+                </div>
+
+                <!-- 5. STRATÉGIE -->
+                <h2>VI. Stratégie d'Optimisation : Rush des 1 211 Points</h2>
                 <ul>
-                    <li><strong>Succès de Naissances :</strong> paliers cumulés de 1, 10, 50, 100, 500 jusqu'à <strong>1 000 naissances</strong>.</li>
-                    <li><strong>Succès Muldos :</strong> <em>Muldo : Première génération</em> à <em>Muldo : Dixième génération</em> culminant avec le méta-succès <strong>Générations aquatiques</strong>.</li>
-                    <li><strong>Succès Volkornes :</strong> <em>Volkorne : Première génération</em> à <em>Volkorne : Dixième génération</em> culminant avec le méta-succès <strong>Génération V</strong>.</li>
+                    <li><strong>Règle d'or de la lignée pure :</strong> Conservez toujours un couple reproducteur pur pour chaque couleur débloquée. Si votre élevage est pollué par des ancêtres hétérogènes, la probabilité de faire naître la race cible s'effondre.</li>
+                    <li><strong>Accouplements le jour de Takeza :</strong> Planifiez la création des générations difficiles (Gen 8, 9, 10) lors du bonus Takeza (+20%) combiné à l'Optimakina (+20%) pour garantir 100% de succès.</li>
+                    <li><strong>Farm des 1 000 naissances :</strong> Capturez des Dragodindes sauvages de génération 1 aux Koalaks (combats rapides niveau 60). Leurs jauges se maximisent très vite avec de simples extraits économiques. Comme les naissances sont instantanées à l'accouplement, clonez systématiquement les parents stériles (2 parents stériles = 1 monture fertile réinitialisée) pour boucler le palier des 1 000 naissances sans pénurie de montures ni surcoût en carburant.</li>
                 </ul>
 
                 <!-- GRAND BANDEAU FINAL STUDIO -->
@@ -605,6 +1079,7 @@ export const guide = {
                     </a>
                 </div>
             </div>
+            <!-- FIN PANE 6 : SUCCÈS -->
         </div>
     `,
 };

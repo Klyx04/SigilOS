@@ -155,8 +155,8 @@ export function DocContent({ content, className }: DocContentProps) {
         // F. Guide Tabs Logic (Support multi-onglets dynamique avec hash URL)
         const tabContainers = contentRef.current.querySelectorAll('.guide-tabs');
         tabContainers.forEach((container) => {
-            const buttons = container.querySelectorAll<HTMLButtonElement>('.guide-tab-btn');
-            const panes = container.querySelectorAll<HTMLElement>('.guide-tab-pane');
+            const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('.guide-tab-btn')).filter(b => b.closest('.guide-tabs') === container);
+            const panes = Array.from(container.querySelectorAll<HTMLElement>('.guide-tab-pane')).filter(p => p.closest('.guide-tabs') === container);
 
             function switchTab(tabId: string) {
                 buttons.forEach((btn) => {

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import { MOUNT_DATABASE, MountInfo, StatTag } from "@/data/mount-data";
+import { MountSelectCombobox } from "./MountSelectCombobox";
 
 type MountFamily = "dragodinde" | "muldo" | "volkorne";
 type ActiveTab = "croisements" | "serenite" | "xp" | "arbres";
@@ -814,72 +815,26 @@ export function ElevageStudioClient() {
 
                         {/* Sélecteurs des deux parents */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2 p-3.5 rounded-xl bg-surface/50 border border-border">
-                                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-                                    <span>{l10n.treesTool.selectParent1}</span>
-                                    <span className="text-[11px] font-normal text-muted-foreground">Gen {parent1Info.generation}</span>
-                                </label>
-                                <select
+                            <div className="p-4 rounded-2xl bg-surface/50 border border-border hover:border-border-strong transition-colors">
+                                <MountSelectCombobox
                                     value={matrixParent1}
-                                    onChange={(e) => setMatrixParent1(e.target.value)}
-                                    className="w-full px-3 py-2 text-xs rounded-lg bg-background border border-border text-foreground focus:outline-none focus:border-foreground transition-colors"
-                                >
-                                    {familyMounts.map((m) => (
-                                        <option key={m.id} value={m.name}>
-                                            Gen {m.generation} — {m.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <div className="flex items-center gap-3 pt-2">
-                                    <div className="relative w-12 h-12 shrink-0 rounded-lg bg-background border border-border p-1 flex items-center justify-center overflow-hidden">
-                                        <Image
-                                            src={parent1Info.img}
-                                            alt={parent1Info.name}
-                                            width={40}
-                                            height={40}
-                                            unoptimized
-                                            className="object-contain"
-                                        />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <span className="text-xs font-semibold block text-foreground truncate">{parent1Info.name}</span>
-                                        <span className="text-[11px] text-muted-foreground block truncate">{parent1Info.stats}</span>
-                                    </div>
-                                </div>
+                                    onChange={setMatrixParent1}
+                                    mounts={familyMounts}
+                                    label={l10n.treesTool.selectParent1}
+                                    genderLabel="♂ Mâle"
+                                    genderColor="text-cyan-400 font-bold"
+                                />
                             </div>
 
-                            <div className="space-y-2 p-3.5 rounded-xl bg-surface/50 border border-border">
-                                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-                                    <span>{l10n.treesTool.selectParent2}</span>
-                                    <span className="text-[11px] font-normal text-muted-foreground">Gen {parent2Info.generation}</span>
-                                </label>
-                                <select
+                            <div className="p-4 rounded-2xl bg-surface/50 border border-border hover:border-border-strong transition-colors">
+                                <MountSelectCombobox
                                     value={matrixParent2}
-                                    onChange={(e) => setMatrixParent2(e.target.value)}
-                                    className="w-full px-3 py-2 text-xs rounded-lg bg-background border border-border text-foreground focus:outline-none focus:border-foreground transition-colors"
-                                >
-                                    {familyMounts.map((m) => (
-                                        <option key={m.id} value={m.name}>
-                                            Gen {m.generation} — {m.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <div className="flex items-center gap-3 pt-2">
-                                    <div className="relative w-12 h-12 shrink-0 rounded-lg bg-background border border-border p-1 flex items-center justify-center overflow-hidden">
-                                        <Image
-                                            src={parent2Info.img}
-                                            alt={parent2Info.name}
-                                            width={40}
-                                            height={40}
-                                            unoptimized
-                                            className="object-contain"
-                                        />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <span className="text-xs font-semibold block text-foreground truncate">{parent2Info.name}</span>
-                                        <span className="text-[11px] text-muted-foreground block truncate">{parent2Info.stats}</span>
-                                    </div>
-                                </div>
+                                    onChange={setMatrixParent2}
+                                    mounts={familyMounts}
+                                    label={l10n.treesTool.selectParent2}
+                                    genderLabel="♀ Femelle"
+                                    genderColor="text-rose-400 font-bold"
+                                />
                             </div>
                         </div>
 

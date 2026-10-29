@@ -36,6 +36,7 @@ const TOOL_LINKS = [
     { label: "Fiches boss & donjons", href: "/boss" },
     { label: "Almanax", href: "/almanax" },
     { label: "Carte du monde", href: "/carte-du-monde" },
+    { label: "Studio Élevage", href: "/elevage" },
 ];
 
 const LEGAL_LINKS = [
@@ -70,6 +71,7 @@ export function GalacticFooter({ variant = "standard", isMember: _isMember = fal
         { label: t.tools.bossTitle, href: "/boss" },
         { label: t.tools.almanaxTitle, href: "/almanax" },
         { label: t.tools.worldmapTitle, href: "/carte-du-monde" },
+        { label: t.tools.elevageTitle, href: "/elevage" },
     ];
 
     const legalLinks = [

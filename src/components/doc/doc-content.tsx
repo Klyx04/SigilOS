@@ -151,6 +151,58 @@ export function DocContent({ content, className }: DocContentProps) {
             };
             pre.appendChild(button);
         });
+
+        // F. Guide Tabs Logic (Support multi-onglets dynamique avec hash URL)
+        const tabContainers = contentRef.current.querySelectorAll('.guide-tabs');
+        tabContainers.forEach((container) => {
+            const buttons = container.querySelectorAll<HTMLButtonElement>('.guide-tab-btn');
+            const panes = container.querySelectorAll<HTMLElement>('.guide-tab-pane');
+
+            function switchTab(tabId: string) {
+                buttons.forEach((btn) => {
+                    const isActive = btn.getAttribute('data-tab') === tabId;
+                    btn.classList.toggle('active', isActive);
+                    btn.classList.toggle('border-amber-500', isActive);
+                    btn.classList.toggle('bg-amber-500/10', isActive);
+                    btn.classList.toggle('text-foreground', isActive);
+                    btn.classList.toggle('text-muted-foreground', !isActive);
+                    btn.classList.toggle('border-transparent', !isActive);
+                });
+                panes.forEach((pane) => {
+                    const isActive = pane.getAttribute('data-pane') === tabId;
+                    if (isActive) {
+                        pane.classList.remove('hidden');
+                        pane.style.display = 'block';
+                    } else {
+                        pane.classList.add('hidden');
+                        pane.style.display = 'none';
+                    }
+                });
+            }
+
+            buttons.forEach((btn) => {
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    const tabId = btn.getAttribute('data-tab');
+                    if (tabId) {
+                        switchTab(tabId);
+                        if (window.history.replaceState) {
+                            window.history.replaceState(null, '', '#tab-' + tabId);
+                        }
+                    }
+                };
+            });
+
+            // Initialisation depuis l'ancre URL ou premier onglet
+            const currentHash = window.location.hash.replace('#tab-', '').replace('#', '');
+            const initialTab = Array.from(buttons).find((b) => b.getAttribute('data-tab') === currentHash)
+                ? currentHash
+                : (container.getAttribute('data-default-tab') || buttons[0]?.getAttribute('data-tab') || '');
+
+            if (initialTab) {
+                switchTab(initialTab);
+            }
+        });
     }, [content]);
 
     if (!content) return null;

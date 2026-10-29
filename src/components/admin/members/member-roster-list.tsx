@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { describeMemberTrial, type MemberTrialTone } from "@/lib/member-registry";
+import { rankRecruiters } from "@/lib/member-roster";
 import {
     DEFAULT_ROSTER_FILTERS,
     DEFAULT_ROSTER_SORT,
@@ -62,6 +63,9 @@ const SORT_OPTIONS: { value: RosterSortKey; label: string }[] = [
     { value: "joinedAt", label: "Arrivée" },
     { value: "seniority", label: "Ancienneté" },
     { value: "name", label: "Pseudo" },
+    { value: "status", label: "Statut" },
+    { value: "trial", label: "Essai" },
+    { value: "recruiter", label: "Recruteur" },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -186,6 +190,37 @@ function MemberIdentity({ row }: { row: RosterRow }) {
     );
 }
 
+/** En-tête de colonne cliquable : tri + sens, sans changer d'écran. */
+function SortHeader({
+    label,
+    sortKey,
+    sort,
+    onSort,
+}: {
+    label: string;
+    sortKey: RosterSortKey;
+    sort: RosterSort;
+    onSort: (key: RosterSortKey) => void;
+}) {
+    const active = sort.key === sortKey;
+    return (
+        <TableHead>
+            <button
+                type="button"
+                onClick={() => onSort(sortKey)}
+                aria-label={`Trier par ${label}${active ? ` (${sort.direction === "asc" ? "croissant" : "décroissant"})` : ""}`}
+                className={cn(
+                    "inline-flex items-center gap-1 text-caption uppercase transition-colors",
+                    active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+            >
+                {label}
+                <ArrowUpDown className={cn("h-3 w-3", active ? "opacity-100" : "opacity-40")} />
+            </button>
+        </TableHead>
+    );
+}
+
 interface MemberRosterListProps {
     guildId: string;
     rows: RosterRow[];
@@ -268,6 +303,19 @@ export function MemberRosterList({
         setSort(DEFAULT_ROSTER_SORT);
         setPage(1);
     }
+
+    /** Clic sur un en-tête : même colonne = on inverse, sinon on part en croissant. */
+    function sortBy(key: RosterSortKey) {
+        setSort((current) =>
+            current.key === key
+                ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
+                : { key, direction: "asc" }
+        );
+        setPage(1);
+    }
+
+    // Classement des recruteurs : calculé sur les lignes déjà chargées (zéro requête).
+    const recruiterRanking = useMemo(() => rankRecruiters(rows).slice(0, 5), [rows]);
 
 
     return (
@@ -388,6 +436,26 @@ export function MemberRosterList({
                 </span>
             </div>
 
+            {/* Classement des recruteurs — petit, informatif, zéro requête */}
+            {recruiterRanking.length > 1 && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border-strong bg-surface px-3 py-2">
+                    <span className="text-caption uppercase text-muted-foreground">Top recruteurs</span>
+                    {recruiterRanking.map((recruiter, index) => (
+                        <span key={recruiter.id} className="flex items-center gap-1.5 text-xs">
+                            <span className="tabular-nums text-caption text-muted-foreground">{index + 1}.</span>
+                            <Avatar className="h-4 w-4 rounded-full">
+                                <DiscordAvatarImage src={recruiter.avatar} alt="" className="object-cover" />
+                                <AvatarFallback className="rounded-full text-[8px]">
+                                    {recruiter.name.slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
+                            <span className="text-foreground">{recruiter.name}</span>
+                            <span className="tabular-nums text-caption text-accent">{recruiter.count}</span>
+                        </span>
+                    ))}
+                </div>
+            )}
+
             {pageData.total === 0 ? (
                 <EmptyState
                     variant="minimal"
@@ -401,12 +469,12 @@ export function MemberRosterList({
                         <Table>
                             <TableHeader>
                                 <TableRow className="border-border hover:bg-transparent">
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Membre</TableHead>
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Statut</TableHead>
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Arrivée</TableHead>
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Ancienneté</TableHead>
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Essai</TableHead>
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Recruteur</TableHead>
+                                    <SortHeader label="Membre" sortKey="name" sort={sort} onSort={sortBy} />
+                                    <SortHeader label="Statut" sortKey="status" sort={sort} onSort={sortBy} />
+                                    <SortHeader label="Arrivée" sortKey="joinedAt" sort={sort} onSort={sortBy} />
+                                    <SortHeader label="Ancienneté" sortKey="seniority" sort={sort} onSort={sortBy} />
+                                    <SortHeader label="Essai" sortKey="trial" sort={sort} onSort={sortBy} />
+                                    <SortHeader label="Recruteur" sortKey="recruiter" sort={sort} onSort={sortBy} />
                                     <TableHead className="w-10" />
                                 </TableRow>
                             </TableHeader>

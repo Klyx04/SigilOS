@@ -488,7 +488,7 @@ export function rosterDashboardCounts(
 
 // ─── Tri & pagination ───────────────────────────────────────────────────────────────────────────
 
-export type RosterSortKey = "name" | "joinedAt" | "seniority";
+export type RosterSortKey = "name" | "joinedAt" | "seniority" | "status" | "trial" | "recruiter";
 export type RosterSortDirection = "asc" | "desc";
 
 export interface RosterSort {
@@ -503,8 +503,15 @@ export const DEFAULT_ROSTER_SORT: RosterSort = { key: "joinedAt", direction: "de
 function isMissingSortValue(row: RosterRow, key: RosterSortKey): boolean {
     if (key === "seniority") return row.seniorityDays === null;
     if (key === "joinedAt") return !row.joinedAt || Number.isNaN(new Date(row.joinedAt).getTime());
+    // Hors dashboard : ni statut, ni essai, ni recruteur — jamais mêlés aux autres.
+    if (key === "status") return row.status === null;
+    if (key === "trial") return row.trial?.remainingDays === null || row.trial?.remainingDays === undefined;
+    if (key === "recruiter") return !row.recruiter;
     return false;
 }
+
+/** Rang de statut : un exclu passe après un archivé, qui passe après un actif. */
+const STATUS_SORT_RANK: Record<RosterStatus, number> = { ACTIVE: 0, ARCHIVED: 1, BANNED: 2 };
 
 /** Compare deux lignes **dont la valeur de tri existe** (le sens est appliqué par l'appelant). */
 function compareRows(a: RosterRow, b: RosterRow, key: RosterSortKey): number {
@@ -513,6 +520,12 @@ function compareRows(a: RosterRow, b: RosterRow, key: RosterSortKey): number {
             return a.displayName.localeCompare(b.displayName, "fr");
         case "seniority":
             return (a.seniorityDays ?? 0) - (b.seniorityDays ?? 0);
+        case "status":
+            return (STATUS_SORT_RANK[a.status ?? "ACTIVE"] ?? 0) - (STATUS_SORT_RANK[b.status ?? "ACTIVE"] ?? 0);
+        case "trial":
+            return (a.trial?.remainingDays ?? 0) - (b.trial?.remainingDays ?? 0);
+        case "recruiter":
+            return (a.recruiter?.name ?? "").localeCompare(b.recruiter?.name ?? "", "fr");
         case "joinedAt":
         default:
             return new Date(a.joinedAt as string).getTime() - new Date(b.joinedAt as string).getTime();
@@ -534,6 +547,42 @@ export function sortRoster(rows: readonly RosterRow[], sort: RosterSort): Roster
         const byName = a.displayName.localeCompare(b.displayName, "fr");
         return byName !== 0 ? byName : a.key.localeCompare(b.key);
     });
+}
+
+export interface RosterRecruiterRank {
+    id: string;
+    name: string;
+    avatar: string | null;
+    count: number;
+}
+
+/**
+ * Classement des recruteurs (demande du 29/10/2026) : « qui recrute le plus ? ».
+ * Calculé **sur les lignes déjà chargées** — aucune requête de plus. Les membres sans
+ * recruteur ne comptent pas ; à égalité, l'ordre alphabétique tranche.
+ */
+export function rankRecruiters(rows: readonly RosterRow[]): RosterRecruiterRank[] {
+    const byRecruiter = new Map<string, RosterRecruiterRank>();
+
+    for (const row of rows) {
+        if (!row.recruiter) continue;
+        const key = row.recruiter.id || row.recruiter.name;
+        const current = byRecruiter.get(key);
+        if (current) {
+            current.count += 1;
+        } else {
+            byRecruiter.set(key, {
+                id: row.recruiter.id,
+                name: row.recruiter.name,
+                avatar: row.recruiter.avatar,
+                count: 1,
+            });
+        }
+    }
+
+    return [...byRecruiter.values()].sort(
+        (a, b) => b.count - a.count || a.name.localeCompare(b.name, "fr")
+    );
 }
 
 export interface RosterPage<T> {

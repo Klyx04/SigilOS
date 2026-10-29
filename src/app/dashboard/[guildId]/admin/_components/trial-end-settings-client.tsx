@@ -97,8 +97,8 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
                             className="w-24 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-info/40"
                         />
                         <p className="text-xs text-muted-foreground max-w-md">
-                            Appliquée par <code className="text-foreground">/valider-recrue</code> : la fin d&apos;essai est
-                            calculée à partir de l&apos;arrivée du membre. Entre 1 et 90 jours.
+                            La fin d&apos;essai est calculée à partir de la date d&apos;arrivée du membre.
+                            Entre 1 et 90 jours.
                         </p>
                     </div>
                 </div>

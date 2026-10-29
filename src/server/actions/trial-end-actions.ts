@@ -11,7 +11,7 @@ import { isTrialEnded, trialEndNoticeKey } from "@/lib/trial-end";
 import { DEFAULT_TRIAL_DURATION_DAYS } from "@/lib/member-roster";
 import { z } from "zod";
 
-/** Durée d'essai : bornée (1 à 90 jours) — c'est elle qu'applique `/valider-recrue`. */
+/** Durée d'essai : bornée (1 à 90 jours) — durée par défaut du calcul de la fin d'essai. */
 const trialDurationSchema = z.number().int().min(1).max(90);
 
 /**

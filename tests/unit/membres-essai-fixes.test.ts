@@ -54,4 +54,13 @@ describe("Durée d'essai réglable par le staff", () => {
         // La valeur lue est celle qu'applique `/valider-recrue` (config de guilde).
         expect(source).toContain("trialDurationDays: true");
     });
+
+    it("l'interface ne nomme jamais une commande staff opt-in", () => {
+        // `/valider-recrue` est fermée par défaut pour les nouvelles guildes : la citer
+        // dans un réglage visible par tous exposerait une fonction qu'elles n'ont pas.
+        const client = read(
+            "src/app/dashboard/[guildId]/admin/_components/trial-end-settings-client.tsx"
+        );
+        expect(client).not.toContain("valider-recrue");
+    });
 });

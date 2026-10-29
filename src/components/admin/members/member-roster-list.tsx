@@ -22,6 +22,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { describeMemberTrial, type MemberTrialTone } from "@/lib/member-registry";
+import { rankRecruiters } from "@/lib/member-roster";
 import {
     DEFAULT_ROSTER_FILTERS,
     DEFAULT_ROSTER_SORT,
@@ -61,6 +63,9 @@ const SORT_OPTIONS: { value: RosterSortKey; label: string }[] = [
     { value: "joinedAt", label: "Arrivée" },
     { value: "seniority", label: "Ancienneté" },
     { value: "name", label: "Pseudo" },
+    { value: "status", label: "Statut" },
+    { value: "trial", label: "Essai" },
+    { value: "recruiter", label: "Recruteur" },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -93,13 +98,45 @@ function seniorityLabel(days: number | null): string {
     return months > 0 ? `${years} an${years > 1 ? "s" : ""} ${months} mois` : `${years} an${years > 1 ? "s" : ""}`;
 }
 
-function trialLabel(row: RosterRow): string {
-    if (!row.trial) return "—";
-    if (row.trial.validated) return "Validé";
-    if (row.trial.decision === "prolonge") return "Prolongé";
-    return row.trial.remainingDays !== null && row.trial.remainingDays >= 0
-        ? `Essai · ${row.trial.remainingDays} j`
-        : "En essai";
+/**
+ * Couleurs d'essai (demande du 29/10/2026) : vert validé · bleu **second** essai ·
+ * jaune en cours · rouge échu. La règle de libellé vit dans `member-registry`.
+ */
+const TRIAL_TONE_CLASS: Record<MemberTrialTone, string> = {
+    validated: "border-success/40 text-success",
+    extended: "border-info/40 text-info",
+    running: "border-warning/40 text-warning",
+    expired: "border-danger/40 text-danger",
+    undated: "border-border-strong text-muted-foreground",
+};
+
+function TrialBadge({ row }: { row: RosterRow }) {
+    const description = describeMemberTrial(row.trial);
+    if (!description) return <span className="text-xs text-muted-foreground">—</span>;
+    return (
+        <Badge
+            variant="outline"
+            className={cn("whitespace-nowrap text-caption font-medium", TRIAL_TONE_CLASS[description.tone])}
+        >
+            {description.label}
+        </Badge>
+    );
+}
+
+/** Recruteur : son avatar Discord à côté de son nom (jamais l'ID). */
+function RecruiterCell({ row }: { row: RosterRow }) {
+    if (!row.recruiter) return <span className="text-xs text-muted-foreground">—</span>;
+    return (
+        <span className="flex min-w-0 items-center gap-2">
+            <Avatar className="h-5 w-5 shrink-0 rounded-full">
+                <DiscordAvatarImage src={row.recruiter.avatar} alt="" className="object-cover" />
+                <AvatarFallback className="rounded-full text-[9px]">
+                    {row.recruiter.name.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+            </Avatar>
+            <span className="truncate text-xs text-muted-foreground">{row.recruiter.name}</span>
+        </span>
+    );
 }
 
 function StatusBadge({ row }: { row: RosterRow }) {
@@ -150,6 +187,37 @@ function MemberIdentity({ row }: { row: RosterRow }) {
                 <p className="truncate text-caption text-muted-foreground">{secondary}</p>
             </div>
         </div>
+    );
+}
+
+/** En-tête de colonne cliquable : tri + sens, sans changer d'écran. */
+function SortHeader({
+    label,
+    sortKey,
+    sort,
+    onSort,
+}: {
+    label: string;
+    sortKey: RosterSortKey;
+    sort: RosterSort;
+    onSort: (key: RosterSortKey) => void;
+}) {
+    const active = sort.key === sortKey;
+    return (
+        <TableHead>
+            <button
+                type="button"
+                onClick={() => onSort(sortKey)}
+                aria-label={`Trier par ${label}${active ? ` (${sort.direction === "asc" ? "croissant" : "décroissant"})` : ""}`}
+                className={cn(
+                    "inline-flex items-center gap-1 text-caption uppercase transition-colors",
+                    active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+            >
+                {label}
+                <ArrowUpDown className={cn("h-3 w-3", active ? "opacity-100" : "opacity-40")} />
+            </button>
+        </TableHead>
     );
 }
 
@@ -235,6 +303,19 @@ export function MemberRosterList({
         setSort(DEFAULT_ROSTER_SORT);
         setPage(1);
     }
+
+    /** Clic sur un en-tête : même colonne = on inverse, sinon on part en croissant. */
+    function sortBy(key: RosterSortKey) {
+        setSort((current) =>
+            current.key === key
+                ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
+                : { key, direction: "asc" }
+        );
+        setPage(1);
+    }
+
+    // Classement des recruteurs : calculé sur les lignes déjà chargées (zéro requête).
+    const recruiterRanking = useMemo(() => rankRecruiters(rows).slice(0, 5), [rows]);
 
 
     return (
@@ -355,6 +436,26 @@ export function MemberRosterList({
                 </span>
             </div>
 
+            {/* Classement des recruteurs — petit, informatif, zéro requête */}
+            {recruiterRanking.length > 1 && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border-strong bg-surface px-3 py-2">
+                    <span className="text-caption uppercase text-muted-foreground">Top recruteurs</span>
+                    {recruiterRanking.map((recruiter, index) => (
+                        <span key={recruiter.id} className="flex items-center gap-1.5 text-xs">
+                            <span className="tabular-nums text-caption text-muted-foreground">{index + 1}.</span>
+                            <Avatar className="h-4 w-4 rounded-full">
+                                <DiscordAvatarImage src={recruiter.avatar} alt="" className="object-cover" />
+                                <AvatarFallback className="rounded-full text-[8px]">
+                                    {recruiter.name.slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
+                            <span className="text-foreground">{recruiter.name}</span>
+                            <span className="tabular-nums text-caption text-accent">{recruiter.count}</span>
+                        </span>
+                    ))}
+                </div>
+            )}
+
             {pageData.total === 0 ? (
                 <EmptyState
                     variant="minimal"
@@ -368,12 +469,12 @@ export function MemberRosterList({
                         <Table>
                             <TableHeader>
                                 <TableRow className="border-border hover:bg-transparent">
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Membre</TableHead>
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Statut</TableHead>
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Arrivée</TableHead>
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Ancienneté</TableHead>
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Essai</TableHead>
-                                    <TableHead className="text-caption uppercase text-muted-foreground">Recruteur</TableHead>
+                                    <SortHeader label="Membre" sortKey="name" sort={sort} onSort={sortBy} />
+                                    <SortHeader label="Statut" sortKey="status" sort={sort} onSort={sortBy} />
+                                    <SortHeader label="Arrivée" sortKey="joinedAt" sort={sort} onSort={sortBy} />
+                                    <SortHeader label="Ancienneté" sortKey="seniority" sort={sort} onSort={sortBy} />
+                                    <SortHeader label="Essai" sortKey="trial" sort={sort} onSort={sortBy} />
+                                    <SortHeader label="Recruteur" sortKey="recruiter" sort={sort} onSort={sortBy} />
                                     <TableHead className="w-10" />
                                 </TableRow>
                             </TableHeader>
@@ -394,9 +495,11 @@ export function MemberRosterList({
                                         <TableCell className="text-xs tabular-nums text-muted-foreground">
                                             {seniorityLabel(row.seniorityDays)}
                                         </TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">{trialLabel(row)}</TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">
-                                            {row.recruiter?.name ?? "—"}
+                                        <TableCell>
+                                            <TrialBadge row={row} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <RecruiterCell row={row} />
                                         </TableCell>
                                         <TableCell className="text-right text-muted-foreground">
                                             <ChevronRight className="ml-auto h-4 w-4" />
@@ -432,11 +535,15 @@ export function MemberRosterList({
                                     </div>
                                     <div>
                                         <dt className="text-caption uppercase text-muted-foreground">Essai</dt>
-                                        <dd className="text-xs text-foreground">{trialLabel(row)}</dd>
+                                        <dd>
+                                            <TrialBadge row={row} />
+                                        </dd>
                                     </div>
                                     <div>
                                         <dt className="text-caption uppercase text-muted-foreground">Recruteur</dt>
-                                        <dd className="text-xs text-foreground">{row.recruiter?.name ?? "—"}</dd>
+                                        <dd className="text-xs text-foreground">
+                                            <RecruiterCell row={row} />
+                                        </dd>
                                     </div>
                                 </dl>
                             </button>

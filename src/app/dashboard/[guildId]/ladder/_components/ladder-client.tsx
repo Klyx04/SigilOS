@@ -17,18 +17,14 @@ import {
     getPresenceLadder,
     getRaidLadder,
     getLadderSyncInfo,
-    getDiscordPresenceStats,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
 import { formatSeniority } from "@/lib/ladder-utils";
 import {
     describePresenceFilter,
-    formatThreshold,
-    habitueThreshold,
     presenceFilterLabels,
     type DiscordPresenceFilter,
-    type DiscordPresenceStats,
 } from "@/lib/ladder-presence";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -49,7 +45,6 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     const [discordMetric, setDiscordMetric] = useState<"messages" | "voice" | "characters" | "reactions" | "stream" | "replies">("messages");
     // Profil de présence (onglet Discord) : qui vit sur le serveur, jamais un blâme.
     const [presenceFilter, setPresenceFilter] = useState<DiscordPresenceFilter>("all");
-    const [presenceStats, setPresenceStats] = useState<DiscordPresenceStats | null>(null);
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [raidFilter, setRaidFilter] = useState<"all" | "jardin" | "gigalodon">("all");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
@@ -83,18 +78,6 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     useEffect(() => {
         setCurrentPage(1);
     }, [activeTab, activityView, discordMetric, raidFilter, presenceFilter]);
-
-    // Compteurs de présence (onglet Discord uniquement) : suivent la période
-    // choisie (semaine / mois en cours / global) comme le tri.
-    useEffect(() => {
-        if (activeTab !== "discord") {
-            setPresenceStats(null);
-            return;
-        }
-        getDiscordPresenceStats(guildId, activityView).then((res) => {
-            if (res.success && res.data) setPresenceStats(res.data);
-        });
-    }, [guildId, activeTab, activityView]);
 
     // Libellés du filtre adaptés à la période (« En vocal ce mois-ci », …).
     const presenceLabels = presenceFilterLabels(activityView);
@@ -421,65 +404,6 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                         </div>
                     )}
                 </div>
-
-            {activeTab === "discord" && presenceStats && (
-                <div className="rounded-xl border border-border bg-card px-4 py-3">
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                        Qui vit sur le Discord — pour croiser les voix et inviter les silencieux, jamais pour blâmer.
-                    </p>
-                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                        {(
-                            [
-                                { id: "enVocal" as const, value: presenceStats.enVocal },
-                                { id: "habitue" as const, value: presenceStats.habitues },
-                                { id: "jamaisEnVocal" as const, value: presenceStats.jamaisEnVocal },
-                                { id: "sansInteraction" as const, value: presenceStats.sansInteraction },
-                            ]
-                        ).map((chip) => {
-                            const isActive = presenceFilter === chip.id;
-                            return (
-                                <button
-                                    key={chip.id}
-                                    type="button"
-                                    title={describePresenceFilter(chip.id, activityView)}
-                                    onClick={() => setPresenceFilter(isActive ? "all" : chip.id)}
-                                    aria-pressed={isActive}
-                                    className={cn(
-                                        "inline-flex items-baseline gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
-                                        isActive
-                                            ? "border-border-strong bg-surface text-foreground"
-                                            : "border-border bg-transparent text-muted-foreground hover:border-border-strong hover:text-foreground"
-                                    )}
-                                >
-                                    <span className="font-bold tabular-nums">{chip.value}</span>
-                                    <span className="font-medium">{presenceLabels[chip.id]}</span>
-                                </button>
-                            );
-                        })}
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                            sur {presenceStats.total} membre{presenceStats.total > 1 ? "s" : ""}
-                        </span>
-                    </div>
-                    <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                        Habitué : ≥ {formatThreshold(habitueThreshold(activityView))} de vocal{" "}
-                        {activityView === "weekly" ? "cette semaine" : activityView === "monthly" ? "ce mois-ci" : "au total"} ·
-                        survolez un chiffre ou un badge pour la règle exacte.
-                    </p>
-                    <details className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                        <summary className="cursor-pointer font-semibold hover:text-foreground">
-                            D&apos;où viennent ces chiffres ?
-                        </summary>
-                        <ul className="mt-1.5 list-disc space-y-1 pl-5">
-                            <li>Mesurés par le bot en temps réel : messages, vocal, streams, caractères, réponses, réactions reçues.</li>
-                            <li>Semaine : mardi 07:00 → mardi suivant · Mois : du 1er à aujourd&apos;hui · Global : cumul historique.</li>
-                            <li>Minutes arrondies (moins d&apos;une minute = invisible) · remise à zéro destructive (la période passée est perdue).</li>
-                            <li>Seuls les membres connectés au dashboard au moins une fois sont mesurés — un « 0 » peut aussi dire « jamais vu par le bot ».</li>
-                            <li>« Sans interaction » = rien de mesuré, jamais : aucun message, caractère, réponse, minute de vocal, stream ou réaction reçue, et aucun horodatage d&apos;activité. Angles morts assumés : les réactions <em>émises</em> ne sont pas comptées (seules les reçues le sont), la frappe au clavier n&apos;est pas suivie, et une panne du bot laisse un trou.</li>
-                            <li>Discret et Silencieux sont des invitations à aller vers le membre, jamais des blâmes.</li>
-                        </ul>
-                    </details>
-                </div>
-            )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
                 <div className="min-w-0">

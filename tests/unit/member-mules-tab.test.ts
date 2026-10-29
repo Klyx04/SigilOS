@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 function codeOnly(source: string): string {
     return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
@@ -22,8 +22,13 @@ const MIGRATION = readFileSync("prisma/migrations/20270118000000_add_in_game_gui
 
 describe("Onglet Mules", () => {
     it("est déclaré à côté de Membres / Rôles d'ancienneté / Blacklist", () => {
-        expect(MANAGEMENT).toMatch(/\{ id: "mules", label: "Mules", icon: "petsmount\.png" \}/);
+        // Renommé « Guilde et mules » le 29/10/2026 : l'onglet ne porte pas que des mules
+        // (il porte aussi le compteur « en guilde en jeu »).
+        expect(MANAGEMENT).toMatch(/\{ id: "mules", label: "Guilde et mules", icon: "guilde-et-mules\.png" \}/);
         expect(MANAGEMENT).toMatch(/<TabsContent value="mules"/);
+        // `GameIcon` préfixe TOUJOURS `game-icons/` : un asset posé ailleurs = 404 silencieux
+        // (mesuré le 29/10/2026 : l'icône ne s'affichait pas).
+        expect(existsSync("public/assets/dofus/game-icons/guilde-et-mules.png")).toBe(true);
     });
 
     it("porte le compteur « en guilde en jeu » et l'inventaire des mules", () => {

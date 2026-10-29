@@ -94,9 +94,17 @@ export async function notifyEndedTrialsForGuild(
 
     const guild = await db.guildConfig.findUnique({
         where: { discordGuildId },
-        select: { id: true, name: true, trialEndNotifyChannelId: true },
+        select: { id: true, name: true, trialEndNotifyChannelId: true, rolesMapping: true },
     });
     if (!guild?.trialEndNotifyChannelId) return result;
+
+    // Ping des **rôles staff autorisés** (permission « Gérer les membres ») : l'oubli de
+    // validation tombe sur les bonnes personnes, sans nommer de rôle en dur.
+    // Demande du 29/10/2026 — pas de second rappel, on renforce celui qui existe déjà.
+    const staffMentions = Object.entries((guild.rolesMapping ?? {}) as Record<string, unknown>)
+        .filter(([, perms]) => Array.isArray(perms) && perms.includes("staff:member_mgmt"))
+        .map(([roleId]) => `<@&${roleId}>`)
+        .join(" ");
 
     const now = new Date();
     const appUrl = getAppBaseUrl();
@@ -148,6 +156,7 @@ export async function notifyEndedTrialsForGuild(
                 embeds: [{
                     title: "⏳ Fin d'essai",
                     description: [
+                        ...(staffMentions ? [staffMentions] : []),
                         `**Membre :** ${candidate.displayName}`,
                         `**Échéance :** ${candidate.endsAt.toLocaleDateString("fr-FR")}`,
                         `**Source :** ${candidate.scope}`,

@@ -22,6 +22,7 @@ import {
     rosterRoleOptions,
     rosterStatusCounts,
     sortRoster,
+    rankRecruiters,
     type RosterDiscordOnlyInput,
     type RosterFilters,
     type RosterProfileInput,
@@ -75,6 +76,55 @@ const build = (patch: Partial<Parameters<typeof buildMemberRoster>[0]> = {}): Ro
         now: new Date("2026-04-11T00:00:00.000Z"),
         ...patch,
     });
+
+describe("Tri par en-tête et classement des recruteurs", () => {
+    it("trie par jours d'essai restants (les lignes sans essai passent en dernier)", () => {
+        const rows = build({
+            discordOnly: [],
+            profiles: [
+                profile({ profileId: "p1", displayName: "Long", trialValidated: false, trialEndsAt: "2026-05-01T00:00:00.000Z", trialRemainingDays: 20 }),
+                profile({ profileId: "p2", displayName: "Court", trialValidated: false, trialEndsAt: "2026-04-15T00:00:00.000Z", trialRemainingDays: 4 }),
+                profile({ profileId: "p3", displayName: "Valide", trialValidated: true, trialEndsAt: null, trialRemainingDays: null }),
+            ],
+        });
+        expect(sortRoster(rows, { key: "trial", direction: "asc" }).map((r) => r.displayName)).toEqual([
+            "Court",
+            "Long",
+            "Valide",
+        ]);
+    });
+
+    it("trie par recruteur, les lignes sans recruteur en dernier", () => {
+        const rows = build({
+            discordOnly: [],
+            profiles: [
+                profile({ profileId: "p1", displayName: "A", recruitedById: "r1", recruiterName: "Zoe" }),
+                profile({ profileId: "p2", displayName: "B", recruitedById: "r2", recruiterName: "Alice" }),
+                profile({ profileId: "p3", displayName: "C", recruitedById: null, recruiterName: null }),
+            ],
+        });
+        expect(sortRoster(rows, { key: "recruiter", direction: "asc" }).map((r) => r.displayName)).toEqual([
+            "B",
+            "A",
+            "C",
+        ]);
+    });
+
+    it("classe les recruteurs par nombre de recrues, puis par pseudo", () => {
+        const rows = build({
+            discordOnly: [],
+            profiles: [
+                profile({ profileId: "p1", recruitedById: "r1", recruiterName: "Wylan" }),
+                profile({ profileId: "p2", recruitedById: "r1", recruiterName: "Wylan" }),
+                profile({ profileId: "p3", recruitedById: "r2", recruiterName: "Rakzia" }),
+                profile({ profileId: "p4", recruitedById: "r3", recruiterName: "Ambre" }),
+                profile({ profileId: "p5", recruitedById: "r3", recruiterName: "Ambre" }),
+                profile({ profileId: "p6", recruitedById: null, recruiterName: null }),
+            ],
+        });
+        expect(rankRecruiters(rows).map((r) => `${r.name}:${r.count}`)).toEqual(["Ambre:2", "Wylan:2", "Rakzia:1"]);
+    });
+});
 
 describe("buildMemberRoster — une seule liste pour les trois vues", () => {
     it("fusionne profils dashboard et membres hors dashboard", () => {

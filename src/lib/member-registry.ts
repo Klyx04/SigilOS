@@ -123,6 +123,61 @@ export function getTrialDecision(input: {
     return ends > defaultEnd + DAY_MS ? "prolonge" : "non";
 }
 
+/**
+ * Affichage de l'essai — **une seule règle** pour la liste, la fiche et le bandeau.
+ *
+ * Trois états distincts, demandés le 29/10/2026 :
+ *  - `validated` (vert) : essai validé, plus d'échéance à suivre ;
+ *  - `extended` (bleu) : **second** essai, c.-à-d. une échéance au-delà de l'arrivée + durée
+ *    par défaut (`getTrialDecision === "prolonge"`) ;
+ *  - `running` (jaune) : essai en cours, avec la **date de fin** jj/mm/aaaa ;
+ *  - `expired` (rouge) : échéance dépassée sans validation (`Essai échu`) ;
+ *  - `undated` : pas d'échéance posée (aucun état inventé).
+ */
+export type MemberTrialTone = "validated" | "extended" | "running" | "expired" | "undated";
+
+export interface MemberTrialDescription {
+    tone: MemberTrialTone;
+    label: string;
+    /** Échéance au format jj/mm/aaaa (jamais l'heure), `null` si aucune. */
+    endsAtLabel: string | null;
+}
+
+/** jj/mm/aaaa d'un instant ISO — `null` si la date est illisible. */
+export function formatTrialEndsAt(iso: string | null): string | null {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}/${date.getFullYear()}`;
+}
+
+export function describeMemberTrial(
+    input: {
+        validated: boolean;
+        endsAt: string | null;
+        remainingDays: number | null;
+        decision: TrialDecision;
+    } | null
+): MemberTrialDescription | null {
+    if (!input) return null;
+    if (input.validated) return { tone: "validated", label: "Essai validé", endsAtLabel: null };
+    if (!input.endsAt) return { tone: "undated", label: "Essai — sans échéance", endsAtLabel: null };
+
+    const endsAtLabel = formatTrialEndsAt(input.endsAt);
+    const suffix = endsAtLabel ? ` (fin ${endsAtLabel})` : "";
+    const remaining = input.remainingDays ?? 0;
+
+    if (remaining < 0) {
+        return { tone: "expired", label: `Essai échu · ${Math.abs(remaining)} j${suffix}`, endsAtLabel };
+    }
+    if (input.decision === "prolonge") {
+        return { tone: "extended", label: `Essai prolongé · ${remaining} j${suffix}`, endsAtLabel };
+    }
+    return { tone: "running", label: `Essai · ${remaining} j${suffix}`, endsAtLabel };
+}
+
 export interface RegistryCsvRow {
     displayName: string;
     pseudoDofus: string | null;

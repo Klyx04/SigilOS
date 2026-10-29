@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { describeMemberTrial, type MemberTrialTone } from "@/lib/member-registry";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -146,19 +147,23 @@ function formatTime(iso: string): string {
     return format(date, "HH:mm", { locale: fr });
 }
 
+/** Mêmes couleurs que la liste : une seule règle d'affichage (member-registry). */
+const TRIAL_TONE_CLASS: Record<MemberTrialTone, string> = {
+    validated: "border-success/40 text-success",
+    extended: "border-info/40 text-info",
+    running: "border-warning/40 text-warning",
+    expired: "border-danger/40 text-danger",
+    undated: "border-border-strong text-muted-foreground",
+};
+
 /**
- * État d'essai lisible (lot 3) : validé, en cours (jours restants) ou échu.
- * Aucun état inventé — un essai sans échéance le dit.
+ * État d'essai lisible : libellé et **date de fin jj/mm/aaaa** viennent de
+ * `describeMemberTrial` (validé, second essai, en cours, échu, sans échéance).
  */
 function trialBadge(trial: RosterRow["trial"]): { label: string; tone: string } | null {
-    if (!trial) return null;
-    if (trial.validated) return { label: "Essai validé", tone: "border-success/40 text-success" };
-    if (!trial.endsAt) return { label: "Essai — sans échéance", tone: "border-border text-muted-foreground" };
-    const remaining = trial.remainingDays ?? 0;
-    if (remaining < 0) {
-        return { label: `Essai échu (${Math.abs(remaining)} j)`, tone: "border-danger/40 text-danger" };
-    }
-    return { label: `Essai — ${remaining} j restant${remaining > 1 ? "s" : ""}`, tone: "border-warning/40 text-warning" };
+    const description = describeMemberTrial(trial);
+    if (!description) return null;
+    return { label: description.label, tone: TRIAL_TONE_CLASS[description.tone] };
 }
 
 /** Titre de section : asset Dofus réel + accent SigilOS (jamais un glyphe générique). */
@@ -920,7 +925,7 @@ export function MemberDetailDialog({
                                             />
                                         </div>
                                         {canEdit && (
-                                            <Button size="sm" variant="outline" onClick={handleSaveRecruiter} disabled={isPending}>
+                                            <Button size="sm" onClick={handleSaveRecruiter} disabled={isPending}>
                                                 Enregistrer
                                             </Button>
                                         )}
@@ -1052,7 +1057,6 @@ export function MemberDetailDialog({
                                                 />
                                                 <Button
                                                     size="sm"
-                                                    variant="outline"
                                                     onClick={handleAddComment}
                                                     disabled={isPending || !canAddRegistryComment(current.comments.length)}
                                                 >

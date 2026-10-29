@@ -1461,13 +1461,15 @@ export async function editInteractionMessage(
     // "/" → "%2F"), appliqué sur chaque segment dans l'URL ci-dessous. Fail-closed si un
     // caractère hors-whitelist est présent.
     const cleanAppId = applicationId.replace(/[^\d]/g, "").slice(0, 21);
-    const cleanToken = interactionToken.replace(/[^A-Za-z0-9._~-]/g, "").slice(0, 200);
+    // Les tokens d'interaction dépassent 200 caractères (250-300 en pratique) : la borne
+    // à 200 rejetait tout token valide SANS appeler Discord (mesuré le 29/10/2026).
+    const cleanToken = interactionToken.replace(/[^A-Za-z0-9._~-]/g, "").slice(0, 1024);
 
     if (cleanAppId !== applicationId || cleanToken !== interactionToken) {
         logger.warn("[Discord] editInteractionMessage: caractère non autorisé (applicationId/interactionToken)");
         return false;
     }
-    if (!/^\d{15,21}$/.test(cleanAppId) || !/^[A-Za-z0-9._~-]{10,200}$/.test(cleanToken)) {
+    if (!/^\d{15,21}$/.test(cleanAppId) || !/^[A-Za-z0-9._~-]{10,1024}$/.test(cleanToken)) {
         logger.warn("[Discord] editInteractionMessage: format invalide (applicationId/interactionToken)");
         return false;
     }
@@ -1481,7 +1483,12 @@ export async function editInteractionMessage(
                     Authorization: `Bot ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(typeof payload === "string" ? { content: payload, flags: 64 } : { flags: 64, ...payload }),
+                // ⚠️ Pas de `flags: 64` ici : la réponse différée (type 5) est DÉJÀ éphémère,
+                // et Discord refuse qu'une édition re-spécifie le flag EPHEMERAL — le PATCH
+                // répond 400 et « SigilOS réfléchit… » restait à l'écran indéfiniment
+                // (mesuré le 29/10/2026 sur /valider-recrue). Seul SUPPRESS_EMBEDS (4) est
+                // modifiable à l'édition.
+                body: JSON.stringify(typeof payload === "string" ? { content: payload } : payload),
             }
         );
 

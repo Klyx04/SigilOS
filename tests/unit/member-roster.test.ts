@@ -101,6 +101,27 @@ describe("buildMemberRoster — une seule liste pour les trois vues", () => {
         expect(onlyRow.seniorityDays).toBe(69);
     });
 
+    it("calcule les jours restants d'essai d'une ligne hors dashboard (jamais 0 par défaut)", () => {
+        const rows = build({
+            discordOnly: [
+                discordOnly({
+                    entry: {
+                        pseudoDofus: "Zolt",
+                        ankamaId: null,
+                        guildJoinedAt: "2026-02-01T00:00:00.000Z",
+                        trialValidated: false,
+                        trialEndsAt: "2026-04-20T00:00:00.000Z",
+                        mules: [],
+                        comments: [],
+                    },
+                }),
+            ],
+        });
+        const onlyRow = rows.find((r) => !r.dashboard)!;
+        // `now` du fixture = 11/04/2026 → 9 jours restants (et non `null` → « 0 j »).
+        expect(onlyRow.trial?.remainingDays).toBe(9);
+    });
+
     it("remonte les données de registre saisies pour un membre hors dashboard (B-2)", () => {
         const rows = build({
             discordOnly: [

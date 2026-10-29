@@ -8,6 +8,11 @@ import { validateChannelBelongsToGuild } from "@/server/discord";
 import { postServiceMessage } from "@/server/discord-services";
 import { getAppBaseUrl } from "@/lib/utils";
 import { isTrialEnded, trialEndNoticeKey } from "@/lib/trial-end";
+import { DEFAULT_TRIAL_DURATION_DAYS } from "@/lib/member-roster";
+import { z } from "zod";
+
+/** Durée d'essai : bornée (1 à 90 jours) — durée par défaut du calcul de la fin d'essai. */
+const trialDurationSchema = z.number().int().min(1).max(90);
 
 /**
  * 🎓 **Fin d'essai** : salon qui reçoit l'embed.
@@ -19,16 +24,22 @@ import { isTrialEnded, trialEndNoticeKey } from "@/lib/trial-end";
 
 export async function getTrialEndSettings(
     guildId: string
-): Promise<ActionResponse<{ channelId: string | null }>> {
+): Promise<ActionResponse<{ channelId: string | null; trialDurationDays: number }>> {
     try {
         const user = await getUserContext(guildId);
         if (!user.isAuthenticated || !user.isAdmin) return { success: false, error: "Admin requis" };
 
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { trialEndNotifyChannelId: true },
+            select: { trialEndNotifyChannelId: true, trialDurationDays: true },
         });
-        return { success: true, data: { channelId: config?.trialEndNotifyChannelId || null } };
+        return {
+            success: true,
+            data: {
+                channelId: config?.trialEndNotifyChannelId || null,
+                trialDurationDays: config?.trialDurationDays ?? DEFAULT_TRIAL_DURATION_DAYS,
+            },
+        };
     } catch (error) {
         logger.error("[getTrialEndSettings] failed", { err: error });
         return { success: false, error: "Erreur interne" };
@@ -37,7 +48,8 @@ export async function getTrialEndSettings(
 
 export async function updateTrialEndSettings(
     guildId: string,
-    channelId: string | null
+    channelId: string | null,
+    trialDurationDays?: number
 ): Promise<ActionResponse> {
     try {
         const user = await getUserContext(guildId);
@@ -49,9 +61,21 @@ export async function updateTrialEndSettings(
             if (!belongs) return { success: false, error: "Le salon sélectionné n'appartient pas à ce serveur Discord." };
         }
 
+        // La durée n'est écrite que si elle est fournie (un enregistrement du seul salon
+        // ne doit pas écraser un réglage existant).
+        let duration: number | undefined;
+        if (trialDurationDays !== undefined) {
+            const parsed = trialDurationSchema.safeParse(trialDurationDays);
+            if (!parsed.success) return { success: false, error: "Durée d'essai invalide (1 à 90 jours)." };
+            duration = parsed.data;
+        }
+
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
-            data: { trialEndNotifyChannelId: next },
+            data: {
+                trialEndNotifyChannelId: next,
+                ...(duration !== undefined ? { trialDurationDays: duration } : {}),
+            },
         });
         return { success: true };
     } catch (error) {

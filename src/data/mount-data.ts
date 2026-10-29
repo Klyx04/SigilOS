@@ -1,6 +1,6 @@
 // Fichier généré automatiquement — Base de données exhaustive des montures Dofus (Dragodindes, Muldos, Volkornes)
 // Conforme Dofus 3 / Unity & DofusDB — 228 montures réelles en jeu (66 Dragodindes, 82 Muldos, 80 Volkornes)
-// 🛡️ Souveraineté : les assets transitent par le proxy local /api/assets-dofus/items/
+// 🛡️ Souveraineté : chaque icône est un fichier local (public/images/guides/elevage/mounts/), aucun appel tiers à l'exécution.
 
 export type MountFamily = "dragodinde" | "muldo" | "volkorne";
 export type StatTag = "pm" | "pa" | "po" | "vita" | "stats" | "puissance" | "invoc" | "ini" | "prosp" | "cc" | "sagesse" | "res";
@@ -29,7 +29,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "ini"
     ],
-    "img": "/api/assets-dofus/items/97020"
+    "img": "/images/guides/elevage/mounts/dd-amande.webp"
   },
   {
     "id": "dd-doree",
@@ -42,7 +42,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "invoc"
     ],
-    "img": "/api/assets-dofus/items/97018"
+    "img": "/images/guides/elevage/mounts/dd-doree.webp"
   },
   {
     "id": "dd-rousse",
@@ -54,7 +54,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "vita"
     ],
-    "img": "/api/assets-dofus/items/97010"
+    "img": "/images/guides/elevage/mounts/dd-rousse.webp"
   },
   {
     "id": "dd-amandeetrousse",
@@ -71,7 +71,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "ini"
     ],
-    "img": "/api/assets-dofus/items/97038"
+    "img": "/images/guides/elevage/mounts/dd-amandeetrousse.webp"
   },
   {
     "id": "dd-doreeetrousse",
@@ -88,7 +88,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "invoc"
     ],
-    "img": "/api/assets-dofus/items/97046"
+    "img": "/images/guides/elevage/mounts/dd-doreeetrousse.webp"
   },
   {
     "id": "dd-amandeetdoree",
@@ -106,7 +106,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "ini",
       "invoc"
     ],
-    "img": "/api/assets-dofus/items/97033"
+    "img": "/images/guides/elevage/mounts/dd-amandeetdoree.webp"
   },
   {
     "id": "dd-ebene",
@@ -123,7 +123,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97004"
+    "img": "/images/guides/elevage/mounts/dd-ebene.webp"
   },
   {
     "id": "dd-indigo",
@@ -140,7 +140,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97017"
+    "img": "/images/guides/elevage/mounts/dd-indigo.webp"
   },
   {
     "id": "dd-indigoetrousse",
@@ -157,7 +157,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97062"
+    "img": "/images/guides/elevage/mounts/dd-indigoetrousse.webp"
   },
   {
     "id": "dd-ebeneetrousse",
@@ -174,7 +174,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97012"
+    "img": "/images/guides/elevage/mounts/dd-ebeneetrousse.webp"
   },
   {
     "id": "dd-amandeetindigo",
@@ -192,7 +192,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "ini",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97036"
+    "img": "/images/guides/elevage/mounts/dd-amandeetindigo.webp"
   },
   {
     "id": "dd-amandeetebene",
@@ -210,7 +210,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "ini",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97034"
+    "img": "/images/guides/elevage/mounts/dd-amandeetebene.webp"
   },
   {
     "id": "dd-doreeetindigo",
@@ -228,7 +228,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "invoc",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97044"
+    "img": "/images/guides/elevage/mounts/dd-doreeetindigo.webp"
   },
   {
     "id": "dd-doreeetebene",
@@ -246,7 +246,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "invoc",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97042"
+    "img": "/images/guides/elevage/mounts/dd-doreeetebene.webp"
   },
   {
     "id": "dd-ebeneetindigo",
@@ -263,7 +263,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97051"
+    "img": "/images/guides/elevage/mounts/dd-ebeneetindigo.webp"
   },
   {
     "id": "dd-pourpre",
@@ -281,7 +281,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97019"
+    "img": "/images/guides/elevage/mounts/dd-pourpre.webp"
   },
   {
     "id": "dd-orchidee",
@@ -298,7 +298,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97022"
+    "img": "/images/guides/elevage/mounts/dd-orchidee.webp"
   },
   {
     "id": "dd-pourpreetrousse",
@@ -316,7 +316,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97071"
+    "img": "/images/guides/elevage/mounts/dd-pourpreetrousse.webp"
   },
   {
     "id": "dd-orchideeetrousse",
@@ -333,7 +333,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97070"
+    "img": "/images/guides/elevage/mounts/dd-orchideeetrousse.webp"
   },
   {
     "id": "dd-amandeetpourpre",
@@ -352,7 +352,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97041"
+    "img": "/images/guides/elevage/mounts/dd-amandeetpourpre.webp"
   },
   {
     "id": "dd-amandeetorchidee",
@@ -370,7 +370,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "ini",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97040"
+    "img": "/images/guides/elevage/mounts/dd-amandeetorchidee.webp"
   },
   {
     "id": "dd-doreeetpourpre",
@@ -389,7 +389,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97049"
+    "img": "/images/guides/elevage/mounts/dd-doreeetpourpre.webp"
   },
   {
     "id": "dd-doreeetorchidee",
@@ -407,7 +407,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "invoc",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97048"
+    "img": "/images/guides/elevage/mounts/dd-doreeetorchidee.webp"
   },
   {
     "id": "dd-indigoetpourpre",
@@ -425,7 +425,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97065"
+    "img": "/images/guides/elevage/mounts/dd-indigoetpourpre.webp"
   },
   {
     "id": "dd-indigoetorchidee",
@@ -442,7 +442,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97064"
+    "img": "/images/guides/elevage/mounts/dd-indigoetorchidee.webp"
   },
   {
     "id": "dd-ebeneetpourpre",
@@ -460,7 +460,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97054"
+    "img": "/images/guides/elevage/mounts/dd-ebeneetpourpre.webp"
   },
   {
     "id": "dd-ebeneetorchidee",
@@ -477,7 +477,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97053"
+    "img": "/images/guides/elevage/mounts/dd-ebeneetorchidee.webp"
   },
   {
     "id": "dd-orchideeetpourpre",
@@ -495,7 +495,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97076"
+    "img": "/images/guides/elevage/mounts/dd-orchideeetpourpre.webp"
   },
   {
     "id": "dd-ivoire",
@@ -512,7 +512,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "puissance"
     ],
-    "img": "/api/assets-dofus/items/97016"
+    "img": "/images/guides/elevage/mounts/dd-ivoire.webp"
   },
   {
     "id": "dd-turquoise",
@@ -530,7 +530,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97015"
+    "img": "/images/guides/elevage/mounts/dd-turquoise.webp"
   },
   {
     "id": "dd-ivoireetrousse",
@@ -547,7 +547,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "puissance"
     ],
-    "img": "/api/assets-dofus/items/97011"
+    "img": "/images/guides/elevage/mounts/dd-ivoireetrousse.webp"
   },
   {
     "id": "dd-turquoiseetrousse",
@@ -565,7 +565,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97069"
+    "img": "/images/guides/elevage/mounts/dd-turquoiseetrousse.webp"
   },
   {
     "id": "dd-amandeetivoire",
@@ -583,7 +583,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "ini",
       "puissance"
     ],
-    "img": "/api/assets-dofus/items/97037"
+    "img": "/images/guides/elevage/mounts/dd-amandeetivoire.webp"
   },
   {
     "id": "dd-amandeetturquoise",
@@ -602,7 +602,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97039"
+    "img": "/images/guides/elevage/mounts/dd-amandeetturquoise.webp"
   },
   {
     "id": "dd-doreeetivoire",
@@ -620,7 +620,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "invoc",
       "puissance"
     ],
-    "img": "/api/assets-dofus/items/97045"
+    "img": "/images/guides/elevage/mounts/dd-doreeetivoire.webp"
   },
   {
     "id": "dd-doreeetturquoise",
@@ -639,7 +639,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97047"
+    "img": "/images/guides/elevage/mounts/dd-doreeetturquoise.webp"
   },
   {
     "id": "dd-indigoetivoire",
@@ -657,7 +657,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97061"
+    "img": "/images/guides/elevage/mounts/dd-indigoetivoire.webp"
   },
   {
     "id": "dd-indigoetturquoise",
@@ -676,7 +676,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97063"
+    "img": "/images/guides/elevage/mounts/dd-indigoetturquoise.webp"
   },
   {
     "id": "dd-ebeneetivoire",
@@ -694,7 +694,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97009"
+    "img": "/images/guides/elevage/mounts/dd-ebeneetivoire.webp"
   },
   {
     "id": "dd-ebeneetturquoise",
@@ -713,7 +713,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97052"
+    "img": "/images/guides/elevage/mounts/dd-ebeneetturquoise.webp"
   },
   {
     "id": "dd-ivoireetpourpre",
@@ -732,7 +732,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97068"
+    "img": "/images/guides/elevage/mounts/dd-ivoireetpourpre.webp"
   },
   {
     "id": "dd-turquoiseetpourpre",
@@ -751,7 +751,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97073"
+    "img": "/images/guides/elevage/mounts/dd-turquoiseetpourpre.webp"
   },
   {
     "id": "dd-ivoireetorchidee",
@@ -769,7 +769,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97067"
+    "img": "/images/guides/elevage/mounts/dd-ivoireetorchidee.webp"
   },
   {
     "id": "dd-turquoiseetorchidee",
@@ -788,7 +788,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97072"
+    "img": "/images/guides/elevage/mounts/dd-turquoiseetorchidee.webp"
   },
   {
     "id": "dd-ivoireetturquoise",
@@ -807,7 +807,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97066"
+    "img": "/images/guides/elevage/mounts/dd-ivoireetturquoise.webp"
   },
   {
     "id": "dd-emeraude",
@@ -825,7 +825,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97021"
+    "img": "/images/guides/elevage/mounts/dd-emeraude.webp"
   },
   {
     "id": "dd-prune",
@@ -843,7 +843,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "po",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97023"
+    "img": "/images/guides/elevage/mounts/dd-prune.webp"
   },
   {
     "id": "dd-emeraudeetrousse",
@@ -861,7 +861,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97057"
+    "img": "/images/guides/elevage/mounts/dd-emeraudeetrousse.webp"
   },
   {
     "id": "dd-pruneetrousse",
@@ -879,7 +879,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "po",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97084"
+    "img": "/images/guides/elevage/mounts/dd-pruneetrousse.webp"
   },
   {
     "id": "dd-amandeetemeraude",
@@ -898,7 +898,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97035"
+    "img": "/images/guides/elevage/mounts/dd-amandeetemeraude.webp"
   },
   {
     "id": "dd-pruneetamande",
@@ -917,7 +917,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "po",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97077"
+    "img": "/images/guides/elevage/mounts/dd-pruneetamande.webp"
   },
   {
     "id": "dd-doreeetemeraude",
@@ -936,7 +936,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97043"
+    "img": "/images/guides/elevage/mounts/dd-doreeetemeraude.webp"
   },
   {
     "id": "dd-pruneetdoree",
@@ -955,7 +955,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "po",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97078"
+    "img": "/images/guides/elevage/mounts/dd-pruneetdoree.webp"
   },
   {
     "id": "dd-emeraudeetindigo",
@@ -974,7 +974,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97055"
+    "img": "/images/guides/elevage/mounts/dd-emeraudeetindigo.webp"
   },
   {
     "id": "dd-pruneetindigo",
@@ -993,7 +993,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97082"
+    "img": "/images/guides/elevage/mounts/dd-pruneetindigo.webp"
   },
   {
     "id": "dd-ebeneetemeraude",
@@ -1012,7 +1012,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97050"
+    "img": "/images/guides/elevage/mounts/dd-ebeneetemeraude.webp"
   },
   {
     "id": "dd-pruneetebene",
@@ -1031,7 +1031,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97079"
+    "img": "/images/guides/elevage/mounts/dd-pruneetebene.webp"
   },
   {
     "id": "dd-emeraudeetpourpre",
@@ -1050,7 +1050,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97060"
+    "img": "/images/guides/elevage/mounts/dd-emeraudeetpourpre.webp"
   },
   {
     "id": "dd-pruneetpourpre",
@@ -1069,7 +1069,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97087"
+    "img": "/images/guides/elevage/mounts/dd-pruneetpourpre.webp"
   },
   {
     "id": "dd-emeraudeetorchidee",
@@ -1088,7 +1088,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97059"
+    "img": "/images/guides/elevage/mounts/dd-emeraudeetorchidee.webp"
   },
   {
     "id": "dd-pruneetorchidee",
@@ -1107,7 +1107,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97086"
+    "img": "/images/guides/elevage/mounts/dd-pruneetorchidee.webp"
   },
   {
     "id": "dd-emeraudeetivoire",
@@ -1126,7 +1126,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97056"
+    "img": "/images/guides/elevage/mounts/dd-emeraudeetivoire.webp"
   },
   {
     "id": "dd-pruneetivoire",
@@ -1145,7 +1145,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97083"
+    "img": "/images/guides/elevage/mounts/dd-pruneetivoire.webp"
   },
   {
     "id": "dd-emeraudeetturquoise",
@@ -1164,7 +1164,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97058"
+    "img": "/images/guides/elevage/mounts/dd-emeraudeetturquoise.webp"
   },
   {
     "id": "dd-pruneetturquoise",
@@ -1183,7 +1183,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97085"
+    "img": "/images/guides/elevage/mounts/dd-pruneetturquoise.webp"
   },
   {
     "id": "dd-pruneetemeraude",
@@ -1202,7 +1202,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97080"
+    "img": "/images/guides/elevage/mounts/dd-pruneetemeraude.webp"
   },
   {
     "id": "muldo-dore",
@@ -1215,7 +1215,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "puissance"
     ],
-    "img": "/api/assets-dofus/items/97094"
+    "img": "/images/guides/elevage/mounts/muldo-dore.webp"
   },
   {
     "id": "muldo-ebene",
@@ -1228,7 +1228,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97091"
+    "img": "/images/guides/elevage/mounts/muldo-ebene.webp"
   },
   {
     "id": "muldo-indigo",
@@ -1241,7 +1241,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97092"
+    "img": "/images/guides/elevage/mounts/muldo-indigo.webp"
   },
   {
     "id": "muldo-orchidee",
@@ -1254,7 +1254,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97090"
+    "img": "/images/guides/elevage/mounts/muldo-orchidee.webp"
   },
   {
     "id": "muldo-pourpre",
@@ -1267,7 +1267,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97093"
+    "img": "/images/guides/elevage/mounts/muldo-pourpre.webp"
   },
   {
     "id": "muldo-doreetebene",
@@ -1285,7 +1285,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97110"
+    "img": "/images/guides/elevage/mounts/muldo-doreetebene.webp"
   },
   {
     "id": "muldo-doreetindigo",
@@ -1303,7 +1303,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97108"
+    "img": "/images/guides/elevage/mounts/muldo-doreetindigo.webp"
   },
   {
     "id": "muldo-doreetorchidee",
@@ -1321,7 +1321,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97105"
+    "img": "/images/guides/elevage/mounts/muldo-doreetorchidee.webp"
   },
   {
     "id": "muldo-doreetpourpre",
@@ -1339,7 +1339,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97101"
+    "img": "/images/guides/elevage/mounts/muldo-doreetpourpre.webp"
   },
   {
     "id": "muldo-ebeneetindigo",
@@ -1356,7 +1356,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97109"
+    "img": "/images/guides/elevage/mounts/muldo-ebeneetindigo.webp"
   },
   {
     "id": "muldo-ebeneetorchidee",
@@ -1373,7 +1373,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97107"
+    "img": "/images/guides/elevage/mounts/muldo-ebeneetorchidee.webp"
   },
   {
     "id": "muldo-ebeneetpourpre",
@@ -1390,7 +1390,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97103"
+    "img": "/images/guides/elevage/mounts/muldo-ebeneetpourpre.webp"
   },
   {
     "id": "muldo-indigoetorchidee",
@@ -1407,7 +1407,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97106"
+    "img": "/images/guides/elevage/mounts/muldo-indigoetorchidee.webp"
   },
   {
     "id": "muldo-indigoetpourpre",
@@ -1424,7 +1424,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97102"
+    "img": "/images/guides/elevage/mounts/muldo-indigoetpourpre.webp"
   },
   {
     "id": "muldo-orchideeetpourpre",
@@ -1441,7 +1441,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97104"
+    "img": "/images/guides/elevage/mounts/muldo-orchideeetpourpre.webp"
   },
   {
     "id": "muldo-amande",
@@ -1457,7 +1457,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97096"
+    "img": "/images/guides/elevage/mounts/muldo-amande.webp"
   },
   {
     "id": "muldo-roux",
@@ -1473,7 +1473,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97095"
+    "img": "/images/guides/elevage/mounts/muldo-roux.webp"
   },
   {
     "id": "muldo-doreetamande",
@@ -1490,7 +1490,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "puissance"
     ],
-    "img": "/api/assets-dofus/items/97121"
+    "img": "/images/guides/elevage/mounts/muldo-doreetamande.webp"
   },
   {
     "id": "muldo-ebeneetamande",
@@ -1507,7 +1507,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97120"
+    "img": "/images/guides/elevage/mounts/muldo-ebeneetamande.webp"
   },
   {
     "id": "muldo-indigoetamande",
@@ -1524,7 +1524,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97119"
+    "img": "/images/guides/elevage/mounts/muldo-indigoetamande.webp"
   },
   {
     "id": "muldo-orchideeetamande",
@@ -1541,7 +1541,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97118"
+    "img": "/images/guides/elevage/mounts/muldo-orchideeetamande.webp"
   },
   {
     "id": "muldo-pourpreetamande",
@@ -1558,7 +1558,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97117"
+    "img": "/images/guides/elevage/mounts/muldo-pourpreetamande.webp"
   },
   {
     "id": "muldo-rouxetamande",
@@ -1574,7 +1574,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97116"
+    "img": "/images/guides/elevage/mounts/muldo-rouxetamande.webp"
   },
   {
     "id": "muldo-rouxetdore",
@@ -1591,7 +1591,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "puissance"
     ],
-    "img": "/api/assets-dofus/items/97115"
+    "img": "/images/guides/elevage/mounts/muldo-rouxetdore.webp"
   },
   {
     "id": "muldo-rouxetebene",
@@ -1608,7 +1608,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97114"
+    "img": "/images/guides/elevage/mounts/muldo-rouxetebene.webp"
   },
   {
     "id": "muldo-rouxetindigo",
@@ -1625,7 +1625,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97113"
+    "img": "/images/guides/elevage/mounts/muldo-rouxetindigo.webp"
   },
   {
     "id": "muldo-rouxetorchidee",
@@ -1642,7 +1642,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97112"
+    "img": "/images/guides/elevage/mounts/muldo-rouxetorchidee.webp"
   },
   {
     "id": "muldo-rouxetpourpre",
@@ -1659,7 +1659,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97111"
+    "img": "/images/guides/elevage/mounts/muldo-rouxetpourpre.webp"
   },
   {
     "id": "muldo-ivoire",
@@ -1675,7 +1675,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97097"
+    "img": "/images/guides/elevage/mounts/muldo-ivoire.webp"
   },
   {
     "id": "muldo-turquoise",
@@ -1691,7 +1691,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97098"
+    "img": "/images/guides/elevage/mounts/muldo-turquoise.webp"
   },
   {
     "id": "muldo-amandeetivoire",
@@ -1707,7 +1707,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97138"
+    "img": "/images/guides/elevage/mounts/muldo-amandeetivoire.webp"
   },
   {
     "id": "muldo-doreetivoire",
@@ -1724,7 +1724,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "puissance"
     ],
-    "img": "/api/assets-dofus/items/97126"
+    "img": "/images/guides/elevage/mounts/muldo-doreetivoire.webp"
   },
   {
     "id": "muldo-ebeneetivoire",
@@ -1741,7 +1741,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97125"
+    "img": "/images/guides/elevage/mounts/muldo-ebeneetivoire.webp"
   },
   {
     "id": "muldo-indigoetivoire",
@@ -1758,7 +1758,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97124"
+    "img": "/images/guides/elevage/mounts/muldo-indigoetivoire.webp"
   },
   {
     "id": "muldo-orchideeetivoire",
@@ -1775,7 +1775,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97123"
+    "img": "/images/guides/elevage/mounts/muldo-orchideeetivoire.webp"
   },
   {
     "id": "muldo-pourpreetivoire",
@@ -1792,7 +1792,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97122"
+    "img": "/images/guides/elevage/mounts/muldo-pourpreetivoire.webp"
   },
   {
     "id": "muldo-rouxetivoire",
@@ -1808,7 +1808,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97127"
+    "img": "/images/guides/elevage/mounts/muldo-rouxetivoire.webp"
   },
   {
     "id": "muldo-turquoiseetamande",
@@ -1824,7 +1824,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97144"
+    "img": "/images/guides/elevage/mounts/muldo-turquoiseetamande.webp"
   },
   {
     "id": "muldo-turquoiseetdore",
@@ -1841,7 +1841,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "puissance"
     ],
-    "img": "/api/assets-dofus/items/97145"
+    "img": "/images/guides/elevage/mounts/muldo-turquoiseetdore.webp"
   },
   {
     "id": "muldo-turquoiseetebene",
@@ -1858,7 +1858,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97142"
+    "img": "/images/guides/elevage/mounts/muldo-turquoiseetebene.webp"
   },
   {
     "id": "muldo-turquoiseetindigo",
@@ -1875,7 +1875,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97141"
+    "img": "/images/guides/elevage/mounts/muldo-turquoiseetindigo.webp"
   },
   {
     "id": "muldo-turquoiseetivoire",
@@ -1891,7 +1891,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97139"
+    "img": "/images/guides/elevage/mounts/muldo-turquoiseetivoire.webp"
   },
   {
     "id": "muldo-turquoiseetorchidee",
@@ -1908,7 +1908,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97165"
+    "img": "/images/guides/elevage/mounts/muldo-turquoiseetorchidee.webp"
   },
   {
     "id": "muldo-turquoiseetpourpre",
@@ -1925,7 +1925,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97140"
+    "img": "/images/guides/elevage/mounts/muldo-turquoiseetpourpre.webp"
   },
   {
     "id": "muldo-turquoiseetroux",
@@ -1941,7 +1941,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97143"
+    "img": "/images/guides/elevage/mounts/muldo-turquoiseetroux.webp"
   },
   {
     "id": "muldo-emeraude",
@@ -1959,7 +1959,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97100"
+    "img": "/images/guides/elevage/mounts/muldo-emeraude.webp"
   },
   {
     "id": "muldo-prune",
@@ -1977,7 +1977,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97099"
+    "img": "/images/guides/elevage/mounts/muldo-prune.webp"
   },
   {
     "id": "muldo-amandeetemeraude",
@@ -1995,7 +1995,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97162"
+    "img": "/images/guides/elevage/mounts/muldo-amandeetemeraude.webp"
   },
   {
     "id": "muldo-doreetemeraude",
@@ -2014,7 +2014,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97160"
+    "img": "/images/guides/elevage/mounts/muldo-doreetemeraude.webp"
   },
   {
     "id": "muldo-ebeneetemeraude",
@@ -2032,7 +2032,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97159"
+    "img": "/images/guides/elevage/mounts/muldo-ebeneetemeraude.webp"
   },
   {
     "id": "muldo-indigoetemeraude",
@@ -2050,7 +2050,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97158"
+    "img": "/images/guides/elevage/mounts/muldo-indigoetemeraude.webp"
   },
   {
     "id": "muldo-ivoireetemeraude",
@@ -2068,7 +2068,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97163"
+    "img": "/images/guides/elevage/mounts/muldo-ivoireetemeraude.webp"
   },
   {
     "id": "muldo-orchideeetemeraude",
@@ -2086,7 +2086,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97157"
+    "img": "/images/guides/elevage/mounts/muldo-orchideeetemeraude.webp"
   },
   {
     "id": "muldo-pourpreetemeraude",
@@ -2104,7 +2104,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97156"
+    "img": "/images/guides/elevage/mounts/muldo-pourpreetemeraude.webp"
   },
   {
     "id": "muldo-pruneetamande",
@@ -2122,7 +2122,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97152"
+    "img": "/images/guides/elevage/mounts/muldo-pruneetamande.webp"
   },
   {
     "id": "muldo-pruneetdore",
@@ -2141,7 +2141,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97150"
+    "img": "/images/guides/elevage/mounts/muldo-pruneetdore.webp"
   },
   {
     "id": "muldo-pruneetebene",
@@ -2159,7 +2159,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97149"
+    "img": "/images/guides/elevage/mounts/muldo-pruneetebene.webp"
   },
   {
     "id": "muldo-pruneetemeraude",
@@ -2177,7 +2177,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97155"
+    "img": "/images/guides/elevage/mounts/muldo-pruneetemeraude.webp"
   },
   {
     "id": "muldo-pruneetindigo",
@@ -2195,7 +2195,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97148"
+    "img": "/images/guides/elevage/mounts/muldo-pruneetindigo.webp"
   },
   {
     "id": "muldo-pruneetivoire",
@@ -2213,7 +2213,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97153"
+    "img": "/images/guides/elevage/mounts/muldo-pruneetivoire.webp"
   },
   {
     "id": "muldo-pruneetorchidee",
@@ -2231,7 +2231,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97147"
+    "img": "/images/guides/elevage/mounts/muldo-pruneetorchidee.webp"
   },
   {
     "id": "muldo-pruneetpourpre",
@@ -2249,7 +2249,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97146"
+    "img": "/images/guides/elevage/mounts/muldo-pruneetpourpre.webp"
   },
   {
     "id": "muldo-pruneetroux",
@@ -2267,7 +2267,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97151"
+    "img": "/images/guides/elevage/mounts/muldo-pruneetroux.webp"
   },
   {
     "id": "muldo-pruneetturquoise",
@@ -2285,7 +2285,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97154"
+    "img": "/images/guides/elevage/mounts/muldo-pruneetturquoise.webp"
   },
   {
     "id": "muldo-rouxetemeraude",
@@ -2303,7 +2303,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97161"
+    "img": "/images/guides/elevage/mounts/muldo-rouxetemeraude.webp"
   },
   {
     "id": "muldo-turquoiseetemeraude",
@@ -2321,7 +2321,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97164"
+    "img": "/images/guides/elevage/mounts/muldo-turquoiseetemeraude.webp"
   },
   {
     "id": "muldo-aiguemarine",
@@ -2338,7 +2338,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97300"
+    "img": "/images/guides/elevage/mounts/muldo-aiguemarine.webp"
   },
   {
     "id": "muldo-ambre",
@@ -2355,7 +2355,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97297"
+    "img": "/images/guides/elevage/mounts/muldo-ambre.webp"
   },
   {
     "id": "muldo-azur",
@@ -2371,7 +2371,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97299"
+    "img": "/images/guides/elevage/mounts/muldo-azur.webp"
   },
   {
     "id": "muldo-corail",
@@ -2387,7 +2387,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "/api/assets-dofus/items/97298"
+    "img": "/images/guides/elevage/mounts/muldo-corail.webp"
   },
   {
     "id": "muldo-ambreetaiguemarine",
@@ -2404,7 +2404,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97314"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetaiguemarine.webp"
   },
   {
     "id": "muldo-ambreetamande",
@@ -2421,7 +2421,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97306"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetamande.webp"
   },
   {
     "id": "muldo-ambreetazur",
@@ -2438,7 +2438,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97313"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetazur.webp"
   },
   {
     "id": "muldo-ambreetcorail",
@@ -2455,7 +2455,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97312"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetcorail.webp"
   },
   {
     "id": "muldo-ambreetdore",
@@ -2473,7 +2473,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97301"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetdore.webp"
   },
   {
     "id": "muldo-ambreetebene",
@@ -2490,7 +2490,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97302"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetebene.webp"
   },
   {
     "id": "muldo-ambreetindigo",
@@ -2507,7 +2507,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97303"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetindigo.webp"
   },
   {
     "id": "muldo-ambreetivoire",
@@ -2524,7 +2524,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97308"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetivoire.webp"
   },
   {
     "id": "muldo-ambreetorchidee",
@@ -2541,7 +2541,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97305"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetorchidee.webp"
   },
   {
     "id": "muldo-ambreetpourpre",
@@ -2558,7 +2558,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97304"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetpourpre.webp"
   },
   {
     "id": "muldo-ambreetroux",
@@ -2575,7 +2575,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97307"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetroux.webp"
   },
   {
     "id": "muldo-ambreetturquoise",
@@ -2592,7 +2592,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97309"
+    "img": "/images/guides/elevage/mounts/muldo-ambreetturquoise.webp"
   },
   {
     "id": "volk-ebene",
@@ -2605,7 +2605,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97177"
+    "img": "/images/guides/elevage/mounts/volk-ebene.webp"
   },
   {
     "id": "volk-indigo",
@@ -2618,7 +2618,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97176"
+    "img": "/images/guides/elevage/mounts/volk-indigo.webp"
   },
   {
     "id": "volk-orchidee",
@@ -2631,7 +2631,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97179"
+    "img": "/images/guides/elevage/mounts/volk-orchidee.webp"
   },
   {
     "id": "volk-pourpre",
@@ -2645,7 +2645,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97178"
+    "img": "/images/guides/elevage/mounts/volk-pourpre.webp"
   },
   {
     "id": "volk-indigoetebene",
@@ -2662,7 +2662,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97196"
+    "img": "/images/guides/elevage/mounts/volk-indigoetebene.webp"
   },
   {
     "id": "volk-orchideeetebene",
@@ -2679,7 +2679,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97195"
+    "img": "/images/guides/elevage/mounts/volk-orchideeetebene.webp"
   },
   {
     "id": "volk-orchideeetindigo",
@@ -2696,7 +2696,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97194"
+    "img": "/images/guides/elevage/mounts/volk-orchideeetindigo.webp"
   },
   {
     "id": "volk-pourpreetebene",
@@ -2714,7 +2714,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97193"
+    "img": "/images/guides/elevage/mounts/volk-pourpreetebene.webp"
   },
   {
     "id": "volk-pourpreetindigo",
@@ -2732,7 +2732,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97192"
+    "img": "/images/guides/elevage/mounts/volk-pourpreetindigo.webp"
   },
   {
     "id": "volk-pourpreetorchidee",
@@ -2750,7 +2750,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97191"
+    "img": "/images/guides/elevage/mounts/volk-pourpreetorchidee.webp"
   },
   {
     "id": "volk-amande",
@@ -2767,7 +2767,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97181"
+    "img": "/images/guides/elevage/mounts/volk-amande.webp"
   },
   {
     "id": "volk-roux",
@@ -2783,7 +2783,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa"
     ],
-    "img": "/api/assets-dofus/items/97180"
+    "img": "/images/guides/elevage/mounts/volk-roux.webp"
   },
   {
     "id": "volk-amandeetebene",
@@ -2801,7 +2801,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97200"
+    "img": "/images/guides/elevage/mounts/volk-amandeetebene.webp"
   },
   {
     "id": "volk-amandeetindigo",
@@ -2819,7 +2819,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97199"
+    "img": "/images/guides/elevage/mounts/volk-amandeetindigo.webp"
   },
   {
     "id": "volk-amandeetivoire",
@@ -2836,7 +2836,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97202"
+    "img": "/images/guides/elevage/mounts/volk-amandeetivoire.webp"
   },
   {
     "id": "volk-amandeetorchidee",
@@ -2854,7 +2854,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97198"
+    "img": "/images/guides/elevage/mounts/volk-amandeetorchidee.webp"
   },
   {
     "id": "volk-amandeetpourpre",
@@ -2872,7 +2872,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97197"
+    "img": "/images/guides/elevage/mounts/volk-amandeetpourpre.webp"
   },
   {
     "id": "volk-amandeetroux",
@@ -2889,7 +2889,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97201"
+    "img": "/images/guides/elevage/mounts/volk-amandeetroux.webp"
   },
   {
     "id": "volk-amandeetturquoise",
@@ -2906,7 +2906,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97203"
+    "img": "/images/guides/elevage/mounts/volk-amandeetturquoise.webp"
   },
   {
     "id": "volk-ivoireetebene",
@@ -2924,7 +2924,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97213"
+    "img": "/images/guides/elevage/mounts/volk-ivoireetebene.webp"
   },
   {
     "id": "volk-ivoireetindigo",
@@ -2942,7 +2942,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97212"
+    "img": "/images/guides/elevage/mounts/volk-ivoireetindigo.webp"
   },
   {
     "id": "volk-ivoireetorchidee",
@@ -2960,7 +2960,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97211"
+    "img": "/images/guides/elevage/mounts/volk-ivoireetorchidee.webp"
   },
   {
     "id": "volk-ivoireetpourpre",
@@ -2978,7 +2978,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97210"
+    "img": "/images/guides/elevage/mounts/volk-ivoireetpourpre.webp"
   },
   {
     "id": "volk-ivoireetturquoise",
@@ -2995,7 +2995,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97214"
+    "img": "/images/guides/elevage/mounts/volk-ivoireetturquoise.webp"
   },
   {
     "id": "volk-rouxetebene",
@@ -3012,7 +3012,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97207"
+    "img": "/images/guides/elevage/mounts/volk-rouxetebene.webp"
   },
   {
     "id": "volk-rouxetindigo",
@@ -3029,7 +3029,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97206"
+    "img": "/images/guides/elevage/mounts/volk-rouxetindigo.webp"
   },
   {
     "id": "volk-rouxetivoire",
@@ -3046,7 +3046,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97208"
+    "img": "/images/guides/elevage/mounts/volk-rouxetivoire.webp"
   },
   {
     "id": "volk-rouxetorchidee",
@@ -3063,7 +3063,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97205"
+    "img": "/images/guides/elevage/mounts/volk-rouxetorchidee.webp"
   },
   {
     "id": "volk-rouxetpourpre",
@@ -3081,7 +3081,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97204"
+    "img": "/images/guides/elevage/mounts/volk-rouxetpourpre.webp"
   },
   {
     "id": "volk-rouxetturquoise",
@@ -3098,7 +3098,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97209"
+    "img": "/images/guides/elevage/mounts/volk-rouxetturquoise.webp"
   },
   {
     "id": "volk-turquoiseetebene",
@@ -3116,7 +3116,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97218"
+    "img": "/images/guides/elevage/mounts/volk-turquoiseetebene.webp"
   },
   {
     "id": "volk-turquoiseetindigo",
@@ -3134,7 +3134,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97217"
+    "img": "/images/guides/elevage/mounts/volk-turquoiseetindigo.webp"
   },
   {
     "id": "volk-turquoiseetorchidee",
@@ -3152,7 +3152,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97216"
+    "img": "/images/guides/elevage/mounts/volk-turquoiseetorchidee.webp"
   },
   {
     "id": "volk-turquoiseetpourpre",
@@ -3170,7 +3170,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97215"
+    "img": "/images/guides/elevage/mounts/volk-turquoiseetpourpre.webp"
   },
   {
     "id": "volk-ivoire",
@@ -3187,7 +3187,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97182"
+    "img": "/images/guides/elevage/mounts/volk-ivoire.webp"
   },
   {
     "id": "volk-turquoise",
@@ -3204,7 +3204,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97183"
+    "img": "/images/guides/elevage/mounts/volk-turquoise.webp"
   },
   {
     "id": "volk-emeraudeetamande",
@@ -3222,7 +3222,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97230"
+    "img": "/images/guides/elevage/mounts/volk-emeraudeetamande.webp"
   },
   {
     "id": "volk-emeraudeetebene",
@@ -3241,7 +3241,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97229"
+    "img": "/images/guides/elevage/mounts/volk-emeraudeetebene.webp"
   },
   {
     "id": "volk-emeraudeetindigo",
@@ -3260,7 +3260,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97228"
+    "img": "/images/guides/elevage/mounts/volk-emeraudeetindigo.webp"
   },
   {
     "id": "volk-emeraudeetivoire",
@@ -3278,7 +3278,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97233"
+    "img": "/images/guides/elevage/mounts/volk-emeraudeetivoire.webp"
   },
   {
     "id": "volk-emeraudeetorchidee",
@@ -3297,7 +3297,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97227"
+    "img": "/images/guides/elevage/mounts/volk-emeraudeetorchidee.webp"
   },
   {
     "id": "volk-emeraudeetpourpre",
@@ -3316,7 +3316,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97226"
+    "img": "/images/guides/elevage/mounts/volk-emeraudeetpourpre.webp"
   },
   {
     "id": "volk-emeraudeetroux",
@@ -3334,7 +3334,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97231"
+    "img": "/images/guides/elevage/mounts/volk-emeraudeetroux.webp"
   },
   {
     "id": "volk-emeraudeetturquoise",
@@ -3352,7 +3352,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97234"
+    "img": "/images/guides/elevage/mounts/volk-emeraudeetturquoise.webp"
   },
   {
     "id": "volk-pruneetamande",
@@ -3370,7 +3370,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97223"
+    "img": "/images/guides/elevage/mounts/volk-pruneetamande.webp"
   },
   {
     "id": "volk-pruneetebene",
@@ -3389,7 +3389,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97222"
+    "img": "/images/guides/elevage/mounts/volk-pruneetebene.webp"
   },
   {
     "id": "volk-pruneetemeraude",
@@ -3407,7 +3407,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97225"
+    "img": "/images/guides/elevage/mounts/volk-pruneetemeraude.webp"
   },
   {
     "id": "volk-pruneetindigo",
@@ -3426,7 +3426,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97221"
+    "img": "/images/guides/elevage/mounts/volk-pruneetindigo.webp"
   },
   {
     "id": "volk-pruneetivoire",
@@ -3444,7 +3444,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97288"
+    "img": "/images/guides/elevage/mounts/volk-pruneetivoire.webp"
   },
   {
     "id": "volk-pruneetorchidee",
@@ -3463,7 +3463,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97220"
+    "img": "/images/guides/elevage/mounts/volk-pruneetorchidee.webp"
   },
   {
     "id": "volk-pruneetpourpre",
@@ -3482,7 +3482,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97219"
+    "img": "/images/guides/elevage/mounts/volk-pruneetpourpre.webp"
   },
   {
     "id": "volk-pruneetroux",
@@ -3500,7 +3500,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97287"
+    "img": "/images/guides/elevage/mounts/volk-pruneetroux.webp"
   },
   {
     "id": "volk-pruneetturquoise",
@@ -3518,7 +3518,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97224"
+    "img": "/images/guides/elevage/mounts/volk-pruneetturquoise.webp"
   },
   {
     "id": "volk-dore",
@@ -3535,7 +3535,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "pa"
     ],
-    "img": "/api/assets-dofus/items/97186"
+    "img": "/images/guides/elevage/mounts/volk-dore.webp"
   },
   {
     "id": "volk-emeraude",
@@ -3553,7 +3553,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97185"
+    "img": "/images/guides/elevage/mounts/volk-emeraude.webp"
   },
   {
     "id": "volk-prune",
@@ -3571,7 +3571,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97184"
+    "img": "/images/guides/elevage/mounts/volk-prune.webp"
   },
   {
     "id": "volk-doreetamande",
@@ -3589,7 +3589,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97292"
+    "img": "/images/guides/elevage/mounts/volk-doreetamande.webp"
   },
   {
     "id": "volk-doreetebene",
@@ -3607,7 +3607,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97238"
+    "img": "/images/guides/elevage/mounts/volk-doreetebene.webp"
   },
   {
     "id": "volk-doreetemeraude",
@@ -3626,7 +3626,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97296"
+    "img": "/images/guides/elevage/mounts/volk-doreetemeraude.webp"
   },
   {
     "id": "volk-doreetindigo",
@@ -3644,7 +3644,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97237"
+    "img": "/images/guides/elevage/mounts/volk-doreetindigo.webp"
   },
   {
     "id": "volk-doreetivoire",
@@ -3662,7 +3662,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97293"
+    "img": "/images/guides/elevage/mounts/volk-doreetivoire.webp"
   },
   {
     "id": "volk-doreetorchidee",
@@ -3680,7 +3680,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "/api/assets-dofus/items/97236"
+    "img": "/images/guides/elevage/mounts/volk-doreetorchidee.webp"
   },
   {
     "id": "volk-doreetpourpre",
@@ -3699,7 +3699,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97235"
+    "img": "/images/guides/elevage/mounts/volk-doreetpourpre.webp"
   },
   {
     "id": "volk-doreetprune",
@@ -3718,7 +3718,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97295"
+    "img": "/images/guides/elevage/mounts/volk-doreetprune.webp"
   },
   {
     "id": "volk-doreetroux",
@@ -3735,7 +3735,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "pa"
     ],
-    "img": "/api/assets-dofus/items/97291"
+    "img": "/images/guides/elevage/mounts/volk-doreetroux.webp"
   },
   {
     "id": "volk-doreetturquoise",
@@ -3753,7 +3753,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97294"
+    "img": "/images/guides/elevage/mounts/volk-doreetturquoise.webp"
   },
   {
     "id": "volk-amethyste",
@@ -3770,7 +3770,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97190"
+    "img": "/images/guides/elevage/mounts/volk-amethyste.webp"
   },
   {
     "id": "volk-jade",
@@ -3787,7 +3787,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97187"
+    "img": "/images/guides/elevage/mounts/volk-jade.webp"
   },
   {
     "id": "volk-rubis",
@@ -3804,7 +3804,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97188"
+    "img": "/images/guides/elevage/mounts/volk-rubis.webp"
   },
   {
     "id": "volk-saphir",
@@ -3821,7 +3821,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97189"
+    "img": "/images/guides/elevage/mounts/volk-saphir.webp"
   },
   {
     "id": "volk-amethysteetamande",
@@ -3838,7 +3838,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97280"
+    "img": "/images/guides/elevage/mounts/volk-amethysteetamande.webp"
   },
   {
     "id": "volk-amethysteetdore",
@@ -3856,7 +3856,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97286"
+    "img": "/images/guides/elevage/mounts/volk-amethysteetdore.webp"
   },
   {
     "id": "volk-amethysteetebene",
@@ -3874,7 +3874,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97279"
+    "img": "/images/guides/elevage/mounts/volk-amethysteetebene.webp"
   },
   {
     "id": "volk-amethysteetemeraude",
@@ -3892,7 +3892,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97285"
+    "img": "/images/guides/elevage/mounts/volk-amethysteetemeraude.webp"
   },
   {
     "id": "volk-amethysteetindigo",
@@ -3910,7 +3910,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97278"
+    "img": "/images/guides/elevage/mounts/volk-amethysteetindigo.webp"
   },
   {
     "id": "volk-amethysteetivoire",
@@ -3927,7 +3927,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97282"
+    "img": "/images/guides/elevage/mounts/volk-amethysteetivoire.webp"
   },
   {
     "id": "volk-amethysteetorchidee",
@@ -3945,7 +3945,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97277"
+    "img": "/images/guides/elevage/mounts/volk-amethysteetorchidee.webp"
   },
   {
     "id": "volk-amethysteetpourpre",
@@ -3963,7 +3963,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97276"
+    "img": "/images/guides/elevage/mounts/volk-amethysteetpourpre.webp"
   },
   {
     "id": "volk-amethysteetprune",
@@ -3981,7 +3981,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97284"
+    "img": "/images/guides/elevage/mounts/volk-amethysteetprune.webp"
   },
   {
     "id": "volk-amethysteetroux",
@@ -3998,6 +3998,6 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "/api/assets-dofus/items/97281"
+    "img": "/images/guides/elevage/mounts/volk-amethysteetroux.webp"
   }
 ];

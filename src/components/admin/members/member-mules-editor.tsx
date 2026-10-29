@@ -367,7 +367,6 @@ export function MemberMulesEditor({
                     <Button
                         type="button"
                         size="sm"
-                        variant="outline"
                         className="h-9 gap-1.5"
                         onClick={() => void addMule()}
                         disabled={isPending || verifying || pseudo.trim().length < 2}

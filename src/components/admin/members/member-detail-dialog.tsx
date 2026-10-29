@@ -925,7 +925,7 @@ export function MemberDetailDialog({
                                             />
                                         </div>
                                         {canEdit && (
-                                            <Button size="sm" variant="outline" onClick={handleSaveRecruiter} disabled={isPending}>
+                                            <Button size="sm" onClick={handleSaveRecruiter} disabled={isPending}>
                                                 Enregistrer
                                             </Button>
                                         )}
@@ -1057,7 +1057,6 @@ export function MemberDetailDialog({
                                                 />
                                                 <Button
                                                     size="sm"
-                                                    variant="outline"
                                                     onClick={handleAddComment}
                                                     disabled={isPending || !canAddRegistryComment(current.comments.length)}
                                                 >

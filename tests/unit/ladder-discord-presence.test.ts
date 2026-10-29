@@ -188,25 +188,21 @@ describe("présence Discord — câblage serveur", () => {
 });
 
 describe("présence Discord — interface (jamais un blâme)", () => {
-    it("client : filtre + stats cliquables branchés sur l'onglet Discord et la période", () => {
+    it("client : filtre de présence branché sur l'onglet Discord et la période", () => {
         const src = readFileSync(CLIENT, "utf8");
         expect(src).toContain("presenceFilter");
-        expect(src).toContain("getDiscordPresenceStats(guildId, activityView)");
         expect(src).toContain("Filtrer par présence");
         expect(src).toContain("presenceFilterLabels(activityView)");
-        expect(src).toContain("describePresenceFilter(chip.id, activityView)");
-        expect(src).toContain("habitueThreshold(activityView)");
-        expect(src).toContain("jamais pour blâmer");
         expect(src).toContain("debouncedSearch, presenceFilter]");
     });
 
-    it("client : transparence — encart méthodologie dépliable", () => {
+    it("client : plus d'encart bilan de présence (retiré le 29/10/2026)", () => {
         const src = readFileSync(CLIENT, "utf8");
-        expect(src).toContain("D&apos;où viennent ces chiffres");
-        expect(src).toContain("mardi 07:00");
-        expect(src).toContain("jamais des blâmes");
-        expect(src).toContain("Sans interaction");
-        expect(src).toContain("Angles morts assumés");
+        // Demande user : on garde les **filtres** du classement Discord, on retire le
+        // bandeau « Qui vit sur le Discord » et toute sa méthodologie.
+        expect(src).not.toContain("Qui vit sur le Discord");
+        expect(src).not.toContain("D&apos;où viennent ces chiffres");
+        expect(src).not.toContain("getDiscordPresenceStats(guildId");
     });
 
     it("carte : badge neutre du profil, blâme « Mauvais Élève » effacé sur l'onglet Discord", () => {

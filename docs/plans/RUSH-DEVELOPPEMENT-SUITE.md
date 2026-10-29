@@ -27,6 +27,49 @@ description: Rush Sylvestre — organisation de la suite : 4 surfaces, blocs S0�
 **Règle de consolidation** : on **empile** (Tougli = référentiel, Dofusyelle = trame), on ne fusionne
 pas ; les textes sont **réécrits**, jamais recopiés.
 
+## 0 bis. Amorçage de la prochaine session (29/10/2026)
+
+> **Pourquoi ici et pas une sixième doc** : un sujet = un fichier. Ce document porte déjà
+> l'organisation des chantiers Rush ; l'amorce en est la **tête de lecture**, pas une copie.
+
+**État mesuré au 29/10/2026** : mécanique **terminée** (S0), outillage God **fini** (S4), contenu
+**à moitié** — S1-1 Bontarien ✅ **100/100**, S1-3 Ordres ✅ (5/5 × 6), S1-4 Classes ✅ (export +
+filtre interne), **S1-2 Brâkmarien = 0/102**. S2 et S3 non commencés. Le **bloc B** (une page par
+quête) n'a que sa **fondation en base** (`GuideSequence.publicSlug` + `isPublished`, migration
+**288**) : aucune route n'existe.
+
+**Prochain lot : S1-2** — le seul vrai trou de contenu, et ses exports sont déjà produits.
+
+| Ressource (dans `src/temp/trame-rush/`, **jamais commité**) | Contenu |
+|---|---|
+| `export-god-cites.json` | les Brâkmar en **6 blocs** (Bonta palier 80 + Brâkmar 20/40/60/80/100) |
+| `export-god-variantes.json` | les **3 variantes exclusives** manquantes (groupes 55 et 66) |
+
+**À savoir avant de coder** :
+
+- l'import est **additif** : `importRushGuide(raw, apply)` fait un **dry-run par défaut** et **ajoute seulement** ;
+- **aucune migration** pour ce lot — `alignReq`, `alignOrderCode`, `alignLevelReq`, `classReq`, `questDbIds`, `takeEarly` existent déjà ;
+- les **variantes exclusives** se taguent `choice_group` dans `activityTags` (règle `src/lib/rush-choice-groups.ts`), sans colonne neuve ;
+- **ne pas affaiblir** `rush-choice-groups`, `rush-public-parity`, `rush-dungeon-invalidation`, `rush-dungeons` ;
+- piège connu : le studio écrit `subGuideRef: name.trim()` ⇒ le code **`RS-S2-QN` est écrasé** au premier enregistrement (sans effet sur ce lot, mais ne pas s'en servir comme identifiant) ;
+- **1 lot = 1 branche = 1 PR → `dev`** ; DoD du §9 (règle pure + 4 surfaces + tests + docs).
+
+**Prompt à coller** :
+
+```
+Rush Sylvestre — exécute le lot S1-2 (série brâkmarienne, 102 quêtes).
+Lis d'abord docs/plans/RUSH-DEVELOPPEMENT-SUITE.md (§0 bis et §3 S1-2), puis
+MAPPING-RUSH-SYLVESTRE.md.
+Sources : src/temp/trame-rush/export-god-cites.json et export-god-variantes.json.
+Méthode : importRushGuide en dry-run (lis le plan produit), corrige les avertissements,
+puis applique. Aucune migration. Ne touche pas aux verrous rush-* (public-parity,
+dungeon-invalidation, choice-groups, dungeons).
+Contrôle en base : les 5 paliers Brâkmar complets et la vue Branches à 100/102
+(une variante exclusive compte pour 1 étape).
+1 branche = 1 PR vers dev ; mets à jour ROADMAP §0 (fichier < 60 Ko) et le bloc
+activeContext (6 blocs maximum).
+```
+
 ## 1. Les 4 surfaces (toute évolution touche les quatre)
 
 | Surface | Fichier de référence | Contrainte propre |
@@ -161,7 +204,7 @@ God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles re
 |---|---|---|
 | **S4-1** | **Vue Branches à 2 étages** (cité → Ordre, paires alignées, manques) — cible **100/102** | **livré** le 23/10/2026 (`src/lib/rush-branches.ts`, onglet God, 9 verrous) · **corrigé le 27/10/2026** : ① le classement compare les codes d'Ordre **normalisés** (source unique `rush-order-codes`) au lieu des ids courts du catalogue — sans quoi les **30 quêtes d'Ordre importées** tombaient « hors branche » (**+3 cas**) ; ② le tri des « paires » utilise l'**ordre du bloc** puis l'ordre interne (`blockOrder`), et non plus `seq.order` seul qui repart à 0 dans chaque bloc ⇒ la table était triée **par alphabet** (« L'exorciste », 100ᵉ quête, en position **68** → **99** après correctif, mesuré en base) (**+2 cas**) |
 | **S4-2** | Édition des champs de route sur une séquence **existante** | ✅ **livré** le 26/10/2026 — section « 7. Route » du formulaire d'édition (cité / Ordre / palier / classe), avec les codes d'Ordre **canoniques** |
-| **S4-3** | Case **optionnel** par donjon (S0-6) | bloqué migration |
+| **S4-3** | Case **optionnel** par donjon (S0-6) | ✅ **livré le 22/10/2026** avec S0-6 (PR #1091) — la mention « bloqué migration » était **périmée** : la colonne `dungeonOptionalIds` existe depuis `20270115000000_rush_dungeon_state`, appliquée en prod le 22/10 |
 | **S4-4** | Import consolidé (dry-run) : listes ordonnées + 30 Ordres + 19 classes, **jamais de re-seed destructif** | ✅ **livré** le 26/10/2026 — `importRushGuide(raw, apply)` : dry-run par défaut, `src/lib/rush-import.ts` (plan pur), **ajoute seulement** · ✅ **complété le 27/10/2026** : le payload porte aussi les **liens** de la fiche (`dofusdbUrl`, `dofuspourlesnoobsUrl`), validés par **allowlist d'hôte + `https`** (`safeRushGuideLink`) — un lien refusé produit un avertissement dans le dry-run, jamais une URL arbitraire en base |
 
 ## 7. Bloc S5 — Dette de bascule & performance

@@ -9,6 +9,10 @@
 
 ## 0. Reprise immédiate
 
+- **Livré le 29/10/2026 — Rush : deux « En construction » (membres ⇄ page publique) + fondation du bloc B (branche `feat/rush-construction-publique`, PR #1152).**
+  ① `OptimizedGuide.isPublicUnderConstruction` (**`@default(true)`** ⇒ page publique « en construction », **non indexable au déploiement**) ; `isUnderConstruction` reste le drapeau **membres**. Page publique + sitemap → drapeau public ; `RushTimelineClient`/`DofusQuestHub` → drapeau interne ; studio = **deux toggles** + indicateur d'état. ② `ToggleRow` réparé (`min-w-0` + `shrink-0` + `gap`, `role="switch"`) : la description longue poussait le bouton **hors de la carte**. ③ Bloc B (fondation) : `GuideSequence.publicSlug` (unique) + `isPublished` (`@default(false)`) — slug **figé** à la publication, publication opt-in.
+  **Preuves** : `rush-sylvestre-construction` **11 cas** · `seo-horizon-indexation` **11 cas** · suite **536 / 5 619 ✓** · `tsc` 0 · migration **288** additive (`IF NOT EXISTS`). **Reste** : route par quête (bloc B) ; `subGuideRef` écrase `RS-S2-QN` au 1ᵉʳ enregistrement. **Env** : `prisma migrate dev` inutilisable ici (2 migrations absentes du dossier côté base) ⇒ migration écrite à la main + `migrate deploy`.
+
 - **Livré le 27/10/2026 — S1 : le contenu est entré, l'étape à choix modélisée (branche `fix/rush-code-mort-legacy`, PR #1139).**
   ① **Import outillé** : liens de fiche (`dofusdbUrl`/`dofuspourlesnoobsUrl`) portés par le payload, **allowlist d'hôte + https**
   (`safeRushGuideLink`) ; ② **30 quêtes d'Ordre** importées (**6 × 5/5**) — la vue Branches comparait les codes **canoniques** aux

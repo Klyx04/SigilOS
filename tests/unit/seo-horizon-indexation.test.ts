@@ -65,15 +65,17 @@ describe("registre des guides — des dates réelles, dans les deux langues", ()
     });
 });
 
-describe("sitemap — le guide Sylvestre suit son toggle (une seule source de vérité)", () => {
+describe("sitemap — le guide Sylvestre suit son drapeau PUBLIC", () => {
     it("l'URL n'est plus publiée en dur dans les routes statiques", () => {
         expect((SITEMAP.match(/url: `\$\{baseUrl\}\/guides\/rush-sylvestre`/g) ?? []).length).toBe(1);
     });
 
-    it("elle n'est publiée que si le chantier est terminé, et fail-closed sinon", () => {
+    it("elle n'est publiée que si le drapeau PUBLIC est éteint, et fail-closed sinon", () => {
         expect(SITEMAP).toMatch(/db\.optimizedGuide\.findUnique\(\{/);
-        expect(SITEMAP).toMatch(/select: \{ isUnderConstruction: true \}/);
-        expect(SITEMAP).toMatch(/if \(rushGuide && !rushGuide\.isUnderConstruction\) \{/);
+        // Le drapeau de l'espace MEMBRES n'a aucun effet sur l'index : seul le public compte.
+        expect(SITEMAP).toMatch(/select: \{ isPublicUnderConstruction: true \}/);
+        expect(SITEMAP).toMatch(/if \(rushGuide && !rushGuide\.isPublicUnderConstruction\) \{/);
+        expect(SITEMAP).not.toMatch(/select: \{ isUnderConstruction: true \}/);
         expect(SITEMAP).toMatch(/logger\.error\("\[Sitemap\] Error fetching rush guide state"/);
     });
 });

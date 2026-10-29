@@ -18,14 +18,15 @@ export const revalidate = 3600; // Cache ISR 1h pour indexation Google rapide
 /**
  * Lecture du guide **une seule fois par requête** : l'état « En construction » est lu par les
  * métadonnées (⇒ `noindex`) **et** par la page — on ne paie pas deux fois les chapitres et leurs
- * quêtes. Source de vérité : `OptimizedGuide.isUnderConstruction`, le **même** champ que le toggle
- * « Mode Construction » de l'éditeur God (`/god/rush-sylvestre`).
+ * quêtes. Source de vérité : `OptimizedGuide.isPublicUnderConstruction`, le drapeau de la **page
+ * publique**. L'avis de l'**espace membres** est un autre champ (`isUnderConstruction`) : ouvrir le
+ * guide au public ne ferme pas le chantier interne, et l'inverse est vrai aussi.
  */
 const getRushGuide = cache(() => getPublicGuideDetail("rush-sylvestre"));
 
 export async function generateMetadata(): Promise<Metadata> {
   const res = await getRushGuide();
-  const underConstruction = !!res.success && !!res.guide?.isUnderConstruction;
+  const underConstruction = !!res.success && !!res.guide?.isPublicUnderConstruction;
 
   return {
   title: { absolute: "Dofus Sylvestre : quêtes, trajets et overlay" },
@@ -75,12 +76,12 @@ export default async function PublicRushSylvestrePage() {
 
   const guide = guideRes.guide as any;
   /**
-   * 🚧 Toggle God « Mode Construction » (`/god/rush-sylvestre`) : la page PUBLIQUE n'affiche plus
-   * le guide interactif mais l'avis « En construction — l'arrivée du guide est prévue dans les
-   * jours qui suivent ! ». Même champ que la vue membres (`OptimizedGuide.isUnderConstruction`) :
-   * une seule source de vérité, aucun second drapeau à maintenir.
+   * 🚧 Drapeau PUBLIC (`isPublicUnderConstruction`, toggle `/god/rush-sylvestre`) : la page PUBLIQUE
+   * n'affiche pas le guide interactif mais l'avis « En construction — l'arrivée du guide est prévue
+   * dans les jours qui suivent ! ». La vue MEMBRES garde son propre champ (`isUnderConstruction`) :
+   * deux surfaces, deux états, aucune dépendance croisée.
    */
-  const isUnderConstruction = !!guide.isUnderConstruction;
+  const isUnderConstruction = !!guide.isPublicUnderConstruction;
   const milestones = guide.milestones as any[];
 
   // Nonce pour inline scripts de sécurité

@@ -144,16 +144,33 @@ if [ "$ASSUME_YES" -ne 1 ]; then
     fi
 fi
 
-# ⚠️ `ON_ERROR_STOP=1` : sans lui, psql continue après une erreur (un
-# `DROP DATABASE` refusé parce que l'app est encore connectée, par exemple) et
-# le script annonçait « ✅ Restore completed » sur une base à moitié restaurée.
-# Le code de sortie de `psql` n'était jamais testé (relevé du 29/10/2026).
+# Deux gardes, mesurées le 29/10/2026 :
+# ① `psql` sans `ON_ERROR_STOP` continuait après une erreur et le script annonçait
+#    « ✅ Restore completed » sur une base à moitié restaurée ;
+# ② un `ON_ERROR_STOP=1` sec casse la restauration d'un dump produit **avant**
+#    `--if-exists` : son premier `DROP DATABASE <base>` échoue quand la base
+#    n'existe pas encore. On tolère donc UNIQUEMENT les erreurs « does not exist ».
 # Prérequis : arrêter les conteneurs applicatifs avant (docs/agents/disaster-recovery.md).
-if ! cat "$DECRYPTED_FILE" | gunzip | docker exec -i $DB_CONTAINER psql -v ON_ERROR_STOP=1 -U $DB_USER postgres; then
-    echo "❌ Restauration ÉCHOUÉE — la base est dans un état indéterminé : ne pas redémarrer l'app."
+RESTORE_LOG=$(mktemp)
+cat "$DECRYPTED_FILE" | gunzip | docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=0 -U "$DB_USER" postgres >"$RESTORE_LOG" 2>&1 || true
+
+FATAL=$(grep '^ERROR:' "$RESTORE_LOG" | grep -v 'does not exist' || true)
+if [ -n "$FATAL" ]; then
+    echo "❌ Restauration ÉCHOUÉE — erreurs rencontrées :"
+    printf '%s\n' "$FATAL" | head -20
     echo "   Le dump déchiffré est conservé pour rejouer : $DECRYPTED_FILE"
     exit 1
 fi
+rm -f "$RESTORE_LOG"
+
+# Preuve minimale : une base restaurée sans aucun compte n'est pas une restauration.
+USER_COUNT=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "${POSTGRES_DB:-sigilos}" -At -c 'select count(*) from "User"' 2>/dev/null || true)
+if [ -z "$USER_COUNT" ] || [ "$USER_COUNT" = "0" ]; then
+    echo "❌ Restauration ÉCHOUÉE — la table \"User\" est vide ou illisible dans ${POSTGRES_DB:-sigilos}."
+    echo "   Le dump déchiffré est conservé pour rejouer : $DECRYPTED_FILE"
+    exit 1
+fi
+echo "   Comptes restaurés : $USER_COUNT"
 
 echo "✅ Restore completed."
 rm "$DECRYPTED_FILE" # Clean up decrypted file

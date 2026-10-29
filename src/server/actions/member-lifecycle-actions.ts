@@ -7,6 +7,7 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { differenceInDays } from "date-fns";
+import { revalidatePath } from "next/cache";
 import {
     ANKAMA_ID_PATTERN,
     MAX_REGISTRY_COMMENTS,
@@ -785,6 +786,11 @@ export async function setMemberTrialState(
                 metadata: { memberName: entry.pseudoDofus || target.discordId, source: "registre", scope: "DISCORD_ONLY" },
             });
         }
+
+        // Sans revalidation, la liste `/admin/members` reste servie depuis le cache de
+        // rendu : la fiche rouvre l'ANCIENNE date et le bandeau n'affiche pas la
+        // reprogrammation, même après `router.refresh()` (mesuré le 29/10/2026).
+        revalidatePath(`/dashboard/${guildId}/admin/members`);
 
         return {
             success: true,

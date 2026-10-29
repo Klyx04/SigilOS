@@ -19,6 +19,7 @@ import {
     type RegistryComment,
     type TrialDecision,
 } from "./member-registry";
+import { differenceInDays } from "date-fns";
 
 export type { DiscordRoleOption, RegistryComment, TrialDecision };
 
@@ -257,7 +258,9 @@ export function buildMemberRoster(input: {
                 ? {
                       validated: entry.trialValidated,
                       endsAt: entry.trialEndsAt,
-                      remainingDays: null,
+                      // Calculé comme pour un profil dashboard : un `null` en dur faisait
+                      // retomber le badge sur « 0 j restant » (mesuré le 29/10/2026).
+                      remainingDays: entry.trialEndsAt ? differenceInDays(new Date(entry.trialEndsAt), now) : null,
                       decision: getTrialDecision({
                           trialValidated: entry.trialValidated,
                           trialEndsAt: entry.trialEndsAt,

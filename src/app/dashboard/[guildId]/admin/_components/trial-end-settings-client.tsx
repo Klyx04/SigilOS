@@ -18,6 +18,7 @@ import { getTrialEndSettings, updateTrialEndSettings } from "@/server/actions/tr
  */
 export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
     const [channelId, setChannelId] = useState("");
+    const [trialDurationDays, setTrialDurationDays] = useState(14);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
@@ -25,7 +26,10 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
         let active = true;
         getTrialEndSettings(guildId).then((res) => {
             if (!active) return;
-            if (res.success && res.data) setChannelId(res.data.channelId || "");
+            if (res.success && res.data) {
+                setChannelId(res.data.channelId || "");
+                setTrialDurationDays(res.data.trialDurationDays);
+            }
             setIsLoading(false);
         });
         return () => {
@@ -35,9 +39,9 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
 
     const handleSave = () => {
         startTransition(async () => {
-            const result = await updateTrialEndSettings(guildId, channelId.trim() || null);
+            const result = await updateTrialEndSettings(guildId, channelId.trim() || null, trialDurationDays);
             if (result.success) {
-                toast.success(channelId.trim() ? "Salon des fins d'essai enregistré." : "Notifications de fin d'essai désactivées.");
+                toast.success("Réglages de fin d'essai enregistrés.");
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -75,6 +79,29 @@ export function TrialEndSettingsClient({ guildId }: { guildId: string }) {
                 </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
+                <div className="space-y-2">
+                    <label
+                        htmlFor="trial-duration-days"
+                        className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                    >
+                        Durée de l&apos;essai par défaut (jours)
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <input
+                            id="trial-duration-days"
+                            type="number"
+                            min={1}
+                            max={90}
+                            value={trialDurationDays}
+                            onChange={(event) => setTrialDurationDays(Number(event.target.value))}
+                            className="w-24 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-info/40"
+                        />
+                        <p className="text-xs text-muted-foreground max-w-md">
+                            Appliquée par <code className="text-foreground">/valider-recrue</code> : la fin d&apos;essai est
+                            calculée à partir de l&apos;arrivée du membre. Entre 1 et 90 jours.
+                        </p>
+                    </div>
+                </div>
                 <DiscordChannelPicker
                     guildId={guildId}
                     value={channelId}

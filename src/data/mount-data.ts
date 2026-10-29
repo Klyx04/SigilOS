@@ -1,5 +1,6 @@
 // Fichier généré automatiquement — Base de données exhaustive des montures Dofus (Dragodindes, Muldos, Volkornes)
-// Conforme Dofus 3 / Unity & DofusDB — 306 montures complètes (66 Dragodindes, 120 Muldos, 120 Volkornes)
+// Conforme Dofus 3 / Unity & DofusDB — 228 montures réelles en jeu (66 Dragodindes, 82 Muldos, 80 Volkornes)
+// 🛡️ Souveraineté : les assets transitent par le proxy local /api/assets-dofus/items/
 
 export type MountFamily = "dragodinde" | "muldo" | "volkorne";
 export type StatTag = "pm" | "pa" | "po" | "vita" | "stats" | "puissance" | "invoc" | "ini" | "prosp" | "cc" | "sagesse" | "res";
@@ -28,7 +29,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "ini"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97020.png"
+    "img": "/api/assets-dofus/items/97020"
   },
   {
     "id": "dd-doree",
@@ -41,7 +42,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "invoc"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97018.png"
+    "img": "/api/assets-dofus/items/97018"
   },
   {
     "id": "dd-rousse",
@@ -53,7 +54,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "vita"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97010.png"
+    "img": "/api/assets-dofus/items/97010"
   },
   {
     "id": "dd-amandeetrousse",
@@ -70,7 +71,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "ini"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97038.png"
+    "img": "/api/assets-dofus/items/97038"
   },
   {
     "id": "dd-doreeetrousse",
@@ -87,7 +88,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "invoc"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97046.png"
+    "img": "/api/assets-dofus/items/97046"
   },
   {
     "id": "dd-amandeetdoree",
@@ -105,7 +106,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "ini",
       "invoc"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97033.png"
+    "img": "/api/assets-dofus/items/97033"
   },
   {
     "id": "dd-ebene",
@@ -122,7 +123,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97004.png"
+    "img": "/api/assets-dofus/items/97004"
   },
   {
     "id": "dd-indigo",
@@ -139,7 +140,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97017.png"
+    "img": "/api/assets-dofus/items/97017"
   },
   {
     "id": "dd-indigoetrousse",
@@ -156,7 +157,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97062.png"
+    "img": "/api/assets-dofus/items/97062"
   },
   {
     "id": "dd-ebeneetrousse",
@@ -173,7 +174,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97012.png"
+    "img": "/api/assets-dofus/items/97012"
   },
   {
     "id": "dd-amandeetindigo",
@@ -191,7 +192,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "ini",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97119.png"
+    "img": "/api/assets-dofus/items/97036"
   },
   {
     "id": "dd-amandeetebene",
@@ -209,7 +210,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "ini",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97120.png"
+    "img": "/api/assets-dofus/items/97034"
   },
   {
     "id": "dd-doreeetindigo",
@@ -227,7 +228,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "invoc",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97044.png"
+    "img": "/api/assets-dofus/items/97044"
   },
   {
     "id": "dd-doreeetebene",
@@ -245,7 +246,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "invoc",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97042.png"
+    "img": "/api/assets-dofus/items/97042"
   },
   {
     "id": "dd-ebeneetindigo",
@@ -262,7 +263,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97196.png"
+    "img": "/api/assets-dofus/items/97051"
   },
   {
     "id": "dd-pourpre",
@@ -280,7 +281,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97019.png"
+    "img": "/api/assets-dofus/items/97019"
   },
   {
     "id": "dd-orchidee",
@@ -297,7 +298,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97022.png"
+    "img": "/api/assets-dofus/items/97022"
   },
   {
     "id": "dd-pourpreetrousse",
@@ -315,7 +316,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97071.png"
+    "img": "/api/assets-dofus/items/97071"
   },
   {
     "id": "dd-orchideeetrousse",
@@ -332,7 +333,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97070.png"
+    "img": "/api/assets-dofus/items/97070"
   },
   {
     "id": "dd-amandeetpourpre",
@@ -351,7 +352,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97117.png"
+    "img": "/api/assets-dofus/items/97041"
   },
   {
     "id": "dd-amandeetorchidee",
@@ -369,7 +370,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "ini",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97118.png"
+    "img": "/api/assets-dofus/items/97040"
   },
   {
     "id": "dd-doreeetpourpre",
@@ -388,7 +389,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97049.png"
+    "img": "/api/assets-dofus/items/97049"
   },
   {
     "id": "dd-doreeetorchidee",
@@ -406,7 +407,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "invoc",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97048.png"
+    "img": "/api/assets-dofus/items/97048"
   },
   {
     "id": "dd-indigoetpourpre",
@@ -424,7 +425,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97192.png"
+    "img": "/api/assets-dofus/items/97065"
   },
   {
     "id": "dd-indigoetorchidee",
@@ -441,7 +442,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97194.png"
+    "img": "/api/assets-dofus/items/97064"
   },
   {
     "id": "dd-ebeneetpourpre",
@@ -459,7 +460,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97193.png"
+    "img": "/api/assets-dofus/items/97054"
   },
   {
     "id": "dd-ebeneetorchidee",
@@ -476,7 +477,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97195.png"
+    "img": "/api/assets-dofus/items/97053"
   },
   {
     "id": "dd-orchideeetpourpre",
@@ -494,7 +495,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97191.png"
+    "img": "/api/assets-dofus/items/97076"
   },
   {
     "id": "dd-ivoire",
@@ -511,7 +512,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "puissance"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97016.png"
+    "img": "/api/assets-dofus/items/97016"
   },
   {
     "id": "dd-turquoise",
@@ -529,7 +530,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97015.png"
+    "img": "/api/assets-dofus/items/97015"
   },
   {
     "id": "dd-ivoireetrousse",
@@ -546,7 +547,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "puissance"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97011.png"
+    "img": "/api/assets-dofus/items/97011"
   },
   {
     "id": "dd-turquoiseetrousse",
@@ -564,7 +565,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97069.png"
+    "img": "/api/assets-dofus/items/97069"
   },
   {
     "id": "dd-amandeetivoire",
@@ -582,7 +583,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "ini",
       "puissance"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97037.png"
+    "img": "/api/assets-dofus/items/97037"
   },
   {
     "id": "dd-amandeetturquoise",
@@ -601,7 +602,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97144.png"
+    "img": "/api/assets-dofus/items/97039"
   },
   {
     "id": "dd-doreeetivoire",
@@ -619,7 +620,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "invoc",
       "puissance"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97045.png"
+    "img": "/api/assets-dofus/items/97045"
   },
   {
     "id": "dd-doreeetturquoise",
@@ -638,7 +639,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97047.png"
+    "img": "/api/assets-dofus/items/97047"
   },
   {
     "id": "dd-indigoetivoire",
@@ -656,7 +657,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97212.png"
+    "img": "/api/assets-dofus/items/97061"
   },
   {
     "id": "dd-indigoetturquoise",
@@ -675,7 +676,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97217.png"
+    "img": "/api/assets-dofus/items/97063"
   },
   {
     "id": "dd-ebeneetivoire",
@@ -693,7 +694,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97213.png"
+    "img": "/api/assets-dofus/items/97009"
   },
   {
     "id": "dd-ebeneetturquoise",
@@ -712,7 +713,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97218.png"
+    "img": "/api/assets-dofus/items/97052"
   },
   {
     "id": "dd-ivoireetpourpre",
@@ -731,7 +732,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97122.png"
+    "img": "/api/assets-dofus/items/97068"
   },
   {
     "id": "dd-turquoiseetpourpre",
@@ -750,7 +751,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97073.png"
+    "img": "/api/assets-dofus/items/97073"
   },
   {
     "id": "dd-ivoireetorchidee",
@@ -768,7 +769,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97123.png"
+    "img": "/api/assets-dofus/items/97067"
   },
   {
     "id": "dd-turquoiseetorchidee",
@@ -787,7 +788,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97072.png"
+    "img": "/api/assets-dofus/items/97072"
   },
   {
     "id": "dd-ivoireetturquoise",
@@ -806,7 +807,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97139.png"
+    "img": "/api/assets-dofus/items/97066"
   },
   {
     "id": "dd-emeraude",
@@ -824,7 +825,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97021.png"
+    "img": "/api/assets-dofus/items/97021"
   },
   {
     "id": "dd-prune",
@@ -842,7 +843,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "po",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97023.png"
+    "img": "/api/assets-dofus/items/97023"
   },
   {
     "id": "dd-emeraudeetrousse",
@@ -860,7 +861,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97057.png"
+    "img": "/api/assets-dofus/items/97057"
   },
   {
     "id": "dd-pruneetrousse",
@@ -878,7 +879,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "po",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97084.png"
+    "img": "/api/assets-dofus/items/97084"
   },
   {
     "id": "dd-amandeetemeraude",
@@ -897,7 +898,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97230.png"
+    "img": "/api/assets-dofus/items/97035"
   },
   {
     "id": "dd-pruneetamande",
@@ -916,7 +917,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "po",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97077.png"
+    "img": "/api/assets-dofus/items/97077"
   },
   {
     "id": "dd-doreeetemeraude",
@@ -935,7 +936,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97043.png"
+    "img": "/api/assets-dofus/items/97043"
   },
   {
     "id": "dd-pruneetdoree",
@@ -954,7 +955,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "po",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97078.png"
+    "img": "/api/assets-dofus/items/97078"
   },
   {
     "id": "dd-emeraudeetindigo",
@@ -973,7 +974,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97158.png"
+    "img": "/api/assets-dofus/items/97055"
   },
   {
     "id": "dd-pruneetindigo",
@@ -992,7 +993,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97082.png"
+    "img": "/api/assets-dofus/items/97082"
   },
   {
     "id": "dd-ebeneetemeraude",
@@ -1011,7 +1012,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97229.png"
+    "img": "/api/assets-dofus/items/97050"
   },
   {
     "id": "dd-pruneetebene",
@@ -1030,7 +1031,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97079.png"
+    "img": "/api/assets-dofus/items/97079"
   },
   {
     "id": "dd-emeraudeetpourpre",
@@ -1049,7 +1050,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97156.png"
+    "img": "/api/assets-dofus/items/97060"
   },
   {
     "id": "dd-pruneetpourpre",
@@ -1068,7 +1069,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97087.png"
+    "img": "/api/assets-dofus/items/97087"
   },
   {
     "id": "dd-emeraudeetorchidee",
@@ -1087,7 +1088,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97157.png"
+    "img": "/api/assets-dofus/items/97059"
   },
   {
     "id": "dd-pruneetorchidee",
@@ -1106,7 +1107,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97086.png"
+    "img": "/api/assets-dofus/items/97086"
   },
   {
     "id": "dd-emeraudeetivoire",
@@ -1125,7 +1126,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97163.png"
+    "img": "/api/assets-dofus/items/97056"
   },
   {
     "id": "dd-pruneetivoire",
@@ -1144,7 +1145,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97083.png"
+    "img": "/api/assets-dofus/items/97083"
   },
   {
     "id": "dd-emeraudeetturquoise",
@@ -1163,7 +1164,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97164.png"
+    "img": "/api/assets-dofus/items/97058"
   },
   {
     "id": "dd-pruneetturquoise",
@@ -1182,7 +1183,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "prosp",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97085.png"
+    "img": "/api/assets-dofus/items/97085"
   },
   {
     "id": "dd-pruneetemeraude",
@@ -1201,7 +1202,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97080.png"
+    "img": "/api/assets-dofus/items/97080"
   },
   {
     "id": "muldo-dore",
@@ -1214,7 +1215,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "puissance"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97094.png"
+    "img": "/api/assets-dofus/items/97094"
   },
   {
     "id": "muldo-ebene",
@@ -1227,7 +1228,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97091.png"
+    "img": "/api/assets-dofus/items/97091"
   },
   {
     "id": "muldo-indigo",
@@ -1240,7 +1241,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97092.png"
+    "img": "/api/assets-dofus/items/97092"
   },
   {
     "id": "muldo-orchidee",
@@ -1253,7 +1254,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97090.png"
+    "img": "/api/assets-dofus/items/97090"
   },
   {
     "id": "muldo-pourpre",
@@ -1266,7 +1267,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97093.png"
+    "img": "/api/assets-dofus/items/97093"
   },
   {
     "id": "muldo-doreetebene",
@@ -1284,7 +1285,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97110.png"
+    "img": "/api/assets-dofus/items/97110"
   },
   {
     "id": "muldo-doreetindigo",
@@ -1302,7 +1303,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97108.png"
+    "img": "/api/assets-dofus/items/97108"
   },
   {
     "id": "muldo-doreetorchidee",
@@ -1320,7 +1321,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97105.png"
+    "img": "/api/assets-dofus/items/97105"
   },
   {
     "id": "muldo-doreetpourpre",
@@ -1338,7 +1339,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97101.png"
+    "img": "/api/assets-dofus/items/97101"
   },
   {
     "id": "muldo-ebeneetindigo",
@@ -1355,7 +1356,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97196.png"
+    "img": "/api/assets-dofus/items/97109"
   },
   {
     "id": "muldo-ebeneetorchidee",
@@ -1372,7 +1373,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97195.png"
+    "img": "/api/assets-dofus/items/97107"
   },
   {
     "id": "muldo-ebeneetpourpre",
@@ -1389,7 +1390,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97193.png"
+    "img": "/api/assets-dofus/items/97103"
   },
   {
     "id": "muldo-indigoetorchidee",
@@ -1406,7 +1407,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97194.png"
+    "img": "/api/assets-dofus/items/97106"
   },
   {
     "id": "muldo-indigoetpourpre",
@@ -1423,7 +1424,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97192.png"
+    "img": "/api/assets-dofus/items/97102"
   },
   {
     "id": "muldo-orchideeetpourpre",
@@ -1440,7 +1441,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97191.png"
+    "img": "/api/assets-dofus/items/97104"
   },
   {
     "id": "muldo-amande",
@@ -1456,7 +1457,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97096.png"
+    "img": "/api/assets-dofus/items/97096"
   },
   {
     "id": "muldo-roux",
@@ -1472,7 +1473,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97095.png"
+    "img": "/api/assets-dofus/items/97095"
   },
   {
     "id": "muldo-doreetamande",
@@ -1489,7 +1490,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "puissance"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97121.png"
+    "img": "/api/assets-dofus/items/97121"
   },
   {
     "id": "muldo-ebeneetamande",
@@ -1506,7 +1507,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97200.png"
+    "img": "/api/assets-dofus/items/97120"
   },
   {
     "id": "muldo-indigoetamande",
@@ -1523,7 +1524,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97199.png"
+    "img": "/api/assets-dofus/items/97119"
   },
   {
     "id": "muldo-orchideeetamande",
@@ -1540,7 +1541,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97198.png"
+    "img": "/api/assets-dofus/items/97118"
   },
   {
     "id": "muldo-pourpreetamande",
@@ -1557,7 +1558,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97197.png"
+    "img": "/api/assets-dofus/items/97117"
   },
   {
     "id": "muldo-rouxetamande",
@@ -1573,7 +1574,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97201.png"
+    "img": "/api/assets-dofus/items/97116"
   },
   {
     "id": "muldo-rouxetdore",
@@ -1590,7 +1591,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "puissance"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97291.png"
+    "img": "/api/assets-dofus/items/97115"
   },
   {
     "id": "muldo-rouxetebene",
@@ -1607,7 +1608,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97114.png"
+    "img": "/api/assets-dofus/items/97114"
   },
   {
     "id": "muldo-rouxetindigo",
@@ -1624,7 +1625,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97113.png"
+    "img": "/api/assets-dofus/items/97113"
   },
   {
     "id": "muldo-rouxetorchidee",
@@ -1641,7 +1642,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97112.png"
+    "img": "/api/assets-dofus/items/97112"
   },
   {
     "id": "muldo-rouxetpourpre",
@@ -1658,7 +1659,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97111.png"
+    "img": "/api/assets-dofus/items/97111"
   },
   {
     "id": "muldo-ivoire",
@@ -1672,9 +1673,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     ],
     "stats": "1 PM, 50 Esquive PA",
     "statTags": [
-      "pm",
+      "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97097.png"
+    "img": "/api/assets-dofus/items/97097"
   },
   {
     "id": "muldo-turquoise",
@@ -1690,7 +1691,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97098.png"
+    "img": "/api/assets-dofus/items/97098"
   },
   {
     "id": "muldo-amandeetivoire",
@@ -1704,9 +1705,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     ],
     "stats": "1 PM, 40 Fuite, 40 Esquive PA",
     "statTags": [
-      "pm",
+      "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97138.png"
+    "img": "/api/assets-dofus/items/97138"
   },
   {
     "id": "muldo-doreetivoire",
@@ -1721,9 +1722,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "60 Puissance, 1 PM, 40 Esquive PA",
     "statTags": [
       "pm",
-      "puissance",
+      "puissance"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97126.png"
+    "img": "/api/assets-dofus/items/97126"
   },
   {
     "id": "muldo-ebeneetivoire",
@@ -1738,9 +1739,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PM, 10% Résistance Air, 40 Esquive PA",
     "statTags": [
       "pm",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97213.png"
+    "img": "/api/assets-dofus/items/97125"
   },
   {
     "id": "muldo-indigoetivoire",
@@ -1755,9 +1756,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PM, 10% Résistance Eau, 40 Esquive PA",
     "statTags": [
       "pm",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97212.png"
+    "img": "/api/assets-dofus/items/97124"
   },
   {
     "id": "muldo-orchideeetivoire",
@@ -1772,9 +1773,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PM, 10% Résistance Feu, 40 Esquive PA",
     "statTags": [
       "pm",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97211.png"
+    "img": "/api/assets-dofus/items/97123"
   },
   {
     "id": "muldo-pourpreetivoire",
@@ -1789,9 +1790,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PM, 10% Résistance Terre, 40 Esquive PA",
     "statTags": [
       "pm",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97210.png"
+    "img": "/api/assets-dofus/items/97122"
   },
   {
     "id": "muldo-rouxetivoire",
@@ -1805,9 +1806,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     ],
     "stats": "1 PM, 40 Tacle, 40 Esquive PA",
     "statTags": [
-      "pm",
+      "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97127.png"
+    "img": "/api/assets-dofus/items/97127"
   },
   {
     "id": "muldo-turquoiseetamande",
@@ -1823,7 +1824,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97203.png"
+    "img": "/api/assets-dofus/items/97144"
   },
   {
     "id": "muldo-turquoiseetdore",
@@ -1840,7 +1841,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "puissance"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97294.png"
+    "img": "/api/assets-dofus/items/97145"
   },
   {
     "id": "muldo-turquoiseetebene",
@@ -1857,7 +1858,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97142.png"
+    "img": "/api/assets-dofus/items/97142"
   },
   {
     "id": "muldo-turquoiseetindigo",
@@ -1874,7 +1875,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97141.png"
+    "img": "/api/assets-dofus/items/97141"
   },
   {
     "id": "muldo-turquoiseetivoire",
@@ -1888,9 +1889,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     ],
     "stats": "1 PM, 40 Esquive PA, 40 Esquive PM",
     "statTags": [
-      "pm",
+      "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97214.png"
+    "img": "/api/assets-dofus/items/97139"
   },
   {
     "id": "muldo-turquoiseetorchidee",
@@ -1907,7 +1908,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97165.png"
+    "img": "/api/assets-dofus/items/97165"
   },
   {
     "id": "muldo-turquoiseetpourpre",
@@ -1924,7 +1925,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97140.png"
+    "img": "/api/assets-dofus/items/97140"
   },
   {
     "id": "muldo-turquoiseetroux",
@@ -1940,7 +1941,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97209.png"
+    "img": "/api/assets-dofus/items/97143"
   },
   {
     "id": "muldo-emeraude",
@@ -1958,7 +1959,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97100.png"
+    "img": "/api/assets-dofus/items/97100"
   },
   {
     "id": "muldo-prune",
@@ -1976,7 +1977,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97099.png"
+    "img": "/api/assets-dofus/items/97099"
   },
   {
     "id": "muldo-amandeetemeraude",
@@ -1994,7 +1995,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97230.png"
+    "img": "/api/assets-dofus/items/97162"
   },
   {
     "id": "muldo-doreetemeraude",
@@ -2013,7 +2014,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97160.png"
+    "img": "/api/assets-dofus/items/97160"
   },
   {
     "id": "muldo-ebeneetemeraude",
@@ -2031,7 +2032,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97229.png"
+    "img": "/api/assets-dofus/items/97159"
   },
   {
     "id": "muldo-indigoetemeraude",
@@ -2049,7 +2050,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97228.png"
+    "img": "/api/assets-dofus/items/97158"
   },
   {
     "id": "muldo-ivoireetemeraude",
@@ -2065,9 +2066,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm",
       "cc",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97233.png"
+    "img": "/api/assets-dofus/items/97163"
   },
   {
     "id": "muldo-orchideeetemeraude",
@@ -2085,7 +2086,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97227.png"
+    "img": "/api/assets-dofus/items/97157"
   },
   {
     "id": "muldo-pourpreetemeraude",
@@ -2103,7 +2104,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97226.png"
+    "img": "/api/assets-dofus/items/97156"
   },
   {
     "id": "muldo-pruneetamande",
@@ -2121,7 +2122,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97152.png"
+    "img": "/api/assets-dofus/items/97152"
   },
   {
     "id": "muldo-pruneetdore",
@@ -2140,7 +2141,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97295.png"
+    "img": "/api/assets-dofus/items/97150"
   },
   {
     "id": "muldo-pruneetebene",
@@ -2158,7 +2159,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97149.png"
+    "img": "/api/assets-dofus/items/97149"
   },
   {
     "id": "muldo-pruneetemeraude",
@@ -2176,7 +2177,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97155.png"
+    "img": "/api/assets-dofus/items/97155"
   },
   {
     "id": "muldo-pruneetindigo",
@@ -2194,7 +2195,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97148.png"
+    "img": "/api/assets-dofus/items/97148"
   },
   {
     "id": "muldo-pruneetivoire",
@@ -2210,9 +2211,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm",
       "cc",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97153.png"
+    "img": "/api/assets-dofus/items/97153"
   },
   {
     "id": "muldo-pruneetorchidee",
@@ -2230,7 +2231,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97147.png"
+    "img": "/api/assets-dofus/items/97147"
   },
   {
     "id": "muldo-pruneetpourpre",
@@ -2248,7 +2249,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97146.png"
+    "img": "/api/assets-dofus/items/97146"
   },
   {
     "id": "muldo-pruneetroux",
@@ -2266,7 +2267,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97151.png"
+    "img": "/api/assets-dofus/items/97151"
   },
   {
     "id": "muldo-pruneetturquoise",
@@ -2284,7 +2285,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97154.png"
+    "img": "/api/assets-dofus/items/97154"
   },
   {
     "id": "muldo-rouxetemeraude",
@@ -2302,7 +2303,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97231.png"
+    "img": "/api/assets-dofus/items/97161"
   },
   {
     "id": "muldo-turquoiseetemeraude",
@@ -2320,7 +2321,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97234.png"
+    "img": "/api/assets-dofus/items/97164"
   },
   {
     "id": "muldo-aiguemarine",
@@ -2337,7 +2338,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97300"
   },
   {
     "id": "muldo-ambre",
@@ -2354,7 +2355,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97297"
   },
   {
     "id": "muldo-azur",
@@ -2370,7 +2371,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97299"
   },
   {
     "id": "muldo-corail",
@@ -2386,197 +2387,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pm"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetamande",
-    "name": "Muldo Aigue-marine et Amande",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Amande"
-    ],
-    "stats": "1 PM, 30 Dommages Air, 40 Fuite",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetdore",
-    "name": "Muldo Aigue-marine et Doré",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Doré"
-    ],
-    "stats": "60 Puissance, 1 PM, 30 Dommages Air",
-    "statTags": [
-      "pm",
-      "puissance",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetebene",
-    "name": "Muldo Aigue-marine et Ebène",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Ebène"
-    ],
-    "stats": "1 PM, 30 Dommages Air, 10% Résistance Air",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetemeraude",
-    "name": "Muldo Aigue-marine et Emeraude",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Emeraude"
-    ],
-    "stats": "1 PM, 30 Dommages Air, 30 Dommages critiques",
-    "statTags": [
-      "pm",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetindigo",
-    "name": "Muldo Aigue-marine et Indigo",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Indigo"
-    ],
-    "stats": "1 PM, 30 Dommages Air, 10% Résistance Eau",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetivoire",
-    "name": "Muldo Aigue-marine et Ivoire",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Ivoire"
-    ],
-    "stats": "1 PM, 30 Dommages Air, 40 Esquive PA",
-    "statTags": [
-      "pm",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetorchidee",
-    "name": "Muldo Aigue-marine et Orchidée",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Orchidée"
-    ],
-    "stats": "1 PM, 30 Dommages Air, 10% Résistance Feu",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetpourpre",
-    "name": "Muldo Aigue-marine et Pourpre",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Pourpre"
-    ],
-    "stats": "1 PM, 30 Dommages Air, 10% Résistance Terre",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetprune",
-    "name": "Muldo Aigue-marine et Prune",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Prune"
-    ],
-    "stats": "8% Chance critique, 1 PM, 30 Dommages Air",
-    "statTags": [
-      "pm",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetroux",
-    "name": "Muldo Aigue-marine et Roux",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Roux"
-    ],
-    "stats": "1 PM, 30 Dommages Air, 40 Tacle",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-aiguemarineetturquoise",
-    "name": "Muldo Aigue-marine et Turquoise",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Aigue-marine",
-      "Muldo Turquoise"
-    ],
-    "stats": "1 PM, 30 Dommages Air, 40 Esquive PM",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97298"
   },
   {
     "id": "muldo-ambreetaiguemarine",
@@ -2593,7 +2404,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97314"
   },
   {
     "id": "muldo-ambreetamande",
@@ -2610,7 +2421,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97306"
   },
   {
     "id": "muldo-ambreetazur",
@@ -2627,7 +2438,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97313"
   },
   {
     "id": "muldo-ambreetcorail",
@@ -2644,7 +2455,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97312"
   },
   {
     "id": "muldo-ambreetdore",
@@ -2662,7 +2473,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "puissance",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97301"
   },
   {
     "id": "muldo-ambreetebene",
@@ -2679,25 +2490,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-ambreetemeraude",
-    "name": "Muldo Ambre et Emeraude",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Ambre",
-      "Muldo Emeraude"
-    ],
-    "stats": "1 PM, 30 Dommages Terre, 30 Dommages critiques",
-    "statTags": [
-      "pm",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97302"
   },
   {
     "id": "muldo-ambreetindigo",
@@ -2714,7 +2507,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97303"
   },
   {
     "id": "muldo-ambreetivoire",
@@ -2729,9 +2522,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PM, 30 Dommages Terre, 40 Esquive PA",
     "statTags": [
       "pm",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97308"
   },
   {
     "id": "muldo-ambreetorchidee",
@@ -2748,7 +2541,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97305"
   },
   {
     "id": "muldo-ambreetpourpre",
@@ -2765,25 +2558,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-ambreetprune",
-    "name": "Muldo Ambre et Prune",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Ambre",
-      "Muldo Prune"
-    ],
-    "stats": "8% Chance critique, 1 PM, 30 Dommages Terre",
-    "statTags": [
-      "pm",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97304"
   },
   {
     "id": "muldo-ambreetroux",
@@ -2800,7 +2575,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97307"
   },
   {
     "id": "muldo-ambreetturquoise",
@@ -2817,427 +2592,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pm",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretaiguemarine",
-    "name": "Muldo Azur et Aigue-marine",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Aigue-marine"
-    ],
-    "stats": "1 PM, 30 Dommages Eau, 30 Dommages Air",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretamande",
-    "name": "Muldo Azur et Amande",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Amande"
-    ],
-    "stats": "1 PM, 30 Dommages Eau, 40 Fuite",
-    "statTags": [
-      "pm"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretdore",
-    "name": "Muldo Azur et Doré",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Doré"
-    ],
-    "stats": "60 Puissance, 1 PM, 30 Dommages Eau",
-    "statTags": [
-      "pm",
-      "puissance"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretebene",
-    "name": "Muldo Azur et Ebène",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Ebène"
-    ],
-    "stats": "1 PM, 30 Dommages Eau, 10% Résistance Air",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretemeraude",
-    "name": "Muldo Azur et Emeraude",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Emeraude"
-    ],
-    "stats": "1 PM, 30 Dommages Eau, 30 Dommages critiques",
-    "statTags": [
-      "pm",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretindigo",
-    "name": "Muldo Azur et Indigo",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Indigo"
-    ],
-    "stats": "1 PM, 30 Dommages Eau, 10% Résistance Eau",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretivoire",
-    "name": "Muldo Azur et Ivoire",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Ivoire"
-    ],
-    "stats": "1 PM, 30 Dommages Eau, 40 Esquive PA",
-    "statTags": [
-      "pm",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretorchidee",
-    "name": "Muldo Azur et Orchidée",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Orchidée"
-    ],
-    "stats": "1 PM, 30 Dommages Eau, 10% Résistance Feu",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretpourpre",
-    "name": "Muldo Azur et Pourpre",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Pourpre"
-    ],
-    "stats": "1 PM, 30 Dommages Eau, 10% Résistance Terre",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretprune",
-    "name": "Muldo Azur et Prune",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Prune"
-    ],
-    "stats": "8% Chance critique, 1 PM, 30 Dommages Eau",
-    "statTags": [
-      "pm",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretroux",
-    "name": "Muldo Azur et Roux",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Roux"
-    ],
-    "stats": "1 PM, 30 Dommages Eau, 40 Tacle",
-    "statTags": [
-      "pm"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-azuretturquoise",
-    "name": "Muldo Azur et Turquoise",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Azur",
-      "Muldo Turquoise"
-    ],
-    "stats": "1 PM, 30 Dommages Eau, 40 Esquive PM",
-    "statTags": [
-      "pm"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetaiguemarine",
-    "name": "Muldo Corail et Aigue-marine",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Aigue-marine"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 30 Dommages Air",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetamande",
-    "name": "Muldo Corail et Amande",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Amande"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 40 Fuite",
-    "statTags": [
-      "pm"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetazur",
-    "name": "Muldo Corail et Azur",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Azur"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 30 Dommages Eau",
-    "statTags": [
-      "pm"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetdore",
-    "name": "Muldo Corail et Doré",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Doré"
-    ],
-    "stats": "60 Puissance, 1 PM, 30 Dommages Feu",
-    "statTags": [
-      "pm",
-      "puissance"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetebene",
-    "name": "Muldo Corail et Ebène",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Ebène"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 10% Résistance Air",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetemeraude",
-    "name": "Muldo Corail et Emeraude",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Emeraude"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 30 Dommages critiques",
-    "statTags": [
-      "pm",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetindigo",
-    "name": "Muldo Corail et Indigo",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Indigo"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 10% Résistance Eau",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetivoire",
-    "name": "Muldo Corail et Ivoire",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Ivoire"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 40 Esquive PA",
-    "statTags": [
-      "pm",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetorchidee",
-    "name": "Muldo Corail et Orchidée",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Orchidée"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 10% Résistance Feu",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetpourpre",
-    "name": "Muldo Corail et Pourpre",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Pourpre"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 10% Résistance Terre",
-    "statTags": [
-      "pm",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetprune",
-    "name": "Muldo Corail et Prune",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Prune"
-    ],
-    "stats": "8% Chance critique, 1 PM, 30 Dommages Feu",
-    "statTags": [
-      "pm",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetroux",
-    "name": "Muldo Corail et Roux",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Roux"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 40 Tacle",
-    "statTags": [
-      "pm"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
-  },
-  {
-    "id": "muldo-corailetturquoise",
-    "name": "Muldo Corail et Turquoise",
-    "family": "muldo",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Muldo Corail",
-      "Muldo Turquoise"
-    ],
-    "stats": "1 PM, 30 Dommages Feu, 40 Esquive PM",
-    "statTags": [
-      "pm"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97001.png"
+    "img": "/api/assets-dofus/items/97309"
   },
   {
     "id": "volk-ebene",
@@ -3250,7 +2605,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97177.png"
+    "img": "/api/assets-dofus/items/97177"
   },
   {
     "id": "volk-indigo",
@@ -3263,7 +2618,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97176.png"
+    "img": "/api/assets-dofus/items/97176"
   },
   {
     "id": "volk-orchidee",
@@ -3276,7 +2631,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97179.png"
+    "img": "/api/assets-dofus/items/97179"
   },
   {
     "id": "volk-pourpre",
@@ -3290,7 +2645,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97178.png"
+    "img": "/api/assets-dofus/items/97178"
   },
   {
     "id": "volk-indigoetebene",
@@ -3307,7 +2662,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97196.png"
+    "img": "/api/assets-dofus/items/97196"
   },
   {
     "id": "volk-orchideeetebene",
@@ -3324,7 +2679,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97195.png"
+    "img": "/api/assets-dofus/items/97195"
   },
   {
     "id": "volk-orchideeetindigo",
@@ -3341,7 +2696,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97194.png"
+    "img": "/api/assets-dofus/items/97194"
   },
   {
     "id": "volk-pourpreetebene",
@@ -3359,7 +2714,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97193.png"
+    "img": "/api/assets-dofus/items/97193"
   },
   {
     "id": "volk-pourpreetindigo",
@@ -3377,7 +2732,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97192.png"
+    "img": "/api/assets-dofus/items/97192"
   },
   {
     "id": "volk-pourpreetorchidee",
@@ -3395,7 +2750,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97191.png"
+    "img": "/api/assets-dofus/items/97191"
   },
   {
     "id": "volk-amande",
@@ -3410,9 +2765,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PA, 90 Résistance Poussée",
     "statTags": [
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97181.png"
+    "img": "/api/assets-dofus/items/97181"
   },
   {
     "id": "volk-roux",
@@ -3426,9 +2781,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     ],
     "stats": "1 PA, 70 Dommages Poussée",
     "statTags": [
-      "pa",
+      "pa"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97180.png"
+    "img": "/api/assets-dofus/items/97180"
   },
   {
     "id": "volk-amandeetebene",
@@ -3444,9 +2799,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "stats",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97200.png"
+    "img": "/api/assets-dofus/items/97200"
   },
   {
     "id": "volk-amandeetindigo",
@@ -3462,9 +2817,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "stats",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97199.png"
+    "img": "/api/assets-dofus/items/97199"
   },
   {
     "id": "volk-amandeetivoire",
@@ -3479,9 +2834,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PA, 30 Retrait PA, 70 Résistance Poussée",
     "statTags": [
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97202.png"
+    "img": "/api/assets-dofus/items/97202"
   },
   {
     "id": "volk-amandeetorchidee",
@@ -3497,9 +2852,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "stats",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97198.png"
+    "img": "/api/assets-dofus/items/97198"
   },
   {
     "id": "volk-amandeetpourpre",
@@ -3515,9 +2870,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "stats",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97197.png"
+    "img": "/api/assets-dofus/items/97197"
   },
   {
     "id": "volk-amandeetroux",
@@ -3532,9 +2887,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PA, 50 Dommages Poussée, 70 Résistance Poussée",
     "statTags": [
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97201.png"
+    "img": "/api/assets-dofus/items/97201"
   },
   {
     "id": "volk-amandeetturquoise",
@@ -3549,9 +2904,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PA, 30 Retrait PM, 70 Résistance Poussée",
     "statTags": [
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97203.png"
+    "img": "/api/assets-dofus/items/97203"
   },
   {
     "id": "volk-ivoireetebene",
@@ -3569,7 +2924,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97213.png"
+    "img": "/api/assets-dofus/items/97213"
   },
   {
     "id": "volk-ivoireetindigo",
@@ -3587,7 +2942,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97212.png"
+    "img": "/api/assets-dofus/items/97212"
   },
   {
     "id": "volk-ivoireetorchidee",
@@ -3605,7 +2960,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97211.png"
+    "img": "/api/assets-dofus/items/97211"
   },
   {
     "id": "volk-ivoireetpourpre",
@@ -3623,7 +2978,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97210.png"
+    "img": "/api/assets-dofus/items/97210"
   },
   {
     "id": "volk-ivoireetturquoise",
@@ -3638,9 +2993,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PA, 30 Retrait PA, 30 Retrait PM",
     "statTags": [
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97214.png"
+    "img": "/api/assets-dofus/items/97214"
   },
   {
     "id": "volk-rouxetebene",
@@ -3655,9 +3010,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "70 Agilité, 1 PA, 50 Dommages Poussée",
     "statTags": [
       "pa",
-      "stats",
+      "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97207.png"
+    "img": "/api/assets-dofus/items/97207"
   },
   {
     "id": "volk-rouxetindigo",
@@ -3672,9 +3027,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "70 Chance, 1 PA, 50 Dommages Poussée",
     "statTags": [
       "pa",
-      "stats",
+      "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97206.png"
+    "img": "/api/assets-dofus/items/97206"
   },
   {
     "id": "volk-rouxetivoire",
@@ -3689,9 +3044,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PA, 30 Retrait PA, 50 Dommages Poussée",
     "statTags": [
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97208.png"
+    "img": "/api/assets-dofus/items/97208"
   },
   {
     "id": "volk-rouxetorchidee",
@@ -3706,9 +3061,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "70 Intelligence, 1 PA, 50 Dommages Poussée",
     "statTags": [
       "pa",
-      "stats",
+      "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97205.png"
+    "img": "/api/assets-dofus/items/97205"
   },
   {
     "id": "volk-rouxetpourpre",
@@ -3724,9 +3079,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "stats",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97204.png"
+    "img": "/api/assets-dofus/items/97204"
   },
   {
     "id": "volk-rouxetturquoise",
@@ -3741,9 +3096,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PA, 30 Retrait PM, 50 Dommages Poussée",
     "statTags": [
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97209.png"
+    "img": "/api/assets-dofus/items/97209"
   },
   {
     "id": "volk-turquoiseetebene",
@@ -3759,9 +3114,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "stats",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97218.png"
+    "img": "/api/assets-dofus/items/97218"
   },
   {
     "id": "volk-turquoiseetindigo",
@@ -3777,9 +3132,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "stats",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97217.png"
+    "img": "/api/assets-dofus/items/97217"
   },
   {
     "id": "volk-turquoiseetorchidee",
@@ -3795,9 +3150,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "stats",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97216.png"
+    "img": "/api/assets-dofus/items/97216"
   },
   {
     "id": "volk-turquoiseetpourpre",
@@ -3813,9 +3168,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "stats",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97215.png"
+    "img": "/api/assets-dofus/items/97215"
   },
   {
     "id": "volk-ivoire",
@@ -3832,7 +3187,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97182.png"
+    "img": "/api/assets-dofus/items/97182"
   },
   {
     "id": "volk-turquoise",
@@ -3847,9 +3202,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PA, 40 Retrait PM",
     "statTags": [
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97183.png"
+    "img": "/api/assets-dofus/items/97183"
   },
   {
     "id": "volk-emeraudeetamande",
@@ -3865,9 +3220,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "cc",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97230.png"
+    "img": "/api/assets-dofus/items/97230"
   },
   {
     "id": "volk-emeraudeetebene",
@@ -3886,7 +3241,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97229.png"
+    "img": "/api/assets-dofus/items/97229"
   },
   {
     "id": "volk-emeraudeetindigo",
@@ -3905,7 +3260,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97228.png"
+    "img": "/api/assets-dofus/items/97228"
   },
   {
     "id": "volk-emeraudeetivoire",
@@ -3923,7 +3278,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97233.png"
+    "img": "/api/assets-dofus/items/97233"
   },
   {
     "id": "volk-emeraudeetorchidee",
@@ -3942,7 +3297,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97227.png"
+    "img": "/api/assets-dofus/items/97227"
   },
   {
     "id": "volk-emeraudeetpourpre",
@@ -3961,7 +3316,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97226.png"
+    "img": "/api/assets-dofus/items/97226"
   },
   {
     "id": "volk-emeraudeetroux",
@@ -3977,9 +3332,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "cc",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97231.png"
+    "img": "/api/assets-dofus/items/97231"
   },
   {
     "id": "volk-emeraudeetturquoise",
@@ -3995,9 +3350,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "cc",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97234.png"
+    "img": "/api/assets-dofus/items/97234"
   },
   {
     "id": "volk-pruneetamande",
@@ -4013,9 +3368,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "cc",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97223.png"
+    "img": "/api/assets-dofus/items/97223"
   },
   {
     "id": "volk-pruneetebene",
@@ -4034,7 +3389,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97222.png"
+    "img": "/api/assets-dofus/items/97222"
   },
   {
     "id": "volk-pruneetemeraude",
@@ -4052,7 +3407,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97225.png"
+    "img": "/api/assets-dofus/items/97225"
   },
   {
     "id": "volk-pruneetindigo",
@@ -4071,7 +3426,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97221.png"
+    "img": "/api/assets-dofus/items/97221"
   },
   {
     "id": "volk-pruneetivoire",
@@ -4089,7 +3444,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97288.png"
+    "img": "/api/assets-dofus/items/97288"
   },
   {
     "id": "volk-pruneetorchidee",
@@ -4108,7 +3463,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97220.png"
+    "img": "/api/assets-dofus/items/97220"
   },
   {
     "id": "volk-pruneetpourpre",
@@ -4127,7 +3482,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97219.png"
+    "img": "/api/assets-dofus/items/97219"
   },
   {
     "id": "volk-pruneetroux",
@@ -4143,9 +3498,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "cc",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97287.png"
+    "img": "/api/assets-dofus/items/97287"
   },
   {
     "id": "volk-pruneetturquoise",
@@ -4161,9 +3516,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "pa",
       "cc",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97224.png"
+    "img": "/api/assets-dofus/items/97224"
   },
   {
     "id": "volk-dore",
@@ -4180,7 +3535,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "vita",
       "pa"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97186.png"
+    "img": "/api/assets-dofus/items/97186"
   },
   {
     "id": "volk-emeraude",
@@ -4198,7 +3553,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97185.png"
+    "img": "/api/assets-dofus/items/97185"
   },
   {
     "id": "volk-prune",
@@ -4216,7 +3571,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97184.png"
+    "img": "/api/assets-dofus/items/97184"
   },
   {
     "id": "volk-doreetamande",
@@ -4232,9 +3587,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "vita",
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97292.png"
+    "img": "/api/assets-dofus/items/97292"
   },
   {
     "id": "volk-doreetebene",
@@ -4252,7 +3607,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97238.png"
+    "img": "/api/assets-dofus/items/97238"
   },
   {
     "id": "volk-doreetemeraude",
@@ -4271,7 +3626,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97296.png"
+    "img": "/api/assets-dofus/items/97296"
   },
   {
     "id": "volk-doreetindigo",
@@ -4289,7 +3644,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97237.png"
+    "img": "/api/assets-dofus/items/97237"
   },
   {
     "id": "volk-doreetivoire",
@@ -4307,7 +3662,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97293.png"
+    "img": "/api/assets-dofus/items/97293"
   },
   {
     "id": "volk-doreetorchidee",
@@ -4325,7 +3680,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "stats"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97236.png"
+    "img": "/api/assets-dofus/items/97236"
   },
   {
     "id": "volk-doreetpourpre",
@@ -4344,7 +3699,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97235.png"
+    "img": "/api/assets-dofus/items/97235"
   },
   {
     "id": "volk-doreetprune",
@@ -4363,7 +3718,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97295.png"
+    "img": "/api/assets-dofus/items/97295"
   },
   {
     "id": "volk-doreetroux",
@@ -4378,9 +3733,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "200 Vitalité, 1 PA, 50 Dommages Poussée",
     "statTags": [
       "vita",
-      "pa",
+      "pa"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97291.png"
+    "img": "/api/assets-dofus/items/97291"
   },
   {
     "id": "volk-doreetturquoise",
@@ -4396,9 +3751,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "statTags": [
       "vita",
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97294.png"
+    "img": "/api/assets-dofus/items/97294"
   },
   {
     "id": "volk-amethyste",
@@ -4415,7 +3770,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97190.png"
+    "img": "/api/assets-dofus/items/97190"
   },
   {
     "id": "volk-jade",
@@ -4432,7 +3787,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97187.png"
+    "img": "/api/assets-dofus/items/97187"
   },
   {
     "id": "volk-rubis",
@@ -4449,7 +3804,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97188.png"
+    "img": "/api/assets-dofus/items/97188"
   },
   {
     "id": "volk-saphir",
@@ -4466,7 +3821,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97189.png"
+    "img": "/api/assets-dofus/items/97189"
   },
   {
     "id": "volk-amethysteetamande",
@@ -4481,9 +3836,9 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PA, 8% Résistance Air, 70 Résistance Poussée",
     "statTags": [
       "pa",
-      "res",
+      "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97280.png"
+    "img": "/api/assets-dofus/items/97280"
   },
   {
     "id": "volk-amethysteetdore",
@@ -4501,7 +3856,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97286.png"
+    "img": "/api/assets-dofus/items/97286"
   },
   {
     "id": "volk-amethysteetebene",
@@ -4519,7 +3874,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97279.png"
+    "img": "/api/assets-dofus/items/97279"
   },
   {
     "id": "volk-amethysteetemeraude",
@@ -4537,7 +3892,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97285.png"
+    "img": "/api/assets-dofus/items/97285"
   },
   {
     "id": "volk-amethysteetindigo",
@@ -4555,7 +3910,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97278.png"
+    "img": "/api/assets-dofus/items/97278"
   },
   {
     "id": "volk-amethysteetivoire",
@@ -4572,7 +3927,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "pa",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97282.png"
+    "img": "/api/assets-dofus/items/97282"
   },
   {
     "id": "volk-amethysteetorchidee",
@@ -4590,7 +3945,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97277.png"
+    "img": "/api/assets-dofus/items/97277"
   },
   {
     "id": "volk-amethysteetpourpre",
@@ -4608,7 +3963,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "stats",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97276.png"
+    "img": "/api/assets-dofus/items/97276"
   },
   {
     "id": "volk-amethysteetprune",
@@ -4626,7 +3981,7 @@ export const MOUNT_DATABASE: MountInfo[] = [
       "cc",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97284.png"
+    "img": "/api/assets-dofus/items/97284"
   },
   {
     "id": "volk-amethysteetroux",
@@ -4641,709 +3996,8 @@ export const MOUNT_DATABASE: MountInfo[] = [
     "stats": "1 PA, 8% Résistance Air, 50 Dommages Poussée",
     "statTags": [
       "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97281.png"
-  },
-  {
-    "id": "volk-amethysteetturquoise",
-    "name": "Volkorne Améthyste et Turquoise",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Améthyste",
-      "Volkorne Turquoise"
-    ],
-    "stats": "1 PA, 8% Résistance Air, 30 Retrait PM",
-    "statTags": [
-      "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97283.png"
-  },
-  {
-    "id": "volk-jadeetamande",
-    "name": "Volkorne Jade et Amande",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Amande"
-    ],
-    "stats": "1 PA, 8% Résistance Terre, 70 Résistance Poussée",
-    "statTags": [
-      "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97243.png"
-  },
-  {
-    "id": "volk-jadeetamethyste",
-    "name": "Volkorne Jade et Améthyste",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Améthyste"
-    ],
-    "stats": "1 PA, 8% Résistance Terre, 8% Résistance Air",
-    "statTags": [
-      "pa",
       "res"
     ],
-    "img": "https://api.dofusdb.fr/img/items/97252.png"
-  },
-  {
-    "id": "volk-jadeetdore",
-    "name": "Volkorne Jade et Doré",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Doré"
-    ],
-    "stats": "200 Vitalité, 1 PA, 8% Résistance Terre",
-    "statTags": [
-      "vita",
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97249.png"
-  },
-  {
-    "id": "volk-jadeetebene",
-    "name": "Volkorne Jade et Ebène",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Ebène"
-    ],
-    "stats": "70 Agilité, 1 PA, 8% Résistance Terre",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97242.png"
-  },
-  {
-    "id": "volk-jadeetemeraude",
-    "name": "Volkorne Jade et Emeraude",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Emeraude"
-    ],
-    "stats": "7% Chance critique, 1 PA, 8% Résistance Terre",
-    "statTags": [
-      "pa",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97248.png"
-  },
-  {
-    "id": "volk-jadeetindigo",
-    "name": "Volkorne Jade et Indigo",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Indigo"
-    ],
-    "stats": "70 Chance, 1 PA, 8% Résistance Terre",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97241.png"
-  },
-  {
-    "id": "volk-jadeetivoire",
-    "name": "Volkorne Jade et Ivoire",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Ivoire"
-    ],
-    "stats": "1 PA, 8% Résistance Terre, 30 Retrait PA",
-    "statTags": [
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97245.png"
-  },
-  {
-    "id": "volk-jadeetorchidee",
-    "name": "Volkorne Jade et Orchidée",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Orchidée"
-    ],
-    "stats": "70 Intelligence, 1 PA, 8% Résistance Terre",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97240.png"
-  },
-  {
-    "id": "volk-jadeetpourpre",
-    "name": "Volkorne Jade et Pourpre",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Pourpre"
-    ],
-    "stats": "70 Force, 1 PA, 8% Résistance Terre",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97239.png"
-  },
-  {
-    "id": "volk-jadeetprune",
-    "name": "Volkorne Jade et Prune",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Prune"
-    ],
-    "stats": "1 PA, 8% Résistance Terre, 45 Résistance critique",
-    "statTags": [
-      "pa",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97247.png"
-  },
-  {
-    "id": "volk-jadeetroux",
-    "name": "Volkorne Jade et Roux",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Roux"
-    ],
-    "stats": "1 PA, 8% Résistance Terre, 50 Dommages Poussée",
-    "statTags": [
-      "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97244.png"
-  },
-  {
-    "id": "volk-jadeetrubis",
-    "name": "Volkorne Jade et Rubis",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Rubis"
-    ],
-    "stats": "1 PA, 8% Résistance Terre, 8% Résistance Feu",
-    "statTags": [
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97250.png"
-  },
-  {
-    "id": "volk-jadeetsaphir",
-    "name": "Volkorne Jade et Saphir",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Saphir"
-    ],
-    "stats": "1 PA, 8% Résistance Terre, 8% Résistance Eau",
-    "statTags": [
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97251.png"
-  },
-  {
-    "id": "volk-jadeetturquoise",
-    "name": "Volkorne Jade et Turquoise",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Jade",
-      "Volkorne Turquoise"
-    ],
-    "stats": "1 PA, 8% Résistance Terre, 30 Retrait PM",
-    "statTags": [
-      "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97246.png"
-  },
-  {
-    "id": "volk-rubisetamande",
-    "name": "Volkorne Rubis et Amande",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Amande"
-    ],
-    "stats": "1 PA, 8% Résistance Feu, 70 Résistance Poussée",
-    "statTags": [
-      "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97257.png"
-  },
-  {
-    "id": "volk-rubisetamethyste",
-    "name": "Volkorne Rubis et Améthyste",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Améthyste"
-    ],
-    "stats": "1 PA, 8% Résistance Feu, 8% Résistance Air",
-    "statTags": [
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97290.png"
-  },
-  {
-    "id": "volk-rubisetdore",
-    "name": "Volkorne Rubis et Doré",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Doré"
-    ],
-    "stats": "200 Vitalité, 1 PA, 8% Résistance Feu",
-    "statTags": [
-      "vita",
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97263.png"
-  },
-  {
-    "id": "volk-rubisetebene",
-    "name": "Volkorne Rubis et Ebène",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Ebène"
-    ],
-    "stats": "70 Agilité, 1 PA, 8% Résistance Feu",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97256.png"
-  },
-  {
-    "id": "volk-rubisetemeraude",
-    "name": "Volkorne Rubis et Emeraude",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Emeraude"
-    ],
-    "stats": "7% Chance critique, 1 PA, 8% Résistance Feu",
-    "statTags": [
-      "pa",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97262.png"
-  },
-  {
-    "id": "volk-rubisetindigo",
-    "name": "Volkorne Rubis et Indigo",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Indigo"
-    ],
-    "stats": "70 Chance, 1 PA, 8% Résistance Feu",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97255.png"
-  },
-  {
-    "id": "volk-rubisetivoire",
-    "name": "Volkorne Rubis et Ivoire",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Ivoire"
-    ],
-    "stats": "1 PA, 8% Résistance Feu, 30 Retrait PA",
-    "statTags": [
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97259.png"
-  },
-  {
-    "id": "volk-rubisetorchidee",
-    "name": "Volkorne Rubis et Orchidée",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Orchidée"
-    ],
-    "stats": "70 Intelligence, 1 PA, 8% Résistance Feu",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97254.png"
-  },
-  {
-    "id": "volk-rubisetpourpre",
-    "name": "Volkorne Rubis et Pourpre",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Pourpre"
-    ],
-    "stats": "70 Force, 1 PA, 8% Résistance Feu",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97253.png"
-  },
-  {
-    "id": "volk-rubisetprune",
-    "name": "Volkorne Rubis et Prune",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Prune"
-    ],
-    "stats": "1 PA, 8% Résistance Feu, 45 Résistance critique",
-    "statTags": [
-      "pa",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97261.png"
-  },
-  {
-    "id": "volk-rubisetroux",
-    "name": "Volkorne Rubis et Roux",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Roux"
-    ],
-    "stats": "1 PA, 8% Résistance Feu, 50 Dommages Poussée",
-    "statTags": [
-      "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97258.png"
-  },
-  {
-    "id": "volk-rubisetsaphir",
-    "name": "Volkorne Rubis et Saphir",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Saphir"
-    ],
-    "stats": "1 PA, 8% Résistance Feu, 8% Résistance Eau",
-    "statTags": [
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97289.png"
-  },
-  {
-    "id": "volk-rubisetturquoise",
-    "name": "Volkorne Rubis et Turquoise",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Rubis",
-      "Volkorne Turquoise"
-    ],
-    "stats": "1 PA, 8% Résistance Feu, 30 Retrait PM",
-    "statTags": [
-      "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97260.png"
-  },
-  {
-    "id": "volk-saphiretamande",
-    "name": "Volkorne Saphir et Amande",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Amande"
-    ],
-    "stats": "1 PA, 8% Résistance Eau, 70 Résistance Poussée",
-    "statTags": [
-      "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97268.png"
-  },
-  {
-    "id": "volk-saphiretamethyste",
-    "name": "Volkorne Saphir et Améthyste",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Améthyste"
-    ],
-    "stats": "1 PA, 8% Résistance Eau, 8% Résistance Air",
-    "statTags": [
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97275.png"
-  },
-  {
-    "id": "volk-saphiretdore",
-    "name": "Volkorne Saphir et Doré",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Doré"
-    ],
-    "stats": "200 Vitalité, 1 PA, 8% Résistance Eau",
-    "statTags": [
-      "vita",
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97274.png"
-  },
-  {
-    "id": "volk-saphiretebene",
-    "name": "Volkorne Saphir et Ebène",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Ebène"
-    ],
-    "stats": "70 Agilité, 1 PA, 8% Résistance Eau",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97267.png"
-  },
-  {
-    "id": "volk-saphiretemeraude",
-    "name": "Volkorne Saphir et Emeraude",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Emeraude"
-    ],
-    "stats": "7% Chance critique, 1 PA, 8% Résistance Eau",
-    "statTags": [
-      "pa",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97273.png"
-  },
-  {
-    "id": "volk-saphiretindigo",
-    "name": "Volkorne Saphir et Indigo",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Indigo"
-    ],
-    "stats": "70 Chance, 1 PA, 8% Résistance Eau",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97266.png"
-  },
-  {
-    "id": "volk-saphiretivoire",
-    "name": "Volkorne Saphir et Ivoire",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Ivoire"
-    ],
-    "stats": "1 PA, 8% Résistance Eau, 30 Retrait PA",
-    "statTags": [
-      "pa",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97270.png"
-  },
-  {
-    "id": "volk-saphiretorchidee",
-    "name": "Volkorne Saphir et Orchidée",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Orchidée"
-    ],
-    "stats": "70 Intelligence, 1 PA, 8% Résistance Eau",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97265.png"
-  },
-  {
-    "id": "volk-saphiretpourpre",
-    "name": "Volkorne Saphir et Pourpre",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Pourpre"
-    ],
-    "stats": "70 Force, 1 PA, 8% Résistance Eau",
-    "statTags": [
-      "pa",
-      "stats",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97264.png"
-  },
-  {
-    "id": "volk-saphiretprune",
-    "name": "Volkorne Saphir et Prune",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Prune"
-    ],
-    "stats": "1 PA, 8% Résistance Eau, 45 Résistance critique",
-    "statTags": [
-      "pa",
-      "cc",
-      "res"
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97272.png"
-  },
-  {
-    "id": "volk-saphiretroux",
-    "name": "Volkorne Saphir et Roux",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Roux"
-    ],
-    "stats": "1 PA, 8% Résistance Eau, 50 Dommages Poussée",
-    "statTags": [
-      "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97269.png"
-  },
-  {
-    "id": "volk-saphiretturquoise",
-    "name": "Volkorne Saphir et Turquoise",
-    "family": "volkorne",
-    "generation": 10,
-    "type": "bicolore",
-    "parents": [
-      "Volkorne Saphir",
-      "Volkorne Turquoise"
-    ],
-    "stats": "1 PA, 8% Résistance Eau, 30 Retrait PM",
-    "statTags": [
-      "pa",
-      "res",
-    ],
-    "img": "https://api.dofusdb.fr/img/items/97271.png"
+    "img": "/api/assets-dofus/items/97281"
   }
 ];

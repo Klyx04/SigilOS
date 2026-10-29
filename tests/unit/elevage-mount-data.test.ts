@@ -9,11 +9,11 @@ describe("Studio Élevage — Base de données des montures (MàJ 3.7)", () => {
         expect(families.has("volkorne")).toBe(true);
     });
 
-    it("contient 306 montures (66 Dragodindes, 120 Muldos, 120 Volkornes) sur 10 générations", () => {
+    it("contient 228 montures réelles en jeu (66 Dragodindes, 82 Muldos, 80 Volkornes) sur 10 générations", () => {
         const byFamily = (f: MountInfo["family"]) => MOUNT_DATABASE.filter(m => m.family === f);
         expect(byFamily("dragodinde")).toHaveLength(66);
-        expect(byFamily("muldo")).toHaveLength(120);
-        expect(byFamily("volkorne")).toHaveLength(120);
+        expect(byFamily("muldo")).toHaveLength(82);
+        expect(byFamily("volkorne")).toHaveLength(80);
 
         for (const f of ["dragodinde", "muldo", "volkorne"] as const) {
             const gens = byFamily(f).map(m => m.generation);
@@ -33,7 +33,7 @@ describe("Studio Élevage — Base de données des montures (MàJ 3.7)", () => {
             expect(mount.generation).toBeLessThanOrEqual(10);
             expect(mount.stats).toBeTruthy();
             expect(mount.statTags.length).toBeGreaterThan(0);
-            expect(mount.img).toMatch(/^https:\/\/api\.dofusdb\.fr\/img\/items\/\d+\.png$/);
+            expect(mount.img).toMatch(/^\/api\/assets-dofus\/items\/\d+$/);
         }
     });
 

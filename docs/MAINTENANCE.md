@@ -787,7 +787,7 @@ salon de notification est un **forum** (un post de forum est un thread).
 - [ ] Vérifier backups R2 (existence + taille)
 - [ ] Analyser logs maintenance (erreurs ?)
 - [ ] Vérifier croissance DB (`df -h`)
-- [ ] Tester restauration backup (dry-run)
+- [ ] Tester restauration backup (`bash scripts/restore-drill.sh beta` — conteneur jetable, aucun impact)
 - [ ] Vérifier mises à jour système (`apt list --upgradable`)
 - [ ] Vérifier God → Système & Infra (CPU, RAM, disque, Redis, DB, conteneurs, crons)
 - [ ] Vérifier certificats SSL Caddy

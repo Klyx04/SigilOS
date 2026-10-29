@@ -104,7 +104,7 @@ fi
 
 echo "[3/5] Déchiffrement…"
 DRILL_DEC="$BACKUP_DIR/${LATEST%.gpg}"
-echo "$BACKUP_ENCRYPTION_KEY" | gpg --batch --yes --passphrase-fd 0 --decrypt -o "$DRILL_DEC" "$DRILL_FILE"
+echo "$BACKUP_ENCRYPTION_KEY" | gpg --batch --pinentry-mode loopback --yes --passphrase-fd 0 --decrypt -o "$DRILL_DEC" "$DRILL_FILE"
 
 echo "[4/5] PostgreSQL jetable ($DRILL_IMAGE, 127.0.0.1:$DRILL_PORT)…"
 docker rm -f "$DRILL_CONTAINER" >/dev/null 2>&1 || true

@@ -126,7 +126,7 @@ fi
 # Decrypt
 DECRYPTED_FILE="${TARGET_FILE%.gpg}"
 echo "🔓 Decrypting..."
-echo "$BACKUP_ENCRYPTION_KEY" | gpg --batch --yes --passphrase-fd 0 --decrypt -o "$DECRYPTED_FILE" "$TARGET_FILE"
+echo "$BACKUP_ENCRYPTION_KEY" | gpg --batch --pinentry-mode loopback --yes --passphrase-fd 0 --decrypt -o "$DECRYPTED_FILE" "$TARGET_FILE"
 
 if [ $? -ne 0 ] || [ ! -s "$DECRYPTED_FILE" ]; then
     echo "❌ Decryption failed! Check BACKUP_ENCRYPTION_KEY."

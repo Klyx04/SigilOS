@@ -78,6 +78,16 @@ describe("Sauvegarde R2 — un succès se prouve", () => {
         // passer à `printf` rendrait illisibles tous les dumps déjà déposés.
         expect(backup()).toMatch(/echo "\$BACKUP_ENCRYPTION_KEY" \| gpg/);
     });
+
+    it("GPG ne demande jamais la phrase secrète (loopback, pas d agent)", () => {
+        // Depuis GPG 2.1, `--passphrase-fd` seul est ignoré : gpg-agent ouvre une
+        // boîte de saisie (mesuré le 29/10/2026). En cron, sans terminal → échec
+        // du chiffrement, donc plus aucune sauvegarde.
+        for (const source of [backup(), restore(), read("scripts/restore-drill.sh")]) {
+            expect(source).toMatch(/gpg --batch --pinentry-mode loopback/);
+            expect(source).not.toMatch(/gpg --batch --yes --passphrase-fd/);
+        }
+    });
 });
 
 describe("Restauration — elle ne ment plus sur son résultat", () => {

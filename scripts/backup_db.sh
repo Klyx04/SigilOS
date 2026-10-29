@@ -282,7 +282,11 @@ echo "[$(date)] 🔒 Encrypting..."
 # secrète. Les archives déjà déposées sur R2 ont été chiffrées ainsi — changer
 # l'un rendrait toutes les anciennes illisibles.
 set +e
-echo "$BACKUP_ENCRYPTION_KEY" | gpg --batch --yes --passphrase-fd 0 --symmetric --cipher-algo AES256 -o "$FILENAME_ENC_PATH" "$BACKUP_DIR/$FILENAME_RAW"
+# `--pinentry-mode loopback` : depuis GPG 2.1, `--passphrase-fd` seul est ignoré
+# et gpg-agent ouvre une boîte de saisie (mesuré le 29/10/2026). En cron il n'y a
+# pas de terminal : le chiffrement échouerait. Loopback = phrase lue sur stdin,
+# jamais d'agent, jamais d'invite.
+echo "$BACKUP_ENCRYPTION_KEY" | gpg --batch --pinentry-mode loopback --yes --passphrase-fd 0 --symmetric --cipher-algo AES256 -o "$FILENAME_ENC_PATH" "$BACKUP_DIR/$FILENAME_RAW"
 GPG_STATUS=$?
 set -e
 

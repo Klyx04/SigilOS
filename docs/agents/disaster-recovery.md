@@ -105,6 +105,14 @@ supprime le conteneur **et** le dump déchiffré. Ni la bêta ni la prod ne sont
 - `DRILL_KEEP=1 bash scripts/restore-drill.sh beta` garde le conteneur pour fouiller à la main.
 - Ce que le script imprime vaut comme **RTO mesuré** : note la durée et les compteurs dans ce fichier.
 
+### Dernière répétition mesurée
+
+| Date | Dump rejoué | Résultat | Durée |
+|---|---|---|---|
+| 29/10/2026 | `sigilos_beta_2026-10-27_03-00-01.sql.gz.gpg` | 8 tables contrôlées, compteurs **identiques** à la source (seul écart : `PlayerDofusProgress` 970 vs 988 — la bêta avait avancé de 18 lignes depuis le dump) | non instrumentée lors de cette passe (le script affiche désormais sa durée) |
+
+> Le dump du 27/10 était **antérieur** à `--if-exists` : la passe a produit 2 avertissements « does not exist » tolérés, sans conséquence sur les données restaurées.
+
 ---
 
 ## 🔄 Redémarrage des Conteneurs

@@ -63,4 +63,12 @@ describe("Durée d'essai réglable par le staff", () => {
         );
         expect(client).not.toContain("valider-recrue");
     });
+
+    it("l'embed de fin d'essai ping les rôles staff autorisés (jamais un ID en dur)", () => {
+        const source = read("src/server/actions/trial-end-actions.ts");
+        expect(source).toContain('perms.includes("staff:member_mgmt")');
+        expect(source).toContain("<@&${roleId}>");
+        // Aucun rôle codé en dur : la liste vient de `rolesMapping`.
+        expect(source).toContain("rolesMapping: true");
+    });
 });

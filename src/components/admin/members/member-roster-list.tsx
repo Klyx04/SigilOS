@@ -22,6 +22,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { describeMemberTrial, type MemberTrialTone } from "@/lib/member-registry";
 import {
     DEFAULT_ROSTER_FILTERS,
     DEFAULT_ROSTER_SORT,
@@ -93,13 +94,45 @@ function seniorityLabel(days: number | null): string {
     return months > 0 ? `${years} an${years > 1 ? "s" : ""} ${months} mois` : `${years} an${years > 1 ? "s" : ""}`;
 }
 
-function trialLabel(row: RosterRow): string {
-    if (!row.trial) return "—";
-    if (row.trial.validated) return "Validé";
-    if (row.trial.decision === "prolonge") return "Prolongé";
-    return row.trial.remainingDays !== null && row.trial.remainingDays >= 0
-        ? `Essai · ${row.trial.remainingDays} j`
-        : "En essai";
+/**
+ * Couleurs d'essai (demande du 29/10/2026) : vert validé · bleu **second** essai ·
+ * jaune en cours · rouge échu. La règle de libellé vit dans `member-registry`.
+ */
+const TRIAL_TONE_CLASS: Record<MemberTrialTone, string> = {
+    validated: "border-success/40 text-success",
+    extended: "border-info/40 text-info",
+    running: "border-warning/40 text-warning",
+    expired: "border-danger/40 text-danger",
+    undated: "border-border-strong text-muted-foreground",
+};
+
+function TrialBadge({ row }: { row: RosterRow }) {
+    const description = describeMemberTrial(row.trial);
+    if (!description) return <span className="text-xs text-muted-foreground">—</span>;
+    return (
+        <Badge
+            variant="outline"
+            className={cn("whitespace-nowrap text-caption font-medium", TRIAL_TONE_CLASS[description.tone])}
+        >
+            {description.label}
+        </Badge>
+    );
+}
+
+/** Recruteur : son avatar Discord à côté de son nom (jamais l'ID). */
+function RecruiterCell({ row }: { row: RosterRow }) {
+    if (!row.recruiter) return <span className="text-xs text-muted-foreground">—</span>;
+    return (
+        <span className="flex min-w-0 items-center gap-2">
+            <Avatar className="h-5 w-5 shrink-0 rounded-full">
+                <DiscordAvatarImage src={row.recruiter.avatar} alt="" className="object-cover" />
+                <AvatarFallback className="rounded-full text-[9px]">
+                    {row.recruiter.name.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+            </Avatar>
+            <span className="truncate text-xs text-muted-foreground">{row.recruiter.name}</span>
+        </span>
+    );
 }
 
 function StatusBadge({ row }: { row: RosterRow }) {
@@ -394,9 +427,11 @@ export function MemberRosterList({
                                         <TableCell className="text-xs tabular-nums text-muted-foreground">
                                             {seniorityLabel(row.seniorityDays)}
                                         </TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">{trialLabel(row)}</TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">
-                                            {row.recruiter?.name ?? "—"}
+                                        <TableCell>
+                                            <TrialBadge row={row} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <RecruiterCell row={row} />
                                         </TableCell>
                                         <TableCell className="text-right text-muted-foreground">
                                             <ChevronRight className="ml-auto h-4 w-4" />
@@ -432,11 +467,15 @@ export function MemberRosterList({
                                     </div>
                                     <div>
                                         <dt className="text-caption uppercase text-muted-foreground">Essai</dt>
-                                        <dd className="text-xs text-foreground">{trialLabel(row)}</dd>
+                                        <dd>
+                                            <TrialBadge row={row} />
+                                        </dd>
                                     </div>
                                     <div>
                                         <dt className="text-caption uppercase text-muted-foreground">Recruteur</dt>
-                                        <dd className="text-xs text-foreground">{row.recruiter?.name ?? "—"}</dd>
+                                        <dd className="text-xs text-foreground">
+                                            <RecruiterCell row={row} />
+                                        </dd>
                                     </div>
                                 </dl>
                             </button>

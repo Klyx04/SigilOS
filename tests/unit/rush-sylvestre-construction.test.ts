@@ -1,20 +1,18 @@
 /**
- * Gardes — **« Mode Construction » du guide Rush Sylvestre** (toggle God → page PUBLIQUE).
+ * Gardes — **les deux « En construction » du guide Rush Sylvestre** (membres ⇄ page publique).
  *
- * 🎯 Demande user (22/09/2026, verbatim) : « je veux maintenant un toggle côté rush sylvestre god
- * pour mettre "en construction arrivée du guide dans les jours qui suivent !" pour le guide
- * sylvestre public ».
+ * 🎯 Demande user (29/10/2026, verbatim) : « je veux ca » — *construction en interne, guide visible
+ * en public*. Le 22/09/2026, le même drapeau `OptimizedGuide.isUnderConstruction` pilotait la vue
+ * MEMBRES et la page PUBLIQUE : impossible d'ouvrir le guide au public en laissant l'espace membres
+ * en chantier. Décision produit : **deux drapeaux**, une surface chacun.
  *
- * 🔍 Ce qui existait déjà (aucun doublon créé) : le toggle « Mode Construction » de
- * `/god/rush-sylvestre` écrivait bien `OptimizedGuide.isUnderConstruction`, mais **seule la vue
- * MEMBRES** le lisait (`RushTimelineClient`, `DofusQuestHub`) ⇒ la page **publique**
- * `/guides/rush-sylvestre` servait le guide interactif complet quelle que soit la valeur, et l'avis
- * d'arrivée était impossible à poser.
- *
- * 🛡️ Ce que ce test verrouille : ① une seule source de vérité (le champ existant, aucun second
- * drapeau) ; ② la page publique lit l'état et sert l'avis **au lieu** du guide interactif ; ③ le
- * toggle God invalide la route publique (ISR 1 h ⇒ sinon jusqu'à une heure de retard) ; ④ pas de
- * `HowTo` schema.org ni de promesse de contenu sur une page de chantier ; ⑤ libellés FR **et** EN.
+ * 🛡️ Ce que ce test verrouille : ① `isUnderConstruction` (membres) et `isPublicUnderConstruction`
+ * (page publique + sitemap) sont **indépendants**, et aucune surface ne lit celui de l'autre ;
+ * ② la page publique naît « en construction » (`@default(true)`) : aucun déploiement ne l'ouvre par
+ * surprise ; ③ la page publique sert l'avis **au lieu** du guide quand son drapeau est actif, et le
+ * toggle God invalide la route (ISR 1 h) ; ④ pas de `HowTo` ni de promesse de contenu sur une page
+ * de chantier ; ⑤ libellés FR **et** EN ; ⑥ la fondation du bloc B (slug figé + publication
+ * opt-in) est en base et la migration est additive.
  */
 
 import { describe, it, expect } from "vitest";
@@ -30,17 +28,28 @@ const PAGE = codeOf("src/app/guides/rush-sylvestre/page.tsx");
 const GOD_PAGE = codeOf("src/app/god/rush-sylvestre/page.tsx");
 const GOD_CLIENT = codeOf("src/app/god/rush-sylvestre/RushSylvestreAdminClient.tsx");
 const ACTIONS = codeOf("src/server/actions/optimized-guide-actions.ts");
+/** Surfaces MEMBRES : elles lisent le drapeau interne, jamais celui de la page publique. */
+const RUSH_TIMELINE = codeOf("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx");
+const QUEST_HUB = codeOf("src/components/dofus-quests/DofusQuestHub.tsx");
 const FR = codeOf("src/lib/i18n/locales/fr.ts");
 const EN = codeOf("src/lib/i18n/locales/en.ts");
 
 describe("toggle God « Mode Construction » → page publique Sylvestre", () => {
-    it("une seule source de vérité : le champ qui existait déjà (aucun second drapeau)", () => {
-        // Le toggle God écrit `isUnderConstruction` (champ unique du guide)…
+    it("deux surfaces, deux drapeaux : l'espace membres et la page publique sont indépendants", () => {
+        // Le studio écrit les DEUX champs (un toggle chacun)…
         expect(GOD_CLIENT).toMatch(/handleToggle\("isUnderConstruction"\)/);
+        expect(GOD_CLIENT).toMatch(/handleToggle\("isPublicUnderConstruction"\)/);
         expect(ACTIONS).toMatch(/export async function updateRushSylvestreSettings\(data: \{/);
         expect(ACTIONS).toMatch(/isUnderConstruction\?: boolean;/);
-        // …et la page publique lit CE champ, jamais un drapeau parallèle.
-        expect(PAGE).toMatch(/const isUnderConstruction = !!guide\.isUnderConstruction;/);
+        expect(ACTIONS).toMatch(/isPublicUnderConstruction\?: boolean;/);
+        // …la page PUBLIQUE lit le drapeau public, jamais l'avis des membres…
+        expect(PAGE).toMatch(/const isUnderConstruction = !!guide\.isPublicUnderConstruction;/);
+        expect(PAGE).not.toMatch(/guide\.isUnderConstruction;/);
+        // …et les surfaces MEMBRES gardent le leur, sans jamais lire le drapeau public.
+        expect(RUSH_TIMELINE).toMatch(/guide\.isUnderConstruction/);
+        expect(RUSH_TIMELINE).not.toMatch(/isPublicUnderConstruction/);
+        expect(QUEST_HUB).toMatch(/rushSylvestreGuide\?\.isUnderConstruction/);
+        expect(QUEST_HUB).not.toMatch(/isPublicUnderConstruction/);
     });
 
     it("la page publique sert l'avis d'arrivée au lieu du guide interactif", () => {
@@ -78,7 +87,9 @@ describe("toggle God « Mode Construction » → page publique Sylvestre", () =>
     it("le God sait où regarder : lien public, état courant, description du toggle", () => {
         expect(GOD_CLIENT).toMatch(/URL publique :/);
         expect(GOD_CLIENT).toMatch(/href="\/guides\/rush-sylvestre"/);
-        expect(GOD_CLIENT).toMatch(/page publique \/guides\/rush-sylvestre/);
+        expect(GOD_CLIENT).toMatch(/En construction — page publique/);
+        // L'indicateur d'état lit le drapeau public (jamais celui de l'espace membres).
+        expect(GOD_CLIENT).toMatch(/\{isPublicUnderConstruction \? " · en construction" : " · publiée"\}/);
         // Garde d'accès de la page God (super-admin OU brique game-data-rush).
         expect(GOD_PAGE).toMatch(/canAccessBrick\("game-data-rush"\)/);
         expect(GOD_PAGE).toMatch(/if \(!isGod\) redirect\("\/dashboard"\);/);
@@ -91,6 +102,37 @@ describe("toggle God « Mode Construction » → page publique Sylvestre", () =>
         }
         // Message exact demandé (l'apostrophe est testée en `.` : droite ou typographique).
         expect(FR).toMatch(/underConstructionHint: "L.arrivée du guide est prévue dans les jours qui suivent !"/);
+    });
+});
+
+describe("schéma — public fermé au déploiement, et fondation du bloc B", () => {
+    const SCHEMA = readFileSync("prisma/schema.prisma", "utf8");
+    const MIGRATION = readFileSync(
+        "prisma/migrations/20270121000000_rush_construction_publique/migration.sql",
+        "utf8"
+    );
+
+    it("la page publique naît « en construction » : aucun déploiement ne l'ouvre par surprise", () => {
+        expect(SCHEMA).toMatch(/isPublicUnderConstruction Boolean\s+@default\(true\)/);
+        expect(MIGRATION).toMatch(/"isPublicUnderConstruction" BOOLEAN NOT NULL DEFAULT true/);
+    });
+
+    it("le drapeau interne garde son défaut d'origine (aucune régression membres)", () => {
+        expect(SCHEMA).toMatch(/isUnderConstruction Boolean\s+@default\(false\)/);
+    });
+
+    it("bloc B : slug FIGÉ par quête et publication opt-in", () => {
+        // Le slug est stocké (jamais recalculé depuis le nom) ⇒ un renommage ne casse aucune URL.
+        expect(SCHEMA).toMatch(/publicSlug\s+String\?\s+@unique/);
+        // Une quête ajoutée dans le studio ne crée aucune page tant qu'elle n'est pas publiée.
+        expect(SCHEMA).toMatch(/isPublished Boolean\s+@default\(false\)/);
+        expect(MIGRATION).toMatch(/CREATE UNIQUE INDEX IF NOT EXISTS "GuideSequence_publicSlug_key"/);
+    });
+
+    it("la migration est additive et rejouable (aucun DROP, aucune suppression de donnée)", () => {
+        expect(MIGRATION).not.toMatch(/\bDROP\b/i);
+        expect(MIGRATION).not.toMatch(/\bDELETE\b/i);
+        expect((MIGRATION.match(/ADD COLUMN IF NOT EXISTS/g) ?? []).length).toBe(3);
     });
 });
 

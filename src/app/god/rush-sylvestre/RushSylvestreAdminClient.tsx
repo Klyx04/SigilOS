@@ -140,6 +140,8 @@ type Guide = {
   description: string | null;
   isActive: boolean;
   isUnderConstruction: boolean;
+  /** « En construction » côté PAGE PUBLIQUE + sitemap — indépendant de l'avis membres. */
+  isPublicUnderConstruction: boolean;
   displayMode: string;
   milestones: Milestone[];
 };
@@ -264,6 +266,7 @@ export function RushSylvestreAdminClient({
   const [isPending, startTransition] = useTransition();
   const [isActive, setIsActive] = useState(initialGuide.isActive);
   const [isUnderConstruction, setIsUnderConstruction] = useState(initialGuide.isUnderConstruction);
+  const [isPublicUnderConstruction, setIsPublicUnderConstruction] = useState(initialGuide.isPublicUnderConstruction);
 
   // Scroll to top/bottom state
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -620,19 +623,26 @@ export function RushSylvestreAdminClient({
     });
   }, [router]);
 
-  const handleToggle = useCallback((field: "isActive" | "isUnderConstruction") => {
-    const next = field === "isActive" ? !isActive : !isUnderConstruction;
-    if (field === "isActive") setIsActive(next); else setIsUnderConstruction(next);
+  const handleToggle = useCallback((field: "isActive" | "isUnderConstruction" | "isPublicUnderConstruction") => {
+    const next =
+      field === "isActive" ? !isActive
+        : field === "isUnderConstruction" ? !isUnderConstruction
+          : !isPublicUnderConstruction;
+    if (field === "isActive") setIsActive(next);
+    else if (field === "isUnderConstruction") setIsUnderConstruction(next);
+    else setIsPublicUnderConstruction(next);
     startTransition(async () => {
       try {
         await updateRushSylvestreSettings({ [field]: next });
         toast.success("Paramètre mis à jour ✓");
       } catch (e: any) {
-        if (field === "isActive") setIsActive(!next); else setIsUnderConstruction(!next);
+        if (field === "isActive") setIsActive(!next);
+        else if (field === "isUnderConstruction") setIsUnderConstruction(!next);
+        else setIsPublicUnderConstruction(!next);
         toast.error(e.message);
       }
     });
-  }, [isActive, isUnderConstruction]);
+  }, [isActive, isUnderConstruction, isPublicUnderConstruction]);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white" data-rush-admin-root>
@@ -1019,14 +1029,16 @@ export function RushSylvestreAdminClient({
               <h2 className="text-sm font-black text-white uppercase tracking-wider">Paramètres du guide</h2>
               <ToggleRow label="Guide actif" description="Rend le guide visible aux membres" value={isActive} onToggle={() => handleToggle("isActive")} disabled={isPending} color="emerald" />
               <div className="h-px bg-white/5" />
-              <ToggleRow label="Mode Construction" description='Affiche « En construction » : guide membres ET page publique /guides/rush-sylvestre (le guide interactif y est remplacé par l&apos;avis d&apos;arrivée)' value={isUnderConstruction} onToggle={() => handleToggle("isUnderConstruction")} disabled={isPending} color="amber" />
+              <ToggleRow label="En construction — espace membres" description="Remplace le guide par l'avis d'arrivée dans le tableau de bord et le hub de quêtes. Aucun effet sur la page publique." value={isUnderConstruction} onToggle={() => handleToggle("isUnderConstruction")} disabled={isPending} color="amber" />
+              <div className="h-px bg-white/5" />
+              <ToggleRow label="En construction — page publique" description="Sert l'avis d'arrivée sur /guides/rush-sylvestre, la passe en noindex et la retire du sitemap. Éteint = guide public et indexable." value={isPublicUnderConstruction} onToggle={() => handleToggle("isPublicUnderConstruction")} disabled={isPending} color="amber" />
               <div className="h-px bg-white/5" />
               <div className="p-3 bg-zinc-800/60 rounded-xl text-caption text-zinc-500 space-y-1">
                 <p><span className="text-zinc-400 font-bold">Slug :</span> rush-sylvestre</p>
                 <p><span className="text-zinc-400 font-bold">Mode :</span> TIMELINE</p>
                 <p><span className="text-zinc-400 font-bold">URL membres :</span> /dashboard/[guildId]/quetes-dofus/guide/rush-sylvestre</p>
-                {/* La page PUBLIQUE lit le même `isUnderConstruction` : on donne le lien direct
-                    (et son état) pour contrôler le rendu sans chercher l'URL. */}
+                {/* La page PUBLIQUE lit `isPublicUnderConstruction` (drapeau distinct) : on donne le
+                    lien direct et son état pour contrôler le rendu sans chercher l'URL. */}
                 <p>
                   <span className="text-zinc-400 font-bold">URL publique :</span>{" "}
                   <a
@@ -1037,8 +1049,8 @@ export function RushSylvestreAdminClient({
                   >
                     /guides/rush-sylvestre
                   </a>
-                  <span className={isUnderConstruction ? "text-amber-400" : "text-zinc-500"}>
-                    {isUnderConstruction ? " · en construction" : " · publiée"}
+                  <span className={isPublicUnderConstruction ? "text-amber-400" : "text-zinc-500"}>
+                    {isPublicUnderConstruction ? " · en construction" : " · publiée"}
                   </span>
                 </p>
               </div>
@@ -1265,15 +1277,23 @@ function PreviewStat({ label, value }: { label: string; value: number }) {
 function ToggleRow({ label, description, value, onToggle, disabled, color }: { label: string; description: string; value: boolean; onToggle: () => void; disabled: boolean; color: "emerald" | "amber" }) {
   const on = color === "emerald" ? "bg-emerald-500 border-emerald-400" : "bg-amber-500 border-amber-400";
   return (
-    <div className="flex items-center justify-between">
-      <div>
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
         <p className="text-sm font-bold text-white">{label}</p>
-        <p className="text-caption text-zinc-500">{description}</p>
+        {/* `break-words` : une description longue (URL, « En construction ») ne doit jamais
+            élargir la ligne au-delà de la carte — sinon le bouton part hors du cadre. */}
+        <p className="text-caption text-zinc-500 break-words">{description}</p>
       </div>
-      <button onClick={onToggle} disabled={disabled}
-        className={`relative w-12 h-6 rounded-full border transition-all disabled:opacity-50 ${value ? on : "bg-zinc-800 border-zinc-700"}`}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
+        onClick={onToggle}
+        disabled={disabled}
+        className={`relative mt-0.5 h-6 w-12 shrink-0 rounded-full border transition-all disabled:opacity-50 ${value ? on : "bg-zinc-800 border-zinc-700"}`}
       >
-        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${value ? "left-6" : "left-0.5"}`} />
+        <div className={`pointer-events-none absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${value ? "left-6" : "left-0.5"}`} />
       </button>
     </div>
   );

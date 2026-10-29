@@ -9,6 +9,16 @@
 
 ## 0. Reprise immédiate
 
+- **Livré le 29/10/2026 — Rush : deux « En construction » (membres ⇄ page publique) + fondation du bloc B (branche `feat/rush-construction-publique`).**
+  ① **Décision produit** : le drapeau unique `isUnderConstruction` pilotait la vue **membres** ET la page publique — impossible d'ouvrir le guide au public en laissant l'espace interne en chantier. Nouveau champ `OptimizedGuide.isPublicUnderConstruction` (**`@default(true)`** ⇒ la page naît « en construction », donc **non indexable au déploiement** ; elle s'ouvre d'un clic depuis le studio) ; `isUnderConstruction` garde son sens **membres** (`@default(false)`).
+  ② **Trois surfaces, trois lectures** : page publique + sitemap → drapeau **public** ; `RushTimelineClient` + `DofusQuestHub` → drapeau **interne** ; studio `/god/rush-sylvestre` → **deux toggles** explicites + indicateur d'état public. Aucune surface ne lit le drapeau de l'autre.
+  ③ **UI** : `ToggleRow` corrigé (`min-w-0` + `shrink-0` + `gap` ; `role="switch"` + `aria-checked`) — la description longue poussait le bouton **hors de sa carte**.
+  ④ **Bloc B (fondation seulement)** : `GuideSequence.publicSlug` (**unique**) + `isPublished` (`@default(false)`) — le slug sera **figé** à la publication (jamais recalculé depuis le nom : `subGuideRef` porte désormais le nom, donc un renommage casserait une URL indexée) et une quête ajoutée ne crée **aucune** page tant qu'elle n'est pas publiée.
+  **Preuves** : `rush-sylvestre-construction` **11 cas** (2 surfaces, défauts du schéma, migration additive) · `seo-horizon-indexation` **11 cas** · suite **536 fichiers / 5 619 tests ✓** · `tsc` **0** · ESLint **0 erreur** · migration **288** additive et rejouable (`IF NOT EXISTS`, aucun `DROP`).
+  **Reste** : le **bloc B** lui-même (route `/guides/rush-sylvestre/<slug>`, 339 ids DofusDB distincts mesurés) — non commencé ; `subGuideRef` qui écrase le code `RS-S2-QN` au premier enregistrement du studio (à trancher, non bloquant).
+  **Mesure d'environnement** : `prisma migrate dev` est **inutilisable** sur la base locale — 2 migrations appliquées y sont absentes du dossier (`add_inter_guild`, `add_component_stats`) et Prisma propose un **reset**. La migration a donc été écrite à la main puis appliquée par `migrate deploy`.
+
+
 - **Livré le 27/10/2026 — S1 : le contenu est entré, l'étape à choix modélisée (branche `fix/rush-code-mort-legacy`, PR #1139).**
   ① **Import outillé** : liens de fiche (`dofusdbUrl`/`dofuspourlesnoobsUrl`) portés par le payload, **allowlist d'hôte + https**
   (`safeRushGuideLink`) ; ② **30 quêtes d'Ordre** importées (**6 × 5/5**) — la vue Branches comparait les codes **canoniques** aux

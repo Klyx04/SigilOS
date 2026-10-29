@@ -3003,6 +3003,7 @@ model OptimizedGuide {
   imageUrl            String?
   isActive            Boolean              @default(false)
   isUnderConstruction Boolean              @default(false) // God toggle: affiche "En construction" côté membres
+  isPublicUnderConstruction Boolean        @default(true)  // God toggle: page publique + sitemap (true = avis « En construction », non indexable)
   displayMode         String               @default("TREE") // "TREE" | "TIMELINE" — mode d'affichage membre
   // Config UI/UX GOD (édition membre) — pense-bête + options de la modale de lancement.
   // Optionnel : si vide, l'app retombe sur les valeurs par défaut (voir rush-sylvestre-pense-bete.ts).
@@ -3115,6 +3116,11 @@ model GuideSequence {
   icon              String?  // Icône optionnelle du bloc (serie-de-quete | icone-succes) — null = défaut
   metamobMonsterId  Int?                       // ID du monstre Metamob lié (Ocre / Quête Éternelle Moisson)
   activityTags      Json     @default("[]")   // Tags d'activité : [{ type: string, name?: string, level?: number }]
+
+  // Page publique par quête (bloc B) — le slug est FIGÉ à la publication : jamais recalculé
+  // depuis le nom, sinon chaque renommage casserait une URL déjà indexée.
+  publicSlug  String?  @unique
+  isPublished Boolean  @default(false)
 
   createdAt   DateTime      @default(now())
   milestone   GuideMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)

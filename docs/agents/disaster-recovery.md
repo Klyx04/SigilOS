@@ -39,9 +39,15 @@ docker ps          # Docker opérationnel
 ## 🚀 Procédure de Restauration Rapide (1-Clic Automatisé)
 
 > ⚠️ **Arrêter les conteneurs applicatifs avant** (`sigilos-prod`, `sigilos-beta`, worker, bot, ws) :
-> `pg_dumpall -c` commence par des `DROP DATABASE`, qu'une connexion active fait échouer. Depuis le
-> 29/10/2026 le script s'arrête à la première erreur (`ON_ERROR_STOP=1`) et sort en **code 1** au
-> lieu d'annoncer un faux succès : un échec est visible, mais il ne répare rien.
+> `pg_dumpall -c` commence par des `DROP DATABASE`, qu'une connexion active fait échouer.
+> Depuis le 29/10/2026 le script **tolère uniquement les erreurs « does not exist »** (dumps produits
+> avant l'ajout de `--if-exists`, dont le premier `DROP DATABASE` échoue sur un cluster neuf) et sort
+> en **code 1** sur toute autre erreur ; il vérifie ensuite que la table `"User"` n'est pas vide.
+> Un échec est donc visible — mais il ne répare rien.
+>
+> 🔁 **Portabilité** : les dumps **antérieurs au 30/10/2026** n'ont pas `--if-exists` et ne se
+> restaurent donc pas dans un cluster **vide** (le `DROP DATABASE <base>` échoue). Le banc d'essai le
+> tolère ; pour une bascule dans un environnement neuf, préférer un dump récent.
 
 ### A. Restauration de la Prod depuis le dernier backup Beta (Bascule Jour J)
 ```bash

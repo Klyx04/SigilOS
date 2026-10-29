@@ -240,7 +240,10 @@ fi
 
 # `pipefail` (posé en tête) : le code de sortie est celui de `pg_dumpall`, plus
 # celui de `gzip` — c'est **le** défaut qui rendait le statut « Réussi » menteur.
-if ! docker exec "$DB_CONTAINER" pg_dumpall -c -U "$DB_USER" | gzip -6 > "$BACKUP_DIR/$FILENAME_RAW"; then
+# `--if-exists` est INDISPENSABLE : sans lui, `-c` émet `DROP DATABASE <base>;`
+# sans garde, et la restauration s'arrête sur un cluster neuf (« database does not
+# exist ») — mesuré le 29/10/2026, le dump du 27/10 n'était pas restaurable à froid.
+if ! docker exec "$DB_CONTAINER" pg_dumpall -c --if-exists -U "$DB_USER" | gzip -6 > "$BACKUP_DIR/$FILENAME_RAW"; then
     echo "❌ Dump failed!"
     rm -f "$BACKUP_DIR/$FILENAME_RAW"
     send_god_notif "[Backup] ÉCHOUÉ" "Le dump PostgreSQL ($DB_CONTAINER) a échoué." "BACKUP" "false" "{ \"step\": \"dump\", \"container\": \"$DB_CONTAINER\" }"

@@ -126,16 +126,26 @@ if [ "$READY" -ne 1 ]; then
     exit 1
 fi
 
-echo "[5/5] Restauration (le dump contient les rôles ET les bases)…"
+echo "[5/5] Restauration (le dump contient les bases)…"
 DRILL_LOG=$(mktemp)
-if ! gunzip -c "$DRILL_DEC" | docker exec -i "$DRILL_CONTAINER" psql -v ON_ERROR_STOP=1 -U drill -d postgres >"$DRILL_LOG" 2>&1; then
-    echo "❌ Restauration en échec — 20 dernières lignes :"
-    tail -n 20 "$DRILL_LOG"
+gunzip -c "$DRILL_DEC" | docker exec -i "$DRILL_CONTAINER" psql -v ON_ERROR_STOP=0 -U drill -d postgres >"$DRILL_LOG" 2>&1 || true
+
+# Les dumps produits avant le 30/10/2026 n'ont pas `--if-exists` : leur premier
+# `DROP DATABASE <base>` échoue sur un cluster neuf (« does not exist »).
+# C'est la SEULE erreur tolérée ; toute autre erreur fait échouer la répétition.
+FATAL=$(grep '^ERROR:' "$DRILL_LOG" | grep -v 'does not exist' || true)
+if [ -n "$FATAL" ]; then
+    echo "❌ Erreurs inattendues pendant la restauration :"
+    printf '%s\n' "$FATAL" | head -20
     rm -f "$DRILL_LOG"
     exit 1
 fi
+LEGACY=$(grep -c 'does not exist' "$DRILL_LOG" || true)
 rm -f "$DRILL_LOG"
-echo "      ✅ dump rejoué sans erreur"
+if [ "${LEGACY:-0}" -gt 0 ]; then
+    echo "      ⚠️  ${LEGACY} avertissement(s) « does not exist » (dump antérieur à --if-exists) — tolérés"
+fi
+echo "      ✅ dump rejoué"
 
 # -----------------------------------------------------------------------------
 # Contrôle des volumes : la même requête des deux côtés (source vivante et
@@ -167,6 +177,10 @@ if docker inspect -f '{{.State.Running}}' "$DB_CONTAINER" >/dev/null 2>&1 && [ -
     SOURCE_COUNTS=$(counts "$DB_CONTAINER" "$SRC_USER" "$SRC_DB" || true)
 fi
 DRILL_COUNTS=$(counts "$DRILL_CONTAINER" drill "$SRC_DB" || true)
+if [ -z "$DRILL_COUNTS" ]; then
+    echo "❌ Aucun compteur lisible dans la base $SRC_DB : la restauration n'a rien produit."
+    exit 1
+fi
 
 printf '%-24s %12s %12s\n' "table" "restauré" "source"
 printf '%-24s %12s %12s\n' "------------------------" "------------" "------------"

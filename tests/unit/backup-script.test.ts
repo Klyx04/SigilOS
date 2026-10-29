@@ -34,7 +34,7 @@ describe("Sauvegarde R2 — un succès se prouve", () => {
         expect(source).toMatch(/^set -euo pipefail$/m);
         // Le pipe est dans un `if !` : le code de sortie testé est celui de la
         // commande qui produit les octets, pas celui du compresseur.
-        expect(source).toMatch(/if ! docker exec "\$DB_CONTAINER" pg_dumpall -c -U "\$DB_USER" \| gzip/);
+        expect(source).toMatch(/if ! docker exec "\$DB_CONTAINER" pg_dumpall -c --if-exists -U "\$DB_USER" \| gzip/);
         // Conteneur arrêté = échec explicite, avant même le dump.
         expect(source).toMatch(/docker inspect -f '\{\{\.State\.Running\}\}'/);
     });
@@ -81,11 +81,15 @@ describe("Sauvegarde R2 — un succès se prouve", () => {
 });
 
 describe("Restauration — elle ne ment plus sur son résultat", () => {
-    it("④ psql s arrête à la première erreur et le code est testé", () => {
+    it("④ la restauration tolère « does not exist » et vérifie qu'il y a des comptes", () => {
         const source = restore();
-        expect(source).toMatch(/ON_ERROR_STOP=1/);
-        expect(source).toMatch(/if ! cat "\$DECRYPTED_FILE" \| gunzip \| docker exec/);
+        // `ON_ERROR_STOP=0` + filtre : un dump antérieur à `--if-exists` commence
+        // par un `DROP DATABASE` qui échoue sur un cluster neuf (mesuré le 29/10).
+        expect(source).toMatch(/psql -v ON_ERROR_STOP=0/);
+        expect(source).toMatch(/grep -v 'does not exist'/);
         expect(source).toMatch(/Restauration ÉCHOUÉE/);
+        // Une base restaurée sans aucun compte n'est pas une restauration.
+        expect(source).toMatch(/select count\(\*\) from "User"/);
     });
 
     it("⑤ la bascule Jour J lit la source, pas la cible", () => {

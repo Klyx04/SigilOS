@@ -101,6 +101,20 @@ describe("Restauration — elle ne ment plus sur son résultat", () => {
     });
 });
 
+describe("Répétition de restauration — aucun risque pour la prod", () => {
+    it("le conteneur jetable est isolé sur la boucle locale et toujours détruit", () => {
+        const source = read("scripts/restore-drill.sh");
+        expect(source).toMatch(/sigilos-restore-drill/);
+        // Jamais exposé au réseau : le port n'écoute que sur 127.0.0.1.
+        expect(source).toMatch(/-p "127\.0\.0\.1:\$\{DRILL_PORT\}:5432"/);
+        // Nettoyage garanti, y compris sur erreur ou Ctrl-C.
+        expect(source).toMatch(/trap cleanup EXIT/);
+        // Le dump déchiffré ne part que dans le conteneur jetable.
+        expect(source).toMatch(/gunzip -c "\$DRILL_DEC" \| docker exec -i "\$DRILL_CONTAINER"/);
+        expect(source).not.toMatch(/gunzip -c "\$DRILL_DEC" \| docker exec -i "\$DB_CONTAINER"/);
+    });
+});
+
 describe("PRA — la doc décrit ce que le script sait faire", () => {
     it("la procédure de bascule cite --from beta", () => {
         const doc = read("docs/agents/disaster-recovery.md");

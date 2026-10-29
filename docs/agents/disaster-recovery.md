@@ -66,18 +66,38 @@ docker ps          # Docker opérationnel
 
 ## 🔍 Étape de Vérification Post-Restauration
 
-Exécuter cette requête SQL pour valider le volume des données restaurées :
+⚠️ Les tables portent le **nom exact des modèles Prisma** (aucun `@@map` dans `prisma/schema.prisma`) :
+c'est `PlayerDofusProgress`, **pas** `UserDofusProgress`. Une requête sur un nom inexistant échoue et
+laisse croire à une restauration vide (relevé du 29/10/2026).
+
 ```bash
-docker exec sigilos-db-prod psql -U user -d sigilos -c "
-SELECT 'Comptes' AS entite, COUNT(*) FROM \"User\"
-UNION ALL SELECT 'Profils Membres', COUNT(*) FROM \"UserProfile\"
-UNION ALL SELECT 'Guildes', COUNT(*) FROM \"GuildConfig\"
-UNION ALL SELECT 'Items Siphonnés', COUNT(*) FROM \"GameItem\"
-UNION ALL SELECT 'Dofus', COUNT(*) FROM \"DofusItem\"
-UNION ALL SELECT 'Progression Dofus', COUNT(*) FROM \"UserDofusProgress\"
-UNION ALL SELECT 'Runs Songes', COUNT(*) FROM \"DreamRun\";
-"
+docker exec -i sigilos-db-prod sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+SELECT 'Comptes' AS entite, COUNT(*) FROM "User"
+UNION ALL SELECT 'Profils Membres', COUNT(*) FROM "UserProfile"
+UNION ALL SELECT 'Guildes', COUNT(*) FROM "GuildConfig"
+UNION ALL SELECT 'Items Siphonnés', COUNT(*) FROM "GameItem"
+UNION ALL SELECT 'Dofus', COUNT(*) FROM "DofusItem"
+UNION ALL SELECT 'Progression Dofus', COUNT(*) FROM "PlayerDofusProgress"
+UNION ALL SELECT 'Runs Songes', COUNT(*) FROM "DreamRun";
+SQL
 ```
+
+---
+
+## 🧪 Répétition à blanc — la seule preuve qui compte
+
+```bash
+bash scripts/restore-drill.sh beta      # ou prod
+```
+
+Rejoue le **dernier dump R2** dans un PostgreSQL **jetable** (`postgres:15-alpine`, port `55432`,
+lié à `127.0.0.1` seulement), compare les volumes **table par table** avec la source vivante, puis
+supprime le conteneur **et** le dump déchiffré. Ni la bêta ni la prod ne sont touchées.
+
+- À jouer **une fois par trimestre** (checklist mensuelle de `docs/MAINTENANCE.md`) et après tout
+  changement de schéma majeur.
+- `DRILL_KEEP=1 bash scripts/restore-drill.sh beta` garde le conteneur pour fouiller à la main.
+- Ce que le script imprime vaut comme **RTO mesuré** : note la durée et les compteurs dans ce fichier.
 
 ---
 

@@ -66,12 +66,58 @@ export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
 export AWS_DEFAULT_REGION="auto"
 export AWS_ENDPOINT_URL="$R2_ENDPOINT_URL"
 
+# Notification God — type **SYSTEM** et non `BACKUP` : la route `/api/god/notify`
+# n'enregistre la télémétrie `backup_db` que pour le type `BACKUP`, et une
+# répétition ne doit jamais écraser l'état de la vraie sauvegarde.
+GOD_NOTIFY_BASE="${GOD_NOTIFY_BASE:-${NEXT_PUBLIC_APP_URL:-}}"
+if [ -z "$GOD_NOTIFY_BASE" ]; then
+    if [ "$TARGET_ENV" == "prod" ]; then GOD_NOTIFY_BASE="https://sigilos.fr"; else GOD_NOTIFY_BASE="https://beta.sigilos.fr"; fi
+fi
+if [[ "$GOD_NOTIFY_BASE" == *"localhost"* ]]; then
+    GOD_NOTIFY_BASE="https://beta.sigilos.fr"
+fi
+GOD_NOTIFY_URL="$GOD_NOTIFY_BASE/api/god/notify"
+
+send_god_notif() {
+    local title=$1
+    local message=$2
+    local success=$3
+    local metadata=$4
+
+    if [ -z "${CRON_SECRET:-}" ]; then
+        echo "⚠️  CRON_SECRET absent : notification God ignorée."
+        return
+    fi
+
+    local payload="{
+        \"title\": \"$title\",
+        \"message\": \"$message\",
+        \"type\": \"SYSTEM\",
+        \"success\": $success,
+        \"metadata\": $metadata
+    }"
+
+    local http_code
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$GOD_NOTIFY_URL" \
+        -H "Authorization: Bearer $CRON_SECRET" \
+        -H "Content-Type: application/json" \
+        -d "$payload") || true
+
+    if [ "$http_code" -eq 200 ] 2>/dev/null; then
+        echo "📣 Notification God envoyée."
+    else
+        echo "❌ Notification God en échec (HTTP $http_code) — $GOD_NOTIFY_URL"
+    fi
+}
+
 mkdir -p "$BACKUP_DIR"
 DRILL_FILE=""
 DRILL_DEC=""
 DRILL_STARTED=0
 
 cleanup() {
+    local rc=$?
+
     if [ "$DRILL_STARTED" -eq 1 ] && [ "${DRILL_KEEP:-0}" = "1" ]; then
         echo ""
         echo "ℹ️  Conteneur conservé : docker exec -it $DRILL_CONTAINER psql -U drill -d $SRC_DB"
@@ -84,6 +130,16 @@ cleanup() {
     # Le dump déchiffré ne doit pas traîner en clair plus longtemps que nécessaire.
     if [ -n "$DRILL_DEC" ] && [ -f "$DRILL_DEC" ]; then
         rm -f "$DRILL_DEC"
+    fi
+
+    # Tout échec (y compris une interruption) part dans God : une répétition qui
+    # ne dit rien est une répétition qu'on croit réussie.
+    if [ "$rc" -ne 0 ]; then
+        send_god_notif \
+            "[Backup] Répétition de restauration ÉCHOUÉE" \
+            "La répétition $TARGET_ENV a échoué (code $rc). La sauvegarde n'est pas forcément en cause, mais la preuve de restauration manque — voir logs/restore-drill.log." \
+            "false" \
+            "{ \"exit_code\": $rc, \"target\": \"$TARGET_ENV\" }"
     fi
 }
 trap cleanup EXIT
@@ -195,8 +251,17 @@ printf '%s\n' "$DRILL_COUNTS" | while IFS='|' read -r table n; do
     printf '%-24s %12s %12s\n' "$table" "$n" "$src"
 done
 
+DRILL_DURATION=$(( $(date +%s) - DRILL_START_TS ))
+SUMMARY=$(printf '%s\n' "$DRILL_COUNTS" | awk -F'|' '{printf "%s %s ; ", $1, $2}')
+
 echo ""
 echo "✅ Répétition terminée : $LATEST restauré intégralement dans $DRILL_IMAGE."
-echo "   Durée totale : $(( $(date +%s) - DRILL_START_TS )) s (téléchargement + déchiffrement + restauration)."
+echo "   Durée totale : ${DRILL_DURATION} s (téléchargement + déchiffrement + restauration)."
 echo "   Cette durée et les compteurs ci-dessus valent comme RTO/RPO mesurés (docs/agents/disaster-recovery.md)."
+
+send_god_notif \
+    "[Backup] Répétition de restauration réussie" \
+    "Dump $LATEST rejoué dans $DRILL_IMAGE en ${DRILL_DURATION} s. Compteurs : ${SUMMARY}" \
+    "true" \
+    "{ \"filename\": \"$LATEST\", \"duration_s\": $DRILL_DURATION, \"target\": \"$TARGET_ENV\" }"
 

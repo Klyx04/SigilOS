@@ -13,7 +13,14 @@ Logs: /home/sigiladmin/SigilOS/logs/backup.log
 ```
 
 **Actions**:
-1. Backup PostgreSQL (prod + beta)
+1. **Chaque nuit à 3h00 UTC, le dump** (rotation 7 quotidiens + dernier de 3 mois, plafond 4 Go) ;
+   **le 1ᵉʳ janvier, avril, juillet et octobre à 5h00 UTC, la répétition de restauration** :
+   ```cron
+   0 5 1 1,4,7,10 * /usr/bin/flock -n /tmp/restore-drill.lock /bin/bash /home/sigiladmin/SigilOS/scripts/restore-drill.sh beta >> /home/sigiladmin/SigilOS/logs/restore-drill.log 2>&1
+   ```
+   Elle envoie une notification God **SYSTEM** (verte si la restauration est conforme, rouge sinon) —
+   elle n'écrit **pas** dans la télémétrie `backup_db`, donc la carte « Sauvegarde » de God reste
+   celle de la vraie sauvegarde.
 2. Compression gzip
 3. Chiffrement GPG
 4. Upload vers Cloudflare R2

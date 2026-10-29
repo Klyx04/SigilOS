@@ -102,6 +102,9 @@ supprime le conteneur **et** le dump déchiffré. Ni la bêta ni la prod ne sont
 
 - À jouer **une fois par trimestre** (checklist mensuelle de `docs/MAINTENANCE.md`) et après tout
   changement de schéma majeur.
+- **Automatisée** : une ligne de crontab au 1ᵉʳ janvier/avril/juillet/octobre à 5h00 UTC
+  (`docs/MAINTENANCE.md`) envoie une notification God **SYSTEM** — verte si la restauration est
+  conforme, rouge sinon. Elle n'écrit **jamais** dans la télémétrie `backup_db`.
 - `DRILL_KEEP=1 bash scripts/restore-drill.sh beta` garde le conteneur pour fouiller à la main.
 - Ce que le script imprime vaut comme **RTO mesuré** : note la durée et les compteurs dans ce fichier.
 

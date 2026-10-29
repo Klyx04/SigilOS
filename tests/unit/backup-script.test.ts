@@ -130,6 +130,16 @@ describe("Répétition de restauration — aucun risque pour la prod", () => {
         expect(source).toMatch(/gunzip -c "\$DRILL_DEC" \| docker exec -i "\$DRILL_CONTAINER"/);
         expect(source).not.toMatch(/gunzip -c "\$DRILL_DEC" \| docker exec -i "\$DB_CONTAINER"/);
     });
+
+    it("la répétition notifie God sans écraser la télémétrie de sauvegarde", () => {
+        const source = read("scripts/restore-drill.sh");
+        // Type SYSTEM : `/api/god/notify` ne consigne `backup_db` que pour `BACKUP`.
+        // Une répétition ne doit jamais faire passer la carte « Sauvegarde » pour elle.
+        expect(source).toMatch(/\\"type\\": \\"SYSTEM\\"/);
+        expect(source).not.toMatch(/\\"type\\": \\"BACKUP\\"/);
+        expect(source).toMatch(/Répétition de restauration ÉCHOUÉE/);
+        expect(source).toMatch(/Répétition de restauration réussie/);
+    });
 });
 
 describe("PRA — la doc décrit ce que le script sait faire", () => {

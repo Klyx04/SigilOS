@@ -9,7 +9,7 @@
 #   ① dump complet — `pipefail` (le code de `pg_dumpall` était masqué par
 #      `gzip`), conteneur vérifié, plancher de taille, `gzip -t` et marqueur de
 #      fin écrit par `pg_dumpall` ;
-#   ② fichier chiffré valide (`gpg --list-packets`) ;
+#   ② fichier chiffré qui redonne **exactement** le dump (round-trip vérifié) ;
 #   ③ objet présent sur R2 **avec la taille locale** (`head-object`) ;
 #   ④ rotation R2 bornée **en octets** — plan gratuit Cloudflare (10 Go) ;
 #   ⑤ tout échec sort en **code 1** (le crontab le voit), en plus de la notif God.
@@ -296,11 +296,15 @@ if [ "$GPG_STATUS" -ne 0 ]; then
     exit 1
 fi
 
-# ② Un paquet GPG lisible sans la clé : preuve que le fichier n'est pas vide/tronqué.
-if ! gpg --batch --list-packets "$FILENAME_ENC_PATH" >/dev/null 2>&1; then
-    echo "❌ Encrypted file is not a valid GPG packet!"
+# ② Preuve de round-trip : le fichier chiffré doit restituer **exactement** les
+# octets du dump. `--list-packets` a été retiré le 29/10/2026 : sur un fichier
+# symétrique il ouvre un pinentry (et échoue donc avec --batch), ce qui faisait
+# rejeter un chiffrement valide — mesuré sur le VPS, 27 s de blocage.
+DEC_BYTES=$(echo "$BACKUP_ENCRYPTION_KEY" | gpg --batch --pinentry-mode loopback --yes --passphrase-fd 0 --decrypt "$FILENAME_ENC_PATH" 2>/dev/null | wc -c | tr -d ' ')
+if [ "$DEC_BYTES" -ne "$RAW_BYTES" ]; then
+    echo "❌ Encrypted file round-trip failed ($DEC_BYTES / $RAW_BYTES bytes)"
     rm -f "$FILENAME_ENC_PATH"
-    send_god_notif "[Backup] ÉCHOUÉ" "Le fichier chiffré produit est invalide (paquet GPG illisible)." "BACKUP" "false" "{ \"step\": \"encryption_check\", \"filename\": \"$FILENAME_ENC\" }"
+    send_god_notif "[Backup] ÉCHOUÉ" "Le fichier chiffré ne se déchiffre pas à l'identique (${DEC_BYTES} o restitués sur ${RAW_BYTES})." "BACKUP" "false" "{ \"step\": \"encryption_check\", \"filename\": \"$FILENAME_ENC\", \"decrypted_bytes\": $DEC_BYTES, \"raw_bytes\": $RAW_BYTES }"
     exit 1
 fi
 

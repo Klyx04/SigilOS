@@ -44,7 +44,10 @@ describe("Sauvegarde R2 — un succès se prouve", () => {
         expect(source).toMatch(/BACKUP_MIN_KB/);
         expect(source).toMatch(/gzip -t/);
         expect(source).toMatch(/PostgreSQL database dump complete/);
-        expect(source).toMatch(/gpg --batch --list-packets/);
+        // `--list-packets` est INTERDIT : sur un fichier symétrique il ouvre un
+        // pinentry et échoue en --batch (mesuré le 29/10/2026) → faux négatif.
+        expect(source).not.toMatch(/gpg [^\n]*--list-packets/);
+        expect(source).toMatch(/"\$DEC_BYTES" -ne "\$RAW_BYTES"/);
     });
 
     it("③ l objet téléversé est vérifié sur R2 (taille identique)", () => {

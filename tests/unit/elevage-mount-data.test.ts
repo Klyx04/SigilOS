@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { existsSync, statSync } from "node:fs";
+import path from "node:path";
 import { MOUNT_DATABASE, MountInfo } from "@/data/mount-data";
 
 describe("Studio Élevage — Base de données des montures (MàJ 3.7)", () => {
@@ -33,8 +35,26 @@ describe("Studio Élevage — Base de données des montures (MàJ 3.7)", () => {
             expect(mount.generation).toBeLessThanOrEqual(10);
             expect(mount.stats).toBeTruthy();
             expect(mount.statTags.length).toBeGreaterThan(0);
-            expect(mount.img).toMatch(/^\/api\/assets-dofus\/items\/\d+$/);
+            expect(mount.img).toBe(`/images/guides/elevage/mounts/${mount.id}.webp`);
         }
+    });
+
+    /**
+     * Non-régression du 29/10/2026 : la page /elevage (onglet « Arbres des 10 Générations »)
+     * affichait des carrés **noirs** pour les 228 montures. Les URLs pointaient vers
+     * `/api/assets-dofus/items/<iconId>` — l'espace « id d'objet » du proxy, alors que ces
+     * nombres sont des **iconId** : DofusDB ne trouvait rien et le proxy renvoyait son PNG
+     * 1×1 transparent (HTTP 200, donc aucune erreur visible en console).
+     * Garde : l'icône est un fichier **local** et il existe vraiment sur disque.
+     */
+    it("chaque monture a une icône locale réellement présente (aucun carré noir)", () => {
+        const missing: string[] = [];
+        for (const mount of MOUNT_DATABASE) {
+            expect(mount.img.startsWith("/images/guides/elevage/mounts/"), `${mount.name}: icône non locale (${mount.img})`).toBe(true);
+            const file = path.join(process.cwd(), "public", mount.img.replace(/^\//, ""));
+            if (!existsSync(file) || statSync(file).size < 200) missing.push(`${mount.name} → ${mount.img}`);
+        }
+        expect(missing, `icônes absentes ou vides:\n${missing.join("\n")}`).toEqual([]);
     });
 
     it("les croisements référencent des parents connus de la même espèce", () => {

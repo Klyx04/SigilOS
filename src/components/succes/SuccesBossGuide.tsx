@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Brain, ChevronDown, ChevronUp, Compass, Crown, ExternalLink, Flame, Loader2, MapPin, PictureInPicture2, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem, Check, ArrowRight } from "lucide-react";
+import { Brain, ChevronDown, ChevronUp, Compass, Crown, ExternalLink, MapPin, PictureInPicture2, ScrollText, Search, Shield, Swords, Target, Users, X, Zap, Gem, Check, ArrowRight } from "lucide-react";
 import { useBossOverlay } from "@/hooks/use-boss-overlay";
 import { getDungeonsWithAchievements, getDungeonMonsters, getMonsterStats } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
 import { SuccesBossQuests, type BossLinkedQuestsData } from "./SuccesBossQuests";
 import { SuccesBossEncyclo, type EncycloGradeView, type EncycloView } from "./SuccesBossEncyclo";
+import { MonsterStatsSummary } from "./MonsterStatsSummary";
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import {
@@ -18,7 +19,6 @@ import {
 } from "@/server/actions/dofensive-actions";
 import { getAnomalyBossBattleMap, getAnomalyBossFamily } from "@/server/actions/anomaly-boss-actions";
 import { cn } from "@/lib/utils";
-import { EMPTY_GRADE_RESISTS, readGradeResists } from "@/lib/dofus-monster-grades";
 import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import { toast } from "sonner";
 import { getWorldName } from "@/lib/dofus-assets";
@@ -741,9 +741,6 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                         const isLoadingCurrent = targetKey ? loadingStatsByBoss[targetKey] : false;
                         const currentStats = statsOf(selected);
                         const grades: any[] = currentStats?.grades ?? [];
-                        const gradeIdx = activeGradeIndex ?? (grades.length > 0 ? grades.length - 1 : 0);
-                        const activeGrade = grades.length > 0 ? grades[Math.min(gradeIdx, grades.length - 1)] : null;
-                        const resists = readGradeResists(activeGrade) ?? EMPTY_GRADE_RESISTS;
                         const coords = currentStats?.coordinates as { x: number; y: number; worldMapId?: number } | null | undefined;
                         const effectiveCoords = (isSelectedMulti && selectedMulti) ? selectedMulti.coordinates : coords;
                         const travelCmd = effectiveCoords ? `/travel ${effectiveCoords.x} ${effectiveCoords.y}` : null;
@@ -898,127 +895,19 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                             </div>
                                         )}
 
-                                        {/* Caractéristiques : PV / PA / PM en cartes, résistances dans un encadré. */}
-                                        {isLoadingCurrent ? (
-                                            <div className="flex items-center gap-3 rounded-xl border border-border bg-surface/60 px-3.5 py-3 text-muted-foreground">
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                <span className="text-xs">Chargement des caractéristiques de {activeMonsterName ?? (isSelectedMulti ? (selectedMulti?.bossNames[0] ?? selectedFocus) : selectedFocus)}…</span>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className="grid grid-cols-3 gap-2.5">
-                                                    <div className="rounded-xl border border-border bg-surface/60 px-3.5 py-2" title="Points de Vie">
-                                                        <span className="flex items-baseline gap-1.5">
-                                                            <img src="/assets/dofus/stats/pv.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
-                                                            <span className="font-mono text-xl font-bold tabular-nums text-foreground sm:text-2xl">
-                                                                {activeGrade ? (typeof activeGrade.lifePoints === "number" ? activeGrade.lifePoints.toLocaleString("fr-FR") : "—") : "—"}
-                                                            </span>
-                                                            <span className="font-mono text-[11px] text-muted-foreground">PV</span>
-                                                        </span>
-                                                    </div>
-                                                    <div className="rounded-xl border border-border bg-surface/60 px-3.5 py-2" title="Points d'Action">
-                                                        <span className="flex items-baseline gap-1.5">
-                                                            <img src="/assets/dofus/stats/pa.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
-                                                            <span className="font-mono text-xl font-bold tabular-nums text-foreground sm:text-2xl">{activeGrade?.actionPoints ?? "—"}</span>
-                                                            <span className="font-mono text-[11px] text-muted-foreground">PA</span>
-                                                        </span>
-                                                    </div>
-                                                    <div className="rounded-xl border border-border bg-surface/60 px-3.5 py-2" title="Points de Mouvement">
-                                                        <span className="flex items-baseline gap-1.5">
-                                                            <img src="/assets/dofus/stats/pm.png" alt="" className="w-4 h-4 shrink-0 self-center object-contain" />
-                                                            <span className="font-mono text-xl font-bold tabular-nums text-foreground sm:text-2xl">{activeGrade?.movementPoints ?? "—"}</span>
-                                                            <span className="font-mono text-[11px] text-muted-foreground">PM</span>
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                        {/* Caractéristiques : LE MÊME bloc que la fiche publique et la fiche Titan
+                                            (`MonsterStatsSummary` — lot B3, mesure du 30/10/2026). */}
+                                        <MonsterStatsSummary
+                                            grades={grades}
+                                            activeGradeIndex={activeGradeIndex ?? (grades.length > 0 ? grades.length - 1 : null)}
+                                            onGradeChange={(idx) => setActiveGradeIndex(idx)}
+                                            loading={isLoadingCurrent}
+                                            loadingLabel={`Chargement des caractéristiques de ${activeMonsterName ?? (isSelectedMulti ? (selectedMulti?.bossNames[0] ?? selectedFocus) : selectedFocus)}…`}
+                                        />
 
-                                                <div className="rounded-xl border border-border bg-surface/60 px-3.5 py-2.5">
-                                                    <span className="block text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Résistances</span>
-                                                    <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                                            {(
-                                                                [
-                                                                    { key: "neutral", label: "Neutre", icon: "/assets/dofus/stats/resNeutre.png", value: resists.neutral ?? null },
-                                                                    { key: "earth", label: "Terre", icon: "/assets/dofus/stats/resTerre.png", value: resists.earth ?? null },
-                                                                    { key: "fire", label: "Feu", icon: "/assets/dofus/stats/resFeu.png", value: resists.fire ?? null },
-                                                                    { key: "water", label: "Eau", icon: "/assets/dofus/stats/resEau.png", value: resists.water ?? null },
-                                                                    { key: "air", label: "Air", icon: "/assets/dofus/stats/resAir.png", value: resists.air ?? null },
-                                                                ] as const
-                                                            ).map(({ key, label, icon, value }) => (
-                                                                <span key={key} className="inline-flex items-center gap-1.5" title={`${label} %`}>
-                                                                    <img src={icon} alt="" className="w-4 h-4 object-contain" />
-                                                                    <span
-                                                                        className={cn(
-                                                                            "font-mono text-[13px] font-bold tabular-nums",
-                                                                            typeof value === "number" && value < 0 ? "text-rose-400" : "text-foreground/90"
-                                                                        )}
-                                                                    >
-                                                                        {typeof value === "number" ? `${value}%` : "—"}
-                                                                    </span>
-                                                                    <span className="hidden text-[11px] text-muted-foreground sm:inline">{label}</span>
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                        {grades.length > 1 && (
-                                                            <div className="flex items-center gap-1">
-                                                                <span className="text-[11px] font-bold text-muted-foreground mr-1">Rang :</span>
-                                                                {grades.map((gr: any, i: number) => (
-                                                                    <button
-                                                                        key={i}
-                                                                        type="button"
-                                                                        onClick={() => setActiveGradeIndex(i)}
-                                                                        className={cn(
-                                                                            "min-w-6 h-6 px-1.5 rounded-md border text-[11px] font-bold tabular-nums transition-colors cursor-pointer",
-                                                                            gradeIdx === i
-                                                                                ? "bg-foreground text-background border-foreground font-black"
-                                                                                : "bg-background border-border text-muted-foreground hover:text-foreground"
-                                                                        )}
-                                                                        title={`Rang ${i + 1} — Niv. ${gr.level ?? "—"}`}
-                                                                    >
-                                                                        {i + 1}
-                                                                    </button>
-                                                                ))}
-                                                                {activeGrade?.level != null && (
-                                                                    <span className="text-[11px] font-mono text-muted-foreground ml-1">
-                                                                        · Niv. {activeGrade.level}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
 
-                                                {/* Caractéristiques avancées officielles (Tacle, Fuite, Esquives, Initiative) */}
-                                                {(activeGrade?.tackle !== undefined || activeGrade?.apDodge !== undefined) && (
-                                                    <div className="grid grid-cols-4 gap-2 rounded-xl border border-border bg-surface/40 p-2.5 text-[11px] font-mono">
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="text-muted-foreground text-[10px] uppercase font-sans">Tacle</span>
-                                                            <span className="text-foreground font-bold tabular-nums mt-0.5">{activeGrade.tackle ?? "—"}</span>
-                                                        </div>
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="text-muted-foreground text-[10px] uppercase font-sans">Fuite</span>
-                                                            <span className="text-foreground font-bold tabular-nums mt-0.5">{activeGrade.evade ?? "—"}</span>
-                                                        </div>
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="text-muted-foreground text-[10px] uppercase font-sans">Esq PA</span>
-                                                            <span className="text-foreground font-bold tabular-nums mt-0.5">{activeGrade.apDodge ?? "—"}</span>
-                                                        </div>
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="text-muted-foreground text-[10px] uppercase font-sans">Esq PM</span>
-                                                            <span className="text-foreground font-bold tabular-nums mt-0.5">{activeGrade.mpDodge ?? "—"}</span>
-                                                        </div>
-                                                        {activeGrade.initiative !== undefined && activeGrade.initiative > 0 && (
-                                                            <div className="col-span-4 flex items-center justify-between pt-1.5 border-t border-border px-1 text-[11px]">
-                                                                <span className="text-muted-foreground font-sans">Initiative</span>
-                                                                <span className="text-foreground font-bold tabular-nums">
-                                                                    {activeGrade.initiative.toLocaleString("fr-FR")}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
+
+
                                     </div>
 
                                     {/* ── Colonne droite : minimap / aperçu de la zone ── */}

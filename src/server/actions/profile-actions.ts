@@ -770,10 +770,20 @@ export async function getMemberProfileBySlug(guildId: string, slug: string): Pro
 
 export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSchema>): Promise<ActionResponse> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    if (!session?.user?.id) {
+        logger.warn("[updateUserProfile] refus", { code: "PROFILE_UNAUTHORIZED" });
+        return { success: false, error: "Session expirée. Reconnecte-toi puis réessaie." };
+    }
 
     const validation = UpdateProfileSchema.safeParse(rawData);
-    if (!validation.success) return { success: false, error: "Données invalides" };
+    if (!validation.success) {
+        // Le détail des champs fautifs reste dans les logs (jamais à l'écran).
+        logger.warn("[updateUserProfile] refus", {
+            code: "PROFILE_SCHEMA_INVALID",
+            fields: validation.error.issues.map((issue) => issue.path.join(".")),
+        });
+        return { success: false, error: "Certains champs sont invalides. Vérifie le pseudo et la classe." };
+    }
     const { guildId, classe, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, alignment, alignmentOrder, alignmentLevel, introduction, objectifs, preferredActivities, discordContact, targetUserId } = validation.data;
     let { pseudoDofus } = validation.data;
 
@@ -787,11 +797,17 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             where: { discordGuildId: guildId },
             select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true, dofusServerName: true }
         });
-        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+        if (!guildConfig) {
+            logger.warn("[updateUserProfile] refus", { code: "PROFILE_GUILD_NOT_FOUND" });
+            return { success: false, error: "Guilde introuvable" };
+        }
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
         const user = await getUserContext(guildId);
-        if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+        if (!user.isAuthenticated) {
+            logger.warn("[updateUserProfile] refus", { code: "PROFILE_UNAUTHORIZED" });
+            return { success: false, error: "Session expirée. Reconnecte-toi puis réessaie." };
+        }
 
         // Effective user is self, or target if God
         const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
@@ -799,7 +815,8 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         const isGod = user.isSuperAdmin;
 
         if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized profile update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+            // Aucun identifiant dans les logs (règle : jamais de snowflake).
+            logger.warn("[updateUserProfile] refus", { code: "PROFILE_FORBIDDEN" });
             return { success: false, error: "Vous n'avez pas la permission de modifier ce profil." };
         }
 
@@ -823,6 +840,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             });
 
             if (existing) {
+                logger.warn("[updateUserProfile] refus", { code: "PROFILE_PSEUDO_TAKEN", pseudo: pseudoDofus });
                 return { success: false, error: `Le pseudo "${pseudoDofus}" est déjà utilisé par un autre membre.` };
             }
 
@@ -837,6 +855,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                     // preuve ladder (liaison Ankama KO). Sans lui → refus.
                     const manualFallback = await isLadderManualFallbackEnabled();
                     if (!manualFallback) {
+                        logger.warn("[updateUserProfile] refus", {
+                            code: "PROFILE_LADDER_NOT_FOUND",
+                            pseudo: pseudoDofus,
+                        });
                         return { success: false, error: `Pseudo "${pseudoDofus}" introuvable sur ${serverName}. Vérifiez l'orthographe exacte.` };
                     }
                 }
@@ -958,8 +980,8 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
         await clearCachePattern(`ladder:*:${guildId}*`);
         return { success: true };
     } catch (error) {
-        logger.error("Update Profile Error", { error });
-        return { success: false, error: "Erreur lors de la sauvegarde" };
+        logger.error("[updateUserProfile] échec", { code: "PROFILE_DB_ERROR", error });
+        return { success: false, error: "Erreur lors de la sauvegarde. Réessaie dans un instant." };
     }
 }
 

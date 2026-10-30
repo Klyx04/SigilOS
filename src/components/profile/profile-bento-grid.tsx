@@ -150,6 +150,21 @@ export function ProfileBentoGrid({
 }: ProfileBentoGridProps) {
     const [localProfile, setLocalProfile] = useState(profile);
     const searchParams = useSearchParams();
+
+    /**
+     * Le serveur est la **vérité** : si l'identité change côté props (enregistrement, navigation,
+     * rafraîchissement), le state local suit. Sans ça, un `useState(profile)` initialisé une seule
+     * fois pouvait afficher indéfiniment une valeur que la base n'a plus — ou l'inverse (mesure du
+     * 30/10/2026, « je rouvre la page et ça revient à “Configurer mon identité” »).
+     * On ne synchronise **que** l'identité : les autres champs édités localement ne sont pas écrasés.
+     */
+    useEffect(() => {
+        setLocalProfile((prev) =>
+            prev.pseudoDofus === profile.pseudoDofus && prev.classe === profile.classe
+                ? prev
+                : { ...prev, pseudoDofus: profile.pseudoDofus, classe: profile.classe }
+        );
+    }, [profile.pseudoDofus, profile.classe]);
     const initialTab = initialTabProp || searchParams.get("tab") || "overview";
     const [activeTab, setActiveTab] = useState(initialTab);
     const tabsScrollRef = useRef<HTMLDivElement>(null);
@@ -314,6 +329,8 @@ export function ProfileBentoGrid({
 
     // Handlers
     const handleClassSave = async (mainClass: string, pseudo: string) => {
+        // L'état optimiste sert à l'affichage immédiat ; il est **annulé** si le serveur refuse.
+        const previous = { classe: localProfile.classe, pseudoDofus: localProfile.pseudoDofus };
         setLocalProfile(prev => ({
             ...prev,
             classe: mainClass,
@@ -330,9 +347,13 @@ export function ProfileBentoGrid({
 
         if (res.success) {
             toast.success("Profil mis à jour");
-        } else {
-            toast.error(res.error || "Erreur");
+            return { success: true };
         }
+
+        // Défaut mesuré le 30/10/2026 : sans ce retour arrière, l'écran gardait la valeur refusée
+        // (l'utilisateur croyait avoir enregistré) et un rafraîchissement la faisait « disparaître ».
+        setLocalProfile(prev => ({ ...prev, ...previous }));
+        return { success: false, error: res.error || "La sauvegarde a échoué." };
     };
 
     const handleJobsSave = async (jobs: MetierEntry[]) => {

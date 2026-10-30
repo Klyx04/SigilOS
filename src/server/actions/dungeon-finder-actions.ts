@@ -14,7 +14,7 @@ import { emitGuildActivity } from "@/server/guild-activity-emit";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
 import { getDiscordApiCode, getDiscordApiStatus } from "@/lib/discord-api-errors";
-import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates, mergeMultiDungeonRequiredClasses, getDjDungeonStats, getMultiMessageIds, withMultiMessageIds, getDjCreatorClass, withDjCreatorClass, isDjDungeonClosed, withDjDungeonsClosed, openDjDungeonIndexes } from "@/lib/dungeon-finder-utils";
+import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates, mergeMultiDungeonRequiredClasses, getDjDungeonStats, getMultiMessageIds, withMultiMessageIds, getDjCreatorClass, withDjCreatorClass, isDjDungeonClosed, withDjDungeonsClosed, openDjDungeonIndexes, resolveDjJoinCapacity } from "@/lib/dungeon-finder-utils";
 import { visibleDungeonAchievements } from "@/lib/dungeon-no-achievement";
 import { resolveOwnedClass } from "@/lib/user-character-classes";
 import { loadClassProfileByProfileId } from "@/server/character-class-profile";
@@ -1977,7 +1977,11 @@ export async function updateDjPost(
             const acceptedCount = await (db as any).djSearchParticipant.count({
                 where: { postId, status: "ACCEPTED" },
             });
-            const freeSlots = Math.max(0, data.maxMembers - acceptedCount);
+            // Le créateur occupe une place : la capacité restante se compte partout de la
+            // même façon (`ACCEPTED + 1 créateur` vs `maxMembers`). L'oublier ici promouvait
+            // un joueur de trop depuis la file — un groupe passé de 3/4 à 5/4 (mesure du
+            // 30/10/2026, même symptôme que l'inscription Discord).
+            const freeSlots = Math.max(0, data.maxMembers - (acceptedCount + 1));
 
             if (freeSlots > 0) {
                 const waiting = await (db as any).djSearchParticipant.findMany({
@@ -2556,11 +2560,12 @@ export async function joinDjPost(
             }
 
             // Capacité **par donjon** (#203) — le créateur compte dans chaque groupe.
-            const entryMax = isMulti && index != null ? (entries[index]?.maxMembers ?? post.maxMembers) : post.maxMembers;
-            const acceptedCount = isMulti && index != null
-                ? post.participants.filter((p: any) => p.status === "ACCEPTED" && (p.dungeonIndex === index || p.dungeonIndex == null)).length + 1
-                : post.participants.filter((p: any) => p.status === "ACCEPTED").length + 1;
-            const newStatus = acceptedCount >= entryMax ? "PENDING" : "ACCEPTED";
+            // 🐛 Constat du 30/10/2026 : le comptage était réécrit ici avec
+            // `p.status === "ACCEPTED"` sur une relation projetée sans `status` ⇒
+            // toujours 0 inscrit ⇒ groupe jamais complet (5/4, 6/4). La décision passe
+            // désormais par la règle partagée avec l'affichage.
+            const capacity = resolveDjJoinCapacity(post, isMulti ? index : null);
+            const newStatus = capacity.full ? "PENDING" : "ACCEPTED";
 
             await (db as any).djSearchParticipant.create({
                 data: {
@@ -2588,7 +2593,8 @@ export async function joinDjPost(
         // Post simple : marquer FULL dès que le groupe est complet.
         // Un post multi ne passe jamais FULL globalement (#203).
         if (!isMulti && joined.length > 0) {
-            const acceptedNow = post.participants.filter((p: any) => p.status === "ACCEPTED").length + 1 + joined.length;
+            // Même règle que la décision (ACCEPTED + créateur) + les inscriptions créées ici.
+            const acceptedNow = resolveDjJoinCapacity(post, null).acceptedCount + joined.length;
             if (acceptedNow >= post.maxMembers) {
                 await (db as any).djSearchPost.update({
                     where: { id: postId },
@@ -2806,7 +2812,14 @@ export async function internalJoinDjPost(
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
             include: {
-                participants: { where: { status: "ACCEPTED" }, select: { id: true, dungeonIndex: true } },
+                // 🐛 Constat du 30/10/2026 (groupe de 4 affiché **5/4**, jamais mis en
+                // file d'attente) : la projection ne portait pas `status`, alors que la
+                // règle de capacité teste `p.status === "ACCEPTED"` ⇒ `undefined ===
+                // "ACCEPTED"` toujours faux ⇒ compteur figé à 1 (créateur seul) ⇒ toute
+                // inscription Discord acceptée, et post jamais passé `FULL`.
+                // `status` est donc projeté **et** la relation n'est plus pré-filtrée :
+                // la règle partagée (`resolveDjJoinCapacity`) voit la vérité complète.
+                participants: { select: { id: true, status: true, dungeonIndex: true } },
             },
         });
 
@@ -2836,18 +2849,14 @@ export async function internalJoinDjPost(
                 : "Tu as déjà rejoint ce groupe",
         };
 
-        // #203 — capacité PAR donjon sur les posts multi (chaque donjon a sa propre taille de groupe).
-        let entryMax = post.maxMembers;
-        if (multiEntries.length > 0 && joinedDungeonIndex != null) {
-            entryMax = multiEntries[joinedDungeonIndex]?.maxMembers ?? post.maxMembers;
-        }
-        // Seuls les ACCEPTED comptent dans la capacité (le créateur + inscrits validés)
-        const acceptedForThisDungeon = multiEntries.length > 0 && joinedDungeonIndex != null
-            ? post.participants.filter((p: any) => p.status === "ACCEPTED" && (p.dungeonIndex === joinedDungeonIndex || p.dungeonIndex == null)).length + 1 // +1 créateur
-            : post.participants.filter((p: any) => p.status === "ACCEPTED").length + 1; // +1 créateur
+        // #203 — la décision de capacité vient de la règle partagée avec l'affichage
+        // (créateur inclus, PENDING exclu, capacité par donjon en multi). Sans index sur
+        // un post multi, l'inscrit compte dans **tous** les groupes : il n'entre que si
+        // chacun a une place (fail-closed).
+        const capacity = resolveDjJoinCapacity(post, joinedDungeonIndex ?? null);
 
         // Si complet → file d'attente PENDING (ne jamais bloquer, file d'attente au lieu de refus)
-        const newStatus: "ACCEPTED" | "PENDING" = acceptedForThisDungeon >= entryMax ? "PENDING" : "ACCEPTED";
+        const newStatus: "ACCEPTED" | "PENDING" = capacity.full ? "PENDING" : "ACCEPTED";
 
         // #169 — classe/message transmis par la modal Discord (bornés, jamais de null → "")
         const cleanClasse = classe ? classe.trim().slice(0, 30) : "";
@@ -2866,9 +2875,9 @@ export async function internalJoinDjPost(
         });
 
         // Un post multi ne passe PAS FULL globalement : chaque donjon a sa propre capacité (#203).
-        // Pour les posts simples : marquer FULL si les ACCEPTED atteignent maxMembers
+        // Pour les posts simples : marquer FULL quand le groupe atteint maxMembers.
         if (multiEntries.length === 0 && newStatus === "ACCEPTED") {
-            const newAcceptedCount = post.participants.filter((p: any) => p.status === "ACCEPTED").length + 1 + 1; // +1 nouveau +1 créateur
+            const newAcceptedCount = capacity.acceptedCount + 1; // + le nouvel inscrit (créateur déjà compté)
             if (newAcceptedCount >= post.maxMembers) {
                 await (db as any).djSearchPost.update({
                     where: { id: postId },
@@ -3439,8 +3448,7 @@ export async function acceptDjParticipant(
                         maxMembers: true,
                         dungeonsJson: true,
                         participants: {
-                            where: { status: "ACCEPTED" },
-                            select: { id: true, dungeonIndex: true },
+                            select: { id: true, status: true, dungeonIndex: true },
                         },
                     },
                 },
@@ -3460,19 +3468,14 @@ export async function acceptDjParticipant(
 
         // Capacité (FAIL-CLOSED) : accepter depuis la file sans place disponible
         // faisait grossir le groupe au-delà de sa taille annoncée. En multi, chaque
-        // donjon a sa propre capacité (#203).
+        // donjon a sa propre capacité (#203) — même règle que l'inscription.
         const multiEntries = getMultiDungeons(participant.post.dungeonsJson);
         const dungeonIndex = participant.dungeonIndex ?? null;
-        const maxMembers = multiEntries.length > 0 && dungeonIndex != null
-            ? (multiEntries[dungeonIndex]?.maxMembers ?? participant.post.maxMembers)
-            : participant.post.maxMembers;
-        const acceptedCount = participant.post.participants.filter((p: any) =>
-            multiEntries.length > 0 && dungeonIndex != null
-                ? p.dungeonIndex === dungeonIndex || p.dungeonIndex == null
-                : true
-        ).length + 1; // +1 créateur
+        const capacity = resolveDjJoinCapacity(participant.post, dungeonIndex);
+        const acceptedCount = capacity.acceptedCount;
+        const maxMembers = capacity.maxMembers;
 
-        if (acceptedCount >= maxMembers) {
+        if (capacity.full) {
             return {
                 success: false,
                 error: `Groupe complet (${acceptedCount}/${maxMembers}) — augmente la taille du groupe avant d'accepter.`,

@@ -179,6 +179,48 @@ export function getDjDungeonStats<P extends DjStatParticipant>(
     return entries.map((entry, index) => build(index, entry, entry.maxMembers ?? post.maxMembers));
 }
 
+/** Décision d'inscription à un groupe DJ (une place, ou la file d'attente). */
+export interface DjJoinCapacity {
+    /** Aucune place : l'inscription part en file d'attente (`PENDING`). */
+    full: boolean;
+    /** Inscrits validés **+ créateur** du groupe le plus contraint du périmètre. */
+    acceptedCount: number;
+    /** Taille du groupe le plus contraint du périmètre. */
+    maxMembers: number;
+    /** Index du groupe le plus contraint (`-1` = post simple). */
+    groupIndex: number;
+}
+
+/**
+ * **La** décision serveur « cette inscription entre dans le groupe ou en file d'attente ? ».
+ *
+ * Même règle que l'affichage (`getDjDungeonStats`), donc plus de divergence entre le
+ * ratio lu par le joueur et le comptage qui décide : créateur inclus, `PENDING` exclu,
+ * capacité **par donjon** en multi (#203).
+ *
+ * `dungeonIndex` : le donjon visé (bouton Discord, case du site). Sans index sur un post
+ * multi, l'inscrit est écrit « global » (`dungeonIndex = null`) et compte dans **tous** les
+ * groupes : il n'est accepté que si **chacun** a une place (fail-closed).
+ *
+ * ⚠️ `participants` doit porter `status` : une projection qui l'omet rend tous les inscrits
+ * invisibles à la règle (constat Discord du 30/10/2026 — groupe de 4 affiché 5/4).
+ */
+export function resolveDjJoinCapacity<P extends DjStatParticipant>(
+    post: { dungeonsJson?: unknown; maxMembers: number; participants?: P[] | null },
+    dungeonIndex?: number | null
+): DjJoinCapacity {
+    const stats = getDjDungeonStats(post);
+    const wanted = dungeonIndex != null ? stats.filter((s) => s.index === dungeonIndex) : stats;
+    const scope = wanted.length > 0 ? wanted : stats;
+    const tightest = scope.reduce((worst, s) => (s.spotsLeft < worst.spotsLeft ? s : worst), scope[0]);
+    return {
+        full: scope.some((s) => s.isFull),
+        acceptedCount: tightest.acceptedCount,
+        maxMembers: tightest.maxMembers,
+        groupIndex: tightest.index,
+    };
+}
+
 /** Synthèse affichable des places d'un post (jamais un ratio global trompeur). */
 export interface DjDungeonsSummary {
     total: number;

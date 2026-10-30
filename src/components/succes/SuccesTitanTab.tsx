@@ -14,6 +14,7 @@ import { getBossDofensiveSpells, getDofensiveDungeonForBoss, type DofensiveDunge
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { resolveDofusAssetImageUrl } from "@/lib/dofus-image-url";
 import { SpellRangeGrid } from "@/components/succes/SpellRangeGrid";
+import { MonsterStatsSummary } from "@/components/succes/MonsterStatsSummary";
 
 interface Titan {
     id: string;
@@ -405,72 +406,23 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
                     })()}
 
                     {detailTab === "info" && (<>
-                    {/* Stats & sorts (local-first) */}
+                    {/* Stats & sorts (local-first) — bloc partagé avec les fiches boss (lot B3). */}
                     {loadingStats ? (
-                        <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+                        <MonsterStatsSummary
+                            grades={[]}
+                            activeGradeIndex={null}
+                            loading
+                            loadingLabel={`Chargement des caractéristiques de ${selected.name}…`}
+                        />
                     ) : stats ? (() => {
                         const grades = stats.grades ?? [];
-                        const gradeIdx = activeGradeIndex < grades.length ? activeGradeIndex : (grades.length ? grades.length - 1 : 0);
-                        const g = grades[gradeIdx] ?? null;
-                        const resists = g?.resists ?? {};
                         return (
                             <div className="space-y-4">
-                                {grades.length > 1 && (
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Butin</span>
-                                        {grades.map((gr: any, idx: number) => (
-                                            <button key={idx} onClick={() => setActiveGradeIndex(idx)} className={cn("px-2 py-0.5 rounded-md text-[11px] font-bold border", idx === gradeIdx ? "bg-amber-600 text-white border-amber-600" : "bg-surface border-border text-muted-foreground")}>Butin {4 + idx}</button>
-                                        ))}
-                                    </div>
-                                )}
-                                {/* Vitalité & Résistances */}
-                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 py-1 border-y border-border/40">
-                                    {/* PV / PA / PM */}
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface border border-border/70" title="Points de Vie">
-                                            <img src="/assets/module-succes/vitalite.png" alt="PV" className="w-4 h-4 object-contain" />
-                                            <span className="text-sm font-bold text-foreground tabular-nums">{g?.lifePoints?.toLocaleString("fr-FR") ?? "—"}</span>
-                                            <span className="text-[11px] font-bold text-muted-foreground">PV</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-info/10 border border-info/20" title="Points d'Action">
-                                            <span className="text-sm font-bold text-info tabular-nums">{g?.actionPoints ?? "—"}</span>
-                                            <span className="text-[11px] font-bold text-info/80">PA</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-success/10 border border-success/20" title="Points de Mouvement">
-                                            <span className="text-sm font-bold text-success tabular-nums">{g?.movementPoints ?? "—"}</span>
-                                            <span className="text-[11px] font-bold text-success/80">PM</span>
-                                        </div>
-                                    </div>
-                                    <div className="hidden sm:block h-5 w-px bg-border/80 mx-0.5" />
-                                    {/* Résistances élémentaires */}
-                                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface/70 border border-border/60" title="Résistance Neutre">
-                                            <img src="/assets/module-succes/neutre.png" alt="Neutre" className="w-4 h-4 object-contain" />
-                                            <b className="text-sm font-bold text-foreground tabular-nums">{resists.neutral ?? 0}%</b>
-                                            <span className="text-[11px] font-bold text-muted-foreground hidden sm:inline">Neutre</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-warning/10 border border-warning/20" title="Résistance Terre">
-                                            <img src="/assets/module-succes/terre.png" alt="Terre" className="w-4 h-4 object-contain" />
-                                            <b className="text-sm font-bold text-warning tabular-nums">{resists.earth ?? 0}%</b>
-                                            <span className="text-[11px] font-bold text-warning/80 hidden sm:inline">Terre</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-danger/10 border border-danger/20" title="Résistance Feu">
-                                            <img src="/assets/module-succes/Intelligence.png" alt="Feu" className="w-4 h-4 object-contain" />
-                                            <b className="text-sm font-bold text-danger tabular-nums">{resists.fire ?? 0}%</b>
-                                            <span className="text-[11px] font-bold text-danger/80 hidden sm:inline">Feu</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-info/10 border border-info/20" title="Résistance Eau">
-                                            <img src="/assets/module-succes/eau.png" alt="Eau" className="w-4 h-4 object-contain" />
-                                            <b className="text-sm font-bold text-info tabular-nums">{resists.water ?? 0}%</b>
-                                            <span className="text-[11px] font-bold text-info/80 hidden sm:inline">Eau</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-success/10 border border-success/20" title="Résistance Air">
-                                            <img src="/assets/module-succes/Agility.png" alt="Air" className="w-4 h-4 object-contain" />
-                                            <b className="text-sm font-bold text-success tabular-nums">{resists.air ?? 0}%</b>
-                                            <span className="text-[11px] font-bold text-success/80 hidden sm:inline">Air</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                <MonsterStatsSummary
+                                    grades={grades}
+                                    activeGradeIndex={activeGradeIndex}
+                                    onGradeChange={(idx) => setActiveGradeIndex(idx)}
+                                />
 
                                 {Array.isArray(stats.spells) && stats.spells.length > 0 && (
                                     <div className="space-y-2">

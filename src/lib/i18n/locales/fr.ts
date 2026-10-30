@@ -803,6 +803,8 @@ export const fr = {
         selectGrade: "Sélectionner",
         lootTitle: "Butins notables & Taux de drop",
         noLootFound: "Aucun drop répertorié.",
+        loadingLoot: "Chargement du butin…",
+        noLootSynced: "Butin non synchronisé pour ce boss — la synchronisation est en cours.",
         dropRate: "Taux de drop :",
         roomMonstersTitle: "Monstres accompagnateurs de la salle",
         mainBossBadge: "Boss principal",

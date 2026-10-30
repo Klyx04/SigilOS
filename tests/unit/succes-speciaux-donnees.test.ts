@@ -26,6 +26,13 @@ import {
     specialAchievementKey,
     buildSpecialChallengePatch,
     siphonSpecialAchievements,
+    stripFrenchArticle,
+    isBossAchievementName,
+    pickSpecialAchievement,
+    fetchBossAchievementCandidates,
+    fetchMonsterAchievementIds,
+    fetchAchievementById,
+    fetchRealBossName,
     type ChallengeRow,
 } from "@/lib/achievement-details-siphon";
 import { getAchievementIconUrl, getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
@@ -661,6 +668,152 @@ describe("module Donjons & Quêtes — l'icône passe par LA règle, jamais le c
         const src = readFileSync("src/components/dungeon-finder/DjCloseModal.tsx", "utf8");
         expect(src).toContain("getMultiDungeons(post.dungeonsJson)");
         expect(src).not.toContain("Array.isArray(post.dungeonsJson)");
+    });
+});
+
+/**
+ * A5 du 30/10/2026 — les **3 vrais cas** de succès « Spécial » (mesures DofusDB) que la passe
+ * ratait : `dechireuse`, `blop-indigo-royal`, `dramak`. Et la fin de l'affamement : `limit` compte
+ * désormais les **écritures**, pas les lignes examinées.
+ */
+describe("succès « Spécial » — boss, monstre, vrai boss", () => {
+    /** Succès DofusDB avec son `ChallengeData` imbriqué (forme mesurée sur 6150 / 6204 / 8834). */
+    function achievement(
+        name: string,
+        iconId: number,
+        challenge: { id: number; name: string; description: string; iconId: number }
+    ) {
+        return {
+            id: iconId,
+            name: { fr: name },
+            iconId,
+            objectives: [
+                {
+                    criterion: `(EH>${challenge.id},0)`,
+                    readableCriterion: [
+                        {
+                            className: "ChallengeData",
+                            name: { fr: challenge.name },
+                            description: { fr: challenge.description },
+                            iconId: challenge.iconId,
+                        },
+                    ],
+                },
+            ],
+        };
+    }
+
+    const NOMADE = achievement("La Déchireuse (Nomade)", 449, {
+        id: 1039,
+        name: "Nomade",
+        iconId: 12,
+        description: "Les combattants alliés doivent utiliser tous leurs points de mouvement.",
+    });
+    const BLOPS = achievement("Blops Royaux (Spécial)", 19, {
+        id: 994,
+        name: "Blops Royaux",
+        iconId: 19,
+        description: "Les invocations ennemies ne doivent subir aucun dommage.",
+    });
+    const PANTINS = achievement("Maître des Pantins (Statue)", 1014, {
+        id: 291,
+        name: "Statue",
+        iconId: 1014,
+        description: "Vaincre le Maître des Pantins dans son donjon en validant le challenge.",
+    });
+    const CONFLIT = achievement("L'Éternel Conflit (Zombie)", 900, {
+        id: 1000,
+        name: "Zombie",
+        iconId: 900,
+        description: "Ne pas tuer les zombies avant le tour 5.",
+    });
+    const MOB_EPONGE = achievement("Mob l'Éponge (Spécial)", 10, {
+        id: 979,
+        name: "Passer l'éponge",
+        iconId: 977,
+        description: "À partir du tour 2, Mob l'éponge doit être poussé ou attiré.",
+    });
+
+    it("retire l'article et exige TOUS les mots du boss (jamais « ça ressemble »)", () => {
+        expect(stripFrenchArticle("La Déchireuse")).toBe("Déchireuse");
+        expect(stripFrenchArticle("L'Éternel Conflit")).toBe("Éternel Conflit");
+        expect(isBossAchievementName("La Déchireuse (Nomade)", "La Déchireuse")).toBe(true);
+        expect(isBossAchievementName("Blops Royaux (Spécial)", "Blop Indigo Royal")).toBe(false);
+    });
+
+    it("« La Déchireuse (Nomade) » est trouvé par le NOM DU BOSS", async () => {
+        const fetchImpl = (async () => jsonResponse({ data: [NOMADE] })) as never;
+        const candidates = await fetchBossAchievementCandidates("La Déchireuse", fetchImpl);
+        expect(candidates).toHaveLength(1);
+        const picked = pickSpecialAchievement(candidates, "La Déchireuse");
+        expect(picked).toBe(NOMADE);
+        const patch = buildSpecialChallengePatch(picked, nestedChallengeOf(picked));
+        expect(patch?.description).toBe(NOMADE.objectives[0].readableCriterion[0].description.fr);
+        expect(patch?.achievementImageUrl).toBe("/api/assets-dofus/achievements/449");
+    });
+
+    it("« Blops Royaux (Spécial) » est trouvé par les ACHIEVEMENTS DU MONSTRE", async () => {
+        const fetchImpl = (async (url: string) => {
+            if (url.includes("/monsters/1186")) return jsonResponse({ achievements: [6164, 6165] });
+            if (url.includes("/achievements/6164")) return jsonResponse(BLOPS);
+            if (url.includes("/achievements/6165")) return jsonResponse({ id: 6165, name: { fr: "Blops Royaux" }, iconId: 1 });
+            return jsonResponse({ data: [] });
+        }) as never;
+        expect(await fetchMonsterAchievementIds(1186, fetchImpl)).toEqual([6164, 6165]);
+        const candidates = [
+            await fetchAchievementById(6164, fetchImpl),
+            await fetchAchievementById(6165, fetchImpl),
+        ];
+        expect(pickSpecialAchievement(candidates, "Blop Indigo Royal")).toBe(candidates[0]);
+    });
+
+    it("« Maître des Pantins (Statue) » est trouvé par le VRAI BOSS du donjon", async () => {
+        const fetchImpl = (async (url: string) => {
+            if (url.includes("/dungeons?")) {
+                return jsonResponse({ data: [{ name: { fr: "Donjon de Dramak" }, monsters: [1014] }] });
+            }
+            if (url.includes("/monsters/1014")) return jsonResponse({ name: { fr: "Maître des Pantins" } });
+            return jsonResponse({ data: [PANTINS] });
+        }) as never;
+        expect(await fetchRealBossName("Donjon de Dramak", fetchImpl)).toBe("Maître des Pantins");
+        const candidates = await fetchBossAchievementCandidates("Maître des Pantins", fetchImpl);
+        expect(pickSpecialAchievement(candidates, "Maître des Pantins")).toBe(PANTINS);
+    });
+
+    it("n'élit jamais un succès sans parenthèse ni un succès de chasse", () => {
+        expect(pickSpecialAchievement([{ name: { fr: "Cour du Bouftou Royal" }, objectives: [] }], "Bouftou Royal")).toBeNull();
+        expect(pickSpecialAchievement([{ name: { fr: "Serviteurs de Dramak (Chasse)" }, objectives: [] }], "Dramak")).toBeNull();
+    });
+
+    it("non-régression : « L'Éternel Conflit (Zombie) » reste résolu", () => {
+        expect(pickSpecialAchievement([CONFLIT], "L'Éternel Conflit")).toBe(CONFLIT);
+    });
+
+    it("`limit` compte les ÉCRITURES : 25 introuvables n'affament plus la 26e", async () => {
+        const generic = { id: "c-generic", name: "Spécial", slug: "sp-cial" };
+        const rows = Array.from({ length: 26 }, (_, i) => ({
+            id: `da${i}`,
+            description: null,
+            imageUrl: null,
+            dungeon: { bossName: i === 25 ? "Mob l'Eponge" : `Boss ${i}`, name: `Donjon ${i}` },
+            challenge: generic,
+        }));
+        const db = {
+            dungeonAchievement: { findMany: async () => rows, update: async () => {} },
+            challenge: { findFirst: async () => generic },
+        };
+        const fetchImpl = (async (url: string) => {
+            // Index ET recherche par nom : DofusDB ne rend que le succès du boss connu.
+            if (url.includes("%24regex")) return jsonResponse({ data: [MOB_EPONGE] });
+            return jsonResponse({ data: [] });
+        }) as never;
+
+        const report = await siphonSpecialAchievements({ db: db as any, apply: true, limit: 25, fetchImpl });
+        // L'ancienne borne (`scanned >= limit`) s'arrêtait après 25 lignes introuvables, sans
+        // jamais atteindre la 26e complétable.
+        expect(report.scanned).toBe(26);
+        expect(report.written).toBe(1);
+        expect(report.missing).toBe(25);
     });
 });
 

@@ -30,11 +30,44 @@ export interface BossFicheGap {
     bossName: string;
     dungeonName: string;
     level: number | null;
-    reason: 'manquante' | 'périmée';
+    /**
+     * `manquante` = aucune ligne locale ; `incomplète` = la meilleure ligne existe mais son
+     * payload n'exploite rien (butins vides **sans** `dropsUnavailable`) ; `périmée` = la
+     * meilleure ligne est complète mais date de plus de 24 h.
+     */
+    reason: 'manquante' | 'périmée' | 'incomplète';
     lastSyncedAt: string | null;
+    /** Id Ankama de la ligne retenue (`null` si aucune) — permet un repli par id côté cron. */
+    monsterId: number | null;
+}
+
+/** Ligne `MonsterStat` vue par le dry-run (le strict nécessaire). */
+export interface BossFicheStatRow {
+    monsterName: string;
+    monsterId?: number | null;
+    lastSyncedAt: Date | string | null;
+    /**
+     * `true` = payload exploitable (butins réels **ou** aucun butin documenté chez DofusDB).
+     * `false` = ligne présente mais vide (repli Unity, `drops: []`).
+     * `undefined` = non renseigné (appelant historique) ⇒ jamais déclarée incomplète.
+     */
+    complete?: boolean;
 }
 
 export const DATA_HEALTH_FRESH_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Un payload monstre est **exploitable** quand il porte un butin réel, ou quand la source a
+ * répondu qu'il n'y a **aucun** butin documenté (`dropsUnavailable`). Un `drops: []` non marqué
+ * est un trou (repli Unity, 429 DofusDB) — jamais une vérité : 106 fiches beta sur 146
+ * servaient « aucun butin » à cause de ça (mesure du 30/10/2026).
+ */
+export function isCompleteMonsterPayload(stats: unknown): boolean {
+    const s = stats as { drops?: unknown[]; dropsUnavailable?: boolean } | null | undefined;
+    if (s?.dropsUnavailable === true) return true;
+    return Array.isArray(s?.drops) && s.drops.length > 0;
+}
+
 
 function normKey(s: string | null | undefined): string {
     const k = (s || '')
@@ -79,29 +112,57 @@ export function diffVanishedIds(localIds: number[], remoteIds: number[]): number
 
 export function buildBossFicheGaps(
     dungeons: { bossName: string; name: string; level: number | null }[],
-    statsRows: { monsterName: string; lastSyncedAt: Date | string | null }[],
+    statsRows: BossFicheStatRow[],
     nowMs: number = Date.now()
 ): BossFicheGap[] {
-    const statsByKey = new Map<string, { monsterName: string; lastSyncedAt: Date | string | null }>();
+    // 🔎 Une seule ligne retenue par nom : la **complète** passe devant une ligne vide, la
+    // fraîcheur ne départageant que les égalités (même règle que la ligne servie, cf.
+    // `@/lib/monster-stat-choice`). Sans ça, un doublon vide récent masquait le frère complet
+    // et la fiche était déclarée « fraîche » alors qu'elle n'affichait aucun butin.
+    type Best = { row: BossFicheStatRow; at: number; complete: boolean };
+    const statsByKey = new Map<string, Best>();
     for (const r of statsRows) {
         const k = normKey(r.monsterName);
-        if (k && !statsByKey.has(k)) statsByKey.set(k, r);
+        if (!k) continue;
+        const raw = r.lastSyncedAt ? new Date(r.lastSyncedAt).getTime() : NaN;
+        const candidate: Best = {
+            row: r,
+            at: Number.isFinite(raw) ? raw : NaN,
+            complete: r.complete !== false,
+        };
+        const current = statsByKey.get(k);
+        if (!current) {
+            statsByKey.set(k, candidate);
+            continue;
+        }
+        if (candidate.complete !== current.complete) {
+            if (candidate.complete) statsByKey.set(k, candidate);
+            continue;
+        }
+        const curAt = Number.isFinite(current.at) ? current.at : -Infinity;
+        const candAt = Number.isFinite(candidate.at) ? candidate.at : -Infinity;
+        if (candAt > curAt) statsByKey.set(k, candidate);
     }
+
     const gaps: BossFicheGap[] = [];
     for (const d of dungeons) {
         const key = normKey(d.bossName || d.name);
-        const row = statsByKey.get(key);
-        const lastMs = row?.lastSyncedAt ? new Date(row.lastSyncedAt).getTime() : NaN;
-        if (!row || !Number.isFinite(lastMs)) {
-            gaps.push({ bossName: d.bossName || d.name, dungeonName: d.name, level: d.level ?? null, reason: 'manquante', lastSyncedAt: null });
-        } else if (nowMs - lastMs > DATA_HEALTH_FRESH_MS) {
-            gaps.push({
-                bossName: d.bossName || d.name,
-                dungeonName: d.name,
-                level: d.level ?? null,
-                reason: 'périmée',
-                lastSyncedAt: new Date(lastMs).toISOString(),
-            });
+        const hit = statsByKey.get(key);
+        const best = hit && Number.isFinite(hit.at) ? hit : null;
+        const monsterId = hit && Number.isFinite(Number(hit.row.monsterId)) ? Number(hit.row.monsterId) : null;
+        const base = {
+            bossName: d.bossName || d.name,
+            dungeonName: d.name,
+            level: d.level ?? null,
+            monsterId,
+        };
+        if (!best) {
+            gaps.push({ ...base, reason: 'manquante', lastSyncedAt: null });
+        } else if (!best.complete) {
+            // Présente et fraîche ne veut pas dire **servable** : un repli Unity est un trou.
+            gaps.push({ ...base, reason: 'incomplète', lastSyncedAt: new Date(best.at).toISOString() });
+        } else if (nowMs - best.at > DATA_HEALTH_FRESH_MS) {
+            gaps.push({ ...base, reason: 'périmée', lastSyncedAt: new Date(best.at).toISOString() });
         }
     }
     return gaps;

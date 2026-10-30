@@ -27,6 +27,7 @@ import {
 } from "@/lib/dofensive-spells";
 import type { DofensiveDungeonInfo, DofensiveMapData } from "@/lib/dofensive-api";
 import { getQilbyCustomMapData, getQilbyDungeonInfo, QILBY_MAP_ID } from "@/lib/qilby-map";
+import { pickBestMonsterStatRow } from "@/lib/monster-stat-choice";
 
 /**
  * 🔍 Blocs d'une fiche monstre/boss suivis par le **journal des changements** (dataset
@@ -320,14 +321,28 @@ export async function getLocalDofensiveDungeon(
     return hit && !hit.stale ? hit.data : null;
 }
 
-/** Lit une fiche monstre locale par nom SANS contrôle de fraîcheur (Lot 1) — `null` si absente. */
+/**
+ * Lit une fiche monstre locale par nom SANS contrôle de fraîcheur (Lot 1) — `null` si absente.
+ *
+ * 🎯 Plusieurs lignes peuvent porter le même nom (`MonsterStat` est keyée par `monsterId`) :
+ * on sert la **plus complète** (butins réels > butins documentés absents > non-Unity), la
+ * fraîcheur ne départageant que les égalités. Un `findFirst` + `orderBy lastSyncedAt desc`
+ * faisait gagner un repli Unity récent (`drops: []`) sur la ligne DofusDB complète plus
+ * ancienne — mesuré le 30/10/2026 : `Bouftou Royal` 7835 (0 butin) servait à la place de
+ * 147 (37 butins), idem `Blop Indigo Royal` 7972 contre 1186 (31 butins), et **106 fiches
+ * beta sur 146** affichaient « aucun butin » alors que la donnée existait en base.
+ */
 export async function getLocalMonsterStatAny(monsterName: string): Promise<LocalStaleResult<any> | null> {
     if (!DB_READABLE || !monsterName) return null;
     try {
-        const row = await db.monsterStat.findFirst({
+        // `take: 10` borne la lecture (les doublons de nom se comptent sur les doigts) et le
+        // classement reste une règle pure, testée sans base.
+        const rows = await db.monsterStat.findMany({
             where: { monsterName: { equals: monsterName, mode: "insensitive" } },
             orderBy: { lastSyncedAt: "desc" },
+            take: 10,
         });
+        const row = pickBestMonsterStatRow(rows as never);
         if (!row) return null;
         // La forme du payload voyage avec la ligne : « fraîche » ne veut pas dire « à jour ».
         return toStaleResult<any>(row.stats, row.lastSyncedAt, (row.stats as any)?.spellsVersion);
@@ -443,6 +458,23 @@ export async function persistMonsterStat(data: any): Promise<void> {
         const previous = await db.monsterStat
             .findUnique({ where: { monsterId }, select: { versionHash: true, stats: true } })
             .catch(() => null);
+
+        // 🛡️ Garde anti-dégradation (mesure du 30/10/2026) : quand DofusDB répond 429, la fiche
+        // retombe sur le bestiaire Unity (`drops: []`) **en succès** et le cron la persistait
+        // par-dessus une fiche complète ⇒ 106 fiches beta sur 146 affichaient « aucun butin »
+        // alors que la donnée existait. Une ligne qui a un butin n'est **jamais** écrasée par un
+        // payload qui n'en a pas : on préfère une fiche à peine plus ancienne à une fiche vide.
+        const prevHasDrops = Array.isArray((previous?.stats as any)?.drops)
+            && ((previous?.stats as any).drops as unknown[]).length > 0;
+        const nextHasDrops = Array.isArray(payload.drops) && (payload.drops as unknown[]).length > 0;
+        if (prevHasDrops && !nextHasDrops) {
+            logger.warn("[dofensive-sync] butin complet protégé — écriture refusée:", {
+                monsterId,
+                monsterName: name,
+            });
+            return;
+        }
+
         await db.monsterStat.upsert({
             where: { monsterId },
             create: {

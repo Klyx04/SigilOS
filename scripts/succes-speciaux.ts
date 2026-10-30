@@ -17,6 +17,12 @@
  * ④ `purger-challenges-speciaux` — supprime les challenges **orphelins** laissés par l'ancienne
  *    passe (elle créait un challenge par boss) : sans effet sur l'affichage, mais ils polluaient
  *    l'onglet God « Succès ». À lancer **après** un siphon complet.
+ * ⑤ `reparer-butins` — répare les fiches monstres dont le payload n'a **aucun butin**
+ *    (`drops: []`, repli Unity persisté). C'est la même passe que la phase 5 ter du cron, mais
+ *    **sans borne** (le cron est limité à 25 par nuit). Dry-run par défaut ; `--limit=N` borne.
+ *
+ *    npx -y tsx scripts/succes-speciaux.ts reparer-butins
+ *    npx -y tsx scripts/succes-speciaux.ts reparer-butins --apply --limit=200
  *
  * ⚠️ Le budget DofusDB partagé (`30 req/min`) peut fermer la fenêtre en cours de route : la passe
  *    s'arrête alors **proprement** (`⏳ …`) au lieu de compter des dizaines de faux « introuvables ».
@@ -144,6 +150,41 @@ async function runPurgeSpecialChallenges(db: PrismaClient, apply: boolean) {
     console.log(`\n${deleted.count} challenge(s) supprimé(s). Jamais recréés (le code ne crée plus de challenge).`);
 }
 
+/**
+ * ⑤ Réparation des fiches **sans butin** (mesure du 30/10/2026 : 106 fiches beta / 146).
+ *
+ * Même passe que la phase 5 ter du cron `sync-monster-stats`, mais **sans borne de 25** : ici on
+ * répare tout d'un coup, en une seule exécution. Dry-run par défaut (aucune écriture) ;
+ * `--limit=N` borne le nombre de monstres interrogés (défaut : 500).
+ */
+async function runRepairDrops(db: PrismaClient, apply: boolean, args: string[]) {
+    const limitArg = args.find((a) => a.startsWith("--limit="));
+    const limit = Number(limitArg?.split("=")[1] ?? 500);
+    // Chargés ici : les autres commandes n'ont pas besoin de la couche fiche monstre.
+    const { repairMonsterDrops } = await import("@/lib/monster-drops-repair");
+    const { getMonsterStats } = await import("@/lib/monster-stats-core");
+    const { persistMonsterStat } = await import("@/lib/dofensive-sync");
+
+    const report = await repairMonsterDrops({
+        db: db as unknown as Parameters<typeof repairMonsterDrops>[0]["db"],
+        limit: Number.isFinite(limit) && limit > 0 ? limit : 500,
+        // Re-fetch **par nom** (jamais l'id local d'un doublon vide) : l'id DofusDB réel revient.
+        fetchStats: (name, dungeonName) => getMonsterStats(name, dungeonName, true),
+        // Dry-run : on compte ce qui **serait** écrit, sans rien écrire.
+        persist: apply ? persistMonsterStat : async () => {},
+    });
+
+    console.log(
+        `\n${report.scanned} fiche(s) analysée(s) · ${report.repaired} ${apply ? "réparée(s)" : "à réparer"} · `
+            + `${report.skippedUnity} sans source DofusDB (repli Unity, non écrasé) · ${report.failed} en échec`
+            + (apply ? "" : report.repaired > 0 ? "\n👉 relancer avec --apply pour écrire" : "")
+    );
+    for (const line of report.details.slice(0, 20)) console.log(`  · ${line}`);
+    if (!apply && report.repaired > 0) {
+        console.log("⚠️ Les fiches déjà complètes ne sont ni lues ni touchées (passe idempotente).");
+    }
+}
+
 async function main() {
     const args = process.argv.slice(2);
     const command = args[0];
@@ -154,7 +195,11 @@ async function main() {
         if (command === "siphon") return await runSiphon(db, apply);
         if (command === "retirer-donjon-valide") return await runRemoval(db, apply);
         if (command === "purger-challenges-speciaux") return await runPurgeSpecialChallenges(db, apply);
-        console.log("Commande requise : siphon | retirer-donjon-valide | purger-challenges-speciaux (option : --apply)");
+        if (command === "reparer-butins") return await runRepairDrops(db, apply, args);
+        console.log(
+            "Commande requise : siphon | retirer-donjon-valide | purger-challenges-speciaux | reparer-butins "
+                + "(option : --apply)"
+        );
         process.exitCode = 2;
     } finally {
         await db.$disconnect();

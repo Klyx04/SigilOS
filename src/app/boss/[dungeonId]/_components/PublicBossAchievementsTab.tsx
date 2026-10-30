@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Trophy, Check } from "lucide-react";
 import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
+import { displayAchievementDescription } from "@/lib/challenge-description";
 import { visibleDungeonAchievements } from "@/lib/dungeon-no-achievement";
 import type { PublicDungeonAchievement } from "@/server/actions/public-boss-tabs-actions";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,15 @@ function AchievementCard({
 }) {
     const iconUrl = getDungeonAchievementIconUrl(achievement);
     const checkable = typeof onToggle === "function";
+    // Le repli est un **état**, pas un `style.display` : un `onError` laissait une case vide
+    // (mesure du 30/10/2026 : « carré noir » sur les succès dont l'asset manque).
+    const [iconFailed, setIconFailed] = useState(false);
+    // Texte **honnête** : un succès « Spécial » encore au gabarit du seed dit qu'il n'est pas
+    // documenté, il ne fait pas passer un gabarit pour une mécanique (A5 bis du 30/10/2026).
+    const description = displayAchievementDescription({
+        description: achievement.description,
+        slug: achievement.slug,
+    });
 
     return (
         <div
@@ -40,14 +51,12 @@ function AchievementCard({
         >
             {/* Icône du succès — réelle quand elle est connue (proxy interne), repli Trophy sinon. */}
             <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-1.5 shrink-0 overflow-hidden shadow-xs">
-                {iconUrl ? (
+                {iconUrl && !iconFailed ? (
                     <img
                         src={iconUrl}
                         alt={achievement.name}
                         className="w-full h-full object-contain"
-                        onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                        }}
+                        onError={() => setIconFailed(true)}
                     />
                 ) : (
                     <Trophy className="w-5 h-5 text-amber-400/70" />
@@ -57,9 +66,9 @@ function AchievementCard({
             {/* Infos */}
             <div className="flex-1 min-w-0">
                 <h5 className="text-sm font-bold text-foreground leading-snug">{achievement.name}</h5>
-                {achievement.description && (
+                {description && (
                     <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-                        {achievement.description}
+                        {description}
                     </p>
                 )}
             </div>

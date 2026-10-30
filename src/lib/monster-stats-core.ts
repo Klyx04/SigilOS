@@ -249,6 +249,11 @@ function buildMonsterDataFromUnity(unity: UnityMonsterData): any {
         id: unity.id,
         name: unity.name,
         nameEn: null,
+        // 🏷️ Origine **explicite** du payload (champ additif, aucune migration) : ce repli n'a
+        // aucun butin (`drops: []`) et ne doit jamais passer pour une fiche DofusDB vide. Le
+        // classement (`@/lib/monster-stat-choice`) le classe derrière toute ligne complète, et
+        // la garde d'écriture de `persistMonsterStat` refuse qu'il écrase un butin existant.
+        source: "unity",
         // Mesure du 09/10/2026 : ce chemin local derive n existe pas pour la plupart des
         // monstres (et melange deux espaces d ids) : la simulation affichait la couronne. Le proxy
         // resout l apparence par l API avec garde d identite et met en cache sous cet id.

@@ -72,13 +72,21 @@ export async function GET(req: Request) {
         // les fiches manquantes/périmées sont re-fetchées (dry-run BDD pur,
         // même matching que l'onglet État des données). Le bouton God par
         // ligne garde son vrai force (chemin triggerBatch, inchangé).
-        const { buildBossFicheGaps } = await import("@/lib/data-health");
+        const { buildBossFicheGaps, isCompleteMonsterPayload } = await import("@/lib/data-health");
         const existingStats = await db.monsterStat.findMany({
-            select: { monsterName: true, lastSyncedAt: true },
+            // Le payload voyage avec la ligne : une fiche **fraîche mais vide** (`drops: []`,
+            // repli Unity) est un trou à réparer, pas une fiche saine (mesure du 30/10/2026).
+            select: { monsterName: true, monsterId: true, lastSyncedAt: true, stats: true },
         });
+        const existingGapRows = existingStats.map((r) => ({
+            monsterName: r.monsterName,
+            monsterId: r.monsterId,
+            lastSyncedAt: r.lastSyncedAt,
+            complete: isCompleteMonsterPayload(r.stats),
+        }));
         const gaps = buildBossFicheGaps(
             bosses.map((b) => ({ bossName: b.bossName, name: b.dungeonName, level: null })),
-            existingStats.map((r) => ({ monsterName: r.monsterName, lastSyncedAt: r.lastSyncedAt })),
+            existingGapRows,
             Date.now()
         );
         const gapKeys = new Set(gaps.map((g) => `${g.bossName}::${g.dungeonName}`));
@@ -130,7 +138,7 @@ export async function GET(req: Request) {
             });
             const titanGaps = buildBossFicheGaps(
                 titans.map((t) => ({ bossName: t.name, name: t.mapName || t.name, level: null })),
-                existingStats.map((r) => ({ monsterName: r.monsterName, lastSyncedAt: r.lastSyncedAt })),
+                existingGapRows,
                 Date.now()
             );
             const titanGapKeys = new Set(titanGaps.map((g) => g.bossName));
@@ -371,7 +379,38 @@ export async function GET(req: Request) {
             }
         }
 
-        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés · veille fiches: ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"} , filigrane ${veilleFiches.cursor ?? "début"})`);
+        // 5 ter. BUTINS MANQUANTS (mesure du 30/10/2026 : 106 fiches beta / 146 servaient
+        //        `drops: []`). `buildBossFicheGaps` les déclare désormais `incomplète` et la
+        //        phase 5 les re-synchronise ; cette passe **répare** ce que la garde d'écriture
+        //        empêche d'écraser, une fois par nom, dans le même budget DofusDB (25 max).
+        //        Idempotente : en régime établi elle coûte 0 requête.
+        let dropsRepaired = 0;
+        let dropsSkippedUnity = 0;
+        if (process.env.VITEST !== "true") {
+            try {
+                const { repairMonsterDrops } = await import("@/lib/monster-drops-repair");
+                const repair = await repairMonsterDrops({
+                    db: db as any,
+                    limit: 25,
+                    fetchStats: (name, dungeonName) => getMonsterStats(name, dungeonName, true),
+                    persist: persistMonsterStat,
+                });
+                dropsRepaired = repair.repaired;
+                dropsSkippedUnity = repair.skippedUnity;
+                if (repair.repaired > 0 || repair.failed > 0 || repair.deferred) {
+                    logger.info(
+                        `[Cron:SyncMonsterStats] Butins : ${repair.repaired} fiche(s) réparée(s), `
+                            + `${repair.scanned} scannée(s), ${repair.skippedUnity} sans source DofusDB, `
+                            + `${repair.failed} en échec`
+                            + (repair.deferred ? " · budget DofusDB partagé épuisé (reprise au prochain passage)" : "")
+                    );
+                }
+            } catch (err) {
+                logger.warn("[Cron:SyncMonsterStats] Erreur réparation des butins:", { error: String(err) });
+            }
+        }
+
+        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés · veille fiches: ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"} , filigrane ${veilleFiches.cursor ?? "début"}) · butins réparés: ${dropsRepaired} (${dropsSkippedUnity} sans source)`);
 
         // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
         await createSystemAuditLog({

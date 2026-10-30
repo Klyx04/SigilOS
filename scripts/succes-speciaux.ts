@@ -206,4 +206,24 @@ async function main() {
     }
 }
 
-void main();
+/**
+ * ⚠️ Sortie **explicite** (défaut mesuré le 30/10/2026).
+ *
+ * La sous-commande `reparer-butins` importe la couche fiche monstre (`@/lib/monster-stats-core`
+ * → `@/lib/dofensive-sync` → `@/lib/prisma`) et Redis : ce sont des **singletons** dont les
+ * sockets gardent la boucle d'événements vivante. Le rapport s'imprimait, puis le process ne
+ * rendait **jamais** la main (`ps` montrait encore `node scripts/succes-speciaux.js reparer-butins`
+ * après le rapport, et la commande suivante du shell ne démarrait pas).
+ *
+ * On attend donc le vidage de `stdout` (Docker `exec` peut tronquer une sortie non vidée) avant
+ * de sortir avec le code décidé par `main()`.
+ */
+void main()
+    .then(() => {
+        const code = process.exitCode ?? 0;
+        process.stdout.write("", () => process.exit(code));
+    })
+    .catch((error) => {
+        console.error(error);
+        process.exit(1);
+    });

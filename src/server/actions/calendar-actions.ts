@@ -25,6 +25,8 @@ import { startOfWeek, addDays } from "date-fns";
 import { getAppBaseUrl } from "@/lib/utils";
 import { resolveOwnedClass } from "@/lib/user-character-classes";
 import { loadClassProfileByUserId } from "@/server/character-class-profile";
+import { Prisma } from "@prisma/client";
+import { buildStandBy, canToggleStandBy, isStandByActive } from "@/lib/group-standby";
 
 // ============================================
 // LOCAL ENUM DEFINITIONS (mirrors Prisma schema)
@@ -1103,6 +1105,112 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
     } catch (error) {
         logger.error("[Calendar] cancelEvent Error:", error);
         return { success: false, error: "Erreur lors de l'annulation" };
+    }
+}
+
+/**
+ * **Stand-by** d'un événement calendrier (30/10/2026) — pause posée par le **créateur** ou
+ * un **administrateur**.
+ *
+ * Contrat (`@/lib/group-standby`) : suspend le rappel H-24 / H-1, le rappel de clôture et
+ * la **clôture d'office** ; les inscriptions restent ouvertes ; `paused` est idempotent.
+ *
+ * Un **miroir agenda** (DJ/Songes) est refusé : sa pause se pose sur le post d'origine, et
+ * `syncDjMirror` / `syncSongesMirror` la recopie ici (une seule vérité).
+ */
+export async function setEventStandBy(
+    guildId: string,
+    eventId: string,
+    paused: boolean,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    const limit = await rateLimit(`event-standby:${guildId}:${ctx.id ?? "anon"}`, 10, 60_000);
+    if (!limit.success) {
+        return {
+            success: false,
+            error: limit.error
+                ? "Sécurité momentanément indisponible, réessayez."
+                : "Trop de changements en peu de temps, réessayez plus tard.",
+        };
+    }
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findFirst({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { id: true, creatorId: true, status: true, metadata: true, standBy: true },
+        });
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (isAgendaMirror(event.metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
+
+        if (!canToggleStandBy({
+            isCreator: event.creatorId === ctx.id,
+            isAdmin: Boolean(ctx.isAdmin || ctx.canManageCalendar),
+        })) {
+            return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le mettre en stand-by." };
+        }
+        if (event.status === "COMPLETED" || event.status === "CANCELLED") {
+            return { success: false, error: "Un événement clôturé ou annulé ne peut pas être mis en stand-by." };
+        }
+        if (isStandByActive(event.standBy) === paused) return { success: true };
+
+        if (paused) {
+            const authorProfile = await db.userProfile.findFirst({
+                where: { userId: ctx.id ?? "", guildId: guildConfig.id },
+                select: { pseudoDofus: true, discordNickname: true },
+            });
+            const state = buildStandBy({
+                at: new Date(),
+                userId: ctx.id ?? "",
+                name: authorProfile?.pseudoDofus || authorProfile?.discordNickname || ctx.name || "un membre",
+            });
+            if (!state) return { success: false, error: "Impossible d'identifier l'auteur de la pause." };
+            await db.guildEvent.update({
+                where: { id: eventId, guildId: guildConfig.id },
+                data: { standBy: state as never },
+            });
+        } else {
+            await db.guildEvent.update({
+                where: { id: eventId, guildId: guildConfig.id },
+                data: { standBy: Prisma.DbNull },
+            });
+        }
+
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "EVENT_STANDBY" as never,
+            targetType: "GUILD_EVENT" as never,
+            targetId: eventId,
+            metadata: {
+                paused,
+                byAdmin: Boolean(ctx.isAdmin || ctx.canManageCalendar),
+                reason: (reason ?? "").slice(0, 300) || (paused ? "Mise en stand-by" : "Reprise"),
+            },
+        });
+
+        try {
+            const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
+            await updateDiscordEventEmbed(guildId, eventId);
+        } catch (embedErr) {
+            logger.warn("[setEventStandBy] refresh embed non bloquant", { error: embedErr });
+        }
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true };
+    } catch (error) {
+        logger.error("[Calendar] setEventStandBy Error:", error);
+        return { success: false, error: "Erreur lors du changement de stand-by" };
     }
 }
 

@@ -17,6 +17,7 @@ import { loadEmojiResolver } from "@/server/discord-app-emojis";
 import { resolveEffectiveClass } from "@/lib/dofus-assets";
 import { resolveOwnedClass } from "@/lib/user-character-classes";
 import { loadClassProfileByUserId } from "@/server/character-class-profile";
+import { isStandByActive, standByButtonLabel, standByEmbedLine } from "@/lib/group-standby";
 
 // Les visuels (génériques + dédiés par type de raid) vivent dans
 // `src/lib/calendar-event-images.ts` : même source pour l'embed Discord et les
@@ -665,6 +666,12 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
             });
         }
 
+        // Stand-by (30/10/2026) : la pause est visible dans l'embed (et re-rendue à chaque PATCH).
+        if (isStandByActive(event.standBy)) {
+            fields.push({ name: "⏸️ Stand-by", value: (standByEmbedLine(event.standBy) as string).replace(/^⏸️\s*/, ""), inline: false });
+        }
+
+
         fields.push({ name: "📝 Description", value: event.description || "*Pas de description*", inline: false });
 
         if (missions.length > 0) {
@@ -707,7 +714,16 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
                 type: 1,
                 components: [
                     { type: 2, style: 1, label: "S'inscrire", emoji: { name: "✅" }, custom_id: `calendar:join:${event.id}` },
-                    { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `calendar:leave:${event.id}` }
+                    { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `calendar:leave:${event.id}` },
+                    {
+                        // Stand-by (30/10/2026) — créateur ou admin, contrôlé dans le handler.
+                        type: 2,
+                        style: isStandByActive(event.standBy) ? 3 : 2,
+                        label: standByButtonLabel(event.standBy),
+                        emoji: { name: isStandByActive(event.standBy) ? "▶️" : "⏸️" },
+                        custom_id: `calendar:standby:${event.id}`,
+                    },
+
                 ]
             },
             // Menu classe en PLUS des boutons : choisir une classe = s'inscrire avec
@@ -930,6 +946,12 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
             });
         }
 
+        // Stand-by (30/10/2026) : champ re-rendu à chaque PATCH de l'embed.
+        if (isStandByActive(event.standBy)) {
+            fields.push({ name: "⏸️ Stand-by", value: (standByEmbedLine(event.standBy) as string).replace(/^⏸️\s*/, ""), inline: false });
+        }
+
+
         fields.push({ name: "📝 Description", value: event.description || "*Pas de description*", inline: false });
 
         if (missions.length > 0) {
@@ -972,7 +994,17 @@ export async function refreshDiscordEventEmbed(guildId: string, eventId: string)
                 type: 1,
                 components: [
                     { type: 2, style: 1, label: "S'inscrire", emoji: { name: "✅" }, custom_id: `calendar:join:${event.id}` },
-                    { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `calendar:leave:${event.id}` }
+                    { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `calendar:leave:${event.id}` },
+                    {
+                        // Stand-by (30/10/2026) — créateur ou admin, contrôlé dans le handler
+                        // Discord (impossible de griser un bouton pour une seule personne).
+                        type: 2,
+                        style: isStandByActive(event.standBy) ? 3 : 2,
+                        label: standByButtonLabel(event.standBy),
+                        emoji: { name: isStandByActive(event.standBy) ? "▶️" : "⏸️" },
+                        custom_id: `calendar:standby:${event.id}`,
+                    },
+
                 ]
             },
             // Menu classe en PLUS des boutons : choisir une classe = s'inscrire avec

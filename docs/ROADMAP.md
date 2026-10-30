@@ -288,6 +288,7 @@
 
 | ID | Chantier | Livré |
 |---|---|---|
+| `G-STAND`/`G-ORPH` | Stand-by des groupes **+ contenu fantôme** (fermeture auto, reprise de lead, anonymisation à la purge) | 30/10/2026 |
 | `A` | Siphons game-data (A1 → A5) | 28/09/2026 |
 | `B` | Membres `/admin/members` (B-1 → B-3) | 14/10/2026 |
 | `X-1` | Sondages programmés | 13/10/2026 |

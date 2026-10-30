@@ -21,6 +21,7 @@ import { logger } from "@/lib/logger";
 import { getAppBaseUrl } from "@/lib/utils";
 import { sendChannelMessage } from "@/server/discord";
 import { buildRaidReminderMentions, raidReminderLeadLabel, resolveRaidReminderLeadMinutes, RAID_REMINDER_MANUAL_MUTE_MS } from "@/lib/raid-reminder";
+import { isStandByActive, STAND_BY_SKIP_REASON } from "@/lib/group-standby";
 
 /** Fenêtre de scan : 24 h max (couvre tous les notifyBefore possibles). */
 const SCAN_HORIZON_MS = 24 * 60 * 60 * 1000;
@@ -83,6 +84,8 @@ type EventRow = {
     metadata: unknown;
     lastRemindedAt: Date | null;
     participants: { userId: string }[];
+    /** Stand-by (30/10/2026) : valeur brute de la colonne, lue par `isStandByActive`. */
+    standBy?: unknown;
 };
 
 type GuildRow = {
@@ -144,6 +147,17 @@ async function deliverEventReminder(args: {
 }): Promise<EventReminderOutcome> {
     const { guildConfig, event, now } = args;
     const meta = (event.metadata as Record<string, unknown> | null) || {};
+
+    // Stand-by : l'organisateur a suspendu l'événement → aucun ping. Fail-closed : toute
+    // valeur non nulle compte comme une pause (une donnée corrompue ne réveille pas le cron).
+    if (isStandByActive(event.standBy)) {
+        return {
+            sent: false,
+            reason: STAND_BY_SKIP_REASON,
+            pinged: 0,
+            leadMinutes: resolveRaidReminderLeadMinutes(event.notifyBefore),
+        };
+    }
 
     // Salon : celui de l'embed ou le salon calendrier configuré
     const channelId = event.discordChannelId || guildConfig.calendarNotifyChannelId;
@@ -269,6 +283,8 @@ export async function sendEventReminders(
             discordChannelId: true,
             metadata: true,
             lastRemindedAt: true,
+            // Stand-by (30/10/2026) : lu par la décision, jamais filtré en SQL.
+            standBy: true,
             participants: {
                 where: { status: { in: ["REGISTERED", "CONFIRMED"] } },
                 select: { userId: true },

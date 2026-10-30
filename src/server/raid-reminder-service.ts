@@ -30,6 +30,7 @@ import {
     shouldSendRaidClosureReminder,
     type RaidChannelConfig,
 } from "@/lib/raid-reminder";
+import { isStandByActive, STAND_BY_SKIP_REASON } from "@/lib/group-standby";
 
 export type RaidReminderOutcome = {
     sent: boolean;
@@ -292,6 +293,9 @@ export async function sendRaidReminders(
             notifyBefore: true,
             discordChannelId: true,
             metadata: true,
+            // Stand-by (30/10/2026) : lu par la passe, jamais filtré en SQL (une valeur
+            // illisible doit compter comme une pause — cf. `isStandByActive`).
+            standBy: true,
             lastRemindedAt: true,
             creatorId: true,
             participants: {
@@ -337,6 +341,11 @@ export async function sendRaidReminders(
         }
 
         try {
+            // Stand-by : raid suspendu → aucun ping. Fail-closed (valeur illisible = pause).
+            if (isStandByActive(event.standBy)) {
+                bump(STAND_BY_SKIP_REASON);
+                continue;
+            }
             const outcome = await deliverRaidReminder({ guildId, guildConfig, event, now });
             if (outcome.sent) {
                 summary.sent++;
@@ -550,6 +559,8 @@ export async function sendRaid24hReminders(
             maxParticipants: true,
             discordChannelId: true,
             metadata: true,
+            // Stand-by (30/10/2026) : lu par la passe, jamais filtré en SQL.
+            standBy: true,
             lastRemindedAt: true,
             creatorId: true,
             participants: {
@@ -594,6 +605,11 @@ export async function sendRaid24hReminders(
         }
 
         try {
+            // Stand-by : raid suspendu → aucun ping J-1 non plus.
+            if (isStandByActive(event.standBy)) {
+                bump(STAND_BY_SKIP_REASON);
+                continue;
+            }
             const outcome = await deliverRaid24hReminder({ guildId, guildConfig, event, now });
             if (outcome.sent) {
                 summary.sent++;
@@ -774,6 +790,8 @@ export async function sendRaidClosureReminders(
             endDate: true,
             discordChannelId: true,
             metadata: true,
+            // Stand-by (30/10/2026) : un raid suspendu ne réclame pas sa clôture.
+            standBy: true,
             creatorId: true,
             guild: { select: { discordGuildId: true } },
         },
@@ -814,6 +832,11 @@ export async function sendRaidClosureReminders(
         }
 
         try {
+            // Stand-by : le raid est suspendu, on ne réclame pas sa clôture.
+            if (isStandByActive(event.standBy)) {
+                bump(STAND_BY_SKIP_REASON);
+                continue;
+            }
             const outcome = await deliverRaidClosureReminder({ guildId, guildConfig, event, now });
             if (outcome.sent) {
                 summary.sent++;

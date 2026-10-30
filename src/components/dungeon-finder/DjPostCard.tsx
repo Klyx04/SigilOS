@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
     Users, Clock,
-    XCircle, LogIn, LogOut, CheckCircle2
+    XCircle, LogIn, LogOut, CheckCircle2, Pause
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ClassIcon } from "@/components/shared/class-icon";
@@ -23,6 +23,7 @@ import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { getClass } from "@/lib/dofus-assets";
 import { getMultiDungeons, getDjPostTitle, getDjPostSubtitle, formatDjDateLabel, getDjDungeonStats, summarizeDjDungeons } from "@/lib/dungeon-finder-utils";
+import { isStandByActive, standByAuthorName } from "@/lib/group-standby";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { DjMultiBossAvatars } from "./DjMultiBossAvatars";
 
@@ -181,10 +182,24 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
 
                 {/* 2. Badges Mode & Places */}
                 <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-mono font-medium px-2.5 py-1 rounded-lg bg-surface/70 border border-border/60 text-foreground">
-                        <DofusUiIcon name={modeMeta.asset} size={13} className="opacity-80" />
-                        <span>{modeMeta.label}</span>
-                    </span>
+                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-mono font-medium px-2.5 py-1 rounded-lg bg-surface/70 border border-border/60 text-foreground">
+                            <DofusUiIcon name={modeMeta.asset} size={13} className="opacity-80" />
+                            <span>{modeMeta.label}</span>
+                        </span>
+
+                        {/* Stand-by (30/10/2026) : un post gelé doit se voir DANS LA LISTE —
+                            sinon il paraît actif alors que le cron ne pinge plus. */}
+                        {isStandByActive(post.standBy) && (
+                            <span
+                                className="inline-flex items-center gap-1.5 text-xs font-mono font-medium px-2.5 py-1 rounded-lg bg-surface/70 border border-border/60 text-muted-foreground"
+                                title={standByAuthorName(post.standBy) ? `Mis en stand-by par ${standByAuthorName(post.standBy)}` : "En stand-by"}
+                            >
+                                <Pause className="w-3.5 h-3.5" />
+                                Stand-by
+                            </span>
+                        )}
+                    </div>
 
                     <span
                         className="inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground bg-surface/70 border border-border/60 px-2.5 py-1 rounded-lg"

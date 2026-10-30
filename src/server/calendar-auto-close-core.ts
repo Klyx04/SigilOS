@@ -20,6 +20,8 @@ import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { isAgendaMirror } from "@/lib/agenda-mirror";
 import { blindAutoCloseWhere, shouldBlindAutoClose } from "@/lib/calendar-auto-close";
+import { isStandByActive } from "@/lib/group-standby";
+import { Prisma } from "@prisma/client";
 import {
     deleteEventDiscordMessage,
     deleteReminderMessageRefs,
@@ -59,13 +61,21 @@ export async function closeExpiredCalendarEvents(
     };
 
     const candidates = await db.guildEvent.findMany({
-        where: blindAutoCloseWhere(null, now),
+        where: {
+            ...blindAutoCloseWhere(null, now),
+            // Stand-by (30/10/2026) : un événement gelé n'est pas candidat à la clôture
+            // d'office. Filtre SQL (`DbNull` = colonne NULL) pour qu'une passe saturée
+            // d'événements suspendus ne prive pas les autres de leur clôture ; la règle
+            // pure ci-dessous reste la seconde barrière.
+            standBy: { equals: Prisma.DbNull },
+        },
         select: {
             id: true,
             guildId: true,
             type: true,
             endDate: true,
             metadata: true,
+            standBy: true,
             discordChannelId: true,
             discordMessageId: true,
         },
@@ -77,7 +87,14 @@ export async function closeExpiredCalendarEvents(
     for (const event of candidates) {
         const meta = (event.metadata as any) || {};
         // Miroirs DJ/Songes écartés : leur clôture appartient à `syncDjMirror`/`syncSongesMirror`.
-        if (!shouldBlindAutoClose({ type: event.type, endDate: event.endDate, now, isMirror: isAgendaMirror(meta) })) {
+        // Stand-by : un événement volontairement suspendu attend son réveil.
+        if (!shouldBlindAutoClose({
+            type: event.type,
+            endDate: event.endDate,
+            now,
+            isMirror: isAgendaMirror(meta),
+            isStandBy: isStandByActive(event.standBy),
+        })) {
             continue;
         }
 

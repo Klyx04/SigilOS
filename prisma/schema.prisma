@@ -1369,6 +1369,10 @@ model DreamRun {
   discordMessageId    String?
   updatedAt           DateTime           @default(now()) @updatedAt
   lastReminderAt      DateTime?
+  /// « Stand-by » (30/10/2026) — pause posée par le leader ou un admin : suspend le
+  /// rappel H-1, les relances d'inactivité et la clôture automatique. Règle et forme
+  /// unique : `src/lib/group-standby.ts`. `NULL` = run active.
+  standBy             Json?
   epreuveCode         String?
   scheduledAt         DateTime?
   mentionRoleId       String?
@@ -1495,6 +1499,10 @@ model GuildEvent {
   metadata         Json?
   notifyBefore     Int?               @default(60)
   lastRemindedAt   DateTime?
+  /// « Stand-by » (30/10/2026) — pause posée par le créateur ou un admin : suspend le
+  /// rappel H-24/H-1, le rappel de clôture et la clôture d'office. Règle et forme
+  /// unique : `src/lib/group-standby.ts`. `NULL` = événement actif.
+  standBy          Json?
   proofUrl         String?
   validatedAt      DateTime?
   validatedBy      String?
@@ -1972,6 +1980,10 @@ model DjSearchPost {
   closedAt             DateTime?
   expiresAt            DateTime
   lastReminderAt       DateTime?
+  /// « Stand-by » (30/10/2026) — pause posée par le créateur ou un admin : suspend le
+  /// rappel H-1, les relances d'inactivité et la clôture automatique. Règle et forme
+  /// unique : `src/lib/group-standby.ts`. `NULL` = post actif.
+  standBy              Json?
   isDiscordPublished   Boolean               @default(false)
   questId              Int?
   requiredClasses      String[]

@@ -11,6 +11,9 @@ import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-c
 import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
 import type { ModuleKey } from "@/lib/module-types";
 import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
+import { Prisma } from "@prisma/client";
+import { buildStandBy, isStandByActive } from "@/lib/group-standby";
+import { isAgendaMirror } from "@/lib/agenda-mirror";
 import type { TicketAuthorizationContext } from "@/lib/tickets/access";
 import {
     buildTicketModalSubmittedReply,
@@ -115,6 +118,181 @@ function ephemeralDiscordMessage(content: string): NextResponse {
 /** Refus éphémère standard (type 4, `flags: 64` — jamais muet, jamais public). */
 function ephemeralDiscordRefusal(content: string): NextResponse {
     return ephemeralDiscordMessage(content);
+}
+
+/**
+ * Bouton **« Stand-by »** (30/10/2026) — `dj:standby:{postId}`, `songes:standby:{runId}`,
+ * `calendar:standby:{eventId}`.
+ *
+ * Discord ne sait **pas** désactiver un bouton pour une seule personne : le contrôle du
+ * créateur est donc fait **ici**, et le refus est **éphémère** (jamais public). La levée par
+ * un administrateur existe côté dashboard (`setDjPostStandBy` / `setDreamRunStandBy` /
+ * `setEventStandBy`) : c'est la porte de sortie quand le créateur a quitté le serveur.
+ *
+ * La trace de qui a suspendu / repris est portée par la donnée elle-même
+ * (`standBy = { at, userId, name }`, règle `@/lib/group-standby`), recopiée dans l'embed.
+ *
+ * ⏱️ La mise à jour de l'embed part **après** la réponse (`after`) : l'interaction doit
+ * répondre en moins de 3 s, et l'édition Discord est un aller-retour réseau.
+ */
+async function handleStandByButton(args: {
+    prefix: string;
+    entityId: string;
+    discordGuildId: string;
+    accountUserId: string;
+}): Promise<NextResponse> {
+    const { prefix, entityId, discordGuildId, accountUserId } = args;
+
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId },
+        select: { id: true },
+    });
+    if (!guildConfig) return ephemeralDiscordRefusal("❌ Guilde introuvable sur SigilOS.");
+
+    let creatorUserId: string | null = null;
+    let current: unknown = null;
+
+    switch (prefix) {
+        case "dj": {
+            const post = await (db as any).djSearchPost.findFirst({
+                where: { id: entityId, guildId: guildConfig.id },
+                select: { id: true, standBy: true, status: true, profile: { select: { userId: true } } },
+            });
+            if (!post) return ephemeralDiscordRefusal("❌ Ce groupe n'existe plus ou a expiré.");
+            if (post.status === "CLOSED" || post.status === "EXPIRED") {
+                return ephemeralDiscordRefusal("❌ Ce groupe est fermé.");
+            }
+            creatorUserId = post.profile?.userId ?? null;
+            current = post.standBy;
+            break;
+        }
+        case "songes": {
+            // `DreamRun.guildId` porte l'un **ou** l'autre selon le chemin d'écriture (mesure du
+            // 30/10/2026 : création = id interne, fermeture = snowflake) — on accepte les deux.
+            const run = await db.dreamRun.findFirst({
+                where: { id: entityId, guildId: { in: [guildConfig.id, discordGuildId] } },
+                select: { id: true, leaderId: true, status: true, standBy: true },
+            });
+            if (!run) return ephemeralDiscordRefusal("❌ Cette run n'existe plus.");
+            if (["COMPLETED", "FAILED", "ABANDONED"].includes(run.status)) {
+                return ephemeralDiscordRefusal("❌ Cette run est terminée.");
+            }
+            creatorUserId = run.leaderId;
+            current = run.standBy;
+            break;
+        }
+        case "calendar": {
+            const event = await db.guildEvent.findFirst({
+                where: { id: entityId, guildId: guildConfig.id },
+                select: { id: true, creatorId: true, status: true, standBy: true, metadata: true },
+            });
+            if (!event) return ephemeralDiscordRefusal("❌ Cet événement n'existe plus.");
+            if (isAgendaMirror(event.metadata)) {
+                // Un miroir DJ/Songes suit sa source : la pause se pose sur le post d'origine.
+                return ephemeralDiscordRefusal("❌ Miroir lecture seule — mets le post d'origine en stand-by.");
+            }
+            if (event.status === "COMPLETED" || event.status === "CANCELLED") {
+                return ephemeralDiscordRefusal("❌ Cet événement est clôturé ou annulé.");
+            }
+            creatorUserId = event.creatorId;
+            current = event.standBy;
+            break;
+        }
+        default:
+            return ephemeralDiscordRefusal("❌ Action inconnue.");
+    }
+
+    // Fail-closed : sans créateur identifiable, personne ne manipule la pause depuis Discord.
+    if (!creatorUserId || creatorUserId !== accountUserId) {
+        return ephemeralDiscordRefusal("🚫 Seul le créateur du groupe peut le mettre en stand-by.");
+    }
+
+    const paused = !isStandByActive(current);
+    try {
+        if (paused) {
+            const profile = await db.userProfile.findFirst({
+                where: { userId: accountUserId, guildId: guildConfig.id },
+                select: { pseudoDofus: true, discordNickname: true, user: { select: { name: true } } },
+            });
+            const state = buildStandBy({
+                at: new Date(),
+                userId: accountUserId,
+                name:
+                    profile?.pseudoDofus ||
+                    profile?.discordNickname ||
+                    profile?.user?.name ||
+                    "un membre",
+            });
+            if (!state) return ephemeralDiscordRefusal("❌ Impossible d'identifier l'auteur de la pause.");
+
+            if (prefix === "dj") {
+                await (db as any).djSearchPost.updateMany({
+                    where: { id: entityId, guildId: guildConfig.id },
+                    data: { standBy: state },
+                });
+            } else if (prefix === "songes") {
+                await db.dreamRun.updateMany({
+                    where: { id: entityId, guildId: { in: [guildConfig.id, discordGuildId] } },
+                    data: { standBy: state as never },
+                });
+            } else {
+                await db.guildEvent.updateMany({
+                    where: { id: entityId, guildId: guildConfig.id },
+                    data: { standBy: state as never },
+                });
+            }
+        } else if (prefix === "dj") {
+            await (db as any).djSearchPost.updateMany({
+                where: { id: entityId, guildId: guildConfig.id },
+                data: { standBy: Prisma.DbNull },
+            });
+        } else if (prefix === "songes") {
+            await db.dreamRun.updateMany({
+                where: { id: entityId, guildId: { in: [guildConfig.id, discordGuildId] } },
+                data: { standBy: Prisma.DbNull },
+            });
+        } else {
+            await db.guildEvent.updateMany({
+                where: { id: entityId, guildId: guildConfig.id },
+                data: { standBy: Prisma.DbNull },
+            });
+        }
+    } catch (error) {
+        logger.error("[DiscordStandBy] écriture impossible", { prefix, entityId, error: String(error) });
+        return ephemeralDiscordRefusal("❌ Le stand-by n'a pas pu être enregistré.");
+    }
+
+    // Réponse immédiate (contrat des 3 s), puis rafraîchissement de l'embed + miroir agenda.
+    after(async () => {
+        try {
+            if (prefix === "dj") {
+                const { updateDjDiscordEmbed } = await import("@/server/actions/dungeon-finder-actions");
+                await updateDjDiscordEmbed(discordGuildId, entityId);
+                const { syncDjMirror } = await import("@/server/agenda-mirror-sync");
+                await syncDjMirror(discordGuildId, entityId).catch(() => null);
+            } else if (prefix === "songes") {
+                const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+                await updateDiscordRunEmbed(discordGuildId, entityId);
+                const { syncSongesMirror } = await import("@/server/agenda-mirror-sync");
+                await syncSongesMirror(discordGuildId, entityId).catch(() => null);
+            } else {
+                const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
+                await updateDiscordEventEmbed(discordGuildId, entityId);
+            }
+        } catch (error) {
+            logger.warn("[DiscordStandBy] rafraîchissement différé en échec", {
+                prefix,
+                entityId,
+                error: String(error),
+            });
+        }
+    });
+
+    return ephemeralDiscordMessage(
+        paused
+            ? "⏸️ Groupe mis en **stand-by** : les rappels et les relances sont suspendus. Clique à nouveau pour reprendre."
+            : "▶️ **Stand-by levé** : les rappels et les relances reprennent."
+    );
 }
 
 /** Textes de refus partagés par les boutons **et** les modales (une source). */
@@ -573,6 +751,15 @@ export async function POST(request: NextRequest) {
                     const { processRunLeave } = await import("@/server/songes-service");
                     result = await processRunLeave(guild_id, entityId, account!.userId);
                 }
+            } else if (action === "standby") {
+                // Stand-by (30/10/2026) : bouton visible pour tous, action réservée au
+                // créateur — Discord ne sait pas griser un bouton par personne.
+                return await handleStandByButton({
+                    prefix,
+                    entityId,
+                    discordGuildId: guild_id,
+                    accountUserId: account!.userId,
+                });
             } else if (prefix === "poll") {
                 if (action === "vote") {
                     // Find the internal guild config by discordGuildId (guild_id)

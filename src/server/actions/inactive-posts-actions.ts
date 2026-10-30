@@ -7,6 +7,7 @@ import { sendChannelMessage, deleteChannelMessage, deleteChannel } from "@/serve
 import { createNotification } from "@/server/actions/notification-actions";
 import { deleteDiscordRunEmbed } from "@/server/songes-service";
 import { getMultiDungeons } from "@/lib/dungeon-finder-utils";
+import { isStandByActive } from "@/lib/group-standby";
 
 export interface InactivePostsConfig {
     inactivityDays: number;     // Jours d'inactivité avant premier rappel / entre rappels (défaut: 3)
@@ -108,6 +109,14 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
                 });
                 await cleanDjDiscordEmbed(post.guild.discordGuildId, post.discordChannelId, post.discordMessageId);
                 djPostsClosed++;
+                continue;
+            }
+
+            // Stand-by (30/10/2026) : un post volontairement suspendu ne reçoit ni relance
+            // d'inactivité ni clôture J+21 — sinon la pause serait un piège à 21 jours.
+            // Placé APRÈS le contrôle de statut du profil : un créateur banni/archivé ferme
+            // son post même s'il l'avait mis en pause.
+            if (isStandByActive(post.standBy)) {
                 continue;
             }
 
@@ -262,6 +271,11 @@ export async function processInactivePostsRemindersAndAutoClose(): Promise<{
             });
 
             if (!guildConfig) continue;
+
+            // Stand-by : run suspendue → ni relance d'inactivité ni clôture J+21.
+            if (isStandByActive(run.standBy)) {
+                continue;
+            }
 
             const lastUpdate = run.updatedAt || run.createdAt;
             const daysSinceUpdate = Math.floor((now.getTime() - new Date(lastUpdate).getTime()) / (24 * 60 * 60 * 1000));

@@ -20,6 +20,7 @@ import {
     Check,
     X,
     Play,
+    Pause,
     Square,
     ChevronLeft,
     ChevronRight,
@@ -69,7 +70,8 @@ import { ClassIcon } from "@/components/shared/class-icon";
 import { RegistrationModal } from "./registration-modal";
 import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 import { getMissionsByIds } from "@/server/actions/mission-actions";
-import { kickParticipant, transferRaidCaptaincy } from "@/server/actions/calendar-actions";
+import { kickParticipant, transferRaidCaptaincy, setEventStandBy } from "@/server/actions/calendar-actions";
+import { isStandByActive, standByAuthorName } from "@/lib/group-standby";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
 import { useRaidLive } from "@/hooks/use-raid-live";
 import {
@@ -194,6 +196,8 @@ interface EventDetail {
     };
     participants: Participant[];
     discordMessageId?: string | null;
+    /** « Stand-by » (30/10/2026) : `null` = actif, sinon `{ at, userId, name }` — règle `@/lib/group-standby`. */
+    standBy?: unknown;
 }
 
 interface DiscordRole {
@@ -599,7 +603,29 @@ export function EventDetailModal({
         }
     };
 
-
+    /**
+     * Stand-by (30/10/2026) : suspend le H-24, le H-1, le rappel de clôture et la clôture
+     * d'office ; les inscriptions restent ouvertes (contrat `@/lib/group-standby`).
+     */
+    const handleToggleStandBy = async () => {
+        const paused = !isStandByActive(event.standBy);
+        setIsLoading(true);
+        try {
+            const res = await setEventStandBy(guildId, event.id, paused);
+            if (!res.success) {
+                toast.error(res.error || "Changement impossible.");
+                return;
+            }
+            toast.success(paused
+                ? "Événement en stand-by — rappels et clôture suspendus."
+                : "Stand-by levé — rappels et clôture reprennent.");
+            onRefresh?.();
+        } catch {
+            toast.error("Erreur lors du changement de stand-by");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <>
@@ -737,6 +763,26 @@ export function EventDetailModal({
                                         >
                                             <Trash2 className="h-4 w-4 mr-1.5" />
                                             {isDeleteConfirming ? "Confirmer" : "Annuler"}
+                                        </Button>
+                                    )}
+
+                                    {/* Stand-by (30/10/2026) — créateur ou admin : suspend les
+                                        rappels et la clôture d'office **sans** annuler l'événement. */}
+                                    {isOpen && !isMirror && !isKrala && (isCreator || isAdmin) && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleToggleStandBy();
+                                            }}
+                                            disabled={isLoading}
+                                            className="text-muted-foreground hover:text-foreground hover:bg-surface"
+                                            title="Suspendre les rappels et la clôture sans annuler l'événement"
+                                        >
+                                            {isStandByActive(event.standBy)
+                                                ? <><Play className="h-4 w-4 mr-1.5" /> Reprendre</>
+                                                : <><Pause className="h-4 w-4 mr-1.5" /> Stand-by</>}
                                         </Button>
                                     )}
 

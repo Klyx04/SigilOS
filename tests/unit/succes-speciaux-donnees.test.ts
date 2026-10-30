@@ -32,6 +32,8 @@ import {
     fetchBossAchievementCandidates,
     fetchMonsterAchievementIds,
     fetchAchievementById,
+    fetchChallengeById,
+    challengeIdFromAchievement,
     fetchRealBossName,
     type ChallengeRow,
 } from "@/lib/achievement-details-siphon";
@@ -780,6 +782,56 @@ describe("succès « Spécial » — boss, monstre, vrai boss", () => {
             await fetchAchievementById(6165, fetchImpl),
         ];
         expect(pickSpecialAchievement(candidates, "Blop Indigo Royal")).toBe(candidates[0]);
+    });
+
+    /** Payloads **réels** mesurés le 30/10/2026 (DofusDB), pas des formes inventées. */
+    const BLOPS_REEL = {
+        id: 6164,
+        name: { fr: "Blops Royaux (Spécial)" },
+        iconId: 19,
+        // DofusDB ne déplie PAS le challenge en lecture par id : il reste une référence.
+        description: { fr: "Vaincre Blops Royaux dans son donjon en validant le challenge [challenge,996]." },
+    };
+    const CHALLENGE_996 = {
+        id: 996,
+        name: { fr: "Touche pas à mon blop" },
+        iconId: 977,
+        description: { fr: "Les invocations ennemies ne doivent subir aucun dommage." },
+    };
+
+    it("« Blops Royaux (Spécial) » : challenge seulement RÉFÉRENCÉ (`[challenge,996]`)", async () => {
+        const fetchImpl = (async (url: string) => {
+            if (url.includes("/achievements/6164")) return jsonResponse(BLOPS_REEL);
+            if (url.includes("/achievements/")) return jsonResponse({ name: { fr: "Succès ordinaire" } });
+            if (url.includes("/monsters/1186")) return jsonResponse({ achievements: [36, 684, 685, 503, 6164] });
+            if (url.includes("/challenges/996")) return jsonResponse(CHALLENGE_996);
+            return jsonResponse({ data: [] });
+        }) as never;
+
+        expect(challengeIdFromAchievement(BLOPS_REEL)).toBe(996);
+        expect((await fetchChallengeById(996, fetchImpl))?.name.fr).toBe("Touche pas à mon blop");
+
+        const db = {
+            dungeonAchievement: {
+                findMany: async () => [
+                    {
+                        id: "da-blops",
+                        description: null,
+                        imageUrl: null,
+                        dungeon: { bossName: "Blop Indigo Royal", name: "Donjon des Blops" },
+                        challenge: { id: "c-generic", name: "Spécial", slug: "sp-cial" },
+                    },
+                ],
+                update: async () => {},
+            },
+            challenge: { findFirst: async () => ({ id: "c-generic", name: "Spécial", slug: "sp-cial" }) },
+            monsterStat: { findFirst: async () => ({ monsterId: 1186 }) },
+        };
+
+        const report = await siphonSpecialAchievements({ db: db as any, apply: false, fetchImpl });
+        expect(report.updated).toBe(1);
+        expect(report.details[0]).toContain("Les invocations ennemies ne doivent subir aucun dommage.");
+        expect(report.details[0]).toContain("succès du monstre");
     });
 
     it("« Maître des Pantins (Statue) » est trouvé par le VRAI BOSS du donjon", async () => {

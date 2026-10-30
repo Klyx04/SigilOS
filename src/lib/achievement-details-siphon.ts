@@ -262,6 +262,30 @@ export function challengeIdFromCriterion(criterion: unknown): number | null {
     return match ? Number(match[1]) : null;
 }
 
+/**
+ * Id du challenge visé par un **succès**, quand DofusDB ne l'a pas résolu en clair.
+ *
+ * 🐛 Mesure du 30/10/2026 (`achievements/6164`) : la lecture **par id** rend
+ * `description.fr = "Vaincre Blops Royaux dans son donjon en validant le challenge [challenge,996]."`
+ * — la référence est là, **non résolue**, et `objectives[].readableCriterion` n'est pas déplié
+ * (contrairement à la lecture en liste). Sans ce repli, `Blops Royaux (Spécial)` ne pouvait pas
+ * être résolu : `nestedChallengeOf` rendait `null` et la fiche gardait le texte générique.
+ * `challenges/996?lang=fr` répond pourtant la vraie mécanique (« Les invocations ennemies ne
+ * doivent subir aucun dommage. », icône 977).
+ *
+ * Ordre : critère d'objectif (`EH>996`) puis lien `[challenge,996]` du texte.
+ */
+export function challengeIdFromAchievement(achievement: any): number | null {
+    const objectives: any[] = Array.isArray(achievement?.objectives) ? achievement.objectives : [];
+    for (const objective of objectives) {
+        const fromCriterion = challengeIdFromCriterion(objective?.criterion);
+        if (fromCriterion !== null) return fromCriterion;
+    }
+    const text = String(achievement?.description?.fr ?? "");
+    const match = /\[challenge,\s*(\d+)\]/i.exec(text);
+    return match ? Number(match[1]) : null;
+}
+
 /** Charge utile d'un succès « spécial » résolu : la **mécanique** du boss + l'icône du succès. */
 export interface SpecialChallengePatch {
     /** La mécanique réelle (« À partir du tour 2, Mob l'éponge doit être poussé… »). */
@@ -423,7 +447,11 @@ function hasChallengeSuffix(value: unknown): boolean {
  */
 export function pickSpecialAchievement(candidates: readonly any[], bossName: string): any | null {
     const usable = (Array.isArray(candidates) ? candidates : []).filter(
-        (candidate) => hasChallengeSuffix(candidate?.name?.fr) && nestedChallengeOf(candidate) !== null
+        (candidate) =>
+            hasChallengeSuffix(candidate?.name?.fr)
+            // Soit le challenge voyage **déplié** (lecture en liste), soit il n'est que
+            // **référencé** — `[challenge,996]` en lecture par id — et on saura le chercher.
+            && (nestedChallengeOf(candidate) !== null || challengeIdFromAchievement(candidate) !== null)
     );
     if (usable.length === 0) return null;
 
@@ -487,6 +515,20 @@ export async function fetchAchievementById(
     const id = Math.floor(Number(achievementId) || 0);
     if (id <= 0) return null;
     return await dofusDbJson<any>(`https://api.dofusdb.fr/achievements/${id}?lang=fr`, fetchImpl);
+}
+
+/**
+ * Un challenge DofusDB **par id** : la vraie mécanique, quand le succès ne la porte pas dépliée.
+ * Mesure du 30/10/2026 : `challenges/996` → « Les invocations ennemies ne doivent subir aucun
+ * dommage. » (icône 977), là où `achievements/6164` ne rendait que son gabarit `[challenge,996]`.
+ */
+export async function fetchChallengeById(
+    challengeId: number,
+    fetchImpl: typeof dofusDbFetch = dofusDbFetch
+): Promise<any | null> {
+    const id = Math.floor(Number(challengeId) || 0);
+    if (id <= 0) return null;
+    return await dofusDbJson<any>(`https://api.dofusdb.fr/challenges/${id}?lang=fr`, fetchImpl);
 }
 
 /**
@@ -616,22 +658,25 @@ async function resolveSpecialAchievement(args: {
 }): Promise<{ patch: SpecialChallengePatch; via: string } | null> {
     const { db, row, bossName, fetchImpl, getIndex } = args;
     const fetchImplTyped = fetchImpl as typeof dofusDbFetch;
-    const patchOf = (achievement: any): SpecialChallengePatch | null => {
-        const challengeRaw = nestedChallengeOf(achievement);
+    const patchOf = async (achievement: any): Promise<SpecialChallengePatch | null> => {
+        // Lecture en **liste** : le challenge est déplié (aucune requête). Lecture **par id** : il
+        // n'est que référencé (`[challenge,996]`) ⇒ une requête `challenges/{id}` rend la mécanique.
+        const challengeRaw = nestedChallengeOf(achievement)
+            ?? await fetchChallengeById(challengeIdFromAchievement(achievement) ?? 0, fetchImplTyped);
         return challengeRaw ? buildSpecialChallengePatch(achievement, challengeRaw) : null;
     };
 
     // a. Index « (Spécial) » — chargé une seule fois pour toute la passe.
     const indexed = findSpecialAchievement(await getIndex(), bossName);
     if (indexed) {
-        const patch = patchOf(indexed);
+        const patch = await patchOf(indexed);
         if (patch) return { patch, via: "index (Spécial)" };
     }
 
     // b. Nom du boss (« La Déchireuse » → « La Déchireuse (Nomade) »).
     const direct = pickSpecialAchievement(await fetchBossAchievementCandidates(bossName, fetchImplTyped), bossName);
     if (direct) {
-        const patch = patchOf(direct);
+        const patch = await patchOf(direct);
         if (patch) return { patch, via: "nom du boss" };
     }
 
@@ -651,7 +696,7 @@ async function resolveSpecialAchievement(args: {
         }
         const picked = pickSpecialAchievement(candidates, bossName);
         if (picked) {
-            const patch = patchOf(picked);
+            const patch = await patchOf(picked);
             if (patch) return { patch, via: "succès du monstre" };
         }
     }
@@ -665,7 +710,7 @@ async function resolveSpecialAchievement(args: {
             realBoss
         );
         if (picked) {
-            const patch = patchOf(picked);
+            const patch = await patchOf(picked);
             if (patch) return { patch, via: `vrai boss (${realBoss})` };
         }
     }

@@ -23,7 +23,18 @@ DOMPurify.addHook('afterSanitizeAttributes', function (node) {
  * @param maxLength Optional max length constraint
  * @param strict If true, strips ALL HTML tags except basic formatting (b, i, u, br). Default false for Docs.
  */
-export function sanitizeHtml(input: string | null, maxLength: number = 100000, strict: boolean = false): string | null {
+export interface SanitizeHtmlOptions {
+    /**
+     * Balises retirées **en plus** de l'allowlist DOMPurify.
+     *
+     * Usage : un contenu qui n'a **aucun** pipeline d'upload d'image associé passe
+     * `["img"]` — sinon un `<img src="https://…">` saisi à la main (ou collé) traverse
+     * l'assainissement et le navigateur charge une ressource non contrôlée.
+     */
+    forbidTags?: string[];
+}
+
+export function sanitizeHtml(input: string | null, maxLength: number = 100000, strict: boolean = false, options?: SanitizeHtmlOptions): string | null {
     if (!input) return null;
 
     // Limit length first
@@ -33,6 +44,10 @@ export function sanitizeHtml(input: string | null, maxLength: number = 100000, s
     const config: any = strict
         ? { ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'br'] }
         : { ADD_ATTR: ['target', 'dofusdbid', 'dofusdbId', 'name', 'type', 'imageurl', 'src', 'alt', 'guideid', 'stepid', 'stepnumber', 'guidename', 'label', 'baseurl', 'data-id', 'data-type', 'questid', 'questname', 'status', 'referrerpolicy', 'loading'] }; // Normal mode: allow safe HTML + custom Dofus/Ganymede attrs including img src
+
+    if (options?.forbidTags?.length) {
+        config.FORBID_TAGS = [...options.forbidTags];
+    }
 
     return DOMPurify.sanitize(truncated, config) as unknown as string;
 }

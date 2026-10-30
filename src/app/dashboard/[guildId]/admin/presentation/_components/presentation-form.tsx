@@ -953,6 +953,7 @@ export function PresentationForm({ guildId }: Props) {
                             key={`reglement-${rulesEditorKey}`}
                             initialContent={internalRules}
                             onChange={setInternalRules}
+                            enableImages={false}
                         />
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <p className="reg-mono text-xs text-muted-foreground">
@@ -972,7 +973,8 @@ export function PresentationForm({ guildId }: Props) {
                         <p className="text-xs leading-relaxed text-muted-foreground">
                             Sélectionnez du texte pour le mettre en forme · tapez « / » pour les commandes ·
                             collez du Markdown, il est converti tout seul · le sourire dans la barre
-                            d&apos;outils insère des emoji.
+                            d&apos;outils insère des emoji. Les images du texte sont désactivées : utilisez
+                            l&apos;étendard ou la photo de l&apos;étape suivante (seuls visuels contrôlés).
                         </p>
                     </div>
                 )}

@@ -12,7 +12,7 @@ import { ALL_DOFUS_SERVERS, AVAILABLE_ACTIVITIES, getGuildSlug } from "@/lib/pre
 // SANITIZATION UTILITIES
 // ============================================================================
 import { sanitizeHtml, sanitizeDiscordLink, sanitizeName } from "@/lib/security";
-import { PRESENTATION_INTERNAL_RULES_MAX_LENGTH } from "@/lib/presentation-rules";
+import { sanitizeInternalRules } from "@/lib/presentation-rules";
 import { buildDiscordAvatarUrl } from "@/lib/discord-avatars";
 import { listGuildMembers } from "@/server/discord";
 
@@ -534,7 +534,7 @@ export async function updateGuildPresentation(
         const sanitizedHistory = sanitizeHtml(data.history, 5000, true);
         // Règlement : HTML riche TipTap → mode non-strict (h2/h3, ul/ol, p, liens…)
         // assaini par DOMPurify, borné à 20 000 caractères (balises comprises).
-        const sanitizedRules = sanitizeHtml(data.internalRules, PRESENTATION_INTERNAL_RULES_MAX_LENGTH, false);
+        const sanitizedRules = sanitizeInternalRules(data.internalRules);
         const sanitizedReqs = sanitizeHtml(data.recruitmentRequirements, 1000, true);
         const sanitizedFounder = sanitizeName(data.founder);
         const validatedServer = validateServerName(data.server);

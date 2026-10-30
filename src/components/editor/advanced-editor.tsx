@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { configureSlashCommand } from "./extensions/slash-command";
 import { ResizableImage } from "./extensions/resizable-image";
 import { uploadImageFile } from "./utils/image-upload";
+import { isControlledImageSrc } from "@/lib/content-images";
+import { toast } from "sonner";
 import { Callout } from "./extensions/callout";
 import {
     Bold,
@@ -48,9 +50,15 @@ interface AdvancedEditorProps {
     onChange: (content: string) => void;
     editable?: boolean;
     contentClassName?: string;
+    /**
+     * Images dans le contenu. `false` = aucune image (ni fichier, ni URL, ni collage) :
+     * à utiliser quand le module n'a **aucun** pipeline d'upload contrôlé (règlement de
+     * guilde — les visuels passent par l'étendard/la photo).
+     */
+    enableImages?: boolean;
 }
 
-export function AdvancedEditor({ initialContent, onChange, editable = true, contentClassName }: AdvancedEditorProps) {
+export function AdvancedEditor({ initialContent, onChange, editable = true, contentClassName, enableImages = true }: AdvancedEditorProps) {
     // Force re-render on selection change to update toolbar state
     const [, forceUpdate] = useState(0);
 
@@ -64,10 +72,14 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                 // Prevent duplicate with standalone Link extension
                 link: false,
             }),
-            ResizableImage.configure({
-                inline: true,
-                allowBase64: true,
-            }),
+            ...(enableImages
+                ? [ResizableImage.configure({
+                    inline: true,
+                    // Aucun `data:` : une image base64 n'est jamais passée par un upload
+                    // contrôlé (taille, MIME, ré-encodage) — elle est refusée au parsing.
+                    allowBase64: false,
+                })]
+                : []),
             Link.configure({
                 openOnClick: false,
                 HTMLAttributes: {
@@ -78,7 +90,7 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                 placeholder: "Tapez '/' pour les commandes ou commencez à écrire...",
             }),
             Typography,
-            configureSlashCommand(),
+            configureSlashCommand({ enableImages }),
             Callout,
             TextStyle,
             Color,
@@ -96,18 +108,23 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                 const items = event.clipboardData?.items;
                 if (!items) return false;
 
-                for (const item of Array.from(items)) {
-                    if (item.type.startsWith("image/")) {
-                        event.preventDefault();
-                        const file = item.getAsFile();
-                        if (file) {
-                            uploadImageFile(file).then((url) => {
-                                if (url && editor) {
-                                    editor.chain().focus().setImage({ src: url }).run();
-                                }
-                            });
+                // Images désactivées : le fichier du presse-papiers n'est pas intercepté
+                // (le schéma, sans nœud image, l'ignore) et le HTML collé est filtré par
+                // `transformPastedHTML`.
+                if (enableImages) {
+                    for (const item of Array.from(items)) {
+                        if (item.type.startsWith("image/")) {
+                            event.preventDefault();
+                            const file = item.getAsFile();
+                            if (file) {
+                                uploadImageFile(file).then((url) => {
+                                    if (url && editor) {
+                                        editor.chain().focus().setImage({ src: url }).run();
+                                    }
+                                });
+                            }
+                            return true;
                         }
-                        return true;
                     }
                 }
 
@@ -126,6 +143,8 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                 return false;
             },
             handleDrop: (view, event) => {
+                // Aucun dépôt d'image dans un contenu sans pipeline d'upload.
+                if (!enableImages) return false;
                 const files = event.dataTransfer?.files;
                 if (!files?.length) return false;
 
@@ -140,6 +159,17 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                     return true;
                 }
                 return false;
+            },
+            // Collage depuis une page web / un document : on ne garde que les images
+            // **contrôlées** (chemin interne rendu par un upload). Une URL externe ou un
+            // `data:` serait une image non contrôlée (traçage, hotlink, base64 hors quota).
+            transformPastedHTML: (html) => {
+                if (!enableImages || typeof window === "undefined") return html;
+                const doc = new DOMParser().parseFromString(html, "text/html");
+                doc.querySelectorAll("img").forEach((img) => {
+                    if (!isControlledImageSrc(img.getAttribute("src"))) img.remove();
+                });
+                return doc.body.innerHTML;
             },
         },
         onUpdate: ({ editor }) => {
@@ -230,31 +260,40 @@ export function AdvancedEditor({ initialContent, onChange, editable = true, cont
                         className="w-8 h-8 rounded-lg bg-surface border border-border cursor-pointer p-1 hover:bg-surface transition-colors"
                         title="Couleur du texte"
                     />
-                    <ToolbarButton
-                        onClick={() => {
-                            const url = window.prompt("Entrez l'URL de l'image (ou laissez vide pour uploader):");
-                            if (url) {
-                                editor.chain().focus().setImage({ src: url }).run();
-                                return;
-                            }
-
-                            const input = document.createElement("input");
-                            input.type = "file";
-                            input.accept = "image/*";
-                            input.onchange = async () => {
-                                if (input.files?.length) {
-                                    const file = input.files[0];
-                                    const uploadedUrl = await uploadImageFile(file);
-                                    if (uploadedUrl) {
-                                        editor.chain().focus().setImage({ src: uploadedUrl }).run();
+                    {enableImages && (
+                        <ToolbarButton
+                            onClick={() => {
+                                const url = window.prompt("URL d'une image déjà importée (/uploads/…, /images/…). Laissez vide pour importer un fichier :");
+                                if (url) {
+                                    // Une URL libre est une image **hors contrôle** (externe,
+                                    // data:, tracking) : seul un chemin rendu par un upload
+                                    // passe (même règle que le collage).
+                                    if (!isControlledImageSrc(url)) {
+                                        toast.error("Image refusée : seules les images importées (upload contrôlé) sont autorisées.");
+                                        return;
                                     }
+                                    editor.chain().focus().setImage({ src: url }).run();
+                                    return;
                                 }
-                            };
-                            input.click();
-                        }}
-                        icon={ImageIcon}
-                        tooltip="Insérer une image (Fichier ou URL)"
-                    />
+
+                                const input = document.createElement("input");
+                                input.type = "file";
+                                input.accept = "image/jpeg,image/png,image/webp";
+                                input.onchange = async () => {
+                                    if (input.files?.length) {
+                                        const file = input.files[0];
+                                        const uploadedUrl = await uploadImageFile(file);
+                                        if (uploadedUrl) {
+                                            editor.chain().focus().setImage({ src: uploadedUrl }).run();
+                                        }
+                                    }
+                                };
+                                input.click();
+                            }}
+                            icon={ImageIcon}
+                            tooltip="Insérer une image (fichier importé, ou URL interne)"
+                        />
+                    )}
                     <EmojiPicker onSelect={(emoji) => editor.chain().focus().insertContent(emoji).run()} />
                     <div className="w-px h-6 bg-surface mx-1 ml-auto" />
                     <ToolbarButton

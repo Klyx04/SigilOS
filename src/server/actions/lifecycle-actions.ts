@@ -19,6 +19,9 @@ import {
 } from "@/server/market/lifecycle";
 import { rateLimit } from "@/lib/ratelimit";
 import { formatDofusPseudo, getAppBaseUrl } from "@/lib/utils";
+import { isAgendaMirror } from "@/lib/agenda-mirror";
+import { deleteEventDiscordMessage, deleteReminderMessageRefs, type ReminderMessageRef } from "@/server/calendar-message-cleanup";
+import { syncDjMirror, syncSongesMirror } from "@/server/agenda-mirror-sync";
 
 /**
  * Archive a profile (Self-service or Admin)
@@ -899,227 +902,6 @@ export async function handleGdprDeletionRequest() {
 }
 
 /**
- * ARCHIVE & SYNC GUILD MEMBERS
- * Compares Discord members with local profiles and archives members who are no longer in the guild.
- */
-export async function syncGuildMembers(discordGuildId: string) {
-    const ctx = await getUserContext(discordGuildId);
-    if (!ctx.isAdmin) {
-        return { success: false, error: "Unauthorized" };
-    }
-
-    try {
-        const { listGuildMembers, fetchGuildBans, fetchAuditExecutor, executorMetadata, DISCORD_AUDIT_ACTIONS } = await import("@/server/discord");
-
-        // 1. Fetch current members from Discord
-        const discordMembers = await listGuildMembers(discordGuildId);
-        const discordUserIds = new Set(discordMembers.map(m => m.user.id));
-
-        // 2. Fetch all profiles for this guild with their Discord Accounts
-        // #1 validé : inclut ARCHIVED pour détecter un ban Discord APRÈS le départ.
-        const profiles = await db.userProfile.findMany({
-            where: {
-                guild: { discordGuildId },
-                status: { in: ["ACTIVE", "ARCHIVED"] }
-            },
-            include: {
-                user: {
-                    include: {
-                        accounts: {
-                            where: { provider: "discord" },
-                            select: { providerAccountId: true }
-                        }
-                    }
-                }
-            }
-        });
-
-        // 3. Fetch current bans from Discord
-        const discordBans = await fetchGuildBans(discordGuildId);
-        const bannedUserIds = new Set(discordBans.map(b => b.user.id));
-
-        let archivedCount = 0;
-        let bannedCount = 0;
-        let nicknamesRefreshed = 0;
-
-        // Pseudo serveur (nick Discord) par compte, pour rafraîchir le registre.
-        const nickByDiscordId = new Map(discordMembers.map((m) => [m.user.id, m.nick ?? null]));
-
-        // 4. Compare and archive/anonymize
-        for (const profile of profiles) {
-            const discordId = profile.user.accounts[0]?.providerAccountId;
-
-            if (discordId && discordUserIds.has(discordId)) {
-                // Registre : le pseudo serveur se remplit et se met à jour seul.
-                // On n'écrase que si Discord a un nick différent (NULL = pas de nick → on garde).
-                const serverNick = nickByDiscordId.get(discordId) ?? null;
-                if (serverNick && serverNick !== profile.discordNickname) {
-                    await db.userProfile.update({
-                        where: { id: profile.id },
-                        data: { discordNickname: serverNick.slice(0, 32) },
-                    });
-                    nicknamesRefreshed++;
-                }
-            }
-
-            if (discordId && !discordUserIds.has(discordId)) {
-                // Check if they are banned or just left
-                const isBanned = bannedUserIds.has(discordId);
-
-                // #1 validé : déjà ARCHIVED et pas banni → on ne touche à rien
-                // (évite de reset la rétention 12 mois à chaque sync).
-                if (!isBanned && (profile as { status?: string }).status === "ARCHIVED") {
-                    continue;
-                }
-
-                if (isBanned) {
-                    // Exécutant réel du ban (staff ou bot tiers).
-                    const banExOld = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.BAN_ADD, discordId).catch(() => null);
-                    await db.userProfile.update({
-                        where: { id: profile.id },
-                        data: {
-                            status: "BANNED",
-                            archivedAt: new Date(),
-                            archiveReason: "BANNED",
-                            pseudoDofus: "Utilisateur banni",
-                            discordNickname: "Anonyme",
-                            metamobPseudo: null,
-                            metamobVerified: false,
-                            altPseudos: Prisma.JsonNull,
-                            availability: Prisma.JsonNull,
-                            vacationStart: null,
-                            vacationEnd: null,
-                            vacationNotify: false,
-                            lastActivityDesc: "Détecté banni lors de la synchronisation. Données nettoyées.",
-                            succes: Prisma.JsonNull,
-                            metiers: Prisma.JsonNull,
-                            classeSecondaires: Prisma.JsonNull,
-                            dofusBookLinks: Prisma.JsonNull
-                        }
-                    });
-
-                    // ── F-01 : tombstone guild-scopé (ban Discord détecté) ──
-                    try {
-                        // #105 — pseudo du membre (pris AVANT l'anonymisation du profil).
-                        const memberName = profile.pseudoDofus || profile.discordNickname || null;
-                        await db.guildMemberBan.upsert({
-                            where: { guildId_discordId: { guildId: profile.guildId, discordId } },
-                            create: {
-                                guildId: profile.guildId,
-                                discordId,
-                                reason: "Banni sur le serveur Discord",
-                                bannedBy: "SYSTEM",
-                                bannedByName: "Vérification auto",
-                                memberName
-                            },
-                            update: {
-                                reason: "Banni sur le serveur Discord",
-                                liftedAt: null,
-                                liftedBy: null,
-                                liftedByName: null,
-                                memberName
-                            }
-                        });
-                    } catch (banErr) {
-                        logger.error("[GuildMemberBan] tombstone on Discord ban failed:", banErr);
-                    }
-
-                    // ── Chantier #31 : fermer le contenu publié du membre banni (posts DJ + runs songes) ──
-                    await closeMemberPublishedContent(discordGuildId, profile.id, profile.userId, "BANNED (Discord)");
-
-                    // 🔔 Lifecycle Notification
-                    await sendLifecycleNotification(discordGuildId, profile, "BANNED", "Vérification automatique");
-
-                    // 📝 AUDIT LOG Departure (Banned)
-                    try {
-                        const { createAuditLog: log } = await import("./audit-actions");
-                        await log({
-                            guildId: discordGuildId,
-                            actorUserId: "SYSTEM",
-                            actorName: "Vérification auto",
-                            action: "MEMBER_BANNED" as any,
-                            targetType: "PROFILE",
-                            targetId: profile.id,
-                            metadata: { 
-                                description: profile.pseudoDofus || profile.discordNickname || "Inconnu",
-                                reason: "Banni sur Discord",
-                                ...executorMetadata(banExOld, discordId)
-                            }
-                        });
-                    } catch (e) { logger.error("[Lifecycle Sync] Audit failed", e); }
-
-                    bannedCount++;
-                } else {
-                    // Auteur réel : exclu par un staff/bot ou parti de lui-même.
-                    // « lui-même » uniquement si le journal a bien été lu (checked).
-                    let kickExOld = null;
-                    let kickCheckedOld = false;
-                    try {
-                        kickExOld = await fetchAuditExecutor(discordGuildId, DISCORD_AUDIT_ACTIONS.KICK, discordId);
-                        kickCheckedOld = true;
-                    } catch {
-                        kickCheckedOld = false;
-                    }
-                    const kickedOld = kickExOld && kickExOld.userId !== discordId ? kickExOld : null;
-                    const twelveMonthsFromNow = new Date();
-                    twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
-
-                    await db.userProfile.update({
-                        where: { id: profile.id },
-                        data: {
-                            status: "ARCHIVED",
-                            archivedAt: new Date(),
-                            archiveReason: "LEFT",
-                            scheduledDeletion: twelveMonthsFromNow
-                        }
-                    });
-
-                    // ── Chantier #31 : fermer le contenu publié du membre parti (posts DJ + runs songes) ──
-                    await closeMemberPublishedContent(discordGuildId, profile.id, profile.userId, "LEFT");
-
-                    // 🔔 Lifecycle Notification
-                    await sendLifecycleNotification(discordGuildId, profile, "LEFT", "Vérification automatique");
-
-                    // 📝 AUDIT LOG Departure (Left)
-                    try {
-                        const { createAuditLog: log } = await import("./audit-actions");
-                        await log({
-                            guildId: discordGuildId,
-                            actorUserId: "SYSTEM",
-                            actorName: "Vérification auto",
-                            action: "MEMBER_LEFT" as any,
-                            targetType: "PROFILE",
-                            targetId: profile.id,
-                            metadata: { 
-                                description: profile.pseudoDofus || profile.discordNickname || "Inconnu",
-                                reason: kickedOld ? "Exclu du serveur" : "A quitté le serveur",
-                                ...(kickedOld
-                                    ? executorMetadata(kickedOld, discordId)
-                                    : kickCheckedOld
-                                      ? { executorId: discordId, executorIsSelf: true }
-                                      : {})
-                            }
-                        });
-                    } catch (e) { logger.error("[Lifecycle Sync] Audit failed", e); }
-
-                    archivedCount++;
-                }
-            }
-        }
-
-        revalidatePath(`/dashboard/${discordGuildId}/admin`);
-        return {
-            success: true,
-            message: `${archivedCount} archivés et ${bannedCount} nettoyés (bans) sur ${profiles.length} vérifiés, ${nicknamesRefreshed} pseudo(s) serveur actualisé(s).`,
-            count: archivedCount + bannedCount
-        };
-    } catch (error) {
-        logger.error("[Lifecycle Sync] Error:", error);
-        return { success: false, error: "Échec de la synchronisation" };
-    }
-}
-
-/**
  * MANUAL WIPE (RGPD)
  */
 export async function wipeUserProfile(profileId: string, discordGuildId: string) {
@@ -1489,19 +1271,24 @@ export async function liftGuildMemberBan(guildId: string, discordId: string) {
 
 /**
  * Ferme TOUT le contenu publié par un membre exclu (archivé / banni / supprimé) :
- * - Posts DJ & quêtes en cours (OPEN/FULL) → CLOSED + suppression de l'embed Discord
- * - Runs songes en cours (leader) → ABANDONED + suppression de l'embed Discord
- * - Annonces du Marché encore vivantes → WITHDRAWN (S5.11/S8.20, §15.2) + audit du marché
- * Best-effort et non bloquant. Aucune auto-expiration temporelle : un post ne se ferme
- * que si son émetteur quitte le dashboard (chantier #31).
+ * - Posts DJ & quêtes en cours (OPEN/FULL) → CLOSED + suppression de l'embed Discord ;
+ * - Runs songes en cours (leader) → ABANDONED + suppression de l'embed Discord ;
+ * - **Événements du calendrier** encore ouverts (DRAFT/PUBLISHED) → CANCELLED + purge des
+ *   rappels et de l'embed (lot B, 30/10/2026 : aucun chemin ne les fermait — un raid dont
+ *   le créateur partait restait `PUBLISHED`, et le rappel de clôture pingait un fantôme) ;
+ * - Annonces du Marché encore vivantes → WITHDRAWN (S5.11/S8.20, §15.2) + audit du marché.
+ * Les **miroirs agenda** DJ/Songes ne sont pas annulés ici : leur état suit leur source
+ * (`syncDjMirror` / `syncSongesMirror`), appelés juste après la fermeture.
+ * Best-effort et non bloquant. Aucune auto-expiration temporelle : un post se ferme parce
+ * que son émetteur a quitté, jamais parce que le temps a passé.
  */
 export async function closeMemberPublishedContent(
     guildId: string,
     profileId: string,
     userId: string,
     reason: string
-): Promise<{ dj: number; runs: number; market: number }> {
-    const closed = { dj: 0, runs: 0, market: 0 };
+): Promise<{ dj: number; runs: number; events: number; market: number }> {
+    const closed = { dj: 0, runs: 0, events: 0, market: 0 };
     try {
         // 1. Posts DJ / quêtes actifs du membre → CLOSED
         const djPosts = await (db as any).djSearchPost.findMany({
@@ -1544,6 +1331,58 @@ export async function closeMemberPublishedContent(
             logger.warn("[Lifecycle] cascade Marché différée", { err: String(marketError) });
         }
 
+        // 2ter. Événements du calendrier créés par le membre → CANCELLED + purge Discord.
+        // `GuildEvent.guildId` porte l'id **interne** (les runs, elles, portent le snowflake).
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (guildConfig) {
+            const ownEvents = await db.guildEvent.findMany({
+                where: {
+                    guildId: guildConfig.id,
+                    creatorId: userId,
+                    status: { in: ["DRAFT", "PUBLISHED"] },
+                },
+                select: { id: true, metadata: true, discordChannelId: true, discordMessageId: true },
+            });
+            // Un miroir suit sa source : il est recopié juste après, pas annulé à la main.
+            const directEvents = ownEvents.filter((event) => !isAgendaMirror(event.metadata));
+            if (directEvents.length > 0) {
+                // Garde d'état dans le WHERE : jamais d'écrasement d'une clôture concurrente.
+                await db.guildEvent.updateMany({
+                    where: {
+                        id: { in: directEvents.map((event) => event.id) },
+                        guildId: guildConfig.id,
+                        status: { in: ["DRAFT", "PUBLISHED"] },
+                    },
+                    data: { status: "CANCELLED" },
+                });
+                // Purge best-effort : rappels (outbox résolu par `messageKey`) puis embed.
+                for (const event of directEvents) {
+                    const meta = (event.metadata as { reminderMessages?: ReminderMessageRef[] } | null) ?? {};
+                    const refs = Array.isArray(meta.reminderMessages) ? meta.reminderMessages : [];
+                    await deleteReminderMessageRefs(refs).catch(() => null);
+                    await deleteEventDiscordMessage({
+                        id: event.id,
+                        discordChannelId: event.discordChannelId,
+                        discordMessageId: event.discordMessageId,
+                    }).catch(() => false);
+                }
+                closed.events = directEvents.length;
+            }
+        }
+
+        // 2quater. Miroirs agenda : la copie suit la source **fermée** (DJ → COMPLETED,
+        // Songes → COMPLETED/ANNULÉ). Appelé avant toute suppression de profil : après la
+        // cascade, la source n'existe plus et le miroir serait simplement orphelin.
+        for (const post of djPosts) {
+            await syncDjMirror(guildId, post.id).catch(() => null);
+        }
+        for (const run of dreamRuns) {
+            await syncSongesMirror(guildId, run.id).catch(() => null);
+        }
+
         // 3. Suppression des embeds Discord (best-effort, jamais bloquant)
         if (closed.dj > 0 || closed.runs > 0) {
             const { deleteChannelMessage } = await import("@/server/discord");
@@ -1559,10 +1398,92 @@ export async function closeMemberPublishedContent(
                 }
             }
             await Promise.allSettled(deleteTasks);
-            logger.info(`[Lifecycle] Contenu fermé pour exclusion (${reason}): ${closed.dj} post(s) DJ, ${closed.runs} run(s) songes, ${closed.market} annonce(s) Marché`);
+            logger.info(`[Lifecycle] Contenu fermé pour exclusion (${reason}): ${closed.dj} post(s) DJ, ${closed.runs} run(s) songes, ${closed.events} événement(s) annulé(s), ${closed.market} annonce(s) Marché`);
         }
     } catch (e) {
         logger.error("[closeMemberPublishedContent] error:", e);
     }
     return closed;
+}
+
+/**
+ * Filet **« contenu fantôme »** (lot B, 30/10/2026) — ferme le contenu publié des profils
+ * **non actifs** d'une guilde.
+ *
+ * Mesure qui justifie cette passe : `closeMemberPublishedContent` n'était appelé que par les
+ * actions **humaines** (archivage, ban, suppression) et par une **seconde implémentation**
+ * de la synchro restée sans aucun appelant (supprimée dans ce lot). Le cron
+ * (`syncMembershipStatusInternal`) et le bot (`GuildMemberRemove`, qui n'a pas accès à
+ * `src/`) archivaient donc un partant **sans fermer son contenu** : son post DJ restait
+ * `OPEN` et le rappel H-1 continuait de pinger le groupe ; son raid restait `PUBLISHED`
+ * avec un rappel de clôture adressé à un fantôme.
+ *
+ * Ici on ne dépend plus de « qui a archivé » : la passe part des profils non actifs qui
+ * portent **encore** du contenu ouvert (une requête bornée, jamais un balayage complet) et
+ * applique la même cascade. **Idempotente** : un contenu déjà fermé ne ressort pas.
+ *
+ * @returns les compteurs cumulés (0 partout si la guilde est introuvable).
+ */
+export async function closeOrphanContentForGuild(
+    discordGuildId: string,
+    opts: { limit?: number } = {}
+): Promise<{ profiles: number; dj: number; runs: number; events: number; market: number }> {
+    const totals = { profiles: 0, dj: 0, runs: 0, events: 0, market: 0 };
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true },
+        });
+        if (!guild) return totals;
+
+        // Pré-filtre : uniquement les profils exclus qui ont **encore** quelque chose d'ouvert.
+        // Les relations évitent de payer la cascade pour des profils déjà propres.
+        const candidates = await db.userProfile.findMany({
+            where: {
+                guildId: guild.id,
+                status: { in: ["ARCHIVED", "BANNED"] },
+                OR: [
+                    { djSearchPosts: { some: { status: { in: ["OPEN", "FULL"] } } } },
+                    {
+                        user: {
+                            dreamRuns: {
+                                some: { guildId: discordGuildId, status: { in: ["RECRUITING", "IN_PROGRESS"] } },
+                            },
+                        },
+                    },
+                    {
+                        user: {
+                            guildEvents: { some: { guildId: guild.id, status: { in: ["DRAFT", "PUBLISHED"] } } },
+                        },
+                    },
+                    { marketListings: { some: { status: { in: ["ACTIVE", "RESERVED"] } } } },
+                ],
+            },
+            select: { id: true, userId: true },
+            orderBy: { archivedAt: "desc" },
+            take: Math.min(200, Math.max(1, opts.limit ?? 50)),
+        });
+
+        for (const profile of candidates) {
+            const closed = await closeMemberPublishedContent(
+                discordGuildId,
+                profile.id,
+                profile.userId,
+                "ORPHAN_SWEEP"
+            );
+            totals.profiles++;
+            totals.dj += closed.dj;
+            totals.runs += closed.runs;
+            totals.events += closed.events;
+            totals.market += closed.market;
+        }
+
+        if (totals.profiles > 0) {
+            logger.info("[OrphanContent] contenu fantôme fermé", { discordGuildId, ...totals });
+        }
+    } catch (error) {
+        // Best-effort : un échec de la passe ne doit jamais casser la synchro qui l'appelle.
+        logger.error("[OrphanContent] passe impossible", { discordGuildId, error: String(error) });
+    }
+    return totals;
 }

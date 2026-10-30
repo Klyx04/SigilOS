@@ -2,6 +2,8 @@
 import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { rateLimit } from "@/lib/ratelimit";
 import { getUserContext, type ActionResponse } from "./user-actions";
 import { deleteChannelMessage, fetchChannel, postChannelMessage, createForumThread, patchChannelMessage, updateForumThreadName } from "@/server/discord";
 import { revalidatePath } from "next/cache";
@@ -29,6 +31,15 @@ import { loadEmojiResolver } from "@/server/discord-app-emojis";
 import { classEmojiName } from "@/lib/discord-emoji-catalog";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { getDungeonAchievementIconUrl } from "@/lib/achievement-icon";
+import {
+    buildStandBy,
+    canToggleStandBy,
+    isStandByActive,
+    standByAuthorName,
+    standByButtonLabel,
+    standByEmbedLine,
+    STAND_BY_SKIP_REASON,
+} from "@/lib/group-standby";
 
 // ---------------------------------------------------------------------------
 // UTILS
@@ -222,6 +233,8 @@ export type DjPostWithDetails = {
     discordMessageId?: string | null;
     discordChannelId?: string | null;
     status: string;
+    /** « Stand-by » (30/10/2026) : `null` = actif, sinon `{ at, userId, name }` — règle `@/lib/group-standby`. */
+    standBy?: unknown;
     lastReminderAt?: Date | null;
     createdAt: Date;
     updatedAt: Date;
@@ -445,6 +458,7 @@ async function sendDiscordNotification(
         const components = [
             { type: 1, components: buttonComponents },
             buildClassSelectRow(`dj:class:${post.id}`, "Choisir ma classe pour ce groupe…"),
+            ...buildDjStandByRow(post),
         ];
 
         let discordMessageId: string | null = null;
@@ -609,13 +623,48 @@ function buildMultiDungeonRows(post: any, guildId: string, idx: number) {
     return [row, buildClassSelectRow(`dj:class:${post.id}:${idx}`, "Choisir ma classe pour ce groupe…")];
 }
 
+/**
+ * Rangée « stand-by » (30/10/2026) — **un** bouton dont l'état est calculé au rendu
+ * (« Stand-by » / « Reprendre »).
+ *
+ * Discord ne sait **pas** désactiver un bouton pour une seule personne : le contrôle du
+ * créateur est fait dans le handler (`/api/discord/interactions`), qui répond en éphémère
+ * à quiconque n'est ni le créateur ni un administrateur.
+ *
+ * Rangée **séparée** : celle des actions (inscription / désinscription / liens) est déjà
+ * proche du plafond Discord de 5 composants par rangée.
+ */
+function buildDjStandByRow(post: any) {
+    const paused = isStandByActive(post.standBy);
+    return [{
+        type: 1,
+        components: [{
+            type: 2,
+            style: paused ? 3 : 2, // 3 = succès (Reprendre) · 2 = neutre (Stand-by)
+            label: standByButtonLabel(post.standBy),
+            emoji: { name: paused ? "▶️" : "⏸️" },
+            custom_id: `dj:standby:${post.id}`,
+        }],
+    }];
+}
+
 /** Rangée du message d'ouverture (chapeau du lot) : un seul lien, pas cinq. */
-function buildMultiChapeauRow(guildId: string) {
+function buildMultiChapeauRow(guildId: string, post: any) {
     const appUrl = getAppBaseUrl();
+    const paused = isStandByActive(post.standBy);
+    const isOpen = post.status === "OPEN" || post.status === "FULL";
     return [{
         type: 1,
         components: [
             { type: 2, style: 5, label: "Voir la sortie sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+            // Un post fermé n'a plus rien à suspendre : pas de bouton mort.
+            ...(isOpen ? [{
+                type: 2,
+                style: paused ? 3 : 2,
+                label: standByButtonLabel(post.standBy),
+                emoji: { name: paused ? "▶️" : "⏸️" },
+                custom_id: `dj:standby:${post.id}`,
+            }] : []),
         ],
     }];
 }
@@ -629,6 +678,7 @@ async function buildMultiChapeauEmbed(post: any, authorName: string): Promise<an
     const entries: any[] = getMultiDungeons(post.dungeonsJson);
     const stats = getDjDungeonStats(post);
     const emo = await loadEmojiResolver();
+    const standByLine = standByEmbedLine(post.standBy);
     const lines = entries.map((entry: any, i: number) => {
         const s = stats[i];
         const places = s
@@ -640,7 +690,12 @@ async function buildMultiChapeauEmbed(post: any, authorName: string): Promise<an
     });
     return {
         title: `${emo("dofus_dungeon")} SORTIE MULTI-DONJON — ${entries.length} donjons`,
-        description: [`Organisée par **${authorName}**`, "", ...lines].join("\n"),
+        description: [
+            ...(standByLine ? [standByLine, ""] : []),
+            `Organisée par **${authorName}**`,
+            "",
+            ...lines,
+        ].join("\n"),
         color: 0x818cf8,
         footer: { text: `SigilOS — sortie multi-donjon (${entries.length} donjons)` },
         timestamp: new Date().toISOString(),
@@ -706,7 +761,7 @@ async function sendMultiDiscordNotification(
                 message: {
                     content: mentions || undefined,
                     embeds: [await buildMultiChapeauEmbed(post, authorName)],
-                    components: buildMultiChapeauRow(guildId),
+                    components: buildMultiChapeauRow(guildId, post),
                 },
                 auto_archive_duration: 1440,
             };
@@ -882,9 +937,13 @@ async function buildMultiPostEmbeds(post: any, authorName: string, opts?: { plai
             emoji: emo,
         }));
 
+        const standByLine = standByEmbedLine(post.standBy);
         return {
             title: `${emo("dofus_dungeon")} MULTI-DONJON — ${entry.name}`,
-            description: `${idx + 1}/${entries.length} · rejoins la session !`,
+            description: [
+                ...(standByLine ? [standByLine] : []),
+                `${idx + 1}/${entries.length} · rejoins la session !`,
+            ].join("\n"),
             color: 0x818cf8,
             fields,
             thumbnail: (() => {
@@ -992,7 +1051,7 @@ export async function republishDjMultiLayout(guildId: string, postId: string): P
         if (post.discordMessageId) {
             await patchChannelMessage(post.discordChannelId, post.discordMessageId, {
                 embeds: [await buildMultiChapeauEmbed(post, authorName)],
-                components: buildMultiChapeauRow(guildId),
+                components: buildMultiChapeauRow(guildId, post),
             }).catch(() => false);
         }
 
@@ -1049,7 +1108,7 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
                 if (post.discordMessageId) {
                     await patchChannelMessage(post.discordChannelId, post.discordMessageId, {
                         embeds: [await buildMultiChapeauEmbed(post, authorName)],
-                        components: buildMultiChapeauRow(guildId),
+                        components: buildMultiChapeauRow(guildId, post),
                     }).catch(() => false);
                 }
                 return;
@@ -1083,6 +1142,9 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
             const components = [
                 { type: 1, components: buttonComponents },
                 buildClassSelectRow(`dj:class:${postId}`, "Choisir ma classe pour ce groupe…"),
+                // Un post fermé n'a plus rien à suspendre : pas de bouton (le handler le
+                // refuserait de toute façon, mais un bouton mort est un mensonge).
+                ...(isOpen ? buildDjStandByRow(post) : []),
             ];
             patchBody = { embeds: [embed], components };
         }
@@ -1187,6 +1249,10 @@ export async function sendDjReminder(guildId: string, postId: string) {
 
         if (!post) return { success: false, error: "Post introuvable" };
         if (post.profileId !== user.profileId) return { success: false, error: "Seul le leader peut envoyer un rappel" };
+        // Stand-by : un rappel manuel contournerait la pause — on refuse explicitement.
+        if (isStandByActive(post.standBy)) {
+            return { success: false, error: "Ce groupe est en stand-by : reprends-le avant d'envoyer un rappel." };
+        }
 
         // Spam Protection: 5 minutes cooldown
         const COOLDOWN_MS = 5 * 60 * 1000;
@@ -1288,6 +1354,10 @@ export async function sendDjCustomReminder(guildId: string, postId: string, cust
 
         if (!post) return { success: false, error: "Post introuvable" };
         if (post.profileId !== user.profileId) return { success: false, error: "Seul le leader peut envoyer une relance" };
+        // Stand-by : même refus que le rappel standard (la pause doit être un vrai silence).
+        if (isStandByActive(post.standBy)) {
+            return { success: false, error: "Ce groupe est en stand-by : reprends-le avant d'envoyer une relance." };
+        }
         if (!post.discordChannelId) return { success: false, error: "Post non publié sur Discord" };
 
         // Rate limit : 24h
@@ -1551,9 +1621,11 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         });
     }
 
+    const standByLine = standByEmbedLine(post.standBy);
     return {
         title,
         description: [
+            ...(standByLine ? [standByLine, ""] : []),
             `👤 **${creatorDiscordId ? `<@${creatorDiscordId}>` : authorName}** cherche des compagnons !`,
             post.message ? `\n> ${post.message}` : "",
         ].filter(Boolean).join("\n"),
@@ -2138,6 +2210,265 @@ async function applyTitanValidation(profileIds: string[], titanId: string): Prom
     } catch (error) {
         logger.error("[applyTitanValidation]", error);
         return { created: 0 };
+    }
+}
+
+/**
+ * **Reprise de lead** d'un post DJ / quête (lot B, 30/10/2026) — le créateur ou un
+ * administrateur désigne un **inscrit accepté** à sa place.
+ *
+ * Pourquoi : le post n'était modifiable et clôturable que par son `profileId`. Un créateur
+ * parti / banni / archivé laissait donc un groupe **ingérable** — un admin pouvait le fermer,
+ * mais personne ne pouvait reprendre l'organisation (même patron que `transferRaidLead`
+ * pour les raids).
+ *
+ * Règles :
+ *  - la cible doit être **inscrite et acceptée** sur ce post (jamais un tiers) ;
+ *  - ses lignes de participation sont **supprimées** : le créateur compte déjà `+1` dans
+ *    chaque donjon (`getDjDungeonStats`), les garder compterait la même personne deux fois ;
+ *  - sa classe d'inscription est reprise comme classe du créateur (repli : son profil) ;
+ *  - le statut ne bouge pas : le nombre de personnes du groupe est identique.
+ */
+export async function transferDjLead(
+    guildId: string,
+    postId: string,
+    targetProfileId: string
+): Promise<ActionResponse> {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.profileId) return { success: false, error: "Non authentifié" };
+
+    const limit = await rateLimit(`dj-transfer:${guildId}:${user.id ?? "anon"}`, 5, 60_000);
+    if (!limit.success) {
+        return {
+            success: false,
+            error: limit.error
+                ? "Sécurité momentanément indisponible, réessayez."
+                : "Trop de transferts en peu de temps, réessayez plus tard.",
+        };
+    }
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const post = await (db as any).djSearchPost.findFirst({
+            where: { id: postId, guildId: guildConfig.id },
+            select: {
+                id: true,
+                guildId: true,
+                profileId: true,
+                status: true,
+                dungeonsJson: true,
+                questName: true,
+                dungeon: { select: { name: true } },
+            },
+        });
+        if (!post) return { success: false, error: "Post introuvable" };
+
+        const djTenant = await assertPostGuildTenant(guildId, post.guildId);
+        if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
+
+        if (!canToggleStandBy({ isCreator: post.profileId === user.profileId, isAdmin: Boolean(user.isAdmin) })) {
+            return { success: false, error: "Seul le créateur du post ou un administrateur peut transférer le lead." };
+        }
+        if (post.status === "CLOSED" || post.status === "EXPIRED") {
+            return { success: false, error: "Un post fermé n'a plus de lead à transférer." };
+        }
+        if (targetProfileId === post.profileId) {
+            return { success: false, error: "Cette personne est déjà le lead du groupe." };
+        }
+
+        // Isolation de guilde : la cible doit être un profil de CETTE guilde.
+        const target = await (db as any).userProfile.findFirst({
+            where: { id: targetProfileId, guildId: guildConfig.id },
+            select: { id: true, userId: true, user: { select: { name: true } } },
+        });
+        if (!target) return { success: false, error: "Ce membre n'appartient pas à la guilde." };
+
+        // Elle doit être **inscrite et acceptée** : on ne confie pas un groupe à un tiers.
+        const targetSeats = await (db as any).djSearchParticipant.findMany({
+            where: { postId, profileId: targetProfileId, status: "ACCEPTED" },
+            select: { id: true, classe: true },
+        });
+        if (targetSeats.length === 0) {
+            return { success: false, error: "La cible doit être inscrite et acceptée sur ce post." };
+        }
+
+        const nextCreatorClass = targetSeats.find((seat: any) => seat.classe)?.classe ?? null;
+
+        // Le transfert libère une place (le créateur compte `+1`) : même invariant de
+        // capacité que l'inscription → **même** transaction sérialisable, rejouée sur
+        // conflit (un `$transaction` nu contournerait le helper et rouvrirait le 5/4).
+        await withDjSerializableTransaction(async (tx: any) => {
+            await tx.djSearchParticipant.deleteMany({ where: { postId, profileId: targetProfileId } });
+            await tx.djSearchPost.update({
+                where: { id: postId, guildId: guildConfig.id },
+                data: {
+                    profileId: targetProfileId,
+                    dungeonsJson: withDjCreatorClass(post.dungeonsJson, nextCreatorClass),
+                },
+            });
+        });
+
+        await createAuditLog({
+            guildId,
+            actorUserId: user.id ?? "",
+            actorName: user.name || "Membre",
+            action: "FINDER_LEAD_TRANSFERRED" as any,
+            targetType: "DJ_SEARCH_POST" as any,
+            targetId: postId,
+            metadata: {
+                fromProfileId: post.profileId,
+                toProfileId: targetProfileId,
+                byAdmin: Boolean(user.isAdmin),
+                releasedSeats: targetSeats.length,
+            },
+        });
+
+        const postLabel = post.questName || post.dungeon?.name || "Groupe Donjon/Quête";
+        const { createNotification } = await import("@/server/actions/notification-actions");
+        await createNotification(
+            target.userId,
+            "SYSTEM_INFO",
+            "Tu es désormais lead d'un groupe",
+            `${user.name || "Le créateur"} t'a transféré le lead du groupe **${postLabel}**.`,
+            `/dashboard/${guildId}/donjons-et-quetes`,
+            guildId
+        ).catch(() => { });
+
+        updateDjDiscordEmbed(guildId, postId).catch(() => { });
+        await syncDjMirror(guildId, postId).catch(() => null);
+        notifyDjUpdate(guildId).catch(() => { });
+        revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+
+        return { success: true };
+    } catch (error) {
+        logger.error("[transferDjLead]", error);
+        return { success: false, error: "Erreur lors du transfert de lead" };
+    }
+}
+
+/**
+ * **Stand-by** d'un post DJ / quête (30/10/2026) — pause posée par le **créateur** ou un
+ * **administrateur**.
+ *
+ * Contrat (tranché le 30/10/2026, `@/lib/group-standby`) :
+ *  - la pause suspend le **rappel H-1** (`dj-reminder-service`), les **relances
+ *    d'inactivité** et la **clôture J+21** (`inactive-posts-actions`) ;
+ *  - le post **reste ouvert** : les inscriptions ne changent pas, le statut non plus ;
+ *  - la levée efface la pause ; un rappel déjà parti pour la même échéance n'est **pas**
+ *    rejoué (les marqueurs H-1 ne sont pas touchés — seule une replanification les efface,
+ *    cf. `updateDjPost`).
+ *
+ * `paused` est **idempotent** : poser une pause déjà posée ne réécrit rien et ne renvoie
+ * pas d'erreur (un double clic Discord ne doit pas produire un refus).
+ */
+export async function setDjPostStandBy(
+    guildId: string,
+    postId: string,
+    paused: boolean,
+    reason?: string
+): Promise<ActionResponse> {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.profileId) return { success: false, error: "Non authentifié" };
+
+    const limit = await rateLimit(`dj-standby:${guildId}:${user.id ?? "anon"}`, 10, 60_000);
+    if (!limit.success) {
+        return {
+            success: false,
+            error: limit.error
+                ? "Sécurité momentanément indisponible, réessayez."
+                : "Trop de changements en peu de temps, réessayez plus tard.",
+        };
+    }
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const post = await (db as any).djSearchPost.findFirst({
+            where: { id: postId, guildId: guildConfig.id },
+            select: {
+                id: true,
+                guildId: true,
+                profileId: true,
+                status: true,
+                standBy: true,
+                profile: { select: { pseudoDofus: true, discordNickname: true, user: { select: { name: true } } } },
+            },
+        });
+        if (!post) return { success: false, error: "Post introuvable" };
+
+        const djTenant = await assertPostGuildTenant(guildId, post.guildId);
+        if (!djTenant.ok) return { success: false, error: djTenant.error || "Accès refusé" };
+
+        // Créateur ou admin — même règle que la fermeture (`closeDjPost`).
+        if (!canToggleStandBy({ isCreator: post.profileId === user.profileId, isAdmin: Boolean(user.isAdmin) })) {
+            return { success: false, error: "Seul le créateur du post ou un administrateur peut le mettre en stand-by." };
+        }
+        if (post.status === "CLOSED" || post.status === "EXPIRED") {
+            return { success: false, error: "Un post fermé ne peut pas être mis en stand-by." };
+        }
+
+        if (isStandByActive(post.standBy) === paused) {
+            return { success: true, data: { standBy: paused } as any };
+        }
+
+        if (paused) {
+            const state = buildStandBy({
+                at: new Date(),
+                userId: user.id ?? "",
+                name:
+                    post.profile?.pseudoDofus ||
+                    post.profile?.discordNickname ||
+                    post.profile?.user?.name ||
+                    user.name ||
+                    "un membre",
+            });
+            if (!state) return { success: false, error: "Impossible d'identifier l'auteur de la pause." };
+            await (db as any).djSearchPost.update({
+                where: { id: postId, guildId: guildConfig.id },
+                data: { standBy: state as any },
+            });
+        } else {
+            await (db as any).djSearchPost.update({
+                where: { id: postId, guildId: guildConfig.id },
+                data: { standBy: Prisma.DbNull },
+            });
+        }
+
+        // Traçabilité : qui a suspendu / repris, et pourquoi (admin).
+        await createAuditLog({
+            guildId,
+            actorUserId: user.id ?? "",
+            actorName: user.name || "Membre",
+            action: "FINDER_POST_STANDBY" as any,
+            targetType: "DJ_SEARCH_POST" as any,
+            targetId: postId,
+            metadata: {
+                paused,
+                byAdmin: Boolean(user.isAdmin),
+                reason: sanitizeName(reason ?? "", 300) || (paused ? "Mise en stand-by" : "Reprise"),
+            },
+        });
+
+        // Le miroir agenda suit sa source (il n'a ni inscrits ni salon : il ne pinge pas,
+        // mais il doit afficher le même état).
+        await syncDjMirror(guildId, postId).catch(() => null);
+        updateDjDiscordEmbed(guildId, postId).catch(() => { });
+        notifyDjUpdate(guildId).catch(() => { });
+        revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
+
+        return { success: true, data: { standBy: paused } as any };
+    } catch (error) {
+        logger.error("[setDjPostStandBy]", error);
+        return { success: false, error: "Erreur lors du changement de stand-by" };
     }
 }
 

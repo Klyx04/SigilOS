@@ -58,7 +58,7 @@ import { SONGES_BUTTON } from "@/lib/songes/ui";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { RunCloseModal } from "@/components/songes/RunCloseModal";
 import { RunProgressModal } from "@/components/songes/RunProgressModal";
-import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
+import { RunLeaderActions, RunStandByButton, RunLeadTransfer } from "@/components/songes/RunLeaderActions";
 import { RunEditModal } from "@/components/songes/RunEditModal";
 import type { DreamRun, DreamRunMember, DreamWaitlist } from "@prisma/client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -113,6 +113,13 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const objective = OBJECTIVES[run.objective as ObjectiveKey];
     const isLeader = currentUserId === run.leaderId;
     const isMember = run.members.some((m) => m.userId === currentUserId);
+    /**
+     * Reprise de lead (lot B) : les **autres membres** de l'équipe, seuls éligibles. La
+     * liste est calculée ici (RunCard connaît `profiles` et `getDisplayName`).
+     */
+    const transferCandidates = run.members
+        .filter((m) => m.userId !== run.leaderId)
+        .map((m) => ({ userId: m.userId, name: getDisplayName(m.userId) }));
     const epreuve = getEpreuve((run as any).epreuveCode);
 
     const progress = (run.currentFloor / 26) * 100;
@@ -407,6 +414,9 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                 runId={run.id}
                                 variant="full"
                                 isDiscordConfigured={isDiscordConfigured}
+                                standBy={run.standBy}
+                                onToggled={onRefresh}
+                                transferCandidates={transferCandidates}
                              />
                         </div>
 
@@ -478,6 +488,31 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         <ShieldCheck className="w-4 h-4 mr-2" />
                         Équipe complète
                     </div>
+                )}
+
+                {/* Stand-by (30/10/2026) : un administrateur peut geler la run quand le
+                    leader n'est plus là — même action serveur, même audit. */}
+                {!isLeader && isAdmin && (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
+                    <>
+                        <RunStandByButton
+                            guildId={guildId}
+                            runId={run.id}
+                            standBy={run.standBy}
+                            onToggled={onRefresh}
+                            className={cn(SONGES_BUTTON.secondary, "flex-1 h-11 uppercase tracking-wider text-caption rounded-lg")}
+                        />
+                        {/* Reprise de lead (lot B) : l'admin peut aussi désigner un nouveau leader. */}
+                        {transferCandidates.length > 0 && (
+                            <div className="w-full">
+                                <RunLeadTransfer
+                                    guildId={guildId}
+                                    runId={run.id}
+                                    candidates={transferCandidates}
+                                    onDone={onRefresh}
+                                />
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

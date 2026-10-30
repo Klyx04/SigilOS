@@ -20,6 +20,7 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { sendChannelMessage } from "@/server/discord";
 import { buildRaidReminderMentions, raidReminderLeadLabel } from "@/lib/raid-reminder";
 import { shouldSendScheduledH1Reminder } from "@/lib/h1-reminder";
+import { isStandByActive, STAND_BY_SKIP_REASON } from "@/lib/group-standby";
 import { getMultiDungeons, isDjDungeonClosed, withDjDungeonReminder } from "@/lib/dungeon-finder-utils";
 
 const SCAN_HORIZON_MS = 24 * 60 * 60 * 1000;
@@ -128,6 +129,9 @@ export async function sendDjReminders(
         discordChannelId: true,
         lastReminderAt: true,
         dungeonsJson: true,
+        // Stand-by (30/10/2026) : lu pour suspendre le ping, jamais filtré en SQL (une
+        // valeur illisible doit compter comme une pause — cf. `isStandByActive`).
+        standBy: true,
         dungeon: { select: { name: true } },
         questName: true,
         titanName: true,
@@ -169,6 +173,13 @@ export async function sendDjReminders(
     summary.scanned = candidates.length;
 
     for (const post of candidates) {
+        // Stand-by : le créateur a suspendu le groupe → aucun ping, même si l'échéance est
+        // dans la fenêtre H-1. Fail-closed : toute valeur non nulle compte comme une pause.
+        if (isStandByActive(post.standBy)) {
+            bump(STAND_BY_SKIP_REASON);
+            continue;
+        }
+
         const channelId = post.discordChannelId || post.guild?.djNotifyChannelId || null;
         const sessions = buildSessions(post);
         if (sessions.length === 0) {

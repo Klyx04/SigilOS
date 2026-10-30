@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { Button } from "@/components/ui/button";
-import { Bell, Calendar as CalendarIcon, Clock, Send, Loader2 } from "lucide-react";
+import { Bell, Calendar as CalendarIcon, Clock, Send, Loader2, Pause, Play, Crown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,17 +13,163 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { triggerRunNotification } from "@/server/actions/songes/dream-run-actions";
+import { triggerRunNotification, setDreamRunStandBy, transferRunLead } from "@/server/actions/songes/dream-run-actions";
 import { toast } from "sonner";
+import { isStandByActive } from "@/lib/group-standby";
+
+/**
+ * **Reprise de lead** d'une run (lot B, 30/10/2026) — un membre de l'équipe reprend la run
+ * quand le leader s'en va. Le serveur arbitre (`transferRunLead` → leader ou admin).
+ *
+ * Partagé par le panneau leader et la vue administrateur : une seule implémentation.
+ */
+export function RunLeadTransfer({
+    guildId,
+    runId,
+    candidates,
+    onDone,
+}: {
+    guildId: string;
+    runId: string;
+    candidates: { userId: string; name: string }[];
+    onDone?: () => void;
+}) {
+    const [target, setTarget] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    if (candidates.length === 0) return null;
+
+    const handleTransfer = async () => {
+        if (!target) {
+            toast.error("Choisis le nouveau leader.");
+            return;
+        }
+        setLoading(true);
+        try {
+            const res = await transferRunLead(guildId, runId, target);
+            if (res.success) {
+                toast.success("Lead transféré.");
+                setTarget("");
+                onDone?.();
+            } else {
+                toast.error(res.error || "Transfert impossible.");
+            }
+        } catch {
+            toast.error("Erreur lors du transfert de lead");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="flex flex-col sm:flex-row gap-2">
+            <select
+                aria-label="Nouveau leader de la run"
+                value={target}
+                onChange={(event) => setTarget(event.target.value)}
+                disabled={loading}
+                className="h-10 flex-1 min-w-0 rounded-lg bg-surface border border-border px-3 text-xs text-foreground"
+            >
+                <option value="">Choisir un nouveau leader…</option>
+                {candidates.map((candidate) => (
+                    <option key={candidate.userId} value={candidate.userId}>
+                        {candidate.name}
+                    </option>
+                ))}
+            </select>
+            <Button
+                onClick={handleTransfer}
+                disabled={loading || !target}
+                variant="outline"
+                className="gap-2 shrink-0 border-border text-foreground/80 hover:text-foreground"
+            >
+                <Crown className="w-4 h-4" /> Transférer
+            </Button>
+        </div>
+    );
+}
+
+/**
+ * Bouton **« Stand-by »** d'une run Songes (30/10/2026) — partagé par le panneau leader
+ * (`RunLeaderActions`) et la vue **administrateur** de `RunCard` : une seule implémentation,
+ * donc un seul comportement (et un seul endroit à corriger).
+ *
+ * Le serveur reste l'arbitre (`setDreamRunStandBy` → `canToggleStandBy`) : ce composant ne
+ * fait que proposer le geste.
+ */
+export function RunStandByButton({
+    guildId,
+    runId,
+    standBy,
+    onToggled,
+    className,
+}: {
+    guildId: string;
+    runId: string;
+    /** Valeur brute de `DreamRun.standBy` (`null` = active). */
+    standBy: unknown;
+    onToggled?: () => void;
+    className?: string;
+}) {
+    const [loading, setLoading] = useState(false);
+
+    const handleToggle = async () => {
+        const paused = !isStandByActive(standBy);
+        setLoading(true);
+        try {
+            const res = await setDreamRunStandBy(guildId, runId, paused);
+            if (res.success) {
+                toast.success(paused
+                    ? "Run en stand-by — rappels et relances suspendus."
+                    : "Stand-by levé — rappels et relances reprennent.");
+                onToggled?.();
+            } else {
+                toast.error(res.error || "Changement impossible.");
+            }
+        } catch {
+            toast.error("Erreur lors du changement de stand-by");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Button
+            onClick={handleToggle}
+            variant="outline"
+            disabled={loading}
+            className={cn("gap-2", className)}
+            title="Suspendre les rappels et les relances sans fermer la run"
+        >
+            {isStandByActive(standBy)
+                ? <><Play className="w-4 h-4" /> Reprendre</>
+                : <><Pause className="w-4 h-4" /> Mettre en stand-by</>}
+        </Button>
+    );
+}
 
 interface RunLeaderActionsProps {
     guildId: string;
     runId: string;
     isDiscordConfigured?: boolean;
     variant?: "full" | "minimal";
+    /** « Stand-by » (30/10/2026) : valeur brute de `DreamRun.standBy` (`null` = active). */
+    standBy?: unknown;
+    /** Appelé après un changement de stand-by pour rafraîchir la carte. */
+    onToggled?: () => void;
+    /** Membres éligibles à la reprise de lead (hors leader actuel). */
+    transferCandidates?: { userId: string; name: string }[];
 }
 
-export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, variant = "full" }: RunLeaderActionsProps) {
+export function RunLeaderActions({
+    guildId,
+    runId,
+    isDiscordConfigured = false,
+    variant = "full",
+    standBy = null,
+    onToggled,
+    transferCandidates,
+}: RunLeaderActionsProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("On se prépare pour la run !");
@@ -66,6 +212,12 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
             setLoading(false);
         }
     };
+
+    /**
+     * Stand-by (30/10/2026) : suspend le rappel H-1, les relances d'inactivité et la
+     * clôture J+21. Les candidatures restent ouvertes (contrat `@/lib/group-standby`).
+     * L'implémentation vit dans `RunStandByButton` (partagée avec la vue admin).
+     */
 
     if (variant === "minimal") {
         return (
@@ -117,6 +269,31 @@ export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, 
                         <Send className="w-4 h-4" />
                         Envoyer un rappel
                     </Button>
+
+                    {/* Stand-by (30/10/2026) : suspend le H-1, les relances d'inactivité et la
+                        clôture J+21 ; les candidatures restent ouvertes. */}
+                    <RunStandByButton
+                        guildId={guildId}
+                        runId={runId}
+                        standBy={standBy}
+                        onToggled={onToggled}
+                        className="w-full border-border text-foreground/80 hover:text-foreground"
+                    />
+
+                    {/* Reprise de lead (lot B) : le leader part → un membre reprend la run. */}
+                    {transferCandidates && transferCandidates.length > 0 && (
+                        <div className="space-y-2 pt-1 border-t border-border/60">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Reprise de lead
+                            </p>
+                            <RunLeadTransfer
+                                guildId={guildId}
+                                runId={runId}
+                                candidates={transferCandidates}
+                                onDone={onToggled}
+                            />
+                        </div>
+                    )}
                 </div>
             </GlassPanel>
 

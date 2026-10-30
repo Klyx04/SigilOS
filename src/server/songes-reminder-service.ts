@@ -15,6 +15,7 @@ import { getAppBaseUrl } from "@/lib/utils";
 import { sendChannelMessage } from "@/server/discord";
 import { buildRaidReminderMentions, raidReminderLeadLabel } from "@/lib/raid-reminder";
 import { shouldSendScheduledH1Reminder } from "@/lib/h1-reminder";
+import { isStandByActive, STAND_BY_SKIP_REASON } from "@/lib/group-standby";
 import { redis } from "@/lib/redis";
 
 const SCAN_HORIZON_MS = 24 * 60 * 60 * 1000;
@@ -52,6 +53,9 @@ export async function sendSongesReminders(
             scheduledAt: true,
             discordChannelId: true,
             lastReminderAt: true,
+            // Stand-by (30/10/2026) : lu pour suspendre le ping (jamais filtré en SQL —
+            // une valeur illisible doit compter comme une pause).
+            standBy: true,
             leaderId: true,
             members: { select: { userId: true } },
         },
@@ -62,6 +66,12 @@ export async function sendSongesReminders(
     summary.scanned = candidates.length;
 
     for (const run of candidates) {
+        // Stand-by : la run est suspendue → aucun ping. Fail-closed (valeur illisible = pause).
+        if (isStandByActive(run.standBy)) {
+            bump(STAND_BY_SKIP_REASON);
+            continue;
+        }
+
         try {
             const guildConfig = await db.guildConfig.findFirst({
                 where: { OR: [{ id: run.guildId }, { discordGuildId: run.guildId }] },

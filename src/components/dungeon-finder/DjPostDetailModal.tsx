@@ -12,6 +12,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import {
     Users, CheckCircle2, Swords, Map, Zap, LogIn, LogOut, Trash2, Pencil, Bell, Layers, AlarmClock, ChevronDown,
+    Pause, Play, Crown,
 } from "lucide-react";
 import {
     acceptDjParticipant,
@@ -19,7 +20,10 @@ import {
     joinDjPost,
     leaveDjPost,
     republishDjMultiLayout,
+    setDjPostStandBy,
+    transferDjLead,
 } from "@/server/actions/dungeon-finder-actions";
+import { isStandByActive, standByAuthorName } from "@/lib/group-standby";
 import { DjEditModal } from "./DjEditModal";
 import { DjCloseModal } from "./DjCloseModal";
 import { DjReminderModal } from "./DjReminderModal";
@@ -68,6 +72,8 @@ export function DjPostDetailModal({
     // Clôture (bilan des succès/points + fermeture Discord) : action principale du
     // créateur. La suppression du groupe a été retirée (elle détruisait le bilan).
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+    /** Reprise de lead (lot B) : profil choisi dans la liste des inscrits acceptés. */
+    const [transferTarget, setTransferTarget] = useState("");
     /**
      * Clôture **unitaire** : index du donjon visé, ou `null` pour la clôture du groupe entier.
      * `null` est le défaut du bouton « Terminer le post » (comportement historique).
@@ -177,6 +183,44 @@ export function DjPostDetailModal({
             const res = await leaveDjPost(guildId, post.id, dungeonIndex);
             if (res.success) { toast.success("Inscription retirée."); onRefresh(); }
             else toast.error(res.error);
+        });
+    }
+
+    /**
+     * Stand-by (30/10/2026) : suspend le rappel H-1, les relances d'inactivité et la
+     * clôture J+21. Les inscriptions restent ouvertes (contrat `@/lib/group-standby`).
+     */
+    function handleToggleStandBy() {
+        const paused = !isStandByActive(post.standBy);
+        startTransition(async () => {
+            const res = await setDjPostStandBy(guildId, post.id, paused);
+            if (res.success) {
+                toast.success(paused
+                    ? "Groupe mis en stand-by — rappels et relances suspendus."
+                    : "Stand-by levé — rappels et relances reprennent.");
+                onRefresh();
+            } else {
+                toast.error(res.error || "Changement impossible.");
+            }
+        });
+    }
+
+    /**
+     * Reprise de lead (lot B, 30/10/2026) : quand le créateur s'en va, un inscrit accepté
+     * reprend le groupe. Le serveur arbitre (créateur ou admin) et libère la place occupée
+     * par la cible (le créateur compte déjà `+1`).
+     */
+    function handleTransferLead() {
+        if (!transferTarget) return;
+        startTransition(async () => {
+            const res = await transferDjLead(guildId, post.id, transferTarget);
+            if (res.success) {
+                toast.success("Lead transféré.");
+                setTransferTarget("");
+                onRefresh();
+            } else {
+                toast.error(res.error || "Transfert impossible.");
+            }
         });
     }
 
@@ -953,6 +997,16 @@ export function DjPostDetailModal({
                             </div>
                         )}
 
+                        {/* Stand-by (30/10/2026) : l'état est visible par tous (le groupe est
+                            gelé), l'action reste réservée au créateur ou à un admin. */}
+                        {isStandByActive(post.standBy) && (
+                            <div className="rounded-lg border border-border/70 bg-surface/60 px-3 py-2 text-sm text-muted-foreground">
+                                ⏸️ <span className="text-foreground font-semibold">En stand-by</span>
+                                {standByAuthorName(post.standBy) ? ` par ${standByAuthorName(post.standBy)}` : ""}
+                                {" — "}rappels et relances suspendus, inscriptions ouvertes.
+                            </div>
+                        )}
+
                         {/* Actions du créateur (ou d'un admin) : relancer, modifier, TERMINER. */}
                         {(isOwner || isAdmin) && (post.status === "OPEN" || post.status === "FULL") && (
                             <div className="border-t border-border/70 pt-5 flex flex-wrap gap-3">
@@ -998,6 +1052,45 @@ export function DjPostDetailModal({
                                         Republier en 1 msg/donjon
                                     </Button>
                                 )}
+                                {/* Reprise de lead (lot B) : un inscrit accepté reprend le groupe
+                                    quand le créateur s'en va. Liste = les autres inscrits only. */}
+                                {acceptedParticipants.length > 0 && (
+                                    <div className="w-full flex flex-col sm:flex-row gap-2">
+                                        <select
+                                            aria-label="Nouveau lead du groupe"
+                                            value={transferTarget}
+                                            onChange={(event) => setTransferTarget(event.target.value)}
+                                            disabled={isPending}
+                                            className="h-11 flex-1 min-w-0 rounded-xl bg-surface/60 border border-border/70 px-3 text-sm text-foreground"
+                                        >
+                                            <option value="">Transférer le lead à…</option>
+                                            {acceptedParticipants.map((p) => (
+                                                <option key={p.profile.id} value={p.profile.id}>
+                                                    {displayName(p.profile)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <Button
+                                            variant="outline"
+                                            className="h-11 px-4 rounded-xl border-border/70 bg-surface/60 font-bold"
+                                            onClick={handleTransferLead}
+                                            disabled={!transferTarget || isPending}
+                                        >
+                                            <Crown className="w-4 h-4 mr-2" /> Transférer
+                                        </Button>
+                                    </div>
+                                )}
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 min-w-[160px] border-border/70 bg-surface/60 text-foreground hover:text-foreground hover:bg-surface font-bold h-11 transition-all rounded-xl"
+                                    onClick={handleToggleStandBy}
+                                    disabled={isPending}
+                                    title="Suspendre les rappels et les relances sans fermer le groupe"
+                                >
+                                    {isStandByActive(post.standBy)
+                                        ? <><Play className="w-4 h-4 mr-2" /> Reprendre</>
+                                        : <><Pause className="w-4 h-4 mr-2" /> Stand-by</>}
+                                </Button>
                                 <Button
                                     className="flex-1 min-w-[180px] bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-500/30 font-bold h-11 transition-all rounded-xl cursor-pointer"
                                     onClick={() => { setCloseDungeonIndex(null); setIsCloseModalOpen(true); }}

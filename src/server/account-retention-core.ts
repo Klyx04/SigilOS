@@ -2,6 +2,8 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { getSuperAdminIds } from "./actions/super-admin-actions";
 import { createGodAuditLog } from "./actions/audit-actions";
+import { closeMemberPublishedContent } from "./actions/lifecycle-actions";
+import { isDeletedMemberUser, reattributeGuildEvents } from "./deleted-member";
 
 type CoreResult = {
     deleted: number;
@@ -19,8 +21,12 @@ type CoreResult = {
  * - la route cron `/api/cron/account-retention` après `verifyCronSecret()`.
  *
  * Règles (fail-safe) : rétention 90j par défaut, purge seulement si TOUS les profils sont
- * en fin de grâce (`scheduledDeletion` passée), protections super-admin + guildEvents,
- * tâches de 50 max/exécution.
+ * en fin de grâce (`scheduledDeletion` passée), protections super-admin + **compte technique
+ * « Ancien membre »** ; tâches de 50 max/exécution.
+ *
+ * Les **événements de guilde survivent** au compte (décision user du 30/10/2026, option C) :
+ * ils sont annulés s'ils étaient ouverts, rattachés au compte technique puis signés
+ * « Ancien membre » — la guilde garde son historique, l'identité disparaît.
  */
 export async function purgeOrphanAccountsCore(opts?: {
     retentionDays?: number;
@@ -46,12 +52,13 @@ export async function purgeOrphanAccountsCore(opts?: {
             accounts: { select: { provider: true, providerAccountId: true } },
             profiles: {
                 select: {
+                    id: true,
                     status: true,
                     scheduledDeletion: true,
                     archiveReason: true,
+                    guild: { select: { discordGuildId: true } },
                 },
             },
-            _count: { select: { guildEvents: true } },
         },
         orderBy: { createdAt: "asc" },
         take: max,
@@ -66,8 +73,9 @@ export async function purgeOrphanAccountsCore(opts?: {
         const discordId = user.accounts.find(a => a.provider === "discord")?.providerAccountId;
         if (discordId && superAdminIds.includes(discordId)) { skipped++; continue; }
 
-        // 2. Audit : un compte ayant créé des événements de guilde est conservé.
-        if (user._count.guildEvents > 0) { skipped++; continue; }
+        // 2. Le compte technique « Ancien membre » n'est **jamais** purgé : la cascade
+        //    emporterait tous les événements anonymisés qu'il porte.
+        if (isDeletedMemberUser(user.id)) { skipped++; continue; }
 
         // 3. Purge différée utilisateur en cours (deletionRequested/scheduledDeletion future).
         if (user.scheduledDeletion && user.scheduledDeletion > now) { skipped++; continue; }
@@ -83,6 +91,23 @@ export async function purgeOrphanAccountsCore(opts?: {
         }
 
         try {
+            // 4bis. Fermer le contenu encore publié (embeds Discord compris) — idempotent,
+            // best-effort : la passe de synchro a normalement déjà fait le travail, mais une
+            // purge peut précéder une synchro (bot retiré, guilde injoignable).
+            for (const profile of user.profiles) {
+                await closeMemberPublishedContent(
+                    profile.guild.discordGuildId,
+                    profile.id,
+                    user.id,
+                    "ORPHAN_RETENTION"
+                ).catch(() => null);
+            }
+
+            // 4ter. Les **événements** ne partent pas avec le compte : ils sont annulés s'ils
+            // étaient ouverts, débarrassés du nom du capitaine, puis rattachés au compte
+            // technique « Ancien membre » (option C du 30/10/2026).
+            await reattributeGuildEvents(user.id);
+
             await db.user.delete({ where: { id: user.id } });
             deleted++;
         } catch (e) {

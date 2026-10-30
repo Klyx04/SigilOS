@@ -9,6 +9,7 @@ import { resolveSongesForumTag, songesLevelTagName } from "@/lib/songes/forum-ta
 import { logger } from "@/lib/logger";
 import { resolveOwnedClass } from "@/lib/user-character-classes";
 import { loadClassProfileByUserId } from "@/server/character-class-profile";
+import { isStandByActive, standByButtonLabel, standByEmbedLine } from "@/lib/group-standby";
 
 // ============================================
 // CONSTANTS
@@ -140,7 +141,13 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         ? `${epreuveMeta.label} — ${diffConfig.label}`
         : `🌙 Run Songes — ${diffConfig.label}`;
 
+    const standByLine = standByEmbedLine(run.standBy);
     const fields = [
+        // Stand-by (30/10/2026) : visible sur l'embed ET sur le message — le champ est
+        // re-rendu à chaque PATCH (`updateDiscordRunEmbed`). Absent quand la run est active.
+        ...(standByLine
+            ? [{ name: "⏸️ Stand-by", value: standByLine.replace(/^⏸️\s*/, ""), inline: false }]
+            : []),
         { name: "💀 Difficulté", value: `${diffConfig.emoji} **${diffConfig.label}**`, inline: true },
         { name: `${emo("dofus_leader")} Leader`, value: `**${leaderProfile.name}**`, inline: true },
         { name: `${emo("dofus_players")} Places`, value: `**${run.members.length}/${MAX_MEMBERS}**`, inline: true },
@@ -192,6 +199,15 @@ async function buildRunEmbedData(guildId: string, runId: string) {
                     label: "Quitter",
                     emoji: { name: "🚪" },
                     custom_id: `songes:leave:${run.id}`,
+                },
+                {
+                    // Stand-by (30/10/2026) — contrôle du leader dans le handler Discord
+                    // (Discord ne sait pas griser un bouton pour une seule personne).
+                    type: 2,
+                    style: isStandByActive(run.standBy) ? 3 : 2,
+                    label: standByButtonLabel(run.standBy),
+                    emoji: { name: isStandByActive(run.standBy) ? "▶️" : "⏸️" },
+                    custom_id: `songes:standby:${run.id}`,
                 },
             ],
         },

@@ -10,6 +10,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
+import { Prisma } from "@prisma/client";
+import { buildStandBy, canToggleStandBy, isStandByActive } from "@/lib/group-standby";
 import { createNotification } from "@/server/actions/notification-actions";
 import { sendChannelMessage } from "@/server/discord";
 import { rateLimit } from "@/lib/ratelimit";
@@ -401,6 +403,187 @@ export async function updateDreamRun(
     } catch (error) {
         logger.error("[updateDreamRun] error:", error);
         return { success: false, error: "Erreur lors de la modification de la run" };
+    }
+}
+
+/**
+ * **Reprise de lead** d'une run Songes (lot B, 30/10/2026) — le leader ou un administrateur
+ * désigne un **membre de la run** à sa place.
+ *
+ * Pourquoi : `updateDreamRun`, `closeDreamRun`, `reopenDreamRun` et `kickMember` étaient
+ * **leader-only sans dérogation**. Un leader parti ou banni laissait une run ni clôturable
+ * ni réparable. Même patron que `transferRaidLead`.
+ *
+ * Le nouveau lead garde **sa** place dans l'équipe (le leader occupe le slot 1) : rien n'est
+ * supprimé, seul `leaderId` change — le nombre de joueurs reste juste.
+ */
+export async function transferRunLead(
+    guildId: string,
+    runId: string,
+    targetUserId: string
+): Promise<{ success: boolean; error?: string }> {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const limiter = await rateLimit(`transfer_dream_run:${ctx.userId}:${guildId}`, 5, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop de transferts. Veuillez patienter." };
+
+    try {
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId: ctx.guildId },
+            select: { id: true, leaderId: true, status: true },
+        });
+        if (!run) return { success: false, error: "Run non trouvée" };
+
+        if (!canToggleStandBy({ isCreator: run.leaderId === ctx.userId, isAdmin: Boolean(ctx.isAdmin) })) {
+            return { success: false, error: "Seul le leader de la run ou un administrateur peut transférer le lead." };
+        }
+        if (!["RECRUITING", "IN_PROGRESS"].includes(run.status)) {
+            return { success: false, error: "Cette run est terminée : plus de lead à transférer." };
+        }
+        if (targetUserId === run.leaderId) {
+            return { success: false, error: "Cette personne est déjà le leader de la run." };
+        }
+
+        // La cible doit être **dans l'équipe** : on ne confie pas la run à un tiers.
+        const member = await db.dreamRunMember.findFirst({
+            where: { runId, userId: targetUserId },
+            select: { id: true },
+        });
+        if (!member) return { success: false, error: "La cible doit être membre de la run." };
+
+        await db.dreamRun.update({
+            where: { id: runId, guildId: ctx.guildId },
+            data: { leaderId: targetUserId },
+        });
+
+        const { createAuditLog } = await import("@/server/actions/audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.userId,
+            actorName: ctx.name || "Membre",
+            action: "SONGES_LEAD_TRANSFERRED" as never,
+            targetType: "DREAM_RUN" as never,
+            targetId: runId,
+            metadata: {
+                fromLeaderId: run.leaderId,
+                toLeaderId: targetUserId,
+                byAdmin: Boolean(ctx.isAdmin),
+            },
+        });
+
+        const { createNotification } = await import("@/server/actions/notification-actions");
+        await createNotification(
+            targetUserId,
+            "SYSTEM_INFO",
+            "Tu es désormais leader d'une run Songes",
+            `${ctx.name || "Le leader"} t'a transféré le lead de la run.`,
+            `/dashboard/${guildId}/songes`,
+            guildId
+        ).catch(() => { });
+
+        try {
+            const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+            await updateDiscordRunEmbed(ctx.guildId, runId);
+        } catch (embedErr) {
+            logger.warn("[transferRunLead] refresh embed non bloquant", { error: embedErr });
+        }
+
+        revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+        await syncSongesMirror(guildId, runId);
+        return { success: true };
+    } catch (error) {
+        logger.error("[transferRunLead] error:", error);
+        return { success: false, error: "Erreur lors du transfert de lead" };
+    }
+}
+
+/**
+ * **Stand-by** d'une run Songes (30/10/2026) — pause posée par le **leader** ou un
+ * **administrateur**.
+ *
+ * Contrat (`@/lib/group-standby`) : suspend le rappel H-1, les relances d'inactivité et la
+ * clôture J+21 ; les candidatures restent ouvertes ; `paused` est idempotent.
+ */
+export async function setDreamRunStandBy(
+    guildId: string,
+    runId: string,
+    paused: boolean,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié ou non autorisé" };
+
+    const limiter = await rateLimit(`standby_dream_run:${ctx.userId}:${guildId}`, 10, 60_000);
+    if (!limiter.success) return { success: false, error: "Trop de changements. Veuillez patienter." };
+
+    try {
+        const run = await db.dreamRun.findFirst({
+            where: { id: runId, guildId: ctx.guildId },
+            select: { id: true, leaderId: true, status: true, standBy: true },
+        });
+        if (!run) return { success: false, error: "Run non trouvée" };
+
+        if (!canToggleStandBy({ isCreator: run.leaderId === ctx.userId, isAdmin: Boolean(ctx.isAdmin) })) {
+            return { success: false, error: "Seul le leader de la run ou un administrateur peut la mettre en stand-by." };
+        }
+        if (["COMPLETED", "FAILED", "ABANDONED"].includes(run.status)) {
+            return { success: false, error: "Impossible de mettre en stand-by une run terminée ou abandonnée" };
+        }
+        if (isStandByActive(run.standBy) === paused) return { success: true };
+
+        if (paused) {
+            // `DreamRun.guildId` porte le **snowflake** Discord, alors que `UserProfile.guildId`
+            // porte l'id interne : deux résolutions distinctes, jamais la même valeur.
+            const guildConfig = await db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { id: true },
+            });
+            const leaderProfile = guildConfig
+                ? await db.userProfile.findFirst({
+                      where: { userId: run.leaderId, guildId: guildConfig.id },
+                      select: { pseudoDofus: true, discordNickname: true },
+                  })
+                : null;
+            const state = buildStandBy({
+                at: new Date(),
+                userId: ctx.userId,
+                name: leaderProfile?.pseudoDofus || leaderProfile?.discordNickname || "un membre",
+            });
+            if (!state) return { success: false, error: "Impossible d'identifier l'auteur de la pause." };
+            await db.dreamRun.update({ where: { id: runId, guildId: ctx.guildId }, data: { standBy: state as never } });
+        } else {
+            await db.dreamRun.update({ where: { id: runId, guildId: ctx.guildId }, data: { standBy: Prisma.DbNull } });
+        }
+
+        const { createAuditLog } = await import("@/server/actions/audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.userId,
+            actorName: ctx.name || "Membre",
+            action: "SONGES_RUN_STANDBY" as never,
+            targetType: "DREAM_RUN" as never,
+            targetId: runId,
+            metadata: {
+                paused,
+                byAdmin: Boolean(ctx.isAdmin),
+                reason: (reason ?? "").slice(0, 300) || (paused ? "Mise en stand-by" : "Reprise"),
+            },
+        });
+
+        try {
+            const { updateDiscordRunEmbed } = await import("@/server/songes-service");
+            await updateDiscordRunEmbed(ctx.guildId, runId);
+        } catch (embedErr) {
+            logger.warn("[setDreamRunStandBy] refresh embed non bloquant", { error: embedErr });
+        }
+
+        revalidatePath(`/dashboard/${ctx.guildId}/songes`);
+        await syncSongesMirror(guildId, runId);
+        return { success: true };
+    } catch (error) {
+        logger.error("[setDreamRunStandBy] error:", error);
+        return { success: false, error: "Erreur lors du changement de stand-by" };
     }
 }
 
@@ -1572,8 +1755,10 @@ export async function closeDreamRun(guildId: string, runId: string) {
         return { success: false, error: "Run non trouvée" };
     }
 
-    if (run.leaderId !== ctx.userId) {
-        return { success: false, error: "Seul le leader peut clôturer la run" };
+    // Dérogation administrateur (lot B, 30/10/2026) : sans elle, une run dont le leader est
+    // parti / banni restait **inclôturable** par quiconque.
+    if (run.leaderId !== ctx.userId && !ctx.isAdmin) {
+        return { success: false, error: "Seul le leader ou un administrateur peut clôturer la run" };
     }
 
     if (run.status !== "IN_PROGRESS") {
@@ -1614,8 +1799,9 @@ export async function reopenDreamRun(guildId: string, runId: string) {
         return { success: false, error: "Run non trouvée" };
     }
 
-    if (run.leaderId !== ctx.userId) {
-        return { success: false, error: "Seul le leader peut réouvrir la run" };
+    // Dérogation administrateur (lot B, 30/10/2026) — même raison que la clôture.
+    if (run.leaderId !== ctx.userId && !ctx.isAdmin) {
+        return { success: false, error: "Seul le leader ou un administrateur peut réouvrir la run" };
     }
 
     if (run.status !== "COMPLETED" && run.status !== "FAILED") {

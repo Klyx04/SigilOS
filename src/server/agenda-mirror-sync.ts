@@ -18,6 +18,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import {
@@ -38,6 +39,14 @@ import {
 } from "@/lib/agenda-mirror";
 
 const IdSchema = z.string().min(1).max(64);
+
+/**
+ * Valeur `standBy` à écrire sur un **miroir** : recopie brute de la source, `DbNull`
+ * quand la source est active (Prisma refuse `null` sur une colonne JSON).
+ */
+function standByForMirror(raw: unknown) {
+    return raw === null || raw === undefined ? Prisma.DbNull : (raw as never);
+}
 
 export type MirrorSyncResult =
     | { success: true; action: "created" | "updated" | "completed" | "removed" | "skipped" }
@@ -117,6 +126,8 @@ export async function syncDjMirror(discordGuildId: string, postId: string): Prom
             dungeonsJson: unknown;
             message: string | null;
             maxMembers: number | null;
+            /** « Stand-by » (30/10/2026) : `null` = actif (colonne JSON recopiée sur le miroir). */
+            standBy: unknown;
             questName: string | null;
             wantedAchievementIds: string[];
             dungeon: { name: string; achievements: { challenge: { name: string } | null }[] } | null;
@@ -228,6 +239,8 @@ export async function syncDjMirror(discordGuildId: string, postId: string): Prom
                     status: endStatus,
                     maxParticipants:
                         typeof post.maxMembers === "number" && post.maxMembers >= 1 ? post.maxMembers : null,
+                    // Stand-by (30/10/2026) : le miroir suit sa source (une seule vérité).
+                    standBy: standByForMirror(post.standBy),
                     metadata: metadata as never,
                 },
             });
@@ -249,6 +262,8 @@ export async function syncDjMirror(discordGuildId: string, postId: string): Prom
                 recurrence: "UNIQUE",
                 maxParticipants:
                     typeof post.maxMembers === "number" && post.maxMembers >= 1 ? post.maxMembers : null,
+                // Stand-by (30/10/2026) : le miroir naît dans l'état de sa source.
+                standBy: standByForMirror(post.standBy),
                 metadata: metadata as never,
             },
         });
@@ -353,6 +368,8 @@ export async function syncSongesMirror(discordGuildId: string, runId: string): P
                     endDate: range.end,
                     status: endStatus as never,
                     maxParticipants: 4,
+                    // Stand-by (30/10/2026) : le miroir suit sa source.
+                    standBy: standByForMirror(run.standBy),
                     metadata: metadata as never,
                 },
             });
@@ -375,6 +392,8 @@ export async function syncSongesMirror(discordGuildId: string, runId: string): P
                 endDate: range.end,
                 recurrence: "UNIQUE",
                 maxParticipants: 4,
+                // Stand-by (30/10/2026) : le miroir naît dans l'état de sa source.
+                standBy: standByForMirror(run.standBy),
                 metadata: metadata as never,
             },
         });

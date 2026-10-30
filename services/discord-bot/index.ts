@@ -763,6 +763,10 @@ client.on(Events.GuildMemberRemove, async (member) => {
         }
 
         // Archive profile (#6 validé : 12 mois, aligné sur le sync — plus 30 jours)
+        // ⚠️ La **fermeture du contenu publié** (posts DJ, runs Songes, événements du
+        // calendrier) n'est pas faite ici : cette image n'a pas accès à `src/`. Elle est
+        // assurée par la passe `closeOrphanContentForGuild`, branchée sur la synchro
+        // (`/api/cron/sync-members`, ≤ 1 h) — lot B du 30/10/2026.
         const twelveMonthsFromNow = new Date();
         twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
         const result = await db.userProfile.updateMany({

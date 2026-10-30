@@ -41,6 +41,12 @@ export type AutoCloseCandidate = {
      * afficher « Terminé » un post encore ouvert.
      */
     isMirror?: boolean;
+    /**
+     * « Stand-by » (30/10/2026, `@/lib/group-standby`) : l'organisateur a suspendu
+     * l'événement. La clôture d'office attend son réveil — sinon un report de date
+     * ferait disparaître l'événement au lieu de le décaler.
+     */
+    isStandBy?: boolean;
 };
 
 /**
@@ -48,9 +54,11 @@ export type AutoCloseCandidate = {
  * `blindAutoCloseWhere` (une seule règle, deux usages : un événement déjà chargé ici,
  * un lot en base là-bas). Le test vérifie que les deux répondent pareil aux bornes.
  */
-export function shouldBlindAutoClose({ type, endDate, now, isMirror }: AutoCloseCandidate): boolean {
+export function shouldBlindAutoClose({ type, endDate, now, isMirror, isStandBy }: AutoCloseCandidate): boolean {
     // Un miroir suit sa source : jamais de clôture d'office côté calendrier.
     if (isMirror) return false;
+    // Un événement en stand-by est volontairement gelé : sa date passée n'est pas un oubli.
+    if (isStandBy) return false;
     const end = toDate(endDate);
     if (!end) return false;
     const delay = type === "RAID_OFFICIAL" ? RAID_AUTO_CLOSE_DELAY_MS : 0;

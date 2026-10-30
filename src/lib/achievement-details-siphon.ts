@@ -603,9 +603,14 @@ export interface SpecialSiphonDb {
     /**
      * Optionnel : sert le chemin « `achievements` du monstre » (nom de base = famille, ex.
      * `Blops Royaux (Spécial)` pour `Blop Indigo Royal`). Absent ⇒ ce chemin est simplement sauté.
+     *
+     * `findMany` et non `findFirst` : **un nom peut avoir plusieurs ids**, et le doublon le plus
+     * récent peut être un jumeau **vide** (mesure du 30/10/2026 : `Blop Indigo Royal` existe en
+     * 1186 — `achievements: [36,684,685,503,6164]` — et en 7972 — `achievements: []`). Prendre un
+     * seul id faisait échouer la résolution au hasard du tri.
      */
     monsterStat?: {
-        findFirst(args?: unknown): Promise<{ monsterId: number } | null>;
+        findMany(args?: unknown): Promise<{ monsterId: number }[]>;
     };
 }
 
@@ -637,6 +642,8 @@ export function isSpecialAchievementRow(row: Pick<SpecialAchievementRow, "imageU
 
 /** Achievements d'un monstre lus par passe (borne le budget DofusDB). */
 const MAX_MONSTER_ACHIEVEMENTS = 6;
+/** Ids distincts essayés pour un même nom (doublons 1186/7972 : le plus récent peut être vide). */
+const MAX_MONSTER_IDS = 3;
 /** Plafond de lignes examinées par passe, même quand `limit` ne compte que les écritures. */
 const MAX_SPECIAL_SCANS = 200;
 
@@ -681,14 +688,21 @@ async function resolveSpecialAchievement(args: {
     }
 
     // c. `achievements` du monstre (« Blop Indigo Royal » → « Blops Royaux (Spécial) »).
-    const statRow = await db.monsterStat?.findFirst?.({
+    //    ⚠️ Un nom peut avoir PLUSIEURS ids locaux, et le plus récent peut être un jumeau **vide**
+    //    (mesure du 30/10/2026 : 1186 porte `[36,684,685,503,6164]`, 7972 n'a `[]`). On essaie donc
+    //    chaque id distinct, borné, et on s'arrête au premier qui donne un vrai patch.
+    const statRows = await db.monsterStat?.findMany?.({
         where: { monsterName: { equals: bossName, mode: "insensitive" } },
         orderBy: { lastSyncedAt: "desc" },
+        take: MAX_MONSTER_IDS,
         select: { monsterId: true },
-    });
-    const monsterId = Math.floor(Number(statRow?.monsterId) || 0);
-    if (monsterId > 0) {
+    }) ?? [];
+    const monsterIds = [...new Set(
+        statRows.map((statRow) => Math.floor(Number(statRow?.monsterId) || 0)).filter((id) => id > 0)
+    )];
+    for (const monsterId of monsterIds) {
         const ids = await fetchMonsterAchievementIds(monsterId, fetchImplTyped);
+        if (ids.length === 0) continue;
         const candidates: any[] = [];
         for (const id of ids.slice(0, MAX_MONSTER_ACHIEVEMENTS)) {
             const achievement = await fetchAchievementById(id, fetchImplTyped);
@@ -697,7 +711,7 @@ async function resolveSpecialAchievement(args: {
         const picked = pickSpecialAchievement(candidates, bossName);
         if (picked) {
             const patch = await patchOf(picked);
-            if (patch) return { patch, via: "succès du monstre" };
+            if (patch) return { patch, via: `succès du monstre (${monsterId})` };
         }
     }
 

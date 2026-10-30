@@ -109,6 +109,17 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const [pendingRequest, setPendingRequest] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+    /**
+     * ⚠️ Déclaré **avant** son premier usage (ligne suivante) : `const` est en **zone morte** tant
+     * qu'il n'est pas initialisé. Défaut mesuré en bêta le 30/10/2026 (Sentry `JAVASCRIPT-NEXTJS-2C`) :
+     * `ReferenceError: Cannot access 'aG' before initialization` sur `/songes` dès qu'une run avait
+     * au moins un membre (le `map` ci-dessous appelait la fonction avant sa déclaration).
+     */
+    const getDisplayName = (userId: string): string => {
+        const profile = profiles.find((p) => p.userId === userId);
+        return profile?.pseudoDofus || profile?.discordNickname || "Joueur";
+    };
+
     const difficulty = DIFFICULTIES[run.difficulty as DifficultyKey];
     const objective = OBJECTIVES[run.objective as ObjectiveKey];
     const isLeader = currentUserId === run.leaderId;
@@ -156,11 +167,6 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
         loadData();
     }, [run.members, run.id, currentUserId, isMember, isLeader, run.joinRequests, params.guildId]);
 
-
-    const getDisplayName = (userId: string): string => {
-        const profile = profiles.find((p) => p.userId === userId);
-        return profile?.pseudoDofus || profile?.discordNickname || "Joueur";
-    };
 
     // #179 — la copie des pseudos est UNITAIRE (`PseudoChip`) : plus de bouton global.
 

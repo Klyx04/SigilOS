@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Circle, ExternalLink, Loader2, MapPin, Crown, Users, Search, Calendar, Layers, Swords, Clock, ScrollText, Zap, Target } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getUserTitansData, toggleTitanCompleted } from "@/server/actions/titan-actions";
+import { getUserTitansData, setTitanCompleted } from "@/server/actions/titan-actions";
+import { isTitanToggleApplied } from "@/lib/titan-toggle";
+import { BRAND_ICONS } from "@/lib/source-icons";
 import { getMonsterStats, getDungeonMonsters } from "@/server/actions/game-data-actions";
 import { getLinkedQuests } from "@/server/actions/dofus-quest-actions";
 import { SuccesBossQuests, type BossLinkedQuestsData } from "./SuccesBossQuests";
@@ -96,6 +98,8 @@ function MonsterImage({ src, alt = "", className = "", monsterId }: { src?: stri
 export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit: boolean }) {
     const [titans, setTitans] = useState<Titan[]>([]);
     const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+    /** Titan en cours d'enregistrement : bouton désactivé (anti double-clic). */
+    const [pendingTitanId, setPendingTitanId] = useState<string | null>(null);
     const [progress, setProgress] = useState<TitanProgressEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -191,18 +195,29 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
     }, [selected]);
 
     async function handleToggle(id: string) {
-        if (!canEdit) return;
-        const prev = new Set(completedIds);
+        if (!canEdit || pendingTitanId) return;
+        // L'état **voulu** est décidé ici et le serveur l'applique : plus de toggle implicite, donc
+        // plus de 1er clic en erreur (défaut mesuré le 30/10/2026).
+        const desired = !completedIds.has(id);
+        const previous = new Set(completedIds);
         const next = new Set(completedIds);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+        if (desired) next.add(id);
+        else next.delete(id);
         setCompletedIds(next);
-        const res = await toggleTitanCompleted(guildId, id);
-        if (!res.success || res.data?.completed === (!prev.has(id))) {
-            setCompletedIds(prev);
-            toast.error(res.error || "Erreur");
-        } else {
-            toast.success(res.data?.completed ? "Titan validé ✓" : "Titan décoché");
+        setPendingTitanId(id);
+        try {
+            const res = await setTitanCompleted(guildId, id, desired);
+            if (!isTitanToggleApplied(res, desired)) {
+                setCompletedIds(previous);
+                toast.error(res.error || "Erreur lors de la mise à jour");
+                return;
+            }
+            toast.success(desired ? "Titan validé ✓" : "Titan décoché");
+        } catch {
+            setCompletedIds(previous);
+            toast.error("Erreur lors de la mise à jour");
+        } finally {
+            setPendingTitanId(null);
         }
     }
 
@@ -288,16 +303,22 @@ export function SuccesTitanTab({ guildId, canEdit }: { guildId: string; canEdit:
                                 {canEdit && (
                                     <button
                                         onClick={() => handleToggle(selected.id)}
+                                        disabled={pendingTitanId === selected.id}
                                         className={cn(
                                             "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors",
-                                            completedIds.has(selected.id) ? "bg-emerald-600 text-white" : "bg-surface border border-border text-foreground hover:bg-elevated"
+                                            completedIds.has(selected.id) ? "bg-emerald-600 text-white" : "bg-surface border border-border text-foreground hover:bg-elevated",
+                                            pendingTitanId === selected.id && "opacity-60 cursor-wait",
                                         )}
                                     >
-                                        {completedIds.has(selected.id) ? <><CheckCircle2 className="w-4 h-4" /> Je l'ai vaincu</> : <><Circle className="w-4 h-4" /> Marquer je l'ai vaincu</>}
+                                        {pendingTitanId === selected.id
+                                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Enregistrement…</>
+                                            : completedIds.has(selected.id)
+                                                ? <><CheckCircle2 className="w-4 h-4" /> Je l&apos;ai vaincu</>
+                                                : <><Circle className="w-4 h-4" /> Marquer je l&apos;ai vaincu</>}
                                     </button>
                                 )}
                                 {selected.dofuspourlesnoobsUrl && (
-                                    <a href={selected.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated transition-colors"><ExternalLink className="w-3.5 h-3.5" /> DofusPourLesNoobs</a>
+                                    <a href={selected.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated transition-colors"><img src={BRAND_ICONS.dofuspourlesnoobs.src} alt="" className="w-3.5 h-3.5 object-contain" /> DofusPourLesNoobs</a>
                                 )}
                             </div>
                         </div>

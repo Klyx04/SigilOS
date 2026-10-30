@@ -22,6 +22,7 @@ import { EMPTY_GRADE_RESISTS, readGradeResists } from "@/lib/dofus-monster-grade
 import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import { toast } from "sonner";
 import { getWorldName } from "@/lib/dofus-assets";
+import { BRAND_ICONS } from "@/lib/source-icons";
 import { SpellData, SpellRangeGrid } from "./SpellRangeGrid";
 import { BossMechanicsView, type BossPassiveData } from "@/components/boss/BossMechanicsView";
 import { formatDofusEffectLine, SpellDamageSummaryChips, cleanDofusText } from "@/lib/dofus-effects-formatter";
@@ -755,7 +756,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                 <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
                                     {dpnlUrl && (
                                         <a href={dpnlUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-surface text-foreground text-xs font-bold hover:bg-elevated hover:border-border-strong transition-colors">
-                                            <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
+                                            <img src={BRAND_ICONS.dofuspourlesnoobs.src} alt="" className="w-3.5 h-3.5 object-contain" loading="lazy" />
                                             DPLN
                                         </a>
                                     )}

@@ -102,13 +102,30 @@ describe("buildBossFicheTabs — jeu d'onglets canonique", () => {
         expect(en.find((t) => t.id === "grades")?.label).toBe("Ranks & Levels (5)");
         expect(fr.find((t) => t.id === "sorts")?.label).toBe("Sorts du monstre recherché");
         expect(en.find((t) => t.id === "quests")?.label).toBe("Linked Quests (3)");
-        // Le JEU d'onglets est indépendant de la nature de l'entité et de la locale.
-        for (const entity of ["dungeon", "bounty", "titan", "anomaly", "raid", "monster"] as const) {
+        // Le JEU d'onglets est indépendant de la nature de l'entité et de la locale — **sauf le
+        // raid**, qui n'a pas de succès de donjon (cas dédié plus bas).
+        for (const entity of ["dungeon", "bounty", "titan", "anomaly", "monster"] as const) {
             expect(idsOf(buildBossFicheTabs({ entity, counts: ALL, hasMechanics: true }))).toEqual(idsOf(fr));
         }
         // Une fiche de **monstre normal** nomme ses sorts comme tels (parité des surfaces).
         expect(buildBossFicheTabs({ entity: "monster", counts: ALL, hasMechanics: true }).find((t) => t.id === "sorts")?.label)
             .toBe("Sorts du monstre");
+    });
+
+    /**
+     * Un **raid** n'a pas de succès de donjon : le pseudo-succès « Donjon validé » ne doit jamais
+     * apparaître (défaut mesuré le 30/10/2026 — l'onglet affichait « Succès du donjon (1) »).
+     * Le masquage est **de la règle**, pas de l'écran : les deux surfaces passent `entity: "raid"`.
+     */
+    it("un raid ne propose JAMAIS l'onglet « Succès du donjon », même avec un compteur à 1", () => {
+        const raid = buildBossFicheTabs({ entity: "raid", counts: { ...ALL, achievements: 1 }, hasMechanics: true });
+        expect(idsOf(raid)).not.toContain("achievements");
+        // Le reste de la fiche est inchangé : on ne vide pas la fiche d'un raid.
+        expect(idsOf(raid)).toContain("sorts");
+        expect(idsOf(raid)).toContain("loot");
+        // Contrôle négatif : un donjon, lui, garde l'onglet.
+        expect(idsOf(buildBossFicheTabs({ entity: "dungeon", counts: { ...ALL, achievements: 1 }, hasMechanics: true })))
+            .toContain("achievements");
     });
 });
 

@@ -81,36 +81,49 @@ export async function getUserTitansData(guildId: string): Promise<ActionResponse
 }
 
 /** Toggle « je l'ai vaincu » sur un titan (par membre). Fail-closed : canEditOwnSucces requis. */
-export async function toggleTitanCompleted(
+/**
+ * Marque (ou démarque) un Titan comme vaincu — **idempotent**, l'état voulu est explicite.
+ *
+ * 🐛 Défaut mesuré le 30/10/2026 : l'ancien `toggleTitanCompleted` inversait l'état courant de la
+ * base, alors que le client calculait déjà le sien. Deux clics rapides (ou un état client périmé)
+ * produisaient l'inverse de ce que le joueur venait de cliquer — et le 1er clic affichait une
+ * **erreur** alors que la ligne était créée.
+ *
+ * `completed = true` → `upsert` (crée si absent) ; `completed = false` → `deleteMany` (0 ou 1
+ * ligne, jamais d'erreur si la ligne n'existe plus). La réponse renvoie **l'état voulu**.
+ */
+export async function setTitanCompleted(
     guildId: string,
-    titanId: string
+    titanId: string,
+    completed: boolean
 ): Promise<ActionResponse<{ completed: boolean }>> {
     const user = await getUserContext(guildId);
     if (!user.canEditOwnSucces) return { success: false, error: "Accès refusé" };
     if (!user.profileId) return { success: false, error: "Profil introuvable" };
 
     try {
-        const existing = await db.userTitanProgress.findUnique({
-            where: { profileId_titanId: { profileId: user.profileId, titanId } },
-        });
-
-        if (existing) {
-            await db.userTitanProgress.delete({ where: { id: existing.id } });
+        if (!completed) {
+            await db.userTitanProgress.deleteMany({
+                where: { profileId: user.profileId, titanId },
+            });
             return { success: true, data: { completed: false } };
         }
 
-        await db.userTitanProgress.create({
-            data: { profileId: user.profileId, titanId, source: "MANUAL" },
+        await db.userTitanProgress.upsert({
+            where: { profileId_titanId: { profileId: user.profileId, titanId } },
+            update: {},
+            create: { profileId: user.profileId, titanId, source: "MANUAL" },
         });
 
-        // 🏅 Évaluation automatique des badges (#198.2 No-Code Rules Engine)
+        // 🏅 Évaluation automatique des badges (#198.2 No-Code Rules Engine) — **au marquage
+        // seulement** : décocher ne doit pas rejouer les déclencheurs.
         evaluateBadgeTriggersForProfile(user.profileId, "DEFI").catch((err) => {
             logger.error("[BadgeTrigger] Error evaluating titan trigger:", err);
         });
 
         return { success: true, data: { completed: true } };
     } catch (error) {
-        logger.error("[toggleTitanCompleted] Error:", error);
+        logger.error("[setTitanCompleted] Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }

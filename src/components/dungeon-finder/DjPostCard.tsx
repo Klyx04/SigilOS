@@ -304,6 +304,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                                 >
                                     <AchievementIcon
                                         iconUrl={a.challenge.iconUrl}
+                                        slug={a.challenge.slug ?? null}
                                         label={a.challenge.name}
                                         size={20}
                                     />

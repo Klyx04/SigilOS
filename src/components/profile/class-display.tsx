@@ -13,10 +13,18 @@ import { toast } from "sonner";
 import { verifyDofusPseudo, isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
 import { Loader2, Search, UserCheck, AlertTriangle, Pencil, Info, Plus, UserCircle } from "lucide-react";
 
+/** Réponse d'une sauvegarde d'identité (le serveur décide ; l'écran ne devine pas). */
+export type IdentitySaveResult = { success: boolean; error?: string };
+
 interface ClassDisplayProps {
     pseudoDofus?: string | null;
     mainClass?: string | null;
-    onSave?: (mainClass: string, pseudoDofus: string) => void;
+    /**
+     * Sauvegarde de l'identité. **La modale attend la réponse** : elle ne se ferme qu'au succès
+     * (défaut mesuré le 30/10/2026 : elle se fermait immédiatement, donc un refus serveur — pseudo
+     * déjà pris, introuvable sur le serveur, données invalides — ressemblait à un enregistrement).
+     */
+    onSave?: (mainClass: string, pseudoDofus: string) => Promise<IdentitySaveResult | void> | IdentitySaveResult | void;
     readOnly?: boolean;
     guildId?: string;
 }
@@ -34,6 +42,10 @@ export function ClassDisplay({
     const [localPseudo, setLocalPseudo] = useState<string>(pseudoDofus || "");
     const [isVerifying, setIsVerifying] = useState(false);
     const [verifyStatus, setVerifyStatus] = useState<"idle" | "success" | "error">("idle");
+    /** Enregistrement en cours : bouton désactivé, modale **ouverte** jusqu'à la réponse. */
+    const [isSaving, setIsSaving] = useState(false);
+    /** Refus serveur affiché **dans** la modale (jamais un simple toast fugace). */
+    const [saveError, setSaveError] = useState<string | null>(null);
     // Toggle God « Fallback Pseudo Manuel » : si ON, on autorise la saisie du
     // pseudo SANS vérification ladder Ankama (sanitisation conservée via
     // formatDofusPseudo + schéma Zod côté serveur).
@@ -57,7 +69,7 @@ export function ClassDisplay({
 
     const mainClassData = getClass(mainClass || "");
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!localPseudo) {
             toast.error("Le pseudo est obligatoire");
             return;
@@ -67,15 +79,31 @@ export function ClassDisplay({
             toast.error("Veuillez vérifier votre pseudo avec la loupe avant de confirmer.");
             return;
         }
+        if (isSaving) return;
 
-        onSave?.(selectedMain, localPseudo);
-        setIsOpen(false);
+        setIsSaving(true);
+        setSaveError(null);
+        try {
+            const res = await onSave?.(selectedMain, localPseudo);
+            // `success === false` : la modale RESTE ouverte et dit pourquoi. C'est le correctif du
+            // 30/10/2026 — avant, on fermait ici même, et le refus devenait invisible.
+            if (res && res.success === false) {
+                setSaveError(res.error || "La sauvegarde a échoué. Réessaie.");
+                return;
+            }
+            setIsOpen(false);
+        } catch (e) {
+            setSaveError("Erreur lors de la sauvegarde. Réessaie dans un instant.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleOpen = () => {
         setSelectedMain(mainClass || "");
         setLocalPseudo(pseudoDofus || "");
         setVerifyStatus("idle");
+        setSaveError(null);
     };
 
     const handleVerify = async () => {
@@ -301,6 +329,17 @@ export function ClassDisplay({
                     </div>
 
                     <div className="p-6 border-t border-border bg-surface/40 flex flex-col gap-2 shrink-0">
+                        {/* Refus du serveur : affiché ICI, en clair, tant que la modale est ouverte.
+                            Aucun code technique à l'écran — l'utilisateur lit une phrase. */}
+                        {saveError && (
+                            <div
+                                role="alert"
+                                className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive"
+                            >
+                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                                <span>{saveError}</span>
+                            </div>
+                        )}
                         {(!localPseudo.trim() || !selectedMain) && (
                             <p className="text-caption text-muted-foreground text-right">
                                 {!localPseudo.trim() && !selectedMain
@@ -312,7 +351,7 @@ export function ClassDisplay({
                         )}
                         <div className="flex justify-end gap-3">
                             <DialogClose asChild>
-                                <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+                                <Button variant="ghost" className="text-muted-foreground hover:text-foreground" disabled={isSaving}>
                                     Annuler
                                 </Button>
                             </DialogClose>
@@ -320,9 +359,16 @@ export function ClassDisplay({
                                 onClick={handleSave}
                                 variant="sigil"
                                 size="xl"
-                                disabled={!localPseudo.trim() || !selectedMain}
+                                disabled={!localPseudo.trim() || !selectedMain || isSaving}
                             >
-                                Confirmer les changements
+                                {isSaving ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Enregistrement…
+                                    </>
+                                ) : (
+                                    "Confirmer les changements"
+                                )}
                             </Button>
                         </div>
                     </div>

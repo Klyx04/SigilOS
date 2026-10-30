@@ -20,6 +20,7 @@
  */
 import { DOFUSDB_PAGE_MAX, dofusDbFetch } from "@/lib/dofusdb-limiter";
 import { resolveDofusAssetImageUrl } from "@/lib/dofus-image-url";
+import { isPlaceholderChallengeDescription } from "@/lib/challenge-description";
 // 🚦 Le refus **local** du budget partagé n'est pas une panne : on attend la fenêtre, on rejoue, et
 // seulement si le budget reste fermé on le **dit** (jamais « introuvable chez DofusDB » — mesure du
 // 10/12/2026 : 82 succès sur 123 déclarés « introuvables » alors que `Batofu (Spécial)`,
@@ -120,10 +121,7 @@ export function challengeNameKey(value: unknown): string {
  * gardaient l'explication générique **pour toujours** (constat user : « le succès spécial garde
  * le texte générique »).
  */
-export function isPlaceholderChallengeDescription(value: unknown): boolean {
-    return /^vaincre tel boss\b/i.test(String(value ?? "").trim());
-}
-
+export { isPlaceholderChallengeDescription, PLACEHOLDER_CHALLENGE_DESCRIPTION } from "@/lib/challenge-description";
 /** Déjà conforme ? (vraie description **et** icône déjà servie par le proxy) : idempotent. */
 export function isChallengeDetailComplete(row: ChallengeRow): boolean {
     const text = (row.description ?? "").trim();
@@ -380,6 +378,142 @@ export function findSpecialAchievement(index: Map<string, any>, bossName: string
 }
 
 /**
+ * Le succès « Spécial » d'un donjon n'est **pas toujours** nommé `(Spécial)` : le vrai succès est
+ * `<Boss> (<Challenge>)`, où le nom de base peut être la **famille** (`Blops Royaux`) et où le vrai
+ * boss du donjon n'est pas notre `bossName` (`Dramak` → `Maître des Pantins`). Mesure du
+ * 30/10/2026 : 3 donjons (`dechireuse`, `blop-indigo-royal`, `dramak`) affichaient donc encore le
+ * texte générique du challenge placeholder.
+ *
+ * Les résolveurs ci-dessous sont **purs** (aucune IO) et gardés : jamais « le premier résultat ».
+ */
+
+/** Retire un article français de tête : « La Déchireuse » → « Déchireuse ». */
+export function stripFrenchArticle(value: string): string {
+    return String(value ?? "")
+        .trim()
+        .replace(/^(?:l['’]\s*|le\s+|la\s+|les\s+|du\s+|des\s+|de\s+la\s+|de\s+)/i, "")
+        .trim();
+}
+
+/** Le nom de base d'un succès (avant « (…) »). */
+function achievementBaseName(value: unknown): string {
+    return stripFrenchArticle(String(value ?? "").replace(/\([^)]*\)\s*$/g, ""));
+}
+
+/**
+ * Le nom de base d'un succès correspond-il au boss ? **Tous** les mots significatifs du boss
+ * doivent être présents (après suppression d'article) — sinon `false`, jamais « ça ressemble ».
+ */
+export function isBossAchievementName(achievementName: string, bossName: string): boolean {
+    const bossWords = achievementWords(stripFrenchArticle(String(bossName ?? ""))).filter((word) => word.length >= 2);
+    const baseKey = challengeNameKey(achievementBaseName(achievementName));
+    if (bossWords.length === 0 || !baseKey) return false;
+    return bossWords.every((word) => baseKey.includes(word));
+}
+
+/** Un succès « spécial » porte toujours un suffixe entre parenthèses. */
+function hasChallengeSuffix(value: unknown): boolean {
+    return /\([^)]*\)\s*$/.test(String(value ?? "").trim());
+}
+
+/**
+ * Choisit le spécial parmi des **candidats** : `(Spécial)` d'abord, puis un `(Challenge)` dont le
+ * critère porte un `ChallengeData` lisible. Un succès **sans parenthèse** (`Cour du Bouftou Royal`)
+ * ou de **chasse** (`Serviteurs de Dramak`, sans `ChallengeData`) n'est jamais retenu.
+ */
+export function pickSpecialAchievement(candidates: readonly any[], bossName: string): any | null {
+    const usable = (Array.isArray(candidates) ? candidates : []).filter(
+        (candidate) => hasChallengeSuffix(candidate?.name?.fr) && nestedChallengeOf(candidate) !== null
+    );
+    if (usable.length === 0) return null;
+
+    const special = usable.filter((candidate) => /\(\s*sp[ée]cial\s*\)/i.test(String(candidate?.name?.fr ?? "")));
+    const pool = special.length > 0 ? special : usable;
+
+    const guarded = pool.filter((candidate) => isBossAchievementName(String(candidate?.name?.fr ?? ""), bossName));
+    if (guarded.length === 1) return guarded[0];
+    if (guarded.length > 1) {
+        // Plusieurs « ça contient les mots » : on ne tranche que sur une **égalité exacte**.
+        const target = challengeNameKey(stripFrenchArticle(bossName));
+        const exact = guarded.filter((candidate) => challengeNameKey(achievementBaseName(candidate?.name?.fr)) === target);
+        return exact.length === 1 ? exact[0] : null;
+    }
+    // Aucun nom ne passe la garde : on ne devine que si la liste est **celle du monstre** et
+    // qu'un seul « (Spécial) » y figure (identité portée par la source, pas par le libellé).
+    return special.length === 1 ? special[0] : null;
+}
+
+/** Échappe une chaîne pour un `$regex` DofusDB (aucune injection de motif). */
+function escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Succès dont le nom **contient** le boss (1 requête) — garde d'identité appliquée ici : seuls
+ * les libellés dont la base porte tous les mots du boss sont rendus.
+ */
+export async function fetchBossAchievementCandidates(
+    bossName: string,
+    fetchImpl: typeof dofusDbFetch = dofusDbFetch
+): Promise<any[]> {
+    const needle = stripFrenchArticle(String(bossName ?? "")).trim();
+    if (!needle) return [];
+    const payload = await dofusDbJson<any>(
+        `https://api.dofusdb.fr/achievements?name.fr%5B%24regex%5D=${encodeURIComponent(escapeRegex(needle))}`
+            + `&lang=fr&$limit=${DOFUSDB_PAGE_MAX}`,
+        fetchImpl
+    );
+    const rows: any[] = Array.isArray(payload?.data) ? payload.data : [];
+    return rows.filter((row) => isBossAchievementName(String(row?.name?.fr ?? ""), bossName));
+}
+
+/** `achievements` d'un monstre DofusDB (source quand le nom de base du succès est la **famille**). */
+export async function fetchMonsterAchievementIds(
+    monsterId: number,
+    fetchImpl: typeof dofusDbFetch = dofusDbFetch
+): Promise<number[]> {
+    const id = Math.floor(Number(monsterId) || 0);
+    if (id <= 0) return [];
+    const raw = await dofusDbJson<any>(`https://api.dofusdb.fr/monsters/${id}?lang=fr`, fetchImpl);
+    const list: any[] = Array.isArray(raw?.achievements) ? raw.achievements : [];
+    return list.map((value) => Math.floor(Number(value) || 0)).filter((value) => value > 0);
+}
+
+/** Un succès DofusDB **par id** (`null` si DofusDB ne le connaît pas). */
+export async function fetchAchievementById(
+    achievementId: number,
+    fetchImpl: typeof dofusDbFetch = dofusDbFetch
+): Promise<any | null> {
+    const id = Math.floor(Number(achievementId) || 0);
+    if (id <= 0) return null;
+    return await dofusDbJson<any>(`https://api.dofusdb.fr/achievements/${id}?lang=fr`, fetchImpl);
+}
+
+/**
+ * Résout le **vrai** boss d'un donjon : `/dungeons` → `monsters[0]` → `/monsters/{id}` → `name.fr`.
+ * Couvre `Dramak` → `Maître des Pantins` (notre `bossName` n'est pas le boss de la salle finale).
+ */
+export async function fetchRealBossName(
+    dungeonName: string,
+    fetchImpl: typeof dofusDbFetch = dofusDbFetch
+): Promise<string | null> {
+    const name = String(dungeonName ?? "").replace(/\s*\(\d+\)$/, "").trim();
+    if (!name) return null;
+    const payload = await dofusDbJson<any>(
+        `https://api.dofusdb.fr/dungeons?name.fr=${encodeURIComponent(name)}&lang=fr&$limit=5`,
+        fetchImpl
+    );
+    const rows: any[] = Array.isArray(payload?.data) ? payload.data : [];
+    const hit = rows.find((row) => challengeNameKey(row?.name?.fr) === challengeNameKey(name))
+        ?? (rows.length === 1 ? rows[0] : null);
+    const firstMonsterId = Math.floor(Number(hit?.monsters?.[0]) || 0);
+    if (firstMonsterId <= 0) return null;
+    const monster = await dofusDbJson<any>(`https://api.dofusdb.fr/monsters/${firstMonsterId}?lang=fr`, fetchImpl);
+    const realName = String(monster?.name?.fr ?? "").trim();
+    return realName || null;
+}
+
+/**
  * Le challenge **imbriqué** dans le critère d'objectif (`readableCriterion`) du succès : il porte
  * la vraie description ⇒ aucune requête `challenges/{id}` n'est nécessaire (mesuré sur 6204).
  */
@@ -403,7 +537,12 @@ export interface SpecialAchievementRow {
     id: string;
     description: string | null;
     imageUrl: string | null;
-    dungeon: { bossName: string | null; name: string };
+    dungeon: {
+        bossName: string | null;
+        name: string;
+        /** Vrai boss du donjon quand il est déjà connu en base (évite une requête `/dungeons`). */
+        dofensiveMonsterName?: string | null;
+    };
     challenge: { id: string; name: string; slug: string | null };
 }
 
@@ -418,6 +557,13 @@ export interface SpecialSiphonDb {
     };
     challenge: {
         findFirst(args?: unknown): Promise<{ id: string; name: string; slug: string | null } | null>;
+    };
+    /**
+     * Optionnel : sert le chemin « `achievements` du monstre » (nom de base = famille, ex.
+     * `Blops Royaux (Spécial)` pour `Blop Indigo Royal`). Absent ⇒ ce chemin est simplement sauté.
+     */
+    monsterStat?: {
+        findFirst(args?: unknown): Promise<{ monsterId: number } | null>;
     };
 }
 
@@ -445,6 +591,86 @@ export interface SpecialSiphonReport {
  */
 export function isSpecialAchievementRow(row: Pick<SpecialAchievementRow, "imageUrl" | "challenge">): boolean {
     return GENERIC_SPECIAL_CHALLENGE_SLUGS.includes(row.challenge?.slug ?? "") || row.imageUrl != null;
+}
+
+/** Achievements d'un monstre lus par passe (borne le budget DofusDB). */
+const MAX_MONSTER_ACHIEVEMENTS = 6;
+/** Plafond de lignes examinées par passe, même quand `limit` ne compte que les écritures. */
+const MAX_SPECIAL_SCANS = 200;
+
+/**
+ * Résout le patch d'un succès « spécial » par **quatre chemins**, du plus sûr au plus souple :
+ *  a. l'index `(Spécial)` (3 requêtes pour toute la passe) — cas nominal ;
+ *  b. les succès dont le nom **contient le boss** — `La Déchireuse (Nomade)` ;
+ *  c. les `achievements` du **monstre** — `Blops Royaux (Spécial)` pour `Blop Indigo Royal` ;
+ *  d. le **vrai boss** du donjon — `Dramak` → `Maître des Pantins (Statue)`.
+ * Aucun chemin n'invente : `buildSpecialChallengePatch` reste la seule fabrique, et `null` ⇒ rien
+ * n'est écrit (l'UI affiche alors le texte honnête, cf. `@/lib/challenge-description`).
+ */
+async function resolveSpecialAchievement(args: {
+    db: SpecialSiphonDb;
+    row: SpecialAchievementRow;
+    bossName: string;
+    fetchImpl: (typeof dofusDbFetch) | undefined;
+    getIndex: () => Promise<Map<string, any>>;
+}): Promise<{ patch: SpecialChallengePatch; via: string } | null> {
+    const { db, row, bossName, fetchImpl, getIndex } = args;
+    const fetchImplTyped = fetchImpl as typeof dofusDbFetch;
+    const patchOf = (achievement: any): SpecialChallengePatch | null => {
+        const challengeRaw = nestedChallengeOf(achievement);
+        return challengeRaw ? buildSpecialChallengePatch(achievement, challengeRaw) : null;
+    };
+
+    // a. Index « (Spécial) » — chargé une seule fois pour toute la passe.
+    const indexed = findSpecialAchievement(await getIndex(), bossName);
+    if (indexed) {
+        const patch = patchOf(indexed);
+        if (patch) return { patch, via: "index (Spécial)" };
+    }
+
+    // b. Nom du boss (« La Déchireuse » → « La Déchireuse (Nomade) »).
+    const direct = pickSpecialAchievement(await fetchBossAchievementCandidates(bossName, fetchImplTyped), bossName);
+    if (direct) {
+        const patch = patchOf(direct);
+        if (patch) return { patch, via: "nom du boss" };
+    }
+
+    // c. `achievements` du monstre (« Blop Indigo Royal » → « Blops Royaux (Spécial) »).
+    const statRow = await db.monsterStat?.findFirst?.({
+        where: { monsterName: { equals: bossName, mode: "insensitive" } },
+        orderBy: { lastSyncedAt: "desc" },
+        select: { monsterId: true },
+    });
+    const monsterId = Math.floor(Number(statRow?.monsterId) || 0);
+    if (monsterId > 0) {
+        const ids = await fetchMonsterAchievementIds(monsterId, fetchImplTyped);
+        const candidates: any[] = [];
+        for (const id of ids.slice(0, MAX_MONSTER_ACHIEVEMENTS)) {
+            const achievement = await fetchAchievementById(id, fetchImplTyped);
+            if (achievement) candidates.push(achievement);
+        }
+        const picked = pickSpecialAchievement(candidates, bossName);
+        if (picked) {
+            const patch = patchOf(picked);
+            if (patch) return { patch, via: "succès du monstre" };
+        }
+    }
+
+    // d. Vrai boss du donjon (« Dramak » → « Maître des Pantins »).
+    const realBoss = row.dungeon?.dofensiveMonsterName?.trim()
+        || (await fetchRealBossName(row.dungeon?.name ?? "", fetchImplTyped));
+    if (realBoss && challengeNameKey(realBoss) !== challengeNameKey(bossName)) {
+        const picked = pickSpecialAchievement(
+            await fetchBossAchievementCandidates(realBoss, fetchImplTyped),
+            realBoss
+        );
+        if (picked) {
+            const patch = patchOf(picked);
+            if (patch) return { patch, via: `vrai boss (${realBoss})` };
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -487,13 +713,19 @@ export async function siphonSpecialAchievements(options: {
 
     const rows = await db.dungeonAchievement.findMany({
         include: {
-            dungeon: { select: { bossName: true, name: true } },
+            // `dofensiveMonsterName` = vrai boss du donjon quand il est connu (chemin d de la
+            // résolution) : évite une requête `/dungeons` par ligne.
+            dungeon: { select: { bossName: true, name: true, dofensiveMonsterName: true } },
             challenge: { select: { id: true, name: true, slug: true } },
         },
     });
 
     // Chargé **paresseusement**, une seule fois pour toute la passe (0 requête si tout est déjà OK).
     let index: Map<string, any> | null = null;
+    const getIndex = async (): Promise<Map<string, any>> => {
+        index ??= await fetchSpecialAchievementIndex(fetchImpl as never);
+        return index;
+    };
 
     for (const row of rows) {
         if (!isSpecialAchievementRow(row)) continue;
@@ -502,7 +734,11 @@ export async function siphonSpecialAchievements(options: {
             report.alreadyOk++;
             continue;
         }
-        if (limit != null && report.scanned >= limit) break;
+        if (report.scanned >= MAX_SPECIAL_SCANS) break;
+        // `limit` compte les **écritures**, pas les lignes examinées : une ligne introuvable
+        // n'affame plus les suivantes (25 `missing` bloquaient la 26e complétable — mesure du
+        // 30/10/2026).
+        if (limit != null && report.updated >= limit) break;
         report.scanned++;
         const bossName = String(row.dungeon?.bossName || row.dungeon?.name || "").trim();
         if (!bossName) {
@@ -510,23 +746,13 @@ export async function siphonSpecialAchievements(options: {
             continue;
         }
         try {
-            // Un seul chargement pour TOUTE la passe (141 succès « (Spécial) » = 3 requêtes) : plus de
-            // 2 requêtes par donjon ⇒ plus de budget épuisé, donc plus de faux « introuvable ».
-            index ??= await fetchSpecialAchievementIndex(fetchImpl as never);
-            const achievement = findSpecialAchievement(index, bossName);
-            if (!achievement) {
+            const resolved = await resolveSpecialAchievement({ db, row, bossName, fetchImpl, getIndex });
+            if (!resolved) {
                 report.missing++;
-                report.details.push(`« ${bossName} » : aucun succès « (Spécial) » chez DofusDB (aucune écriture)`);
+                report.details.push(`« ${bossName} » : aucun succès spécial résolu chez DofusDB (aucune écriture)`);
                 continue;
             }
-            // Le challenge (et sa description) voyage **imbriqué** dans le critère d'objectif.
-            const challengeRaw = nestedChallengeOf(achievement);
-            const patch = challengeRaw ? buildSpecialChallengePatch(achievement, challengeRaw) : null;
-            if (!patch) {
-                report.missing++;
-                report.details.push(`« ${bossName} » : succès « (Spécial) » sans mécanique lisible (aucune écriture)`);
-                continue;
-            }
+            const { patch, via } = resolved;
             report.updated++;
             if (apply) {
                 await db.dungeonAchievement.update({
@@ -539,7 +765,7 @@ export async function siphonSpecialAchievements(options: {
                 });
                 report.written++;
             }
-            report.details.push(`« ${bossName} » : « Spécial » ← ${patch.description.slice(0, 70)}…`);
+            report.details.push(`« ${bossName} » : « Spécial » ← ${patch.description.slice(0, 70)}… (${via})`);
         } catch (error) {
             if (isLocalThrottleDeferred(error)) {
                 report.deferred = true;

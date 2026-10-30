@@ -1483,7 +1483,31 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                 <Brain className="w-4 h-4 opacity-70" /> Butins notables &amp; taux de drop
                             </h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                                {(statsOf(selected)?.drops ?? []).map((drop, idx) => (
+                                {(() => {
+                                    // États honnêtes (A6 du 30/10/2026) : « en chargement », « aucun drop
+                                    // répertorié » et « non synchronisé » ne disent pas la même chose.
+                                    // Une fiche fraîche mais vide (`drops: []`) ne doit pas passer pour
+                                    // un boss sans butin — mesure : 106 fiches beta / 146.
+                                    const lootStats = statsOf(selected);
+                                    const lootKey = activeMonsterName ? `${selected.id}::${activeMonsterName}` : selected.id;
+                                    if (loadingStatsByBoss[lootKey] && !lootStats) {
+                                        return (
+                                            <p className="text-xs text-muted-foreground py-8 text-center col-span-full">
+                                                Chargement du butin…
+                                            </p>
+                                        );
+                                    }
+                                    const loot = lootStats?.drops ?? [];
+                                    if (loot.length === 0) {
+                                        return (
+                                            <p className="text-xs text-muted-foreground py-8 text-center col-span-full">
+                                                {lootStats
+                                                    ? "Aucun drop répertorié pour ce boss."
+                                                    : "Butin non synchronisé pour ce boss — la synchronisation est en cours."}
+                                            </p>
+                                        );
+                                    }
+                                    return loot.map((drop, idx) => (
                                     <button
                                         key={idx}
                                         type="button"
@@ -1501,7 +1525,8 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                             </span>
                                         </div>
                                     </button>
-                                ))}
+                                    ));
+                                })()}
                             </div>
                         </div>
                     )}

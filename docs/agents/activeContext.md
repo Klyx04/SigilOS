@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 30/10/2026 (suite 6) — **Fiches boss : le butin revient, les 3 succès « Spécial » sont résolus** — branche `fix/fiches-boss-butins-succes`
+
+> **Plan de session** : `src/temp/giga-plan-fiches-boss-2026-10-30.md` (volatile, jamais commité) — **lot A livré**, lots B (quêtes/Titan/raid) et C/D (`PLAN-RAID`) restants.
+> **Mesures (bêta, avant codage)** : **106 fiches boss / 146** servaient `drops: []` alors que DofusDB documente les butins ; 5 doublons de nom faisaient gagner un repli Unity récent (`Bouftou Royal` 7835/0 contre 147/37, `Blop Indigo Royal` 7972/0 contre 1186/31, `Chafer Rōnin`, `Ondine`, `Scarabosse Doré`) ; 3 donjons gardaient le gabarit « Vaincre tel boss… » (`dechireuse`, `blop-indigo-royal`, `dramak`).
+> **Fait** : ① `pickBestMonsterStatRow` (complétude > fraîcheur) branché dans `getLocalMonsterStatAny` ; ② garde d'écriture `persistMonsterStat` (`prevHasDrops && !nextHasDrops` ⇒ refus) + `source: "unity"` sur le repli bestiaire ; ③ `isCompleteMonsterPayload` + `BossFicheGap.reason = 'incomplète'` (+ `monsterId`) : une fiche **fraîche mais vide** n'est plus « saine » ; ④ `repairMonsterDrops` + `reparer-butins` (script) + phase 5 ter du cron (25/nuit, idempotente) ; ⑤ succès spéciaux résolus par **nom du boss**, par **`achievements` du monstre** et par **vrai boss du donjon** — `limit` compte les **écritures** (fin de l'affamement) ; ⑥ `displayAchievementDescription` + états butin honnêtes (chargement / aucun drop / non synchronisé) sur les fiches publique **et** interne.
+> **Preuves** : `monster-stat-choice` 7 · `monster-stat-persist-guard` 4 · `monster-drops-repair` 7 · `challenge-description` 5 · `succes-speciaux-donnees` **50** · suite **547 fichiers / 5 765 tests ✓** · `tsc` 0 · ESLint 0 erreur · `npm run build:succes` ✓. **Aucune migration.**
+> **Ops (humain, bêta puis prod)** : `npm run build:succes`, puis `node scripts/succes-speciaux.js reparer-butins --apply` et `… siphon --apply` ; le cron prend le relais. **Rotation** : bloc « 29/10 (suite 4) — Élevage : 228 icônes » sorti (7ᵉ).
+
+
 ## 📝 Session 30/10/2026 (suite 5) — **Contenu fantôme : un partant ne laisse plus de groupe orphelin** — branche `fix/contenu-orphelin`
 
 > **Demandes user (verbatim)** : « que deviennent ces post à lui ? qui reprend le lead des post qui deviennent "fantome" et plus gerable/cloturable etc ? d'autres scénario oublié de ma part maybe ? » puis « lot b ».
@@ -55,15 +64,3 @@
 > **Preuves** : verrou neuf `dj-capacite-inscription` **11/11** (groupe de 4 plein → file, `PENDING` sans place, créateur compté, capacité par donjon, hérité `null`, fail-closed, projection Discord + promotion) · suite **537 fichiers / 5 631 tests ✓** · `tsc` **0** · ESLint **0 erreur**. **Aucune migration.**
 > **Reste / ops** : ① course résiduelle (deux clics simultanés sur la dernière place) : la décision reste un lire-puis-écrire, sans transaction sérialisable — à traiter séparément si elle est mesurée ; ② ouvrir la PR → `dev`, rien à déployer côté données. **Étendue auditée** : Songes (`processRunJoin` = candidature, capacité aux slots 1-4 + `P2002`) et calendrier/raids (`countParticipants` projette `status`) ne portent **pas** ce défaut.
 > **Rotation** : bloc « 26/10 (suite 4) — Trame Rush hors dépôt » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 29/10/2026 (suite 4) — **Élevage : les 228 icônes de montures redeviennent visibles — et souveraines** — branche `fix/elevage-icones-montures`
-
-> **Demandes user (verbatim)** : « dans http://beta.sigilos.fr/elevage onglet "Arbres des 10 Générations" aucune monture ne s'affiche tout est noir pour les muldo dragodindes et volkorne on en est censé être souverain aussi » · « on doit être souverain ».
-> **Mesure (cause racine)** : les URLs de `mount-data.ts` étaient `/api/assets-dofus/items/<n>` — l'espace **id d'objet** du proxy — alors que ces nombres sont des **iconId** DofusDB : `/items/97020` → objet de repli 666 rejeté par la garde d'identité → **PNG 1×1 transparent** (`X-Sigilos-Placeholder: 1`, **118 octets**, HTTP 200, donc aucune erreur en console) ⇒ carré noir ; `…/97020?icon=1` → WebP 128×128 valide (**7 626 octets**). Les identifiants sont bons : **228/228** noms identiques aux items DofusDB (types 331/332/333).
-> **Fait** : ① les **228 icônes** sont siphonnées dans `public/images/guides/elevage/mounts/<id>.webp` (128×128, WebP q80, **0 métadonnée**, **1,33 Mo**) ; ② `mount-data.ts` pointe sur ces fichiers locaux ⇒ **aucun appel tiers à l'exécution** (le proxy ne servait que son volume, non versionné : un volume neuf ramenait le placeholder) ; ③ garde de non-régression : chaque monture doit avoir une icône **locale, présente et non vide**.
-> **Preuves** : `elevage-mount-data` **8/8** · suite **536 fichiers / 5 620 tests ✓** · `tsc` **0** · ESLint **0 erreur** · `check-media-metadata` **1 661 images / 0**.
-> **Reste / ops (humain)** : PR → `dev` puis déploiement bêta (les fichiers `public/images/**` doivent partir dans l'image) ; le correctif `?icon=1` proposé en parallèle est **écarté** — il garde la dépendance DofusDB et son repli dans le proxy rouvrait « l'icône d'un autre objet », figée 1 an par le cache `immutable`.
-> **Rotation** : bloc « 26/10 (suite 3) — Encyclopédie et Marché » sorti (7ᵉ).
-
-

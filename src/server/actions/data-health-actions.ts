@@ -8,6 +8,7 @@ import { getAllCronStatuses } from '@/lib/cron-telemetry';
 import {
     DATA_HEALTH_FRESH_MS,
     buildBossFicheGaps,
+    isCompleteMonsterPayload,
     type BossFicheGap,
     type DataHealthRow,
 } from '@/lib/data-health';
@@ -38,11 +39,17 @@ export async function checkBossFicheGaps(): Promise<ActionResponse<{ gaps: BossF
     try {
         const [dungeons, statsRows] = await Promise.all([
             db.dungeon.findMany({ select: { bossName: true, name: true, level: true } }),
-            db.monsterStat.findMany({ select: { monsterName: true, lastSyncedAt: true } }),
+            // Le payload voyage avec la ligne : « fraîche » ne veut pas dire « exploitable ».
+            db.monsterStat.findMany({ select: { monsterName: true, monsterId: true, lastSyncedAt: true, stats: true } }),
         ]);
         const gaps = buildBossFicheGaps(
             dungeons.map((d) => ({ bossName: d.bossName || d.name, name: d.name, level: d.level ?? null })),
-            statsRows.map((r) => ({ monsterName: r.monsterName, lastSyncedAt: r.lastSyncedAt })),
+            statsRows.map((r) => ({
+                monsterName: r.monsterName,
+                monsterId: r.monsterId,
+                lastSyncedAt: r.lastSyncedAt,
+                complete: isCompleteMonsterPayload(r.stats),
+            })),
             Date.now()
         );
         return { success: true, data: { gaps, total: dungeons.length, fresh: dungeons.length - gaps.length } };
@@ -90,7 +97,7 @@ export async function getDataHealthOverview(): Promise<
     try {
         const [dungeons, statsRows, mapsRows, gameItemTotal, lastItem, statuses, gameDataRuns] = await Promise.all([
             db.dungeon.findMany({ select: { bossName: true, name: true, level: true } }),
-            db.monsterStat.findMany({ select: { monsterName: true, lastSyncedAt: true } }),
+            db.monsterStat.findMany({ select: { monsterName: true, monsterId: true, lastSyncedAt: true, stats: true } }),
             db.dofensiveMap.findMany({ select: { mapId: true, lastSyncedAt: true } }),
             db.gameItem.count({ where: { isDeprecated: false } }).catch(() => 0),
             db.gameItem.findFirst({ orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }).catch(() => null),
@@ -110,7 +117,12 @@ export async function getDataHealthOverview(): Promise<
         const now = Date.now();
         const gaps = buildBossFicheGaps(
             dungeons.map((d) => ({ bossName: d.bossName || d.name, name: d.name, level: d.level ?? null })),
-            statsRows.map((r) => ({ monsterName: r.monsterName, lastSyncedAt: r.lastSyncedAt })),
+            statsRows.map((r) => ({
+                monsterName: r.monsterName,
+                monsterId: r.monsterId,
+                lastSyncedAt: r.lastSyncedAt,
+                complete: isCompleteMonsterPayload(r.stats),
+            })),
             now
         );
         const freshCount = dungeons.length - gaps.length;

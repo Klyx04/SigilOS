@@ -9,6 +9,10 @@
 
 ## 0. Reprise immédiate
 
+- **Livré le 30/10/2026 — Fiches boss : le butin revient, les 3 succès « Spécial » sont résolus (branche `fix/fiches-boss-butins-succes`, lot A).**
+  ① `pickBestMonsterStatRow` sert la ligne **la plus complète** (butins > « aucun butin documenté » > non-Unity > fraîcheur) — `Bouftou Royal` 147/7835, `Blop Indigo Royal` 1186/7972 ; ② garde d'écriture (`prevHasDrops && !nextHasDrops` ⇒ refus) + `source: "unity"` sur le repli bestiaire ; ③ `isCompleteMonsterPayload` + `BossFicheGap.reason = 'incomplète'` (+ `monsterId`) : une fiche **fraîche mais vide** n'est plus « saine » (106 fiches beta / 146) ; ④ `repairMonsterDrops` (borné, injectable) + `scripts/succes-speciaux.ts reparer-butins` + phase 5 ter du cron ; ⑤ succès spéciaux résolus par **nom du boss**, par **`achievements` du monstre** et par **vrai boss du donjon** ; `limit` compte les **écritures** (fin de l'affamement) ; ⑥ repli UI honnête (`displayAchievementDescription`) + états butin (chargement / aucun drop / non synchronisé) sur les fiches publique et interne.
+  **Preuves** : `monster-stat-choice` 7 · `persist-guard` 4 · `monster-drops-repair` 7 · `challenge-description` 5 · `succes-speciaux-donnees` 50 · suite **547 / 5 765 ✓** · `tsc` 0 · ESLint 0 erreur · `build:succes` ✓. **Aucune migration.** **Ops (bêta puis prod)** : `npm run build:succes`, puis `node scripts/succes-speciaux.js reparer-butins --apply` et `… siphon --apply` ; le cron prend le relais (25/nuit). **Reste** : lots B (quêtes, Titan, raid) et C/D (fusion `PLAN-RAID`).
+
 - **Livré le 29/10/2026 — Rush : deux « En construction » (membres ⇄ page publique) + fondation du bloc B (branche `feat/rush-construction-publique`, PR #1152).**
   ① `OptimizedGuide.isPublicUnderConstruction` (**`@default(true)`** ⇒ page publique « en construction », **non indexable au déploiement**) ; `isUnderConstruction` reste le drapeau **membres**. Page publique + sitemap → drapeau public ; `RushTimelineClient`/`DofusQuestHub` → drapeau interne ; studio = **deux toggles** + indicateur d'état. ② `ToggleRow` réparé (`min-w-0` + `shrink-0` + `gap`, `role="switch"`) : la description longue poussait le bouton **hors de la carte**. ③ Bloc B (fondation) : `GuideSequence.publicSlug` (unique) + `isPublished` (`@default(false)`) — slug **figé** à la publication, publication opt-in.
   **Preuves** : `rush-sylvestre-construction` **11 cas** · `seo-horizon-indexation` **11 cas** · suite **536 / 5 619 ✓** · `tsc` 0 · migration **288** additive (`IF NOT EXISTS`). **Reste** : route par quête (bloc B) ; `subGuideRef` écrase `RS-S2-QN` au 1ᵉʳ enregistrement. **Env** : `prisma migrate dev` inutilisable ici (2 migrations absentes du dossier côté base) ⇒ migration écrite à la main + `migrate deploy`.
@@ -35,39 +39,6 @@
   une cité inconnue) ; les deux chemins d'écriture n'écrivent plus qu'un **camp reconnu**. Suite **604 ✓ / 49 fichiers**
   `rush-*`, `tsc` 0, `lint` 0 erreur. **Aucune migration, aucune donnée touchée.**
 
-- **Livré le 26/10/2026 — Guide interne : modale par Dofus + déslop du bandeau personnage.** Le clic sur un Dofus
-  ouvre une **modale** (au lieu d'un panneau en ligne) qui dit **où en est chaque membre quête par quête** : X/Y quêtes,
-  quête en cours **et sa catégorie**, dernière validée ; le filtre de timeline reste accessible depuis la modale
-  (règle pure `src/lib/rush-dofus-progress.ts`, **8 cas** — une quête est faite quand **toutes** ses étapes le sont,
-  l'étape courante du joueur prime). Déslop du bandeau : badge « Main/Mule » fait main **retiré**, bouton reset rouge
-  **déplacé dans le menu du personnage** (par personnage), **3 crayons** du bloc Ordre retirés, « Rush Live » passe sur
-  un **asset du jeu** (`/assets/dofus/modules/guild.png`), et les cinq blocs partagent **une anatomie** (asset nu 28 px,
-  libellé 11 px, plus de `font-serif` décoratif). Les 4 gardes de `rush-guide-ui-polish` qui verrouillaient l'ancien
-  design sont **réécrites sur l'intention** (pas de pastille faite main, reset atteignable et nommé, statut dans le
-  menu, asset réel) — la demande du propriétaire contredisait l'ancien verrou. Suite **5 562 ✓ / 530 fichiers**.
-- **Livré le 26/10/2026 — Rush : identité assistée, route éditable, import dry-run, contraste (branche
-  `feat/rush-identite-quete`).** ① **Picker de quête** dans les deux formulaires God : le nom et le lien **DofusDB
-  direct** viennent du catalogue `GameQuest` (**1 976** quêtes, **530 / 530** des quêtes Tougli présentes), le lien
-  **DPLN reste la première source** (règle pure `src/lib/rush-quest-identity.ts`, **11 cas**). ② **`questDbIds`
-  persisté** (`upsertRushSequence`, borné : entiers > 0, dédoublonnés, 10 max). ③ **S4-2** : cité / Ordre / palier /
-  classe éditables sur une séquence **existante**. ④ **S4-4** : `importRushGuide(raw, apply)` — **dry-run par défaut**,
-  l'import **ajoute** seulement (aucun `delete`/`update` dans son corps, verrou de source), idempotent. ⑤ **Référentiel
-  d'Ordre corrigé** : le studio écrivait l'id court de `ORDERS` (`vaillant`) alors que la route attend `coeur_vaillant`
-  — source unique `src/lib/rush-order-codes.ts`, comparaison normalisée, jumelles d'Ordre en code canonique.
-  ⑥ **T-4 (O14/T2)** : contraste garanti des **24** accents Dofus (`src/lib/rush-dofus-accent.ts`, 4,5:1 sur fond
-  clair **et** sombre). ⚠️ L'`aria-pressed` posé dans #1136 visait `DofusProgressStrip.tsx`, **jamais monté** : le
-  fichier a été **supprimé le 27/10/2026** et le verrou T2 **repointé** sur le bandeau réel (`GuildStatusPanel`), livré
-  avec #1137. **Aucune migration.** ⚠️ Restent **T-4** G7/G8/G9/O15 (composition visuelle, à juger à l'écran) et le sort
-  de `questDbIds` (écrit ; seule la puce du studio God l'affiche, **aucune surface joueur**).
-- **Livré le 26/10/2026 — outil « Trame Rush » hors dépôt (prépare S1).** Siphon Tougli mesuré : **530** quêtes,
-  **36** blocs, séries d'alignement **100 / 102**, **30** quêtes d'Ordre (6 × 5), **19** quêtes de classe, **99**
-  donjons (**99** rapprochés de `Dungeon`, dont **3** alias), **361 / 384** quêtes Dofusyelle rapprochées et
-  **530 / 530** quêtes présentes dans `GameQuest` (`dofusDbId`) ⇒ l'export ne crée **aucune référence morte**.
-  Sortie : `export-god.json` par route (**34** blocs, **434** séquences côté Bonta / **436** côté Brâkmar, **127**
-  avec `dungeonIds` résolus) avec les champs de `GuideSequence` **pré-remplis**. **Non versionné**
-  (`src/temp/trame-rush/`, `/src/temp/` ignoré) : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` §7bis.
-  ⚠️ L'outil **n'écrit rien** : il produit un fichier, que God importe en **dry-run** (lot **S4-4**, livré le 26/10). Mesure du guide en base : **336**
-  séquences / 96 blocs, `alignOrderCode` et `classReq` **à zéro** — c'est le trou que S1 doit combler.
 
 - ⏳ **En attente de prod (26/10/2026)** — la **bêta** tourne `dev` `2a06ef26` (**287 migrations**, `sigilos-beta`) ; la
   **prod** reste sur `main` `66040052` (**267 migrations** ⇒ **20 en attente**). Lots non déployés : calendrier/membres/
@@ -262,6 +233,8 @@
 | 51 | `galerie-variantes` | **Galerie Stuff** : variantes proposées par le joueur (trophée/dofus/objet remplacé), affichées sans toucher au stuff Dofusbook | **livré** le 23/10/2026 : `dofusBookLinks[].variants` (JSON, **aucune migration**), bascule **Stuff ⇄ Variante** sur la miniature et la modale, stats/dégâts recalculés (`applyVariantsToBuild`), action `saveBuildVariant` (auteur seul, rate limit) — 11 verrous · **complément** : **persistance** (auto-enregistrement 800 ms + brouillon local `src/lib/dofus-variant-storage.ts`, 6 verrous), **toggle dans le voile de la carte** (visible par tous), **icône locale** de l'objet varié · **complément du 25/10/2026** : la variante s'affiche **au clic** sur la miniature du profil et la carte de la galerie (grille d'icônes remplacée + récapitulatif des objets échangés, stats de la carte incluses) et le stuff d'un **autre membre** passe en **lecture seule** (ni éditeur de slot, ni brouillon local, ni « Réinitialiser ») — verrou `galerie-variantes-affichage` **13** | **image OG + embed Discord : afficher la variante avec un tag explicite** (décidé le 23/10/2026) — **livré** le 26/10/2026 (`resolveVariantPreview` : une seule règle ; tag `VARIANTE` sur l'image, `· 🟡 Variante` + liste des objets remplacés dans l'embed, stats **effectives**) · **règles de combinaison souveraines** : bonus de panoplie **recalculés** quand une variante change une pièce — **livré** le 26/10/2026 (`GameItemSet`, 938 panoplies siphonnées, verrou `dofus-set-bonuses` **24**) · **Pods + veille + finitions** — **livrés** le 26/10/2026 (lots B/C/E) · **tuile God de la veille** — **livrée** le 26/10/2026 (`getItemConditionsWatch` + bandeau du Tableau God) | — (à créer) |
 | 52 | `passifs-objets` | **Effets passifs officiels** des objets (Dofus, légendaires, bénédictions, Prysmaradites) | **livré** le 23/10/2026 : ligne native **`effectId 1175`** → `diceNum` = sort passif → `GET /spells/{id}` ; **117 sorts** dans `src/data/item-passives.json` (`scripts/siphon-item-passives.mjs`), repli inventé **supprimé**, description officielle des Prysmaradites dans la bibliothèque (12 verrous) | 38 sorts DofusDB sans description (percepteurs, 2 Dofus) : rien d'inventé, à rejouer via le siphon | — (à créer) |
 | 53 | `supply-chain` | **Débloquer la porte de sécurité** : `zod` 3.25.76 → **4.6.7** (HIGH `GHSA-mrhx-c7xc-m3w5`) et `undici` 7.0.0 → **7.30.1** (HIGH `GHSA-4qv8-2p9j-2685`) | **livré** le 23/10/2026 (PR #1101) : override `undici` bumpé (transitif : discord.js, cheerio, jsdom), migration zod 3 → 4 sur **26 fichiers** (`errors` → `issues`, `required_error` → `message`, `z.record(clé, v)`, codes v4 dans `market/listing-schemas`, chemins `PropertyKey[]`, resolver du calendrier) — `security:audit` **franchie**, **5 099 ✓**, `tsc` 0, ESLint 0 | — (rien) | — | — |
+| 54 | `rush-restes` | Restes du 26/10 : **T-4** G7/G8/G9/O15 (composition visuelle, à juger à l'écran) et sort de `questDbIds` (écrit, seule la puce du studio God l'affiche) | mesuré le 26/10 | juger à l'écran puis trancher | — |
+
 
 ## 4. Décisions en attente (elles bloquent un rang)
 
@@ -289,6 +262,9 @@
 | ID | Chantier | Livré |
 |---|---|---|
 | `G-STAND`/`G-ORPH` | Stand-by des groupes **+ contenu fantôme** (fermeture auto, reprise de lead, anonymisation à la purge) | 30/10/2026 |
+| `RUSH-S1` | Siphon Tougli + trame Rush (outil hors dépôt : 530 quêtes, 99 donjons, export God) | 26/10/2026 |
+| `RUSH-UI/S4` | Modale par Dofus + déslop du bandeau, identité de quête assistée, import dry-run, contraste des 24 accents | 26/10/2026 |
+
 | `A` | Siphons game-data (A1 → A5) | 28/09/2026 |
 | `B` | Membres `/admin/members` (B-1 → B-3) | 14/10/2026 |
 | `X-1` | Sondages programmés | 13/10/2026 |

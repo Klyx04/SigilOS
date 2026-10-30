@@ -792,6 +792,8 @@ export const en: Translations = {
         selectGrade: "Select",
         lootTitle: "Notable Loot & Drop Rates",
         noLootFound: "No drops listed.",
+        loadingLoot: "Loading loot…",
+        noLootSynced: "Loot not synced for this boss — synchronization is in progress.",
         dropRate: "Drop rate:",
         roomMonstersTitle: "Room companion monsters",
         mainBossBadge: "Main boss",

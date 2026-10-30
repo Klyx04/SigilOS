@@ -1309,8 +1309,14 @@ export function PublicBossDetailClient({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/dofus/modules/chest.png" alt="" className="w-4 h-4 object-contain opacity-80" /> {t.bossPage.lootTitle}
           </h4>
-          {drops.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-8 text-center">{t.bossPage.noLootFound}</p>
+          {isLoadingCurrent && !currentStats ? (
+            // Ne jamais annoncer « aucun drop » pendant le chargement : c'est faux et définitif
+            // aux yeux du joueur (constat du 30/10/2026 — 106 fiches servaient `drops: []`).
+            <p className="text-xs text-muted-foreground py-8 text-center">{t.bossPage.loadingLoot}</p>
+          ) : drops.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-8 text-center">
+              {currentStats ? t.bossPage.noLootFound : t.bossPage.noLootSynced}
+            </p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
               {drops.map((drop: any, idx: number) => {

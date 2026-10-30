@@ -37,6 +37,7 @@ import {
 import { mergeDofensiveSpells } from "@/lib/dofensive-spells";
 import { deriveDofensiveMonsterName } from "@/lib/dofensive-boss";
 import { getWorldName } from "@/lib/dofus-assets";
+import { BRAND_ICONS } from "@/lib/source-icons";
 import { resolveSpellIconUrl } from "@/lib/dofus-image-url";
 import { DungeonMinimapCard } from "./DungeonMinimapCard";
 import { ZoneLocationCard } from "@/components/worldmap/ZoneLocationCard";
@@ -1496,7 +1497,7 @@ export function PublicBossDetailClient({
         )}
         {dungeon.dofuspourlesnoobsUrl && (
           <a href={dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface/60 text-foreground text-xs font-semibold hover:bg-surface transition-colors">
-            <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm" loading="lazy" />
+            <img src={BRAND_ICONS.dofuspourlesnoobs.src} alt="" className="w-3.5 h-3.5 object-contain" loading="lazy" />
             DPLN
           </a>
         )}

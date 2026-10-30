@@ -128,7 +128,7 @@ function spellsLabel(entity: BossFicheEntity, locale: "fr" | "en"): string {
  *   · `grades`       — seulement s'il y a plus d'un palier à comparer ;
  *   · `family`       — seulement s'il y a plus d'un monstre de salle ;
  *   · `quests`       — seulement si des quêtes sont liées ;
- *   · `achievements` — seulement si des succès sont connus ;
+ *   · `achievements` — seulement si des succès sont connus **et** que ce n'est pas un raid ;
  *   · `sorts` · `sim` · `loot` — toujours rendus (les vues gèrent leur état vide).
  */
 export function buildBossFicheTabs(input: BossFicheTabInput): BossFicheTab[] {
@@ -141,7 +141,10 @@ export function buildBossFicheTabs(input: BossFicheTabInput): BossFicheTab[] {
         loot: true,
         family: input.counts.roomMonsters > 1,
         quests: input.counts.quests > 0,
-        achievements: input.counts.achievements > 0,
+        // Un **raid** n'a pas de succès de donjon : le pseudo-succès « Donjon validé » ne doit
+        // jamais apparaître (mesure du 30/10/2026 : un boss de raid affichait
+        // « Succès du donjon (1) » avec ce faux succès).
+        achievements: input.entity === "raid" ? false : input.counts.achievements > 0,
     };
 
     const labelOf = (id: BossFicheTabId): string => {

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { BookOpen, CheckCircle2, Clock, ExternalLink, Flame, MapPin, Swords, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { dofusQuestHref } from "@/lib/dofus-quest-link";
 
 interface QuestMember {
     profileId: string;
@@ -103,7 +104,22 @@ export function SuccesBossQuests({ guildId, data, bossName }: { guildId: string;
                     <div className="p-3.5 border-b border-border/70 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
                             <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center p-1.5 shrink-0">
-                                <img src="/assets/dofus/icons/success.png" alt="" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                                {/* Image du Dofus si on l'a, sinon la **vraie** icône de quête du client
+                                    (`btnIcon_quest.png`), puis `quests.png` — plus de trophée « succès ». */}
+                                <img
+                                    src={group.dofusImageUrl || "/assets/dofus/icons/btnIcon_quest.png"}
+                                    alt=""
+                                    className="w-full h-full object-contain"
+                                    onError={(e) => {
+                                        const img = e.currentTarget;
+                                        if (!img.dataset.fallback) {
+                                            img.dataset.fallback = "1";
+                                            img.src = "/assets/dofus/icons/quests.png";
+                                            return;
+                                        }
+                                        img.style.display = "none";
+                                    }}
+                                />
                             </div>
                             <div className="min-w-0">
                                 <h4 className="text-sm font-bold text-foreground truncate">{group.chainName}</h4>
@@ -115,16 +131,16 @@ export function SuccesBossQuests({ guildId, data, bossName }: { guildId: string;
                         </div>
                         {group.dofusName && (
                             <Link
-                                href={`/dashboard/${guildId}/quetes-dofus${group.dofusSlug ? `/guide/${group.dofusSlug}` : ""}`}
+                                href={dofusQuestHref(guildId, group.dofusSlug)}
                                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background hover:bg-elevated border border-border text-xs font-bold transition-colors shrink-0"
-                                title={`Consulter le guide ${group.dofusName}`}
+                                title={`Ouvrir les quêtes Dofus de ${group.dofusName}`}
                             >
                                 {group.dofusImageUrl ? (
                                     <img src={group.dofusImageUrl} alt="" className="w-5 h-5 object-contain" />
                                 ) : (
                                     <BookOpen className="w-4 h-4 text-muted-foreground" />
                                 )}
-                                <span className="text-muted-foreground">Guide :</span>
+                                <span className="text-muted-foreground">Quêtes :</span>
                                 <span className="text-foreground">{group.dofusName}</span>
                                 <ExternalLink className="w-3 h-3 text-muted-foreground" />
                             </Link>

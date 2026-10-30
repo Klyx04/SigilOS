@@ -22,6 +22,7 @@ import {
  */
 
 const ACTIONS = "src/server/actions/presentation-actions.ts";
+const RULES_LIB = "src/lib/presentation-rules.ts";
 const FORM = "src/app/dashboard/[guildId]/admin/presentation/_components/presentation-form.tsx";
 // Le règlement a sa **propre destination** dans le hub depuis le 14/10 (`?tab=reglement`) :
 // REGLEMENT porte le rendu interne, INTERNAL (onglet Présentation) ne doit plus
@@ -95,10 +96,14 @@ describe("règlement intérieur — cloisonnement public", () => {
         expect(src).toContain("internalRules: checkEnabled ? null");
     });
 
-    it("serveur : écriture assainie en HTML riche borné, jamais en strict", () => {
+    it("serveur : écriture assainie en HTML riche borné, jamais en strict, sans image", () => {
         const src = read(ACTIONS);
-        expect(src).toContain("PRESENTATION_INTERNAL_RULES_MAX_LENGTH");
+        // La règle (borne + interdiction d'image) vit dans la lib pure, pas dans l'action.
+        expect(src).toContain("sanitizeInternalRules(data.internalRules)");
         expect(src).toContain("presentationInternalRules: sanitizedRules");
+        const rules = read(RULES_LIB);
+        expect(rules).toContain("PRESENTATION_INTERNAL_RULES_MAX_LENGTH");
+        expect(rules).toContain('forbidTags: ["img"]');
     });
 
     it("vue publique : ne connaît même pas le champ", () => {

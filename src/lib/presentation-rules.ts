@@ -1,3 +1,5 @@
+import { sanitizeHtml } from "@/lib/security";
+
 /**
  * Règlement intérieur de guilde — règle pure (présentation).
  *
@@ -11,6 +13,19 @@
 
 /** Borne HTML du règlement intérieur (balises comprises). */
 export const PRESENTATION_INTERNAL_RULES_MAX_LENGTH = 20_000;
+
+/**
+ * Assainit le règlement intérieur : HTML riche, **sans aucune image**.
+ *
+ * Aucun pipeline d'upload n'est branché sur ce champ — les visuels de guilde passent par
+ * l'étendard et la photo (`uploadPresentationImage`). Une image ici ne pouvait donc venir
+ * que d'une URL saisie ou d'un collage base64, hors contrôle (constat du 30/10/2026).
+ * Le serveur la retire **indépendamment de l'éditeur** : appeler l'action directement ne
+ * contourne pas la règle.
+ */
+export function sanitizeInternalRules(html: string | null | undefined): string | null {
+    return sanitizeHtml(html ?? null, PRESENTATION_INTERNAL_RULES_MAX_LENGTH, false, { forbidTags: ["img"] });
+}
 
 /**
  * Modèle pré-rempli d'office (choix user) : 8 sections Dofus, ton ferme mais

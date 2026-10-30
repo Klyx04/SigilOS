@@ -199,7 +199,6 @@
 - **Rush — overlay : verrou de donjons et notifications (22/10/2026)** : trois défauts mesurés puis corrigés — ① une quête dont un **donjon requis** n'était pas coché restait **cochable** (le verrou de l'overlay ne testait que les prérequis) → clic renvoyé au serveur → « erreur de synchronisation » ; ② ce message s'affichait **hors de l'overlay** (le `toast` de sonner rendait dans le Toaster du document hôte, pas dans le portail PiP) ; ③ la modale donjons était fade. Livrés : `missingRequiredDungeons` (clé + nom) + verrou composé **avec états chargés d'emblée**, mention « Donjons requis non validés » **avec les vignettes** des donjons manquants (clic = ouvre le panneau **en ciblant** le donjon), Toaster **dédié** `rush-overlay` dans le portail, et refonte de la carte donjon (aplats d'état, vignette 40 px, barre de progression). Verrou : `rush-overlay-dungeon-gate` **12 cas**. ⚠️ Restent hors périmètre : les sélecteurs **Ordre / Classe** côté joueur (voir §7 du présent fichier).
 - **Décisions bloquantes** : `D-R1` (moteur de rôles), `D1`/`D2` (RAID), `D7` (landing), `D8` (Cloudflare).
 - **Ops en attente** : migrations `20270112000000` + `20270113000000` · redéploiement du bot · crontabs (sondages `* * * * *`, ancienneté `30 4 * * *`, 4 rappels) · **redéploiement bêta** (image Node `24.22.1` + migration renumérotée, voir `docs/agents/node-runtime.md`).
-- **Mesures du 19/10** : 155 `console.*` hors tests · **0** import de `src/lib/env.ts` · **Grafana retiré** de l'exposition publique (God → Système & Infra).
 
 ## 1. P0 — Bloquants prod / ops / sécurité (ordre strict)
 
@@ -321,6 +320,7 @@
 | `restore-db` (F7) | Restauration **prouvee** : banc d'essai jetable (compteurs source/copie), dumps portables `--if-exists`, GPG loopback, retention bornee -- 8 tables verifiees le 29/10 | 29/10/2026 |
 | `ELEVAGE-ICONES` | Élevage — 228 icônes de montures **locales** (siphonnées) : plus de carré noir sur `/elevage` ; garde `elevage-mount-data` | 29/10/2026 |
 | `DJ-CAP` | DJ/Quêtes — file d'attente sur groupe complet + décision **atomique** (sérialisable + rejeu, fin du 5/4) | 30/10/2026 |
+| `DASH-IMG` | Présentation — images **contrôlées** : éditeur (URL/base64/collage) + règlement sans image côté serveur | 30/10/2026 |
 
 ## 6. Archives et mémoire froide
 

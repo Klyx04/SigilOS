@@ -803,6 +803,8 @@ describe("succès « Spécial » — boss, monstre, vrai boss", () => {
         const fetchImpl = (async (url: string) => {
             if (url.includes("/achievements/6164")) return jsonResponse(BLOPS_REEL);
             if (url.includes("/achievements/")) return jsonResponse({ name: { fr: "Succès ordinaire" } });
+            // 7972 = jumeau **vide** (mesure réelle : achievements: []), 1186 = le vrai.
+            if (url.includes("/monsters/7972")) return jsonResponse({ achievements: [] });
             if (url.includes("/monsters/1186")) return jsonResponse({ achievements: [36, 684, 685, 503, 6164] });
             if (url.includes("/challenges/996")) return jsonResponse(CHALLENGE_996);
             return jsonResponse({ data: [] });
@@ -825,7 +827,8 @@ describe("succès « Spécial » — boss, monstre, vrai boss", () => {
                 update: async () => {},
             },
             challenge: { findFirst: async () => ({ id: "c-generic", name: "Spécial", slug: "sp-cial" }) },
-            monsterStat: { findFirst: async () => ({ monsterId: 1186 }) },
+            // Le doublon vide est le PLUS RÉCENT — c'est le piège mesuré du 30/10/2026.
+            monsterStat: { findMany: async () => [{ monsterId: 7972 }, { monsterId: 1186 }] },
         };
 
         const report = await siphonSpecialAchievements({ db: db as any, apply: false, fetchImpl });

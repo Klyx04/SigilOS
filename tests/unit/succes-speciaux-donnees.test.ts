@@ -610,6 +610,21 @@ describe("« Donjon validé » — rendu ciblé (revirement du 25/10/2026)", () 
         expect(script).toMatch(/--apply/);
         expect(script).toMatch(/if \(!apply\)/);
     });
+
+    /**
+     * Défaut mesuré le 30/10/2026 : `reparer-butins` imprimait son rapport puis **ne rendait jamais
+     * la main** (le client Prisma de `@/lib/prisma` et Redis sont des singletons jamais fermés par
+     * le script) — `ps` montrait encore le process et la commande suivante du shell ne démarrait
+     * pas. Le script doit donc sortir **explicitement** après `main()`.
+     */
+    it("rend la main après le rapport (`process.exit` explicite, singletons Prisma/Redis)", () => {
+        const script = read("scripts/succes-speciaux.ts");
+        expect(script).toContain('"reparer-butins"');
+        expect(script).toMatch(/process\.stdout\.write\("", \(\) => process\.exit\(code\)\)/);
+        expect(script).toMatch(/\.catch\(\(error\) => \{/);
+        // Plus de `void main();` nu : c'est exactement ce qui laissait le terminal bloqué.
+        expect(script).not.toMatch(/^void main\(\);\s*$/m);
+    });
 });
 
 

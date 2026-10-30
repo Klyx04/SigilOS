@@ -1071,7 +1071,7 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
             include: {
-                dungeon: { include: { achievements: { include: { challenge: { select: { id: true, name: true, iconUrl: true } } } } } },
+                dungeon: { include: { achievements: { include: { challenge: { select: { id: true, name: true, iconUrl: true, slug: true } } } } } },
                 defi: { select: { id: true, name: true, imageUrl: true, zone: true } },
                 titan: { select: { id: true, name: true, imageUrl: true, zone: true, level: true, maxMembers: true } },
                 profile: { select: { discordNickname: true, pseudoDofus: true, dofusPseudo: true, user: { select: { name: true } } } },
@@ -1214,7 +1214,7 @@ export async function sendDjReminder(guildId: string, postId: string) {
                     include: {
                         achievements: {
                             include: {
-                                challenge: { select: { id: true, name: true, iconUrl: true } },
+                                challenge: { select: { id: true, name: true, iconUrl: true, slug: true } },
                             },
                         },
                     },
@@ -1320,7 +1320,7 @@ export async function sendDjCustomReminder(guildId: string, postId: string, cust
                     include: {
                         achievements: {
                             include: {
-                                challenge: { select: { id: true, name: true, iconUrl: true } },
+                                challenge: { select: { id: true, name: true, iconUrl: true, slug: true } },
                             },
                         },
                     },
@@ -1529,7 +1529,7 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         const achNames = achievementLines(
             post.dungeon.achievements
                 .filter((a: any) => post.wantedAchievementIds.includes(a.id))
-                .map((a: any) => ({ name: a.challenge.name, iconUrl: a.challenge.iconUrl })),
+                .map((a: any) => ({ name: a.challenge.name, iconUrl: a.challenge.iconUrl, slug: a.challenge.slug ?? null })),
             emo
         );
         if (achNames) {
@@ -1757,7 +1757,7 @@ export async function createDjPost(
                     include: {
                         achievements: {
                             include: {
-                                challenge: { select: { id: true, name: true, iconUrl: true } },
+                                challenge: { select: { id: true, name: true, iconUrl: true, slug: true } },
                             },
                         },
                     },
@@ -1846,7 +1846,7 @@ export async function createDjPosts(
         const dungeons = await (db as any).dungeon.findMany({
             where: { id: { in: dungeonIds } },
             include: {
-                achievements: { include: { challenge: { select: { id: true, name: true, iconUrl: true } } } },
+                achievements: { include: { challenge: { select: { id: true, name: true, iconUrl: true, slug: true } } } },
             },
         });
         const byId = new Map<string, any>(dungeons.map((d: any) => [d.id, d] as [string, any]));
@@ -3709,7 +3709,7 @@ export async function getDjPostById(
                         achievements: {
                             include: {
                                 challenge: {
-                                    select: { id: true, name: true, iconUrl: true },
+                                    select: { id: true, name: true, iconUrl: true, slug: true },
                                 },
                             },
                         },

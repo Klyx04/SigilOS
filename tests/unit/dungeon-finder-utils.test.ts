@@ -281,6 +281,14 @@ describe("achievementLines", () => {
     it("liste vide → chaîne vide (le champ n'est alors pas ajouté à l'embed)", () => {
         expect(achievementLines([], picto)).toBe("");
     });
+
+    it("repli par slug quand iconUrl est null — l'emoji custom du bot se résout", () => {
+        const lines = achievementLines(
+            [{ name: "Collant", iconUrl: null, slug: "collant" }],
+            picto
+        );
+        expect(lines).toBe("\u003c:dofus_success_collant:1234567890> Collant");
+    });
 });
 
 /**

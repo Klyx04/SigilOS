@@ -317,12 +317,15 @@ export function embedCoverUrl(imageUrl: string | null | undefined, appUrl: strin
  *            n'a pas été jouée — l'embed reste alors exactement comme avant.
  */
 export function achievementLines(
-    achievements: { name: string; iconUrl?: string | null }[],
+    achievements: { name: string; iconUrl?: string | null; slug?: string | null }[],
     emo: (name: string) => string
 ): string {
     return achievements
         .map((achievement) => {
-            const key = achievementEmojiName(achievement.iconUrl);
+            const key = achievementEmojiName(achievement.iconUrl)
+                // Repli par slug : quand iconUrl est null ou ne matche pas les assets locaux,
+                // le slug (ex. `collant`) permet de retomber sur l'emoji custom du bot.
+                ?? (achievement.slug ? achievementEmojiName(`/game-data/achievements/${achievement.slug}.png`) : null);
             const picto = key ? emo(key) : "";
             return picto ? `${picto} ${achievement.name}` : `• ${achievement.name}`;
         })

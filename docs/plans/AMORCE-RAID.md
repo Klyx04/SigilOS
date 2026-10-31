@@ -12,8 +12,8 @@ description: Amorce de session — exécuter les chantiers RAID du plan `docs/pl
 > Violets (**1 tranche de 10 000 kamas = 10 🟣**) et stockage de `raidPurpleKamasCost` (le coût réel, sinon **0**).
 > ✅ **L2 est livré le 31/10/2026** (migration 290 `RaidPresence`) par l'accord « go r1 one shot » du
 > mainteneur et les cinq arbitrages désormais écrits dans `PLAN-RAID` §2 (D3 staff seul · D4 aucune note
-> libre · D5 90 jours · D6 aucun message Discord supplémentaire · D7 reportée). Il reste de R1 :
-> **B11/B12** (charte + responsive de la modale, à re-mesurer) et **D7** (notification d'annulation).
+> libre · D5 90 jours · D6 aucun message Discord supplémentaire · D7 notification **dashboard** aux inscrits). Il reste de R1 :
+> **B11/B12** (charte + responsive de la modale) — **corrigés le 31/10** avec verrou `raid-modal-charte`.
 > **Mode demandé** : « *one shot* » ⇒ enchaîner les lots **sans redemander la suite**, **1 lot = 1 branche = 1 PR → `dev`**.
 > **Arrêt uniquement** si : une **mesure** contredit le plan · une **migration** devient nécessaire (accord
 > explicite — c'est la règle pour **tout** lot, pas seulement L2) · une **interface publique Discord** change ·
@@ -28,7 +28,7 @@ description: Amorce de session — exécuter les chantiers RAID du plan `docs/pl
 | — | **§24** Qilby (map/sorts/fit) · **§25** overlay raid `/travel` | livré | `feat/qilby-arena-dashboard` · `feat/raid-overlay-travel-chips` | **#817** · **#819** | ✅ mergés |
 | **L0** | **R0** — P0 sécu : RBAC `calendar` (+ `bounties`, `relance`) | **1ᵉʳ** | `fix/rbac-calendar-bounties-relance` | — | ⏳ à faire (**aucune décision**) |
 | **L1** | **R1** — §4 agenda : miroir lecture seule DJ/Songes | **2ᵉ** | `feat/agenda-miroir-dj-songes` | — | ⏳ à faire |
-| **L2** | **R2** — §14 clôture + no-show (**1 migration**) | **3ᵉ** | `feat/raid-cloture-noshow` | — | ✅ **livré le 31/10/2026** — table `RaidPresence` (migration 290), règle `src/lib/raid-presence.ts`, registre staff seul, motifs + attestation, undo qui efface le registre ; **B11/B12 corrigés le 31/10** (charte mesurée, responsive déjà conforme, verrou `raid-modal-charte`). **Reste : D7** (notification d'annulation) |
+| **L2** | **R2** — §14 clôture + no-show (**1 migration**) | **3ᵉ** | `feat/raid-cloture-noshow` | — | ✅ **livré le 31/10/2026** — table `RaidPresence` (migration 290), règle `src/lib/raid-presence.ts`, motifs + attestation, undo qui efface le registre ; **B11/B12 corrigés** ; registre déplacé dans la **fiche membre** (onglet « Présences ») ; **D7 livré** (notification dashboard aux inscrits). **L2 est clos.** |
 | **L3** | **R3** — §6 anomalies sans stats + overlay Simulation | 8ᵉ | `fix/overlay-simulation-anomalies` | — | ⏳ à faire |
 | **L4** | **R4** — §7 rangs de monstre 1-5 (fin des `G1-G10`) | 9ᵉ | `fix/rangs-monstre-1-5` | — | ⏳ à faire |
 | **L5** | **R5** — §8 maps multi-donjons (générique encyclopédie) | 10ᵉ | `fix/maps-multi-donjons` | — | ⏳ à faire |

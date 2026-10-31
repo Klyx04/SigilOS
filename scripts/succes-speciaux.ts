@@ -228,7 +228,82 @@ async function runRepairDrops(db: PrismaClient, apply: boolean, args: string[]) 
     }
 }
 
+/** Supprime les **doublons vides** (même nom, ligne morte à côté d'une fiche saine). */
+async function runDedupe(db: PrismaClient, apply: boolean) {
+    const { removeEmptyDuplicateRows } = await import("@/lib/monster-drops-repair");
+    const report = await removeEmptyDuplicateRows({
+        db: db as unknown as Parameters<typeof removeEmptyDuplicateRows>[0]["db"],
+        dryRun: !apply,
+    });
+    console.log(
+        `\n${report.names} nom(s) avec doublon vide · ${report.removed} ligne(s) ${apply ? "supprimée(s)" : "à supprimer"}`
+            + (apply ? "" : report.removed > 0 ? "\n👉 relancer avec --apply pour supprimer" : "")
+    );
+    for (const line of report.details) console.log(`  · ${line}`);
+}
+
+/**
+ * **Découverte** : crée la fiche des monstres jamais siphonnés (bestiaire public), par lots
+ * reprenables (`--lot`, `--apres`) et dans le même budget DofusDB.
+ */
+async function runDiscover(db: PrismaClient, apply: boolean, args: string[]) {
+    const lotArg = args.find((a) => a.startsWith("--lot="));
+    const lot = Number(lotArg?.split("=")[1] ?? 200);
+    const apresArg = args.find((a) => a.startsWith("--apres="));
+    let afterId = Number(apresArg?.split("=")[1] ?? 0);
+    if (!Number.isFinite(afterId) || afterId < 0) afterId = 0;
+
+    const { discoverMonsterFiches } = await import("@/lib/monster-drops-repair");
+    const { getMonsterStats } = await import("@/lib/monster-stats-core");
+    const { persistMonsterStat } = await import("@/lib/dofensive-sync");
+    const { isCompleteMonsterPayload } = await import("@/lib/data-health");
+    const { throttleWaitMs } = await import("@/lib/dofusdb-throttle");
+
+    // Noms déjà servis par une fiche **complète** : la découverte les saute.
+    const rows = await db.monsterStat.findMany({ select: { monsterName: true, stats: true } });
+    const knownNames = new Set(
+        rows.filter((r) => isCompleteMonsterPayload(r.stats)).map((r) => r.monsterName.trim().toLowerCase()),
+    );
+
+    const maxRounds = apply ? 30 : 1;
+    const totals = { scanned: 0, created: 0, skippedUnity: 0, failed: 0 };
+    let deferred = false;
+    let rounds = 0;
+
+    for (let round = 1; round <= maxRounds; round++) {
+        rounds = round;
+        const report = await discoverMonsterFiches({
+            db: db as unknown as Parameters<typeof discoverMonsterFiches>[0]["db"],
+            knownNames,
+            limit: Number.isFinite(lot) && lot > 0 ? lot : 200,
+            afterId,
+            fetchStats: (name) => getMonsterStats(name, undefined, true, undefined, "fr", { persist: apply }),
+            persist: apply ? persistMonsterStat : async () => {},
+        });
+        totals.scanned += report.scanned;
+        totals.created += report.created;
+        totals.skippedUnity += report.skippedUnity;
+        totals.failed += report.failed;
+        deferred = report.deferred;
+        afterId = report.lastId;
+        if (!report.deferred || round === maxRounds) break;
+        const waitMs = throttleWaitMs() + 1_000;
+        console.log(`⏳ Budget DofusDB épuisé — pause ${Math.ceil(waitMs / 1000)} s puis reprise (tour ${round + 1}/${maxRounds})`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+
+    console.log(
+        `\n${totals.scanned} monstre(s) interrogé(s) · ${totals.created} ${apply ? "fiche(s) créée(s)" : "à créer"} · `
+            + `${totals.skippedUnity} sans source DofusDB · ${totals.failed} en échec`
+            + (rounds > 1 ? ` · ${rounds} tours` : "")
+            + (deferred ? "\n⏳ Budget toujours fermé : relancer la même commande." : "")
+    );
+    console.log(`👉 reprise : --apres=${afterId}${apply ? "" : " --apply"}`);
+}
+
+
 async function main() {
+
     const args = process.argv.slice(2);
     const command = args[0];
     const apply = args.includes("--apply");
@@ -239,9 +314,11 @@ async function main() {
         if (command === "retirer-donjon-valide") return await runRemoval(db, apply);
         if (command === "purger-challenges-speciaux") return await runPurgeSpecialChallenges(db, apply);
         if (command === "reparer-butins") return await runRepairDrops(db, apply, args);
+        if (command === "dedoublonner") return await runDedupe(db, apply);
+        if (command === "siphonner-fiches") return await runDiscover(db, apply, args);
         console.log(
-            "Commande requise : siphon | retirer-donjon-valide | purger-challenges-speciaux | reparer-butins "
-                + "(option : --apply)"
+            "Commande requise : siphon | retirer-donjon-valide | purger-challenges-speciaux | reparer-butins | dedoublonner | siphonner-fiches"
+                + " (options : --apply, --limit=N, --nom=\"X\", --lot=N, --apres=ID)"
         );
         process.exitCode = 2;
     } finally {

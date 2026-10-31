@@ -449,7 +449,14 @@ export async function getMonsterStats(
     dungeonName?: string,
     forceRefresh = false,
     monsterId?: number,
-    locale: "fr" | "en" = "fr"
+    locale: "fr" | "en" = "fr",
+    /**
+     * `persist: false` = **lecture seule** : aucune auto-réparation, rien n'est écrit en base.
+     * Indispensable aux outils qui promettent un **dry-run** (`reparer-butins` sans `--apply`) :
+     * sans ça, le simple fait de « lire » une fiche la réparait déjà (mesure du 31/10/2026 :
+     * un dry-run écrivait, puis le `--apply` répondait « 0 fiche analysée »).
+     */
+    options?: { persist?: boolean },
 ): Promise<ActionResponse<any>> {
     // 🎯 Résolution **par ID** (chantier « Avis de recherche ») : les homonymes existent en jeu
     // (3 × « Ronce » 3530/3555/3531, plusieurs « Mouchâme »). La recherche se fait sinon par
@@ -1102,9 +1109,12 @@ export async function getMonsterStats(
         const enrichedData = enrichWithUnityData(resultData, monsterName, safeId);
         monsterStatsCache.set(cacheKey, { data: enrichedData, expiresAt: Date.now() + MONSTER_STATS_TTL });
         // Self-healing (sync intelligente) : copie locale de la fiche pour le
-        // mode local-first (prochaines lectures sans DofusDB). Jamais bloquant.
+        // mode local-first (prochaines lectures sans DofusDB). Jamais bloquant — et **jamais**
+        // quand l'appelant demande une lecture seule (`persist: false`, dry-run des outils).
         try {
-            if (process.env.VITEST !== "true") await persistMonsterStat({ ...enrichedData, dungeonName });
+            if (process.env.VITEST !== "true" && options?.persist !== false) {
+                await persistMonsterStat({ ...enrichedData, dungeonName });
+            }
         } catch (err) {
             logger.warn("[getMonsterStats] Persist local échec:", { error: String(err) });
         }

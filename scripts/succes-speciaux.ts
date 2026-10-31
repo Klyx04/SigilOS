@@ -179,7 +179,9 @@ async function runRepairDrops(db: PrismaClient, apply: boolean, args: string[]) 
         limit: Number.isFinite(limit) && limit > 0 ? limit : 500,
         ...(onlyNames.length > 0 ? { onlyNames } : {}),
         // Re-fetch **par nom** (jamais l'id local d'un doublon vide) : l'id DofusDB réel revient.
-        fetchStats: (name, dungeonName) => getMonsterStats(name, dungeonName, true),
+        // `persist: apply` — un dry-run ne doit **rien** écrire, pas même via l'auto-réparation
+        // de `getMonsterStats` (mesure du 31/10/2026 : le dry-run réparait déjà la fiche).
+        fetchStats: (name, dungeonName) => getMonsterStats(name, dungeonName, true, undefined, "fr", { persist: apply }),
         // Dry-run : on compte ce qui **serait** écrit, sans rien écrire.
         persist: apply ? persistMonsterStat : async () => {},
     });

@@ -46,6 +46,13 @@ describe("souveraineté — un échec réseau ne remplace jamais la donnée loca
         expect(isCompleteMonsterPayload({ drops: [], dropsUnavailable: true })).toBe(true);
         expect(isCompleteMonsterPayload({ drops: [] })).toBe(false);
     });
+
+    it("un dry-run n'écrit pas : l'auto-réparation est coupée quand `persist: false`", () => {
+        // Mesure du 31/10/2026 : `reparer-butins` sans `--apply` réparait la fiche (self-healing),
+        // puis `--apply` répondait « 0 fiche analysée ». Un dry-run doit être muet.
+        expect(read(CORE)).toMatch(/options\?\.persist !== false/);
+        expect(read("scripts/succes-speciaux.ts")).toMatch(/\{ persist: apply \}/);
+    });
 });
 
 describe("aucun message système à l'écran (visiteur ET membre de guilde)", () => {

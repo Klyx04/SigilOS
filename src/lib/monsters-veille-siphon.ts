@@ -30,6 +30,24 @@ export const MONSTER_FICHES_SPEC: VeilleSpec = {
     limit: 120,
 };
 
+/**
+ * Plafond **par nuit** de la veille fiches (réglable sans redéploiement : `.env`).
+ *
+ * Mesure du 31/10/2026 : le cron passait `limit: 60` **en dur** alors que le bestiaire compte
+ * ~4 700 monstres dont ~4 469 sans fiche complète ⇒ **74 nuits**. Chaque fiche coûte 1 à 3 requêtes
+ * DofusDB (détails + objets par paquets de 40) sur un budget **partagé** de 30 req/min : au-delà
+ * d'environ **800**, une seule passe dépasserait le quart d'heure et risquerait le timeout de l'appel.
+ */
+export const MONSTER_FICHES_VEILLE_LIMIT_DEFAULT = 300;
+export const MONSTER_FICHES_VEILLE_LIMIT_MAX = 800;
+
+/** Plafond effectif de la passe : valeur d'env bornée, sinon le défaut (jamais 0, jamais l'infini). */
+export function monsterFichesVeilleLimit(raw: string | number | null | undefined = process.env.MONSTER_FICHES_VEILLE_LIMIT): number {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return MONSTER_FICHES_VEILLE_LIMIT_DEFAULT;
+    return Math.min(MONSTER_FICHES_VEILLE_LIMIT_MAX, Math.max(1, Math.floor(n)));
+}
+
 /** Une entité vue dans une page `/monsters` (seul le minimum est lu : clé + nom + fraîcheur). */
 export interface MonsterRow {
     id: number;

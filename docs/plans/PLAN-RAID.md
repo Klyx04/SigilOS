@@ -79,6 +79,12 @@ fait `await auth()` (redirection `/login`), `getUserContext(guildId)` (redirecti
 
 ### R1-P0 — audit du 30/10/2026 : constats B1→B13, ancres **re-mesurées** sur `dev`
 
+> ✅ **Livré le 30/10/2026 — PR #1170** : **F1 → F5 + B13**. Règle pure `src/lib/raid-closure-rules.ts`
+> (`assertRaidClosureRoute`, `validateRaidClosureInput` borné, `shouldRepublishAfterUndo`,
+> `buildRaidUndoMetadata`), verrou `tests/unit/raid-closure-rules.test.ts` (**10 cas**), **aucune migration**.
+> **Restent** : **B11/B12** (à re-mesurer, lot UI) · le no-show de **R1** (table `RaidPresence` ⇒ migration,
+> arrêt + accord) · les décisions **D1 → D7** ci-dessous.
+
 > **Source** : audit « Opus 4.6 » du 30/10/2026 (fichier volatile `src/temp/debug.md`, **écrasé depuis** par un
 > log de déploiement bêta — le contenu utile est **reconstitué ici**, il n'existe nulle part ailleurs).
 > **Numérotation** : le « R2 » de l'audit **est** ce R1 ; le R2 du plan reste la modale strat. Aucun second plan.

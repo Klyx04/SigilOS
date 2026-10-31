@@ -24,7 +24,7 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "@/lib/logger";
-import { dofusDbFetch } from "@/lib/dofusdb-limiter";
+import { dofusDbFetch, LOCAL_THROTTLE_HEADER, LOCAL_THROTTLE_VALUE } from "@/lib/dofusdb-limiter";
 import { getLocalMonsterStatAny, getLocalMonsterStatByIdAny, persistMonsterStat } from "@/lib/dofensive-sync";
 import { encycloGrade, encycloIdentity, resolveEncycloNames } from "@/lib/dofus-encyclo";
 import { getDofensiveDungeonForBoss } from "@/lib/dofensive-api";
@@ -236,6 +236,18 @@ function enrichWithUnityData(data: any, monsterName: string, monsterId?: number)
         // Non bloquant
     }
     return data;
+}
+
+/**
+ * Pourquoi un repli bestiaire a-t-il été servi ?
+ *
+ * `quota` = budget DofusDB **partagé** épuisé (un 429 de DofusDB ou le nôtre) : réparable en
+ * rejouant ; `network` = panne/timeout, aussi rejouable mais sans pause imposée. Cette distinction
+ * évite de compter des dizaines de faux « sans source » (mesure du 31/10/2026 : 66 sur 83).
+ */
+function degradedReason(res: Response): "quota" | "network" {
+    const local = res.headers?.get?.(LOCAL_THROTTLE_HEADER) === LOCAL_THROTTLE_VALUE;
+    return res.status === 429 || local ? "quota" : "network";
 }
 
 /**
@@ -581,8 +593,12 @@ export async function getMonsterStats(
                 const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
                 if (unityFallback) {
                     const synthesized = buildMonsterDataFromUnity(unityFallback);
-                    monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
-                    return { success: true, data: synthesized };
+                    // 🏷️ Pourquoi ce repli ? Sans cette étiquette, la passe de réparation comptait
+                    // « sans source DofusDB » à la chaîne alors que c'était **notre** budget partagé
+                    // (mesure du 31/10/2026 : 66 noms « sans source » en quelques secondes).
+                    const tagged = { ...synthesized, degraded: degradedReason(searchRes) };
+                    monsterStatsCache.set(cacheKey, { data: tagged, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                    return { success: true, data: tagged };
                 }
                 const reason = searchRes.status === 429
                     ? "Quota DofusDB atteint (429) — relancer plus tard"
@@ -639,8 +655,10 @@ export async function getMonsterStats(
             const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
             if (unityFallback) {
                 const synthesized = buildMonsterDataFromUnity(unityFallback);
-                monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
-                return { success: true, data: synthesized };
+                // « introuvable » ≠ « quota » : le premier ne se répare jamais, le second oui.
+                const tagged = { ...synthesized, degraded: "not_found" };
+                monsterStatsCache.set(cacheKey, { data: tagged, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                return { success: true, data: tagged };
             }
             return { success: false, error: 'Monstre non trouvé' };
         }
@@ -654,8 +672,9 @@ export async function getMonsterStats(
             const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
             if (unityFallback) {
                 const synthesized = buildMonsterDataFromUnity(unityFallback);
-                monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
-                return { success: true, data: synthesized };
+                const tagged = { ...synthesized, degraded: degradedReason(fullRes) };
+                monsterStatsCache.set(cacheKey, { data: tagged, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                return { success: true, data: tagged };
             }
             const reason = fullRes.status === 429
                 ? "Quota DofusDB atteint (429) — relancer plus tard"

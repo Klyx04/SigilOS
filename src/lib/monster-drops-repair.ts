@@ -138,6 +138,15 @@ export async function repairMonsterDrops(options: RepairMonsterDropsOptions): Pr
             }
             // Repli bestiaire client : aucun butin par construction, on ne l'écrit pas.
             if (data.source === "unity") {
+                if (data.degraded === "quota") {
+                    // Budget DofusDB **partagé** épuisé : continuer ne produirait que des faux
+                    // « sans source » (mesure du 31/10/2026 : 66 sur 83). On s'arrête, on rejouera.
+                    report.deferred = true;
+                    if (report.details.length < MAX_FAILED_DETAILS) {
+                        report.details.push("budget DofusDB épuisé — passe interrompue, à rejouer");
+                    }
+                    break;
+                }
                 report.skippedUnity++;
                 continue;
             }

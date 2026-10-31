@@ -53,6 +53,16 @@ describe("souveraineté — un échec réseau ne remplace jamais la donnée loca
         expect(read(CORE)).toMatch(/options\?\.persist !== false/);
         expect(read("scripts/succes-speciaux.ts")).toMatch(/\{ persist: apply \}/);
     });
+
+    it("un repli dit POURQUOI (quota / réseau / introuvable) et la passe s'arrête sur quota", () => {
+        // Sans cette étiquette, la passe comptait 66 « sans source » là où c'était notre budget.
+        expect(read(CORE)).toMatch(/degraded: degradedReason\(/);
+        expect(read(CORE)).toMatch(/degraded: "not_found"/);
+        expect(read("src/lib/monster-drops-repair.ts")).toMatch(/data\.degraded === "quota"/);
+        expect(read("src/lib/monster-drops-repair.ts")).toMatch(/report\.deferred = true/);
+        // Le script patiente puis reprend (convergence) au lieu de rendre la main sur un faux constat.
+        expect(read("scripts/succes-speciaux.ts")).toMatch(/throttleWaitMs\(\) \+ 1_000/);
+    });
 });
 
 describe("aucun message système à l'écran (visiteur ET membre de guilde)", () => {

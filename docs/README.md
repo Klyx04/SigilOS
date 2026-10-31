@@ -44,6 +44,7 @@ docs/
 │   ├── discord-module.md          module Discord (embeds, interactions)
 │   ├── dev-local.md               environnement de dev local
 │   ├── deploy-vps.md              déploiement VPS
+│   ├── acces-lecture-seule.md     accès SSH + Postgres **lecture seule** de l'assistant (mesures bêta)
 │   ├── disaster-recovery.md       reprise après sinistre
 │   ├── dofus-quest-compile.md     compilation des quêtes Dofus
 │   ├── siphon-worldmap.md         siphon de la worldmap

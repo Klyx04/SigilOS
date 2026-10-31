@@ -65,15 +65,18 @@ export const AUDIT_ACTION_FILTER_OPTIONS: readonly {
     label: string;
     category: AuditCategory;
 }[] = [
-    { value: `SECURITY_ALERT,ADMIN_FULL_DENIED,GOD_AUTH_BYPASS,BETA_ACCESS_ATTEMPT`, label: "🚨 Alertes & refus", category: "security" },
+    { value: "SECURITY_ALERT,ADMIN_FULL_DENIED,GOD_AUTH_BYPASS,BETA_ACCESS_ATTEMPT", label: "🚨 Alertes & refus", category: "security" },
     { value: "RBAC_UPDATE,RBAC_ROLE_ADD,RBAC_ROLE_REMOVE", label: "🔑 Permissions (RBAC)", category: "functional" },
-    { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration guilde", category: "functional" },
-    { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,WEBHOOK_MEMBER_UPDATE", label: "🔄 Mouvements Discord", category: "functional" },
-    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,MEMBER_BAN_DELETED", label: "👥 Cycle de vie membre", category: "functional" },
-    { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions", category: "functional" },
+    { value: "CONFIG_UPDATED,SETTINGS_UPDATED,CHANNEL_CONFIGURED,API_KEY_UPDATED", label: "⚙️ Configuration guilde", category: "functional" },
+    { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,WEBHOOK_MEMBER_UPDATE,WEBHOOK_GUILD_CREATE,WEBHOOK_GUILD_DELETE,PLATFORM_ARRIVAL,PLATFORM_DEPARTURE", label: "🔄 Mouvements Discord", category: "functional" },
+    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,MEMBER_BAN_DELETED,PROFILE_ARCHIVED,PROFILE_REACTIVATED,MEMBER_PSEUDO_UPDATE,MEMBER_ANKAMA_ID_UPDATE,MEMBER_COMMENT_UPDATED,MEMBER_COMMENT_DELETED,MEMBER_RELANCE,ADMIN_ROSTER_AUDIT_SENT", label: "👥 Cycle de vie membre", category: "functional" },
+    { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED,MISSION_PUBLISHED,MISSION_PUBLISH_DISCORD,MISSION_XP_OVERRIDE", label: "⚔️ Missions", category: "functional" },
     { value: "EVENT_STANDBY,EVENT_CLOSED,EVENT_CANCELLED,EVENT_DELETED,RAID_CLOSED,RAID_CLOSURE_UNDONE,RAID_PRESENCE_CORRECTED", label: "🗓️ Calendrier & raids", category: "functional" },
     { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus", category: "functional" },
     { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED,SCHEDULED_POLL_CREATED,SCHEDULED_POLL_UPDATED,SCHEDULED_POLL_CANCELLED,SCHEDULED_POLL_PUBLISHED", label: "📊 Sondages & micro", category: "functional" },
+    { value: "GUILDATON_UPDATE,GUILDATON_CSV_IMPORT,GUILDATON_SETTINGS_UPDATE", label: "🏰 Guildaton", category: "functional" },
+    { value: "HELP_CREDIT_GIVEN", label: "🤝 Coups de main", category: "functional" },
+    { value: "SUCCESS_SYNC", label: "🔄 Synchronisations", category: "functional" },
     { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD", category: "functional" },
-    { value: "GOD_GUILD_WHITELIST,GOD_USER_PLATFORM_BAN,GOD_CONFIG_OVERRIDE,GOD_DATABASE_SYNC,GOD_MODULE_LOCK,GOD_MARKET_SETTINGS", label: "🛡️ Actions God", category: "functional" },
+    { value: "GOD_GUILD_WHITELIST,GOD_USER_PLATFORM_BAN,GOD_CONFIG_OVERRIDE,GOD_DATABASE_SYNC,GOD_MODULE_LOCK,GOD_MARKET_SETTINGS,GOD_NEWS_PUBLISH,GOD_DASHBOARD_ACCESS,GOD_MAINTENANCE_MODE,GOD_GUIDE_UPDATE,GOD_RUSH_UPDATE,GOD_RUSH_UI_UPDATE,GOD_QUEST_DATA_UPDATE,GOD_GAME_DATA_UPDATE,GOD_TICKET_ACTION,GOD_DOC_UPDATE,GOD_MARKET_RESYNC,GOD_POLL_EMBED_RESYNC,GOD_MARKET_IMAGE_REGEN,GOD_MARKET_MEDIA_PURGE", label: "🛡️ Actions God", category: "functional" },
 ];

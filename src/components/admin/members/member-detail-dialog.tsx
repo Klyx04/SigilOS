@@ -82,7 +82,7 @@ import {
     updateMemberRegistryIdentity,
     type RegistrySubject,
 } from "@/server/actions/member-lifecycle-actions";
-import { getGuildMemberBans, liftGuildMemberBan } from "@/server/actions/lifecycle-actions";
+import { getGuildMemberBans, liftGuildMemberBan, deleteGuildMemberBan } from "@/server/actions/lifecycle-actions";
 import { RelanceModal } from "./relance-modal";
 import { VacationEditDialog } from "./vacation-edit-dialog";
 import { MemberDiscordActivity } from "./member-discord-activity";
@@ -139,6 +139,24 @@ function formatDay(iso: string | null): string {
     const date = new Date(iso);
     if (Number.isNaN(date.getTime())) return "—";
     return format(date, "dd MMM yyyy", { locale: fr });
+}
+
+/**
+ * Motif d'exclusion **lisible** — jamais un code technique à l'écran. Mesure du 31/10/2026 : la fiche
+ * membre affichait `motif : MEMBER_DELETED` tel quel. Un motif inconnu reste affiché tel quel : on ne
+ * masque pas une information, on la traduit quand on la connaît.
+ */
+const EXCLUSION_REASON_LABELS: Record<string, string> = {
+    MEMBER_DELETED: "Membre supprimé",
+    MEMBER_BANNED: "Banni sur le serveur Discord",
+    GUILD_DELETED: "Guilde supprimée",
+    MANUAL_ADMIN_ACTION: "Action manuelle du staff",
+    INACTIVITY: "Inactivité",
+};
+
+function exclusionReasonLabel(reason: string | null | undefined): string {
+    if (!reason) return "—";
+    return EXCLUSION_REASON_LABELS[reason] ?? reason;
 }
 
 /** Heure locale `HH:MM` d'un instant **serveur** (ISO) — jamais l'horloge du poste. */
@@ -446,6 +464,23 @@ export function MemberDetailDialog({
         );
     }
 
+    /**
+     * Suppression **définitive** du tombstone (31/10/2026) : un membre exclu qui **n'est plus sur le
+     * serveur Discord** n'apparaîtra dans aucun actif, même après une levée — la levée ne fait que
+     * retirer le verrou. Quand le staff a tranché, il doit pouvoir **effacer la ligne**, sinon la liste
+     * se remplit à vie (mesure bêta : 26 exclusions, aucune action visible dans le Registre).
+     * La confirmation passe par un `AlertDialog` (patron du module — jamais la boîte native du navigateur).
+     */
+    function handleDeleteExclusion() {
+        const discordId = current.discordId;
+        if (!discordId) return;
+        run(
+            () => deleteGuildMemberBan(guildId, discordId),
+            "Exclusion supprimée définitivement",
+            () => setActiveExclusion(null),
+        );
+    }
+
     function handleSaveRecruiter() {
         if (!row) return;
         run(
@@ -566,20 +601,54 @@ export function MemberDetailDialog({
                         >
                             <span className="leading-relaxed text-muted-foreground">
                                 <strong className="text-danger">Exclusion active</strong> depuis le{" "}
-                                {formatDay(activeExclusion.createdAt)} · motif : {activeExclusion.reason}
+                                {formatDay(activeExclusion.createdAt)} · motif : {exclusionReasonLabel(activeExclusion.reason)}
                                 {activeExclusion.bannedByName ? ` · par ${activeExclusion.bannedByName}` : ""}
                             </span>
                             {canManageMembers && current.discordId && (
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="shrink-0"
-                                    onClick={handleLiftExclusion}
-                                    disabled={isPending}
-                                >
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                    Lever l&apos;exclusion
-                                </Button>
+                                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="shrink-0"
+                                        onClick={handleLiftExclusion}
+                                        disabled={isPending}
+                                    >
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        Lever l&apos;exclusion
+                                    </Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={isPending}
+                                                className="shrink-0 border-danger/40 text-danger"
+                                                aria-label={`Supprimer définitivement l'exclusion de ${current.displayName}`}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                Supprimer
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Supprimer définitivement cette exclusion ?</AlertDialogTitle>
+                                                <AlertDialogDescription asChild>
+                                                    <ul className="list-disc space-y-1 pl-4 text-left text-xs">
+                                                        <li>la protection contre un retour est <strong>retirée</strong> (il pourra être recréé s&apos;il revient sur le serveur Discord) ;</li>
+                                                        <li>le <strong>profil n&apos;est pas modifié</strong> — pour débloquer un membre encore présent, utilisez « Lever l&apos;exclusion » ;</li>
+                                                        <li>l&apos;action est <strong>journalisée</strong>.</li>
+                                                    </ul>
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleDeleteExclusion} disabled={isPending}>
+                                                    Oui, supprimer
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
                             )}
                         </div>
                     )}

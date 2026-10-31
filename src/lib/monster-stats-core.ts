@@ -24,7 +24,7 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "@/lib/logger";
-import { dofusDbFetch } from "@/lib/dofusdb-limiter";
+import { dofusDbFetch, LOCAL_THROTTLE_HEADER, LOCAL_THROTTLE_VALUE } from "@/lib/dofusdb-limiter";
 import { getLocalMonsterStatAny, getLocalMonsterStatByIdAny, persistMonsterStat } from "@/lib/dofensive-sync";
 import { encycloGrade, encycloIdentity, resolveEncycloNames } from "@/lib/dofus-encyclo";
 import { getDofensiveDungeonForBoss } from "@/lib/dofensive-api";
@@ -239,6 +239,18 @@ function enrichWithUnityData(data: any, monsterName: string, monsterId?: number)
 }
 
 /**
+ * Pourquoi un repli bestiaire a-t-il été servi ?
+ *
+ * `quota` = budget DofusDB **partagé** épuisé (un 429 de DofusDB ou le nôtre) : réparable en
+ * rejouant ; `network` = panne/timeout, aussi rejouable mais sans pause imposée. Cette distinction
+ * évite de compter des dizaines de faux « sans source » (mesure du 31/10/2026 : 66 sur 83).
+ */
+function degradedReason(res: Response): "quota" | "network" {
+    const local = res.headers?.get?.(LOCAL_THROTTLE_HEADER) === LOCAL_THROTTLE_VALUE;
+    return res.status === 429 || local ? "quota" : "network";
+}
+
+/**
  * Construit une fiche complète à partir du bestiaire local Unity quand DofusDB
  * ne connaît pas le monstre (ex: raids Gigalodon, Jardins Éternels, nouveaux titans/anomalies)
  * ou en cas de coupure/quota réseau.
@@ -449,7 +461,14 @@ export async function getMonsterStats(
     dungeonName?: string,
     forceRefresh = false,
     monsterId?: number,
-    locale: "fr" | "en" = "fr"
+    locale: "fr" | "en" = "fr",
+    /**
+     * `persist: false` = **lecture seule** : aucune auto-réparation, rien n'est écrit en base.
+     * Indispensable aux outils qui promettent un **dry-run** (`reparer-butins` sans `--apply`) :
+     * sans ça, le simple fait de « lire » une fiche la réparait déjà (mesure du 31/10/2026 :
+     * un dry-run écrivait, puis le `--apply` répondait « 0 fiche analysée »).
+     */
+    options?: { persist?: boolean },
 ): Promise<ActionResponse<any>> {
     // 🎯 Résolution **par ID** (chantier « Avis de recherche ») : les homonymes existent en jeu
     // (3 × « Ronce » 3530/3555/3531, plusieurs « Mouchâme »). La recherche se fait sinon par
@@ -574,8 +593,12 @@ export async function getMonsterStats(
                 const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
                 if (unityFallback) {
                     const synthesized = buildMonsterDataFromUnity(unityFallback);
-                    monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
-                    return { success: true, data: synthesized };
+                    // 🏷️ Pourquoi ce repli ? Sans cette étiquette, la passe de réparation comptait
+                    // « sans source DofusDB » à la chaîne alors que c'était **notre** budget partagé
+                    // (mesure du 31/10/2026 : 66 noms « sans source » en quelques secondes).
+                    const tagged = { ...synthesized, degraded: degradedReason(searchRes) };
+                    monsterStatsCache.set(cacheKey, { data: tagged, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                    return { success: true, data: tagged };
                 }
                 const reason = searchRes.status === 429
                     ? "Quota DofusDB atteint (429) — relancer plus tard"
@@ -632,8 +655,10 @@ export async function getMonsterStats(
             const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
             if (unityFallback) {
                 const synthesized = buildMonsterDataFromUnity(unityFallback);
-                monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
-                return { success: true, data: synthesized };
+                // « introuvable » ≠ « quota » : le premier ne se répare jamais, le second oui.
+                const tagged = { ...synthesized, degraded: "not_found" };
+                monsterStatsCache.set(cacheKey, { data: tagged, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                return { success: true, data: tagged };
             }
             return { success: false, error: 'Monstre non trouvé' };
         }
@@ -647,8 +672,9 @@ export async function getMonsterStats(
             const unityFallback = getUnityMonster(safeId > 0 ? safeId : monsterName);
             if (unityFallback) {
                 const synthesized = buildMonsterDataFromUnity(unityFallback);
-                monsterStatsCache.set(cacheKey, { data: synthesized, expiresAt: Date.now() + MONSTER_STATS_TTL });
-                return { success: true, data: synthesized };
+                const tagged = { ...synthesized, degraded: degradedReason(fullRes) };
+                monsterStatsCache.set(cacheKey, { data: tagged, expiresAt: Date.now() + MONSTER_STATS_TTL });
+                return { success: true, data: tagged };
             }
             const reason = fullRes.status === 429
                 ? "Quota DofusDB atteint (429) — relancer plus tard"
@@ -1102,9 +1128,12 @@ export async function getMonsterStats(
         const enrichedData = enrichWithUnityData(resultData, monsterName, safeId);
         monsterStatsCache.set(cacheKey, { data: enrichedData, expiresAt: Date.now() + MONSTER_STATS_TTL });
         // Self-healing (sync intelligente) : copie locale de la fiche pour le
-        // mode local-first (prochaines lectures sans DofusDB). Jamais bloquant.
+        // mode local-first (prochaines lectures sans DofusDB). Jamais bloquant — et **jamais**
+        // quand l'appelant demande une lecture seule (`persist: false`, dry-run des outils).
         try {
-            if (process.env.VITEST !== "true") await persistMonsterStat({ ...enrichedData, dungeonName });
+            if (process.env.VITEST !== "true" && options?.persist !== false) {
+                await persistMonsterStat({ ...enrichedData, dungeonName });
+            }
         } catch (err) {
             logger.warn("[getMonsterStats] Persist local échec:", { error: String(err) });
         }

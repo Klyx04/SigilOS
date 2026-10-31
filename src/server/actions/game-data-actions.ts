@@ -1619,9 +1619,10 @@ export async function getMonsterStats(
     dungeonName?: string,
     forceRefresh = false,
     monsterId?: number,
-    locale: "fr" | "en" = "fr"
+    locale: "fr" | "en" = "fr",
+    options?: { persist?: boolean }
 ): Promise<ActionResponse<any>> {
-    return getMonsterStatsCore(monsterName, dungeonName, forceRefresh, monsterId, locale);
+    return getMonsterStatsCore(monsterName, dungeonName, forceRefresh, monsterId, locale, options);
 }
 
 /**

@@ -174,24 +174,52 @@ async function runRepairDrops(db: PrismaClient, apply: boolean, args: string[]) 
     const { getMonsterStats } = await import("@/lib/monster-stats-core");
     const { persistMonsterStat } = await import("@/lib/dofensive-sync");
 
-    const report = await repairMonsterDrops({
-        db: db as unknown as Parameters<typeof repairMonsterDrops>[0]["db"],
-        limit: Number.isFinite(limit) && limit > 0 ? limit : 500,
-        ...(onlyNames.length > 0 ? { onlyNames } : {}),
-        // Re-fetch **par nom** (jamais l'id local d'un doublon vide) : l'id DofusDB réel revient.
-        fetchStats: (name, dungeonName) => getMonsterStats(name, dungeonName, true),
-        // Dry-run : on compte ce qui **serait** écrit, sans rien écrire.
-        persist: apply ? persistMonsterStat : async () => {},
-    });
+    // 🔁 Convergence : quand le budget DofusDB partagé se ferme, la passe s'arrête proprement
+    // (`deferred`) au lieu de compter des faux « sans source ». On patiente le reste de fenêtre
+    // et on reprend, jusqu'à ce que la file soit vide (ou le plafond de tours atteint).
+    const { throttleWaitMs } = await import("@/lib/dofusdb-throttle");
+    const maxRounds = apply ? 12 : 1;
+    const totals = { scanned: 0, repaired: 0, skippedUnity: 0, failed: 0 };
+    const details: string[] = [];
+    let rounds = 0;
+    let deferred = false;
+
+    for (let round = 1; round <= maxRounds; round++) {
+        rounds = round;
+        const report = await repairMonsterDrops({
+            db: db as unknown as Parameters<typeof repairMonsterDrops>[0]["db"],
+            limit: Number.isFinite(limit) && limit > 0 ? limit : 500,
+            ...(onlyNames.length > 0 ? { onlyNames } : {}),
+            // Re-fetch **par nom** (jamais l'id local d'un doublon vide) : l'id DofusDB réel revient.
+            // `persist: apply` — un dry-run ne doit **rien** écrire, pas même via l'auto-réparation
+            // de `getMonsterStats` (mesure du 31/10/2026 : le dry-run réparait déjà la fiche).
+            fetchStats: (name, dungeonName) => getMonsterStats(name, dungeonName, true, undefined, "fr", { persist: apply }),
+            // Dry-run : on compte ce qui **serait** écrit, sans rien écrire.
+            persist: apply ? persistMonsterStat : async () => {},
+        });
+        totals.scanned += report.scanned;
+        totals.repaired += report.repaired;
+        totals.skippedUnity += report.skippedUnity;
+        totals.failed += report.failed;
+        deferred = report.deferred;
+        for (const line of report.details) if (details.length < 20) details.push(line);
+        if (!report.deferred || report.scanned === 0) break;
+
+        const waitMs = throttleWaitMs() + 1_000;
+        console.log(`⏳ Budget DofusDB épuisé — pause ${Math.ceil(waitMs / 1000)} s puis reprise (tour ${round + 1}/${maxRounds})`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
 
     console.log(
         `\n${onlyNames.length > 0 ? `Cible : ${onlyNames.join(", ")} · ` : ""}`
-            + `${report.scanned} fiche(s) analysée(s) · ${report.repaired} ${apply ? "réparée(s)" : "à réparer"} · `
-            + `${report.skippedUnity} sans source DofusDB (repli Unity, non écrasé) · ${report.failed} en échec`
-            + (apply ? "" : report.repaired > 0 ? "\n👉 relancer avec --apply pour écrire" : "")
+            + `${totals.scanned} fiche(s) analysée(s) · ${totals.repaired} ${apply ? "réparée(s)" : "à réparer"} · `
+            + `${totals.skippedUnity} sans source DofusDB (repli Unity, non écrasé) · ${totals.failed} en échec`
+            + (rounds > 1 ? ` · ${rounds} tours` : "")
+            + (deferred ? "\n⏳ Budget toujours fermé : relancer la même commande, elle reprend où elle s'est arrêtée." : "")
+            + (apply ? "" : totals.repaired > 0 ? "\n👉 relancer avec --apply pour écrire" : "")
     );
-    for (const line of report.details.slice(0, 20)) console.log(`  · ${line}`);
-    if (!apply && report.repaired > 0) {
+    for (const line of details) console.log(`  · ${line}`);
+    if (!apply && totals.repaired > 0) {
         console.log("⚠️ Les fiches déjà complètes ne sont ni lues ni touchées (passe idempotente).");
     }
 }

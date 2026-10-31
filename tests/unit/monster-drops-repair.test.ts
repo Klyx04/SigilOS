@@ -63,6 +63,24 @@ describe("repairMonsterDrops — réparation bornée", () => {
         expect(o.fetchSpy).toHaveBeenCalledTimes(1);
     });
 
+    it("budget épuisé (`degraded: \"quota\"`) : la passe s'arrête, sans faux « sans source »", async () => {
+        const o = options([
+            emptyRow({ monsterName: "Premier" }),
+            emptyRow({ monsterName: "Second" }),
+            emptyRow({ monsterName: "Troisième" }),
+        ]);
+        o.fetchSpy.mockResolvedValue({
+            success: true,
+            data: { id: 9, name: "Premier", drops: [], source: "unity", degraded: "quota" },
+        });
+        const report = await repairMonsterDrops({ db: o.db, fetchStats: o.fetchStats, persist: o.persist });
+        expect(report.deferred).toBe(true);
+        expect(report.scanned).toBe(1);        // on s'arrête au premier refus du budget
+        expect(o.fetchSpy).toHaveBeenCalledTimes(1);
+        expect(report.skippedUnity).toBe(0);   // ce n'est PAS « DofusDB ne connaît pas » (mesure 66/83)
+        expect(o.persistSpy).not.toHaveBeenCalled();
+    });
+
     it("`onlyNames` ne répare que la fiche visée (budget DofusDB préservé)", async () => {
         const o = options([
             emptyRow({ monsterName: "Kanigroula" }),

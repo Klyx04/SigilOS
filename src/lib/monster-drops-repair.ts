@@ -69,7 +69,8 @@ export interface RepairMonsterDropsReport {
 
 /**
  * Répare les fiches dont le payload n'est pas exploitable (`drops: []` non marqué).
- * Idempotent : une fiche complète n'est ni lue ni comptée.
+ * Idempotent : une fiche complète n'est ni lue ni comptée — et un nom **déjà servi** par une fiche
+ * complète ne l'est pas davantage, même si une ligne morte dort à côté (même nom, autre id).
  */
 export async function repairMonsterDrops(options: RepairMonsterDropsOptions): Promise<RepairMonsterDropsReport> {
     const { db, fetchStats, persist } = options;
@@ -104,6 +105,19 @@ export async function repairMonsterDrops(options: RepairMonsterDropsOptions): Pr
         return report;
     }
 
+    // 🔎 Un nom déjà **servi** par une fiche complète n'est pas un trou : la ligne morte qui dort
+    // à côté (même nom, autre id) ne doit être ni lue, ni comptée, ni re-fetchée. Sans ce pré-tri,
+    // le rapport radotait (« N fiche(s) analysée(s) » à chaque passe alors que la fiche affichée
+    // était juste) et le budget DofusDB (30 req/min) partait sur une ligne que personne ne lit.
+    // `buildBossFicheGaps` applique déjà cette préférence côté affichage : même règle ici.
+    const completeNames = new Set<string>();
+    for (const row of rows ?? []) {
+        if (!row || typeof row.monsterName !== "string") continue;
+        if (!isCompleteMonsterPayload(row.stats)) continue;
+        const key = row.monsterName.trim().toLowerCase();
+        if (key) completeNames.add(key);
+    }
+
     // Une seule tentative par NOM : deux lignes vides du même monstre (7972 / 1186) se
     // réparent avec la même requête, et on ne paie pas deux fois le budget DofusDB.
     const seen = new Set<string>();
@@ -118,6 +132,8 @@ export async function repairMonsterDrops(options: RepairMonsterDropsOptions): Pr
         if (isCompleteMonsterPayload(row.stats)) continue;
         const key = row.monsterName.trim().toLowerCase();
         if (!key || seen.has(key)) continue;
+        // Frère complet du même nom ⇒ la fiche servie est saine : on ne lit pas, on ne compte pas.
+        if (completeNames.has(key)) continue;
         if (onlyNames.size > 0 && !onlyNames.has(key)) continue;
         seen.add(key);
         targets.push(row);

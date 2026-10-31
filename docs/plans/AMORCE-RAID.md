@@ -8,12 +8,14 @@ description: Amorce de session — exécuter les chantiers RAID du plan `docs/pl
 > revérifiées, lots L1→L7, pièges). **Cette amorce ne le remplace pas** : elle **cadre la session** et fixe
 > l'**ordre d'exécution**.
 > **Décisions** : ✅ **acquises** — §1 classes du calendrier (**PR #815**) et §3 rappel de clôture 24 h
-> (**PR #816**) sont **livrés : ne pas refaire**. ⏸️ **2 arbitrages bloquent le lot L3** (facteur Kamas Violets
-> `*10` vs `*10 000` ; stockage de `raidPurpleKamasCost`) ⇒ **les poser AVANT d'écrire la première ligne de L3**.
+> (**PR #816**) sont **livrés : ne pas refaire**. ✅ **Tranchés le 30/10/2026 (PR #1171)** : facteur Kamas
+> Violets (**1 tranche de 10 000 kamas = 10 🟣**) et stockage de `raidPurpleKamasCost` (le coût réel, sinon **0**).
+> ⏸️ **Ce qui bloque L2 aujourd'hui** : l'**accord migration** (`RaidPresence`) et les **cinq arbitrages ouverts**
+> de `PLAN-RAID` §2 (**D3 → D7**, autre numérotation).
 > **Mode demandé** : « *one shot* » ⇒ enchaîner les lots **sans redemander la suite**, **1 lot = 1 branche = 1 PR → `dev`**.
 > **Arrêt uniquement** si : une **mesure** contredit le plan · une **migration** devient nécessaire (L2 en porte
 > une : accord explicite) · une **interface publique Discord** change · une **suppression de données** devient
-> nécessaire · ou un des 2 arbitrages de L2 n'est pas tranché.
+> nécessaire · ou un des **cinq arbitrages de `PLAN-RAID` §2** n'est pas tranché.
 
 ## 0. État d'exécution (01/10/2026) — **il reste les lots L0 → L7**, dans **l'ordre officiel de la consigne**
 

@@ -178,7 +178,7 @@ async function runRepairDrops(db: PrismaClient, apply: boolean, args: string[]) 
     // (`deferred`) au lieu de compter des faux « sans source ». On patiente le reste de fenêtre
     // et on reprend, jusqu'à ce que la file soit vide (ou le plafond de tours atteint).
     const { throttleWaitMs } = await import("@/lib/dofusdb-throttle");
-    const maxRounds = apply ? 12 : 1;
+    const maxRounds = apply ? 30 : 1;
     const totals = { scanned: 0, repaired: 0, skippedUnity: 0, failed: 0 };
     const details: string[] = [];
     let rounds = 0;
@@ -202,8 +202,12 @@ async function runRepairDrops(db: PrismaClient, apply: boolean, args: string[]) 
         totals.skippedUnity += report.skippedUnity;
         totals.failed += report.failed;
         deferred = report.deferred;
-        for (const line of report.details) if (details.length < 20) details.push(line);
-        if (!report.deferred || report.scanned === 0) break;
+        // Une seule fois chaque cause (sinon 12 lignes identiques « budget épuisé »).
+        for (const line of report.details) {
+            if (details.length < 20 && !details.includes(line)) details.push(line);
+        }
+        // Plus rien à faire, ou dernier tour : on rend la main sans pause inutile.
+        if (!report.deferred || report.scanned === 0 || round === maxRounds) break;
 
         const waitMs = throttleWaitMs() + 1_000;
         console.log(`⏳ Budget DofusDB épuisé — pause ${Math.ceil(waitMs / 1000)} s puis reprise (tour ${round + 1}/${maxRounds})`);

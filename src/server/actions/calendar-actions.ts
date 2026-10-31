@@ -27,6 +27,12 @@ import { resolveOwnedClass } from "@/lib/user-character-classes";
 import { loadClassProfileByUserId } from "@/server/character-class-profile";
 import { Prisma } from "@prisma/client";
 import { buildStandBy, canToggleStandBy, isStandByActive } from "@/lib/group-standby";
+import {
+    assertRaidClosureRoute,
+    buildRaidUndoMetadata,
+    shouldRepublishAfterUndo,
+    validateRaidClosureInput,
+} from "@/lib/raid-closure-rules";
 
 // ============================================
 // LOCAL ENUM DEFINITIONS (mirrors Prisma schema)
@@ -792,7 +798,7 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
         }
 
 
-        revalidatePath(`/dashboard/${guildId}/calendar`);
+        // B13 (audit du 30/10/2026) : `revalidatePath` était appelé **deux fois** de suite.
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, eventId: event.id, discordSent, discordError };
     } catch (error) {
@@ -1100,6 +1106,19 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
             data: { status: "CANCELLED" }
         });
 
+        // B7 (audit du 30/10/2026) : une annulation ne laissait aucune trace.
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "EVENT_CANCELLED",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { status: event.status },
+            newValue: { status: "CANCELLED" },
+        });
+
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true };
     } catch (error) {
@@ -1189,8 +1208,8 @@ export async function setEventStandBy(
             guildId,
             actorUserId: ctx.id ?? "",
             actorName: ctx.name || "Membre",
-            action: "EVENT_STANDBY" as never,
-            targetType: "GUILD_EVENT" as never,
+            action: "EVENT_STANDBY",
+            targetType: "GUILD_EVENT",
             targetId: eventId,
             metadata: {
                 paused,
@@ -1255,6 +1274,19 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
 
         await db.guildEvent.delete({
             where: { id: eventId, guildId: guildConfig.id }
+        });
+
+        // B8 (audit du 30/10/2026) : une suppression ne laissait aucune trace.
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "EVENT_DELETED",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { status: event.status },
+            newValue: { deleted: true },
         });
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
@@ -1333,6 +1365,11 @@ export async function completeEvent(guildId: string, eventId: string) {
         if (event.status === "COMPLETED") return { success: false, error: "Déjà terminé" };
         if (isAgendaMirror((event as any).metadata)) return { success: false, error: MIRROR_READONLY_ERROR };
 
+        // B9 (audit du 30/10/2026) : ce chemin crédite **tous** les inscrits (+50 XP pour un raid)
+        // sans sélection des présents — il contournait la clôture raid. Un raid n'a qu'une porte.
+        const raidRoute = assertRaidClosureRoute(event.type);
+        if (!raidRoute.ok) return { success: false, error: raidRoute.error };
+
         const canComplete = ctx.isAdmin || ctx.canManageCalendar || event.creatorId === ctx.id;
         if (!canComplete) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le clôturer." };
@@ -1371,6 +1408,19 @@ export async function completeEvent(guildId: string, eventId: string) {
             });
         }
 
+        // B6 (audit du 30/10/2026) : aucune trace de clôture n'existait, alors que bonus et marché en ont.
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "EVENT_CLOSED",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { status: event.status },
+            newValue: { status: "COMPLETED", rewarded: event.participants.length, xpReward },
+        });
+
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, participantsRewarded: event.participants.length, xpReward };
     } catch (error) {
@@ -1390,8 +1440,12 @@ export async function completeRaidEvent(
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
 
-    const score = data.score?.trim() || null;
-    const presentUserIds = data.presentUserIds || [];
+    // F5 (audit du 30/10/2026) : le score était **facultatif** (`data.score?.trim() || null`) ;
+    // l'entrée est désormais bornée (Zod) et un score vide refuse la clôture — rien n'est écrit.
+    const closure = validateRaidClosureInput({ score: data?.score, presentUserIds: data?.presentUserIds });
+    if (!closure.ok) return { success: false, error: closure.error };
+    const score = closure.score;
+    const presentUserIds = closure.presentUserIds;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -1467,6 +1521,19 @@ export async function completeRaidEvent(
             });
         }
 
+        // B6 (audit du 30/10/2026) : la clôture raid ne laissait aucune trace.
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "RAID_CLOSED",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { status: event.status, completedAt: existingMeta.completedAt ?? null },
+            newValue: { score, presentCount: presentUserIds.length, purpleKamasCost },
+        });
+
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, rewarded: presentUserIds.length, score };
     } catch (error) {
@@ -1530,33 +1597,46 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
             });
         }
 
-        // Revert event to PUBLISHED
+        // F1/F2 (audit du 30/10/2026) : la clôture a **supprimé** l'embed et les rappels. Le undo se
+        // contentait de PATCHer le message (mort) et laissait les marqueurs d'idempotence en place
+        // ⇒ raid « fantôme », sans rappels. On rouvre avec des métadonnées propres.
         await db.guildEvent.update({
             where: { id: eventId },
             data: {
                 status: "PUBLISHED",
-                metadata: {
-                    ...meta,
-                    raidScore: null,
-                    raidPresentUserIds: [],
-                    completedAt: null,
-                    completedBy: null,
-                    closedBySystem: null,
-                    systemClosedAt: null,
-                    raidUndoneAt: new Date().toISOString(),
-                    raidUndoneBy: ctx.id
-                }
+                metadata: buildRaidUndoMetadata(meta, ctx.id ?? ""),
             }
         });
 
-        // Re-send Discord embed if previously had one
-        if (event.discordChannelId) {
-            const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
-            updateDiscordEventEmbed(guildId, eventId).catch(err => logger.error("Background Embed Update Error:", err));
+        // F1 : on **republie** dès que le raid avait un embed — jamais de PATCH sur un message mort.
+        let discordRepublished = false;
+        if (shouldRepublishAfterUndo(event)) {
+            const { publishDiscordEvent } = await import("@/server/calendar-service");
+            const published = await publishDiscordEvent(guildId, eventId);
+            discordRepublished = published.success === true;
+            if (!discordRepublished) {
+                logger.warn("[Calendar] undoCompleteRaidEvent : republication Discord impossible", {
+                    eventId,
+                    error: published.error,
+                });
+            }
         }
 
+        // B6 (audit du 30/10/2026) : aucune trace de l'annulation de clôture.
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "RAID_CLOSURE_UNDONE",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { score: meta.raidScore ?? null, presentCount: presentUserIds.length, purpleKamasCost },
+            newValue: { status: "PUBLISHED", discordRepublished },
+        });
+
         revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, refunded: presentUserIds.length };
+        return { success: true, refunded: presentUserIds.length, discordRepublished };
     } catch (error) {
         logger.error("[Calendar] completeRaidEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture du raid" };

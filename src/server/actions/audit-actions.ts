@@ -84,6 +84,13 @@ export type AuditAction =
     | "GOD_MARKET_IMAGE_REGEN"   // Régénération de la carte PNG + embed
     | "GOD_MARKET_MEDIA_PURGE"   // Purge cross-guild des médias expirés
     | "GOD_MARKET_SETTINGS"     // Réglages globaux (verrou plateforme + rétention)
+    // Cycle de vie des événements du calendrier (lot R1-P0, audit du 30/10/2026)
+    | "EVENT_STANDBY"           // Mise en pause / reprise d'un événement
+    | "EVENT_CLOSED"            // Clôture par le chemin générique
+    | "EVENT_CANCELLED"         // Annulation (l'événement reste en base, statut CANCELLED)
+    | "EVENT_DELETED"           // Suppression définitive
+    | "RAID_CLOSED"             // Clôture raid (score + présents sélectionnés)
+    | "RAID_CLOSURE_UNDONE"     // Annulation de clôture raid (remboursement XP + Kamas)
     // Verrou God d'un module par guilde (fiche guilde `/god/guilds/[id]`)
     | "GOD_MODULE_LOCK";
 
@@ -108,6 +115,7 @@ export type AuditTargetType =
     | "WHITELIST"
     | "MAINTENANCE"
     | "NEWS"
+    | "GUILD_EVENT"
     | "DATA_SYNC";
 
 export type AuditLogEntry = {

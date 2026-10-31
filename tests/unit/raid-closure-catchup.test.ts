@@ -13,6 +13,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 
+import { buildRaidUndoMetadata } from "@/lib/raid-closure-rules";
+
 function codeOnly(source: string): string {
     return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 }
@@ -53,7 +55,21 @@ describe("undoCompleteRaidEvent — annuler une clôture d'office", () => {
     });
 
     it("la remise en `PUBLISHED` nettoie aussi les marqueurs système", () => {
-        expect(RAID_UNDO).toMatch(/closedBySystem: null/);
-        expect(RAID_UNDO).toMatch(/systemClosedAt: null/);
+        // 🔁 30/10/2026 (lot R1-P0) : la remise à zéro a quitté l'action pour la **règle pure**
+        // `buildRaidUndoMetadata` (une seule source). On vérifie le câblage **et** le comportement,
+        // pas seulement une chaîne recopiée dans le fichier.
+        expect(RAID_UNDO).toMatch(/buildRaidUndoMetadata\(meta, ctx\.id \?\? ""\)/);
+        const rebuilt = buildRaidUndoMetadata(
+            {
+                closedBySystem: true,
+                systemClosedAt: "2026-10-30T20:00:00.000Z",
+                completedAt: "2026-10-30T20:00:00.000Z",
+            },
+            "actor-1",
+            new Date("2026-10-31T09:00:00.000Z"),
+        );
+        expect(rebuilt.closedBySystem).toBeNull();
+        expect(rebuilt.systemClosedAt).toBeNull();
+        expect(rebuilt.completedAt).toBeNull();
     });
 });

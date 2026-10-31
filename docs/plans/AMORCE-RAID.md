@@ -24,7 +24,7 @@ description: Amorce de session — exécuter les chantiers RAID du plan `docs/pl
 | — | **§24** Qilby (map/sorts/fit) · **§25** overlay raid `/travel` | livré | `feat/qilby-arena-dashboard` · `feat/raid-overlay-travel-chips` | **#817** · **#819** | ✅ mergés |
 | **L0** | **R0** — P0 sécu : RBAC `calendar` (+ `bounties`, `relance`) | **1ᵉʳ** | `fix/rbac-calendar-bounties-relance` | — | ⏳ à faire (**aucune décision**) |
 | **L1** | **R1** — §4 agenda : miroir lecture seule DJ/Songes | **2ᵉ** | `feat/agenda-miroir-dj-songes` | — | ⏳ à faire |
-| **L2** | **R2** — §14 clôture + no-show (**1 migration**) | **3ᵉ** | `feat/raid-cloture-noshow` | — | ⏸️ **bloqué par 2 arbitrages** |
+| **L2** | **R2** — §14 clôture + no-show (**1 migration**) | **3ᵉ** | `feat/raid-cloture-noshow` | — | ✅ **livré le 31/10/2026** — table `RaidPresence` (migration 290), règle `src/lib/raid-presence.ts`, registre staff seul, motifs + attestation, undo qui efface le registre. **Reste B11/B12** (UI, à re-mesurer) et **D7** (notification d'annulation) |
 | **L3** | **R3** — §6 anomalies sans stats + overlay Simulation | 8ᵉ | `fix/overlay-simulation-anomalies` | — | ⏳ à faire |
 | **L4** | **R4** — §7 rangs de monstre 1-5 (fin des `G1-G10`) | 9ᵉ | `fix/rangs-monstre-1-5` | — | ⏳ à faire |
 | **L5** | **R5** — §8 maps multi-donjons (générique encyclopédie) | 10ᵉ | `fix/maps-multi-donjons` | — | ⏳ à faire |
@@ -82,7 +82,7 @@ Preuve : un post DJ daté apparaît et **aucun** bouton d'action n'est cliquable
 ### L2 — La clôture devient un vrai acte (R2 · §14) — **1 migration, ARRÊT avant**
 Livrer : table **`RaidPresence`** (`@@unique[eventId,userId]`, index 90 j) **écrite** dans `completeRaidEvent` et **supprimée** dans `undo` ; modale (bloc Absents **dès la décoche**, `select` de motif, **validation bloquante**, attestation **chiffrée** « X présents débités, N no-shows ») ; droits **`RAID_OFFICER` / `canManageRaid`** + `creatorId` / `raidCaptainId` ; colonne **registre** (staff seul) ; correction officier + `createAuditLog` **avant → après**.
 Preuve : `undo` ramène l'état **exactement** d'avant (présences, points, Kamas, no-show) ; l'audit contient clôture **et** correction ; un membre lambda est **refusé** ; aucune donnée de no-show lisible côté membre.
-⏸️ **D3/D4 sont tranchés depuis la PR #1171** : ce qui bloque L2 est désormais l'**accord migration** (`RaidPresence`, la 290ᵉ) et les **cinq arbitrages ouverts** de `PLAN-RAID` §2 (D3 → D7, **autre numérotation** — voir le §2 ci-dessus). C'est le **3ᵉ** lot de l'ordre officiel.
+⏸️ **L2 est livré (31/10/2026)** : la migration `RaidPresence` est jouée, les cinq arbitrages de `PLAN-RAID` §2 sont **tranchés** (D3 staff seul · D4 aucune note libre · D5 90 jours · D6 aucun message Discord supplémentaire · D7 reportée). Ce qui reste de R1 : **B11/B12** (charte + responsive de la modale, à re-mesurer) et **D7** (notification d'annulation, lot séparé).
 
 ### L3 — L'overlay Simulation cesse d'être un empilement (R3 · §6) — moyen
 Livrer : **1 toolbar unique** (Boss libre + sort PA·PO + map **visible** + zoom + Options + Légende), Options en **3 sections** (Board / Placement / Butin), prévisu en **rail latéral** (replié par défaut, jamais superposé en PiP), « Ordre d'apparition » **cliquable** (`handleCellClick`), zoom + `Fit` uniques, déslop (rayons 3/4/6, 0 blur/shadow/italic) ; anomalies : élargir le siphon (**Rushu** ou siphon par id) + lectures **local-only** avec `stale` **daté** + état vide explicite.

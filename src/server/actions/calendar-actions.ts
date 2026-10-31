@@ -34,6 +34,17 @@ import {
     validateRaidClosureInput,
     resolveUndoRefundPurpleKamas,
 } from "@/lib/raid-closure-rules";
+import {
+    buildRaidPresenceRows,
+    raidPresenceRetentionCutoff,
+    summarizeRaidPresence,
+    validateRaidAbsences,
+    RAID_PRESENCE_RETENTION_DAYS,
+    RAID_PRESENCE_STATUSES,
+    type RaidAbsenceReason,
+    type RaidPresenceStatus,
+    type RaidPresenceSummary,
+} from "@/lib/raid-presence";
 
 // ============================================
 // LOCAL ENUM DEFINITIONS (mirrors Prisma schema)
@@ -1436,7 +1447,12 @@ export async function completeEvent(guildId: string, eventId: string) {
 export async function completeRaidEvent(
     guildId: string,
     eventId: string,
-    data: { score: string; presentUserIds: string[] }
+    data: {
+        score: string;
+        presentUserIds: string[];
+        /** Motif de chaque inscrit décoché — **obligatoire** dès qu'un inscrit n'est pas présent. */
+        absences?: { userId: string; reason: RaidAbsenceReason }[];
+    }
 ) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
@@ -1448,6 +1464,12 @@ export async function completeRaidEvent(
     const score = closure.score;
     const presentUserIds = closure.presentUserIds;
 
+    // R1 (31/10/2026) : un inscrit décoché **doit** porter un motif. Sans ça, un oubli de clic
+    // devenait un no-show dans le registre — exactement ce que ce lot devait empêcher.
+    const absencesCheck = validateRaidAbsences(data?.absences);
+    if (!absencesCheck.ok) return { success: false, error: absencesCheck.error };
+    const absences = absencesCheck.absences;
+
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -1457,7 +1479,13 @@ export async function completeRaidEvent(
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { id: true, creatorId: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
+            select: {
+                id: true, creatorId: true, status: true, metadata: true,
+                discordChannelId: true, discordMessageId: true,
+                // R1 : le registre se construit sur les **inscrits**, résolus côté serveur —
+                // jamais sur la liste envoyée par l'écran (qui pourrait créditer un non-inscrit).
+                participants: { where: { status: "REGISTERED" }, select: { userId: true } },
+            }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
@@ -1471,10 +1499,24 @@ export async function completeRaidEvent(
             return { success: false, error: "Déjà clôturé par le capitaine" };
         }
 
-        const canComplete = ctx.isAdmin || ctx.canManageCalendar || event.creatorId === ctx.id;
+        // R1 (31/10/2026) : la clôture est un acte d'**officier** — `RAID_OFFICER`
+        // (`canManageRaid`) et le **capitaine** du raid (`metadata.raidCaptainId`, posé par
+        // `transferRaidLead`) s'ajoutent au créateur et aux administrateurs.
+        const isRaidCaptain = (existingMeta.raidCaptainId as string | null | undefined) === ctx.id;
+        const canComplete =
+            ctx.isAdmin || ctx.canManageCalendar || ctx.canManageRaid || event.creatorId === ctx.id || isRaidCaptain;
         if (!canComplete) {
-            return { success: false, error: "Seul le créateur du raid ou un administrateur peut le clôturer." };
+            return { success: false, error: "Seuls le capitaine du raid, un officier de raid ou un administrateur peuvent le clôturer." };
         }
+
+        // R1 : registre complet (une ligne par inscrit) construit **avant** d'écrire quoi que ce
+        // soit — un motif manquant ou un identifiant hors inscrits refuse la clôture entière.
+        const presence = buildRaidPresenceRows({
+            registeredUserIds: (event.participants ?? []).map((p) => p.userId),
+            presentUserIds,
+            absences,
+        });
+        if (!presence.ok) return { success: false, error: presence.error };
 
         // Calcul du coût en Kamas Violets (0 si le don est désactivé)
         const requireKamas = guildConfig.raidRequireKamaDonation ?? true;
@@ -1482,20 +1524,35 @@ export async function completeRaidEvent(
 
         // Save score + completion data in metadata (la clôture d'office éventuelle est
         // effacée : le capitaine reprend la main, `completedAt` devient le discriminant).
-        await db.guildEvent.update({
-            where: { id: eventId },
-            data: {
-                status: "COMPLETED",
-                metadata: {
-                    ...stripSystemClosure(existingMeta),
-                    raidScore: score,
-                    raidPresentUserIds: presentUserIds,
-                    raidPurpleKamasCost: purpleKamasCost,
-                    completedAt: new Date().toISOString(),
-                    completedBy: ctx.id
+        // R1 : le registre est **réécrit** (rejouer une clôture après un undo ne laisse aucun
+        // doublon) dans la **même transaction** que la clôture — jamais un raid clos sans
+        // registre, jamais un registre orphelin d'une clôture annulée.
+        await db.$transaction([
+            db.raidPresence.deleteMany({ where: { eventId } }),
+            db.raidPresence.createMany({
+                data: presence.rows.map((row) => ({
+                    guildId: guildConfig.id,
+                    eventId,
+                    userId: row.userId,
+                    status: row.status,
+                    recordedBy: ctx.id ?? null,
+                })),
+            }),
+            db.guildEvent.update({
+                where: { id: eventId },
+                data: {
+                    status: "COMPLETED",
+                    metadata: {
+                        ...stripSystemClosure(existingMeta),
+                        raidScore: score,
+                        raidPresentUserIds: presentUserIds,
+                        raidPurpleKamasCost: purpleKamasCost,
+                        completedAt: new Date().toISOString(),
+                        completedBy: ctx.id
+                    }
                 }
-            }
-        });
+            }),
+        ]);
 
         // Close Discord message + cleanup reminder messages (même purge partagée que la
         // passe de fond : rappels outbox résolus par leur clé Redis + embed de publication).
@@ -1532,11 +1589,20 @@ export async function completeRaidEvent(
             targetType: "GUILD_EVENT",
             targetId: eventId,
             oldValue: { status: event.status, completedAt: existingMeta.completedAt ?? null },
-            newValue: { score, presentCount: presentUserIds.length, purpleKamasCost },
+            newValue: {
+                score,
+                presentCount: presence.present,
+                purpleKamasCost,
+                // R1 : la clôture dit aussi ce qu'elle a **constaté**, sans exposer de nom.
+                absentCount: presence.absent,
+                noShows: presence.noShows,
+                warned: presence.warned,
+                excused: presence.excused,
+            },
         });
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, rewarded: presentUserIds.length, score };
+        return { success: true, rewarded: presence.present, score, absent: presence.absent, noShows: presence.noShows };
     } catch (error) {
         logger.error("[Calendar] completeRaidEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture du raid" };
@@ -1607,6 +1673,10 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
             });
         }
 
+        // R1 : le registre appartient à la clôture — la rouvrir l'**efface**, l'état d'avant
+        // revient exactement (présences, points, Kamas, no-shows).
+        const removedPresences = await db.raidPresence.deleteMany({ where: { eventId } });
+
         // F1/F2 (audit du 30/10/2026) : la clôture a **supprimé** l'embed et les rappels. Le undo se
         // contentait de PATCHer le message (mort) et laissait les marqueurs d'idempotence en place
         // ⇒ raid « fantôme », sans rappels. On rouvre avec des métadonnées propres.
@@ -1641,7 +1711,7 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
             action: "RAID_CLOSURE_UNDONE",
             targetType: "GUILD_EVENT",
             targetId: eventId,
-            oldValue: { score: meta.raidScore ?? null, presentCount: presentUserIds.length, purpleKamasCost },
+            oldValue: { score: meta.raidScore ?? null, presentCount: presentUserIds.length, purpleKamasCost, presenceRows: removedPresences.count },
             newValue: { status: "PUBLISHED", discordRepublished },
         });
 
@@ -1650,6 +1720,154 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
     } catch (error) {
         logger.error("[Calendar] completeRaidEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture du raid" };
+    }
+}
+
+/** Vue du registre de présence renvoyée à l'écran (staff seul) — champs optionnels côté échec. */
+export type RaidPresenceRegister = {
+    success: boolean;
+    error?: string;
+    rows?: { userId: string; name: string; status: RaidPresenceStatus; updatedAt: string }[];
+    summary?: RaidPresenceSummary;
+    retentionDays?: number;
+};
+
+/**
+ * Registre de présence d'un raid — **staff seul** (R1, décision D3 du 31/10/2026).
+ *
+ * Le no-show est une donnée **personnelle** : elle n'est lisible ni par un membre, ni dans un
+ * embed public. Cette action re-vérifie la permission elle-même (`canManageRaid` / admin /
+ * gestion du calendrier) — la page ne suffit jamais — et borne ce qu'elle renvoie.
+ */
+export async function getRaidPresenceRegister(guildId: string, eventId: string): Promise<RaidPresenceRegister> {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!(ctx.isAdmin || ctx.canManageRaid || ctx.canManageCalendar)) {
+        return { success: false, error: "Permission insuffisante" };
+    }
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        // Isolation : l'événement doit appartenir à **cette** guilde avant toute lecture.
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { id: true },
+        });
+        if (!event) return { success: false, error: "Événement introuvable" };
+
+        const [rows, recent] = await Promise.all([
+            db.raidPresence.findMany({
+                where: { eventId, guildId: guildConfig.id },
+                orderBy: { createdAt: "asc" },
+                take: 40,
+                select: { userId: true, status: true, updatedAt: true, user: { select: { name: true } } },
+            }),
+            db.raidPresence.findMany({
+                where: { guildId: guildConfig.id, createdAt: { gte: raidPresenceRetentionCutoff() } },
+                select: { status: true },
+            }),
+        ]);
+
+        return {
+            success: true,
+            rows: rows.map((row) => ({
+                userId: row.userId,
+                name: row.user.name || "Membre",
+                status: row.status,
+                updatedAt: row.updatedAt.toISOString(),
+            })),
+            summary: summarizeRaidPresence(recent.map((row) => row.status)),
+            retentionDays: RAID_PRESENCE_RETENTION_DAYS,
+        };
+    } catch (error) {
+        logger.error("[Calendar] getRaidPresenceRegister Error:", error);
+        return { success: false, error: "Registre illisible" };
+    }
+}
+
+/**
+ * Correction d'un statut de présence par un **officier** (R1) — auditée avant → après.
+ *
+ * ⚠️ Corriger le registre **ne rejoue pas** les points ni les Kamas Violets : c'est un constat,
+ * pas un paiement. Pour repayer, on annule la clôture puis on la refait (undo + clôture).
+ */
+export async function correctRaidPresence(
+    guildId: string,
+    eventId: string,
+    userId: string,
+    status: RaidPresenceStatus,
+) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!(ctx.isAdmin || ctx.canManageRaid)) return { success: false, error: "Permission insuffisante" };
+    if (!(RAID_PRESENCE_STATUSES as readonly string[]).includes(status)) {
+        return { success: false, error: "Statut de présence invalide." };
+    }
+
+    const limit = await rateLimit(`raid-presence:${guildId}:${ctx.id ?? "anon"}`, 20, 60_000);
+    if (!limit.success) {
+        return {
+            success: false,
+            error: limit.error
+                ? "Sécurité momentanément indisponible, réessayez."
+                : "Trop de corrections en peu de temps, réessayez plus tard.",
+        };
+    }
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { id: true },
+        });
+        if (!event) return { success: false, error: "Événement introuvable" };
+
+        const existing = await db.raidPresence.findUnique({
+            where: { eventId_userId: { eventId, userId } },
+            select: { status: true, guildId: true },
+        });
+        if (!existing || existing.guildId !== guildConfig.id) {
+            return { success: false, error: "Aucune présence à corriger pour ce membre." };
+        }
+        if (existing.status === status) return { success: true, unchanged: true };
+
+        // Garde d'état dans le `WHERE` : deux officiers qui corrigent en même temps ne
+        // s'écrasent pas silencieusement.
+        const updated = await db.raidPresence.updateMany({
+            where: { eventId, userId, guildId: guildConfig.id, status: existing.status },
+            data: { status, recordedBy: ctx.id ?? null },
+        });
+        if (updated.count === 0) {
+            return { success: false, error: "La présence a changé entre-temps : rechargez le registre." };
+        }
+
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: ctx.id ?? "",
+            actorName: ctx.name || "Membre",
+            action: "RAID_PRESENCE_CORRECTED",
+            targetType: "GUILD_EVENT",
+            targetId: eventId,
+            oldValue: { status: existing.status },
+            newValue: { status },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true, from: existing.status, to: status };
+    } catch (error) {
+        logger.error("[Calendar] correctRaidPresence Error:", error);
+        return { success: false, error: "Correction impossible" };
     }
 }
 

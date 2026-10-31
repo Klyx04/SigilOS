@@ -71,7 +71,7 @@ export const AUDIT_ACTION_FILTER_OPTIONS: readonly {
     { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,WEBHOOK_MEMBER_UPDATE", label: "🔄 Mouvements Discord", category: "functional" },
     { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT", label: "👥 Cycle de vie membre", category: "functional" },
     { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions", category: "functional" },
-    { value: "EVENT_STANDBY,EVENT_CLOSED,EVENT_CANCELLED,EVENT_DELETED,RAID_CLOSED,RAID_CLOSURE_UNDONE", label: "🗓️ Calendrier & raids", category: "functional" },
+    { value: "EVENT_STANDBY,EVENT_CLOSED,EVENT_CANCELLED,EVENT_DELETED,RAID_CLOSED,RAID_CLOSURE_UNDONE,RAID_PRESENCE_CORRECTED", label: "🗓️ Calendrier & raids", category: "functional" },
     { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus", category: "functional" },
     { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED,SCHEDULED_POLL_CREATED,SCHEDULED_POLL_UPDATED,SCHEDULED_POLL_CANCELLED,SCHEDULED_POLL_PUBLISHED", label: "📊 Sondages & micro", category: "functional" },
     { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD", category: "functional" },

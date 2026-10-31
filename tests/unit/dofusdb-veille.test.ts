@@ -155,7 +155,10 @@ describe("câblage — le rail tourne dans le cron, jamais pendant les tests", (
         expect(src).toContain("runMonsterFichesPass(");
         expect(src).toContain("getGameDataVeilleState(MONSTER_FICHES_SPEC.id)");
         expect(src).toContain("setGameDataVeilleState(MONSTER_FICHES_SPEC.id");
-        expect(src).toContain("limit: 60");
+        // 🔁 31/10/2026 : le plafond fixe (60/nuit ⇒ ~74 nuits pour le bestiaire) devient un
+        // **réglage borné** — la passe reste bornée par passage, mais on peut l'élargir sans code.
+        // La borne elle-même est vérifiée par `monster-fiches-veille-limit.test.ts`.
+        expect(src).toContain("limit: monsterFichesVeilleLimit()");
     });
 
     it("l'étage est COUPÉ sous Vitest (aucun appel réseau pendant les tests)", () => {

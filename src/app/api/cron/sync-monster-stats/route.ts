@@ -292,13 +292,15 @@ export async function GET(req: Request) {
         if (!veilleDisabled) {
             try {
                 const { dofusdbFetchPage } = await import("@/lib/dofusdb-fetch");
-                const { runMonsterFichesPass, MONSTER_FICHES_SPEC } = await import("@/lib/monsters-veille-siphon");
+                const { runMonsterFichesPass, MONSTER_FICHES_SPEC, monsterFichesVeilleLimit } = await import("@/lib/monsters-veille-siphon");
                 const { getGameDataVeilleState, setGameDataVeilleState } = await import("@/server/game-data-sync-state-store");
 
                 const state = await getGameDataVeilleState(MONSTER_FICHES_SPEC.id);
                 const pass = await runMonsterFichesPass({
                     state: state ?? { cursor: null, remaining: null, lastPassAt: null },
-                    limit: 60,
+                    // Plafond réglable (`MONSTER_FICHES_VEILLE_LIMIT`, défaut 300, borné à 800) : le
+                    // plafond fixé à 60 imposait ~74 nuits pour couvrir le bestiaire (mesure 31/10/2026).
+                    limit: monsterFichesVeilleLimit(),
                     fetchPage: async (endpoint, query) => {
                         const page = await dofusdbFetchPage<any>(`${endpoint}?${query}`);
                         if (!page) throw new Error(`${endpoint}?${query} indisponible (filtre, limiteur ou réseau)`);

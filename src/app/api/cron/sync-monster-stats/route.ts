@@ -54,6 +54,11 @@ export async function GET(req: Request) {
         let imagesSiphoned = 0;
         let errors = 0;
         let skippedFresh = 0;
+        // 🔒 Souveraineté (31/10/2026) : un repli bestiaire local (`source: "unity"`, `drops: []`)
+        // n'est **jamais** persisté. Il écrasait la fiche locale à chaque passe — `Kanigroula`
+        // réécrite vide à 03:46 alors que DofusDB documente 25 butins — et, en la rafraîchissant,
+        // il la sortait de la file de réparation. Le local n'est plus jamais remplacé par un échec réseau.
+        let skippedUnityWrites = 0;
         // « Qui » a échoué : noms de boss réellement en erreur (bornés à l'affichage).
         const errorBosses: string[] = [];
         // Boss d'anomalie (siphon section 3) — compteurs SÉPARÉS des fiches de donjon/titans.
@@ -103,6 +108,11 @@ export async function GET(req: Request) {
                 const statsRes = await getMonsterStats(b.bossName, b.dungeonName, true);
                 if (statsRes.success && statsRes.data) {
                     let data = statsRes.data;
+                    // Repli Unity = échec source déguisé en succès : on n'écrit rien.
+                    if (data.source === "unity") {
+                        skippedUnityWrites++;
+                        continue;
+                    }
                     const dRes = await getBossDofensiveSpells(b.bossName, b.dungeonName, undefined, true);
                     if (dRes.success && dRes.data) {
                         data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
@@ -153,6 +163,11 @@ export async function GET(req: Request) {
                         const statsRes = await getMonsterStats(t.name, t.mapName || undefined, true);
                         if (statsRes.success && statsRes.data) {
                             let data = statsRes.data;
+                            // Même règle que les fiches de donjon : jamais de repli Unity persisté.
+                            if (data.source === "unity") {
+                                skippedUnityWrites++;
+                                continue;
+                            }
                             const dRes = await getBossDofensiveSpells(t.name, undefined, undefined, true);
                             if (dRes.success && dRes.data) {
                                 data = { ...data, spells: mergeDofensiveSpells(data.spells ?? [], dRes.data) };
@@ -298,7 +313,8 @@ export async function GET(req: Request) {
                     },
                     persistFiche: async ({ id, name }) => {
                         const res = await getMonsterStats(name, undefined, true, id);
-                        return !!res?.success;
+                        // Un repli Unity compte comme un échec pour la veille (rien n'est persisté).
+                        return !!res?.success && res.data?.source !== "unity";
                     },
                 });
 
@@ -410,7 +426,7 @@ export async function GET(req: Request) {
             }
         }
 
-        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés · veille fiches: ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"} , filigrane ${veilleFiches.cursor ?? "début"}) · butins réparés: ${dropsRepaired} (${dropsSkippedUnity} sans source)`);
+        logger.info(`[Cron:SyncMonsterStats] Terminé: ${synced} monstres synchronisés, ${imagesSiphoned} images siphonnées, ${errors} erreurs, ${skippedFresh} frais ignorés, ${skippedUnityWrites} replis Unity non écrits · veille fiches: ${veilleFiches.persisted}/${veilleFiches.processed} (reste ~${veilleFiches.remaining ?? "?"} , filigrane ${veilleFiches.cursor ?? "début"}) · butins réparés: ${dropsRepaired} (${dropsSkippedUnity} sans source)`);
 
         // Visibilité dans le Dashboard GOD (Audit Logs & Alertes) — sans session utilisateur.
         await createSystemAuditLog({

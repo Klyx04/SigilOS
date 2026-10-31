@@ -1062,6 +1062,10 @@ export async function getMonsterStats(
                     percentByGrade: gradePercents.map(formatRate)
                 };
             }) || [],
+            // 🏷️ Source **interrogée** et aucun butin documenté (mesure du 31/10/2026) : le marqueur
+            // dit « vraiment rien à lâcher », évite de re-tester ce monstre chaque nuit (budget
+            // DofusDB partagé) et distingue l'absence réelle d'un simple défaut de synchronisation.
+            dropsUnavailable: (monster.drops ?? []).length === 0,
             spells: spellsArr.map(s => {
                 const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
                 const level = spellLevelsMap[levelId] || {};

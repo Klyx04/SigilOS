@@ -674,11 +674,6 @@ export function PublicBossDetailClient({
               locale={locale}
               loading={isLoadingCurrent}
               loadingLabel={`${locale === "en" ? "Loading characteristics of" : "Chargement des caractéristiques de"} ${activeMonsterName ?? (isMultiBoss ? effectiveBossName : bossName)}…`}
-              emptyHint={
-                locale === "en"
-                  ? "Characteristics not synced for this wanted poster yet — run the siphon (God → Game data)."
-                  : "Caractéristiques non synchronisées pour cet avis — relance le siphon (God → Données de jeu)."
-              }
               onGradesOpen={() => setDetailTab("grades")}
             />
 
@@ -809,11 +804,6 @@ export function PublicBossDetailClient({
             </p>
           )}
 
-          {bountyMeta.syncedAt && (
-            <p className="text-[11px] text-muted-foreground sm:col-span-2">
-              Données synchronisées le {new Date(bountyMeta.syncedAt).toLocaleDateString("fr-FR")}
-            </p>
-          )}
         </div>
       )}
 
@@ -1133,7 +1123,7 @@ export function PublicBossDetailClient({
             <p className="text-xs text-muted-foreground py-8 text-center">{t.bossPage.loadingLoot}</p>
           ) : drops.length === 0 ? (
             <p className="text-xs text-muted-foreground py-8 text-center">
-              {currentStats ? t.bossPage.noLootFound : t.bossPage.noLootSynced}
+              {t.bossPage.noLootFound}
             </p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">

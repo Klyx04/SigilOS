@@ -60,7 +60,7 @@ export function BountyFicheView({
     fallbackImageUrl = null,
     /** Texte de l'état vide (aucune fiche sélectionnée / indisponible). */
     emptyTitle = "Aucun avis à afficher",
-    emptyHint = "Lancez le siphon (God → Données de jeu) pour peupler les avis de recherche.",
+    emptyHint = "Aucune fiche disponible pour le moment.",
     showOverlayAction = true,
 }: {
     fiche: BountyFichePayload | null;

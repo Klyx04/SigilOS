@@ -70,8 +70,6 @@ export interface MonsterStatsSummaryProps {
     locale?: "fr" | "en";
     loading?: boolean;
     loadingLabel?: string;
-    /** Message d'absence de caractéristiques (ex. avis de recherche non synchronisé). */
-    emptyHint?: string;
     /** Affiche le raccourci vers l'onglet « Rangs & Paliers » (fiche publique). */
     onGradesOpen?: () => void;
 }
@@ -177,7 +175,6 @@ export function MonsterStatsSummary({
     locale = "fr",
     loading = false,
     loadingLabel,
-    emptyHint,
     onGradesOpen,
 }: MonsterStatsSummaryProps) {
     const labels = LABELS[locale];
@@ -256,9 +253,6 @@ export function MonsterStatsSummary({
                 <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
                     {labels.resistance}
                 </span>
-                {list.length === 0 && emptyHint && (
-                    <p className="mt-1 text-[11px] text-muted-foreground">{emptyHint}</p>
-                )}
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         {resistRows.map(({ key, label, icon, value }) => (

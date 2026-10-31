@@ -74,6 +74,23 @@ export function isValidRaidClosureInput(input: RaidClosureInput): boolean {
 }
 
 /**
+ * Kamas Violets à **rembourser** quand une clôture est annulée — **D2 (décision du 30/10/2026)**.
+ *
+ * Fail-closed : seul un coût **réellement enregistré** à la clôture (`raidPurpleKamasCost`) est rendu.
+ * Un raid clôturé **avant** l'enregistrement n'a pas de montant connu (`known: false`) : on rembourse
+ * **0**, jamais l'ancien repli `?? 30` qui créditait une valeur inventée.
+ */
+export function resolveUndoRefundPurpleKamas(
+    meta: Record<string, unknown> | null | undefined,
+): { purpleKamasCost: number; known: boolean } {
+    const stored = (meta ?? {}).raidPurpleKamasCost;
+    if (typeof stored === "number" && Number.isFinite(stored) && stored > 0) {
+        return { purpleKamasCost: Math.trunc(stored), known: true };
+    }
+    return { purpleKamasCost: 0, known: false };
+}
+
+/**
  * Après un undo : **republier** dès que le raid avait un embed.
  *
  * ⚠️ Ne pas remplacer par « patcher si `discordMessageId` existe » : il existe toujours (la purge

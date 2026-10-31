@@ -237,7 +237,15 @@ interface EventDetailModalProps {
     discordChannels?: DiscordChannels;
     donationsEnabled?: boolean;
     /** Kamas eligibility for RAID_OFFICIAL events. Null = loading or not a raid. */
-    raidEligibility?: { isEligible: boolean; totalDonated: number; raidRequireKamaDonation?: boolean } | null;
+    raidEligibility?: {
+        isEligible: boolean;
+        totalDonated: number;
+        raidRequireKamaDonation?: boolean;
+        /** Don hebdomadaire exigé (tranches × 10 000 kamas) — affiché tel quel, jamais codé en dur. */
+        requiredKamas?: number;
+        /** Coût décompté **par présent** à la clôture (tranches × 10 🟣). */
+        purpleKamasCost?: number;
+    } | null;
     /** Personnages Dofus du membre (« Mes personnages » des modales d'inscription). */
     myCharacters?: { main: string | null; secondaries: string[] };
     /** Change MA classe sur cet événement (même règle serveur que le menu classe Discord). */
@@ -1647,10 +1655,16 @@ export function EventDetailModal({
                                                         <div className="flex items-start gap-2.5 p-3 rounded-xl bg-warning/5 border border-warning/20 text-warning">
                                                             <Coins className="h-4 w-4 shrink-0 mt-0.5" />
                                                             <div className="text-xs leading-relaxed">
-                                                                <span className="font-black uppercase tracking-wide">Don requis : 30 000 kamas</span>
+                                                                <span className="font-black uppercase tracking-wide">
+                                                                    Don requis : {typeof raidEligibility?.requiredKamas === "number"
+                                                                        ? raidEligibility.requiredKamas.toLocaleString("fr-FR")
+                                                                        : "—"} kamas
+                                                                </span>
                                                                 <br />
                                                                 <span className="text-warning/70">
-                                                                    Tu as donné <strong>{donated}</strong> kamas cette semaine. Complète ton don pour débloquer l'accès aux raids.
+                                                                    Tu as <strong>{donated}</strong> kamas de dons validés au total
+                                                                    (les Kamas Violets déjà consommés en sont déduits). Complète ton don
+                                                                    pour débloquer l'accès aux raids.
                                                                 </span>
                                                                 <br />
                                                                 <Link
@@ -1832,7 +1846,9 @@ export function EventDetailModal({
                                     className="mt-0.5 h-4 w-4 shrink-0 rounded border-border bg-elevated text-danger focus:ring-danger/50"
                                 />
                                 <label htmlFor="confirm-raid-complete" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                                    <span className="font-bold text-danger">J'atteste</span> avoir coordonné la clôture avec mon équipe. Les <strong>{presentParticipants.size} participant{ presentParticipants.size > 1 ? "s" : "" } présent{ presentParticipants.size > 1 ? "s" : "" }</strong> sélectionné{ presentParticipants.size > 1 ? "s" : "" } {raidEligibility?.raidRequireKamaDonation === false ? "seront validés pour ce raid." : "verront leurs Kamas Violets déduits."}
+                                    <span className="font-bold text-danger">J'atteste</span> avoir coordonné la clôture avec mon équipe. Les <strong>{presentParticipants.size} participant{ presentParticipants.size > 1 ? "s" : "" } présent{ presentParticipants.size > 1 ? "s" : "" }</strong> sélectionné{ presentParticipants.size > 1 ? "s" : "" } {raidEligibility?.raidRequireKamaDonation === false
+                                        ? "seront validés pour ce raid."
+                                        : `verront ${typeof raidEligibility?.purpleKamasCost === "number" ? `${raidEligibility.purpleKamasCost} 🟣` : "leurs Kamas Violets"} déduits (par présent).`}
                                 </label>
                             </div>
 

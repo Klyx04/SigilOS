@@ -70,8 +70,9 @@ fait `await auth()` (redirection `/login`), `getUserContext(guildId)` (redirecti
 **Tests attendus** : motif obligatoire (on ne valide pas sans statuer sur chacun), `undo` **restaure tout**, compteur 90 j juste, RBAC (un membre lambda est **refusé**).
 **Vigilance** : **aucune sanction automatique** au départ d'un membre (mesurer d'abord — une règle « 2 no-shows / 30 j » pourra venir plus tard).
 
-**2 arbitrages à trancher AVANT de coder** — voir **D1/D2** au tableau de R1-P0 (ancres re-mesurées le 30/10 :
-`*10` **1426** vs `*10 000` **733** ; coût stocké **1438**, repli `?? 30` **1519**). Ne pas les redécrire ici.
+**2 arbitrages à trancher AVANT de coder** — ✅ **tranchés le 30/10/2026** (PR #1171) : voir **D1/D2** au
+tableau de R1-P0. La conversion est **1 tranche de 10 000 kamas = 10 🟣** ; l'undo ne rembourse que le coût
+enregistré. Ne pas les redécrire ici.
 
 **Risque / migration** : **1 migration additive** (table de présences) ⇒ **ARRÊT + accord explicite** (AGENTS §7.7) ; l'écrire idempotente, jamais destructive.
 
@@ -132,8 +133,8 @@ le chemin générique, quatre audits écrits. **Aucune migration** ⇒ pas d'arr
 
 | # | Décision | État |
 |---|---|---|
-| **D1** | Facteur Kamas Violets : `*10` (**1426**) vs `*10 000` (**733**) | **ouvert** — à trancher avant R1 |
-| **D2** | Stocker `raidPurpleKamasCost` à la clôture (déjà fait **1438**, repli `?? 30` **1519**) | **ouvert** — vérifier le sort des anciens raids |
+| **D1** | Facteur Kamas Violets : `*10` (**1426**) vs `*10 000` (**733**) | ✅ **tranché le 30/10/2026** — **1 tranche de 10 000 kamas = 10 🟣** : don hebdomadaire `tranches × 10 000 k`, bourse et coût de clôture `tranches × 10 🟣`. Aucun calcul à changer : seul le **libellé** de trésorerie était faux (PR #1171). |
+| **D2** | Stocker `raidPurpleKamasCost` à la clôture (déjà fait **1438**) | ✅ **tranché le 30/10/2026** — l'undo ne rend **que** le coût réellement enregistré, sinon **0** (`resolveUndoRefundPurpleKamas` ; plus de repli `?? 30` inventé). PR #1171. |
 | **D3** | Visibilité du registre de présence (staff seul ou tous les membres) | **ouvert** — l'audit avait tranché, son texte est **perdu** (volatile écrasé) : à réarbitrer |
 | **D4** | Note libre du joueur sur sa présence | **ouvert** — même cause |
 | **D5** | Rétention des présences (index 90 j) | **ouvert** — même cause |

@@ -20,6 +20,7 @@ import {
     buildRaidUndoMetadata,
     isValidRaidClosureInput,
     REMINDER_MARKERS_CLEARED_ON_UNDO,
+    resolveUndoRefundPurpleKamas,
     shouldRepublishAfterUndo,
     validateRaidClosureInput,
 } from "@/lib/raid-closure-rules";
@@ -162,5 +163,44 @@ describe("clôture raid — le câblage dans les server actions", () => {
             /revalidatePath\(`\/dashboard\/\$\{guildId\}\/calendar`\);\s*revalidatePath\(`\/dashboard\/\$\{guildId\}\/calendar`\);/,
         );
         expect(create.match(/revalidatePath\(`\/dashboard\/\$\{guildId\}\/calendar`\)/g) ?? []).toHaveLength(1);
+    });
+});
+
+describe("Kamas Violets — affichage et remboursement (D2, 30/10/2026)", () => {
+    it("le remboursement ne rend QUE ce qui a été décompté (jamais un 30 inventé)", () => {
+        // Coût enregistré ⇒ remboursé tel quel.
+        expect(resolveUndoRefundPurpleKamas({ raidPurpleKamasCost: 50 })).toEqual({
+            purpleKamasCost: 50,
+            known: true,
+        });
+        // Raid antérieur à l'enregistrement, valeur nulle, négative ou d'un autre type ⇒ 0.
+        for (const meta of [{}, { raidPurpleKamasCost: null }, { raidPurpleKamasCost: 0 }, { raidPurpleKamasCost: -30 }, { raidPurpleKamasCost: "30" }, null]) {
+            expect(resolveUndoRefundPurpleKamas(meta), JSON.stringify(meta)).toEqual({
+                purpleKamasCost: 0,
+                known: false,
+            });
+        }
+    });
+
+    it("l'action d'undo n'a plus de repli `?? 30` et passe par la règle", () => {
+        const undo = functionBody(read(ACTIONS), "undoCompleteRaidEvent");
+        expect(undo).toMatch(/resolveUndoRefundPurpleKamas\(meta\)/);
+        expect(undo).not.toMatch(/raidPurpleKamasCost \?\? 30/);
+    });
+
+    it("l'écran de trésorerie énonce la conversion réelle (1 tranche de 10 000 k = 10 🟣)", () => {
+        const settings = read("src/app/dashboard/[guildId]/admin/_components/kama-settings-client.tsx");
+        expect(settings).toContain("1 tranche de 10 000 kamas = 10 jetons violets");
+        // L'ancienne phrase était fausse (1 🟣 = 10 000 kamas) : 50 🟣 y valaient 50 000 kamas.
+        expect(settings).not.toContain("1 jeton violet 🟣 = 10 000 kamas");
+    });
+
+    it("la clôture affiche le coût et le don réels, plus de 30 000 codé en dur", () => {
+        const modal = read("src/components/calendar/event-detail-modal.tsx");
+        expect(modal).not.toContain("Don requis : 30 000 kamas");
+        expect(modal).toMatch(/raidEligibility\?\.requiredKamas/);
+        expect(modal).toMatch(/raidEligibility\?\.purpleKamasCost/);
+        // La donnée vient du serveur (même seuil que la garde d'inscription).
+        expect(read("src/server/actions/kama-actions.ts")).toMatch(/purpleKamasCost: requiredPurpleKamas/);
     });
 });

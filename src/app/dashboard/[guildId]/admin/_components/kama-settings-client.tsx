@@ -212,7 +212,7 @@ export function KamaSettingsClient({ guildId }: KamaSettingsClientProps) {
                                                 Montant du don requis par semaine
                                             </label>
                                             <p className="text-caption text-muted-foreground">
-                                                1 jeton violet 🟣 = 10 000 kamas. Actuellement :{" "}
+                                                1 tranche de 10 000 kamas = 10 jetons violets 🟣. Actuellement :{" "}
                                                 <strong className="text-foreground">
                                                     {(kamaDonationThreshold * 10_000).toLocaleString("fr-FR")} kamas
                                                 </strong>{" "}

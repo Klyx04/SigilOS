@@ -878,6 +878,10 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
     totalDonated?: number;
     isEligible?: boolean;
     raidRequireKamaDonation?: boolean;
+    /** Don exigé (tranches × 10 000 kamas) — la même valeur que celle comparée par la garde. */
+    requiredKamas?: number;
+    /** Coût décompté par présent à la clôture (tranches × 10 🟣). */
+    purpleKamasCost?: number;
     weekNumber?: number;
     yearNumber?: number;
     error?: string;
@@ -900,6 +904,8 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
                 totalDonated: 0,
                 isEligible: true,
                 raidRequireKamaDonation: false,
+                requiredKamas: 0,
+                purpleKamasCost: 0,
                 weekNumber: week,
                 yearNumber: year,
             };
@@ -932,6 +938,8 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
             totalDonated,
             isEligible: purpleKamasBalance >= requiredPurpleKamas,
             raidRequireKamaDonation: true,
+            requiredKamas: threshold,
+            purpleKamasCost: requiredPurpleKamas,
             weekNumber: week,
             yearNumber: year,
         };

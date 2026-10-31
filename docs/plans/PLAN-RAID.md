@@ -139,7 +139,7 @@ le chemin générique, quatre audits écrits. **Aucune migration** ⇒ pas d'arr
 |---|---|---|
 | **D1** | Facteur Kamas Violets : `*10` (**1426**) vs `*10 000` (**733**) | ✅ **tranché le 30/10/2026** — **1 tranche de 10 000 kamas = 10 🟣** : don hebdomadaire `tranches × 10 000 k`, bourse et coût de clôture `tranches × 10 🟣`. Aucun calcul à changer : seul le **libellé** de trésorerie était faux (PR #1171). |
 | **D2** | Stocker `raidPurpleKamasCost` à la clôture (déjà fait **1438**) | ✅ **tranché le 30/10/2026** — l'undo ne rend **que** le coût réellement enregistré, sinon **0** (`resolveUndoRefundPurpleKamas` ; plus de repli `?? 30` inventé). PR #1171. |
-| **D3** | Visibilité du registre de présence (staff seul ou tous les membres) | ✅ **tranché le 31/10/2026** — **staff seul** : lecture et correction derrière `canManageRaid` / admin / gestion du calendrier, **jamais** côté membre ni dans un embed. Verrou : `tests/unit/raid-presence.test.ts` (« le registre exige une permission de staff »). |
+| **D3** | Visibilité du registre de présence (staff seul ou tous les membres) | ✅ **tranché le 31/10/2026** — **staff seul**, et **lu depuis la fiche membre** (onglet « Présences », `getMemberRaidPresence` gardé par `canManageMembers` / `canManageRaid` / admin) ; la modale de clôture ne garde que le **motif par inscrit**. Correction réservée à l'**officier de raid** / admin. Verrous : `raid-presence` + `member-raid-presence`. |
 | **D4** | Note libre du joueur sur sa présence | ✅ **tranché le 31/10/2026** — **pas de note libre en V1** : texte utilisateur à borner, à modérer et à afficher nulle part pour aucun besoin exprimé. Si le besoin apparaît : colonne bornée, visible staff seul. |
 | **D5** | Rétention des présences (index 90 j) | ✅ **tranché le 31/10/2026** — **90 jours** (`RAID_PRESENCE_RETENTION_DAYS`), index `(guildId, createdAt)` pour le compteur glissant et la purge (`raidPresenceRetentionCutoff`). |
 | **D6** | Résumé Discord de clôture | ✅ **tranché le 31/10/2026** — **aucun message Discord supplémentaire** : la clôture supprime déjà l'embed (F1) ; le résumé chiffré vit dans l'**attestation de la modale** et dans l'**audit** (`RAID_CLOSED` porte présents / absents / no-shows). |
@@ -183,7 +183,8 @@ le chemin générique, quatre audits écrits. **Aucune migration** ⇒ pas d'arr
 
 ### R7 — Dashboard vie : vignettes raid/event (consigne §15)
 - Agenda fade (`upcoming-events-widget.tsx`) : 7 j / 6 events **sans image** alors que le référentiel `calendar-event-images.ts` + `calendar-event-theme.ts` existe ⇒ brancher `resolveEventImagePath` + picto de type.
-- `RaidHeroBanner` : **texte seul** aujourd'hui ⇒ visuel.
+- `RaidHeroBanner` : ✅ **visuel réel** depuis le 31/10/2026 (`resolveEventImagePath` par `metadata.raidType`,
+  repli `calendar_raid_official.png`) — la carte ne montre plus de glyphe générique.
 - Activité guilde : la source actuelle ignore DJ, marché, succès ⇒ ajouter 3 requêtes (DJ `CLOSED`, marché `SOLD`, succès `VALIDATED`) + mapping (labels morts `ACHIEVEMENT/DJ_POST/STUFF` jamais émis).
 
 ## 5. Effleurent le raid (R8 → R10)

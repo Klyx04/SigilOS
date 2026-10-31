@@ -53,7 +53,8 @@ describe("responsive de la modale raid (B12)", () => {
         expect(MODAL).toContain("max-h-64 overflow-y-auto");
     });
 
-    it("le registre de présence est borné en hauteur (scroll interne, pas de débordement)", () => {
-        expect(MODAL).toContain("max-h-52 overflow-y-auto");
+    it("le registre de présence n'est plus dans la modale de clôture (il vit dans la fiche membre)", () => {
+        expect(MODAL).not.toContain("Registre de présence");
+        expect(MODAL).not.toContain("getRaidPresenceRegister");
     });
 });

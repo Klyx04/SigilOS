@@ -301,7 +301,7 @@ export default async function DashboardPage({
 
                 {/* ── 2. RAID HERO (prioritaire — conditionnel) ────────── */}
                 {hasRaidNow && (
-                    <section data-tour="dash-raid" className="animate-in fade-in slide-in-from-top-1 duration-150">
+                    <section data-tour="dash-raid" className="rounded-xl">
                         <RaidHeroBanner guildId={guildId} raid={activeRaid as any} />
                     </section>
                 )}

@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 31/10/2026 (suite 11) — **Carte raid du dashboard : déslop + visuel réel** — branche `fix/dashboard-raid-hero`
+
+> **Demande user (verbatim)** : « deslop ça stp coté page dashboard + son icône raid reel » (capture de la carte « RAID : JARDINS ÉTERNELS »).
+> **Mesures** : `raid-hero-banner.tsx` — carte `rounded-3xl` (24 px) + anneau `ring-danger/30` + `animate-in`, **9** `font-black`, titre `uppercase italic`, glyphe générique `Swords` + badge `Zap`, CTA `rounded-2xl` + `active:scale-95`. Les visuels réels existaient déjà : `calendar_raid_gigalodon.jpg` / `calendar_raid_sanctuaire.jpg` / `calendar_raid_official.png`, servis par `resolveEventImagePath` (source unique partagée avec les cartes du calendrier).
+> **Fait** : carte en `rounded-xl` + `border-border`, anneau et animation d'entrée retirés ; **image réelle du raid** (`metadata.raidType`, repli `calendar_raid_official.png`) à la place du glyphe ; casse normale + `font-bold`/`font-semibold` (0 `font-black`, 0 italique, 0 majuscules décoratives) ; un seul accent (`danger`) ; barre de remplissage neutre ; CTA au gabarit du bouton (`rounded-md`) sans micro-animation.
+> **Preuves** : `dashboard-raid-hero-charte` **7/7** · suite **5 878 tests ✓** · `tsc` 0 · ESLint 0 erreur.
+> **Suite (même session) — le registre quitte le raid.** Verbatim : « je comprends pas pk le registre de présence est dans le raid ? et ps juste un onglet quand dans chaque modale détail membre coté gestion membre staff ? on garde évidemment le dropdown de choix présent, excusé, non présent (renomme no show?) pour le créateur du raid ? ». **Fait** : le bloc « Registre de présence (staff) » est **retiré** de la modale de clôture (elle ne garde que le `select` de motif par inscrit, pour le créateur) ; `getRaidPresenceRegister` → **`getMemberRaidPresence`** (par membre, garde `canManageMembers` / `canManageRaid` / admin, filtré par `guildId` serveur) ; **onglet « Présences »** dans `member-detail-dialog.tsx` (`member-raid-presence.tsx` : compteur 90 jours + liste datée + correction d'officier) ; libellé **« Non présent »** à l'écran (l'enum garde `NO_SHOW`, **aucune migration**). Preuves : `raid-presence` **21/21**, `member-raid-presence` **4/4**, `raid-modal-charte` **9/9** · `tsc` 0.
+> **Reste / ops** : rien à jouer hormis la bêta habituelle ; **B11/B12 soldés** (PR #1182), **D7** (notification d'annulation) toujours ouvert (interface publique Discord ⇒ accord avant) ; ROADMAP non touché.
+> **Rotation** : bloc « 30/10 (suite 5) — Contenu fantôme : un partant ne laisse plus de groupe orphelin » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 31/10/2026 (suite 10) — **Modale raid : charte mesurée et corrigée (B11/B12)** — branche `fix/raid-modal-charte`
 
 > **Demande user (verbatim)** : « **Reste** : **B11/B12** (charte + responsive de la modale, à re-mesurer avant d'y toucher) et **D7** ».

@@ -15,6 +15,7 @@ import {
     summarizeRaidPresence,
     validateRaidAbsences,
     RAID_ABSENCE_DEFAULT,
+    RAID_PRESENCE_LABELS,
     RAID_PRESENCE_RETENTION_DAYS,
 } from "@/lib/raid-presence";
 
@@ -141,6 +142,10 @@ describe("attestation et compteur 90 jours", () => {
         });
     });
 
+    it("« non présent » remplace « no-show » à l'écran (le code garde NO_SHOW)", () => {
+        expect(RAID_PRESENCE_LABELS.NO_SHOW).toBe("Non présent");
+    });
+
     it("la purge garde 90 jours pleins", () => {
         const now = new Date("2026-10-31T12:00:00Z");
         const cutoff = raidPresenceRetentionCutoff(now);
@@ -161,9 +166,9 @@ describe("câblage serveur (garde de source)", () => {
         expect(undo).toContain("db.raidPresence.deleteMany");
     });
 
-    it("le registre exige une permission de staff (jamais un membre)", () => {
-        const register = actions.slice(actions.indexOf("export async function getRaidPresenceRegister"));
-        expect(register).toMatch(/canManageRaid[\s\S]*Permission insuffisante/);
+    it("les présences d'un membre sont staff-only (jamais un membre lambda)", () => {
+        const member = actions.slice(actions.indexOf("export async function getMemberRaidPresence"));
+        expect(member).toMatch(/canManageMembers[\s\S]*Permission insuffisante/);
     });
 
     it("la correction d'un statut est réservée à l'officier et auditée", () => {

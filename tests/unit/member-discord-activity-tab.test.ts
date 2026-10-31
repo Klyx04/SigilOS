@@ -70,13 +70,14 @@ describe("fiche membre — panneau d'activité Discord", () => {
 });
 
 describe("fiche membre — onglet dans la modale", () => {
-    it("barre d'onglets Fiche / Activité Discord, fiche par défaut", () => {
+    it("barre d'onglets Fiche / Activité Discord / Présences, fiche par défaut", () => {
         const src = read(DIALOG);
         expect(src).toContain('role="tablist"');
         expect(src).toContain('role="tab"');
         expect(src).toContain("Activité Discord");
-        expect(src).toContain('"fiche" | "discord"');
-        expect(src).toContain('useState<"fiche" | "discord">("fiche")');
+        // R1 (31/10/2026) : un troisième onglet « Présences » s'ajoute — le type reste borné.
+        expect(src).toContain('"fiche" | "discord" | "presences"');
+        expect(src).toContain('useState<"fiche" | "discord" | "presences">("fiche")');
     });
 
     it("panneau monté seulement sur l'onglet (sujet de la fiche transmis)", () => {

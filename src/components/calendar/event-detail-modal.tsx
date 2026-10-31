@@ -70,14 +70,13 @@ import { ClassIcon } from "@/components/shared/class-icon";
 import { RegistrationModal } from "./registration-modal";
 import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 import { getMissionsByIds } from "@/server/actions/mission-actions";
-import { kickParticipant, transferRaidCaptaincy, setEventStandBy, getRaidPresenceRegister, correctRaidPresence } from "@/server/actions/calendar-actions";
+import { kickParticipant, transferRaidCaptaincy, setEventStandBy } from "@/server/actions/calendar-actions";
 import {
     RAID_ABSENCE_DEFAULT,
     RAID_ABSENCE_REASONS,
     RAID_PRESENCE_LABELS,
     buildRaidClosureAttestation,
     type RaidAbsenceReason,
-    type RaidPresenceStatus,
 } from "@/lib/raid-presence";
 import { isStandByActive, standByAuthorName } from "@/lib/group-standby";
 import { useRaidOverlay } from "@/hooks/use-raid-overlay";
@@ -256,11 +255,6 @@ interface EventDetailModalProps {
     } | null;
     /** Personnages Dofus du membre (« Mes personnages » des modales d'inscription). */
     myCharacters?: { main: string | null; secondaries: string[] };
-    /**
-     * Officier de raid (`RAID_OFFICER`) : ouvre la **correction** du registre de présence.
-     * Le registre lui-même (lecture) reste staff-only côté serveur (R1, décision D3).
-     */
-    canManageRaid?: boolean;
     /** Change MA classe sur cet événement (même règle serveur que le menu classe Discord). */
     onMyClassChange?: (classe: string) => Promise<void>;
     currentProfileId?: string;
@@ -296,7 +290,6 @@ export function EventDetailModal({
     donationsEnabled = true,
     raidEligibility = null,
     myCharacters,
-    canManageRaid = false,
     onMyClassChange,
     currentProfileId,
     onRefresh,
@@ -319,15 +312,6 @@ export function EventDetailModal({
     const [confirmRaidComplete, setConfirmRaidComplete] = useState(false);
     // R1 « no-show » : motif de chaque inscrit **décoché** (défaut « Prévenu », consigne §14).
     const [absenceReasons, setAbsenceReasons] = useState<Record<string, RaidAbsenceReason>>({});
-    // Registre de présence (staff seul) — chargé à l'ouverture du bloc, jamais pour un membre.
-    const [register, setRegister] = useState<{
-        rows: { userId: string; name: string; status: RaidPresenceStatus; updatedAt: string }[];
-        summary: { present: number; absent: number; warned: number; excused: number; noShows: number };
-        retentionDays: number;
-    } | null>(null);
-    const [showRegister, setShowRegister] = useState(false);
-    const [registerLoading, setRegisterLoading] = useState(false);
-    const [correctingUserId, setCorrectingUserId] = useState<string | null>(null);
     const { openRaidOverlay } = useRaidOverlay();
 
     const eventMetadata = (event as any)?.metadata as any;
@@ -377,31 +361,9 @@ export function EventDetailModal({
         }
     }, [event?.type, missionIds]);
 
-    // R1 — registre de présence : chargé **à la demande** (bloc ouvert) et réservé au staff.
-    // Un membre ne déclenche jamais cet appel (le bouton n'existe pas pour lui) et le serveur
-    // re-vérifie la permission de toute façon.
-    const canReadRegister = canManageRaid || isAdmin || canManage;
-    useEffect(() => {
-        if (!showRegister || !canReadRegister || !event?.id) return;
-        let cancelled = false;
-        setRegisterLoading(true);
-        getRaidPresenceRegister(guildId, event.id)
-            .then((res) => {
-                if (cancelled) return;
-                if (res.success && res.rows && res.summary) {
-                    setRegister({
-                        rows: res.rows,
-                        summary: res.summary,
-                        retentionDays: res.retentionDays ?? 90,
-                    });
-                } else {
-                    toast.error(res.error || "Registre illisible");
-                }
-            })
-            .catch(() => { if (!cancelled) toast.error("Registre illisible"); })
-            .finally(() => { if (!cancelled) setRegisterLoading(false); });
-        return () => { cancelled = true; };
-    }, [showRegister, canReadRegister, event?.id, guildId]);
+    // R1 — registre de présence : **déplacé** dans la fiche membre (onglet « Présences »).
+    // La modale de clôture ne garde que le motif par inscrit : le constat d'un raid n'est pas
+    // l'historique d'un joueur (décision du 31/10/2026).
 
     // Lot 2 — session live : visible par tous, pilotée par le lead seul
     // (créateur OU capitaine actuel). Hooks avant le return précoce ci-dessous.
@@ -1918,94 +1880,6 @@ export function EventDetailModal({
                                         })}
                                 </div>
                             </div>
-
-                            {/* R1 — registre de présence : **staff seul**. Un membre ne voit jamais
-                                ce bloc (décision D3 : aucune donnée de no-show publique). */}
-                            {canReadRegister && (
-                                <div className="space-y-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowRegister(v => !v)}
-                                        aria-expanded={showRegister}
-                                        className="w-full flex items-center justify-between p-2.5 rounded-lg border border-border bg-surface/50 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-                                    >
-                                        <span className="flex items-center gap-1.5">
-                                            <FileText className="h-3.5 w-3.5" /> Registre de présence (staff)
-                                        </span>
-                                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showRegister && "rotate-180")} />
-                                    </button>
-                                    {showRegister && (
-                                        <div className="rounded-lg border border-border p-3 space-y-2">
-                                            {registerLoading && (
-                                                <p className="text-caption text-muted-foreground">Chargement…</p>
-                                            )}
-                                            {register && (
-                                                <>
-                                                    <p className="text-caption text-muted-foreground">
-                                                        {register.retentionDays} derniers jours : {register.summary.present} présence
-                                                        {register.summary.present > 1 ? "s" : ""} · {register.summary.warned} prévenu
-                                                        {register.summary.warned > 1 ? "s" : ""} · {register.summary.excused} excusé
-                                                        {register.summary.excused > 1 ? "s" : ""} ·{" "}
-                                                        <span className="text-danger font-bold">
-                                                            {register.summary.noShows} no-show{register.summary.noShows > 1 ? "s" : ""}
-                                                        </span>
-                                                    </p>
-                                                    {register.rows.length === 0 ? (
-                                                        <p className="text-caption text-muted-foreground">
-                                                            Aucun registre pour ce raid : clôture antérieure à la mise en place du registre.
-                                                        </p>
-                                                    ) : (
-                                                        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-                                                            {register.rows.map((row) => (
-                                                                <div key={row.userId} className="flex items-center gap-2">
-                                                                    <span className="flex-1 text-xs text-foreground truncate">{row.name}</span>
-                                                                    {canManageRaid ? (
-                                                                        <select
-                                                                            aria-label={`Statut de présence — ${row.name}`}
-                                                                            value={row.status}
-                                                                            disabled={correctingUserId === row.userId}
-                                                                            onChange={async (e) => {
-                                                                                const next = e.target.value as RaidPresenceStatus;
-                                                                                setCorrectingUserId(row.userId);
-                                                                                const res = await correctRaidPresence(guildId, event.id, row.userId, next);
-                                                                                setCorrectingUserId(null);
-                                                                                if (res.success) {
-                                                                                    setRegister(prev => prev
-                                                                                        ? { ...prev, rows: prev.rows.map(r => r.userId === row.userId ? { ...r, status: next } : r) }
-                                                                                        : prev);
-                                                                                    toast.success("Présence corrigée");
-                                                                                } else {
-                                                                                    toast.error(res.error || "Correction impossible");
-                                                                                }
-                                                                            }}
-                                                                            className="h-8 px-2 rounded-md bg-background border border-border text-caption text-foreground focus:outline-none focus:border-danger/50"
-                                                                        >
-                                                                            {(["PRESENT", "PREVENU", "EXCUSE", "NO_SHOW"] as RaidPresenceStatus[]).map((status) => (
-                                                                                <option key={status} value={status}>{RAID_PRESENCE_LABELS[status]}</option>
-                                                                            ))}
-                                                                        </select>
-                                                                    ) : (
-                                                                        <span className={cn(
-                                                                            "text-caption font-bold uppercase",
-                                                                            row.status === "PRESENT"
-                                                                                ? "text-success"
-                                                                                : row.status === "NO_SHOW"
-                                                                                    ? "text-danger"
-                                                                                    : "text-muted-foreground",
-                                                                        )}>
-                                                                            {RAID_PRESENCE_LABELS[row.status]}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
 
                             {/* Confirmation checkbox */}
                             <div className="flex items-start gap-3 p-3 rounded-xl border border-danger/15 bg-danger/5">

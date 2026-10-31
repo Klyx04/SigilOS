@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Swords, Users, Clock, ArrowRight, Zap } from "lucide-react";
+import { Users, Clock, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { resolveEventImagePath } from "@/lib/calendar-event-images";
 
 interface RaidEvent {
     id: string;
@@ -12,6 +13,8 @@ interface RaidEvent {
     endDate: Date;
     location?: string | null;
     maxParticipants?: number | null;
+    /** `metadata.raidType` (`gigalodon` | `jardin`) choisit le **visuel réel** du raid. */
+    metadata?: unknown;
     _count?: { participants: number };
 }
 
@@ -52,45 +55,42 @@ export function RaidHeroBanner({
     const pad = (n: number) => String(n).padStart(2, "0");
 
     return (
-        <div className="relative overflow-hidden rounded-3xl border border-danger/20 bg-surface animate-in fade-in slide-in-from-top-4 duration-200">
-            <div className="absolute inset-0 rounded-3xl ring-1 ring-danger/30 pointer-events-none" />
-
-            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6 p-6 md:p-8">
-                {/* Icon + Status */}
-                <div className="flex items-center gap-4 shrink-0">
-                    <div className="relative">
-                        <div className="h-16 w-16 rounded-2xl bg-danger/10 border border-danger/30 flex items-center justify-center">
-                            <Swords className="w-8 h-8 text-danger" />
-                        </div>
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                            <span className="relative inline-flex rounded-full h-4 w-4 bg-danger items-center justify-center">
-                                <Zap className="w-2 h-2 text-foreground" />
-                            </span>
-                        </span>
-                    </div>
+        <div className="relative overflow-hidden rounded-xl border border-border bg-surface">
+            <div className="relative flex flex-col md:flex-row items-start md:items-center gap-5 p-5 md:p-6">
+                {/* Visuel **réel** du raid — même source que les cartes du calendrier
+                    (`resolveEventImagePath`), jamais un glyphe générique. */}
+                <div className="flex items-center gap-3 shrink-0">
+                    <img
+                        src={resolveEventImagePath("RAID_OFFICIAL", raid.metadata)}
+                        alt=""
+                        width={56}
+                        height={56}
+                        className="h-14 w-14 rounded-lg border border-border object-cover"
+                        onError={(e) => { e.currentTarget.src = "/assets/calendar/calendar_raid_official.png"; }}
+                    />
                     <div className="md:hidden">
-                        <span className="text-caption font-black uppercase tracking-widest text-danger block">Raid Officiel</span>
-                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">En cours maintenant</span>
+                        <span className="text-caption font-semibold text-danger block">Raid officiel</span>
+                        <span className="text-xs text-muted-foreground">En cours</span>
                     </div>
                 </div>
 
                 {/* Main Content */}
                 <div className="flex-1 min-w-0 space-y-3">
                     <div className="hidden md:block">
-                        <span className="text-caption font-black uppercase tracking-widest text-danger">Raid Officiel · En cours</span>
+                        <span className="text-caption font-semibold text-danger">Raid officiel · en cours</span>
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-black tracking-tight text-foreground uppercase italic leading-tight">
+                    <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground leading-tight">
                         {raid.title}
                     </h2>
 
-                    <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                         {raid.location && (
                             <span className="flex items-center gap-1.5">
                                 <span className="w-1.5 h-1.5 rounded-full bg-muted" />
                                 {raid.location}
                             </span>
                         )}
-                        <span className="flex items-center gap-1.5 text-danger/80">
+                        <span className="flex items-center gap-1.5">
                             <Users className="w-3.5 h-3.5" />
                             {participants}{maxParts ? `/${maxParts}` : ""} participants
                         </span>
@@ -99,13 +99,13 @@ export function RaidHeroBanner({
                     {/* Participant Fill Bar */}
                     {fillPct !== null && (
                         <div className="w-full max-w-xs space-y-1">
-                            <div className="h-1.5 bg-surface rounded-full overflow-hidden">
+                            <div className="h-1.5 bg-elevated rounded-sm overflow-hidden">
                                 <div
-                                    className="h-full bg-danger rounded-full transition-colors duration-200"
+                                    className="h-full bg-danger transition-colors duration-200"
                                     style={{ width: `${fillPct}%` }}
                                 />
                             </div>
-                            <p className="text-caption text-muted-foreground font-bold uppercase tracking-widest">
+                            <p className="text-caption text-muted-foreground">
                                 {fillPct >= 100 ? "Raid complet" : `${Math.round(fillPct)}% de places prises`}
                             </p>
                         </div>
@@ -116,36 +116,31 @@ export function RaidHeroBanner({
                 <div className="flex flex-col items-start md:items-end gap-4 shrink-0">
                     {countdown ? (
                         <div className="flex flex-col items-start md:items-end gap-1">
-                            <span className="text-caption font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                            <span className="text-caption font-semibold text-muted-foreground flex items-center gap-1.5">
                                 <Clock className="w-3 h-3" />
                                 Se termine dans
                             </span>
                             <div className="flex items-center gap-1 font-mono">
                                 {countdown.h > 0 && (
                                     <>
-                                        <span className="text-2xl font-black text-danger tabular-nums">{pad(countdown.h)}</span>
-                                        <span className="text-sm text-muted-foreground font-black">h</span>
+                                        <span className="text-2xl font-semibold text-danger tabular-nums">{pad(countdown.h)}</span>
+                                        <span className="text-sm text-muted-foreground font-medium">h</span>
                                     </>
                                 )}
-                                <span className="text-2xl font-black text-danger tabular-nums">{pad(countdown.m)}</span>
-                                <span className="text-sm text-muted-foreground font-black">m</span>
-                                <span className="text-2xl font-black text-danger tabular-nums">{pad(countdown.s)}</span>
-                                <span className="text-sm text-muted-foreground font-black">s</span>
+                                <span className="text-2xl font-semibold text-danger tabular-nums">{pad(countdown.m)}</span>
+                                <span className="text-sm text-muted-foreground font-medium">m</span>
+                                <span className="text-2xl font-semibold text-danger tabular-nums">{pad(countdown.s)}</span>
+                                <span className="text-sm text-muted-foreground font-medium">s</span>
                             </div>
                         </div>
                     ) : (
-                        <span className="text-caption font-black text-muted-foreground uppercase tracking-widest">Raid terminé</span>
+                        <span className="text-caption font-semibold text-muted-foreground">Raid terminé</span>
                     )}
 
-                    <Button
-                        asChild
-                        className="h-11 bg-danger hover:bg-danger text-danger-foreground font-black px-6 rounded-2xl group/btn transition-colors active:scale-95"
-                    >
+                    <Button asChild className="bg-danger text-danger-foreground hover:bg-danger/90">
                         <Link href={`/dashboard/${guildId}/calendar?event=${raid.id}`}>
-                            <span className="flex items-center gap-2">
-                                Voir le Raid
-                                <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                            </span>
+                            Voir le raid
+                            <ArrowRight className="size-4" />
                         </Link>
                     </Button>
                 </div>

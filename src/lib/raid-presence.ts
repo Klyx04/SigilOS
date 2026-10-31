@@ -35,7 +35,7 @@ export const RAID_PRESENCE_LABELS: Record<RaidPresenceStatus, string> = {
     PRESENT: "Présent",
     PREVENU: "Prévenu",
     EXCUSE: "Excusé",
-    NO_SHOW: "No-show",
+    NO_SHOW: "Non présent",
 };
 
 /** Décision D5 du 31/10/2026 : on garde 90 jours, pas plus. */

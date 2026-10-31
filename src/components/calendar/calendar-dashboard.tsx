@@ -699,7 +699,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 currentProfileId={currentProfileId}
                 guildId={guildId}
                 canManage={canManage}
-                canManageRaid={canManageRaid}
                 isAdmin={isAdmin}
                 discordChannels={discordChannels}
                 discordRoles={discordRoles}

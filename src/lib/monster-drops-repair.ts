@@ -260,14 +260,19 @@ export async function removeEmptyDuplicateRows(
  * requêtes/minute c'est un travail de plusieurs passes, jamais un blocage du site.
  */
 export interface DiscoverMonsterFichesOptions {
-    db: { monster: { findMany(args: unknown): Promise<{ id: number; name: string }[]> } };
+    db: { monster: { findMany(args: unknown): Promise<{ id: string; name: string }[]> } };
     /** `getMonsterStats` par nom (sans id : c'est l'id DofusDB qui fait foi). */
     fetchStats: (name: string) => Promise<{ success: boolean; data?: any; error?: string }>;
     persist: (data: any) => Promise<void>;
     /** Noms **déjà servis** par une fiche complète (chargés une fois par l'appelant). */
     knownNames: ReadonlySet<string>;
     limit?: number;
-    afterId?: number;
+    /**
+     * Curseur de reprise = dernier `Monster.id` traité. ⚠️ `Monster.id` est un **`String`**
+     * (cuid, ordonnable) : un curseur numérique faisait échouer la lecture Prisma (mesure du
+     * 31/10/2026 : « 0 monstre interrogé », erreur avalée).
+     */
+    afterCursor?: string;
 }
 
 export interface DiscoverMonsterFichesReport {
@@ -277,8 +282,8 @@ export interface DiscoverMonsterFichesReport {
     skippedUnity: number;
     failed: number;
     deferred: boolean;
-    /** Curseur à repasser en `afterId` : dernier id **traité avec succès**. */
-    lastId: number;
+    /** Curseur à repasser en `afterCursor` : dernier id **traité avec succès** ("" = fin). */
+    lastCursor: string;
     details: string[];
 }
 
@@ -290,8 +295,7 @@ export async function discoverMonsterFiches(
 ): Promise<DiscoverMonsterFichesReport> {
     const rawLimit = Number(options.limit);
     const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : DISCOVER_FICHES_DEFAULT_LIMIT;
-    const rawAfter = Number(options.afterId);
-    const afterId = Number.isFinite(rawAfter) && rawAfter > 0 ? Math.floor(rawAfter) : 0;
+    const afterCursor = typeof options.afterCursor === "string" ? options.afterCursor.trim() : "";
 
     const report: DiscoverMonsterFichesReport = {
         scanned: 0,
@@ -300,14 +304,14 @@ export async function discoverMonsterFiches(
         skippedUnity: 0,
         failed: 0,
         deferred: false,
-        lastId: afterId,
+        lastCursor: afterCursor,
         details: [],
     };
 
-    let rows: { id: number; name: string }[] = [];
+    let rows: { id: string; name: string }[] = [];
     try {
         rows = await options.db.monster.findMany({
-            where: { id: { gt: afterId } },
+            where: afterCursor ? { id: { gt: afterCursor } } : {},
             orderBy: { id: "asc" },
             take: limit,
             select: { id: true, name: true },
@@ -318,7 +322,7 @@ export async function discoverMonsterFiches(
     }
 
     // Le curseur n'avance **qu'après** un monstre traité (sinon une reprise sauterait le fautif).
-    let cursor = afterId;
+    let cursor = afterCursor;
     for (const row of rows ?? []) {
         if (!row || typeof row.name !== "string" || !row.name.trim()) {
             cursor = row?.id ?? cursor;
@@ -374,7 +378,7 @@ export async function discoverMonsterFiches(
         }
     }
 
-    report.lastId = cursor;
+    report.lastCursor = cursor;
     return report;
 }
 

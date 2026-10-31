@@ -250,8 +250,8 @@ async function runDiscover(db: PrismaClient, apply: boolean, args: string[]) {
     const lotArg = args.find((a) => a.startsWith("--lot="));
     const lot = Number(lotArg?.split("=")[1] ?? 200);
     const apresArg = args.find((a) => a.startsWith("--apres="));
-    let afterId = Number(apresArg?.split("=")[1] ?? 0);
-    if (!Number.isFinite(afterId) || afterId < 0) afterId = 0;
+    // `Monster.id` est un cuid (String) : le curseur est **texte**, jamais un nombre.
+    let afterCursor = (apresArg?.slice("--apres=".length) ?? "").trim();
 
     const { discoverMonsterFiches } = await import("@/lib/monster-drops-repair");
     const { getMonsterStats } = await import("@/lib/monster-stats-core");
@@ -267,6 +267,7 @@ async function runDiscover(db: PrismaClient, apply: boolean, args: string[]) {
 
     const maxRounds = apply ? 30 : 1;
     const totals = { scanned: 0, created: 0, skippedUnity: 0, failed: 0 };
+    const details: string[] = [];
     let deferred = false;
     let rounds = 0;
 
@@ -276,7 +277,7 @@ async function runDiscover(db: PrismaClient, apply: boolean, args: string[]) {
             db: db as unknown as Parameters<typeof discoverMonsterFiches>[0]["db"],
             knownNames,
             limit: Number.isFinite(lot) && lot > 0 ? lot : 200,
-            afterId,
+            afterCursor: afterCursor || undefined,
             fetchStats: (name) => getMonsterStats(name, undefined, true, undefined, "fr", { persist: apply }),
             persist: apply ? persistMonsterStat : async () => {},
         });
@@ -285,7 +286,10 @@ async function runDiscover(db: PrismaClient, apply: boolean, args: string[]) {
         totals.skippedUnity += report.skippedUnity;
         totals.failed += report.failed;
         deferred = report.deferred;
-        afterId = report.lastId;
+        afterCursor = report.lastCursor;
+        for (const line of report.details) {
+            if (details.length < 20 && !details.includes(line)) details.push(line);
+        }
         if (!report.deferred || round === maxRounds) break;
         const waitMs = throttleWaitMs() + 1_000;
         console.log(`⏳ Budget DofusDB épuisé — pause ${Math.ceil(waitMs / 1000)} s puis reprise (tour ${round + 1}/${maxRounds})`);
@@ -298,7 +302,8 @@ async function runDiscover(db: PrismaClient, apply: boolean, args: string[]) {
             + (rounds > 1 ? ` · ${rounds} tours` : "")
             + (deferred ? "\n⏳ Budget toujours fermé : relancer la même commande." : "")
     );
-    console.log(`👉 reprise : --apres=${afterId}${apply ? "" : " --apply"}`);
+    for (const line of details) console.log(`  · ${line}`);
+    console.log(`👉 reprise : --apres=${afterCursor || "(fin)"}${apply ? "" : " --apply"}`);
 }
 
 

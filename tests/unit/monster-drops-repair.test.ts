@@ -68,12 +68,13 @@ describe("removeEmptyDuplicateRows — doublons vides (mesure du 31/10/2026)", (
 });
 
 describe("discoverMonsterFiches — bestiaire jamais siphonné", () => {
-    const catalogue = (entries: [number, string][]) => entries.map(([id, name]) => ({ id, name }));
+    // `Monster.id` est un cuid (String) : le curseur est un texte, jamais un nombre.
+    const catalogue = (entries: [string, string][]) => entries.map(([id, name]) => ({ id, name }));
 
     it("crée la fiche d'un nom inconnu, saute un nom déjà servi, avance le curseur", async () => {
         const persist = vi.fn().mockResolvedValue(undefined);
         const fetchStats = vi.fn().mockResolvedValue({ success: true, data: { id: 11, name: "Nouveau", drops: DROPS } });
-        const db = { monster: { findMany: vi.fn().mockResolvedValue(catalogue([[10, "Connu"], [11, "Nouveau"], [12, "Autre"]])) } };
+        const db = { monster: { findMany: vi.fn().mockResolvedValue(catalogue([["c10", "Connu"], ["c11", "Nouveau"], ["c12", "Autre"]])) } };
         const report = await discoverMonsterFiches({
             db,
             fetchStats,
@@ -83,7 +84,7 @@ describe("discoverMonsterFiches — bestiaire jamais siphonné", () => {
         });
         expect(report.skippedKnown).toBe(1);
         expect(report.created).toBe(2);
-        expect(report.lastId).toBe(12);
+        expect(report.lastCursor).toBe("c12");
         expect(fetchStats).toHaveBeenCalledTimes(2);
         expect(persist).toHaveBeenCalledTimes(2);
     });
@@ -94,17 +95,17 @@ describe("discoverMonsterFiches — bestiaire jamais siphonné", () => {
             success: true,
             data: { id: 21, name: "Bloqué", drops: [], source: "unity", degraded: "quota" },
         });
-        const db = { monster: { findMany: vi.fn().mockResolvedValue(catalogue([[21, "Bloqué"], [22, "Suivant"]])) } };
+        const db = { monster: { findMany: vi.fn().mockResolvedValue(catalogue([["c21", "Bloqué"], ["c22", "Suivant"]])) } };
         const report = await discoverMonsterFiches({
             db,
             fetchStats,
             persist,
             knownNames: new Set(),
             limit: 10,
-            afterId: 20,
+            afterCursor: "c20",
         });
         expect(report.deferred).toBe(true);
-        expect(report.lastId).toBe(20);      // on reprendra sur 21, pas 22
+        expect(report.lastCursor).toBe("c20");   // on reprendra sur c21, pas c22
         expect(report.created).toBe(0);
         expect(fetchStats).toHaveBeenCalledTimes(1);
         expect(persist).not.toHaveBeenCalled();

@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 31/10/2026 (suite 9) — **R1 « no-show » livré : le registre de présence existe** — branche `feat/raid-cloture-noshow`
+
+> **Demande user (verbatim)** : « go r1 one shot » — c'est l'accord migration ; les cinq arbitrages ont été pris selon les recommandations présentées en session (D3 staff seul · D4 aucune note libre · D5 90 j · D6 aucun message Discord supplémentaire · D7 reportée).
+> **Mesures** : `RaidPresence` **absente** du schéma, **289** migrations avant ce lot ; la présence ne vivait que dans `GuildEvent.metadata.raidPresentUserIds` (JSON **non requêtable**) ; `completeRaidEvent` **ne vérifiait pas** que les présents étaient inscrits (un identifiant hors roster était crédité) ; `AMORCE-RAID` portait **5 affirmations périmées** (migration attribuée à L3, D3/D4 « à trancher », numérotation D3→D7 divergente).
+> **Fait** : ① **migration 290** `20270123000000_raid_presence` (table + enum, additive et idempotente, écrite à la main) et modèle `RaidPresence` (unique `eventId+userId`, index `guildId+createdAt`, cascades) ; ② règle pure `src/lib/raid-presence.ts` (motifs bornés par Zod, **un statut par inscrit**, refus d'un présent hors inscrits, attestation chiffrée, rétention 90 j) ; ③ `completeRaidEvent` : motif **obligatoire** dès la décoche, registre écrit **dans la même transaction** que la clôture, présents **résolus côté serveur**, RBAC élargi au **capitaine** et à `RAID_OFFICER` ; ④ `undoCompleteRaidEvent` **efface** le registre (retour exact d'avant) ; ⑤ `getRaidPresenceRegister` (**staff seul**) + `correctRaidPresence` (officier, audit `RAID_PRESENCE_CORRECTED`, garde d'état dans le `WHERE`, rate limit) ; ⑥ modale : `select` de motif dès la décoche (défaut « Prévenu »), validation bloquante (score + motifs), attestation chiffrée, bloc registre staff avec correction ; ⑦ docs : `PLAN-RAID` **D3→D7 tranchées**, `AMORCE-RAID` L2 **livré**.
+> **Preuves** : `raid-presence` **20/20** (garde de câblage comprise) · `calendar-raid-closure-and-reminders` **13/13** (garde RBAC **durcie**, pas affaiblie) · suite **556 fichiers / 5 862 tests ✓** · `tsc` 0 · `npx prisma migrate status` : **290 migrations**, « Database schema is up to date! ».
+> **Reste / ops** : ① `./scripts/deploy-cd.sh beta` joue la **migration 290** (elle passe avec le déploiement) ; ② **B11/B12** (charte + responsive de `event-detail-modal.tsx`) toujours **à re-mesurer** ; ③ **D7** (notification d'annulation) = lot séparé ; ④ prod : PR `dev` → `main` puis `deploy-cd.sh prod` ; ⑤ **ROADMAP non touché** (fichier tenu par `limite-guildes`, 60 927 o / 61 440).
+> **Rotation** : bloc « 30/10 (suite 3) — Présentation : plus aucune image hors upload contrôlé » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 31/10/2026 (suite 8) — **Réparation des fiches : plus de compteur fantôme** — branche `fix/rapport-reparation-honnete`
 
 > **Demande user (verbatim)** : « enchaine » (après l'état mesuré du 31/10 : `dev` = `5ec7cd8d`, chaîne butins #1172→#1178 mergée, aucune migration).
@@ -56,14 +66,6 @@
 > **Rotation** : bloc « 29/10 (suite 2) — Élevage 3.7 » sorti (7ᵉ).
 
 
-## 📝 Session 30/10/2026 (suite 3) — **Présentation : plus aucune image hors upload contrôlé** — branche `fix/presentation-images-controlees`
 
-> **Demandes user (verbatim)** : « on laisse un trou ici l'éditeur markdown permet l'import d'image > pas normal on doit controler tout upload sur le Dashboard » · « autre pb similaire ailleurs à creuser ? ».
-> **Mesure (cause racine)** : `AdvancedEditor` (TipTap) laissait trois portes — ① `window.prompt` d'une **URL libre** → `<img src="https://…">` ; ② `allowBase64: true` → un collage HTML/data URI survit ; ③ le bouton et le slash « Image » appellent `/api/upload`, qui est **super-admin** : un admin de guilde n'avait donc que les deux premières. Côté serveur, `sanitizeHtml(…, strict=false)` conserve `<img>` ⇒ le règlement enregistrait l'image telle quelle.
-> **Fait** : ① règle pure `isControlledImageSrc` (`src/lib/content-images.ts`) — seuls `/uploads/`, `/images/`, `/assets/`, `/game-data/` passent (`http(s)`, `//`, `data:`, `blob:`, `javascript:` refusés) ; ② éditeur : `allowBase64: false`, URL validée + toast, collage HTML filtré (`transformPastedHTML`), dépôt et slash « Image » coupés par `enableImages` ; ③ **règlement de guilde** : `enableImages={false}` + mention, et le serveur retire toute image (`sanitizeInternalRules` → `forbidTags: ["img"]`), même si l'action est appelée directement ; ④ `sanitizeHtml` gagne une option `forbidTags` (additive, défaut inchangé).
-> **Preuves** : verrou neuf `presentation-contenu-images` **27/27** (règle `src`, `<img>` distant + base64 retirés, mise en forme et liens conservés, borne 20 k, câblage éditeur + serveur) ; verrou existant `presentation-reglement-interne` **mis à jour sans affaiblissement** (borne + `forbidTags` dans la lib pure) · suite **539 fichiers / 5 671 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
-> **Audit des autres uploads (mesuré)** : `/api/upload` (super-admin, 5 Mo, MIME + magic bytes + sharp, 10/min) · `uploadGuildImage` (étendard/photo, membre + 15/min) · `uploadProofImage` (preuves, membre + 20/min) · `/api/god/upload-image` et `/api/god/download-image` (super-admin, Zod, SSRF `assertSafeUrl`, 10 Mo). **Aucun autre trou** : seul l'éditeur riche écrivait une image hors de ces pipelines (God docs/changelog/bounty héritent de la correction) ; `poll.description` est rendu en **texte**, pas en HTML.
-> **Reste / ops** : rien à jouer (aucune migration) ; une image déjà présente dans un règlement disparaît à son prochain enregistrement (voulu).
-> **Rotation** : bloc « 29/10 — Sauvegarde R2 » sorti (7ᵉ).
 
 

@@ -377,7 +377,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
             delete (window as any).__raidCompletionData;
             const result = await completeRaidEvent(guildId, selectedEventId, raidData);
             if (result.success) {
-                toast.success(`Raid clôturé ! ${result.rewarded} joueur(s) récompensé(s)${result.score ? ` — Score : ${result.score}` : ""}`);
+                const noShows = "noShows" in result && typeof result.noShows === "number" ? result.noShows : 0;
+                toast.success(
+                    `Raid clôturé ! ${result.rewarded} joueur(s) récompensé(s)`
+                    + (result.score ? ` — Score : ${result.score}` : "")
+                    + (noShows > 0 ? ` — ${noShows} no-show${noShows > 1 ? "s" : ""} enregistré${noShows > 1 ? "s" : ""}` : ""),
+                );
                 fetchEventDetails(selectedEventId);
                 fetchEvents();
             } else {
@@ -694,6 +699,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 currentProfileId={currentProfileId}
                 guildId={guildId}
                 canManage={canManage}
+                canManageRaid={canManageRaid}
                 isAdmin={isAdmin}
                 discordChannels={discordChannels}
                 discordRoles={discordRoles}

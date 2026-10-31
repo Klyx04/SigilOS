@@ -83,8 +83,10 @@ enregistré. Ne pas les redécrire ici.
 > ✅ **Livré le 30/10/2026 — PR #1170** : **F1 → F5 + B13**. Règle pure `src/lib/raid-closure-rules.ts`
 > (`assertRaidClosureRoute`, `validateRaidClosureInput` borné, `shouldRepublishAfterUndo`,
 > `buildRaidUndoMetadata`), verrou `tests/unit/raid-closure-rules.test.ts` (**10 cas**), **aucune migration**.
-> **Restent** : **B11/B12** (à re-mesurer, lot UI) · le no-show de **R1** (table `RaidPresence` ⇒ migration,
-> arrêt + accord) · les décisions **D1 → D7** ci-dessous.
+> **Restent** : **B11/B12** (à re-mesurer, lot UI) · ~~le no-show de **R1**~~ ⇒ ✅ **livré le 31/10/2026**
+> (migration 290 `20270123000000_raid_presence`, règle `src/lib/raid-presence.ts`) · les décisions
+> **D3 → D7** sont **tranchées** (tableau plus bas). **Reste ouvert** : **D7** (notification
+> d'annulation = B3), hors du registre.
 
 > **Source** : audit « Opus 4.6 » du 30/10/2026 (fichier volatile `src/temp/debug.md`, **écrasé depuis** par un
 > log de déploiement bêta — le contenu utile est **reconstitué ici**, il n'existe nulle part ailleurs).
@@ -135,14 +137,15 @@ le chemin générique, quatre audits écrits. **Aucune migration** ⇒ pas d'arr
 |---|---|---|
 | **D1** | Facteur Kamas Violets : `*10` (**1426**) vs `*10 000` (**733**) | ✅ **tranché le 30/10/2026** — **1 tranche de 10 000 kamas = 10 🟣** : don hebdomadaire `tranches × 10 000 k`, bourse et coût de clôture `tranches × 10 🟣`. Aucun calcul à changer : seul le **libellé** de trésorerie était faux (PR #1171). |
 | **D2** | Stocker `raidPurpleKamasCost` à la clôture (déjà fait **1438**) | ✅ **tranché le 30/10/2026** — l'undo ne rend **que** le coût réellement enregistré, sinon **0** (`resolveUndoRefundPurpleKamas` ; plus de repli `?? 30` inventé). PR #1171. |
-| **D3** | Visibilité du registre de présence (staff seul ou tous les membres) | **ouvert** — l'audit avait tranché, son texte est **perdu** (volatile écrasé) : à réarbitrer |
-| **D4** | Note libre du joueur sur sa présence | **ouvert** — même cause |
-| **D5** | Rétention des présences (index 90 j) | **ouvert** — même cause |
-| **D6** | Résumé Discord de clôture | **ouvert** — même cause |
-| **D7** | Notification d'annulation aux inscrits (B3) | **ouvert** — même cause |
+| **D3** | Visibilité du registre de présence (staff seul ou tous les membres) | ✅ **tranché le 31/10/2026** — **staff seul** : lecture et correction derrière `canManageRaid` / admin / gestion du calendrier, **jamais** côté membre ni dans un embed. Verrou : `tests/unit/raid-presence.test.ts` (« le registre exige une permission de staff »). |
+| **D4** | Note libre du joueur sur sa présence | ✅ **tranché le 31/10/2026** — **pas de note libre en V1** : texte utilisateur à borner, à modérer et à afficher nulle part pour aucun besoin exprimé. Si le besoin apparaît : colonne bornée, visible staff seul. |
+| **D5** | Rétention des présences (index 90 j) | ✅ **tranché le 31/10/2026** — **90 jours** (`RAID_PRESENCE_RETENTION_DAYS`), index `(guildId, createdAt)` pour le compteur glissant et la purge (`raidPresenceRetentionCutoff`). |
+| **D6** | Résumé Discord de clôture | ✅ **tranché le 31/10/2026** — **aucun message Discord supplémentaire** : la clôture supprime déjà l'embed (F1) ; le résumé chiffré vit dans l'**attestation de la modale** et dans l'**audit** (`RAID_CLOSED` porte présents / absents / no-shows). |
+| **D7** | Notification d'annulation aux inscrits (B3) | ⏳ **reste ouvert** — hors du registre de présence : à traiter dans son propre lot (édition de l'embed existant, **sans mention de masse**). |
 
-> ⚠️ **D3 → D7** : seuls les **titres** subsistent (index de l'audit, fichier volatile supprimé depuis). Leurs
-> arbitrages ne se devinent pas : ils se tranchent avec le mainteneur **avant** R1, et s'écrivent ici.
+> ✅ **D3 → D7 tranchées le 31/10/2026** (accord mainteneur « go r1 one shot ») : D3 **staff seul**, D4
+> **aucune note libre**, D5 **90 jours**, D6 **aucun message Discord supplémentaire**, D7 **reportée**
+> dans son propre lot. Elles s'écrivent ici, jamais ailleurs.
 
 ## 3. R2 — Modale raid « strat » + guides internes (consigne §20, `[S/M]`)
 

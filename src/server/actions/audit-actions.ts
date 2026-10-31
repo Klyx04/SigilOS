@@ -91,6 +91,7 @@ export type AuditAction =
     | "EVENT_DELETED"           // Suppression définitive
     | "RAID_CLOSED"             // Clôture raid (score + présents sélectionnés)
     | "RAID_CLOSURE_UNDONE"     // Annulation de clôture raid (remboursement XP + Kamas)
+    | "RAID_PRESENCE_CORRECTED" // Correction d'un statut de présence par un officier (R1)
     // Verrou God d'un module par guilde (fiche guilde `/god/guilds/[id]`)
     | "GOD_MODULE_LOCK";
 

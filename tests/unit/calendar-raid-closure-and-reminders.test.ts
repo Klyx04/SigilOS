@@ -29,9 +29,16 @@ describe("1. Permissions de clôture, annulation et suppression par le créateur
         expect(CALENDAR_ACTIONS).toContain("eventMessageKey(eventId)");
     });
 
-    it("completeRaidEvent permet au créateur ou à l'admin de clôturer son raid", () => {
+    it("completeRaidEvent permet au capitaine, à l'officier de raid, au créateur ou à l'admin de clôturer", () => {
         const raidFn = CALENDAR_ACTIONS.slice(CALENDAR_ACTIONS.indexOf("export async function completeRaidEvent"));
-        expect(raidFn).toContain("const canComplete = ctx.isAdmin || ctx.canManageCalendar || event.creatorId === ctx.id");
+        // R1 (31/10/2026) : la clôture s'ouvre au **capitaine** (`metadata.raidCaptainId`) et à
+        // l'**officier de raid** (`RAID_OFFICER` / `canManageRaid`) — jamais à un membre lambda :
+        // la garde reste un refus par défaut, on vérifie l'expression exacte.
+        expect(raidFn).toContain(
+            "ctx.isAdmin || ctx.canManageCalendar || ctx.canManageRaid || event.creatorId === ctx.id || isRaidCaptain",
+        );
+        expect(raidFn).toContain("if (!canComplete)");
+        expect(raidFn).toContain("return { success: false, error:");
         // L'embed du raid est supprimé par la purge partagée (déplacée le 25/10/2026 pour
         // être aussi utilisée par la passe de fond) : l'invariant « clé outbox résolue »
         // est vérifié sur son nouveau porteur, pas supprimé.

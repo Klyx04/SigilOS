@@ -59,6 +59,7 @@ model User {
   dreamRunMembers      DreamRunMember[]
   dreamWaitlists       DreamWaitlist[]
   eventParticipations  EventParticipant[]
+  raidPresences        RaidPresence[]
 
   guildEvents          GuildEvent[]
   notifications        Notification[]
@@ -1509,6 +1510,7 @@ model GuildEvent {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   participants     EventParticipant[]
+  raidPresences    RaidPresence[]
   creator          User               @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   guild            GuildConfig        @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
@@ -1557,6 +1559,40 @@ model RaidLiveSession {
   updatedAt       DateTime @updatedAt
 
   @@index([guildId, status])
+}
+
+/// Statut de présence d'un inscrit à la clôture d'un raid (R1 « no-show », 31/10/2026).
+enum RaidPresenceStatus {
+  PRESENT
+  PREVENU
+  EXCUSE
+  NO_SHOW
+}
+
+/// Registre de présence d'un raid (R1 « no-show » — PLAN-RAID L2).
+///
+/// Une ligne par **inscrit** au moment de la clôture (présent, prévenu, excusé, no-show),
+/// écrite dans `completeRaidEvent` et **supprimée** par `undoCompleteRaidEvent` : annuler la
+/// clôture doit ramener l'état d'avant, registre compris.
+/// Donnée **personnelle** : lisible par le staff seul (`canManageRaid` / admin), jamais par un
+/// membre ni dans un embed public. Règle unique : `src/lib/raid-presence.ts`.
+/// Rétention : 90 jours (`RAID_PRESENCE_RETENTION_DAYS`) — index `(guildId, createdAt)` pour le
+/// compteur glissant et la purge.
+model RaidPresence {
+  id         String             @id @default(cuid())
+  guildId    String // = GuildConfig.id (JAMAIS le discordGuildId)
+  eventId    String // GuildEvent.id du raid clôturé
+  userId     String // User.id de l'inscrit
+  status     RaidPresenceStatus @default(PRESENT)
+  /// Auteur du statut : la clôture (`completeRaidEvent`) ou la **correction** d'un officier.
+  recordedBy String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  event      GuildEvent         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([guildId, createdAt])
 }
 
 model ImageHash {

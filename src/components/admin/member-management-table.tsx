@@ -63,7 +63,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { updateMemberProfileStatus, updateMemberPseudo, updateMemberAnkamaId } from "@/server/actions/user-actions";
-import { deleteProfileByAdmin, reactivateProfileByAdmin, getGuildMemberBans, liftGuildMemberBan } from "@/server/actions/lifecycle-actions";
+import { deleteProfileByAdmin, reactivateProfileByAdmin, getGuildMemberBans, liftGuildMemberBan, deleteGuildMemberBan } from "@/server/actions/lifecycle-actions";
 import { transferGuildOwnershipAction } from "@/server/actions/guild-owner-actions";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -148,17 +148,55 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     }, [loadExcludedBans]);
 
     const handleLiftExclusion = async (ban: any) => {
-        if (!confirm(`Réintégrer ce membre ? Il pourra de nouveau accéder au dashboard (et sera re-provisionné au prochain accès).`)) return;
+        if (!confirm(`Lever l'exclusion de ${ban.memberName || ban.discordId} ?\n\nLe membre pourra de nouveau accéder au dashboard s'il est toujours sur le serveur.`)) return;
         setIsUpdating(ban.discordId);
         try {
             const res = await liftGuildMemberBan(guildId, ban.discordId);
             if (res.success) {
-                toast.success("Exclusion levée — le membre peut de nouveau accéder au dashboard");
+                // F-01 (31/10/2026) : la levée ne fait que retirer le verrou. Si la personne n'est
+                // plus sur le serveur Discord, elle n'existe dans **aucune** source : elle
+                // n'apparaîtra pas dans les actifs. On le dit, au lieu de promettre un retour.
+                const stillInGuild = members.some(m =>
+                    m.user.accounts?.some(a => a.providerAccountId === ban.discordId),
+                );
+                toast.success(
+                    stillInGuild
+                        ? "Exclusion levée — le membre est toujours sur le serveur Discord."
+                        : "Exclusion levée. Ce membre n'est plus sur le serveur Discord : il n'apparaîtra pas dans les actifs.",
+                );
                 setExcludedBans(prev => prev.filter(b => b.discordId !== ban.discordId));
             } else {
                 toast.error(res.error || "Erreur lors de la levée d'exclusion");
             }
         } catch (e) {
+            toast.error("Erreur de communication");
+        } finally {
+            setIsUpdating(null);
+        }
+    };
+
+    /**
+     * Suppression **définitive** d'une exclusion (31/10/2026) : une exclusion est une protection
+     * contre le ré-provisionnement, pas une fiche. Quand l'admin a tranché, elle doit pouvoir
+     * disparaître — sinon la liste se remplit à vie (mesure : **27** sur la bêta, aucune action).
+     */
+    const handleDeleteExclusion = async (ban: any) => {
+        if (!confirm(
+            `Supprimer définitivement l'exclusion de ${ban.memberName || ban.discordId} ?\n\n`
+            + "• La protection contre un retour est retirée (il pourra être recréé s'il revient sur le serveur Discord).\n"
+            + "• Le profil n'est pas modifié : pour débloquer un profil banni, utilisez « Lever l'exclusion ».\n"
+            + "• L'action est journalisée."
+        )) return;
+        setIsUpdating(ban.discordId);
+        try {
+            const res = await deleteGuildMemberBan(guildId, ban.discordId);
+            if (res.success) {
+                toast.success("Exclusion supprimée définitivement");
+                setExcludedBans(prev => prev.filter(b => b.discordId !== ban.discordId));
+            } else {
+                toast.error(res.error || "Erreur lors de la suppression");
+            }
+        } catch {
             toast.error("Erreur de communication");
         } finally {
             setIsUpdating(null);
@@ -486,16 +524,29 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             </div>
                                         </div>
                                     </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isUpdating === ban.discordId}
-                                        onClick={() => handleLiftExclusion(ban)}
-                                        className="shrink-0 rounded-xl text-caption font-semibold uppercase tracking-wide border-success/30 text-success hover:bg-success/10 hover:text-success"
-                                    >
-                                        {isUpdating === ban.discordId ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <UserCheck className="w-3.5 h-3.5 mr-2" />}
-                                        Réintégrer
-                                    </Button>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={isUpdating === ban.discordId}
+                                            onClick={() => handleLiftExclusion(ban)}
+                                            className="rounded-xl text-caption font-semibold uppercase tracking-wide border-success/30 text-success hover:bg-success/10 hover:text-success"
+                                        >
+                                            {isUpdating === ban.discordId ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <UserCheck className="w-3.5 h-3.5 mr-2" />}
+                                            Réintégrer
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={isUpdating === ban.discordId}
+                                            onClick={() => handleDeleteExclusion(ban)}
+                                            aria-label={`Supprimer définitivement l'exclusion de ${ban.memberName || ban.discordId}`}
+                                            className="rounded-xl text-caption font-semibold uppercase tracking-wide border-danger/30 text-danger hover:bg-danger/10 hover:text-danger"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                            Supprimer
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
                         </div>

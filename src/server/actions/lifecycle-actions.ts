@@ -1270,6 +1270,61 @@ export async function liftGuildMemberBan(guildId: string, discordId: string) {
 }
 
 /**
+ * Supprime **définitivement** une exclusion (tombstone) — 31/10/2026.
+ *
+ * Une exclusion est une **protection contre le ré-provisionnement** : elle n'a de sens que
+ * tant qu'on veut empêcher un retour. Quand l'admin a tranché, il doit pouvoir la retirer —
+ * sinon les tombstones s'accumulent à vie (mesure du 31/10 sur la bêta : **27** exclusions,
+ * aucune action possible, ce qui donnait l'impression d'une liste morte).
+ *
+ * ⚠️ Supprimer n'est **pas** lever : `liftGuildMemberBan` garde la trace (`liftedAt`) et
+ * débloque un profil banni ; celle-ci **efface la ligne** et ne touche pas au profil. Le
+ * journal (`MEMBER_BAN_DELETED`) conserve le nom et le motif.
+ */
+export async function deleteGuildMemberBan(guildId: string, discordId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || (!ctx.canManageMembers && !ctx.isAdmin && !ctx.isSuperAdmin)) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+    if (!/^\d+$/.test(discordId)) return { success: false, error: "Identifiant Discord invalide" };
+
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guild) return { success: false, error: "Guild not found" };
+
+        const ban = await db.guildMemberBan.findFirst({
+            where: { guildId: guild.id, discordId },
+            select: { id: true, memberName: true, reason: true },
+        });
+        if (!ban) return { success: false, error: "Aucune exclusion à supprimer pour ce membre" };
+
+        await db.guildMemberBan.delete({ where: { id: ban.id } });
+
+        await createAuditLog({
+            guildId,
+            action: "MEMBER_BAN_DELETED",
+            actorUserId: ctx.id as string,
+            actorName: ctx.name ?? "Inconnu",
+            targetType: "PROFILE",
+            metadata: {
+                description: "Exclusion supprimée définitivement",
+                memberName: ban.memberName ?? null,
+                reason: ban.reason,
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/members`);
+        return { success: true };
+    } catch (e) {
+        logger.error("[deleteGuildMemberBan] error:", e);
+        return { success: false, error: "Database error" };
+    }
+}
+
+/**
  * Ferme TOUT le contenu publié par un membre exclu (archivé / banni / supprimé) :
  * - Posts DJ & quêtes en cours (OPEN/FULL) → CLOSED + suppression de l'embed Discord ;
  * - Runs songes en cours (leader) → ABANDONED + suppression de l'embed Discord ;

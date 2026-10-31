@@ -50,6 +50,7 @@ export type AuditAction =
     | "SCHEDULED_POLL_PUBLISHED" // Créneau publié (automatique par le cron, ou à la main)
     | "MEMBER_RELANCE"            // Admin sent pings/changed roles for absents
     | "MEMBER_BANNED"             // Member was banned on Discord
+    | "MEMBER_BAN_DELETED"        // Exclusion (tombstone) supprimée définitivement (31/10/2026)
     | "MEMBER_PSEUDO_UPDATE"      // Manual pseudo override
     | "MEMBER_ANKAMA_ID_UPDATE"   // Manual Ankama ID override
     | "MEMBER_COMMENT_UPDATED"    // Journal du staff : commentaire modifié (corps avant/après)

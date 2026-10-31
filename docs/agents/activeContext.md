@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 31/10/2026 (suite 12) — **Exclusions de membres : suppression définitive + message honnête** — branche `fix/exclusions-suppression-definitive`
+
+> **Demande user (verbatim)** : « je comprends pas pk je vois plein d'exclus dans …/admin/members qui n'ont pas de bouton supprimer definitif, de plus j'ai essayé le bouton lever l'exclusion > ils n'apparaissent même pas dans les actifs ni rien mais j'ai bien la notif toast reintegration au dashboard ».
+> **Mesures (bêta)** : **27** exclusions (tombstones `GuildMemberBan`) créées par un **ban Discord du bot**, toutes **sans profil** (« Dashboard 0 / Hors dashboard 27 ») ; l'onglet « Exclus » n'offrait **qu'une** action (`handleLiftExclusion`) ; `liftGuildMemberBan` pose `liftedAt` mais ne recrée rien — la personne bannie n'est plus dans le serveur, donc absente de **toutes** les sources (actifs comme archivés), d'où un toast qui promettait un retour inexistant.
+> **Fait** : ① `deleteGuildMemberBan` (`lifecycle-actions.ts`) — garde `canManageMembers` / admin / super-admin, validation du snowflake, **suppression réelle** de la ligne, audit `MEMBER_BAN_DELETED` (nom + motif, **sans identifiant**), revalidation ; ② bouton **« Supprimer »** (danger) à côté de « Réintégrer » sur chaque ligne, avec une confirmation qui dit ce que ça fait **et** ce que ça ne fait pas (un profil banni n'est pas débloqué — c'est « Réintégrer ») ; ③ **message honnête** après la levée : « toujours sur le serveur Discord » vs « n'est plus sur le serveur Discord : il n'apparaîtra pas dans les actifs », calculé sur les `accounts` du roster.
+> **Preuves** : `member-exclusions-actions` **4/4** · suite **5 892 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
+> **Reste / ops** : `deploy-cd.sh beta` pour voir les 27 lignes avec le nouveau bouton ; **ROADMAP non touché** (tenu par `limite-guildes`).
+> **Rotation** : bloc « 30/10 (suite 5) — Contenu fantôme : un partant ne laisse plus de groupe orphelin » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 31/10/2026 (suite 11) — **Carte raid du dashboard : déslop + visuel réel** — branche `fix/dashboard-raid-hero`
 
 > **Demande user (verbatim)** : « deslop ça stp coté page dashboard + son icône raid reel » (capture de la carte « RAID : JARDINS ÉTERNELS »).
@@ -66,15 +76,7 @@
 > **Ops (humain, bêta puis prod)** : `npm run build:succes`, puis `node scripts/succes-speciaux.js reparer-butins --apply` et `… siphon --apply` ; le cron prend le relais. **Rotation** : bloc « 29/10 (suite 4) — Élevage : 228 icônes » sorti (7ᵉ).
 
 
-## 📝 Session 30/10/2026 (suite 5) — **Contenu fantôme : un partant ne laisse plus de groupe orphelin** — branche `fix/contenu-orphelin`
 
-> **Demandes user (verbatim)** : « que deviennent ces post à lui ? qui reprend le lead des post qui deviennent "fantome" et plus gerable/cloturable etc ? d'autres scénario oublié de ma part maybe ? » puis « lot b ».
-> **Mesures (avant codage)** : le cron `sync-members` archivait un partant **sans fermer son contenu** ; le bot (`GuildMemberRemove`) non plus (image sans `src/`) ; `closeMemberPublishedContent` — seule fonction qui fermait DJ/Songes/Marché — n'était appelée que par les actions humaines et par une **seconde implémentation de la synchro sans aucun appelant** ; **aucune ligne `GuildEvent`** dans cette cascade (un raid restait `PUBLISHED`, rappel de clôture adressé à un fantôme) ; `closeDreamRun`/`reopenDreamRun` **leader-only** (run orpheline inclôturable) ; reprise de lead inexistante hors raids.
-> **Fait** : ① filet `closeOrphanContentForGuild` branché **dans** `syncMembershipStatusInternal` (cron + API + bouton) : profils `ARCHIVED`/`BANNED` portant encore du contenu ouvert, borné (50, `limit 25` depuis la synchro), idempotent, best-effort ; ② `closeMemberPublishedContent` gagne les **événements du calendrier** (`DRAFT`/`PUBLISHED` → `CANCELLED`, rappels + embed purgés, miroirs exclus puis recopiés) et renvoie `events` ; ③ `transferDjLead` (créateur/admin, cible **inscrite acceptée**, place libérée **sous transaction sérialisable**) et `transferRunLead` (leader/admin, cible **membre**, `leaderId` seul) + UI dashboard (fiche DJ, panneau leader/admin Songes) ; ④ dérogation admin sur clôture/réouverture Songes ; ⑤ **suppression** de la seconde implémentation de synchro (221 lignes mortes).
-> **Preuves** : `orphan-content-wiring` **19 cas** + `deleted-member` **5 cas** · suite **543 fichiers / 5 731 tests ✓** · `tsc` 0 · ESLint 0 erreur · `git status` propre. Le verrou `dj-serialisation-capacite` a **refusé** mon premier jet (`$transaction` nu) : le transfert passe désormais par `withDjSerializableTransaction` — il libère une place, donc même invariant de capacité qu'une inscription.
-> **Suite (même session) — option C tranchée par l'user** : la rétention des comptes purgeait à vie tout compte ayant créé un `GuildEvent` (cascade). Désormais les événements **survivent** au compte : contenu refermé, events ouverts annulés (miroirs exclus), `metadata.raidCaptain` nettoyé, puis rattachement au **compte technique** `system-deleted-member` « Ancien membre » (`src/server/deleted-member.ts`), lui-même **protégé** de la purge. **Aucune migration** : `creatorId` reste non-nullable, donc aucun écran à reprendre.
-> **Ops** : **0 migration**, rien à jouer ; redéployer le bot n'est utile que pour son commentaire d'orientation (aucun changement de comportement). **Reste noté** : lot C « vote de date ». ⚠️ `docs/ROADMAP.md` est à ~61,4 Kio (borne du verrou `harness-config`) : **élaguer le §0** avant le prochain lot.
-> **Rotation** : bloc « 29/10 (suite 3) — Rush construction » sorti (7ᵉ).
 
 
 

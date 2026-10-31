@@ -20,9 +20,12 @@
  * ⑤ `reparer-butins` — répare les fiches monstres dont le payload n'a **aucun butin**
  *    (`drops: []`, repli Unity persisté). C'est la même passe que la phase 5 ter du cron, mais
  *    **sans borne** (le cron est limité à 25 par nuit). Dry-run par défaut ; `--limit=N` borne.
+ *    `--nom="Kanigroula"` (répétable) cible **une fiche précise** — la réparer tout de suite sans
+ *    consommer le budget sur toute la file.
  *
  *    npx -y tsx scripts/succes-speciaux.ts reparer-butins
  *    npx -y tsx scripts/succes-speciaux.ts reparer-butins --apply --limit=200
+ *    npx -y tsx scripts/succes-speciaux.ts reparer-butins --apply --nom="Kanigroula"
  *
  * ⚠️ Le budget DofusDB partagé (`30 req/min`) peut fermer la fenêtre en cours de route : la passe
  *    s'arrête alors **proprement** (`⏳ …`) au lieu de compter des dizaines de faux « introuvables ».
@@ -160,6 +163,12 @@ async function runPurgeSpecialChallenges(db: PrismaClient, apply: boolean) {
 async function runRepairDrops(db: PrismaClient, apply: boolean, args: string[]) {
     const limitArg = args.find((a) => a.startsWith("--limit="));
     const limit = Number(limitArg?.split("=")[1] ?? 500);
+    // `--nom="Kanigroula"` (répétable) : répare une fiche **précise** sans balayer la file
+    // (le budget DofusDB partagé est de 30 req/min — une passe large finit en « sans source »).
+    const onlyNames = args
+        .filter((a) => a.startsWith("--nom="))
+        .map((a) => a.slice("--nom=".length).replace(/^["']|["']$/g, "").trim())
+        .filter(Boolean);
     // Chargés ici : les autres commandes n'ont pas besoin de la couche fiche monstre.
     const { repairMonsterDrops } = await import("@/lib/monster-drops-repair");
     const { getMonsterStats } = await import("@/lib/monster-stats-core");
@@ -168,6 +177,7 @@ async function runRepairDrops(db: PrismaClient, apply: boolean, args: string[]) 
     const report = await repairMonsterDrops({
         db: db as unknown as Parameters<typeof repairMonsterDrops>[0]["db"],
         limit: Number.isFinite(limit) && limit > 0 ? limit : 500,
+        ...(onlyNames.length > 0 ? { onlyNames } : {}),
         // Re-fetch **par nom** (jamais l'id local d'un doublon vide) : l'id DofusDB réel revient.
         fetchStats: (name, dungeonName) => getMonsterStats(name, dungeonName, true),
         // Dry-run : on compte ce qui **serait** écrit, sans rien écrire.
@@ -175,7 +185,8 @@ async function runRepairDrops(db: PrismaClient, apply: boolean, args: string[]) 
     });
 
     console.log(
-        `\n${report.scanned} fiche(s) analysée(s) · ${report.repaired} ${apply ? "réparée(s)" : "à réparer"} · `
+        `\n${onlyNames.length > 0 ? `Cible : ${onlyNames.join(", ")} · ` : ""}`
+            + `${report.scanned} fiche(s) analysée(s) · ${report.repaired} ${apply ? "réparée(s)" : "à réparer"} · `
             + `${report.skippedUnity} sans source DofusDB (repli Unity, non écrasé) · ${report.failed} en échec`
             + (apply ? "" : report.repaired > 0 ? "\n👉 relancer avec --apply pour écrire" : "")
     );

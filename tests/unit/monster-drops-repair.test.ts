@@ -63,6 +63,23 @@ describe("repairMonsterDrops — réparation bornée", () => {
         expect(o.fetchSpy).toHaveBeenCalledTimes(1);
     });
 
+    it("`onlyNames` ne répare que la fiche visée (budget DofusDB préservé)", async () => {
+        const o = options([
+            emptyRow({ monsterName: "Kanigroula" }),
+            emptyRow({ monsterName: "Bouftou Royal" }),
+        ]);
+        const report = await repairMonsterDrops({
+            db: o.db,
+            fetchStats: o.fetchStats,
+            persist: o.persist,
+            onlyNames: ["  kanigroula "],
+        });
+        expect(report.scanned).toBe(1);
+        expect(o.fetchSpy).toHaveBeenCalledTimes(1);
+        expect(o.fetchSpy).toHaveBeenCalledWith("Kanigroula", undefined);
+        expect(o.persistSpy).toHaveBeenCalledTimes(1);
+    });
+
     it("un échec unitaire n'arrête pas la passe", async () => {
         const o = options([
             emptyRow({ monsterName: "En panne" }),

@@ -46,6 +46,12 @@ export interface RepairMonsterDropsOptions {
     /** `persistMonsterStat` (ou un espion en test). */
     persist: (data: any) => Promise<void>;
     limit?: number;
+    /**
+     * Cible **des noms précis** (comparaison insensible à la casse et aux espaces) : réparer une
+     * fiche **visible** sans consommer le budget DofusDB sur toute la file. Sans cette option, la
+     * passe suit son ordre habituel (`lastSyncedAt asc`).
+     */
+    onlyNames?: string[];
 }
 
 export interface RepairMonsterDropsReport {
@@ -101,12 +107,18 @@ export async function repairMonsterDrops(options: RepairMonsterDropsOptions): Pr
     // Une seule tentative par NOM : deux lignes vides du même monstre (7972 / 1186) se
     // réparent avec la même requête, et on ne paie pas deux fois le budget DofusDB.
     const seen = new Set<string>();
+    // Ciblage optionnel (`--nom=…`) : on ne garde que les noms demandés, pour réparer
+    // une fiche visible tout de suite sans balayer la file entière.
+    const onlyNames = new Set(
+        (options.onlyNames ?? []).map((n) => String(n ?? "").trim().toLowerCase()).filter(Boolean),
+    );
     const targets: RepairMonsterRow[] = [];
     for (const row of rows ?? []) {
         if (!row || typeof row.monsterName !== "string") continue;
         if (isCompleteMonsterPayload(row.stats)) continue;
         const key = row.monsterName.trim().toLowerCase();
         if (!key || seen.has(key)) continue;
+        if (onlyNames.size > 0 && !onlyNames.has(key)) continue;
         seen.add(key);
         targets.push(row);
     }

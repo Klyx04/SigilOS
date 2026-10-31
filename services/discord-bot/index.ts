@@ -1065,6 +1065,14 @@ async function syncTicketChannelNames(oldMember: any, newMember: any) {
 
 
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+    // 🐛 Faux événements (mesure du 31/10/2026, beta 20:36) : quand le membre n'est **pas dans
+    // le cache** (bot redémarré, cache partiel), discord.js émet un `oldMember` **partiel** qui
+    // ne porte que `@everyone`. Tous les rôles paraissent alors « ajoutés » (`+GARDIENS, +MEMBRES,
+    // …`) et `oldMember.nickname` retombe sur le nom d'utilisateur ⇒ un « changement de surnom »
+    // vieux de plusieurs semaines réapparaît à l'heure du redémarrage. On ne peut pas diffuser ce
+    // qu'on n'a pas vu : on ignore l'événement et on laisse le prochain changement réel l'écrire.
+    if ((oldMember as { partial?: boolean }).partial === true) return;
+
     const oldNick = oldMember.nickname || oldMember.displayName;
     const newNick = newMember.nickname || newMember.displayName;
     const nickChanged = oldMember.nickname !== newMember.nickname;
@@ -1075,6 +1083,14 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
     const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id) && r.id !== newMember.guild.id);
     const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id) && r.id !== newMember.guild.id);
     const rolesChanged = addedRoles.size > 0 || removedRoles.size > 0;
+
+    // Ceinture et bretelles : un « ajout » qui couvre **tous** les rôles alors que l'ancien
+    // membre n'en portait aucun est un cache froid, pas une promotion. On n'écrit rien.
+    const coldCache = rolesChanged
+        && removedRoles.size === 0
+        && oldMember.roles.cache.size <= 1
+        && addedRoles.size === newMember.roles.cache.size - 1;
+    if (coldCache) return;
 
     if (!nickChanged && !usernameChanged && !rolesChanged) return;
 

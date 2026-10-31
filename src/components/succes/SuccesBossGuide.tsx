@@ -1374,10 +1374,9 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                             </h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                                 {(() => {
-                                    // États honnêtes (A6 du 30/10/2026) : « en chargement », « aucun drop
-                                    // répertorié » et « non synchronisé » ne disent pas la même chose.
-                                    // Une fiche fraîche mais vide (`drops: []`) ne doit pas passer pour
-                                    // un boss sans butin — mesure : 106 fiches beta / 146.
+                                    // États à l'écran (31/10/2026) : **uniquement** « en chargement » ou
+                                    // « aucun butin renseigné ». Aucun état technique (synchronisation,
+                                    // repli, source) n'est montré — le membre n'a pas à le lire.
                                     const lootStats = statsOf(selected);
                                     const lootKey = activeMonsterName ? `${selected.id}::${activeMonsterName}` : selected.id;
                                     if (loadingStatsByBoss[lootKey] && !lootStats) {
@@ -1391,9 +1390,7 @@ export function SuccesBossGuide({ guildId, scope = "boss" }: { guildId: string; 
                                     if (loot.length === 0) {
                                         return (
                                             <p className="text-xs text-muted-foreground py-8 text-center col-span-full">
-                                                {lootStats
-                                                    ? "Aucun drop répertorié pour ce boss."
-                                                    : "Butin non synchronisé pour ce boss — la synchronisation est en cours."}
+                                                Aucun butin renseigné pour ce boss.
                                             </p>
                                         );
                                     }

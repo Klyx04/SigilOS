@@ -12,6 +12,10 @@ import { describe, it, expect } from "vitest";
 
 const ACTIONS = readFileSync(join(process.cwd(), "src/server/actions/lifecycle-actions.ts"), "utf8");
 const TABLE = readFileSync(join(process.cwd(), "src/components/admin/member-management-table.tsx"), "utf8");
+const DIALOG = readFileSync(
+    join(process.cwd(), "src/components/admin/members/member-detail-dialog.tsx"),
+    "utf8",
+);
 
 function action(name: string): string {
     const start = ACTIONS.indexOf(`export async function ${name}`);
@@ -25,6 +29,21 @@ describe("exclusion — suppression définitive", () => {
         expect(fn).toContain("canManageMembers");
         expect(fn).toContain('"Permission');
         expect(fn).toContain("guildMemberBan.delete");
+    });
+
+    it("la fiche membre (Registre) propose les DEUX actions, pas seulement la levée", () => {
+        // Mesure du 31/10/2026 : le bouton n'était que dans l'ancien tableau, la page réelle est le
+        // Registre (`member-roster-list`) qui ouvre cette modale → sans ça, aucune trace visible.
+        expect(DIALOG).toContain("handleDeleteExclusion");
+        expect(DIALOG).toContain("deleteGuildMemberBan(guildId, discordId)");
+        expect(DIALOG).toContain("Lever l&apos;exclusion");
+        expect(DIALOG).toContain("Supprimer");
+    });
+
+    it("le motif d'exclusion n'est jamais affiché sous forme de code technique", () => {
+        expect(DIALOG).not.toContain("{activeExclusion.reason}");
+        expect(DIALOG).toContain("exclusionReasonLabel(activeExclusion.reason)");
+        expect(DIALOG).toContain("MEMBER_DELETED: \"Membre supprimé\"");
     });
 
     it("la suppression est journalisée (nom + motif, sans snowflake)", () => {

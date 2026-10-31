@@ -125,7 +125,13 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     const [selectedDayEvents, setSelectedDayEvents] = useState<{ date: Date; events: any[] } | null>(null);
 
     // Raid eligibility (kamas gate)
-    const [raidEligibility, setRaidEligibility] = useState<{ isEligible: boolean; totalDonated: number; raidRequireKamaDonation?: boolean } | null>(null);
+    const [raidEligibility, setRaidEligibility] = useState<{
+        isEligible: boolean;
+        totalDonated: number;
+        raidRequireKamaDonation?: boolean;
+        requiredKamas?: number;
+        purpleKamasCost?: number;
+    } | null>(null);
 
     // Dynamic counts for filters
     const typeCounts = events.reduce((acc, e) => {
@@ -197,7 +203,13 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         // Fetch raid kamas eligibility for the current user
         getUserRaidEligibility(guildId).then(res => {
             if (res.success) {
-                setRaidEligibility({ isEligible: res.isEligible ?? false, totalDonated: res.totalDonated ?? 0, raidRequireKamaDonation: res.raidRequireKamaDonation });
+                setRaidEligibility({
+                    isEligible: res.isEligible ?? false,
+                    totalDonated: res.totalDonated ?? 0,
+                    raidRequireKamaDonation: res.raidRequireKamaDonation,
+                    requiredKamas: res.requiredKamas,
+                    purpleKamasCost: res.purpleKamasCost,
+                });
             }
         });
     }, [currentDate, guildId, canManage]);

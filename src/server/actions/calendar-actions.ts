@@ -32,6 +32,7 @@ import {
     buildRaidUndoMetadata,
     shouldRepublishAfterUndo,
     validateRaidClosureInput,
+    resolveUndoRefundPurpleKamas,
 } from "@/lib/raid-closure-rules";
 
 // ============================================
@@ -1581,18 +1582,27 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
             return { success: false, error: "Seul l'initiateur du raid ou un gestionnaire du calendrier peut annuler la clôture." };
         }
 
-        // Refund Purple Kamas + XP to present members (prevents double-counting on re-complete)
+        // Rembourse l'XP et les Kamas Violets **réellement** décomptés aux présents.
+        // D2 (décision du 30/10/2026) : fail-closed — un raid clôturé **avant** l'enregistrement du
+        // coût (`raidPurpleKamasCost`) n'a pas de montant connu : on rembourse **0** au lieu de
+        // l'ancien repli `?? 30`, qui créditait une valeur inventée. Règle pure + testée.
         const presentUserIds: string[] = meta.raidPresentUserIds || [];
-        const purpleKamasCost = meta.raidPurpleKamasCost ?? 30;
+        const refund = resolveUndoRefundPurpleKamas(meta);
+        const purpleKamasCost = refund.purpleKamasCost;
         if (presentUserIds.length > 0) {
+            if (!refund.known) {
+                logger.warn("[Calendar] undoCompleteRaidEvent : coût Kamas Violets inconnu (raid antérieur) — remboursement 0", {
+                    eventId,
+                });
+            }
             await db.userProfile.updateMany({
                 where: {
                     userId: { in: presentUserIds },
                     guildId: guildConfig.id
                 },
                 data: {
-                    purpleKamasConsumed: { decrement: purpleKamasCost },
-                    xp: { decrement: 50 }
+                    xp: { decrement: 50 },
+                    ...(purpleKamasCost > 0 ? { purpleKamasConsumed: { decrement: purpleKamasCost } } : {}),
                 }
             });
         }
@@ -1636,7 +1646,7 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
         });
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, refunded: presentUserIds.length, discordRepublished };
+        return { success: true, refunded: presentUserIds.length, refundedPurpleKamas: purpleKamasCost, discordRepublished };
     } catch (error) {
         logger.error("[Calendar] completeRaidEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture du raid" };

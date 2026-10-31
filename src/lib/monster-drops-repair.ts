@@ -176,3 +176,205 @@ export async function repairMonsterDrops(options: RepairMonsterDropsOptions): Pr
 
     return report;
 }
+
+/**
+ * Nettoie les **doublons vides** : un même nom peut exister sous deux ids (DofusDB `1186` et un
+ * ancien repli `7972`). Quand **une** ligne du nom porte un butin et qu'une autre est vide, la vide
+ * est **morte** — elle faisait radoter la passe de réparation (« 60 réparées » à chaque exécution,
+ * mesure du 31/10/2026) sans jamais converger.
+ *
+ * Règles : jamais la dernière ligne d'un nom, jamais une ligne complète. Aucune exception ;
+ * `dryRun` compte sans supprimer.
+ */
+export interface CleanupDuplicateOptions {
+    db: {
+        monsterStat: {
+            findMany(args: unknown): Promise<RepairMonsterRow[]>;
+            deleteMany(args: unknown): Promise<{ count: number }>;
+        };
+    };
+    dryRun?: boolean;
+}
+
+export interface CleanupDuplicateReport {
+    /** Noms pour lesquels au moins un doublon vide existe. */
+    names: number;
+    /** Lignes vides supprimées (en `dryRun` : celles qui le seraient). */
+    removed: number;
+    details: string[];
+}
+
+export async function removeEmptyDuplicateRows(
+    options: CleanupDuplicateOptions,
+): Promise<CleanupDuplicateReport> {
+    const report: CleanupDuplicateReport = { names: 0, removed: 0, details: [] };
+
+    let rows: RepairMonsterRow[] = [];
+    try {
+        rows = await options.db.monsterStat.findMany({
+            select: { monsterId: true, monsterName: true, stats: true },
+        });
+    } catch (error) {
+        report.details.push(`lecture des fiches impossible : ${error instanceof Error ? error.message : String(error)}`);
+        return report;
+    }
+
+    const groups = new Map<string, { complete: number[]; empty: number[] }>();
+    for (const row of rows ?? []) {
+        if (!row || typeof row.monsterName !== "string") continue;
+        const key = row.monsterName.trim().toLowerCase();
+        if (!key) continue;
+        const bucket = groups.get(key) ?? { complete: [], empty: [] };
+        if (isCompleteMonsterPayload(row.stats)) bucket.complete.push(row.monsterId);
+        else bucket.empty.push(row.monsterId);
+        groups.set(key, bucket);
+    }
+
+    for (const [, bucket] of groups) {
+        if (bucket.complete.length === 0 || bucket.empty.length === 0) continue;
+        report.names++;
+        if (report.details.length < MAX_FAILED_DETAILS) {
+            report.details.push(`doublon vide ${bucket.empty.join(", ")} — fiche saine ${bucket.complete.join(", ")}`);
+        }
+        if (options.dryRun) {
+            report.removed += bucket.empty.length;
+            continue;
+        }
+        try {
+            const res = await options.db.monsterStat.deleteMany({ where: { monsterId: { in: bucket.empty } } });
+            report.removed += res?.count ?? 0;
+        } catch (error) {
+            report.details.push(`suppression impossible : ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    return report;
+}
+
+
+/**
+ * **Découverte** : crée la fiche des monstres **jamais siphonnés** (tout le bestiaire public
+ * `/bestiaire/<slug>`), par **lots reprenables** (`afterId`) et dans le même budget.
+ *
+ * Mesure du 31/10/2026 : 4 728 monstres au catalogue, **4 469** sans fiche complète — à ~30
+ * requêtes/minute c'est un travail de plusieurs passes, jamais un blocage du site.
+ */
+export interface DiscoverMonsterFichesOptions {
+    db: { monster: { findMany(args: unknown): Promise<{ id: number; name: string }[]> } };
+    /** `getMonsterStats` par nom (sans id : c'est l'id DofusDB qui fait foi). */
+    fetchStats: (name: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+    persist: (data: any) => Promise<void>;
+    /** Noms **déjà servis** par une fiche complète (chargés une fois par l'appelant). */
+    knownNames: ReadonlySet<string>;
+    limit?: number;
+    afterId?: number;
+}
+
+export interface DiscoverMonsterFichesReport {
+    scanned: number;
+    created: number;
+    skippedKnown: number;
+    skippedUnity: number;
+    failed: number;
+    deferred: boolean;
+    /** Curseur à repasser en `afterId` : dernier id **traité avec succès**. */
+    lastId: number;
+    details: string[];
+}
+
+/** Monstres examinés par passage quand l'appelant n'impose pas de borne. */
+export const DISCOVER_FICHES_DEFAULT_LIMIT = 200;
+
+export async function discoverMonsterFiches(
+    options: DiscoverMonsterFichesOptions,
+): Promise<DiscoverMonsterFichesReport> {
+    const rawLimit = Number(options.limit);
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : DISCOVER_FICHES_DEFAULT_LIMIT;
+    const rawAfter = Number(options.afterId);
+    const afterId = Number.isFinite(rawAfter) && rawAfter > 0 ? Math.floor(rawAfter) : 0;
+
+    const report: DiscoverMonsterFichesReport = {
+        scanned: 0,
+        created: 0,
+        skippedKnown: 0,
+        skippedUnity: 0,
+        failed: 0,
+        deferred: false,
+        lastId: afterId,
+        details: [],
+    };
+
+    let rows: { id: number; name: string }[] = [];
+    try {
+        rows = await options.db.monster.findMany({
+            where: { id: { gt: afterId } },
+            orderBy: { id: "asc" },
+            take: limit,
+            select: { id: true, name: true },
+        });
+    } catch (error) {
+        report.details.push(`lecture du catalogue impossible : ${error instanceof Error ? error.message : String(error)}`);
+        return report;
+    }
+
+    // Le curseur n'avance **qu'après** un monstre traité (sinon une reprise sauterait le fautif).
+    let cursor = afterId;
+    for (const row of rows ?? []) {
+        if (!row || typeof row.name !== "string" || !row.name.trim()) {
+            cursor = row?.id ?? cursor;
+            continue;
+        }
+        if (options.knownNames.has(row.name.trim().toLowerCase())) {
+            report.skippedKnown++;
+            cursor = row.id;
+            continue;
+        }
+        report.scanned++;
+        try {
+            const res = await options.fetchStats(row.name);
+            const data = res?.success ? res.data : null;
+            if (!data) {
+                report.failed++;
+                if (report.details.length < MAX_FAILED_DETAILS) {
+                    report.details.push(`« ${row.name} » : ${res?.error ?? "aucune fiche renvoyée"}`);
+                }
+                cursor = row.id;
+                continue;
+            }
+            if (data.source === "unity") {
+                if (data.degraded === "quota") {
+                    report.deferred = true;
+                    break;
+                }
+                report.skippedUnity++;
+                cursor = row.id;
+                continue;
+            }
+            if (!isCompleteMonsterPayload(data)) {
+                report.failed++;
+                if (report.details.length < MAX_FAILED_DETAILS) {
+                    report.details.push(`« ${row.name} » : source sans butin documenté`);
+                }
+                cursor = row.id;
+                continue;
+            }
+            await options.persist(data);
+            report.created++;
+            cursor = row.id;
+        } catch (error) {
+            if (isLocalThrottleDeferred(error)) {
+                report.deferred = true;
+                break;
+            }
+            report.failed++;
+            if (report.details.length < MAX_FAILED_DETAILS) {
+                report.details.push(`« ${row.name} » : ${error instanceof Error ? error.message : String(error)}`);
+            }
+            cursor = row.id;
+        }
+    }
+
+    report.lastId = cursor;
+    return report;
+}
+

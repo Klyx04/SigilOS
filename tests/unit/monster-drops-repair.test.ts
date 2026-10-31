@@ -10,7 +10,12 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { repairMonsterDrops, type RepairMonsterRow } from "@/lib/monster-drops-repair";
+import {
+    discoverMonsterFiches,
+    removeEmptyDuplicateRows,
+    repairMonsterDrops,
+    type RepairMonsterRow,
+} from "@/lib/monster-drops-repair";
 
 const DROPS = [{ objectId: 1, name: "Barre Rabmarac au Nougat", percent: 6 }];
 
@@ -25,7 +30,89 @@ function options(rows: RepairMonsterRow[], over: Partial<Parameters<typeof repai
     return { db, fetchStats, persist, persistSpy: persist, fetchSpy: fetchStats, ...over };
 }
 
+describe("removeEmptyDuplicateRows — doublons vides (mesure du 31/10/2026)", () => {
+    const rowsOf = (entries: [number, string, boolean][]): RepairMonsterRow[] =>
+        entries.map(([monsterId, monsterName, complete]) => ({
+            monsterId,
+            monsterName,
+            stats: complete ? { drops: DROPS } : { drops: [] },
+        }));
+    const dbOf = (rows: RepairMonsterRow[]) => {
+        const deleteMany = vi.fn(async (args: any) => ({ count: args.where.monsterId.in.length }));
+        return { db: { monsterStat: { findMany: vi.fn().mockResolvedValue(rows), deleteMany } }, deleteMany };
+    };
+
+    it("supprime la ligne VIDE quand le même nom a une fiche saine", async () => {
+        // Cas réel : « Blop Indigo Royal » 1186 (saine) + 7972 (vide).
+        const { db, deleteMany } = dbOf(rowsOf([[1186, "Blop Indigo Royal", true], [7972, "Blop Indigo Royal", false]]));
+        const report = await removeEmptyDuplicateRows({ db });
+        expect(report.names).toBe(1);
+        expect(report.removed).toBe(1);
+        expect(deleteMany).toHaveBeenCalledWith({ where: { monsterId: { in: [7972] } } });
+    });
+
+    it("ne supprime RIEN quand aucune ligne du nom n'est saine (jamais la dernière chance)", async () => {
+        const { db, deleteMany } = dbOf(rowsOf([[7972, "Blop Indigo Royal", false], [7900, "Blop Indigo Royal", false]]));
+        const report = await removeEmptyDuplicateRows({ db });
+        expect(report.names).toBe(0);
+        expect(report.removed).toBe(0);
+        expect(deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("ne supprime jamais une ligne complète, et `dryRun` compte sans écrire", async () => {
+        const { db, deleteMany } = dbOf(rowsOf([[1186, "Blop", true], [7972, "Blop", false]]));
+        const report = await removeEmptyDuplicateRows({ db, dryRun: true });
+        expect(report.removed).toBe(1);
+        expect(deleteMany).not.toHaveBeenCalled();
+    });
+});
+
+describe("discoverMonsterFiches — bestiaire jamais siphonné", () => {
+    const catalogue = (entries: [number, string][]) => entries.map(([id, name]) => ({ id, name }));
+
+    it("crée la fiche d'un nom inconnu, saute un nom déjà servi, avance le curseur", async () => {
+        const persist = vi.fn().mockResolvedValue(undefined);
+        const fetchStats = vi.fn().mockResolvedValue({ success: true, data: { id: 11, name: "Nouveau", drops: DROPS } });
+        const db = { monster: { findMany: vi.fn().mockResolvedValue(catalogue([[10, "Connu"], [11, "Nouveau"], [12, "Autre"]])) } };
+        const report = await discoverMonsterFiches({
+            db,
+            fetchStats,
+            persist,
+            knownNames: new Set(["connu"]),
+            limit: 10,
+        });
+        expect(report.skippedKnown).toBe(1);
+        expect(report.created).toBe(2);
+        expect(report.lastId).toBe(12);
+        expect(fetchStats).toHaveBeenCalledTimes(2);
+        expect(persist).toHaveBeenCalledTimes(2);
+    });
+
+    it("budget épuisé : `deferred` et curseur NON avancé sur le monstre fautif (reprise exacte)", async () => {
+        const persist = vi.fn().mockResolvedValue(undefined);
+        const fetchStats = vi.fn().mockResolvedValue({
+            success: true,
+            data: { id: 21, name: "Bloqué", drops: [], source: "unity", degraded: "quota" },
+        });
+        const db = { monster: { findMany: vi.fn().mockResolvedValue(catalogue([[21, "Bloqué"], [22, "Suivant"]])) } };
+        const report = await discoverMonsterFiches({
+            db,
+            fetchStats,
+            persist,
+            knownNames: new Set(),
+            limit: 10,
+            afterId: 20,
+        });
+        expect(report.deferred).toBe(true);
+        expect(report.lastId).toBe(20);      // on reprendra sur 21, pas 22
+        expect(report.created).toBe(0);
+        expect(fetchStats).toHaveBeenCalledTimes(1);
+        expect(persist).not.toHaveBeenCalled();
+    });
+});
+
 describe("repairMonsterDrops — réparation bornée", () => {
+
     it("re-fetch une fiche vide et persiste le butin retrouvé", async () => {
         const o = options([emptyRow({ monsterName: "L'Éternel Conflit", dungeonName: "Gantar" })]);
         const report = await repairMonsterDrops({ db: o.db, fetchStats: o.fetchStats, persist: o.persist });

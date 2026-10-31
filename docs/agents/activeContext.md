@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 31/10/2026 (suite 10) — **Modale raid : charte mesurée et corrigée (B11/B12)** — branche `fix/raid-modal-charte`
+
+> **Demande user (verbatim)** : « **Reste** : **B11/B12** (charte + responsive de la modale, à re-mesurer avant d'y toucher) et **D7** ».
+> **Mesures (avant de toucher)** : `event-detail-modal.tsx` — **41** `font-black`, **4** `italic`, **2** glows colorés (`shadow-amber-600/30`, `shadow-indigo-500/20`), **1** `shadow-inner`, **3+1** classes `pink` (second accent), **1** classe orpheline `group-`. **Faux positifs écartés** : les 5 `glass` sont des `hourglass`, les `rounded-[3px|4px]` sont **conformes** (≤ 12 px). **Responsive déjà conforme** (`w-[95vw] sm:max-w-2xl` / `sm:max-w-lg`, listes en `max-h-* overflow-y-auto`) ⇒ **B12 n'était pas cassé**, contrairement au constat visuel non capturé de l'audit.
+> **Fait** : `font-black` → `font-bold` (**41**), italiques décoratifs retirés (**4**), glows colorés et `shadow-inner` retirés, rose remplacé par le registre neutre (**4**), classe `group-` morte supprimée ; **verrou neuf** `tests/unit/raid-modal-charte.test.ts` (**9 cas** : charte + bornes responsive).
+> **Preuves** : `raid-modal-charte` **9/9** · `raid-presence` **20/20** · `calendar-raid-closure-and-reminders` **13/13** · `tsc` 0.
+> **Reste / ops** : **D7** (notification d'annulation) touche l'**interface publique Discord** ⇒ **arrêt + accord** avant (éditer l'embed en « annulé » *ou* poster un message court sans mention) ; bêta inchangée ; **ROADMAP non touché** (tenu par `limite-guildes`).
+> **Rotation** : bloc « 30/10 (suite 4) — Stand-by : un groupe reporté ne se fait plus pinger » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 31/10/2026 (suite 9) — **R1 « no-show » livré : le registre de présence existe** — branche `feat/raid-cloture-noshow`
 
 > **Demande user (verbatim)** : « go r1 one shot » — c'est l'accord migration ; les cinq arbitrages ont été pris selon les recommandations présentées en session (D3 staff seul · D4 aucune note libre · D5 90 j · D6 aucun message Discord supplémentaire · D7 reportée).
@@ -55,15 +65,7 @@
 > **Rotation** : bloc « 29/10 (suite 3) — Rush construction » sorti (7ᵉ).
 
 
-## 📝 Session 30/10/2026 (suite 4) — **Stand-by : un groupe reporté ne se fait plus pinger (DJ/quêtes, Songes, calendrier)** — branche `feat/standby-post-dj-songes`
 
-> **Demande user (verbatim)** : « un bouton stand-by pour mettre en pause un post donjon/quête/songes → cron rappel pas déclenché + message affiché dans l'embed et le post discord […] des gens programment des post mais parfois ils cancel entre eux car qqun est pas là donc ils décalent, le cron lui s'en fou il arrive et ping les gens à H-1 ».
-> **Mesures (avant codage)** : **4** crons de rappel (DJ, Songes, event, raid × 3 passes) + **1** cron d'inactivité (J+7/15/20 → clôture J+21), chacun avec sa règle pure et son marqueur ; **aucun** état partagé entre l'embed (post simple, un message par donjon, chapeau multi) et le dashboard ; `closeMemberPublishedContent` ferme DJ/Songes/Marché mais **jamais** les `GuildEvent`.
-> **Contrat tranché** : la pause suspend le H-1, les relances d'inactivité et la clôture J+21 ; les **inscriptions restent ouvertes** ; la levée est **manuelle** (créateur ou admin).
-> **Fait** : règle pure `src/lib/group-standby.ts` (fail-closed : un `standBy` illisible ne pinge jamais) · migration additive `20270122000000_group_standby` (3 × `standBy JSONB`, zéro donnée réécrite) · les 4 crons, les relances d'inactivité et la clôture d'office **sautent** un groupe gelé (raison `stand-by` comptée) · rappels **manuels** refusés · boutons `dj:standby` / `songes:standby` / `calendar:standby` **créateur seul** (contrôle dans le handler, refus éphémère, embed rafraîchi en `after()`) · dashboard (fiche DJ, panneau leader Songes, fiche événement) · miroir agenda recopié (une seule vérité).
-> **Preuves** : `group-standby` **15 cas** + `group-standby-wiring` **21 cas** · suite **541 fichiers / 5 707 tests ✓** · `tsc` 0 · ESLint 0 erreur.
-> **Ops** : `migrate deploy` + `generate` (bêta puis prod). **Suite notée, non codée** : lot B « fantômes » (`syncMembershipStatusInternal` n'appelle pas `closeMemberPublishedContent`, `syncGuildMembers` n'a **aucun** appelant, `GuildEvent` jamais fermé, aucune reprise de lead DJ/Songes) et lot C « vote de date ».
-> **Rotation** : bloc « 29/10 (suite 2) — Élevage 3.7 » sorti (7ᵉ).
 
 
 

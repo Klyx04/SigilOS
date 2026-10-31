@@ -83,10 +83,12 @@ enregistré. Ne pas les redécrire ici.
 > ✅ **Livré le 30/10/2026 — PR #1170** : **F1 → F5 + B13**. Règle pure `src/lib/raid-closure-rules.ts`
 > (`assertRaidClosureRoute`, `validateRaidClosureInput` borné, `shouldRepublishAfterUndo`,
 > `buildRaidUndoMetadata`), verrou `tests/unit/raid-closure-rules.test.ts` (**10 cas**), **aucune migration**.
-> **Restent** : **B11/B12** (à re-mesurer, lot UI) · ~~le no-show de **R1**~~ ⇒ ✅ **livré le 31/10/2026**
-> (migration 290 `20270123000000_raid_presence`, règle `src/lib/raid-presence.ts`) · les décisions
-> **D3 → D7** sont **tranchées** (tableau plus bas). **Reste ouvert** : **D7** (notification
-> d'annulation = B3), hors du registre.
+> **Restent** : ~~**B11/B12**~~ ⇒ ✅ **mesurés et corrigés le 31/10/2026** — **41** `font-black`, **4**
+> italiques, **2** glows colorés et un **second accent rose** retirés ; le **responsive** était **déjà
+> conforme** (`w-[95vw]` + `sm:max-w-*`) — verrou `tests/unit/raid-modal-charte.test.ts` (**9 cas**).
+> ~~le no-show de **R1**~~ ⇒ ✅ **livré le 31/10/2026** (migration 290 `20270123000000_raid_presence`,
+> règle `src/lib/raid-presence.ts`) · **D3 → D6** sont **tranchées** (tableau plus bas).
+> **Reste ouvert** : **D7** (notification d'annulation = B3), hors du registre.
 
 > **Source** : audit « Opus 4.6 » du 30/10/2026 (fichier volatile `src/temp/debug.md`, **écrasé depuis** par un
 > log de déploiement bêta — le contenu utile est **reconstitué ici**, il n'existe nulle part ailleurs).

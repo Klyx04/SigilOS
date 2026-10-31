@@ -755,14 +755,14 @@ export function EventDetailModal({
 
                                 <div className="min-w-0 flex-1 space-y-2">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <Badge variant="outline" className={cn("text-caption font-black uppercase tracking-wider", typeConfig.color, "border-current/30 bg-current/5 px-2 py-0")}>
+                                        <Badge variant="outline" className={cn("text-caption font-bold uppercase tracking-wider", typeConfig.color, "border-current/30 bg-current/5 px-2 py-0")}>
                                             {typeConfig.label}
                                         </Badge>
-                                        <Badge className={cn("text-caption font-black uppercase tracking-wider px-2 py-0", statusConfig.bg)}>
+                                        <Badge className={cn("text-caption font-bold uppercase tracking-wider px-2 py-0", statusConfig.bg)}>
                                             {statusConfig.label}
                                         </Badge>
                                         {awaitsClosure && (
-                                            <Badge className="text-caption font-black uppercase tracking-wider px-2 py-0 border border-warning/40 bg-warning/10 text-warning">
+                                            <Badge className="text-caption font-bold uppercase tracking-wider px-2 py-0 border border-warning/40 bg-warning/10 text-warning">
                                                 À clôturer
                                             </Badge>
                                         )}
@@ -771,7 +771,7 @@ export function EventDetailModal({
                                         <DialogTitle
                                             title={event.title}
                                             className={cn(
-                                                "font-black tracking-tight text-foreground uppercase leading-tight break-words line-clamp-2",
+                                                "font-bold tracking-tight text-foreground uppercase leading-tight break-words line-clamp-2",
                                                 event.title.length > 40 ? "text-lg sm:text-xl" : "text-xl sm:text-2xl"
                                             )}
                                         >
@@ -974,10 +974,10 @@ export function EventDetailModal({
                                     label="Participants"
                                     value={
                                         <div className="flex items-center gap-2">
-                                            <span className="font-black text-lg">{displayCount}</span>
+                                            <span className="font-bold text-lg">{displayCount}</span>
                                             {event.maxParticipants && <span className="text-muted-foreground text-xs font-bold">/ {event.maxParticipants}</span>}
                                             {reserveCount > 0 && (
-                                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-caption font-black normal-case gap-1">
+                                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-caption font-bold normal-case gap-1">
                                                     <DofusUiIcon name="hourglass" size={12} />
                                                     {reserveCount} en attente
                                                 </Badge>
@@ -990,7 +990,7 @@ export function EventDetailModal({
                                     label="Organisateur"
                                     value={
                                         (isDirectKralamoure || isImportedKralamoure) && metamobCreator ? (
-                                            <span className="truncate font-black text-foreground tracking-tight" title={metamobCreator}>
+                                            <span className="truncate font-bold text-foreground tracking-tight" title={metamobCreator}>
                                                 {metamobCreator}
                                             </span>
                                         ) : event.creator ? (
@@ -1027,11 +1027,11 @@ export function EventDetailModal({
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
                                             <DofusUiIcon name={event.type === "SONGES_RUN" ? "hourglass" : "dungeon"} size={16} />
-                                            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
+                                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                                                 {mirrorDetail.label || "Groupe"} · {mirrorDetail.memberCount ?? 0}{mirrorDetail.maxMembers ? ` / ${mirrorDetail.maxMembers}` : ""} joueurs
                                             </span>
                                         </div>
-                                        <Badge variant="outline" className="bg-info/10 text-info border-info/30 text-caption font-black uppercase tracking-wider">
+                                        <Badge variant="outline" className="bg-info/10 text-info border-info/30 text-caption font-bold uppercase tracking-wider">
                                             Miroir
                                         </Badge>
                                     </div>
@@ -1042,7 +1042,7 @@ export function EventDetailModal({
                                             {mirrorDetail.classes!.map((c) => (
                                                 <span key={c.classe} className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1" title={`${c.classe} × ${c.count}`}>
                                                     <ClassIcon classId={c.classe} size={22} />
-                                                    <span className="text-xs font-black text-foreground">× {c.count}</span>
+                                                    <span className="text-xs font-bold text-foreground">× {c.count}</span>
                                                 </span>
                                             ))}
                                         </div>
@@ -1092,13 +1092,13 @@ export function EventDetailModal({
                                 <div className="space-y-3 rounded-lg border border-border bg-elevated/30 p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <DofusUiIcon name="dungeon" size={16} />
-                                        <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">Détails du Raid</span>
+                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Détails du Raid</span>
                                     </div>
 
                                     {/* Raid type + badges */}
                                     <div className="flex flex-wrap items-center gap-2">
                                         {raidMeta.raidLabel && (
-                                            <span className="px-2.5 py-1 rounded-lg bg-elevated border border-border text-foreground text-xs font-black uppercase tracking-wider">
+                                            <span className="px-2.5 py-1 rounded-lg bg-elevated border border-border text-foreground text-xs font-bold uppercase tracking-wider">
                                                 {raidMeta.raidLabel}
                                             </span>
                                         )}
@@ -1118,7 +1118,7 @@ export function EventDetailModal({
                                         <div className="flex items-center gap-2 text-sm">
                                             <DofusUiIcon name="leader" size={16} />
                                             <span className="text-muted-foreground text-xs uppercase tracking-wider">Capitaine :</span>
-                                            <span className="font-black text-warning tracking-tight">{raidMeta.raidCaptain}</span>
+                                            <span className="font-bold text-warning tracking-tight">{raidMeta.raidCaptain}</span>
                                         </div>
                                     )}
 
@@ -1150,7 +1150,7 @@ export function EventDetailModal({
                                                     <div className="flex items-center justify-between gap-2">
                                                         <div className="flex items-center gap-2">
                                                             <Tv2 className="h-4 w-4 text-cyan-400" />
-                                                            <span className="text-xs font-black text-cyan-200 uppercase tracking-wider">
+                                                            <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">
                                                                 Assistant de Raid en Direct (Overlay)
                                                             </span>
                                                         </div>
@@ -1186,7 +1186,7 @@ export function EventDetailModal({
                                                     <div className="flex items-center justify-between gap-2">
                                                         <div className="flex items-center gap-2">
                                                             <Tv2 className="h-4 w-4 text-primary" />
-                                                            <span className="text-xs font-black text-foreground uppercase tracking-wider">
+                                                            <span className="text-xs font-bold text-foreground uppercase tracking-wider">
                                                                 Overlay d'assistance en jeu disponible
                                                             </span>
                                                         </div>
@@ -1256,7 +1256,7 @@ export function EventDetailModal({
                                                 <span>{raidMeta.raidMax} max</span>
                                             </div>
                                             <div className="text-center">
-                                                <span className="text-lg font-black text-foreground">{registeredCount}</span>
+                                                <span className="text-lg font-bold text-foreground">{registeredCount}</span>
                                                 <span className="text-muted-foreground text-xs font-bold"> / {raidMeta.raidMax} joueurs</span>
                                             </div>
                                         </div>
@@ -1270,13 +1270,13 @@ export function EventDetailModal({
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
                                             <DofusUiIcon name="hourglass" size={16} />
-                                            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
+                                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                                                 Session live
                                             </span>
                                         </div>
                                         {liveSession?.status === "LIVE" && (
                                             <span className={cn(
-                                                "font-mono font-black tabular-nums",
+                                                "font-mono font-bold tabular-nums",
                                                 liveAlert === "alert45" || liveAlert === "ended" ? "text-danger" : liveAlert === "ok" ? "text-success" : "text-warning"
                                             )}>
                                                 {liveRemaining}
@@ -1302,7 +1302,7 @@ export function EventDetailModal({
                                     ) : (
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between gap-2 text-xs">
-                                                <span className="font-black text-foreground tabular-nums">
+                                                <span className="font-bold text-foreground tabular-nums">
                                                     {(liveSession.score ?? 0).toLocaleString("fr-FR")} pts
                                                 </span>
                                                 {livePresence.length > 0 && (
@@ -1404,7 +1404,7 @@ export function EventDetailModal({
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2">
                                         <Target className="h-4 w-4 text-warning" />
-                                        <h3 className="text-xs font-black text-muted-foreground uppercase italic tracking-widest">Objectifs de la session</h3>
+                                        <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Objectifs de la session</h3>
                                     </div>
 
                                     {loadingMissions ? (
@@ -1452,7 +1452,7 @@ export function EventDetailModal({
                                                                     </div>
 
                                                                     <div className="absolute inset-x-0 bottom-0 p-2">
-                                                                        <p className="text-caption font-black text-foreground uppercase tracking-tighter line-clamp-1 leading-none mb-1">
+                                                                        <p className="text-caption font-bold text-foreground uppercase tracking-tighter line-clamp-1 leading-none mb-1">
                                                                             {mTitle}
                                                                         </p>
                                                                         {payload.objectives && (
@@ -1463,7 +1463,7 @@ export function EventDetailModal({
                                                                     </div>
                                                                 </Link>
                                                             </TooltipTrigger>
-                                                            <TooltipContent side="bottom" className="bg-warning text-warning-foreground font-black uppercase text-caption tracking-widest border-none">
+                                                            <TooltipContent side="bottom" className="bg-warning text-warning-foreground font-bold uppercase text-caption tracking-widest border-none">
                                                                 Aller voir les missions ?
                                                             </TooltipContent>
                                                         </Tooltip>
@@ -1481,12 +1481,12 @@ export function EventDetailModal({
                             {(() => {
                                 return (
                                     <div>
-                                        <h3 className="text-sm font-black text-muted-foreground mb-4 flex items-center justify-between uppercase tracking-wider">
+                                        <h3 className="text-sm font-bold text-muted-foreground mb-4 flex items-center justify-between uppercase tracking-wider">
                                             <div className="flex items-center gap-2">
                                                 <DofusUiIcon name="player" size={15} />
                                                 Participants{isKrala ? " Metamob" : ""}
                                             </div>
-                                            <span className="px-2 py-0.5 rounded-md border border-border bg-surface/50 text-xs font-black text-foreground">
+                                            <span className="px-2 py-0.5 rounded-md border border-border bg-surface/50 text-xs font-bold text-foreground">
                                                 {displayCount}
                                             </span>
                                         </h3>
@@ -1541,16 +1541,16 @@ export function EventDetailModal({
                                                 (eventMetadata.metamobParticipants as any[]).map((p, i) => (
                                                     <div key={`meta-${i}`} className="group relative flex items-center justify-between p-3 rounded-xl bg-surface/40 border border-border/50 hover:bg-elevated/60 transition-all">
                                                         <div className="flex items-center gap-4 min-w-0">
-                                                            <div className="h-8 w-8 rounded-full bg-elevated border border-border flex items-center justify-center text-caption font-black text-muted-foreground shrink-0 group-hover:border-pink-500/30 group-hover:text-pink-400 transition-colors">
+                                                            <div className="h-8 w-8 rounded-full bg-elevated border border-border flex items-center justify-center text-caption font-bold text-muted-foreground shrink-0 group-hover:border-border group-hover:text-foreground transition-colors">
                                                                 #{i + 1}
                                                             </div>
-                                                            <Avatar className="h-10 w-10 border border-border shadow-xl group- transition-transform">
+                                                            <Avatar className="h-10 w-10 border border-border shadow-xl transition-transform">
                                                                 <AvatarFallback className="bg-gradient-to-br from-elevated to-surface text-muted-foreground text-xs font-bold">
                                                                     {p.username?.[0] || "?"}
                                                                 </AvatarFallback>
                                                             </Avatar>
                                                             <div className="flex flex-col min-w-0">
-                                                                <span className="text-sm font-black text-foreground truncate group-hover:text-foreground transition-colors uppercase italic tracking-tight">
+                                                                <span className="text-sm font-bold text-foreground truncate group-hover:text-foreground transition-colors uppercase tracking-tight">
                                                                     {(p.username || "Anonyme").replace(/\s\(\d+\)$/, "")}
                                                                 </span>
                                                                 <span className="text-caption font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
@@ -1559,7 +1559,7 @@ export function EventDetailModal({
                                                             </div>
                                                         </div>
                                                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <Badge variant="outline" className="text-caption font-black border-pink-500/20 text-pink-400 bg-pink-500/5">
+                                                            <Badge variant="outline" className="text-caption font-bold border-border text-foreground bg-elevated/50">
                                                                 METAMOB
                                                             </Badge>
                                                         </div>
@@ -1641,7 +1641,7 @@ export function EventDetailModal({
                                     <Button
                                         asChild
                                         size="lg"
-                                        className="h-12 rounded-xl font-black text-sm uppercase tracking-wider px-8 bg-info hover:bg-info text-info-foreground"
+                                        className="h-12 rounded-xl font-bold text-sm uppercase tracking-wider px-8 bg-info hover:bg-info text-info-foreground"
                                     >
                                         <Link
                                             href={mirrorDetail?.href ?? `/dashboard/${guildId}/donjons-et-quetes`}
@@ -1651,7 +1651,7 @@ export function EventDetailModal({
                                             Ouvrir le post d'origine
                                         </Link>
                                     </Button>
-                                    <p className="text-caption text-muted-foreground italic">
+                                    <p className="text-caption text-muted-foreground">
                                         Miroir lecture seule — inscriptions et modifications depuis le post d'origine.
                                     </p>
                                 </div>
@@ -1660,7 +1660,7 @@ export function EventDetailModal({
                                     <div className="flex items-center gap-2">
                                         <Button
                                             asChild
-                                            className="bg-info hover:bg-info text-info-foreground font-bold shadow-lg shadow-indigo-500/20"
+                                            className="bg-info hover:bg-info text-info-foreground font-bold"
                                         >
                                             <a
                                                 href="https://metamob.fr/kralove"
@@ -1686,7 +1686,7 @@ export function EventDetailModal({
                                         )}
                                     </div>
                                     {!hasMetamobKey && (
-                                        <p className="text-caption text-muted-foreground italic">
+                                        <p className="text-caption text-muted-foreground">
                                             Liez votre compte pour que SigilOS puisse synchroniser votre état de jeu.
                                         </p>
                                     )}
@@ -1706,7 +1706,7 @@ export function EventDetailModal({
                                                         <Button
                                                             size="lg"
                                                             disabled
-                                                            className="h-12 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 shadow-inner relative group overflow-hidden border border-border/50 bg-elevated/50 text-muted-foreground cursor-not-allowed px-8"
+                                                            className="h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 relative group overflow-hidden border border-border/50 bg-elevated/50 text-muted-foreground cursor-not-allowed px-8"
                                                         >
                                                             <Lock className="h-4 w-4 mr-2.5" />
                                                             Inscription verrouillée
@@ -1714,7 +1714,7 @@ export function EventDetailModal({
                                                         <div className="flex items-start gap-2.5 p-3 rounded-xl bg-warning/5 border border-warning/20 text-warning">
                                                             <Coins className="h-4 w-4 shrink-0 mt-0.5" />
                                                             <div className="text-xs leading-relaxed">
-                                                                <span className="font-black uppercase tracking-wide">
+                                                                <span className="font-bold uppercase tracking-wide">
                                                                     Don requis : {typeof raidEligibility?.requiredKamas === "number"
                                                                         ? raidEligibility.requiredKamas.toLocaleString("fr-FR")
                                                                         : "—"} kamas
@@ -1728,7 +1728,7 @@ export function EventDetailModal({
                                                                 <br />
                                                                 <Link
                                                                     href={`/dashboard/${guildId}/missions#don-kamas`}
-                                                                    className="inline-flex items-center gap-1 mt-1.5 font-black text-warning hover:text-warning underline underline-offset-2"
+                                                                    className="inline-flex items-center gap-1 mt-1.5 font-bold text-warning hover:text-warning underline underline-offset-2"
                                                                 >
                                                                     <Coins className="h-3 w-3" />
                                                                     Faire mon don maintenant
@@ -1746,10 +1746,10 @@ export function EventDetailModal({
                                                     onClick={() => setShowRegistration(true)}
                                                     disabled={isLoading}
                                                     className={cn(
-                                                        "h-12 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 shadow-lg relative group overflow-hidden border-t border-border px-8",
+                                                        "h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 shadow-lg relative group overflow-hidden border-t border-border px-8",
                                                         isFull
-                                                            ? "bg-warning hover:bg-warning shadow-amber-600/30 text-warning-foreground"
-                                                            : "bg-info hover:bg-info shadow-indigo-600/30 text-info-foreground"
+                                                            ? "bg-warning hover:bg-warning text-warning-foreground"
+                                                            : "bg-info hover:bg-info text-info-foreground"
                                                     )}
                                                 >
                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1812,7 +1812,7 @@ export function EventDetailModal({
                                     <DofusUiIcon name="trophy" size={20} />
                                 </div>
                                 <div>
-                                    <DialogTitle className="text-foreground font-black uppercase tracking-tight">Clôturer le Raid</DialogTitle>
+                                    <DialogTitle className="text-foreground font-bold uppercase tracking-tight">Clôturer le Raid</DialogTitle>
                                     <p className="text-caption text-muted-foreground uppercase tracking-wider">Distribution des points & score</p>
                                 </div>
                             </div>
@@ -1821,7 +1821,7 @@ export function EventDetailModal({
                         <div className="p-6 space-y-5">
                             {/* Score */}
                             <div className="space-y-1.5">
-                                <label className="text-xs font-black text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                                     <DofusUiIcon name="success" size={14} />
                                     Score du Raid
                                 </label>
@@ -1830,7 +1830,7 @@ export function EventDetailModal({
                                     placeholder="Ex: 84 500 pts"
                                     value={raidScore}
                                     onChange={e => setRaidScore(e.target.value)}
-                                    className="w-full h-11 px-4 rounded-xl bg-background/80 border border-border text-foreground font-black text-base placeholder:text-muted-foreground focus:outline-none focus:border-danger/50"
+                                    className="w-full h-11 px-4 rounded-xl bg-background/80 border border-border text-foreground font-bold text-base placeholder:text-muted-foreground focus:outline-none focus:border-danger/50"
                                 />
                                 <p className="text-caption text-muted-foreground">Score visible dans le module de raid en jeu.</p>
                             </div>
@@ -1838,11 +1838,11 @@ export function EventDetailModal({
                             {/* Participants présents */}
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                                        <Users className="h-3.5 w-3.5 text-pink-400" />
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
                                         Présents au Raid
                                     </label>
-                                    <span className="text-xs font-black text-muted-foreground">
+                                    <span className="text-xs font-bold text-muted-foreground">
                                         {presentParticipants.size} / {event.participants.filter(p => p.status === "REGISTERED").length}
                                     </span>
                                 </div>
@@ -1890,13 +1890,13 @@ export function EventDetailModal({
                                                         <AvatarFallback className="bg-elevated text-caption">{p.user.name?.[0] || "?"}</AvatarFallback>
                                                     </Avatar>
                                                     <span className={cn(
-                                                        "text-sm font-black uppercase tracking-tight",
+                                                        "text-sm font-bold uppercase tracking-tight",
                                                         isPresent ? "text-foreground" : "text-muted-foreground"
                                                     )}>
                                                         {p.user.profiles?.[0]?.discordNickname || p.user.name || "Anonyme"}
                                                     </span>
                                                     {isPresent && (
-                                                        <span className="ml-auto text-caption font-black text-success uppercase">+50 pts</span>
+                                                        <span className="ml-auto text-caption font-bold text-success uppercase">+50 pts</span>
                                                     )}
                                                 </button>
                                                 {!isPresent && (
@@ -2229,7 +2229,7 @@ function ParticipantRow({
                             </span>
                         )}
                         {participant.hasParticipatedThisWeek && (
-                            <Badge variant="outline" className="border-border bg-surface/50 text-muted-foreground text-caption font-black uppercase py-0 px-1.5 shrink-0">
+                            <Badge variant="outline" className="border-border bg-surface/50 text-muted-foreground text-caption font-bold uppercase py-0 px-1.5 shrink-0">
                                 Déjà participé cette semaine
                             </Badge>
                         )}
@@ -2328,7 +2328,7 @@ function ParticipantRow({
                                 "shrink-0 transition-all",
                                 isTransferConfirming
                                     ? "h-8 px-3 text-xs font-medium bg-warning hover:bg-warning text-warning-foreground"
-                                    : "h-8 px-2 text-caption font-black uppercase tracking-wider text-warning hover:text-warning hover:bg-warning/10"
+                                    : "h-8 px-2 text-caption font-bold uppercase tracking-wider text-warning hover:text-warning hover:bg-warning/10"
                             )}
                             title={
                                 isTransferConfirming

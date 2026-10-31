@@ -86,6 +86,7 @@ import { getGuildMemberBans, liftGuildMemberBan } from "@/server/actions/lifecyc
 import { RelanceModal } from "./relance-modal";
 import { VacationEditDialog } from "./vacation-edit-dialog";
 import { MemberDiscordActivity } from "./member-discord-activity";
+import { MemberRaidPresence } from "./member-raid-presence";
 import { RecruiterPicker } from "./recruiter-picker";
 import { MemberMulesEditor } from "./member-mules-editor";
 
@@ -221,7 +222,7 @@ export function MemberDetailDialog({
     /** Relecture impossible **après** une écriture réussie : l'écran le dit, il ne ment pas. */
     const [rereadError, setRereadError] = useState<string | null>(null);
     /** Onglet de la fiche : la fiche registre, ou l'activité Discord mesurée. */
-    const [detailTab, setDetailTab] = useState<"fiche" | "discord">("fiche");
+    const [detailTab, setDetailTab] = useState<"fiche" | "discord" | "presences">("fiche");
 
     /** Exclusion active (tombstone) de la personne affichée — `null` = aucune, ou pas le droit de la lire. */
     const [activeExclusion, setActiveExclusion] = useState<{
@@ -616,6 +617,7 @@ export function MemberDetailDialog({
                             [
                                 { id: "fiche" as const, label: "Fiche" },
                                 { id: "discord" as const, label: "Activité Discord" },
+                                { id: "presences" as const, label: "Présences" },
                             ]
                         ).map((tab) => (
                             <button
@@ -638,6 +640,8 @@ export function MemberDetailDialog({
 
                     {detailTab === "discord" ? (
                         <MemberDiscordActivity guildId={guildId} subject={subject} displayName={current.displayName} />
+                    ) : detailTab === "presences" ? (
+                        <MemberRaidPresence guildId={guildId} memberUserId={current.userId} />
                     ) : (
                     <div className="space-y-6">
                         {/* ── 1. Profil & actions ─────────────────────────────── */}

@@ -1723,27 +1723,44 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
     }
 }
 
-/** Vue du registre de présence renvoyée à l'écran (staff seul) — champs optionnels côté échec. */
-export type RaidPresenceRegister = {
+/** Ligne de présence vue par la **fiche membre** (staff) — un raid, un statut. */
+export type MemberRaidPresenceRow = {
+    eventId: string;
+    eventTitle: string;
+    eventDate: string;
+    status: RaidPresenceStatus;
+    recordedBy: string | null;
+    updatedAt: string;
+};
+
+/** Vue staff d'un membre : ses présences de raid + son compteur 90 jours. */
+export type MemberRaidPresence = {
     success: boolean;
     error?: string;
-    rows?: { userId: string; name: string; status: RaidPresenceStatus; updatedAt: string }[];
+    rows?: MemberRaidPresenceRow[];
     summary?: RaidPresenceSummary;
     retentionDays?: number;
+    /** `true` = l'appelant peut corriger un statut (officier de raid ou admin). */
+    canCorrect?: boolean;
 };
 
 /**
- * Registre de présence d'un raid — **staff seul** (R1, décision D3 du 31/10/2026).
+ * Présences de raid **d'un membre**, lues depuis sa fiche (R1, décision D3 du 31/10/2026).
  *
- * Le no-show est une donnée **personnelle** : elle n'est lisible ni par un membre, ni dans un
- * embed public. Cette action re-vérifie la permission elle-même (`canManageRaid` / admin /
- * gestion du calendrier) — la page ne suffit jamais — et borne ce qu'elle renvoie.
+ * Le registre n'est **pas** un objet du raid : on le consulte quand on gère un membre
+ * (« a-t-il séché trois raids ce trimestre ? »), pas en clôturant. La garde est donc celle de
+ * la gestion membre **ou** de l'officier de raid — et elle est re-vérifiée ici, jamais héritée
+ * de la page. Isolation : tout est filtré par le `guildId` **résolu côté serveur**.
  */
-export async function getRaidPresenceRegister(guildId: string, eventId: string): Promise<RaidPresenceRegister> {
+export async function getMemberRaidPresence(guildId: string, userId: string): Promise<MemberRaidPresence> {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
-    if (!(ctx.isAdmin || ctx.canManageRaid || ctx.canManageCalendar)) {
+    if (!(ctx.isAdmin || ctx.canManageMembers || ctx.canManageRaid)) {
         return { success: false, error: "Permission insuffisante" };
+    }
+    const targetUserId = typeof userId === "string" ? userId.trim() : "";
+    if (!targetUserId || targetUserId.length > 64) {
+        return { success: false, error: "Membre invalide" };
     }
 
     try {
@@ -1753,39 +1770,39 @@ export async function getRaidPresenceRegister(guildId: string, eventId: string):
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
-        // Isolation : l'événement doit appartenir à **cette** guilde avant toute lecture.
-        const event = await db.guildEvent.findUnique({
-            where: { id: eventId, guildId: guildConfig.id },
-            select: { id: true },
+        const rows = await db.raidPresence.findMany({
+            where: { guildId: guildConfig.id, userId: targetUserId },
+            orderBy: { createdAt: "desc" },
+            take: 50,
+            select: {
+                eventId: true,
+                status: true,
+                recordedBy: true,
+                updatedAt: true,
+                createdAt: true,
+                event: { select: { title: true, startDate: true } },
+            },
         });
-        if (!event) return { success: false, error: "Événement introuvable" };
 
-        const [rows, recent] = await Promise.all([
-            db.raidPresence.findMany({
-                where: { eventId, guildId: guildConfig.id },
-                orderBy: { createdAt: "asc" },
-                take: 40,
-                select: { userId: true, status: true, updatedAt: true, user: { select: { name: true } } },
-            }),
-            db.raidPresence.findMany({
-                where: { guildId: guildConfig.id, createdAt: { gte: raidPresenceRetentionCutoff() } },
-                select: { status: true },
-            }),
-        ]);
+        const cutoff = raidPresenceRetentionCutoff();
+        const recent = rows.filter((row) => row.createdAt >= cutoff).map((row) => row.status);
 
         return {
             success: true,
             rows: rows.map((row) => ({
-                userId: row.userId,
-                name: row.user.name || "Membre",
+                eventId: row.eventId,
+                eventTitle: row.event.title,
+                eventDate: row.event.startDate.toISOString(),
                 status: row.status,
+                recordedBy: row.recordedBy ?? null,
                 updatedAt: row.updatedAt.toISOString(),
             })),
-            summary: summarizeRaidPresence(recent.map((row) => row.status)),
+            summary: summarizeRaidPresence(recent),
             retentionDays: RAID_PRESENCE_RETENTION_DAYS,
+            canCorrect: ctx.isAdmin || ctx.canManageRaid,
         };
     } catch (error) {
-        logger.error("[Calendar] getRaidPresenceRegister Error:", error);
+        logger.error("[Calendar] getMemberRaidPresence Error:", error);
         return { success: false, error: "Registre illisible" };
     }
 }

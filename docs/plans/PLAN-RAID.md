@@ -87,8 +87,8 @@ enregistré. Ne pas les redécrire ici.
 > italiques, **2** glows colorés et un **second accent rose** retirés ; le **responsive** était **déjà
 > conforme** (`w-[95vw]` + `sm:max-w-*`) — verrou `tests/unit/raid-modal-charte.test.ts` (**9 cas**).
 > ~~le no-show de **R1**~~ ⇒ ✅ **livré le 31/10/2026** (migration 290 `20270123000000_raid_presence`,
-> règle `src/lib/raid-presence.ts`) · **D3 → D6** sont **tranchées** (tableau plus bas).
-> **Reste ouvert** : **D7** (notification d'annulation = B3), hors du registre.
+> règle `src/lib/raid-presence.ts`) · **D3 → D6** sont **tranchées** (tableau plus bas) · **D7 livré le
+> 31/10/2026** (notification **dashboard** aux inscrits, aucun DM ni message Discord).
 
 > **Source** : audit « Opus 4.6 » du 30/10/2026 (fichier volatile `src/temp/debug.md`, **écrasé depuis** par un
 > log de déploiement bêta — le contenu utile est **reconstitué ici**, il n'existe nulle part ailleurs).
@@ -143,7 +143,7 @@ le chemin générique, quatre audits écrits. **Aucune migration** ⇒ pas d'arr
 | **D4** | Note libre du joueur sur sa présence | ✅ **tranché le 31/10/2026** — **pas de note libre en V1** : texte utilisateur à borner, à modérer et à afficher nulle part pour aucun besoin exprimé. Si le besoin apparaît : colonne bornée, visible staff seul. |
 | **D5** | Rétention des présences (index 90 j) | ✅ **tranché le 31/10/2026** — **90 jours** (`RAID_PRESENCE_RETENTION_DAYS`), index `(guildId, createdAt)` pour le compteur glissant et la purge (`raidPresenceRetentionCutoff`). |
 | **D6** | Résumé Discord de clôture | ✅ **tranché le 31/10/2026** — **aucun message Discord supplémentaire** : la clôture supprime déjà l'embed (F1) ; le résumé chiffré vit dans l'**attestation de la modale** et dans l'**audit** (`RAID_CLOSED` porte présents / absents / no-shows). |
-| **D7** | Notification d'annulation aux inscrits (B3) | ⏳ **reste ouvert** — hors du registre de présence : à traiter dans son propre lot (édition de l'embed existant, **sans mention de masse**). |
+| **D7** | Notification d'annulation aux inscrits (B3) | ✅ **tranché et livré le 31/10/2026** — **notification dans le tableau de bord** pour les inscrits `REGISTERED` (`createNotification`, catégorie `EVENT`) : **aucun DM, aucun message Discord** (l'embed du salon reste supprimé). Fail-soft journalisé ; l'audit `EVENT_CANCELLED` porte `notified`. Verrou : `tests/unit/calendar-cancel-notification.test.ts`. |
 
 > ✅ **D3 → D7 tranchées le 31/10/2026** (accord mainteneur « go r1 one shot ») : D3 **staff seul**, D4
 > **aucune note libre**, D5 **90 jours**, D6 **aucun message Discord supplémentaire**, D7 **reportée**

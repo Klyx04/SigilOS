@@ -1088,7 +1088,7 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { id: true, creatorId: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
+            select: { id: true, title: true, type: true, creatorId: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
@@ -1118,6 +1118,38 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
             data: { status: "CANCELLED" }
         });
 
+        // D7 (décision du 31/10/2026) : l'annulation n'est plus **muette**. Chaque **inscrit**
+        // reçoit une notification **dans le tableau de bord** — aucun DM, aucun message Discord :
+        // l'embed du salon est supprimé juste au-dessus (B3). Fail-soft assumé : l'annulation est
+        // faite ; une notification ratée est journalisée et ne défait pas l'acte.
+        let notified = 0;
+        try {
+            const registered = await db.eventParticipant.findMany({
+                where: { eventId, status: "REGISTERED" },
+                select: { userId: true },
+                take: 200,
+            });
+            const { createNotification } = await import("./notification-actions");
+            const notifyTitle = event.type === "RAID_OFFICIAL" ? "Raid annulé" : "Événement annulé";
+            for (const participant of registered) {
+                await createNotification(
+                    participant.userId,
+                    "SYSTEM_INFO",
+                    notifyTitle,
+                    `« ${event.title} » a été annulé par l'organisateur.`,
+                    `/dashboard/${guildId}/calendar`,
+                    guildId,
+                    "EVENT",
+                );
+                notified++;
+            }
+        } catch (error) {
+            logger.warn("[Calendar] cancelCalendarEvent : notifications non écrites", {
+                eventId,
+                error: String(error),
+            });
+        }
+
         // B7 (audit du 30/10/2026) : une annulation ne laissait aucune trace.
         const { createAuditLog } = await import("./audit-actions");
         await createAuditLog({
@@ -1128,7 +1160,7 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
             targetType: "GUILD_EVENT",
             targetId: eventId,
             oldValue: { status: event.status },
-            newValue: { status: "CANCELLED" },
+            newValue: { status: "CANCELLED", notified },
         });
 
         revalidatePath(`/dashboard/${guildId}/calendar`);

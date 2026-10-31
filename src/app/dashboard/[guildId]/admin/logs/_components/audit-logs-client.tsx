@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { AUDIT_ACTION_FILTER_OPTIONS } from "@/lib/audit-taxonomy";
 
 // Action type to color mapping
 const ACTION_COLORS: Record<string, string> = {
@@ -137,16 +138,14 @@ function formatReason(reason: unknown): string | null {
     return reason;
 }
 
-const ACTION_OPTIONS = [    { value: "all", label: "Toutes les actions" },
-    { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
-    { value: "RBAC_UPDATE", label: "Permissions modifiées" },
-    { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions" },
-    { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus" },
-    { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED,SCHEDULED_POLL_CREATED,SCHEDULED_POLL_UPDATED,SCHEDULED_POLL_CANCELLED,SCHEDULED_POLL_PUBLISHED", label: "📊 Sondages & Micro" },
-    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,PLATFORM_ARRIVAL,PLATFORM_DEPARTURE,PROFILE_ARCHIVED,PROFILE_REACTIVATED,MEMBER_PSEUDO_UPDATE,MEMBER_ANKAMA_ID_UPDATE", label: "🔄 Mouvements" },
-    { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration" },
-    { value: "ADMIN_FULL_DENIED,SECURITY_ALERT", label: "🛡️ Sécurité" },
-    { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
+// Filtre d'actions de la page guilde : **la source partagée** (`@/lib/audit-taxonomy`), pas une
+// copie locale. Mesure du 31/10/2026 : la liste locale ne couvrait que 8 groupes et laissait
+// **~36 actions déclarées** hors de tout filtre (calendrier/raids, RBAC, mouvements Discord,
+// cycle de vie du profil, guildaton, God…) — les lignes existaient en base, l'écran ne les
+// proposait pas.
+const ACTION_OPTIONS = [
+    { value: "all", label: "Toutes les actions" },
+    ...AUDIT_ACTION_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
 ];
 
 type PermissionChange = {

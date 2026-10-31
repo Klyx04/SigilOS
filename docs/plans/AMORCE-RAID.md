@@ -45,17 +45,22 @@ description: Amorce de session — exécuter les chantiers RAID du plan `docs/pl
 | **DoD global** | Les DoD par lot (§1→§4 du plan) + recette : clôture ⇒ **statuts privés + audit + `undo` exact** ; strat **dans** la modale du raid (aucune redirection) ; miroirs DJ/Songes **lecture seule** (aucune action débloquée, même pour un admin) ; rangs **1-5** ; cartes = **union** des donjons ; overlay = **1 toolbar**. |
 | **Hors périmètre** | Mini-jeux (consigne §2/§5), marché, succès imbriqués, services, logs, ressources, missions, ladder/planning, guides généraux ⇒ **chantiers séparés**. **Aucune refonte de l'overlay boss** (`use-boss-overlay` reste intact). |
 | **Entrées** | `docs/plans/PLAN-RAID.md` (ce dossier) · consigne volatile `src/temp/consigne-2026-09-30-raid-calendrier-mini-jeux.md` (§14, §20, §4, §6, §7, §8, §15, §16, §22, §23) · `docs/ROADMAP.md` (bloc 01/10 + § F) · `docs/agents/activeContext.md`. |
-| **Risque** | **L3 = 1 migration additive** ⇒ ARRÊT + accord · **L2 = table partagée `GuildEvent`** (isolation `guildId` + nettoyage des miroirs) · **L1/L6 = overlay** ⇒ ne casser aucune fiche boss · statuts de no-show = **données personnelles** ⇒ jamais de badge public, rien de sensible dans les logs. |
+| **Risque** | **L2 = 1 migration additive** (table `RaidPresence`) ⇒ ARRÊT + accord · **L1 = table partagée `GuildEvent`** (isolation `guildId` + nettoyage des miroirs) · **L3/L6 = overlay** ⇒ ne casser aucune fiche boss · statuts de no-show = **données personnelles** ⇒ jamais de badge public, rien de sensible dans les logs. |
 | **Docs concernées** | `docs/ROADMAP.md` · `docs/agents/activeContext.md` · `docs/plans/PLAN-RAID.md` + cette amorce · `docs/MAINTENANCE.md` **seulement** si un cron change (aucun prévu). |
 
 ## 2. Les décisions (rappel — **ne pas réinterpréter**)
+
+> ⚠️ **Numérotation locale à cette amorce.** Les arbitrages **encore ouverts** du R1 vivent dans
+> `PLAN-RAID` §2 sous les **mêmes libellés D3 → D7** avec un **autre contenu** (visibilité du registre,
+> note libre du joueur, rétention, résumé Discord de clôture, notification d'annulation). Toujours citer
+> le fichier avec le numéro — « D3 de `PLAN-RAID` » — jamais « D3 » seul.
 
 | # | Décision | État |
 |---|---|---|
 | **D1** | **§1 classes du calendrier** : règle **unique** `resolveEffectiveClass` (choisie → profil), pictos sur les **2** embeds, « Mes personnages » Discord + site, sélecteur « ma classe » | ✅ **livré** (#815) — ne pas refaire |
 | **D2** | **§3 rappel de clôture 24 h** : dans la tâche `raid-reminders` **existante** (0 crontab en plus), ping du **seul** `creatorId`, raid clôturé d'office seulement à **+48 h** | ✅ **livré** (#816) — ne pas refaire |
-| **D3** | **Facteur Kamas Violets de la clôture** : `*10` (code actuel) vs `*10 000` (seuil d'inscription) | ⏸️ **à trancher** — bloque L3 |
-| **D4** | **Stocker `raidPurpleKamasCost`** au moment de la clôture (sinon `undo` rembourse une valeur de repli) | ⏸️ **à trancher** — bloque L3 |
+| **D3** | **Facteur Kamas Violets de la clôture** : `*10` (code actuel) vs `*10 000` (seuil d'inscription) | ✅ **tranché le 30/10/2026** (PR #1171) — **1 tranche de 10 000 kamas = 10 🟣** : don hebdo `tranches × 10 000 k`, bourse et coût `tranches × 10 🟣` (seul le libellé de trésorerie était faux) |
+| **D4** | **Stocker `raidPurpleKamasCost`** au moment de la clôture (sinon `undo` rembourse une valeur de repli) | ✅ **tranché le 30/10/2026** (PR #1171) — le coût **est** enregistré à la clôture ; `undo` ne rend que le coût **réel**, sinon **0** (`resolveUndoRefundPurpleKamas`) |
 | **D5** | **Pas de badge no-show public** : statuts privés + compteur **officier seul**, jamais de stigmatisation (référence Raid Helper) | ✅ acté (consigne §14, « cible validée ») |
 | **D6** | **Miroirs DJ/Songes = lecture seule** pour **tout le monde**, admin compris (seul CTA « Ouvrir le post d'origine ») | ✅ acté (consigne §4, « principe validé ») |
 | **D7** | **Ordre des lots** : c'est **celui de la consigne** (« Ordre de réalisation (reste) ») — **L0 sécu → L1 (§4 miroir) → L2 (§14 no-show) → L3 (§6 overlay) → L4 (§7 rangs) → L5 (§8 maps) → L6 (§15) → L7 (§20 strat)**, les lots non-raid s'intercalant | ✅ **acté** (écrit dans la consigne, il fait foi) |
@@ -77,7 +82,7 @@ Preuve : un post DJ daté apparaît et **aucun** bouton d'action n'est cliquable
 ### L2 — La clôture devient un vrai acte (R2 · §14) — **1 migration, ARRÊT avant**
 Livrer : table **`RaidPresence`** (`@@unique[eventId,userId]`, index 90 j) **écrite** dans `completeRaidEvent` et **supprimée** dans `undo` ; modale (bloc Absents **dès la décoche**, `select` de motif, **validation bloquante**, attestation **chiffrée** « X présents débités, N no-shows ») ; droits **`RAID_OFFICER` / `canManageRaid`** + `creatorId` / `raidCaptainId` ; colonne **registre** (staff seul) ; correction officier + `createAuditLog` **avant → après**.
 Preuve : `undo` ramène l'état **exactement** d'avant (présences, points, Kamas, no-show) ; l'audit contient clôture **et** correction ; un membre lambda est **refusé** ; aucune donnée de no-show lisible côté membre.
-⏸️ **Bloqué par D3 / D4** (facteur Kamas Violets · stockage de `raidPurpleKamasCost`) — et c'est le **3ᵉ** lot de l'ordre officiel.
+⏸️ **D3/D4 sont tranchés depuis la PR #1171** : ce qui bloque L2 est désormais l'**accord migration** (`RaidPresence`, la 290ᵉ) et les **cinq arbitrages ouverts** de `PLAN-RAID` §2 (D3 → D7, **autre numérotation** — voir le §2 ci-dessus). C'est le **3ᵉ** lot de l'ordre officiel.
 
 ### L3 — L'overlay Simulation cesse d'être un empilement (R3 · §6) — moyen
 Livrer : **1 toolbar unique** (Boss libre + sort PA·PO + map **visible** + zoom + Options + Légende), Options en **3 sections** (Board / Placement / Butin), prévisu en **rail latéral** (replié par défaut, jamais superposé en PiP), « Ordre d'apparition » **cliquable** (`handleCellClick`), zoom + `Fit` uniques, déslop (rayons 3/4/6, 0 blur/shadow/italic) ; anomalies : élargir le siphon (**Rushu** ou siphon par id) + lectures **local-only** avec `stale` **daté** + état vide explicite.
@@ -110,7 +115,7 @@ Preuve : la modale raid ouvre la strat **sans changer de page** (capture) ; non-
 4. **Deux overlays, ne pas les confondre** : `use-raid-overlay` (raid, **PiP 420×720**, store dédié) vs `use-boss-overlay` (boss, 380×680). Le raid utilise **le premier**.
 5. **La clôture est un acte, pas un effet de bord** : aucune conséquence automatique au départ d'un organisateur (c'est le **chantier F** du ROADMAP, **hors** de ce plan) ⇒ ne **pas** desserrer les verrous « capitaine seul » sans test de non-régression.
 6. **`src/temp/` est volatile et gitignoré** : la consigne ne sera **jamais** committée — le survivant, c'est `PLAN-RAID.md` + le `ROADMAP`.
-7. **D3/D4 non tranchés ⇒ on ne code pas L2 (§14, no-show)** (facteur Kamas Violets + stockage du coût) : deviner fabriquerait une régression comptable silencieuse — et comme c'est le **3ᵉ** lot de l'ordre officiel, **les poser tôt débloque toute la file**.
+7. **L2 (§14, no-show) attend deux choses, et rien d'autre** : l'**accord explicite pour la migration** `RaidPresence` et les **cinq arbitrages ouverts** de `PLAN-RAID` §2 (D3 → D7 : visibilité du registre, note libre, rétention, résumé Discord, notification d'annulation). Les deux décisions comptables (facteur Kamas Violets, stockage du coût) sont **tranchées depuis la PR #1171** — ne pas les rouvrir, ne pas les redeviner : c'est le **3ᵉ** lot de l'ordre officiel.
 
 ## 5. Méthode, sécurité et vérifs (non négociable)
 
@@ -135,7 +140,7 @@ PÉRIMÈTRE (dans cet ordre)
   après createDjPost / createDjPosts / updateDjPost / createDreamRun / updateDreamRun, garde WHERE + idempotence
   metadata, guildId serveur, Zod borné, rate-limit Redis, fail-closed, JAMAIS de trigger Prisma ni de logique
   client ; 1 Event chapeau pour le multi-dates ; EventDetailReadonly pour TOUS ; filtre d'agenda sans surcharge.
-- L2 (3e, APRÈS mes réponses sur D3/D4) : clôture + no-show — table RaidPresence (unique eventId+userId, index
+- L2 (3e, APRÈS accord migration + mes réponses aux 5 arbitrages de PLAN-RAID §2) : clôture + no-show — table RaidPresence (unique eventId+userId, index
   90 j) écrite dans completeRaidEvent et supprimée dans undo ; modale (bloc Absents dès la décoche, select de
   motif, validation bloquante, attestation chiffrée) ; droits RAID_OFFICER/canManageRaid + creatorId/raidCaptainId ;
   compteur 90 j officier seul ; colonne registre (staff) ; correction officier + createAuditLog avant -> apres.

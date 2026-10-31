@@ -141,6 +141,26 @@ describe("repairMonsterDrops — réparation bornée", () => {
         expect(o.fetchSpy).not.toHaveBeenCalled();
     });
 
+    it("un nom déjà servi par une fiche complète n'est ni lu ni compté (ligne morte à côté)", async () => {
+        // Cas réel : « Blop Indigo Royal » 1186 (25 butins) + 7972 (repli vide). La fiche **servie**
+        // est saine : la ligne morte ne doit plus faire radoter le rapport ni brûler le budget
+        // DofusDB à chaque passe (`repairMonsterDrops` la re-fetchait indéfiniment).
+        const o = options([
+            emptyRow({ monsterName: "Blop Indigo Royal", monsterId: 7972, lastSyncedAt: new Date("2026-10-01T00:00:00Z") }),
+            {
+                monsterId: 1186,
+                monsterName: "Blop Indigo Royal",
+                stats: { drops: DROPS },
+                lastSyncedAt: new Date("2026-10-30T00:00:00Z"),
+            },
+        ]);
+        const report = await repairMonsterDrops({ db: o.db, fetchStats: o.fetchStats, persist: o.persist });
+        expect(report.scanned).toBe(0);
+        expect(report.repaired).toBe(0);
+        expect(o.fetchSpy).not.toHaveBeenCalled();
+        expect(o.persistSpy).not.toHaveBeenCalled();
+    });
+
     it("respecte la borne : `limit: 1` traite un seul monstre", async () => {
         const o = options([
             emptyRow({ monsterName: "Premier", stats: { drops: [] } }),

@@ -69,7 +69,7 @@ export const AUDIT_ACTION_FILTER_OPTIONS: readonly {
     { value: "RBAC_UPDATE,RBAC_ROLE_ADD,RBAC_ROLE_REMOVE", label: "🔑 Permissions (RBAC)", category: "functional" },
     { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration guilde", category: "functional" },
     { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,WEBHOOK_MEMBER_UPDATE", label: "🔄 Mouvements Discord", category: "functional" },
-    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT", label: "👥 Cycle de vie membre", category: "functional" },
+    { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,MEMBER_BAN_DELETED", label: "👥 Cycle de vie membre", category: "functional" },
     { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions", category: "functional" },
     { value: "EVENT_STANDBY,EVENT_CLOSED,EVENT_CANCELLED,EVENT_DELETED,RAID_CLOSED,RAID_CLOSURE_UNDONE,RAID_PRESENCE_CORRECTED", label: "🗓️ Calendrier & raids", category: "functional" },
     { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus", category: "functional" },

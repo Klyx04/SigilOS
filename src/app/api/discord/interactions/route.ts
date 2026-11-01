@@ -11,6 +11,7 @@ import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-c
 import { PERMISSIONS as PERMISSION_IDS, type PermissionId } from "@/lib/permissions";
 import type { ModuleKey } from "@/lib/module-types";
 import { resolveInteractionActor } from "@/lib/tickets/interaction-actor";
+import { resolveGuildActivityState, type GuildActivityState } from "@/lib/discord-guild-state";
 import { Prisma } from "@prisma/client";
 import { buildStandBy, isStandByActive } from "@/lib/group-standby";
 import { isAgendaMirror } from "@/lib/agenda-mirror";
@@ -300,6 +301,38 @@ const DISCORD_ACCOUNT_REQUIRED =
     "❌ Tu dois t'être connecté au moins une fois sur le site pour utiliser ce bouton.";
 const DISCORD_PERMISSION_DENIED =
     "🚫 Tes rôles Discord ne t'autorisent pas à utiliser cette fonctionnalité. Contacte un admin de ta guilde.";
+const DISCORD_GUILD_INACTIVE =
+    "❌ Cette guilde est désactivée sur SigilOS : aucune action n'est possible. Son propriétaire peut la réactiver depuis le portail.";
+const DISCORD_GUILD_STATE_UNKNOWN =
+    "⏳ Impossible de vérifier l'état de cette guilde pour le moment. Réessaie dans un instant.";
+
+/**
+ * État de la guilde pour le **garde d'interactions**.
+ *
+ * 🐛 Mesure du 01/11/2026 : un soft-delete (`GuildConfig.isActive=false` / `deletedAt`) ferme le
+ * site, mais **pas Discord** — les messages et leurs boutons survivent, la résolution par
+ * `discordGuildId` ne filtre pas l'état, et `internalCheckPermission` ne le regarde pas non plus.
+ * Un clic continuait donc d'écrire sur une guilde désactivée.
+ *
+ * - `absent` : aucune config (guilde pas encore déployée) → comportement inchangé ;
+ * - `error` : lecture impossible → **fail-closed** (on ne devine pas un droit).
+ */
+async function readGuildActivityState(
+    discordGuildId: string,
+): Promise<GuildActivityState> {
+    try {
+        const row = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { isActive: true, deletedAt: true },
+        });
+        return resolveGuildActivityState(row);
+    } catch (error) {
+        logger.error("[Discord Interaction] état de guilde illisible — refus par défaut", {
+            err: error instanceof Error ? error.message : String(error),
+        });
+        return "error";
+    }
+}
 
 /**
  * Gate RBAC **commun** aux deux types d'interaction (3 = bouton, 5 = modale).
@@ -472,6 +505,23 @@ export async function POST(request: NextRequest) {
         // 1. Handle Ping
         if (payload.type === 1) {
             return NextResponse.json({ type: 1 });
+        }
+
+        // 🔒 Guilde désactivée ou supprimée : plus aucune interaction n'écrit (garde unique, avant
+        // tout dispatch). God n'est **pas** exempté : il réactive la guilde depuis la console, puis
+        // teste — laisser écrire sur des données archivées les corromprait.
+        const interactionGuildId = typeof payload?.guild_id === "string" ? payload.guild_id : null;
+        if (interactionGuildId) {
+            const guildState = await readGuildActivityState(interactionGuildId);
+            if (guildState === "inactive" || guildState === "error") {
+                // L'autocomplete attend des **choix** (type 8), jamais un message éphémère.
+                if (payload.type === 4) {
+                    return NextResponse.json({ type: 8, data: { choices: [] } });
+                }
+                return ephemeralDiscordRefusal(
+                    guildState === "inactive" ? DISCORD_GUILD_INACTIVE : DISCORD_GUILD_STATE_UNKNOWN,
+                );
+            }
         }
 
         // 2. Handle Component Interaction (Button click)

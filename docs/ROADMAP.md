@@ -212,7 +212,7 @@
 | 30 | `observabilite` (W) | Sentry : couverture bot/workers, 25 crons, alertes | W-1/W-2 livrés le 11/10 | W-3 → W-6 | `docs/agents/journal-sessions-2026.md` (bloc 11/10) | — |
 | 31 | `dofusdb-zero` (U) | Zéro dépendance DofusDB à l'exécution (5 points de contact mesurés) | cadré le 08/10 | U-1 → U-5 | `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` (cadrage § U) | — |
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
-| 33 | `limite-guildes` (LG) | Limiter à **2 guildes max par utilisateur** (membre **ou** owner, **même compteur** — union profils `ACTIVE` + guildes possédées). **God exempté** (tests). | **décidé le 31/10/2026** : 2 max · God exempté · 3 portes d'entrée, 6 gardes + exemption, seuil `PlatformConfig.maxGuildsPerUser` borné 1..10 ; **LG-1 + LG-2 livrés le 01/11/2026** (règle pure, migration, 5 gardes + verrou de source) ; **LG-3 livré le 01/11/2026** (écran AccessDenied, bandeau portail aligné, carte de déploiement réparée, seuil Zod + champ God, CTA autonome retirés quand le switch est OFF) ; **LG-4 livré le 01/11/2026** (annonce du bot à l'invitation, règle partagée, fail-closed) | — | — | — |
+| 33 | `guildes-cycle-de-vie` | Supprimer sa guilde (propriétaire) et couper Discord derrière : embeds déjà postés, boutons, commandes, crons | **garde d'interactions livré le 01/11/2026** (`/api/discord/interactions` : guilde `!isActive`/`deletedAt` ⇒ refus, fail-closed, God inclus) ; crons **mesurés** = aucun envoi par guilde sans filtre `isActive` | Bouton « Supprimer ma guilde » (soft-delete + notification des admins) → purge réelle à J+30 | — | — |
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
@@ -266,6 +266,7 @@
 
 | ID | Chantier | Livré |
 |---|---|---|
+| `limite-guildes` (LG) | Plafond de **2 guildes par utilisateur** : règle pure, migration, gardes G1→G5, écran + bandeau du portail, annonce du bot à l'invitation | 01/11/2026 |
 | `G-STAND`/`G-ORPH` | Stand-by des groupes **+ contenu fantôme** (fermeture auto, reprise de lead, anonymisation à la purge) | 30/10/2026 |
 | `RUSH-S1` | Siphon Tougli + trame Rush (outil hors dépôt : 530 quêtes, 99 donjons, export God) | 26/10/2026 |
 | `RUSH-UI/S4` | Modale par Dofus + déslop du bandeau, identité de quête assistée, import dry-run, contraste des 24 accents | 26/10/2026 |

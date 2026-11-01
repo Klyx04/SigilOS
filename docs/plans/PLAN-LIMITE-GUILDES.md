@@ -196,6 +196,38 @@ dashboard pour une règle qui ne concerne que les arrivées.
 explicite** avant écriture, puis `npx prisma migrate deploy` + `npx prisma generate` + redémarrage en local.
 Bêta et prod : la migration passe avec `deploy-cd.sh`.
 
+## 9 bis. Reste mesuré — l'annonce Discord du bot (01/11/2026)
+
+**Constat (captures utilisateur)** : à 2 guildes sur 2, le portail refusait bien le déploiement (garde G2),
+mais le bot venait d'annoncer « ✅ Ce serveur est **actif immédiatement** — aucune approbation requise ».
+Deux surfaces se contredisent, et l'utilisateur a cliqué « Déployer » pour rien.
+
+**Pourquoi le site ne peut pas l'empêcher** : « Inviter le bot » est une URL OAuth Discord ; le service bot
+reçoit `GuildCreate` **sans session utilisateur**, donc sans notion de plafond. Ce n'est pas un oubli de la
+garde : c'est un autre service.
+
+**Correctif retenu (option A, décidée le 01/11/2026)** — `services/discord-bot/index.ts` :
+
+| Ancre | Quoi |
+|---|---|
+| `182` | handler `Events.GuildCreate` |
+| `225` | message God (« actif immédiatement (modèle ouvert) ») |
+| `251` | message public (« ✅ actif immédiatement ») |
+
+Dans le handler, après lecture de la configuration :
+
+1. lire `PlatformConfig.maxGuildsPerUser` et le normaliser avec `resolveGuildLimit`
+   (`src/lib/guild-limit.ts`, **pur**, donc réutilisable par le bot) ;
+2. compter les guildes du **propriétaire** (`guild.ownerId`) : `GuildConfig` où `ownerId = ownerId`
+   ∪ `UserProfile` `ACTIVE` dont `user.accounts.providerAccountId = ownerId` — même règle que
+   `countGuildsForUser` (union dédoublonnée) ;
+3. si `count + 1 > limite`, annoncer « ⏳ Ce serveur n'est pas encore déployable : son propriétaire a atteint
+   la limite de N guildes, il doit en quitter une depuis le portail. » ; sinon, garder le texte actuel.
+
+**Vigilance** : service **séparé** (image `discord-bot`, déployée par `deploy-cd.sh`). Une erreur ici ne casse
+pas un écran : elle coupe **toutes** les annonces d'invitation. ⇒ `tsc` du bot (`services/discord-bot`) vert
+avant merge, et rebuild d'image obligatoire (sinon le conteneur garde l'ancien code).
+
 ## 10. Fichiers impactés (estimation)
 
 | Fichier | Modification |

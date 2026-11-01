@@ -129,7 +129,7 @@ export default async function DashboardLayout({
         return (
             <AccessDenied
                 title="Serveur Supprimé"
-                message={`Le serveur Discord "${user.guildName}" a été supprimé ou retiré de SigilOS. Votre compte et vos autres serveurs ne sont pas concernés. Le propriétaire peut demander une restauration au support pendant 30 jours.`}
+                message={`Le serveur Discord "${user.guildName}" a été supprimé ou retiré de SigilOS. Vos autres serveurs ne sont pas concernés. Le propriétaire peut demander une restauration au support pendant 30 jours. Si vous n'avez aucune autre guilde sur SigilOS, votre compte sera supprimé à la même échéance.`}
                 variant="lock"
                 countdownDate={(user as any).scheduledDeletion}
                 action={<SignOutButton />}

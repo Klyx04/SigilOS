@@ -37,11 +37,13 @@ export async function countUserGuilds(userId: string): Promise<number> {
         }),
     ]);
 
-    const owned = account?.providerAccountId
-        ? await db.guildConfig.findMany({
-              where: { ownerId: account.providerAccountId },
-              select: { id: true },
-          })
+    // ⚠️ `GuildConfig.ownerId` porte **soit** un snowflake Discord (onboarding), **soit** un UUID
+    // interne (succession — `maybeSuccessionOnLeave` normalise). Les **deux** formes comptent :
+    // n'en lire qu'une laissait une guilde transférée hors du compteur, donc une 3ᵉ guilde possible
+    // pour son propriétaire (mesure du 01/11/2026). Le bot applique déjà la même union.
+    const ownerIds = [userId, account?.providerAccountId].filter((id): id is string => Boolean(id));
+    const owned = ownerIds.length > 0
+        ? await db.guildConfig.findMany({ where: { ownerId: { in: ownerIds } }, select: { id: true } })
         : [];
 
     return countGuildsForUser({

@@ -24,6 +24,14 @@ type CoreResult = {
  * en fin de grâce (`scheduledDeletion` passée), protections super-admin + **compte technique
  * « Ancien membre »** ; tâches de 50 max/exécution.
  *
+ * ⚠️ **Ce que « 90 j » veut dire (mesure du 01/11/2026)** : c'est un **âge minimum du compte**
+ * (`User.createdAt`), pas une mesure d'inactivité — les sessions sont en **JWT** (`src/auth.ts`),
+ * donc aucune date de dernière connexion n'existe en base. Conséquence assumée : un compte ancien
+ * qui perd sa **dernière** guilde devient éligible dès que la grâce de ses profils expire (J+30),
+ * même s'il s'est connecté la veille ; un compte récent est protégé, même abandonné. Le seul
+ * avertissement visible est l'écran « Serveur Supprimé » (compte à rebours). Mesurer l'activité
+ * réelle demanderait un champ (migration) — décision non prise à ce jour.
+ *
  * Les **événements de guilde survivent** au compte (décision user du 30/10/2026, option C) :
  * ils sont annulés s'ils étaient ouverts, rattachés au compte technique puis signés
  * « Ancien membre » — la guilde garde son historique, l'identité disparaît.

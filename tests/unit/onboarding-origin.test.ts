@@ -130,8 +130,13 @@ describe("usage unique — aucune heuristique locale ne doit réapparaître", ()
     });
 
     it("le bot dit la même vérité en base et dans Discord (embed branché sur le kill-switch)", () => {
-        expect(BOT).toMatch(/autoOnboardingOn \? 'GUILD_CREATE_AUTO' : 'GUILD_CREATE_UNWHITELISTED'/);
-        expect(BOT).toMatch(/embeds: \[autoOnboardingOn \?/);
+        // Depuis LG-4, un **premier** discriminant s'est ajouté (plafond du propriétaire) : les deux
+        // surfaces restent calculées à partir des mêmes états, et le kill-switch reste le suivant.
+        expect(BOT).toMatch(/autoOnboardingOn\s*\?\s*'GUILD_CREATE_AUTO'\s*:\s*'GUILD_CREATE_UNWHITELISTED'/);
+        expect(BOT).toMatch(/const godTitle = overLimit/);
+        expect(BOT).toMatch(/const godEmbed = overLimit \? \{/);
+        expect(BOT).toMatch(/\} : autoOnboardingOn \? \{/);
+        expect(BOT).toMatch(/embeds: \[godEmbed\]/);
         // le vert « auto-actif » et le rouge « action requise » coexistent, sur la même condition
         expect(BOT).toContain("🟢 Nouveau serveur (auto-actif)");
         expect(BOT).toContain("🚨 Nouveau serveur non-whitelisté");

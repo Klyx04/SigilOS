@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 01/11/2026 (suite 3) — **Bot : l'annonce d'invitation dit la même vérité que le portail** — branche `feat/limite-guildes-lg4`
+
+> **Demande user (verbatim)** : « lot suivant » · « oui l'adapte » (le message de bienvenue posté dans le serveur).
+> **Mesures** : `owner_id` = `Snowflake` **non optionnel** (`discord-api-types` v10 installé) et présent en réel (`GET /guilds/{id}` → `String`, 19) ; `GuildConfig.ownerId` porte soit un snowflake, soit un **UUID interne** (succession) ⇒ le §9 bis sous-comptait ; `GuildConfig.id` / `UserProfile.guildId` sont des UUID ⇒ soustraire `guild.id` ne retirait rien ; l'image du bot **ne contient pas** `src/` ⇒ « `resolveGuildLimit` réutilisable » était faux côté image.
+> **Fait** : ① règle pure `isGuildLimitReachedOnJoin` (`src/lib/guild-limit.ts`, 7 cas) ; ② bot : `readOwnerLimitState` (`within`/`over`/`unknown`, fail-closed), exemption `SUPER_ADMIN_IDS`, comptage des **deux formes** d'`ownerId`, guilde courante exclue par son id **interne** ; ③ trois messages honnêtes : notification God en base, embed God orange, **message de bienvenue adapté** — jamais « actif immédiatement » au plafond ; ④ règle **copiée au build** (`sync:shared`, `prebuild`/`predev`), `COPY` explicite dans l'image, copie locale gitignorée et exclue du contexte Docker ; ⑤ verrous neufs `discord-bot-guild-create-limit` et extension de `discord-bot-build`.
+> **Preuves** : `guild-limit` **17/17** · `discord-bot-guild-create-limit` **11/11** · `discord-bot-build` **6/6** · build du bot **exit 0** (`dist/index.js` + `dist/shared/guild-limit.js` se chargent sous Node) · `tsc` 0 · ESLint 0 erreur.
+> **Reste / ops** : `./scripts/deploy-cd.sh beta` **reconstruit l'image `discord-bot`** (sans rebuild, le conteneur garde l'ancien code) ; contrôle réel = ré-inviter le bot sur un serveur dont le propriétaire est à 2/2 ; `docs/plans/PLAN-RAID.md` reste modifié dans l'arbre (pas de cette session).
+> **Rotation** : bloc « 31/10 (suite 10) — Modale raid : charte mesurée et corrigée » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 01/11/2026 (suite 2) — **Portail : le plafond ne casse plus la carte** — branche `fix/limite-guildes-ui-portail`
 
 > **Demande user (verbatim)** : « bandeau très moche pas faux et responsivité détruite dans le bloc deploiement » (capture du portail à 2 guildes sur 2).
@@ -58,13 +68,3 @@
 > **Suite 2 (même session) — D7 livré.** Verbatim : « pas de dm juste une notif dashboard pour les inscrits / go D7 ». `cancelCalendarEvent` notifie désormais chaque inscrit `REGISTERED` via `createNotification` (type `SYSTEM_INFO`, catégorie `EVENT`, lien vers le calendrier) : **aucun DM, aucun message Discord** — l'embed du salon reste supprimé (B3). Une notification ratée est **journalisée** sans défaire l'annulation, et l'audit `EVENT_CANCELLED` porte `notified`. Aucune migration (l'enum `NotificationType` n'a pas bougé). Verrou `calendar-cancel-notification` **5/5**.
 > **Reste / ops** : rien à jouer hormis la bêta habituelle ; **B11/B12 soldés** (PR #1182), **R1/L2 clos** (registre, motifs, fiche membre, D7). Il ne reste du plan RAID que les lots **R2 → R10**. ROADMAP non touché (tenu par `limite-guildes`).
 > **Rotation** : bloc « 30/10 (suite 5) — Contenu fantôme : un partant ne laisse plus de groupe orphelin » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 31/10/2026 (suite 10) — **Modale raid : charte mesurée et corrigée (B11/B12)** — branche `fix/raid-modal-charte`
-
-> **Demande user (verbatim)** : « **Reste** : **B11/B12** (charte + responsive de la modale, à re-mesurer avant d'y toucher) et **D7** ».
-> **Mesures (avant de toucher)** : `event-detail-modal.tsx` — **41** `font-black`, **4** `italic`, **2** glows colorés (`shadow-amber-600/30`, `shadow-indigo-500/20`), **1** `shadow-inner`, **3+1** classes `pink` (second accent), **1** classe orpheline `group-`. **Faux positifs écartés** : les 5 `glass` sont des `hourglass`, les `rounded-[3px|4px]` sont **conformes** (≤ 12 px). **Responsive déjà conforme** (`w-[95vw] sm:max-w-2xl` / `sm:max-w-lg`, listes en `max-h-* overflow-y-auto`) ⇒ **B12 n'était pas cassé**, contrairement au constat visuel non capturé de l'audit.
-> **Fait** : `font-black` → `font-bold` (**41**), italiques décoratifs retirés (**4**), glows colorés et `shadow-inner` retirés, rose remplacé par le registre neutre (**4**), classe `group-` morte supprimée ; **verrou neuf** `tests/unit/raid-modal-charte.test.ts` (**9 cas** : charte + bornes responsive).
-> **Preuves** : `raid-modal-charte` **9/9** · `raid-presence` **20/20** · `calendar-raid-closure-and-reminders` **13/13** · `tsc` 0.
-> **Reste / ops** : **D7** (notification d'annulation) touche l'**interface publique Discord** ⇒ **arrêt + accord** avant (éditer l'embed en « annulé » *ou* poster un message court sans mention) ; bêta inchangée ; **ROADMAP non touché** (tenu par `limite-guildes`).
-> **Rotation** : bloc « 30/10 (suite 4) — Stand-by : un groupe reporté ne se fait plus pinger » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

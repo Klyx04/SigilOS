@@ -14,6 +14,7 @@ import {
     GUILD_LIMIT_DEFAULT,
     countGuildsForUser,
     isAtGuildLimit,
+    isGuildLimitReachedOnJoin,
     resolveGuildLimit,
 } from "@/lib/guild-limit";
 
@@ -79,5 +80,98 @@ describe("isAtGuildLimit — le seuil est atteint dès qu'une guilde de plus ser
     it("un seuil relevé à 3 laisse passer la 3e guilde", () => {
         expect(isAtGuildLimit(2, 3)).toBe(false);
         expect(isAtGuildLimit(3, 3)).toBe(true);
+    });
+});
+
+/**
+ * §9 bis — le bot n'a pas de session : il compte les guildes du **propriétaire** au moment de
+ * l'invitation. La guilde courante est exclue (elle ne doit ni compter deux fois si elle est déjà
+ * déployée, ni être oubliée si elle ne l'est pas).
+ */
+describe("isGuildLimitReachedOnJoin — l'annonce du bot dit la même vérité que le portail", () => {
+    it("propriétaire à 2 guildes sur 2 : l'invitation est au-delà du plafond", () => {
+        expect(
+            isGuildLimitReachedOnJoin({
+                ownerGuildIds: ["guilde-a", "guilde-b"],
+                currentGuildId: "guilde-c",
+                limit: 2,
+                isGod: false,
+            }),
+        ).toBe(true);
+    });
+
+    it("propriétaire à 1 guilde sur 2 : la place existe encore", () => {
+        expect(
+            isGuildLimitReachedOnJoin({
+                ownerGuildIds: ["guilde-a"],
+                currentGuildId: "guilde-b",
+                limit: 2,
+                isGod: false,
+            }),
+        ).toBe(false);
+    });
+
+    it("ré-invitation d'une guilde déjà déployée : elle ne compte pas deux fois", () => {
+        expect(
+            isGuildLimitReachedOnJoin({
+                ownerGuildIds: ["guilde-a", "guilde-b"],
+                currentGuildId: "guilde-a",
+                limit: 2,
+                isGod: false,
+            }),
+        ).toBe(false);
+    });
+
+    it("guilde jamais déployée (`currentGuildId` inconnu) : rien n'est exclu", () => {
+        expect(
+            isGuildLimitReachedOnJoin({
+                ownerGuildIds: ["guilde-a", "guilde-b"],
+                currentGuildId: null,
+                limit: 2,
+                isGod: false,
+            }),
+        ).toBe(true);
+    });
+
+    it("les doublons (profil + propriété de la même guilde) ne gonflent pas le compte", () => {
+        expect(
+            isGuildLimitReachedOnJoin({
+                ownerGuildIds: ["guilde-a", "guilde-a", "guilde-b"],
+                currentGuildId: "guilde-c",
+                limit: 3,
+                isGod: false,
+            }),
+        ).toBe(false);
+    });
+
+    it("God exempté : jamais bloqué, même très au-delà du seuil", () => {
+        expect(
+            isGuildLimitReachedOnJoin({
+                ownerGuildIds: ["a", "b", "c", "d", "e"],
+                currentGuildId: "f",
+                limit: 2,
+                isGod: true,
+            }),
+        ).toBe(false);
+    });
+
+    it("un seuil relevé à 10 laisse passer la 10e guilde", () => {
+        const nine = Array.from({ length: 9 }, (_, i) => `guilde-${i}`);
+        expect(
+            isGuildLimitReachedOnJoin({
+                ownerGuildIds: nine,
+                currentGuildId: "guilde-neuve",
+                limit: 10,
+                isGod: false,
+            }),
+        ).toBe(false);
+        expect(
+            isGuildLimitReachedOnJoin({
+                ownerGuildIds: [...nine, "guilde-10"],
+                currentGuildId: "guilde-neuve",
+                limit: 10,
+                isGod: false,
+            }),
+        ).toBe(true);
     });
 });

@@ -62,3 +62,36 @@ export function countGuildsForUser(input: {
 export function isAtGuildLimit(count: number, limit: number): boolean {
     return count >= limit;
 }
+
+/**
+ * Le propriétaire d'une guilde qui vient d'inviter le bot est-il **déjà** au plafond ?
+ *
+ * 📌 `PLAN-LIMITE-GUILDES.md` §9 bis : `GuildCreate` arrive **sans session utilisateur** (URL OAuth).
+ * Le service bot est le seul endroit d'où l'on peut dire, au moment de l'invitation, que le portail
+ * refusera le déploiement.
+ *
+ * La guilde courante est **exclue** du compte : déjà déployée, elle compterait deux fois ; pas encore
+ * déployée, elle est justement la guilde « de plus » que le seuil autorise — ou refuse.
+ *
+ * ⚠️ Tous les identifiants doivent être dans **le même espace** : `GuildConfig.id` (UUID interne),
+ * jamais le snowflake Discord. God exempté (décision du 31/10/2026) : il doit pouvoir tester.
+ */
+export function isGuildLimitReachedOnJoin(input: {
+    ownerGuildIds: readonly (string | null | undefined)[];
+    currentGuildId?: string | null;
+    limit: number;
+    isGod: boolean;
+}): boolean {
+    if (input.isGod) return false;
+
+    const current = typeof input.currentGuildId === "string" ? input.currentGuildId : null;
+    const existing = input.ownerGuildIds.filter(
+        (guildId): guildId is string =>
+            typeof guildId === "string" && guildId.length > 0 && guildId !== current,
+    );
+
+    return isAtGuildLimit(
+        countGuildsForUser({ profileGuildIds: [], ownedGuildIds: existing }),
+        input.limit,
+    );
+}

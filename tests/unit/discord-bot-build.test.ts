@@ -37,3 +37,44 @@ describe("build du bot Discord", () => {
         expect(types).toContain("slugifyTicketName");
     });
 });
+
+/**
+ * LG-4 — règle de plafond **partagée** avec le site (`src/lib/guild-limit.ts`).
+ *
+ * L'image du bot ne contient pas `src/` : la règle est donc copiée dans le paquet au build. Une
+ * seule source est versionnée ; la copie est un artefact (ignorée par git et par le contexte Docker,
+ * comme `dist/`). Sans le `prebuild`, un clone neuf échouerait sur un import absent.
+ */
+describe("règle de plafond partagée avec le site", () => {
+    it("le build copie `src/lib/guild-limit.ts` dans le paquet", () => {
+        const pkg = JSON.parse(readFileSync(PACKAGE, "utf8")) as { scripts?: Record<string, string> };
+        const sync = pkg.scripts?.["sync:shared"] ?? "";
+
+        expect(sync).toContain("../../src/lib/guild-limit.ts");
+        expect(sync).toContain("shared/guild-limit.ts");
+        expect(pkg.scripts?.prebuild).toContain("sync:shared");
+        expect(pkg.scripts?.predev).toContain("sync:shared");
+    });
+
+    it("la copie locale est ignorée par git et par le contexte Docker", () => {
+        expect(readFileSync(".gitignore", "utf8")).toContain("/services/discord-bot/shared/");
+        expect(readFileSync(".dockerignore", "utf8")).toContain("services/discord-bot/shared");
+    });
+
+    it("l'image copie la source, jamais une copie de poste de travail", () => {
+        const dockerfile = readFileSync("services/discord-bot/Dockerfile", "utf8");
+        expect(dockerfile).toContain("COPY src/lib/guild-limit.ts ./shared/guild-limit.ts");
+    });
+
+    it("la CI matérialise la source avant le `tsc` du bot (sinon TS2307)", () => {
+        const workflow = readFileSync(".github/workflows/verify.yml", "utf8");
+        const etape = workflow.slice(workflow.indexOf("Discord Bot TypeScript Check"));
+        const sync = etape.indexOf("npm run sync:shared");
+        const tsc = etape.indexOf("npx tsc --noEmit");
+
+        expect(sync).toBeGreaterThan(-1);
+        expect(tsc).toBeGreaterThan(-1);
+        expect(sync).toBeLessThan(tsc);
+    });
+});
+

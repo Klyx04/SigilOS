@@ -33,6 +33,9 @@ backups/*.sql
 # Logs and temp files
 *.log
 *.debug.json
+# Copie locale générée de `src/lib/guild-limit.ts` : le Dockerfile du bot copie la **source**
+# versionnée (`COPY src/lib/guild-limit.ts`), jamais une copie de poste de travail.
+services/discord-bot/shared
 temp_map.jpg
 utf8_map.tsx
 potable_map.tsx

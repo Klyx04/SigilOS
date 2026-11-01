@@ -30,6 +30,9 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 // 🏷️ Miroir du formatage de l'app (image du bot sans `src/`) — parité verrouillée par un test.
 import { renameTicketChannelName } from './ticket-name.mjs';
+// 🔒 Règle de plafond de guildes — **une seule source** (`src/lib/guild-limit.ts`), copiée dans le
+// paquet au build (`npm run sync:shared`). L'image du bot ne contient pas `src/`.
+import { isGuildLimitReachedOnJoin, resolveGuildLimit } from './shared/guild-limit.js';
 
 // SECURITY FIX (F-23): Use the canonical DATABASE_URL env var like the rest of the
 // app (docker-compose provides it). The previous code reassembled the connection
@@ -177,10 +180,93 @@ client.once(Events.ClientReady, (readyClient) => {
 });
 
 // ========================
+// LG-4 — Plafond de guildes du propriétaire, à l'invitation
+// ========================
+
+/**
+ * État du plafond pour le **propriétaire** de la guilde qui vient d'inviter le bot.
+ *
+ * `GuildCreate` arrive **sans session utilisateur** : c'est le seul endroit d'où le bot peut savoir
+ * que le portail refusera le déploiement (`docs/plans/PLAN-LIMITE-GUILDES.md` §9 bis). Trois états,
+ * jamais deux : une lecture en échec ne doit **pas** promettre l'activation (fail-closed).
+ */
+type OwnerLimitState =
+    | { status: 'within' | 'over'; limit: number }
+    | { status: 'unknown' };
+
+/** « la limite de 2 guildes » — jamais un chiffre inventé quand la lecture a échoué. */
+function limitLabel(state: OwnerLimitState): string {
+    if (state.status === 'unknown') return 'la limite de guildes';
+    return `la limite de ${state.limit} guilde${state.limit > 1 ? 's' : ''}`;
+}
+
+async function readOwnerLimitState(guild: Guild): Promise<OwnerLimitState> {
+    try {
+        const platformConfig = await (db as any).platformConfig.findUnique({
+            where: { id: 'singleton' },
+            select: { maxGuildsPerUser: true },
+        });
+        const limit = resolveGuildLimit(platformConfig?.maxGuildsPerUser);
+
+        // God exempté (décision du 31/10/2026) : la liste vit dans l'environnement, comme côté site.
+        const godIds = (process.env.SUPER_ADMIN_IDS ?? '')
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean);
+        const isGod = godIds.includes(guild.ownerId);
+        // Sortie anticipée : un God n'est pas compté du tout (aucune requête de comptage).
+        if (isGod) return { status: 'within', limit };
+
+        // `GuildConfig.ownerId` porte soit un snowflake Discord (onboarding), soit un UUID interne
+        // (succession — voir `maybeSuccessionOnLeave`) : on résout les deux formes, sinon un
+        // propriétaire ayant reçu la guilde serait compté pour zéro.
+        const account = await db.account.findFirst({
+            where: { provider: 'discord', providerAccountId: guild.ownerId },
+            select: { userId: true },
+        });
+        const ownerIds = [guild.ownerId, account?.userId].filter((id): id is string => Boolean(id));
+
+        const [current, owned, profiles] = await Promise.all([
+            db.guildConfig.findUnique({ where: { discordGuildId: guild.id }, select: { id: true } }),
+            db.guildConfig.findMany({ where: { ownerId: { in: ownerIds } }, select: { id: true } }),
+            account?.userId
+                ? db.userProfile.findMany({
+                      where: { userId: account.userId, status: 'ACTIVE' },
+                      select: { guildId: true },
+                  })
+                : Promise.resolve([] as { guildId: string }[]),
+        ]);
+
+        const over = isGuildLimitReachedOnJoin({
+            // Même espace d'identifiants que `currentGuildId` : des UUID internes, jamais des snowflakes.
+            ownerGuildIds: [...owned.map((row) => row.id), ...profiles.map((row) => row.guildId)],
+            currentGuildId: current?.id ?? null,
+            limit,
+            isGod,
+        });
+
+        return { status: over ? 'over' : 'within', limit };
+    } catch (error) {
+        // Jamais de snowflake ni de nom de serveur dans le log.
+        console.error(
+            '[Discord Bot] Plafond de guildes illisible — annonce neutre (fail-closed) :',
+            error instanceof Error ? error.message : error,
+        );
+        return { status: 'unknown' };
+    }
+}
+
+// ========================
 // Event: Guild Create (Bot Added)
 // ========================
 client.on(Events.GuildCreate, async (guild) => {
     console.log(`[Discord Bot] ➕ Guild added: ${guild.name} (${guild.id})`);
+
+    // 🔒 LG-4 — l'annonce doit dire la même vérité que le portail : un propriétaire au plafond ne
+    // pourra pas déployer (garde G2), donc on ne promet jamais « actif immédiatement » à tort.
+    const limitState = await readOwnerLimitState(guild);
+    const overLimit = limitState.status === 'over';
+    const limitKnown = limitState.status !== 'unknown';
 
     try {
         // Check if already whitelisted
@@ -217,20 +303,35 @@ client.on(Events.GuildCreate, async (guild) => {
 
             // 🔔 NOTIFY GOD — Nouveau serveur détecté (info ; action seulement si abus)
             try {
+                // Trois vérités possibles, dans cet ordre : propriétaire au plafond, auto-actif, à valider.
+                const godTitle = overLimit
+                    ? "🟠 Nouveau serveur — propriétaire au plafond"
+                    : autoOnboardingOn
+                        ? "🟢 Nouveau serveur (auto-actif)"
+                        : "🚨 Nouveau serveur non-whitelisté";
+                const godMessage = overLimit
+                    ? `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) — **pas encore déployable** : son propriétaire a atteint ${limitLabel(limitState)}. Il doit en quitter une depuis le portail.`
+                    : autoOnboardingOn
+                        ? `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) — actif immédiatement (modèle ouvert). Ban/gel possibles depuis le GOD Dashboard en cas d'abus.`
+                        : `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) qui n'est pas dans la whitelist.\nAction requise : approuver ou rejeter depuis le GOD Dashboard.`;
+                const godOperation = overLimit
+                    ? 'GUILD_CREATE_OWNER_AT_LIMIT'
+                    : autoOnboardingOn
+                        ? 'GUILD_CREATE_AUTO'
+                        : 'GUILD_CREATE_UNWHITELISTED';
+
                 // 1. Create DB notification
                 await (db as any).godNotification.create({
                     data: {
-                        title: autoOnboardingOn ? "🟢 Nouveau serveur (auto-actif)" : "🚨 Nouveau serveur non-whitelisté",
-                        message: autoOnboardingOn
-                            ? `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) — actif immédiatement (modèle ouvert). Ban/gel possibles depuis le GOD Dashboard en cas d'abus.`
-                            : `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) qui n'est pas dans la whitelist.\nAction requise : approuver ou rejeter depuis le GOD Dashboard.`,
+                        title: godTitle,
+                        message: godMessage,
                         type: "SYSTEM",
                         success: autoOnboardingOn,
                         metadata: {
                             discordGuildId: guild.id,
                             guildName: guild.name,
                             addedBy: 'SYSTEM_GATEWAY',
-                            operation: autoOnboardingOn ? 'GUILD_CREATE_AUTO' : 'GUILD_CREATE_UNWHITELISTED'
+                            operation: godOperation
                         },
                     },
                 });
@@ -245,29 +346,41 @@ client.on(Events.GuildCreate, async (guild) => {
                 if (godChannelId) {
                     const channel = await client.channels.fetch(godChannelId).catch(() => null);
                     if (channel && channel.isTextBased() && 'send' in channel) {
-                        await channel.send({
-                            embeds: [autoOnboardingOn ? {
-                                title: '🟢 Nouveau serveur (auto-actif)',
-                                description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n✅ Ce serveur est **actif immédiatement** — aucune approbation requise. Modération a posteriori (ban / gel / expulsion) depuis le GOD Dashboard si abus.`,
-                                color: 0x22c55e,
-                                fields: [
-                                    { name: 'Serveur', value: guild.name, inline: true },
-                                    { name: 'ID', value: guild.id, inline: true },
-                                ],
-                                timestamp: new Date().toISOString(),
-                                footer: { text: 'SigilOS Gateway Bot • Vie de la plateforme' },
-                            } : {
-                                title: '🚨 Nouveau serveur non-whitelisté',
-                                description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n⚠️ Ce serveur n'est **pas dans la whitelist** et l'auto-onboarding est **fermé**. Rendez-vous sur le GOD Dashboard pour approuver ou rejeter.`,
-                                color: 0xef4444,
-                                fields: [
-                                    { name: 'Serveur', value: guild.name, inline: true },
-                                    { name: 'ID', value: guild.id, inline: true },
-                                ],
-                                timestamp: new Date().toISOString(),
-                                footer: { text: 'SigilOS Gateway Bot • Sécurité' },
-                            }]
-                        }).catch((e: unknown) => console.error('[GodNotify] Failed to send Discord alert:', e));
+                        // ⚠️ L'embed DOIT dire la même vérité que la notification en base : trois états,
+                        // jamais « actif immédiatement » quand le propriétaire est au plafond.
+                        const godEmbed = overLimit ? {
+                            title: '🟠 Nouveau serveur — propriétaire au plafond',
+                            description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n⏳ **Pas encore déployable** : le propriétaire du serveur a atteint ${limitLabel(limitState)}. Il doit en quitter une depuis le portail, puis déployer ce serveur.\n\nAucune action staff n'est requise.`,
+                            color: 0xf59e0b,
+                            fields: [
+                                { name: 'Serveur', value: guild.name, inline: true },
+                                { name: 'ID', value: guild.id, inline: true },
+                            ],
+                            timestamp: new Date().toISOString(),
+                            footer: { text: 'SigilOS Gateway Bot • Vie de la plateforme' },
+                        } : autoOnboardingOn ? {
+                            title: '🟢 Nouveau serveur (auto-actif)',
+                            description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n✅ Ce serveur est **actif immédiatement** — aucune approbation requise. Modération a posteriori (ban / gel / expulsion) depuis le GOD Dashboard si abus.`,
+                            color: 0x22c55e,
+                            fields: [
+                                { name: 'Serveur', value: guild.name, inline: true },
+                                { name: 'ID', value: guild.id, inline: true },
+                            ],
+                            timestamp: new Date().toISOString(),
+                            footer: { text: 'SigilOS Gateway Bot • Vie de la plateforme' },
+                        } : {
+                            title: '🚨 Nouveau serveur non-whitelisté',
+                            description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n⚠️ Ce serveur n'est **pas dans la whitelist** et l'auto-onboarding est **fermé**. Rendez-vous sur le GOD Dashboard pour approuver ou rejeter.`,
+                            color: 0xef4444,
+                            fields: [
+                                { name: 'Serveur', value: guild.name, inline: true },
+                                { name: 'ID', value: guild.id, inline: true },
+                            ],
+                            timestamp: new Date().toISOString(),
+                            footer: { text: 'SigilOS Gateway Bot • Sécurité' },
+                        };
+
+                        await channel.send({ embeds: [godEmbed] }).catch((e: unknown) => console.error('[GodNotify] Failed to send Discord alert:', e));
                     }
                 }
             } catch (godErr) {
@@ -324,9 +437,21 @@ client.on(Events.GuildCreate, async (guild) => {
                     return;
                 }
                 const baseUrl = (process.env.SIGILOS_BASE_URL || "https://beta.sigilos.fr").replace(/\/$/, "");
+                // 🔒 LG-4 — le message public ne promet l'activation que si le propriétaire a une place.
+                // Lecture impossible (`unknown`) ⇒ on n'affirme rien et on renvoie au portail.
+                const welcomeDescription = overLimit
+                    ? "Le bot est installé. Une condition reste à remplir avant le déploiement."
+                    : limitKnown
+                        ? "Le bot est installé. L'admin du serveur peut activer la guilde en 1 minute."
+                        : "Le bot est installé. Vérifiez sur le portail que ce serveur peut être déployé.";
+                const deployStepValue = overLimit
+                    ? `Ce serveur ne peut pas encore être déployé : le propriétaire du serveur a atteint ${limitLabel(limitState)} sur SigilOS. Il doit en quitter une depuis **[le dashboard](${baseUrl}/dashboard)**, puis déployer ce serveur.`
+                    : limitKnown
+                        ? 'Sur le portail, votre serveur apparaît dans **« Déploiement »** : cliquez sur **"Déployer"** (ou laissez l\'activation automatique faire son office).\nCela crée votre guilde dans SigilOS et déverrouille le panneau d\'administration.'
+                        : `Ouvrez **[le dashboard](${baseUrl}/dashboard)** : l'état du déploiement n'a pas pu être vérifié automatiquement. Si le serveur apparaît dans **« Déploiement »**, cliquez sur **"Déployer"**.`;
                 const welcomeEmbed = new EmbedBuilder()
                     .setTitle('🏰 SigilOS est arrivé sur votre serveur')
-                    .setDescription("Le bot est installé. L'admin du serveur peut activer la guilde en 1 minute.")
+                    .setDescription(welcomeDescription)
                     .setColor(0x10b981)
                     .addFields(
                         {
@@ -336,7 +461,7 @@ client.on(Events.GuildCreate, async (guild) => {
                         },
                         {
                             name: 'Étape 2 — Déployer',
-                            value: 'Sur le portail, votre serveur apparaît dans **« Déploiement »** : cliquez sur **"Déployer"** (ou laissez l\'activation automatique faire son office).\nCela crée votre guilde dans SigilOS et déverrouille le panneau d\'administration.',
+                            value: deployStepValue,
                             inline: false,
                         },
                         {

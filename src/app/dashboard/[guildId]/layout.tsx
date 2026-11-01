@@ -108,6 +108,20 @@ export default async function DashboardLayout({
         );
     }
 
+    // ── LIMITE DE GUILDES (LG-1/LG-2/LG-3, `docs/plans/PLAN-LIMITE-GUILDES.md`) ──
+    // Le serveur a refusé de créer le profil (garde G1) : on **dit** pourquoi, au lieu de laisser
+    // l'écran générique « Bêta Fermée » qui ferait croire à un problème de whitelist.
+    if ((user as any).guildLimitReached) {
+        return (
+            <AccessDenied
+                guildId={guildId}
+                title="Limite de guildes atteinte"
+                message="Vous faites déjà partie du nombre maximum de guildes sur SigilOS. Quittez une guilde existante depuis le portail, puis revenez sur ce tableau de bord."
+                variant="lock"
+            />
+        );
+    }
+
     // ── SERVER DELETED: specific message + signout button ──
     if ((user as any).isServerDeleted) {
         return (

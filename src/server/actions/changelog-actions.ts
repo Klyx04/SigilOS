@@ -352,6 +352,8 @@ export async function updatePlatformConfig(data: {
     statusMode?: string,
     statusMention?: string,
     statusFrequency?: number,
+    /** LG-3 — plafond de guildes par utilisateur (borné 1..10, jamais 0). */
+    maxGuildsPerUser?: number,
     kofiChannelId?: string,
     nsfwFilterEnabled?: boolean,
     donationsEnabled?: boolean,
@@ -391,6 +393,16 @@ export async function updatePlatformConfig(data: {
         return { success: false, error: "Valeur invalide pour forceDarkMode (booléen requis)" };
     }
 
+    // LG-3 — seuil de guildes par utilisateur : **entier borné 1..10**, jamais 0 (un 0 refuserait
+    // même la première guilde et verrouillerait la plateforme). Même borne que `resolveGuildLimit`.
+    if (data.maxGuildsPerUser !== undefined) {
+        const limitParsed = z.coerce.number().int().min(1).max(10).safeParse(data.maxGuildsPerUser);
+        if (!limitParsed.success) {
+            return { success: false, error: "Seuil de guildes invalide (entier de 1 à 10)" };
+        }
+        data.maxGuildsPerUser = limitParsed.data;
+    }
+
     // Refonte onboarding — le kill-switch « Auto-onboarding » est un booléen strict (fail-closed).
     if (data.autoOnboardingEnabled !== undefined && typeof data.autoOnboardingEnabled !== "boolean") {
         return { success: false, error: "Valeur invalide pour autoOnboardingEnabled (booléen requis)" };
@@ -413,6 +425,8 @@ export async function updatePlatformConfig(data: {
                 ...(data.statusFrequency !== undefined && { statusFrequency: data.statusFrequency }),
                 ...(data.kofiChannelId !== undefined && { kofiChannelId: data.kofiChannelId || null }),
                 ...(data.nsfwFilterEnabled !== undefined && { nsfwFilterEnabled: data.nsfwFilterEnabled }),
+                // LG-3 — plafond de guildes par utilisateur (validé 1..10 plus haut).
+                ...(data.maxGuildsPerUser !== undefined && { maxGuildsPerUser: data.maxGuildsPerUser }),
                 ...(data.donationsEnabled !== undefined && { donationsEnabled: data.donationsEnabled }),
                 ...(data.questFeedbackChannelId !== undefined && { questFeedbackChannelId: data.questFeedbackChannelId || null }),
                 // Toggle God : fallback saisie manuelle pseudo si le ladder Ankama est KO.

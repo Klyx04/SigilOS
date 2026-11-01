@@ -177,3 +177,21 @@ describe("syncBundleComponentMessages — images par objet (correctif 10/10/2026
         expect(title1).not.toBe(title2);
     });
 });
+
+describe("syncBundleComponentMessages — un report n'est pas un échec (mesure du 01/11/2026)", () => {
+    it("disjoncteur du salon : rien n'est marqué en échec, aucun id inventé", async () => {
+        // `sendChannelMessage` renvoie `null` quand le salon est en **pause d'écriture**
+        // (disjoncteur) ou le bot non configuré : c'est un **report** volontaire, jamais un
+        // échec d'envoi (ceux-là **lèvent**). Le transformer en erreur marquait le lot
+        // `FAILED` à chaque tick du cron — Sentry `JAVASCRIPT-NEXTJS-25`, 10 occurrences
+        // depuis le 23/10, toujours le même lot, tous les jours à 00:00.
+        mockSendChannelMessage.mockResolvedValue(null);
+
+        const result = await syncBundleComponentMessages("listing-1");
+
+        expect(result.ok).toBe(true);
+        expect(mockComponentUpdate).not.toHaveBeenCalled();
+        expect(mockDiscordMessageUpdateMany).not.toHaveBeenCalled();
+    });
+});
+

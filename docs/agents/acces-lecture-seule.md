@@ -21,7 +21,7 @@ description: Accès SSH + Postgres en lecture seule de l'assistant au VPS (mesur
 |---|---|---|
 | **Clé** | **neuve**, `ed25519 -a 100`, **avec passphrase** | une clé qui a déjà vécu sans passphrase est à considérer comme exposée |
 | **Compte** | `cline-ro` : `--disabled-password`, shell **`/usr/sbin/nologin`**, jamais dans `docker` | `restrict` seul **ne ferme pas** l'exécution de commande |
-| **`authorized_keys`** | `restrict,port-forwarding,permitlisten="none",permitopen="127.0.0.1:5432",command="/bin/false"` | un seul port, **un seul sens**, pas de shell, pas de copie |
+| **`authorized_keys`** | `restrict,port-forwarding,permitopen="127.0.0.1:5432",command="/bin/false"` | un seul port, pas de shell, pas de copie — **jamais `permitlisten`** (§2, mesuré) |
 | **`sshd`** | bloc `Match User cline-ro` (les mêmes limites, côté serveur) | la restriction survit à une réécriture de `authorized_keys` |
 | **Rôle DB** | `cline_ro` : **allowlist** de tables de référence + `default_transaction_read_only` | un `SELECT` sur `Account` lirait les **jetons OAuth** |
 | **Mot de passe DB** | posé par `\password` (interactif), rangé dans `pgpass` (lisible par l'utilisateur seul) | jamais dans un fichier suivi par git |
@@ -117,7 +117,7 @@ Dans `/home/cline-ro/.ssh/authorized_keys` — **une seule ligne**, en remplaça
 d'expiration et le commentaire :
 
 ```
-restrict,port-forwarding,permitlisten="none",permitopen="127.0.0.1:5432",command="/bin/false",expiry-time="20270131Z" <PUBKEY> cline-ro
+restrict,port-forwarding,permitopen="127.0.0.1:5432",command="/bin/false",expiry-time="20270131" <PUBKEY> cline-ro
 ```
 
 ```bash
@@ -131,10 +131,14 @@ Ce que chaque option ferme — et pourquoi aucune n'est décorative :
 |---|---|
 | `restrict` | PTY, agent, X11, `~/.ssh/rc` |
 | `port-forwarding` | …**réouvre** le transfert, que `restrict` coupait (indispensable au tunnel) |
-| `permitlisten="none"` | le transfert **inverse** (`-R`) : sans ça, le VPS peut viser le poste |
 | `permitopen="127.0.0.1:5432"` | **un seul** port joignable (ni `-D`, ni un autre service) |
 | `command="/bin/false"` | toute **exécution de commande** — que `restrict` **ne** ferme **pas** |
-| `expiry-time="…Z"` (UTC) | la clé **meurt toute seule**, même oubliée |
+| `expiry-time="AAAAMMJJ"` | la clé **meurt toute seule**, même oubliée |
+
+> ⚠️ **Ne jamais ajouter `permitlisten`** (mesure du 01/11/2026) : cette option fait **rejeter la clé
+> entière**. Le client reçoit `Permission denied (publickey)` et `auth.log` n'affiche que
+> `Failed publickey … ED25519 SHA256:…`, sans nommer la cause. Le transfert **inverse** est de toute façon
+> déjà fermé par `AllowTcpForwarding local` du bloc `Match` ci-dessous (mesuré : `remote port forwarding failed`).
 
 Puis le même verrou **côté serveur** — il survit à une réécriture de `authorized_keys` :
 
@@ -232,13 +236,16 @@ SELECT count(*) FROM "GuildEvent";
 > porte donc sur le schéma `public`, pas sur le temporaire.
 
 ```bash
-ssh cline-ro@<vps> whoami                     # ❌ échoue (shell nologin + ForceCommand)
-ssh cline-ro@<vps>                            # ❌ pas de shell interactif
-scp fichier cline-ro@<vps>:/tmp/              # ❌ pas de copie de fichier
-ssh -L 6000:127.0.0.1:22  cline-ro@<vps> -N   # ❌ permitopen : seul 5432 est joignable
-ssh -R 7000:127.0.0.1:22  cline-ro@<vps> -N   # ❌ permitlisten="none"
-ssh -L 6000:127.0.0.1:5432 cline-ro@<vps> -N  # ✅ doit fonctionner (couper aussitôt)
+ssh cline-ro@<vps> whoami                      # ❌ « This account is currently not available. », exit 1
+ssh cline-ro@<vps>                             # ❌ pas de shell interactif
+scp fichier cline-ro@<vps>:/tmp/               # ❌ pas de copie de fichier
+ssh -W 127.0.0.1:22 cline-ro@<vps>             # ❌ « administratively prohibited » : seul 5432 est joignable
+ssh -R 7000:127.0.0.1:22 -N cline-ro@<vps>     # ❌ « remote port forwarding failed » (AllowTcpForwarding local)
+ssh -L 55433:127.0.0.1:5432 -N cline-ro@<vps>  # ✅ doit fonctionner (couper aussitôt)
 ```
+
+> Un `-L` vers un autre port **ne refuse pas au lancement** : le refus tombe à l'ouverture du canal. D'où la
+> preuve par `-W`, qui traverse réellement le canal (mesure du 01/11/2026 : `administratively prohibited`).
 
 Si un « doit échouer » passe : **arrêter** et corriger `authorized_keys`, le bloc `Match` ou le rôle.
 
@@ -341,13 +348,14 @@ SQL
 | Symptôme | Cause |
 |---|---|
 | `Permission denied (publickey)` | droits `.ssh` (700) / `authorized_keys` (600), clé absente de l'agent, ou `expiry-time` **dépassé** |
+| `Permission denied (publickey)` alors que l'empreinte installée est la bonne | une **option** d'`authorized_keys` est refusée : mesuré avec `permitlisten` — sshd rejette la ligne entière et n'en donne pas la cause. Retirer l'option suspecte |
 | `Connection refused` sur 55433 | tunnel non ouvert, port 5432 non publié en `127.0.0.1`, ou `permitopen` mal recopié |
 | `password authentication failed` | `pgpass.conf` absent (le fichier s'appelle **`pgpass.conf`**, pas `.pgpass`), ACL, ou `\password` jamais posé |
 | `no pg_hba.conf entry for host "172.x.x.1"` | le tunnel arrive par la **passerelle Docker** : la règle doit la couvrir en `scram-sha-256` — **jamais** ajouter `trust` |
 | `permission denied for table "X"` | `X` n'est pas dans l'allowlist : l'ajouter à `scripts/sql/agent-ro.sql` **et** relancer le test, jamais « réparer » à la main sur le VPS |
 | `could not connect … password must be a string` | `pgpass` n'est plus lu (`pg@9`) → passer une fonction `password` |
 | `Your account has expired` | `expiry-time` / `VALID UNTIL` : renouveler (étape 7) |
-| `remote port forwarding failed for listen port` | **normal** : `permitlisten="none"` fait son travail |
+| `remote port forwarding failed for listen port` | **normal** : `AllowTcpForwarding local` du bloc `Match` fait son travail |
 
 ---
 
@@ -377,8 +385,9 @@ SQL
 
 | Mesure | Base locale (31/10/2026) | Base bêta |
 |---|---|---|
-| `MonsterStat` | **287** lignes, **40** sans butin | à mesurer (référence du chantier : **106 / 146 fiches boss**) |
-| Donjons | **145** | à mesurer (référence : « 25 pages sans `sp-cial` ») |
+| `MonsterStat` | **287** lignes, **40** sans butin | **685** (01/11/2026) — le compte des « 106 / 146 fiches boss » reste à faire |
+| Donjons | **145** | **145** (01/11/2026) — le compte des « 25 pages sans `sp-cial` » reste à faire |
+| `Monster` / `GameItem` | — | **1 429** / **21 886** (01/11/2026) |
 
 ⇒ Le local sert à valider le **schéma** et les **tests** ; toute **preuve de données** se fait sur la bêta,
 par ce tunnel — et elle est **datée** dans le rapport (une mesure sans date ne vaut rien).

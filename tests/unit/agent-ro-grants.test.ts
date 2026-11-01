@@ -138,8 +138,12 @@ describe("doc d'installation — la procédure reste celle qui a été durcie", 
 
   it("garde les options SSH qui ferment le shell et le transfert inverse", () => {
     expect(DOC).toContain('command="/bin/false"');
-    expect(DOC).toContain('permitlisten="none"');
+    expect(DOC).toContain("AllowTcpForwarding local");
     expect(DOC).toContain("/usr/sbin/nologin");
+  });
+
+  it("ne prescrit jamais permitlisten (mesure du 01/11/2026 : sshd rejette la cle entiere)", () => {
+    expect(DOC).not.toContain('permitlisten="none"');
   });
 
   it("ne publie aucune empreinte de clé (dépôt public)", () => {

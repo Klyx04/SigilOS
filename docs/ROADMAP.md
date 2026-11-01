@@ -266,7 +266,7 @@
 
 | ID | Chantier | Livré |
 |---|---|---|
-| `guildes-cycle-de-vie` | Suppression d'une guilde : interactions Discord inertes, bouton propriétaire « Zone sensible » (confirmation par le nom, archivage, échéance J+30), purge réelle par cron | 01/11/2026 |
+| `guildes-cycle-de-vie` | Suppression d'une guilde : interactions Discord inertes, bouton propriétaire « Zone sensible » (confirmation par le nom, archivage, échéance J+30), purge réelle par cron, écran « Serveur Supprimé » corrigé (plus de fausse déconnexion, compte à rebours) | 01/11/2026 |
 | `limite-guildes` (LG) | Plafond de **2 guildes par utilisateur** : règle pure, migration, gardes G1→G5, écran + bandeau du portail, annonce du bot à l'invitation | 01/11/2026 |
 | `G-STAND`/`G-ORPH` | Stand-by des groupes **+ contenu fantôme** (fermeture auto, reprise de lead, anonymisation à la purge) | 30/10/2026 |
 | `RUSH-S1` | Siphon Tougli + trame Rush (outil hors dépôt : 530 quêtes, 99 donjons, export God) | 26/10/2026 |

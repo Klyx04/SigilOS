@@ -36,6 +36,7 @@ export const CACHED_GUILD_CONFIG_KEYS = [
     "dofusServerId",
     "isActive",
     "deletedAt",
+    "scheduledDeletion",
     "rolesMapping",
     "usersMapping",
     "newsBroadcastEnabled",

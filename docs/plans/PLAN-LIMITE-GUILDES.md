@@ -1,9 +1,10 @@
 # Plan — Limite de guildes par utilisateur (`limite-guildes`, LG)
 
 > **Décisions du 31/10/2026** : **2 guildes maximum**, **God (`isSuperAdmin`) exempté**.
-> **État au 01/11/2026** : **LG-1, LG-2 et LG-3 livrés** (règle pure + migration `maxGuildsPerUser` +
-> gardes G1→G5 + écran `AccessDenied` + bandeau du portail + champ God borné 1..10, et les CTA
-> autonomes retirés des landings, du portail et de la modale quand le kill-switch est OFF).
+> **État au 01/11/2026** : **LG-1, LG-2, LG-3 et LG-4 livrés** (règle pure + migration `maxGuildsPerUser` +
+> gardes G1→G5 + écran `AccessDenied` + bandeau du portail + champ God borné 1..10, CTA autonomes retirés
+> des landings, du portail et de la modale quand le kill-switch est OFF ; annonce du bot à l'invitation
+> alignée sur le portail — §9 bis).
 
 ---
 
@@ -234,6 +235,23 @@ Dans le handler, après lecture de la configuration :
 **Vigilance** : service **séparé** (image `discord-bot`, déployée par `deploy-cd.sh`). Une erreur ici ne casse
 pas un écran : elle coupe **toutes** les annonces d'invitation. ⇒ `tsc` du bot (`services/discord-bot`) vert
 avant merge, et rebuild d'image obligatoire (sinon le conteneur garde l'ancien code).
+
+### Livré le 01/11/2026 — ce que la mesure a corrigé dans le cadrage
+
+| Point du plan | Réalité mesurée | Décision |
+|---|---|---|
+| compter `GuildConfig.ownerId = ownerId` (snowflake) | `ownerId` porte **soit** un snowflake (onboarding), **soit** un **UUID interne** (`maybeSuccessionOnLeave` normalise) | on résout `Account.providerAccountId` → `userId` et on compte **les deux formes** |
+| `count + 1 > limite` | `GuildConfig.id` et `UserProfile.guildId` sont des **UUID** : comparer au snowflake `guild.id` ne soustrait rien | la guilde courante est exclue par son **id interne** (`GuildConfig.discordGuildId`) |
+| God exempté | `isSuperAdmin()` lit la **session** — absente dans le bot | exemption par `SUPER_ADMIN_IDS` (l'environnement du conteneur le porte déjà) |
+| « `resolveGuildLimit` pur, donc réutilisable » | vraie côté code, **fausse côté image** : le Dockerfile ne copie que `services/discord-bot/` + `prisma/` | règle **copiée au build** (`sync:shared`) depuis `src/lib/guild-limit.ts` ; `COPY` explicite dans l'image ; copie locale **gitignorée** |
+| un seul texte | `GuildCreate` est aussi émis **au démarrage** pour les guildes déjà présentes | le message de bienvenue est calculé à chaque émission ; l'annonce God reste réservée aux nouvelles guildes |
+
+**Trois états, jamais deux** : `within` / `over` / `unknown`. Une lecture en échec ⇒ texte neutre
+(« l'état n'a pas pu être vérifié automatiquement »), **jamais** « actif immédiatement » (fail-closed).
+
+**Verrous** : `tests/unit/guild-limit.test.ts` (règle `isGuildLimitReachedOnJoin`, 7 cas) ·
+`tests/unit/discord-bot-guild-create-limit.test.ts` (ordre de lecture, branches des deux messages,
+fail-closed) · `tests/unit/discord-bot-build.test.ts` (copie de la source, gitignore, Dockerfile).
 
 ## 10. Fichiers impactés (estimation)
 

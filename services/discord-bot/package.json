@@ -3,7 +3,10 @@
     "version": "1.0.0",
     "type": "module",
     "scripts": {
+        "sync:shared": "node -e \"const fs=require('node:fs');fs.mkdirSync('shared',{recursive:true});const src='../../src/lib/guild-limit.ts';if(fs.existsSync(src)){fs.copyFileSync(src,'shared/guild-limit.ts')}else if(!fs.existsSync('shared/guild-limit.ts')){console.error('guild-limit.ts: source src/lib/guild-limit.ts introuvable');process.exit(1)}\"",
+        "prebuild": "npm run sync:shared",
         "build": "tsc && node -e \"require('node:fs').copyFileSync('ticket-name.mjs','dist/ticket-name.mjs')\"",
+        "predev": "npm run sync:shared",
         "start": "node dist/index.js",
         "dev": "node --loader ts-node/esm --watch index.ts"
     },

@@ -149,6 +149,9 @@ model PlatformConfig {
   statusFrequency        Int      @default(15)
   statusMention          String   @default("none")
   nsfwFilterEnabled      Boolean  @default(true)
+  /// Nombre maximum de guildes par utilisateur (`docs/plans/PLAN-LIMITE-GUILDES.md`).
+  /// Borné **1..10** à la lecture (`resolveGuildLimit`) : un 0 verrouillerait la plateforme.
+  maxGuildsPerUser       Int      @default(2)
   geoguesserBlacklist    Int[]    @default([])
   godNotifyChannelId     String?
   godNotifyRoleId        String?

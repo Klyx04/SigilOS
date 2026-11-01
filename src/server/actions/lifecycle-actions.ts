@@ -573,6 +573,18 @@ export async function reactivateProfileByAdmin(
         if (!profile) return { success: false, error: "Profil introuvable" };
         if (profile.status === "ACTIVE") return { success: false, error: "Ce profil est déjà actif" };
 
+        // 🔒 G4 — limite de guildes : on compte les profils **ACTIVE du membre ciblé** (pas ceux de
+        // l'admin qui agit). Message du §7 du plan, jamais un code technique à l'écran.
+        {
+            const { wouldExceedGuildLimit } = await import("@/server/guild-limit");
+            if (await wouldExceedGuildLimit(profile.userId)) {
+                return {
+                    success: false,
+                    error: "Ce membre fait déjà partie du nombre maximum de guildes. Il doit en quitter une avant d'être réintégré ici.",
+                };
+            }
+        }
+
         const previousStatus = profile.status;
 
         const updated = await db.userProfile.update({
@@ -700,6 +712,13 @@ export async function cleanupExpiredProfiles(discordGuildId: string) {
  * Called automatically in getUserContext when detecting a returning archived member
  */
 export async function reactivateProfile(userId: string, guildInternalId: string) {
+    // 🔒 G5 — même règle que G4, pour la réactivation **automatique** au retour du membre : le
+    // profil visé est ARCHIVED à cet instant, donc seules ses **autres** guildes actives comptent.
+    {
+        const { wouldExceedGuildLimit } = await import("@/server/guild-limit");
+        if (await wouldExceedGuildLimit(userId)) return false;
+    }
+
     const result = await db.userProfile.updateMany({
         where: {
             userId,

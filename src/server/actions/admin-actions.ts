@@ -60,16 +60,29 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
                     }
                 });
 
-                // Also reactivate archived profiles
-                await db.userProfile.updateMany({
+                // 🔒 G3 — le batch de réactivation ne doit **pas** contourner la limite de guildes :
+                // un profil `ARCHIVED (GUILD_DELETED)` ne redevient ACTIVE que si son porteur a
+                // encore de la place. L'ancien `updateMany` réactivait **tout le monde** d'un coup
+                // (cas piège de `docs/plans/PLAN-LIMITE-GUILDES.md` §6).
+                const reactivatable = await db.userProfile.findMany({
                     where: { guildId: existing.id, archiveReason: 'GUILD_DELETED' },
-                    data: {
-                        status: 'ACTIVE',
-                        archivedAt: null,
-                        archiveReason: null,
-                        scheduledDeletion: null
-                    }
+                    select: { id: true, userId: true },
                 });
+                {
+                    const { wouldExceedGuildLimit } = await import("@/server/guild-limit");
+                    for (const candidate of reactivatable) {
+                        if (await wouldExceedGuildLimit(candidate.userId)) continue;
+                        await db.userProfile.update({
+                            where: { id: candidate.id },
+                            data: {
+                                status: 'ACTIVE',
+                                archivedAt: null,
+                                archiveReason: null,
+                                scheduledDeletion: null
+                            }
+                        });
+                    }
+                }
 
                 const { invalidateGuildCache } = await import("./user-actions");
                 await invalidateGuildCache(guildId);
@@ -147,6 +160,19 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
                     addedBy: discordUserId,
                 }
             });
+        }
+
+        // 🔒 G2 — limite de guildes : déployer une guilde en crée une de plus, on refuse **avant**
+        // la moindre écriture (`docs/plans/PLAN-LIMITE-GUILDES.md`). God exempté (G1 réutilise la
+        // même porte).
+        {
+            const { isGuildLimitReached } = await import("@/server/guild-limit");
+            if (await isGuildLimitReached(session.user.id)) {
+                return {
+                    success: false,
+                    error: "Impossible de déployer : vous faites déjà partie du nombre maximum de guildes. Quittez une guilde pour en déployer une nouvelle.",
+                };
+            }
         }
 
         // 4. Create Config (Safe to proceed)

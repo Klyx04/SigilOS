@@ -44,6 +44,12 @@ vi.mock("@/server/actions/super-admin-actions", () => ({
     invalidateAllowedGuildCache: vi.fn(),
     isSuperAdmin: vi.fn(),
 }));
+// Limite de guildes (LG-1/LG-2) : hors sujet ici — on isole le flow d'origine. Les deux portes
+// sont mockées (G2 avant `guildConfig.create`, G3 pour le batch de réactivation).
+vi.mock("@/server/guild-limit", () => ({
+    isGuildLimitReached: vi.fn().mockResolvedValue(false),
+    wouldExceedGuildLimit: vi.fn().mockResolvedValue(false),
+}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 

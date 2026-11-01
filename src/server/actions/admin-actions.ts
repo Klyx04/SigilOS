@@ -63,7 +63,8 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
                 // 🔒 G3 — le batch de réactivation ne doit **pas** contourner la limite de guildes :
                 // un profil `ARCHIVED (GUILD_DELETED)` ne redevient ACTIVE que si son porteur a
                 // encore de la place. L'ancien `updateMany` réactivait **tout le monde** d'un coup
-                // (cas piège de `docs/plans/PLAN-LIMITE-GUILDES.md` §6).
+                // (cas piège : une guilde supprimée puis réactivée ne doit pas rendre ACTIVE
+                //  un profil qui n'a plus de place).
                 const reactivatable = await db.userProfile.findMany({
                     where: { guildId: existing.id, archiveReason: 'GUILD_DELETED' },
                     select: { id: true, userId: true },
@@ -163,7 +164,7 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         }
 
         // 🔒 G2 — limite de guildes : déployer une guilde en crée une de plus, on refuse **avant**
-        // la moindre écriture (`docs/plans/PLAN-LIMITE-GUILDES.md`). God exempté (G1 réutilise la
+        // la moindre écriture (`docs/ROADMAP.md`, chantier « limite-guildes »). God exempté (G1 réutilise la
         // même porte).
         {
             const { isGuildLimitReached } = await import("@/server/guild-limit");

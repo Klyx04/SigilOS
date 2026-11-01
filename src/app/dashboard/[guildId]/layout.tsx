@@ -108,7 +108,7 @@ export default async function DashboardLayout({
         );
     }
 
-    // ── LIMITE DE GUILDES (LG-1/LG-2/LG-3, `docs/plans/PLAN-LIMITE-GUILDES.md`) ──
+    // ── LIMITE DE GUILDES (LG-1/LG-2/LG-3, `docs/ROADMAP.md`) ──
     // Le serveur a refusé de créer le profil (garde G1) : on **dit** pourquoi, au lieu de laisser
     // l'écran générique « Bêta Fermée » qui ferait croire à un problème de whitelist.
     if ((user as any).guildLimitReached) {

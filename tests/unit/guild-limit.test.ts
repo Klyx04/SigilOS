@@ -1,5 +1,5 @@
 /**
- * Limite de guildes par utilisateur — **règles pures** (`docs/plans/PLAN-LIMITE-GUILDES.md` §9).
+ * Limite de guildes par utilisateur — **règles pures** (`docs/ROADMAP.md`, chantier « limite-guildes »).
  *
  * 📌 Décidés le 31/10/2026 : 2 guildes maximum, God exempté (côté lecture en base, pas ici),
  * seuil `PlatformConfig.maxGuildsPerUser` **borné 1..10**.

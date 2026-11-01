@@ -187,7 +187,7 @@ client.once(Events.ClientReady, (readyClient) => {
  * État du plafond pour le **propriétaire** de la guilde qui vient d'inviter le bot.
  *
  * `GuildCreate` arrive **sans session utilisateur** : c'est le seul endroit d'où le bot peut savoir
- * que le portail refusera le déploiement (`docs/plans/PLAN-LIMITE-GUILDES.md` §9 bis). Trois états,
+ * que le portail refusera le déploiement (chantier « limite-guildes », `docs/ROADMAP.md`). Trois états,
  * jamais deux : une lecture en échec ne doit **pas** promettre l'activation (fail-closed).
  */
 type OwnerLimitState =

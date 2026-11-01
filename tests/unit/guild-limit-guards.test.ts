@@ -1,5 +1,5 @@
 /**
- * Limite de guildes — **verrou de source** des 5 gardes serveur (`PLAN-LIMITE-GUILDES.md` §4).
+ * Limite de guildes — **verrou de source** des 5 gardes serveur (`docs/ROADMAP.md`, chantier « limite-guildes »).
  *
  * 🐛 Ce qui est réellement en jeu : la limite ne vaut que si **tous** les chemins d'arrivée la
  * respectent. Une seule porte oubliée (création de profil, déploiement, réactivation d'un membre

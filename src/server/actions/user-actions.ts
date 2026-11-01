@@ -1018,9 +1018,10 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
         if (!profile) {
             try {
-                // 🔒 G1 — limite de guildes (`docs/plans/PLAN-LIMITE-GUILDES.md`) : on ne crée un
+                // 🔒 G1 — limite de guildes (`docs/ROADMAP.md`, chantier « limite-guildes ») : on ne crée un
                 // profil que si l'utilisateur a encore de la place. Le comptage n'a lieu **qu'ici**
-                // (chemin d'arrivée), jamais en haut de `_getUserContext` (§8 du plan : pas de N+1).
+                // (chemin d'arrivée), jamais en haut de `_getUserContext` : ce serait un N+1 sur tout
+                // le dashboard pour une règle qui ne concerne que les arrivées.
                 const { isGuildLimitReached } = await import("@/server/guild-limit");
                 if (await isGuildLimitReached(session.user.id)) {
                     return {

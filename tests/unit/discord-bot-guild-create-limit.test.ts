@@ -1,6 +1,6 @@
 /**
  * LG-4 — **garde de source** : l'annonce faite par le bot à l'invitation doit dire la même vérité que
- * le portail (`docs/plans/PLAN-LIMITE-GUILDES.md` §9 bis).
+ * le portail (`docs/ROADMAP.md`, chantier « limite-guildes », LG-4).
  *
  * 🐛 Le défaut mesuré le 01/11/2026 : à 2 guildes sur 2, le portail refusait le déploiement (garde G2)
  * pendant que le bot annonçait « ✅ Ce serveur est actif immédiatement ». L'utilisateur cliquait pour

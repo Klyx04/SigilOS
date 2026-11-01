@@ -464,7 +464,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         })}
                     </div>
 
-                    {/* LG-3 — plafond de guildes par utilisateur (`docs/plans/PLAN-LIMITE-GUILDES.md`).
+                    {/* LG-3 — plafond de guildes par utilisateur (`docs/ROADMAP.md`).
                         Borné 1..10 côté serveur (Zod) et à la lecture (`resolveGuildLimit`) : jamais 0,
                         qui refuserait même la première guilde et verrouillerait la plateforme. */}
                     <div className="space-y-2.5">

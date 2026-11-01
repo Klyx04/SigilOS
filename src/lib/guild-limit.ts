@@ -1,7 +1,7 @@
 /**
  * Limite de guildes par utilisateur — **règles pures** (aucune I/O, aucun Prisma).
  *
- * 📌 Décisions du 31/10/2026 (`docs/plans/PLAN-LIMITE-GUILDES.md`) : **2 guildes** maximum,
+ * 📌 Décisions du 31/10/2026 (`docs/ROADMAP.md`, chantier « limite-guildes ») : **2 guildes** maximum,
  * God exempté, seuil lisible dans `PlatformConfig.maxGuildsPerUser` et **borné 1..10**.
  *
  * 🐛 Pourquoi la borne basse est **1** et pas 0 : un `0` refuserait **toute** création de profil,
@@ -66,7 +66,7 @@ export function isAtGuildLimit(count: number, limit: number): boolean {
 /**
  * Le propriétaire d'une guilde qui vient d'inviter le bot est-il **déjà** au plafond ?
  *
- * 📌 `PLAN-LIMITE-GUILDES.md` §9 bis : `GuildCreate` arrive **sans session utilisateur** (URL OAuth).
+ * 📌 Annonce à l'invitation (LG-4, `docs/ROADMAP.md`) : `GuildCreate` arrive **sans session utilisateur** (URL OAuth).
  * Le service bot est le seul endroit d'où l'on peut dire, au moment de l'invitation, que le portail
  * refusera le déploiement.
  *

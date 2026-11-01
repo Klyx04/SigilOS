@@ -5,7 +5,7 @@ import { countGuildsForUser, isAtGuildLimit, resolveGuildLimit } from "@/lib/gui
 /**
  * Limite de guildes par utilisateur — **la seule lecture en base** de la règle.
  *
- * 📌 `docs/plans/PLAN-LIMITE-GUILDES.md` (LG-1/LG-2) : 2 guildes maximum, God exempté,
+ * 📌 `docs/ROADMAP.md` (LG-1/LG-2) : 2 guildes maximum, God exempté,
  * seuil `PlatformConfig.maxGuildsPerUser` borné 1..10 (`resolveGuildLimit`).
  *
  * 🔒 **Fail-closed** : toute erreur de lecture renvoie `true` (refus). Un compteur qu'on ne sait

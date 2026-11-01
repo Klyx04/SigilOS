@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/prisma";
 import Link from "next/link";
-import { ChevronRight, PlusCircle, Hourglass } from "lucide-react";
+import { ChevronRight, PlusCircle, Hourglass, AlertTriangle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { GuildSetupCard } from "@/components/guild-setup-card";
@@ -74,15 +74,6 @@ export default async function GuildSelectorPage() {
 
             <main className="flex-1">
 
-                {guildLimitReached && (
-                    <div className="px-4 pt-6 md:px-8">
-                        <p className="reg-panel border-warning/30 bg-warning/10 p-4 text-sm text-foreground leading-relaxed">
-                            Vous avez atteint le nombre maximum de guildes ({guildLimit}). Quittez une guilde
-                            pour en déployer une autre ou en rejoindre une nouvelle.
-                        </p>
-                    </div>
-                )}
-
                 {isEmpty ? (
                     <div className="reg-shell py-10 lg:py-14">
                         <NoGuildMessage rateLimited={rateLimited} needsReconnect={needsReconnect} autoOnboardingOn={autoOnboardingOn} />
@@ -99,6 +90,22 @@ export default async function GuildSelectorPage() {
                             <p className="mt-3 max-w-[62ch] text-sm text-muted-foreground leading-relaxed">
                                 Accédez à vos guildes actives ou déployez SigilOS si votre serveur est autorisé.
                             </p>
+
+                            {/* 🔒 LG-3 — plafond : une ligne d'information **dans** la colonne de lecture.
+                                Mesure du 01/11/2026 : le bandeau vivait hors de `.reg-shell`, en pleine
+                                largeur et au-dessus du titre ⇒ il ne s'alignait sur rien (effet « barre
+                                système »). Il n'ajoute pas d'offre : le refus réel reste la garde G2. */}
+                            {guildLimitReached && (
+                                <div className="mt-5 flex max-w-[62ch] items-start gap-3 rounded-lg border border-warning/25 bg-warning/[0.06] px-4 py-3">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                                    <p className="text-sm leading-relaxed text-muted-foreground">
+                                        <span className="font-semibold text-foreground">
+                                            Limite de {guildLimit} guildes atteinte.
+                                        </span>{" "}
+                                        Quittez une guilde pour en déployer une autre ou en rejoindre une nouvelle.
+                                    </p>
+                                </div>
+                            )}
                         </header>
 
                         <div className={cn(

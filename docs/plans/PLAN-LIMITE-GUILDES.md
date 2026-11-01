@@ -94,6 +94,13 @@ guildsCountForUser(userId) =
 
 ### LG-3 — UI (portail + dashboard)
 
+**Correctif du 01/11/2026 (capture utilisateur)** : le bandeau du plafond vivait **hors** de
+`.reg-shell` (barre pleine largeur, au-dessus du titre, alignée sur rien), et le paragraphe
+d'explication posé dans la 3ᵉ colonne `auto` de `guild-setup-card.tsx` écrasait la colonne du titre
+(un mot par ligne) avant de déborder de la carte — **dès 1440**, pas seulement en mobile. Règle
+d'affichage extraite dans `src/lib/guild-setup-view.ts` (**une porte fermée = aucune offre**), bandeau
+déplacé dans l'en-tête, verrou `tests/unit/guild-setup-view.test.ts`.
+
 1. **Portail** `/dashboard` : si `count >= max`, afficher un bandeau d'avertissement au-dessus des guildes « Déploiement » et griser le bouton dans `GuildSetupCard`.
 2. **Dashboard** d'une guilde inconnue : `getUserContext()` retourne `guildLimitReached: true` → page `AccessDenied` avec le message du §7.
 3. **Panel God** : `maxGuildsPerUser` en lecture/écriture, **borné 1..10** côté serveur (Zod), **jamais 0** (verrouillerait la plateforme) ; libellé en clair, jamais de code technique à l'écran.

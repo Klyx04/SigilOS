@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 01/11/2026 (suite 2) — **Portail : le plafond ne casse plus la carte** — branche `fix/limite-guildes-ui-portail`
+
+> **Demande user (verbatim)** : « bandeau très moche pas faux et responsivité détruite dans le bloc deploiement » (capture du portail à 2 guildes sur 2).
+> **Mesures (capture + code)** : ① le bandeau vivait **hors** de `.reg-shell` (`px-4 pt-6 md:px-8`) ⇒ barre pleine largeur au-dessus du titre, alignée sur rien ; ② `guild-setup-card.tsx` posait un paragraphe `max-w-[24rem]` (384 px) dans la 3ᵉ colonne `auto` d'une grille `auto | minmax(0,1fr) | auto` large de ~450 px ⇒ colonne du titre écrasée à ~0 (« un mot par ligne ») et texte hors cadre, **dès 1440** ; ③ la carte affichait « Bot détecté · Prêt à déployer » **et** « Ouverture autonome suspendue » alors que le switch était ON — faux ; ④ `autoDeploy` appelait `onboardGuild` même porte fermée (clic pour rien, refus certain).
+> **Fait** : ① règle d'affichage **pure** `src/lib/guild-setup-view.ts` (`resolveGuildSetupView` : plafond > kill-switch, aucune offre si une porte est fermée, badge seulement si déployable) ; ② carte : plus de 3ᵉ colonne ni de texte long quand bloqué, badge passé en `.reg-tag`, sous-titre d'état, `onboardGuild` non appelé ; ③ bandeau déplacé **dans** l'en-tête (`.reg-shell`, `max-w-[62ch]`, filet `warning` + icône, une seule fois) ; ④ verrou `tests/unit/guild-setup-view.test.ts` (6 cas de comportement + 3 assertions de mise en page).
+> **Preuves** : `guild-setup-view` **9/9** · `guild-limit` **10/10** · `guild-limit-guards` **8/8** · `tsc` 0 · ESLint 0 erreur (9 avertissements de couleur **préexistants** sur la carte).
+> **Reste / ops** : contrôle visuel navigateur 390 / 768 / 1024 / 1440 **non joué ici** (session sans authentification Discord) ; reste du chantier = **annonce du bot à l'invitation** (§9 bis : service séparé, `GuildCreate` sans session, rebuild d'image).
+> **Rotation** : bloc « 31/10 (suite 9) — R1 no-show : le registre de présence existe » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 01/11/2026 — **Accès lecture seule de l'assistant à la bêta + tri Sentry** — branches `fix/acces-lecture-seule-mesures` · `fix/sentry-bruit-et-rbac`
 
 > **Demande user (verbatim)** : « le durcissement doit être maximal : je veux que mon agent (toi) puisse accéder sur demande de ta part au VPS » · puis « traite les sentry aussi en même temps » · puis « plus de passphrase ».
@@ -58,31 +68,3 @@
 > **Preuves** : `raid-modal-charte` **9/9** · `raid-presence` **20/20** · `calendar-raid-closure-and-reminders` **13/13** · `tsc` 0.
 > **Reste / ops** : **D7** (notification d'annulation) touche l'**interface publique Discord** ⇒ **arrêt + accord** avant (éditer l'embed en « annulé » *ou* poster un message court sans mention) ; bêta inchangée ; **ROADMAP non touché** (tenu par `limite-guildes`).
 > **Rotation** : bloc « 30/10 (suite 4) — Stand-by : un groupe reporté ne se fait plus pinger » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 31/10/2026 (suite 9) — **R1 « no-show » livré : le registre de présence existe** — branche `feat/raid-cloture-noshow`
-
-> **Demande user (verbatim)** : « go r1 one shot » — c'est l'accord migration ; les cinq arbitrages ont été pris selon les recommandations présentées en session (D3 staff seul · D4 aucune note libre · D5 90 j · D6 aucun message Discord supplémentaire · D7 reportée).
-> **Mesures** : `RaidPresence` **absente** du schéma, **289** migrations avant ce lot ; la présence ne vivait que dans `GuildEvent.metadata.raidPresentUserIds` (JSON **non requêtable**) ; `completeRaidEvent` **ne vérifiait pas** que les présents étaient inscrits (un identifiant hors roster était crédité) ; `AMORCE-RAID` portait **5 affirmations périmées** (migration attribuée à L3, D3/D4 « à trancher », numérotation D3→D7 divergente).
-> **Fait** : ① **migration 290** `20270123000000_raid_presence` (table + enum, additive et idempotente, écrite à la main) et modèle `RaidPresence` (unique `eventId+userId`, index `guildId+createdAt`, cascades) ; ② règle pure `src/lib/raid-presence.ts` (motifs bornés par Zod, **un statut par inscrit**, refus d'un présent hors inscrits, attestation chiffrée, rétention 90 j) ; ③ `completeRaidEvent` : motif **obligatoire** dès la décoche, registre écrit **dans la même transaction** que la clôture, présents **résolus côté serveur**, RBAC élargi au **capitaine** et à `RAID_OFFICER` ; ④ `undoCompleteRaidEvent` **efface** le registre (retour exact d'avant) ; ⑤ `getRaidPresenceRegister` (**staff seul**) + `correctRaidPresence` (officier, audit `RAID_PRESENCE_CORRECTED`, garde d'état dans le `WHERE`, rate limit) ; ⑥ modale : `select` de motif dès la décoche (défaut « Prévenu »), validation bloquante (score + motifs), attestation chiffrée, bloc registre staff avec correction ; ⑦ docs : `PLAN-RAID` **D3→D7 tranchées**, `AMORCE-RAID` L2 **livré**.
-> **Preuves** : `raid-presence` **20/20** (garde de câblage comprise) · `calendar-raid-closure-and-reminders` **13/13** (garde RBAC **durcie**, pas affaiblie) · suite **556 fichiers / 5 862 tests ✓** · `tsc` 0 · `npx prisma migrate status` : **290 migrations**, « Database schema is up to date! ».
-> **Reste / ops** : ① `./scripts/deploy-cd.sh beta` joue la **migration 290** (elle passe avec le déploiement) ; ② **B11/B12** (charte + responsive de `event-detail-modal.tsx`) toujours **à re-mesurer** ; ③ **D7** (notification d'annulation) = lot séparé ; ④ prod : PR `dev` → `main` puis `deploy-cd.sh prod` ; ⑤ **ROADMAP non touché** (fichier tenu par `limite-guildes`, 60 927 o / 61 440).
-> **Rotation** : bloc « 30/10 (suite 3) — Présentation : plus aucune image hors upload contrôlé » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

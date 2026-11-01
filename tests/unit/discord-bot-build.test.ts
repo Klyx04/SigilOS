@@ -65,5 +65,16 @@ describe("règle de plafond partagée avec le site", () => {
         const dockerfile = readFileSync("services/discord-bot/Dockerfile", "utf8");
         expect(dockerfile).toContain("COPY src/lib/guild-limit.ts ./shared/guild-limit.ts");
     });
+
+    it("la CI matérialise la source avant le `tsc` du bot (sinon TS2307)", () => {
+        const workflow = readFileSync(".github/workflows/verify.yml", "utf8");
+        const etape = workflow.slice(workflow.indexOf("Discord Bot TypeScript Check"));
+        const sync = etape.indexOf("npm run sync:shared");
+        const tsc = etape.indexOf("npx tsc --noEmit");
+
+        expect(sync).toBeGreaterThan(-1);
+        expect(tsc).toBeGreaterThan(-1);
+        expect(sync).toBeLessThan(tsc);
+    });
 });
 

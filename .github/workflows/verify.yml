@@ -232,6 +232,9 @@ jobs:
           cd services/discord-bot
           npm ci
           POSTGRES_USER=build POSTGRES_PASSWORD=build POSTGRES_DB=build npx prisma@7.9.1 generate --schema ../../prisma/schema.prisma
+          # Règle de plafond partagée avec le site : le Dockerfile la copie avant `npm run build`,
+          # la CI doit matérialiser la même source avant `tsc` (sinon TS2307 sur ./shared/guild-limit.js).
+          npm run sync:shared
           npx tsc --noEmit
 
       - name: 🚀 Run Tests

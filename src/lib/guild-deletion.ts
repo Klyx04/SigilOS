@@ -27,3 +27,24 @@ export function isDeletionConfirmationValid(typed: string, guildName: string): b
     if (expected.length === 0) return false;
     return normalizeGuildName(typed) === expected;
 }
+
+/**
+ * La guilde est-elle arrivée à **échéance de suppression** ?
+ *
+ * Trois conditions, jamais deux : elle doit être supprimée (`deletedAt`), avoir une échéance, et
+ * cette échéance doit être atteinte. Une date illisible ne purge **jamais** (fail-closed) — une
+ * donnée qu'on ne sait pas lire ne justifie pas une suppression définitive.
+ */
+export function isGuildPurgeDue(
+    input: { deletedAt: Date | string | null; scheduledDeletion: Date | string | null },
+    now: Date = new Date(),
+): boolean {
+    if (!input.deletedAt || !input.scheduledDeletion) return false;
+
+    const due = input.scheduledDeletion instanceof Date
+        ? input.scheduledDeletion
+        : new Date(input.scheduledDeletion);
+    if (Number.isNaN(due.getTime())) return false;
+
+    return due.getTime() <= now.getTime();
+}

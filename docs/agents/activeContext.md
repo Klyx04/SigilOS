@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 01/11/2026 (suite 6) — **La purge à J+30 existe vraiment (cron `guild-purge`)** — branche `feat/guildes-purge-j30`
+
+> **Demande user (verbatim)** : « lot 3 je veux plier ».
+> **Mesures** : ① `GuildConfig.scheduledDeletion` était écrit mais **lu par personne** — la « suppression définitive » annoncée n'arrivait jamais ; ② toutes les relations `GuildConfig` sont en `onDelete: Cascade` ⇒ `guildConfig.delete` suffit, et le hard delete God faisait déjà exactement ça ; ③ son `if (guildConfig?.discordGuildId)` englobait caches **et** sortie du bot (indentation) : un `discordGuildId` vide sautait les deux.
+> **Fait** : ① core **unique** `src/server/guild-purge-core.ts` (`purgeGuildById` : config + cascades, whitelist, caches, sortie du bot), partagé par **God** (`force`) et le cron ; ② `purgeDueGuilds` borné (20/passe, plus ancien d'abord), `WHERE deletedAt != null AND scheduledDeletion <= now` ; ③ cron `/api/cron/guild-purge` (`verifyCronSecret`, télémétrie `guild_purge`, 401 fail-closed) ; ④ `isGuildPurgeDue` pur (une date illisible ne purge **jamais**) ; ⑤ `hardDeleteGuild` réécrit sur le core (même comportement, indentation corrigée) ; ⑥ docs : `MAINTENANCE.md`, `scripts/maintenance.sh`, `cron-telemetry`.
+> **Preuves** : `guild-deletion` **26/26** · `cron-telemetry` **3/3** · `tsc` 0 · ESLint 0 erreur.
+> **Reste / ops** : ajouter la ligne de crontab sur le VPS (`45 4 * * *`, **sans `%`**) ; `deploy-cd.sh beta` pour activer garde + bouton + cron ; chantier `guildes-cycle-de-vie` **clos** (registre ROADMAP).
+> **Rotation** : bloc « 31/10 (suite 13) — Journal : fin des faux événements Discord + inventaire de couverture » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 01/11/2026 (suite 5) — **Le propriétaire peut retirer sa guilde (Zone sensible)** — branche `feat/guildes-suppression-proprietaire`
 
 > **Demande user (verbatim)** : « où mettre le bouton ? dans pilotage pour le owner non ? » · « et si il est pas seul sur son discord ? et tout le monde est déco et supprimer instant de la bdd ? les token discord les datas etc ? ».
@@ -54,14 +64,3 @@
 > **Preuves** : `agent-ro-grants` **16/16** · `admin-members-rbac-avant-lecture` **2/2** · `market-discord-bundle-per-component` **4/4** · suite **565 fichiers ✓** · `tsc` 0 · ESLint 0.
 > **Reste / ops** : ① merger **#1191** (Sentry) et **#1192** (doc passphrase/ACL) puis `./scripts/deploy-cd.sh beta` — sans déploiement, filtres et correctifs dormants ; ② `ROADMAP.md` **non touché** : modifié par `limite-guildes` (non commité) et **61 085 o** pour une borne à **61 440** ⇒ **355 o** de marge ; ③ la baseline « 106/146 fiches sans butin » du giga-plan est **périmée** — mesuré aujourd'hui **24/276** ; les « 25 pages sans `sp-cial` » sont **exactes** (le local donnait 21 : il ne fait pas foi).
 > **Rotation** : bloc « 31/10 (suite 8) — Réparation des fiches » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 31/10/2026 (suite 13) — **Journal : fin des faux événements Discord + inventaire de couverture** — branche `fix/bot-faux-evenements`
-
-> **Demande user (verbatim)** : « on voit des logs d'événement de rôles discord alors que cette personne n'a absolument rien eu en role + ou - ni en rename depuis des semaines … c'est pas fiable » + « il manque pas mal de logs dans l'audit log … sans aller gonfler le vps ».
-> **Mesure (cause racine)** : `services/discord-bot/index.ts`, handler `GuildMemberUpdate` — quand le membre n'est **pas dans le cache** (bot redémarré), discord.js fournit un `oldMember` **partiel** qui ne porte que `@everyone` : tous les rôles paraissent « ajoutés » (`+GARDIENS, +MEMBRES, …`) et `oldMember.nickname` retombe sur le nom d'utilisateur ⇒ un « `Surnom serveur : Fakeman ➔ Fake-Instructor` » vieux de plusieurs semaines réapparaît à l'heure du redémarrage (bêta, 20:36).
-> **Fait** : ① garde `oldMember.partial === true` (on n'écrit pas ce qu'on n'a pas vu) ; ② garde **cache froid** (un « ajout » qui couvre tous les rôles alors que l'ancien n'en portait aucun) ; ③ verrou `bot-member-update-audit` (**3 cas**) + `tsc` du bot vert.
-> **Couverture d'audit (mesurée, `createAuditLog` par fichier d'actions)** : 21 fichiers journalisent ; **18 fichiers mutent ≥ 3 fois SANS aucun audit** — plus gros : `optimized-guide-actions` (74 mutations), `ticket-bot-actions` (72), `game-data-admin-actions` (35), `mission-actions` (26), `market-actions` (24), `ocre-actions` (21), `profile-actions` (20), `service-actions` (15), `gallery-actions` (12), `inactive-posts-actions` (12), `resources-actions` (11). ⚠️ « 0 audit » n'est pas toujours un trou (un helper peut journaliser ailleurs) : à confirmer fichier par fichier **avant** d'instrumenter, sous peine de gonfler la base pour rien.
-> **Suite (même session) — « il manque des logs » : mesuré, c'est l'écran.** `AuditAction` déclare **78** actions ; la page guilde `/admin/logs` n'offrait que **8** groupes locaux et **~36** actions n'étaient dans **aucun** filtre (calendrier/raids, RBAC, mouvements Discord, `PROFILE_ARCHIVED`/`PROFILE_REACTIVATED`, guildaton, God…). Les lignes existaient **en base** : la copie locale de la liste les masquait. **Fait** : la page consomme `AUDIT_ACTION_FILTER_OPTIONS` (`src/lib/audit-taxonomy.ts`), la taxonomie est complétée (Guildaton, Coups de main, Synchronisations, 20 actions God, mouvements Discord élargis, cycle de vie profil) et le verrou `audit-filter-coverage` (**3 cas**) impose **zéro action non classée** et **zéro doublon**. Aucune écriture ajoutée en base — donc **pas de gonflement du VPS**.
-> **Reste / ops** : **redéployer le bot** (`services/discord-bot`, image séparée) pour que la garde prenne effet ; les deux fausses lignes déjà écrites restent au journal (aucune purge décidée) ; **ROADMAP non touché** (tenu par `limite-guildes`).
-> **Rotation** : bloc « 30/10 (suite 6) — Fiches boss : le butin revient » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

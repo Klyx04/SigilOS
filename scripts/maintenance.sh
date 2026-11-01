@@ -243,6 +243,22 @@ else
     echo "⚠️  Posts inactifs ignoré : CRON_SECRET ou APP_URL manquant"
 fi
 
+# 6d. Purge réelle des guildes supprimées arrivées à échéance (J+30, chantier guildes-cycle-de-vie)
+# Ne concerne que les guildes DÉSACTIVÉES (deletedAt non nul) dont scheduledDeletion est atteinte.
+if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then
+    GUILD_PURGE_RESPONSE=$(curl -s -o /tmp/guild-purge-response.json -w "%{http_code}" \
+        -H "x-cron-secret: $CRON_SECRET" \
+        "$APP_URL/api/cron/guild-purge")
+    if [ "$GUILD_PURGE_RESPONSE" -eq 200 ]; then
+        echo "✅ Purge des guildes échues terminée"
+    else
+        echo "⚠️  Purge des guildes : HTTP $GUILD_PURGE_RESPONSE (non bloquant)"
+    fi
+else
+    echo "⚠️  Purge des guildes ignorée : CRON_SECRET ou APP_URL manquant"
+fi
+
+
 # 6c2. Purge auto des demandes de service inactives (sans réponse du passeur)
 # Règle : rappels au demandeur J+7 (sera supprimée dans 14 j) et J+14 (dans 7 j), clôture CANCELLED à J+21
 if [ -n "$CRON_SECRET" ] && [ -n "$APP_URL" ]; then

@@ -15,7 +15,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { GUILD_DELETION_GRACE_DAYS, isDeletionConfirmationValid } from "@/lib/guild-deletion";
+import { GUILD_DELETION_GRACE_DAYS, isDeletionConfirmationValid, isGuildPurgeDue } from "@/lib/guild-deletion";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
@@ -98,6 +98,86 @@ describe("action `requestGuildDeletion` — l'ordre et l'état avant tout", () =
     it("trace l'action et prévient God", () => {
         expect(ACTION).toContain('action: "GUILD_DELETE_REQUESTED"');
         expect(ACTION).toContain("notifyGod");
+    });
+});
+
+describe("échéance de purge — jamais une guilde active, jamais une date illisible", () => {
+    const now = new Date("2026-11-01T12:00:00.000Z");
+
+    it("une guilde vivante n'est jamais due", () => {
+        expect(isGuildPurgeDue({ deletedAt: null, scheduledDeletion: "2026-01-01T00:00:00.000Z" }, now)).toBe(false);
+    });
+
+    it("supprimée sans échéance : pas de purge (on ne devine pas)", () => {
+        expect(
+            isGuildPurgeDue({ deletedAt: "2026-10-01T00:00:00.000Z", scheduledDeletion: null }, now),
+        ).toBe(false);
+    });
+
+    it("échéance future : on attend", () => {
+        expect(
+            isGuildPurgeDue(
+                { deletedAt: "2026-10-15T00:00:00.000Z", scheduledDeletion: "2026-11-14T00:00:00.000Z" },
+                now,
+            ),
+        ).toBe(false);
+    });
+
+    it("échéance atteinte : purge", () => {
+        expect(
+            isGuildPurgeDue(
+                { deletedAt: "2026-10-01T00:00:00.000Z", scheduledDeletion: "2026-10-31T00:00:00.000Z" },
+                now,
+            ),
+        ).toBe(true);
+    });
+
+    it("l'instant exact de l'échéance compte comme atteint", () => {
+        expect(
+            isGuildPurgeDue({ deletedAt: now, scheduledDeletion: now }, now),
+        ).toBe(true);
+    });
+
+    it("une date illisible ne purge jamais (fail-closed)", () => {
+        expect(
+            isGuildPurgeDue({ deletedAt: "2026-10-01T00:00:00.000Z", scheduledDeletion: "pas-une-date" }, now),
+        ).toBe(false);
+    });
+});
+
+describe("cron `guild-purge` — borné, protégé, sans `force`", () => {
+    const CRON = read("src/app/api/cron/guild-purge/route.ts");
+    const CORE = read("src/server/guild-purge-core.ts");
+
+    it("vérifie le secret du cron et répond 401 (fail-closed)", () => {
+        expect(CRON).toContain("verifyCronSecret(req)");
+        expect(CRON).toContain('status: 401');
+    });
+
+    it("émet la télémétrie et déclare la tâche", () => {
+        expect(CRON).toContain('recordCronExecution("guild_purge"');
+        expect(read("src/lib/cron-telemetry.ts")).toContain("guild_purge:");
+    });
+
+    it("ne purge que les guildes désactivées et échues, par lots bornés", () => {
+        expect(CORE).toContain("where: { deletedAt: { not: null }, scheduledDeletion: { lte: now } }");
+        expect(CORE).toContain("take: limit");
+        expect(CORE).toContain("!options.force && !isGuildPurgeDue");
+    });
+
+    it("le cron n'utilise jamais `force` (réservé à God)", () => {
+        expect(CRON).not.toContain("{ force");
+        expect(CRON).not.toContain("purgeGuildById");
+    });
+
+    it("God et le cron partagent la même purge", () => {
+        const GOD = read("src/server/actions/god-lifecycle-actions.ts");
+        const debut = GOD.indexOf("export async function hardDeleteGuild");
+        const fin = GOD.indexOf("export async function softDeleteProfile");
+        const bloc = GOD.slice(debut, fin);
+
+        expect(bloc).toContain("purgeGuildById(guildId, { force: true })");
+        expect(bloc).not.toContain("db.guildConfig.delete");
     });
 });
 

@@ -26,8 +26,20 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
     const { guildId } = await params;
     const { tab } = await searchParams;
 
-    const [ctx, stats, lifecycle, discordIndex, guildConfig, memberBans] = await Promise.all([
-        getUserContext(guildId),
+    // 🔒 RBAC **avant** toute lecture. Mesure du 01/11/2026 (`JAVASCRIPT-NEXTJS-2B`,
+    // `GET /dashboard/<guildId>/admin/members`) : `getGuildMemberStats` levait
+    // `Unauthorized` quand la session manquait, et comme elle partait dans le même
+    // `Promise.all` que `getUserContext`, la redirection n'avait pas le temps de
+    // s'appliquer ⇒ **500** au lieu d'un retour au dashboard. Le contexte est donc
+    // résolu **seul**, la garde s'applique, et les lectures ne partent qu'après.
+    const ctx = await getUserContext(guildId);
+
+    // RBAC : Admin, Gestion des membres ou Relances.
+    if (!ctx.isAdmin && !ctx.canManageMembers && !ctx.canManageRelance) {
+        redirect(`/dashboard/${guildId}`);
+    }
+
+    const [stats, lifecycle, discordIndex, guildConfig, memberBans] = await Promise.all([
         getGuildMemberStats(guildId),
         getGuildLifecycleData(guildId),
         getMemberRegistryDiscordIndex(guildId),
@@ -39,11 +51,6 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
         // `success: false`, on affiche alors la liste sans les exclusions plutôt que de mentir.
         getGuildMemberBans(guildId),
     ]);
-
-    // RBAC : Admin, Gestion des membres ou Relances.
-    if (!ctx.isAdmin && !ctx.canManageMembers && !ctx.canManageRelance) {
-        redirect(`/dashboard/${guildId}`);
-    }
 
     const lifecycleData = lifecycle.success ? lifecycle.data : null;
     const indexData = discordIndex.success ? discordIndex.data : null;

@@ -23,6 +23,17 @@ export const COMMON_IGNORE_ERRORS: (string | RegExp)[] = [
     // Réseau coupé (mobile, onglet en veille) : cas utilisateur, pas un bug produit.
     "NetworkError",
     "Failed to fetch",
+    // ⚠️ Mesure du 01/11/2026 (`JAVASCRIPT-NEXTJS-2E`, 2 événements en 7 min) : `TypeError:
+    // network error` est le message exact d'un `fetch` coupé au niveau réseau. Les deux
+    // événements tombent **pendant la recréation de `db-beta`** (déploiement bêta) sur
+    // `/dashboard/:guildId/donjons-et-quetes` : la requête a été coupée, pas mal construite.
+    // Regex **ancrée** : on ne fait pas taire un message qui contiendrait ces mots.
+    /^network error$/i,
+    // ⚠️ Mesure du 01/11/2026 (`JAVASCRIPT-NEXTJS-21`) : `Error: aborted` sur `POST /monitoring`
+    // — c'est le **tunnel Sentry** lui-même : le navigateur annule la requête en quittant la
+    // page. Rien de notre code ne produit cette annulation, et le tunnel n'est pas une route
+    // métier (même famille que « The destination stream closed early », cf. filtre serveur).
+    /^aborted$/i,
     // Particularité connue de ResizeObserver, bruit standard du web.
     "ResizeObserver loop",
     // 🐛 Mesure du 11/10/2026 — **65 événements en 24 h** dans la config navigateur,

@@ -908,7 +908,20 @@ export async function syncBundleComponentMessages(
                     mentionContent: mention || undefined,
                     storeMessageIdKey: componentMessageKey(component.id),
                 });
-                if (!sent) throw new Error("Envoi Discord refusé (objet du lot)");
+                if (!sent) {
+                    // 🐛 Mesure du 01/11/2026 (`JAVASCRIPT-NEXTJS-25`, 10 occurrences depuis
+                    // le 23/10, **même lot**, tous les jours à 00:00 via `market-expire`) :
+                    // `sendChannelMessage` ne renvoie `null` que pour un **report** — disjoncteur
+                    // du salon ouvert (`isDiscordChannelBlocked`) ou bot non configuré. Un échec
+                    // d'envoi, lui, **lève** (cf. `src/server/discord.ts`). Le transformer en
+                    // erreur marquait donc le lot `FAILED` à chaque tick pour un simple report :
+                    // on saute l'objet, la trace reste vierge et la passe suivante réessaiera.
+                    logger.warn("[market] envoi de l'objet du lot différé (salon en pause)", {
+                        listingId,
+                        componentId: component.id,
+                    });
+                    continue;
+                }
                 messageId = typeof sent === "string" ? sent : String(sent);
             }
             if (!mentionUsed && mention) mentionUsed = true;

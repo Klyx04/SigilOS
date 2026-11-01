@@ -1,10 +1,9 @@
 # Plan — Limite de guildes par utilisateur (`limite-guildes`, LG)
 
 > **Décisions du 31/10/2026** : **2 guildes maximum**, **God (`isSuperAdmin`) exempté**.
-> **État au 01/11/2026** : **LG-1 et LG-2 livrés** (règle pure + migration `maxGuildsPerUser` + gardes
-> G1→G5, verrou de source). **LG-3 partiel** : message `AccessDenied` dédié (le refus serveur est dit
-> au lieu de « Bêta Fermée ») et seuil validé serveur (Zod, 1..10). **Reste** : bandeau du portail +
-> bouton « Déployer » grisé, et le champ dans le panneau God (UI sensible, à traiter à part).
+> **État au 01/11/2026** : **LG-1, LG-2 et LG-3 livrés** (règle pure + migration `maxGuildsPerUser` +
+> gardes G1→G5 + écran `AccessDenied` + bandeau du portail + champ God borné 1..10, et les CTA
+> autonomes retirés des landings, du portail et de la modale quand le kill-switch est OFF).
 
 ---
 

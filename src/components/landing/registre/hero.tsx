@@ -58,7 +58,9 @@ export function LandingHero({ guild, clientId = "", autoOnboardingOn = true }: L
                         <form action={loginWithDiscord}>
                             <button type="submit" className="reg-btn reg-btn-primary cursor-pointer">
                                 <DiscordIcon className="w-4 h-4" aria-hidden="true" />
-                                {t.landing.ctaConfigure}
+                                {/* 🔒 Kill-switch God OFF : on ne promet pas « configurer » (ouverture
+                                    autonome) — la destination est la même, le mot est honnête. */}
+                                {autoOnboardingOn ? t.landing.ctaConfigure : t.landing.setupAssisted}
                             </button>
                         </form>
                         <Link

@@ -61,6 +61,8 @@ interface PlatformConfigPanelProps {
         rbacUsersMappingEnabled: boolean;
         forceDarkMode: boolean;
         autoOnboardingEnabled: boolean;
+        /** LG-3 — plafond de guildes par utilisateur (1..10). */
+        maxGuildsPerUser: number;
     } | null;
     availableGuilds: { id: string, name: string }[];
     availableRoles: { id: string, name: string }[];
@@ -91,7 +93,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         dofusQuestHeaderIcon: config?.dofusQuestHeaderIcon || "serie-de-quete",
         rbacUsersMappingEnabled: config?.rbacUsersMappingEnabled ?? true,
         forceDarkMode: config?.forceDarkMode ?? false,
-        autoOnboardingEnabled: config?.autoOnboardingEnabled ?? true
+        autoOnboardingEnabled: config?.autoOnboardingEnabled ?? true,
+        maxGuildsPerUser: config?.maxGuildsPerUser ?? 2
     });
 
     const [diagResults, setDiagResults] = useState<any>(null);
@@ -459,6 +462,30 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                 </button>
                             );
                         })}
+                    </div>
+
+                    {/* LG-3 — plafond de guildes par utilisateur (`docs/plans/PLAN-LIMITE-GUILDES.md`).
+                        Borné 1..10 côté serveur (Zod) et à la lecture (`resolveGuildLimit`) : jamais 0,
+                        qui refuserait même la première guilde et verrouillerait la plateforme. */}
+                    <div className="space-y-2.5">
+                        <div className="space-y-1">
+                            <span className="text-xs font-bold text-white uppercase block">Guildes maximum par utilisateur</span>
+                            <p className="text-caption text-zinc-500 leading-normal">
+                                Appliqué à l&apos;arrivée (premier accès, déploiement, réactivation). Entier de 1 à 10.
+                                Valeur par défaut : 2.
+                            </p>
+                        </div>
+                        <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            step={1}
+                            value={(formData as any).maxGuildsPerUser ?? 2}
+                            onChange={(event) =>
+                                setFormData((prev) => ({ ...prev, maxGuildsPerUser: Number(event.target.value) }))
+                            }
+                            className="w-28 rounded-xl border border-white/10 bg-zinc-900/40 px-3 py-2 text-sm font-bold text-white outline-none focus:border-indigo-500/40"
+                        />
                     </div>
 
                     {/* Chantier #68 — Choix God de l'icône du bloc d'en-tête des pages quêtes par Dofus */}

@@ -7,6 +7,7 @@ import { onboardGuild } from "@/server/actions/admin-actions";
 import { toast } from "sonner"; // Assuming sonner or use a simple alert if not available
 import { buildDiscordBotInviteUrl } from "@/lib/discord-permissions";
 import { cn } from "@/lib/utils";
+import { AUTONOMY_SUSPENDED_SHORT } from "@/lib/onboarding";
 
 type GuildProps = {
     id: string;
@@ -16,7 +17,7 @@ type GuildProps = {
     clientId?: string;
 };
 
-export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildProps, clientId?: string, autoDeploy?: boolean }) {
+export function GuildSetupCard({ guild, clientId, autoDeploy, autoOnboardingOn = true }: { guild: GuildProps, clientId?: string, autoDeploy?: boolean, autoOnboardingOn?: boolean }) {
     const [loading, setLoading] = useState(false);
     const [inviteStarted, setInviteStarted] = useState(false);
     const autoDeployTried = useRef(false);
@@ -144,42 +145,55 @@ export function GuildSetupCard({ guild, clientId, autoDeploy }: { guild: GuildPr
                     )}
                 </div>
                 <p className="reg-mono mt-0.5 text-xs text-muted-foreground">
-                    {needsInvite
-                        ? "Bot absent — invitation requise"
-                        : loading
-                          ? "Activation en cours…"
-                          : "Cliquez sur Déployer pour activer votre guilde sur SigilOS"}
+                    {!autoOnboardingOn
+                        ? AUTONOMY_SUSPENDED_SHORT
+                        : needsInvite
+                          ? "Bot absent — invitation requise"
+                          : loading
+                            ? "Activation en cours…"
+                            : "Cliquez sur Déployer pour activer votre guilde sur SigilOS"}
                 </p>
             </div>
 
             <div className="flex shrink-0 items-center gap-3">
-                <button
-                    type="button"
-                    onClick={handleSetup}
-                    disabled={loading}
-                    className={cn(
-                        "min-h-9 px-4 py-1.5 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-60",
-                        isReadyToDeploy
-                            ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40"
-                            : "reg-btn reg-btn-primary"
-                    )}
-                >
-                    {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                        <Plus className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    <span>{loading ? "Activation…" : needsInvite ? "Inviter le bot" : "Déployer la guilde"}</span>
-                </button>
+                {/* 🔒 Kill-switch God « auto-onboarding » OFF : on ne propose **pas** le bouton
+                    (il restait actif et lançait l'ouverture autonome malgré le réglage). */}
+                {autoOnboardingOn ? (
+                    <>
+                        <button
+                            type="button"
+                            onClick={handleSetup}
+                            disabled={loading}
+                            className={cn(
+                                "min-h-9 px-4 py-1.5 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-60",
+                                isReadyToDeploy
+                                    ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40"
+                                    : "reg-btn reg-btn-primary"
+                            )}
+                        >
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            ) : (
+                                <Plus className="h-4 w-4" aria-hidden="true" />
+                            )}
+                            <span>{loading ? "Activation…" : needsInvite ? "Inviter le bot" : "Déployer la guilde"}</span>
+                        </button>
 
-                {needsInvite && inviteStarted && !loading && (
-                    <button
-                        type="button"
-                        onClick={() => window.location.reload()}
-                        className="reg-link-quiet text-xs"
-                    >
-                        J&apos;ai invité le bot, vérifier
-                    </button>
+                        {needsInvite && inviteStarted && !loading && (
+                            <button
+                                type="button"
+                                onClick={() => window.location.reload()}
+                                className="reg-link-quiet text-xs"
+                            >
+                                J&apos;ai invité le bot, vérifier
+                            </button>
+                        )}
+                    </>
+                ) : (
+                    <p className="max-w-[24rem] text-xs leading-relaxed text-muted-foreground">
+                        L&apos;ouverture autonome est momentanément suspendue. Demande l&apos;accompagnement :
+                        l&apos;équipe ouvre ton espace avec toi.
+                    </p>
                 )}
             </div>
         </div>

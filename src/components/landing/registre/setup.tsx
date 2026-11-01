@@ -60,15 +60,19 @@ export function LandingSetup({ clientId = "", autoOnboardingOn = true }: Landing
                     </div>
 
                     <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-                        <form action={loginWithDiscord}>
-                            <button type="submit" className="reg-btn reg-btn-primary">
-                                {t.landing.ctaConfigure}
-                            </button>
-                        </form>
+                        {/* 🔒 Kill-switch God OFF : le CTA « configurer » disparaît (il ouvrait
+                            l'autonomie), il ne reste que l'accompagnement — un seul chemin, dit. */}
+                        {autoOnboardingOn && (
+                            <form action={loginWithDiscord}>
+                                <button type="submit" className="reg-btn reg-btn-primary">
+                                    {t.landing.ctaConfigure}
+                                </button>
+                            </form>
+                        )}
                         <button
                             type="button"
                             onClick={() => setShowAccessModal(true)}
-                            className="reg-link-quiet text-sm"
+                            className={autoOnboardingOn ? "reg-link-quiet text-sm" : "reg-btn reg-btn-primary"}
                         >
                             {t.landing.setupAssisted}
                         </button>

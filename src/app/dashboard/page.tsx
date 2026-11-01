@@ -32,6 +32,23 @@ export default async function GuildSelectorPage() {
     }).catch(() => null);
     const autoOnboardingOn = platformCfg?.autoOnboardingEnabled !== false;
 
+    // 🔒 LG-3 — bandeau : dire la limite **avant** le clic, au lieu de laisser le serveur refuser
+    // (le refus reste la vérité : garde G1/G2). Un échec de lecture n'affiche rien — on ne ment pas
+    // dans l'autre sens non plus.
+    let guildLimitReached = false;
+    let guildLimit = 2;
+    try {
+        const { countUserGuilds, readGuildLimit } = await import("@/server/guild-limit");
+        const [count, limit] = await Promise.all([
+            countUserGuilds(session.user.id),
+            readGuildLimit(),
+        ]);
+        guildLimit = limit;
+        guildLimitReached = count >= limit;
+    } catch {
+        // Silencieux : c'est un bandeau d'information, pas une garde.
+    }
+
     // Pilotage cross-guilde (« mes serveurs ») : signaux admin par guilde
     // (verrous staff, récupération, gel) — calculés uniquement pour les
     // guildes dont l'utilisateur est admin Discord natif.
@@ -56,6 +73,15 @@ export default async function GuildSelectorPage() {
             />
 
             <main className="flex-1">
+
+                {guildLimitReached && (
+                    <div className="px-4 pt-6 md:px-8">
+                        <p className="reg-panel border-warning/30 bg-warning/10 p-4 text-sm text-foreground leading-relaxed">
+                            Vous avez atteint le nombre maximum de guildes ({guildLimit}). Quittez une guilde
+                            pour en déployer une autre ou en rejoindre une nouvelle.
+                        </p>
+                    </div>
+                )}
 
                 {isEmpty ? (
                     <div className="reg-shell py-10 lg:py-14">
@@ -186,6 +212,9 @@ export default async function GuildSelectorPage() {
                                                         key={guild.id}
                                                         guild={guild}
                                                         clientId={clientId}
+                                                        // 🔒 Kill-switch God : sans ouverture autonome, la carte
+                                                        // affiche le message au lieu du bouton « Inviter le bot ».
+                                                        autoOnboardingOn={autoOnboardingOn}
                                                         // Un seul serveur éligible + bot déjà présent :
                                                         // on l'active sans exiger un clic « Déployer »
                                                         // (comme les autres bots : invité = fonctionnel).

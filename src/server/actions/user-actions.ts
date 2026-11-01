@@ -1018,6 +1018,24 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
         if (!profile) {
             try {
+                // 🔒 G1 — limite de guildes (`docs/plans/PLAN-LIMITE-GUILDES.md`) : on ne crée un
+                // profil que si l'utilisateur a encore de la place. Le comptage n'a lieu **qu'ici**
+                // (chemin d'arrivée), jamais en haut de `_getUserContext` (§8 du plan : pas de N+1).
+                const { isGuildLimitReached } = await import("@/server/guild-limit");
+                if (await isGuildLimitReached(session.user.id)) {
+                    return {
+                        ...baseContext,
+                        isAuthenticated: true,
+                        id: session.user.id,
+                        name: displayName,
+                        isMember: !!member || isGod,
+                        guildName: guildConfig?.name || "Serveur Inconnu",
+                        canViewDashboard: false,
+                        guildLimitReached: true,
+                        error: "Vous faites déjà partie du nombre maximum de guildes.",
+                    } as any;
+                }
+
                 // B-2 : le staff a pu remplir une ligne de registre **avant** l'inscription
                 // (pseudo Dofus, tag Ankama, date d'arrivée, recruteur, essai, mules). Sans reprise,
                 // ces informations resteraient invisibles : l'affichage donne la priorité au profil,

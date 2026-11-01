@@ -17,7 +17,11 @@ type GuildProps = {
     clientId?: string;
 };
 
-export function GuildSetupCard({ guild, clientId, autoDeploy, autoOnboardingOn = true }: { guild: GuildProps, clientId?: string, autoDeploy?: boolean, autoOnboardingOn?: boolean }) {
+export function GuildSetupCard({ guild, clientId, autoDeploy, autoOnboardingOn = true, guildLimitReached = false }: { guild: GuildProps, clientId?: string, autoDeploy?: boolean, autoOnboardingOn?: boolean, guildLimitReached?: boolean }) {
+    // 🔒 Une seule porte fermée suffit à retirer l'offre : ouverture autonome suspendue **ou**
+    // plafond de guildes atteint. Mesure du 01/11/2026 : le bandeau disait « limite atteinte »
+    // pendant que la carte proposait encore « Déployer » / « Inviter le bot » ⇒ clic, refus, toast.
+    const blocked = !autoOnboardingOn || guildLimitReached;
     const [loading, setLoading] = useState(false);
     const [inviteStarted, setInviteStarted] = useState(false);
     const autoDeployTried = useRef(false);
@@ -145,9 +149,7 @@ export function GuildSetupCard({ guild, clientId, autoDeploy, autoOnboardingOn =
                     )}
                 </div>
                 <p className="reg-mono mt-0.5 text-xs text-muted-foreground">
-                    {!autoOnboardingOn
-                        ? AUTONOMY_SUSPENDED_SHORT
-                        : needsInvite
+                    {blocked ? AUTONOMY_SUSPENDED_SHORT : needsInvite
                           ? "Bot absent — invitation requise"
                           : loading
                             ? "Activation en cours…"
@@ -158,7 +160,7 @@ export function GuildSetupCard({ guild, clientId, autoDeploy, autoOnboardingOn =
             <div className="flex shrink-0 items-center gap-3">
                 {/* 🔒 Kill-switch God « auto-onboarding » OFF : on ne propose **pas** le bouton
                     (il restait actif et lançait l'ouverture autonome malgré le réglage). */}
-                {autoOnboardingOn ? (
+                {!blocked ? (
                     <>
                         <button
                             type="button"
@@ -191,8 +193,9 @@ export function GuildSetupCard({ guild, clientId, autoDeploy, autoOnboardingOn =
                     </>
                 ) : (
                     <p className="max-w-[24rem] text-xs leading-relaxed text-muted-foreground">
-                        L&apos;ouverture autonome est momentanément suspendue. Demande l&apos;accompagnement :
-                        l&apos;équipe ouvre ton espace avec toi.
+                        {guildLimitReached
+                            ? "Vous avez atteint le nombre maximum de guildes : quittez-en une pour en déployer une autre."
+                            : "L'ouverture autonome est momentanément suspendue. Demande l'accompagnement : l'équipe ouvre ton espace avec toi."}
                     </p>
                 )}
             </div>

@@ -215,6 +215,10 @@ export default async function GuildSelectorPage() {
                                                         // 🔒 Kill-switch God : sans ouverture autonome, la carte
                                                         // affiche le message au lieu du bouton « Inviter le bot ».
                                                         autoOnboardingOn={autoOnboardingOn}
+                                                        // 🔒 Plafond atteint : la carte retire l'offre
+                                                        // (sinon le bandeau dit « limite » et le bouton
+                                                        // propose encore de déployer — mesure du 01/11/2026).
+                                                        guildLimitReached={guildLimitReached}
                                                         // Un seul serveur éligible + bot déjà présent :
                                                         // on l'active sans exiger un clic « Déployer »
                                                         // (comme les autres bots : invité = fonctionnel).

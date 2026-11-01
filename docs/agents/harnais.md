@@ -138,6 +138,11 @@ paths:
 ---
 ```
 
+> **Accès au VPS en lecture seule** — quel que soit l'assistant, la procédure et les règles vivent dans
+> `docs/agents/acces-lecture-seule.md` (utilisateur dédié, **jamais** dans le groupe `docker`, rôle
+> Postgres `SELECT` seulement). **Toute mesure de données se fait sur la bêta** : la base locale ne fait
+> foi que pour le **schéma** et les **tests**.
+
 ## 8. `.clineignore` — pansement, pas fondation
 
 Cline supporte `.clineignore` mais annonce sa **dépréciation**. On l'utilise pour sortir de l'index les
@@ -161,6 +166,15 @@ base est branchée, ce sera un rôle **read-only** et une base **locale**.
 5. Croire que `.clineignore` est éternel → déprécié.
 6. MCP base de production → jamais.
 7. Memory Bank parallèle à `docs/` → troisième source de vérité.
+8. **Prouver une donnée avec la base locale** → `sigilos-db` (5433) n'a ni le même contenu ni les mêmes
+   volumes que `db-beta` (mesure du 31/10 : **287** `MonsterStat` / **145** donjons en local, contre
+   **106 fiches boss sur 146** et « 25 pages sans `sp-cial` » en bêta). Une mesure de **contenu** se fait
+   sur la **bêta** (`docs/agents/acces-lecture-seule.md`) ; le local ne prouve que le **schéma** et les tests.
+9. **Écrire sur le VPS « pour vérifier »** → l'accès de l'assistant est **lecture seule** ; toute écriture,
+   déploiement ou suppression se fait par le mainteneur, avec son accord explicite.
+10. **Committer les fichiers d'un chantier en cours du mainteneur** → `docs/ROADMAP.md` modifié et un
+    `docs/plans/*.md` non suivi appartiennent à **son** chantier : l'assistant ne stage **que** ses propres
+    fichiers, **nommés un par un** (jamais `git add -A`), et laisse ces deux-là intacts.
 
 ## 11. Journal du harnais
 

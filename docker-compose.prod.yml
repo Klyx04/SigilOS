@@ -249,6 +249,10 @@ services:
     image: postgres:15-alpine
     container_name: sigilos-db-beta
     restart: always
+    # 🔒 Accès lecture seule de l'assistant : boucle locale SEULEMENT.
+    # Jamais `0.0.0.0`, jamais sur db-prod (verrou : tests/unit/agent-ro-grants.test.ts).
+    ports:
+      - "127.0.0.1:5432:5432"
     env_file: .env.beta
     volumes:
       - db-beta-data:/var/lib/postgresql/data

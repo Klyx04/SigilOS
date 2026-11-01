@@ -27,6 +27,7 @@ import { isSuperAdmin, canGodAccess, canAccessBrick } from './super-admin-action
 import { getDisplayName } from "@/lib/display-name";
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
+import { purgeGuildById } from "@/server/guild-purge-core";
 
 /**
  * Purge tous les caches d'une guilde (contexte membres Redis, config mémoire,
@@ -198,47 +199,22 @@ export async function hardDeleteGuild(guildId: string) {
         const session = await auth();
         const adminName = session?.user?.name || "Super Admin";
 
-        // 1. Get Discord Guild ID before deleting config
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { id: guildId },
-            select: { discordGuildId: true }
-        });
-
-        // 2. Cascade delete configured in schema handles related data
-        await db.guildConfig.delete({
-            where: { id: guildId }
-        });
-
-        // 3. Remove from persistence whitelist (AllowedGuild)
-        // This prevents the "Ghost Guild" from reappearing in the GOD Dashboard
-        if (guildConfig?.discordGuildId) {
-            await db.allowedGuild.deleteMany({
-                where: { discordGuildId: guildConfig.discordGuildId }
-            });
-        // Éviction immédiate (cf. softDeleteGuild) : sinon les membres
-        // restent dans le dashboard jusqu'à expiration des caches.
-        await purgeGuildCaches(guildConfig.discordGuildId);
-
-        // 4. Expulser le bot du serveur Discord (best-effort, comme le ban) :
-        // sans ça, le portail re-provisionne silencieusement la guilde au
-        // retour de l'owner (le bot étant toujours sur le serveur) et le hard
-        // delete semble n'avoir rien fait. Un échec n'annule jamais le delete.
-        try {
-            const { leaveGuild } = await import("@/server/discord");
-            await leaveGuild(guildConfig.discordGuildId);
-        } catch (botErr) {
-            logger.warn(`[GOD] hardDeleteGuild: bot leave failed for ${guildConfig.discordGuildId}`, { botErr });
-        }
+        // Une seule implémentation de la purge (`src/server/guild-purge-core.ts`), partagée avec le
+        // cron `guild-purge` : config + cascades, whitelist, caches, sortie du bot.
+        // `force` : God supprime sans attendre l'échéance (décision assumée, action God explicite).
+        const purge = await purgeGuildById(guildId, { force: true });
+        if (!purge.purged) {
+            return { success: false, error: "Guilde introuvable" };
         }
 
         // 🔔 NOTIFY GOD
         const { notifyGod } = await import('./god-notif-actions');
         await notifyGod({
             title: "🗑️ Guilde Supprimée Définitivement",
-            message: `La guilde "${guildConfig?.discordGuildId || guildId}" a été supprimée définitivement de la plateforme.\n👤 Par: **${adminName}**`,
+            message: `La guilde "${purge.discordGuildId}" a été supprimée définitivement de la plateforme.\n👤 Par: **${adminName}**`,
             type: "SYSTEM",
             success: false,
-            metadata: { guildId, discordGuildId: guildConfig?.discordGuildId, performedBy: adminName, operation: "HARD_DELETE_GUILD" },
+            metadata: { guildId, discordGuildId: purge.discordGuildId, performedBy: adminName, operation: "HARD_DELETE_GUILD" },
         });
 
         revalidatePath('/god');

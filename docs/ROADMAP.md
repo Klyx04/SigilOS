@@ -212,7 +212,7 @@
 | 30 | `observabilite` (W) | Sentry : couverture bot/workers, 25 crons, alertes | W-1/W-2 livrés le 11/10 | W-3 → W-6 | `docs/agents/journal-sessions-2026.md` (bloc 11/10) | — |
 | 31 | `dofusdb-zero` (U) | Zéro dépendance DofusDB à l'exécution (5 points de contact mesurés) | cadré le 08/10 | U-1 → U-5 | `docs/agents/archive/FILE-EXECUTION-2026-10-15.md` (cadrage § U) | — |
 | 32 | `solveurs` | Solveurs tactiques (Kalisthe, Minogolem, Harebourg) : données de combat, pas de décompilation | prototypes dans `src/temp/` | cadrer → POC | `docs/plans/PLAN-SOLVEURS-TACTIQUES.md` | — |
-| 33 | `guildes-cycle-de-vie` | Supprimer sa guilde (propriétaire) et couper Discord derrière : embeds déjà postés, boutons, commandes, crons | **garde d'interactions livré le 01/11/2026** (`/api/discord/interactions` : guilde `!isActive`/`deletedAt` ⇒ refus, fail-closed, God inclus) ; crons **mesurés** = aucun envoi par guilde sans filtre `isActive` ; **bouton « Zone sensible » livré le 01/11/2026** (propriétaire live, confirmation par le nom, archivage + J+30, notif admins + God) | **Purge réelle à J+30** (`scheduledDeletion`) | — | — |
+
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
@@ -266,6 +266,7 @@
 
 | ID | Chantier | Livré |
 |---|---|---|
+| `guildes-cycle-de-vie` | Suppression d'une guilde : interactions Discord inertes, bouton propriétaire « Zone sensible » (confirmation par le nom, archivage, échéance J+30), purge réelle par cron | 01/11/2026 |
 | `limite-guildes` (LG) | Plafond de **2 guildes par utilisateur** : règle pure, migration, gardes G1→G5, écran + bandeau du portail, annonce du bot à l'invitation | 01/11/2026 |
 | `G-STAND`/`G-ORPH` | Stand-by des groupes **+ contenu fantôme** (fermeture auto, reprise de lead, anonymisation à la purge) | 30/10/2026 |
 | `RUSH-S1` | Siphon Tougli + trame Rush (outil hors dépôt : 530 quêtes, 99 donjons, export God) | 26/10/2026 |

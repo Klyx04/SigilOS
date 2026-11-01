@@ -112,6 +112,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Quotidien 04h25 (UTC)",
         logFile: "guild-orphan-watch.log",
     },
+    guild_purge: {
+        name: "Purge des guildes supprimées (échéance J+30)",
+        schedule: "Quotidien 04h45 (UTC)",
+        logFile: "guild-purge.log",
+    },
     ladder_sync: {
         name: "Sync Ladder Général/Succès",
         schedule: "Toutes les 12h",

@@ -413,6 +413,8 @@ const GUILD_CONFIG_CACHE_SELECT = {
     deletedAt: true,
     // Échéance de suppression : lue par l'écran « Serveur Supprimé » (compte à rebours J+30).
     scheduledDeletion: true,
+    // Propriétaire enregistré : comparé au `owner_id` live pour réconcilier un transfert Discord.
+    ownerId: true,
     dofusServerId: true,
     welcomeEnabled: true,
     welcomeDashboardEnabled: true,
@@ -955,6 +957,23 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const hasDiscordAdminRole = myRoles.some(r => (BigInt(r.permissions || 0) & 0x8n) === 0x8n);
     const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
     const hasDiscordAdmin = hasDiscordAdminRole || isOwner;
+
+    // 🔄 Réconciliation du **propriétaire** : un transfert de serveur Discord n'émet aucun événement
+    // que le site écoute. Le propriétaire live est la vérité ; on aligne la colonne une seule fois.
+    // ⚠️ `ownerId` peut être `null` (STELLIUM) : `{ not }` seul ne matche pas `NULL` en SQL, d'où le `OR`.
+    if (isOwner && guildConfig && guildConfig.ownerId !== discordUserId) {
+        await db.guildConfig
+            .updateMany({
+                where: {
+                    id: guildConfig.id,
+                    OR: [{ ownerId: null }, { ownerId: { not: discordUserId } }],
+                },
+                data: { ownerId: discordUserId },
+            })
+            .catch(() => {
+                /* best-effort : la visite suivante rejouera l'alignement */
+            });
+    }
 
     // MASTER ADMIN: Must be checked against the USER'S OWN roles, not all guild roles
     const userHasAdminPermission = memberRoles.some(rId => {

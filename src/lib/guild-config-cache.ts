@@ -37,6 +37,7 @@ export const CACHED_GUILD_CONFIG_KEYS = [
     "isActive",
     "deletedAt",
     "scheduledDeletion",
+    "ownerId",
     "rolesMapping",
     "usersMapping",
     "newsBroadcastEnabled",

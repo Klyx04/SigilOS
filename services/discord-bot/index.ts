@@ -634,6 +634,55 @@ async function maybeSuccessionOnLeave(
 }
 
 // ========================
+// Event: Guild Update — transfert de propriété Discord
+// ========================
+/**
+ * Le propriétaire d'un serveur Discord peut changer (transfert). Aucun autre chemin ne le
+ * répercute : `GUILD_CREATE` ne repasse pas, et la succession (`maybeSuccessionOnLeave`) ne couvre
+ * que le **départ** du propriétaire. Conséquence mesurée le 01/11/2026 : `GuildConfig.ownerId`
+ * restait l'ancien propriétaire (ou `null`), et le plafond de guildes ne comptait plus la guilde
+ * pour son vrai propriétaire.
+ *
+ * ⚠️ `GuildUpdate` est émis à **chaque** changement (nom, icône…) : on sort **sans requête** si le
+ * propriétaire n'a pas bougé.
+ */
+client.on(Events.GuildUpdate, async (oldGuild, newGuild) => {
+    if (oldGuild.ownerId === newGuild.ownerId) return;
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: newGuild.id },
+            select: { id: true },
+        });
+        if (!config) return;
+
+        await db.guildConfig.update({
+            where: { id: config.id },
+            data: { ownerId: newGuild.ownerId },
+        });
+
+        await db.auditLog.create({
+            data: {
+                guildId: config.id,
+                actorUserId: 'SYSTEM',
+                actorName: 'Bot SigilOS',
+                action: 'GUILD_OWNER_CHANGED',
+                targetType: 'GUILD',
+                targetId: config.id,
+                oldValue: { ownerId: oldGuild.ownerId },
+                newValue: { ownerId: newGuild.ownerId },
+                metadata: { discordGuildId: newGuild.id },
+            },
+        });
+
+        console.log(`[Discord Bot] 👑 Propriétaire mis à jour pour ${newGuild.name}`);
+    } catch (error) {
+        // Jamais de snowflake dans le log : le nom du serveur suffit au diagnostic.
+        console.error(`[Discord Bot] Échec de la mise à jour du propriétaire:`, error);
+    }
+});
+
+// ========================
 // Event: Guild Delete (Bot Removed)
 // ========================
 client.on(Events.GuildDelete, async (guild) => {

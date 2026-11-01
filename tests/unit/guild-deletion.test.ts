@@ -204,7 +204,7 @@ describe("écran « Serveur Supprimé » — dire la vérité, pas une déconnex
 
     it("ne promet plus une déconnexion qui n'a pas lieu", () => {
         expect(LAYOUT).not.toContain("Vous allez être déconnecté");
-        expect(LAYOUT).toContain("Votre compte et vos autres serveurs ne sont pas concernés");
+        expect(LAYOUT).toContain("Vos autres serveurs ne sont pas concernés");
     });
 
     it("annonce la fenêtre de restauration", () => {

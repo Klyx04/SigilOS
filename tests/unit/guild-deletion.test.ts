@@ -196,3 +196,34 @@ describe("page Pilotage — l'onglet n'existe que pour le propriétaire", () => 
         expect(PAGE).toContain('activeTab === "sensible" && isGuildOwner');
     });
 });
+
+describe("écran « Serveur Supprimé » — dire la vérité, pas une déconnexion", () => {
+    const LAYOUT = read("src/app/dashboard/[guildId]/layout.tsx");
+    const ACTIONS = read("src/server/actions/user-actions.ts");
+    const ACCESS_DENIED = read("src/components/layout/access-denied.tsx");
+
+    it("ne promet plus une déconnexion qui n'a pas lieu", () => {
+        expect(LAYOUT).not.toContain("Vous allez être déconnecté");
+        expect(LAYOUT).toContain("Votre compte et vos autres serveurs ne sont pas concernés");
+    });
+
+    it("annonce la fenêtre de restauration", () => {
+        expect(LAYOUT).toContain("restauration au support pendant 30 jours");
+    });
+
+    it("affiche le compte à rebours de la purge réelle", () => {
+        expect(LAYOUT).toContain("countdownDate={(user as any).scheduledDeletion}");
+        expect(ACTIONS).toContain("scheduledDeletion: guildConfig?.scheduledDeletion?.toISOString() ?? null");
+    });
+
+    it("le contexte expose l'échéance (select caché + clés obligatoires)", () => {
+        expect(ACTIONS).toContain("scheduledDeletion: true");
+        expect(read("src/lib/guild-config-cache.ts")).toContain('"scheduledDeletion"');
+    });
+
+    it("le lien de support reste présent sur l'écran", () => {
+        expect(ACCESS_DENIED).toContain("Contacter le support");
+        expect(ACCESS_DENIED).toContain("discord.gg/");
+    });
+});
+

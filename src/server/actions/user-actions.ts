@@ -411,6 +411,8 @@ const GUILD_CONFIG_CACHE_SELECT = {
     name: true,
     isActive: true,
     deletedAt: true,
+    // Échéance de suppression : lue par l'écran « Serveur Supprimé » (compte à rebours J+30).
+    scheduledDeletion: true,
     dofusServerId: true,
     welcomeEnabled: true,
     welcomeDashboardEnabled: true,
@@ -662,6 +664,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             isMember: false,
             isServerDeleted: true,
             guildName: guildConfig?.name || "Serveur Inconnu",
+            // Échéance de la purge réelle (cron `guild-purge`) : l'écran affiche le compte à rebours.
+            scheduledDeletion: guildConfig?.scheduledDeletion?.toISOString() ?? null,
         } as any;
     }
 

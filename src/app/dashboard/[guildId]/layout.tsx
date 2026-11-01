@@ -122,13 +122,16 @@ export default async function DashboardLayout({
         );
     }
 
-    // ── SERVER DELETED: specific message + signout button ──
+    // ── SERVER DELETED: l'état de la **guilde** prime sur celui du profil ──
+    // 🐛 Le texte promettait une déconnexion immédiate : faux. La session est au niveau **compte** ;
+    // perdre une guilde ne déconnecte personne (seule la purge du compte à J+30 le fait).
     if ((user as any).isServerDeleted) {
         return (
             <AccessDenied
                 title="Serveur Supprimé"
-                message={`Le serveur Discord "${user.guildName}" a été supprimé. SigilOS n'est plus accessible pour ce serveur. Vous allez être déconnecté.`}
+                message={`Le serveur Discord "${user.guildName}" a été supprimé ou retiré de SigilOS. Votre compte et vos autres serveurs ne sont pas concernés. Le propriétaire peut demander une restauration au support pendant 30 jours.`}
                 variant="lock"
+                countdownDate={(user as any).scheduledDeletion}
                 action={<SignOutButton />}
             />
         );

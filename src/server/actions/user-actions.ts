@@ -264,6 +264,11 @@ export type UserContext = {
     isAdmin: boolean;
     isFirstAdminForGuild?: boolean;
     isDiscordAdmin: boolean;
+    /**
+     * Propriétaire **live** du serveur Discord (`owner_id`), jamais un simple administrateur et
+     * jamais God par défaut. Seul ce drapeau ouvre les actions qui engagent le serveur.
+     */
+    isGuildOwner: boolean;
     isSuperAdmin: boolean;
     isMember: boolean;
     // Timeout Discord (« Exclure temporairement ») — suspension temporaire d'accès.
@@ -371,6 +376,7 @@ async function getPendingOnboardingContext(
             isMember: true,
             isAdmin: true,
             isDiscordAdmin: true,
+            isGuildOwner: false,
             isSuperAdmin: false,
             isOnboardingComplete: false,
             canViewDashboard: true,
@@ -528,6 +534,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         isAuthenticated: !!session?.user?.id,
         isAdmin: false,
         isDiscordAdmin: false,
+        isGuildOwner: false,
         isSuperAdmin: false,
         isMember: false,
         canViewDashboard: false,
@@ -1369,6 +1376,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         isAdmin: !!isAdminFinal,
         isFirstAdminForGuild,
         isDiscordAdmin: !!(hasDiscordAdmin || isGod),
+        isGuildOwner: !!isOwner,
         isSuperAdmin: !!isGod,
         // Résilience panne Discord : un membre connu et ACTIF en base reste
         // membre sur erreur API (repli BDD) ; un 404 (kick/départ) bloque

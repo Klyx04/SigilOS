@@ -61,6 +61,25 @@ Le hook vérifie : secrets ✅ · lint ✅ · TypeScript ✅
 git push origin feat/ma-branche
 ```
 
+### 7. `dev` et `main` sont **protégées** (rulesets GitHub)
+
+Mesure du 02/11/2026 — deux rulesets **actifs** (`protect-dev` → `refs/heads/dev`,
+`protect-main` → `refs/heads/main`), mêmes règles :
+
+| Règle | Conséquence si tu l'ignores |
+|---|---|
+| `deletion` | la branche ne peut plus être supprimée |
+| `non_fast_forward` | **force-push refusé** : un `git push --force` depuis une copie en retard n'efface plus l'historique |
+| `pull_request` | **push direct refusé** sur `dev`/`main` — il faut une branche + une PR (0 approbation demandée, pas de code-owner) |
+| `required_status_checks` | merge **grisé** tant que `✅ Verify & Build` n'est pas vert (non-strict : inutile de rebaser) |
+
+- **Soupape** : le rôle **admin** contourne toujours (`current_user_can_bypass: always`). À réserver à
+  un cas d'urgence (CI cassée par un tiers, correctif critique) — et à **écrire dans la PR**.
+- **Vérifier l'état** : `gh api repos/Klyx04/SigilOS/rules/branches/dev --jq '[.[].type]'` → les 4 types.
+- ⚠️ Le ruleset `secure-dev` reste **désactivé** : ne pas le réactiver tel quel — il demande une
+  *code owner review* (bloquante pour un mainteneur seul) et son `required_status_checks` est **vide**.
+- Un « remote refusé » n'est donc **pas** une panne : c'est cette règle. On ouvre une PR.
+
 ---
 
 ## Pourquoi ce workflow ?

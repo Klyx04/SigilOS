@@ -30,6 +30,8 @@ import {
 } from "@/lib/rush-dungeons";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
+import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
+import { matchesRushQuestFilter, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
@@ -383,6 +385,9 @@ export default function GuideOverlayClient({
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [hideCompleted, setHideCompleted] = useState<boolean>(false);
+  // Filtre d'affichage de la liste : Toutes / En cours / Verrouillées.
+  // Il ne change ni l'ordre, ni les compteurs de progression — seulement les lignes visibles.
+  const [questFilter, setQuestFilter] = useState<RushQuestFilter>("all");
   // Modale de détail d'une quête (remplace l'ancien accordéon).
   const [detailSeq, setDetailSeq] = useState<{ ms: RushMilestone; seq: RushSequence } | null>(null);
 
@@ -1009,8 +1014,19 @@ export default function GuideOverlayClient({
     if (hideCompleted) {
       seqs = seqs.filter((s) => !currentMsDoneSeqs.has(s.id));
     }
+    if (questFilter !== "all") {
+      // Les encarts info ne sont pas des quêtes : ils sortent des filtres « En cours »
+      // et « Verrouillées ». L'ordre de `seqs` n'est jamais modifié (on filtre).
+      seqs = seqs.filter((s) => {
+        if (isInfoSequence(s)) return false;
+        return matchesRushQuestFilter(
+          { isDone: currentMsDoneSeqs.has(s.id), isLocked: getSeqGate(s).locked },
+          questFilter
+        );
+      });
+    }
     return seqs;
-  }, [currentMs, search, hideCompleted, currentMsDoneSeqs]);
+  }, [currentMs, search, hideCompleted, currentMsDoneSeqs, questFilter, getSeqGate]);
 
   // Recherche GLOBALE : matche sur TOUT le guide (tous chapitres), pas seulement
   // le milestone courant. Un clic sur un résultat bascule vers son chapitre.
@@ -1192,6 +1208,9 @@ export default function GuideOverlayClient({
             }
           />
 
+          {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
+          <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} />
+
 
 
           {/* L'objectif courant (« À FAIRE MAINTENANT ») a été retiré : la liste des quêtes
@@ -1285,13 +1304,23 @@ export default function GuideOverlayClient({
                 })
               )
             ) : visibleSequences.length === 0 ? (
-              <div className="py-12 text-center text-[#929aa5] text-xs">
-                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-[#39bc95] opacity-40" />
-                <p className="font-bold font-serif text-sm text-[#f2f0e9]">
-                  {search.trim() ? "Aucune quête ne correspond" : "Toutes les quêtes sont terminées !"}
+              <div className="py-12 text-center text-xs text-muted-foreground">
+                <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-success opacity-40" />
+                <p className="font-serif text-sm font-semibold text-foreground">
+                  {search.trim()
+                    ? "Aucune quête ne correspond"
+                    : questFilter === "active"
+                      ? "Aucune quête à faire ici"
+                      : questFilter === "locked"
+                        ? "Aucune quête verrouillée ici"
+                        : "Toutes les quêtes sont terminées !"}
                 </p>
-                <p className="text-[11px] text-[#6e7784] mt-0.5">
-                  {search.trim() ? "Essayez un autre mot-clé." : "Passez au chapitre suivant avec le bouton Suivant."}
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {search.trim()
+                    ? "Essayez un autre mot-clé."
+                    : questFilter !== "all"
+                      ? "Changez de filtre pour voir les autres quêtes."
+                      : "Passez au chapitre suivant avec le bouton Suivant."}
                 </p>
               </div>
             ) : currentMs ? (

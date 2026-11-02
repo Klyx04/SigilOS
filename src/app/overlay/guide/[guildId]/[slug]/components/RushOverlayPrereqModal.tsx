@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { RushPrereqRef } from "@/lib/rush-guide-utils";
 
 /**
@@ -21,10 +22,12 @@ export function RushOverlayPrereqModal({
   prereqs,
   onGoTo,
   onClose,
+  isLightMode = false,
 }: {
   prereqs: RushPrereqRef[];
   onGoTo: (seqId: string, milestoneId: string) => void;
   onClose: () => void;
+  isLightMode?: boolean;
 }) {
   const anchorRef = useRef<HTMLSpanElement>(null);
   const [doc, setDoc] = useState<Document | null>(null);
@@ -58,7 +61,10 @@ export function RushOverlayPrereqModal({
       {doc &&
         createPortal(
           <div
-            className="fixed inset-0 z-[999998] flex items-center justify-center bg-black/60 p-3"
+            className={cn(
+              "rush-carnet-theme fixed inset-0 z-[999998] flex items-center justify-center bg-black/60 p-3",
+              isLightMode && "light"
+            )}
             onClick={onClose}
             role="presentation"
           >
@@ -67,9 +73,9 @@ export function RushOverlayPrereqModal({
               aria-modal="true"
               aria-label="Quêtes à terminer avant"
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-[280px] overflow-hidden rounded-lg border border-danger/40 bg-[#0d1014] shadow-2xl"
+              className="rush-carnet w-full max-w-[280px] overflow-hidden rounded-[6px] border border-danger/40 bg-elevated"
             >
-              <div className="flex items-center justify-between gap-2 border-b border-white/10 px-2.5 py-2">
+              <div className="flex items-center justify-between gap-2 border-b border-border-strong px-2.5 py-2">
                 <p className="text-[11px] font-semibold text-danger">
                   {prereqs.length > 1 ? `${prereqs.length} quêtes à terminer avant` : "Quête à terminer avant"}
                 </p>
@@ -77,7 +83,7 @@ export function RushOverlayPrereqModal({
                   type="button"
                   onClick={onClose}
                   aria-label="Fermer"
-                  className="rounded-[3px] p-0.5 text-[#929aa5] transition-colors hover:bg-white/10 hover:text-white"
+                  className="rounded-[3px] p-0.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
@@ -89,7 +95,7 @@ export function RushOverlayPrereqModal({
                       type="button"
                       onClick={() => go(p)}
                       title={`Aller à : ${p.name}`}
-                      className="flex w-full items-center gap-1.5 rounded-[4px] px-1.5 py-1.5 text-left text-[11px] font-medium text-[#f2f0e9] transition-colors hover:bg-white/5"
+                      className="flex w-full items-center gap-1.5 rounded-[4px] px-1.5 py-1.5 text-left text-[11px] font-medium text-foreground transition-colors hover:bg-surface"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img

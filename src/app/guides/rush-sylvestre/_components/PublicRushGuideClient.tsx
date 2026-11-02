@@ -63,6 +63,7 @@ import {
 } from "@/lib/rush-dungeons";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { resolveRushRoute } from "@/lib/rush-route";
+import { applyQuestResourceChecks, resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { PublicRouteChoice } from "@/components/dofus-quests/rush/PublicRouteChoice";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
@@ -342,6 +343,22 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
     [storagePrefix]
   );
 
+  // Applique validation/dévalidation d'une quête aux coches, puis persiste localement.
+  const applyResourceChecksForQuest = useCallback(
+    (tags: { type?: string; name?: string; id?: string }[] | null | undefined, checked: boolean) => {
+      setResourceChecks((prev) => {
+        const next = applyQuestResourceChecks(prev, tags, checked);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`${storagePrefix}resources`, JSON.stringify([...next]));
+          } catch {}
+        }
+        return next;
+      });
+    },
+    [storagePrefix]
+  );
+
   // ── Pense-bête (mêmes sections que le guide interne) ─────────────────────────
   const [penseBeteOpen, setPenseBeteOpen] = useState(false);
   const penseBeteSections = useMemo(
@@ -543,10 +560,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
       if (!done) continue;
       for (const s of ms.sequences || []) {
         if (!done.has(s.id)) continue;
-        for (const t of (s.activityTags || []) as any[]) {
-          if (t?.type !== "item" || !t?.name) continue;
-          set.add(t.id || t.name);
-        }
+        for (const key of resourceKeysForTags((s as any).activityTags)) set.add(key);
       }
     }
     return set;
@@ -706,6 +720,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
 
       was ? current.delete(seqId) : current.add(seqId);
 
+      // Ressources : valider coche les ressources de la quête, invalider les décoche.
+      const seqForResources = milestones.flatMap((m) => m.sequences || []).find((s) => s.id === seqId);
+      applyResourceChecksForQuest((seqForResources as any)?.activityTags, !was);
+
       setCompletedStepsByMs((prev) => {
         const next = new Map(prev);
         next.set(msId, current);
@@ -739,7 +757,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, applyResourceChecksForQuest]
   );
 
   // Toggle whole chapter
@@ -749,6 +767,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
       if (!ms || !ms.sequences) return;
 
       const current = new Set(completedStepsByMs.get(msId) || []);
+      const before = new Set(current);
       // Jamais les encarts info : ils n'ont pas de case à cocher. Et jamais une quête
       // verrouillée : « Tout valider » ne contourne pas les prérequis.
       ms.sequences.filter((s) => !isInfoSequence(s)).forEach((s) => {
@@ -757,6 +776,13 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         if (completeAll && !current.has(s.id) && isSeqBlockedByDungeon(s.id)) return;
         completeAll ? current.add(s.id) : current.delete(s.id);
       });
+
+      // Ressources : seules les quêtes réellement basculées touchent leurs coches.
+      for (const s of ms.sequences) {
+        if (isInfoSequence(s)) continue;
+        if (before.has(s.id) === current.has(s.id)) continue;
+        applyResourceChecksForQuest((s as any).activityTags, current.has(s.id));
+      }
 
       setCompletedStepsByMs((prev) => {
         const next = new Map(prev);
@@ -784,7 +810,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         return next;
       });
     },
-    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, applyResourceChecksForQuest]
   );
 
   // Toggle all steps of one quest block (comme le guide interne)
@@ -802,6 +828,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
             );
           })
         : seqIds;
+      // Ressources : les quêtes réellement basculées cochent/décochent leurs ressources.
+      for (const id of targets) {
+        const s = seqById.get(id);
+        if (s) applyResourceChecksForQuest((s as any).activityTags, completeAll);
+      }
       setCompletedStepsByMs((prev) => {
         const next = new Map(prev);
         const current = new Set(next.get(msId) || []);
@@ -843,7 +874,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds, isSeqBlockedByDungeon]
+    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds, isSeqBlockedByDungeon, applyResourceChecksForQuest]
   );
 
   // Personnage déclaré → libellé affiché (icône de classe + pseudo + serveur) et
@@ -855,16 +886,17 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
         .join(" · ")
     : null;
 
-  // Remise à zéro : les QUATRE clés de progression partent ensemble (étapes
-  // cochées, blocs terminés, repères, coches de donjons). Un reset partiel
-  // laisserait un guide à moitié coché — et une fenêtre d'overlay ouverte se
-  // réaligne seule (le BroadcastChannel republie l'état vide).
+  // Remise à zéro : les CINQ clés de progression partent ensemble (étapes cochées,
+  // blocs terminés, repères, coches de donjons, ressources préparées). Un reset partiel
+  // laisserait un guide à moitié coché — et une fenêtre d'overlay ouverte se réaligne
+  // seule (le BroadcastChannel republie l'état vide).
   const handleResetProgress = useCallback(() => {
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem(`${storagePrefix}completed_ms`);
         localStorage.removeItem(`${storagePrefix}steps`);
         localStorage.removeItem(`${storagePrefix}bookmarks`);
+        localStorage.removeItem(`${storagePrefix}resources`);
       } catch {}
     }
     clearDungeonStates(storagePrefix);
@@ -872,6 +904,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
     setCompletedStepsByMs(new Map());
     setBookmarksByMs(new Map());
     setDungeonStates({});
+    setResourceChecks(new Set());
     setExpandedMs(new Set(milestones[0]?.id ? [milestones[0].id] : []));
     setHideDone(false);
     setSearchQuery("");
@@ -1725,6 +1758,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                     items={itemTags}
                                     completedIds={completedItemKeys}
                                     hideProvided={hideDone}
+                                    checkedKeys={resourceChecks}
+                                    onToggleCheck={handleToggleResourceCheck}
                                   />
                                 </div>
                               );
@@ -2115,6 +2150,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                       completedIds={completedItemKeys}
                                       hideProvided={hideDone}
                                       showHeaderMeta={false}
+                                      checkedKeys={resourceChecks}
+                                      onToggleCheck={handleToggleResourceCheck}
                                     />
                                   </div>
                                 )}

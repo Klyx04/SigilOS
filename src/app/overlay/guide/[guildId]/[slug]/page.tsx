@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
-import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress } from "@/server/actions/optimized-guide-actions";
+import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress, getRushResourceChecks } from "@/server/actions/optimized-guide-actions";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { toOcrePanelData, type OcrePanelData } from "@/lib/ocre-soul-stones";
@@ -37,6 +37,16 @@ export default async function GuideOverlayPage({ params, searchParams }: Props) 
 
   const guide = guideContext.guide as any;
   if (guide.displayMode !== "TIMELINE") notFound();
+
+  // Coches de ressources du membre (par personnage) : la fiche de quête et la modale
+  // « Ressources à prévoir » les éditent. Échec non bloquant : on part d'un ensemble vide.
+  let initialResourceChecks: string[] = [];
+  try {
+    const checks = await getRushResourceChecks(guildId, slug, altPseudo);
+    if (checks.success) initialResourceChecks = checks.keys;
+  } catch (e) {
+    logger.warn("[Overlay Guide] Resource checks fetch failed (non-fatal)", { error: e });
+  }
 
   // Progress du joueur
   let allProgress: any[] = [];
@@ -109,6 +119,7 @@ export default async function GuideOverlayPage({ params, searchParams }: Props) 
       character={overlayChar}
       ocre={ocre}
       ocreState={ocreState}
+      initialResourceChecks={initialResourceChecks}
     />
   );
 }

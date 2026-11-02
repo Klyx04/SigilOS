@@ -22,7 +22,7 @@ import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
 import { buildGuildProgressRows, buildPresenceMap, buildUniqueGuildMembers, buildMilestoneStepKeys, type GuideProgressRow, type GuideProgressMember, type GuidePresenceMap } from "@/lib/guide-progress-helpers";
 import { z } from "zod";
-import { rushResourceKey } from "@/lib/rush-guide-utils";
+import { resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
 import { boundQuestDbIds } from "@/lib/rush-quest-identity";
 import type { RushSequence } from "@/types/rush-guide-types";
@@ -567,7 +567,7 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     select: {
       title: true,
       sequences: {
-        select: { id: true }
+        select: { id: true, activityTags: true }
       },
       guide: { select: { id: true, slug: true } }
     }
@@ -629,6 +629,35 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     }
   });
 
+  // ── Ressources : valider/dévalider un BLOC coche/décoche toutes ses ressources ──
+  // Même règle que `setRushSequenceProgress` : valider override les coches,
+  // invalider les remet à zéro. Échec non bloquant : la progression prime.
+  try {
+    const resourceKeys = new Set<string>();
+    for (const seq of milestoneWithSequences?.sequences ?? []) {
+      for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
+    }
+    if (resourceKeys.size > 0) {
+      if (isCompleted) {
+        await db.playerGuideResourceCheck.createMany({
+          data: [...resourceKeys].map((resourceKey) => ({
+            profileId,
+            guideId: milestoneWithSequences!.guide.id,
+            characterSlot,
+            resourceKey,
+          })),
+          skipDuplicates: true,
+        });
+      } else {
+        await db.playerGuideResourceCheck.deleteMany({
+          where: { profileId, characterSlot, resourceKey: { in: [...resourceKeys] } },
+        });
+      }
+    }
+  } catch (e) {
+    logger.error("[toggleMilestoneProgress] coches de ressources échouées (non bloquant)", { error: e });
+  }
+
   // Temps réel (Phase E) : broadcast « jalon complété » — fail-closed, non bloquant.
   if (isCompleted && milestoneWithSequences?.guide?.slug) {
     await publishGuideEvent(guildId, milestoneWithSequences.guide.slug, {
@@ -674,8 +703,25 @@ export async function resetMilestoneProgress(guildId: string, milestoneId: strin
 
   const milestone = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
-    select: { guide: { select: { slug: true } } }
+    select: { guide: { select: { slug: true } }, sequences: { select: { activityTags: true } } }
   });
+
+  // Réinitialiser un bloc décoche aussi les ressources de ses quêtes (même règle
+  // qu'une invalidation de quête).
+  try {
+    const resourceKeys = new Set<string>();
+    for (const seq of milestone?.sequences ?? []) {
+      for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
+    }
+    if (resourceKeys.size > 0) {
+      await db.playerGuideResourceCheck.deleteMany({
+        where: { profileId, characterSlot, resourceKey: { in: [...resourceKeys] } },
+      });
+    }
+  } catch (e) {
+    logger.error("[resetMilestoneProgress] reset des coches de ressources échoué (non bloquant)", { error: e });
+  }
+
   if (milestone?.guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
     await invalidateGuideProgressCache(guildId, milestone.guide.slug);
@@ -710,6 +756,10 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
       where: { profileId, characterSlot, milestoneId: { in: milestoneIds } }
     });
   }
+  // Une remise à zéro du guide efface aussi les coches de ressources du personnage.
+  await db.playerGuideResourceCheck.deleteMany({
+    where: { profileId, guideId, characterSlot }
+  });
 
   // Also look up guide slug for cache invalidation
   const guide = await db.optimizedGuide.findUnique({
@@ -745,7 +795,7 @@ export async function completeGuideProgress(guildId: string, guideId: string, al
     where: { guideId },
     select: {
       id: true,
-      sequences: { select: { id: true } }
+      sequences: { select: { id: true, activityTags: true } }
     }
   });
 
@@ -772,6 +822,25 @@ export async function completeGuideProgress(guildId: string, guideId: string, al
       })
     )
   );
+
+  // « Tout valider » coche aussi toutes les ressources du guide (même règle qu'une
+  // quête validée : la préparation est acquise).
+  try {
+    const resourceKeys = new Set<string>();
+    for (const m of milestones) {
+      for (const seq of m.sequences) {
+        for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
+      }
+    }
+    if (resourceKeys.size > 0) {
+      await db.playerGuideResourceCheck.createMany({
+        data: [...resourceKeys].map((resourceKey) => ({ profileId, guideId, characterSlot, resourceKey })),
+        skipDuplicates: true,
+      });
+    }
+  } catch (e) {
+    logger.error("[completeGuideProgress] coches de ressources échouées (non bloquant)", { error: e });
+  }
 
   // Also look up guide slug for cache invalidation
   const guide = await db.optimizedGuide.findUnique({
@@ -1106,6 +1175,9 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
   // à choix compte pour **une** étape : `stepCounts` porte la règle (aucune copie ici).
   const incoming = applyChoiceExclusivity(contentSeqs, requested, newlyChecked);
   const checkedSet = new Set(incoming);
+  // Seules les quêtes RÉELLEMENT validées (après exclusivité des variantes) cochent
+  // leurs ressources — une variante écartée ne doit pas préparer ses objets.
+  const newlyValidated = incoming.filter((id) => !previouslyChecked.includes(id));
   const counts = stepCounts(contentSeqs, checkedSet);
   const isCompleted = counts.total > 0 && counts.done === counts.total;
   const unvalidatedSeqIds = previouslyChecked.filter((id) => !checkedSet.has(id));
@@ -1145,6 +1217,34 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
     create: { profileId, milestoneId, characterSlot, completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
   });
 
+  // ── Ressources : une quête VALIDÉE coche toutes ses ressources ──────────────
+  // « Une fois la quête validée, ça override et valide tout. » Une ressource
+  // partagée par plusieurs quêtes reste cochée dès qu'une de ses quêtes est validée.
+  // Échec non bloquant : la validation de l'étape prime.
+  try {
+    if (newlyValidated.length > 0) {
+      const resourceKeys = new Set<string>();
+      for (const seq of milestone.sequences || []) {
+        if (!newlyValidated.includes(seq.id)) continue;
+        for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
+      }
+      if (resourceKeys.size > 0) {
+        await db.playerGuideResourceCheck.createMany({
+          data: [...resourceKeys].map((resourceKey) => ({
+            profileId,
+            guideId: milestone.guide.id,
+            characterSlot,
+            resourceKey,
+          })),
+          skipDuplicates: true,
+        });
+        revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide?.slug ?? ""}`);
+      }
+    }
+  } catch (e) {
+    logger.error("[setRushSequenceProgress] coche des ressources échouée (non bloquant)", { error: e });
+  }
+
   // ── Ressources : une quête INVALIDÉE remet à zéro ses coches manuelles ───────
   // « Si la quête est invalidée, la coche manuelle repart à zéro » : les ressources
   // de cette quête ne sont plus « préparées », on supprime donc les coches du
@@ -1154,9 +1254,7 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
       const resourceKeys = new Set<string>();
       for (const seq of milestone.sequences || []) {
         if (!unvalidatedSeqIds.includes(seq.id)) continue;
-        for (const tag of (seq as any).activityTags || []) {
-          if (tag?.type === "item" && tag.name) resourceKeys.add(rushResourceKey(tag));
-        }
+        for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
       }
       if (resourceKeys.size > 0) {
         await db.playerGuideResourceCheck.deleteMany({
@@ -1473,10 +1571,7 @@ async function invalidateSequenceProgress(params: {
   if (updated.count === 0) return null; // écriture concurrente : on ne force pas
 
   // Ressources : la quête n'est plus préparée (même règle que la dévalidation d'étape).
-  const resourceKeys = new Set<string>();
-  for (const tag of (sequence.activityTags as any[]) || []) {
-    if (tag?.type === "item" && tag.name) resourceKeys.add(rushResourceKey(tag));
-  }
+  const resourceKeys = new Set(resourceKeysForTags(sequence.activityTags as any));
   if (resourceKeys.size > 0) {
     await db.playerGuideResourceCheck.deleteMany({
       where: { profileId, characterSlot, resourceKey: { in: [...resourceKeys] } },

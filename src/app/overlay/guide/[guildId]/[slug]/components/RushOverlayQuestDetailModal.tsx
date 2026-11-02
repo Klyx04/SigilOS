@@ -29,6 +29,10 @@ interface RushOverlayQuestDetailModalProps {
   isLightMode?: boolean;
   guildId?: string;
   onClose: () => void;
+  /** Coches MANUELLES de ressources (« déjà préparé »), keyées par `rushResourceKey`. */
+  checkedKeys?: Set<string>;
+  /** Coche/décoche une ressource depuis la fiche. Sans handler, la grille reste en lecture. */
+  onToggleResourceCheck?: (key: string) => void;
   /**
    * Le toggle « Masquer les étapes faites » du guide PRIME ici aussi : sur une quête **validée**,
    * le bloc « Ressources requises » disparaît (il n'y a plus rien à préparer) — même règle dans
@@ -60,6 +64,8 @@ export function RushOverlayQuestDetailModal({
   guildId,
   onClose,
   hideProvidedResources = false,
+  checkedKeys,
+  onToggleResourceCheck,
 }: RushOverlayQuestDetailModalProps) {
   const tags = useMemo(() => classifyTags(seq.activityTags), [seq.activityTags]);
   // Badges affichés sans les donjons (déjà listés dans la carte « Donjon requis »).
@@ -107,8 +113,9 @@ export function RushOverlayQuestDetailModal({
     return () => win.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  /** Libellé de section : même famille que le texte, simplement atténué. */
-  const sectionLabel = "mb-1.5 text-[11px] font-semibold text-muted-foreground";
+  /** Libellé de section : un losange d'or + le libellé, jamais un pavé. */
+  const sectionLabel =
+    "mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground before:h-1 before:w-1 before:rotate-45 before:bg-gold/80 before:content-['']";
   /** Lien de source : action lisible, soulignée, sans pastille de couleur. */
   const sourceLink =
     "inline-flex items-center gap-1.5 text-[12px] font-semibold text-accent underline decoration-1 underline-offset-[0.28em] transition-colors hover:text-foreground";
@@ -127,25 +134,25 @@ export function RushOverlayQuestDetailModal({
         aria-labelledby="rush-quest-detail-title"
         ref={dialogRef}
         className={cn(
-          "relative z-10 flex max-h-[85vh] w-full max-w-[26rem] flex-col overflow-hidden",
-          "rounded-[6px] border border-border-strong bg-elevated"
+          "rush-carnet relative z-10 flex max-h-[85vh] w-full max-w-[26rem] flex-col overflow-hidden",
+          "rounded-[6px] border border-border-strong bg-elevated shadow-[var(--rush-bevel)]"
         )}
       >
         {/* En-tête : illustration du Dofus visé, nom de la quête, chapitre */}
-        <header className="flex shrink-0 items-start gap-3 border-b border-border px-4 py-3">
+        <header className="flex shrink-0 items-start gap-3 border-b border-border-strong bg-surface/60 px-4 py-3">
           {dofusImg && (
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[4px] border border-border bg-surface">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[4px] border border-border-strong bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={dofusImg} alt="" className="h-7 w-7 object-contain" loading="lazy" />
+              <img src={dofusImg} alt="" className="h-8 w-8 object-contain" loading="lazy" />
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] text-muted-foreground">
+            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-gold/90">
               {isDone ? "Quête validée" : "Détails de la quête"}
             </p>
             <h2
               id="rush-quest-detail-title"
-              className="mt-0.5 flex items-center gap-1.5 text-[15px] font-semibold leading-snug text-foreground"
+              className="mt-0.5 flex items-center gap-1.5 font-serif text-[16px] font-semibold leading-snug text-foreground"
             >
               {seqIcon && (
                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -175,7 +182,7 @@ export function RushOverlayQuestDetailModal({
               <section className="py-3">
                 {/* Aucun intitulé « Position de lancement » : la puce de coordonnée dit déjà
                     ce qu'elle est, le libellé ne faisait que répéter (retour user 08/10). */}
-                <div className="flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2.5 py-1.5">
+                <div className="rush-carnet flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2.5 py-1.5">
                   <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <RushCoordinateChip
                     coordText={`[${coord.x},${coord.y}]`}
@@ -205,7 +212,7 @@ export function RushOverlayQuestDetailModal({
                 <p className={sectionLabel}>Conseils</p>
                 <div className="space-y-2">
                   {seq.tips && (
-                    <div className="rounded-[4px] border border-warning/30 bg-warning/[0.07] px-2.5 py-2 text-[12px] leading-relaxed text-foreground">
+                    <div className="rounded-[4px] border-l-2 border-l-gold/70 bg-surface px-2.5 py-2 text-[12px] leading-relaxed text-foreground">
                       <RushTipLines text={seq.tips} />
                     </div>
                   )}
@@ -221,7 +228,12 @@ export function RushOverlayQuestDetailModal({
             {/* Toggle du guide actif + quête déjà validée ⇒ plus rien à préparer : pas de bloc. */}
             {resources.length > 0 && !(hideProvidedResources && isDone) && (
               <section className="py-3">
-                <QuestItemResourceGrid items={resources} showHeaderMeta={false} />
+                <QuestItemResourceGrid
+                  items={resources}
+                  showHeaderMeta={false}
+                  checkedKeys={checkedKeys}
+                  onToggleCheck={onToggleResourceCheck}
+                />
               </section>
             )}
 

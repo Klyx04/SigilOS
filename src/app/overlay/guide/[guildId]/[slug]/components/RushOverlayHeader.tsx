@@ -106,20 +106,23 @@ export function RushOverlayHeader({
     setFeedbackOpen(true);
   };
 
-  // Style commun des entrées du menu « plus » (dropdown).
+  // Style commun des entrées du menu « plus » (dropdown) — DA « Grimoire ».
   const menuItemCls = cn(
-    "flex items-center gap-2 w-full px-3 py-2 text-left text-[11px] font-semibold transition-colors",
-    isLightMode ? "text-slate-700 hover:bg-slate-100" : "text-[#c4cad2] hover:bg-[#1f2733]"
+    "flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-surface hover:text-foreground motion-reduce:transition-none"
   );
+
+  // Une seule anatomie de bouton d'action, dans les deux thèmes.
+  const actionBtn =
+    "p-1.5 rounded-[4px] border border-border bg-elevated text-muted-foreground transition-colors hover:border-border-strong hover:bg-surface hover:text-foreground motion-reduce:transition-none";
+  const actionBtnGold =
+    "p-1.5 rounded-[4px] border border-border bg-elevated text-gold transition-colors hover:border-border-strong hover:bg-surface motion-reduce:transition-none";
 
   return (
     <header
       className={cn(
-        "shrink-0 flex flex-col gap-2 border-b",
+        // DA « Grimoire Sylvestre » : un panneau plein, un seul filet, aucun dégradé.
+        "shrink-0 flex flex-col gap-2 border-b border-border-strong bg-surface shadow-[var(--rush-bevel)]",
         narrow ? "px-3 pt-2 pb-2" : "px-4 pt-3 pb-2.5",
-        isLightMode
-          ? "bg-gradient-to-b from-white to-slate-50 border-slate-200"
-          : "bg-gradient-to-b from-[#131820] to-[#0b0d10] border-[#1e2530]",
         className
       )}
     >
@@ -128,44 +131,30 @@ export function RushOverlayHeader({
         <div className="flex-1 min-w-0">
           {/* Label discret (masqué en overlay réduit pour gagner de la hauteur) */}
           {!narrow && (
-            <span
-              className={cn(
-                "block text-[9px] font-black uppercase tracking-[0.15em] mb-0.5",
-                isLightMode ? "text-[#d5a94e]" : "text-[#d5a94e]/80"
-              )}
-            >
+            <span className="mb-0.5 block text-[9px] font-semibold uppercase tracking-[0.18em] text-gold/90">
               Guide de progression
             </span>
           )}
 
-          {/* Nom du guide */}
-          <h1
-            className={cn(
-              "text-sm font-bold leading-tight truncate",
-              isLightMode ? "text-slate-900" : "text-[#f2f0e9]"
-            )}
-          >
+          {/* Nom du guide — serif de titre + filet d'or (DA « Grimoire »). */}
+          <h1 className="truncate font-serif text-[15px] font-semibold uppercase leading-tight tracking-[0.04em] text-foreground">
             {guideName}
           </h1>
+          <span aria-hidden="true" className="mt-1 block h-px w-10 bg-gold/70" />
 
           {/* Progression explicite */}
-          <p
-            className={cn(
-              "text-[10px] mt-0.5 tabular-nums",
-              isLightMode ? "text-slate-500" : "text-[#6e7784]"
-            )}
-          >
-            <span className={cn("font-bold", isLightMode ? "text-slate-700" : "text-[#969daa]")}>
+          <p className="mt-1 text-[10px] tabular-nums text-muted-foreground">
+            <span className="font-semibold text-foreground">
               {completedSteps} / {totalSteps}
             </span>{" "}
             étapes ·{" "}
-            <span className="font-bold text-[#39bc95]">{overallPct}%</span>
+            <span className="font-semibold text-gold">{overallPct}%</span>
           </p>
 
           {/* Personnage courant (masqué en overlay réduit) */}
           {character && !narrow && (
             <div className="flex items-center gap-1.5 mt-1">
-              <span className="shrink-0 w-4 h-4 flex items-center justify-center rounded-md bg-[#181d23] border border-[#2a3646]">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border border-border bg-elevated">
                 {character.classe ? (
                   (() => {
                     const d = getClass(character.classe);
@@ -173,19 +162,19 @@ export function RushOverlayHeader({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={d.icon} alt={d.name} className="w-3.5 h-3.5 object-contain" />
                     ) : (
-                      <Users className="w-3 h-3 text-blue-400" />
+                      <Users className="w-3 h-3 text-muted-foreground" />
                     );
                   })()
                 ) : character.isMain ? (
-                  <Crown className="w-3 h-3 text-amber-500" />
+                  <Crown className="w-3 h-3 text-gold" />
                 ) : (
-                  <Users className="w-3 h-3 text-blue-400" />
+                  <Users className="w-3 h-3 text-muted-foreground" />
                 )}
               </span>
-              <span className={cn("text-[10px] font-semibold truncate", isLightMode ? "text-slate-700" : "text-[#c4cad2]")}>
+              <span className="truncate text-[10px] font-semibold text-foreground/90">
                 {character.pseudo}
               </span>
-              <span className={cn("text-[9px] font-mono uppercase font-bold", isGuest ? "text-emerald-400" : character.isMain ? "text-amber-500" : "text-blue-400")}>
+              <span className={cn("font-mono text-[9px] font-semibold uppercase", isGuest ? "text-success" : character.isMain ? "text-gold" : "text-muted-foreground")}>
                 {isGuest ? "Invité" : character.isMain ? "Main" : "Mule"}
               </span>
             </div>
@@ -200,12 +189,7 @@ export function RushOverlayHeader({
             onClick={onToggleTheme}
             aria-label={isLightMode ? "Passer en mode sombre" : "Passer en mode clair"}
             title={isLightMode ? "Mode Sombre" : "Mode Clair"}
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                : "bg-[#181d23] border-[#2a3646] text-[#d5a94e] hover:bg-[#1f2733]"
-            )}
+            className={actionBtnGold}
           >
             {isLightMode ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
           </button>
@@ -216,12 +200,7 @@ export function RushOverlayHeader({
             onClick={onOpenResources}
             aria-label="Voir toutes les ressources à prévoir"
             title="Ressources à prévoir"
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                : "bg-[#181d23] border-[#2a3646] text-[#d5a94e] hover:bg-[#1f2733]"
-            )}
+            className={actionBtnGold}
           >
             {/* Picto du jeu pour « Ressources à prévoir » : l'asset Dofus de l'icône du
                 module Ressources (`/assets/dofus/modules/resources.png`, celui que
@@ -244,12 +223,7 @@ export function RushOverlayHeader({
               onClick={onOpenAlignment}
               aria-label="Alignement de la guilde"
               title="Qui est bontarien ou brâkmarien, par Ordre"
-              className={cn(
-                "p-1.5 rounded-lg border transition-colors",
-                isLightMode
-                  ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                  : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-              )}
+              className={actionBtn}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/ordres/neutre.png" alt="" className="w-3.5 h-3.5 object-contain" />
@@ -263,12 +237,7 @@ export function RushOverlayHeader({
               onClick={onOpenOcre}
               aria-label={ocre ? `Quête Ocre : ${ocre.missing} cibles restantes` : "Ouvrir la Quête Ocre (compte Metamob non lié)"}
               title={ocre ? `Quête Ocre · ${ocre.missing} archis / gardiens restants · ${ocre.percent}%` : "Quête Ocre — lier mon compte Metamob"}
-              className={cn(
-                "relative p-1.5 rounded-lg border transition-colors",
-                isLightMode
-                  ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                  : "bg-[#181d23] border-[#2a3646] text-[#d5a94e] hover:bg-[#1f2733]"
-              )}
+              className={cn(actionBtnGold, "relative")}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -277,11 +246,11 @@ export function RushOverlayHeader({
                 className="w-3.5 h-3.5 object-contain"
               />
               {ocre && (ocre.missing > 0 ? (
-                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-[#e2726f] text-black text-[9px] font-black tabular-nums leading-[15px] text-center">
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-danger text-background text-[9px] font-semibold tabular-nums leading-[15px] text-center">
                   {ocre.missing > 99 ? "99+" : ocre.missing}
                 </span>
               ) : (
-                <span className="absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full bg-[#39bc95] text-black grid place-items-center">
+                <span className="absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full bg-success text-background grid place-items-center">
                   <Check className="w-2.5 h-2.5 stroke-[3]" />
                 </span>
               ))}
@@ -294,13 +263,7 @@ export function RushOverlayHeader({
             onClick={onToggleHideCompleted}
             aria-label={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
             title={hideCompleted ? "Afficher les quêtes terminées" : "Masquer les quêtes terminées"}
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              hideCompleted
-                ? "bg-[#39bc95]/20 text-[#2b9f7d] border border-[#39bc95]/40"
-                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:bg-[#1f2733]",
-              isLightMode && !hideCompleted && "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-            )}
+            className={cn(actionBtn, hideCompleted && "border-success/40 bg-success/10 text-success")}
           >
             {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
@@ -324,12 +287,7 @@ export function RushOverlayHeader({
                 onClick={() => setMoreOpen((o) => !o)}
                 aria-label="Plus d'options"
                 title="Plus d'options"
-                className={cn(
-                  "p-1.5 rounded-lg border transition-colors",
-                  isLightMode
-                    ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                    : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-                )}
+                className={actionBtn}
               >
                 <MoreVertical className="w-3.5 h-3.5" />
               </button>
@@ -337,10 +295,7 @@ export function RushOverlayHeader({
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
                   <div
-                    className={cn(
-                      "absolute top-full right-0 mt-1 z-50 w-48 rounded-xl border py-1 shadow-2xl overflow-hidden",
-                      isLightMode ? "bg-white border-slate-200" : "bg-[#14181f] border-[#2a3646]"
-                    )}
+                    className="absolute top-full right-0 mt-1 z-50 w-48 overflow-hidden rounded-[6px] border border-border-strong bg-elevated py-1"
                   >
                     <button type="button" onClick={() => { setMoreOpen(false); onOpenTutorial(); }} className={menuItemCls}>
                       <HelpCircle className="w-3.5 h-3.5" /> Aide / tutoriel
@@ -357,7 +312,7 @@ export function RushOverlayHeader({
                     >
                       <ExternalLink className="w-3.5 h-3.5" /> Guide complet
                     </a>
-                    <button type="button" onClick={() => { setMoreOpen(false); setConfirmReset(true); }} className={cn(menuItemCls, "hover:text-[#e2726f]")}>
+                    <button type="button" onClick={() => { setMoreOpen(false); setConfirmReset(true); }} className={cn(menuItemCls, "hover:text-danger")}>
                       <RotateCcw className="w-3.5 h-3.5" /> Réinitialiser
                     </button>
                   </div>
@@ -372,12 +327,7 @@ export function RushOverlayHeader({
             onClick={onOpenTutorial}
             aria-label="Aide / tutoriel de l'overlay"
             title="Comment utiliser l'overlay"
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-            )}
+            className={actionBtn}
           >
             <HelpCircle className="w-3.5 h-3.5" />
           </button>
@@ -388,12 +338,7 @@ export function RushOverlayHeader({
             onClick={openFeedback}
             aria-label="Signaler un bug ou faire un retour"
             title="Signaler un bug, proposer une amélioration ou un ajout"
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-            )}
+            className={actionBtn}
           >
             <Bug className="w-3.5 h-3.5" />
           </button>
@@ -405,19 +350,14 @@ export function RushOverlayHeader({
             rel="noopener noreferrer"
             aria-label="Ouvrir le guide complet"
             title="Ouvrir le guide complet"
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors",
-              isLightMode
-                ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#f2f0e9] hover:bg-[#1f2733]"
-            )}
+            className={actionBtn}
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
 
           {/* Réinitialiser le guide (confirmation en 2 temps) */}
           {confirmReset ? (
-            <span className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-[#e2726f]/50 bg-[#e2726f]/10 text-[#e2726f]">
+            <span className="inline-flex items-center gap-1 rounded-[4px] border border-danger/50 bg-danger/10 px-2 py-1.5 text-danger">
               <span className="text-[10px] font-bold">Reset ?</span>
               <button
                 type="button"
@@ -426,7 +366,7 @@ export function RushOverlayHeader({
                   setConfirmReset(false);
                 }}
                 aria-label="Confirmer la réinitialisation du guide"
-                className="p-0.5 rounded hover:bg-[#e2726f]/20 transition-colors"
+              className="p-0.5 rounded hover:bg-danger/20 transition-colors motion-reduce:transition-none"
               >
                 <Check className="w-3 h-3" />
               </button>
@@ -434,7 +374,7 @@ export function RushOverlayHeader({
                 type="button"
                 onClick={() => setConfirmReset(false)}
                 aria-label="Annuler la réinitialisation"
-                className="p-0.5 rounded hover:bg-[#e2726f]/20 transition-colors"
+                className="p-0.5 rounded hover:bg-danger/20 transition-colors motion-reduce:transition-none"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -445,12 +385,7 @@ export function RushOverlayHeader({
               onClick={() => setConfirmReset(true)}
               aria-label="Réinitialiser le guide"
               title="Réinitialiser toute la progression du guide"
-              className={cn(
-                "p-1.5 rounded-lg border transition-colors",
-                isLightMode
-                  ? "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200"
-                  : "bg-[#181d23] border-[#2a3646] text-[#6e7784] hover:text-[#e2726f] hover:bg-[#1f2733]"
-              )}
+              className={cn(actionBtn, "hover:text-danger")}
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
@@ -463,18 +398,15 @@ export function RushOverlayHeader({
           <img
             src={dofusImageUrl}
             alt="Dofus"
-            className="w-9 h-9 object-contain drop-shadow-md transition-transform hover:scale-105"
+            className="h-9 w-9 object-contain transition-transform duration-150 ease-out hover:scale-[1.03] motion-reduce:transition-none"
           />
 
         </div>
       </div>
 
-      {/* Barre de progression globale */}
+      {/* Barre de progression globale — jauge d'or 2 px, losange en bout (DA « Grimoire »). */}
       <div
-        className={cn(
-          "w-full h-1 rounded-full overflow-hidden",
-          isLightMode ? "bg-slate-200" : "bg-[#1e2530]"
-        )}
+        className="relative h-[2px] w-full overflow-hidden rounded-full bg-elevated"
         role="progressbar"
         aria-valuenow={overallPct}
         aria-valuemin={0}
@@ -482,12 +414,16 @@ export function RushOverlayHeader({
         aria-label={`Progression globale : ${overallPct}%`}
       >
         <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{
-            width: `${overallPct}%`,
-            background: "linear-gradient(90deg, #2b9f7d, #39bc95)",
-          }}
-        />
+          className="relative h-full rounded-full bg-gold transition-[width] duration-150 ease-out motion-reduce:transition-none"
+          style={{ width: `${overallPct}%` }}
+        >
+          {overallPct > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute -right-[3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 bg-gold"
+            />
+          )}
+        </div>
       </div>
     </header>
   );

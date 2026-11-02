@@ -122,6 +122,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   onGoToPrereq,
   onOpenBookmarkers,
   guildId,
+  isLightMode = false,
   dungeonActions,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
@@ -167,20 +168,20 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
     <div
       id={`overlay-seq-${seq.id}`}
       className={cn(
-        "overflow-hidden rounded-[4px] border transition-colors",
+        "overflow-hidden rounded-[6px] border transition-colors",
         // DEUX états, DEUX couleurs — jamais la même carte :
-        //   · VERROUILLÉ (prérequis non terminés) ⇒ rouge `danger` : c'est un blocage ;
-        //   · REPÈRE (« Je suis ici ») ⇒ ambre `warning` : c'est un marqueur de reprise.
-        // Avant, une quête bloquée restait neutre et une quête repérée prenait l'ambre :
-        // deux états voisins, indistinguables d'un coup d'œil dans la fenêtre de jeu.
-        // Le repère se signale en plus par un filet gauche (3 px) et une teinte, jamais
-        // par un halo : c'est lisible dans une fenêtre PiP réduite.
+        //   · VERROUILLÉ (prérequis non terminés) ⇒ filet terre cuite à GAUCHE, pas de
+        //     cadre rouge complet (retour user 02/11/2026 : « ces carrés rouges, ça fait
+        //     trop fade ») ;
+        //   · REPÈRE (« Je suis ici ») ⇒ ambre : c'est le point focal de la liste.
+        // Le cadenas vit UNE seule fois (la case d'état), jamais dans le bandeau ni sur
+        // le repère : trois cadenas dans la même ligne, c'était deux de trop.
         isDone
-          ? "border-border bg-surface opacity-60"
+          ? "border-border bg-surface/60"
           : isLocked
-          ? "border-danger/30 bg-danger/[0.05]"
+          ? "border-border border-l-2 border-l-danger/70 bg-surface"
           : isBookmarked
-          ? "border-warning/40 border-l-[3px] border-l-warning bg-warning/10"
+          ? "border-warning/40 border-l-2 border-l-warning bg-warning/[0.07]"
           : "border-border bg-surface hover:border-border-strong hover:bg-elevated"
       )}
     >
@@ -247,7 +248,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               title={`Ouvrir la fiche sur ${externalLabel}`}
               className={cn(
                 "block w-full text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-accent hover:underline line-clamp-2",
-                isDone && "line-through opacity-50"
+                isDone && "line-through text-muted-foreground"
               )}
             >
               {name}
@@ -262,7 +263,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               title="Voir les détails"
               className={cn(
                 "block w-full cursor-pointer text-left text-[13px] font-semibold leading-snug text-foreground transition-colors hover:text-accent hover:underline line-clamp-2",
-                isDone && "line-through opacity-50"
+                isDone && "line-through text-muted-foreground"
               )}
             >
               {name}
@@ -301,6 +302,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   seq={seq}
                   dungeons={dungeons}
                   guildId={guildId}
+                  isLightMode={isLightMode}
                   open={dungeonPanelOpen}
                   onOpenChange={(next) => {
                     setDungeonPanelOpen(next);
@@ -345,23 +347,19 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
               aria-haspopup="dialog"
               aria-expanded={prereqsOpen}
               title={`Aller à : ${prereqs.map((p) => p.name).join(", ")}`}
-              className="inline-flex items-center gap-1 rounded-[3px] border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-[11px] font-semibold text-danger transition-colors hover:bg-danger/20"
+              className="inline-flex max-w-full items-center gap-1 rounded-[3px] px-1.5 py-0.5 text-left text-[11px] font-semibold text-danger transition-colors hover:bg-danger/10"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/assets/dofus-ui/pictos/verrou.png"
-                alt=""
-                aria-hidden="true"
-                className="h-3 w-3 shrink-0 object-contain"
-              />
-              {prereqs.length > 1
-                ? `${prereqs.length} quêtes à terminer avant`
-                : "Quête à terminer avant"}
+              <span className="shrink-0 text-danger/80">Terminer :</span>
+              <span className="min-w-0 truncate">
+                {prereqs[0].name}
+                {prereqs.length > 1 ? ` +${prereqs.length - 1}` : ""}
+              </span>
             </button>
           )}
           {prereqsOpen && (
             <RushOverlayPrereqModal
               prereqs={prereqs}
+              isLightMode={isLightMode}
               onGoTo={(seqId, milestoneId) => onGoToPrereq?.(seqId, milestoneId)}
               onClose={() => setPrereqsOpen(false)}
             />
@@ -373,12 +371,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                (retour user du 22/10/2026). */
             <div className="flex items-center gap-1">
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
-                <img
-                  src="/assets/dofus-ui/pictos/verrou.png"
-                  alt=""
-                  aria-hidden="true"
-                  className="h-3 w-3 shrink-0 object-contain"
-                /> Donjons requis non validés
+                Donjons requis non validés
               </span>
               {missingDungeons.map((d) => {
                 const info = dungeons.find((dj) => dungeonKeyOf(dj) === d.key);
@@ -401,37 +394,33 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           )}
         </div>
 
-        {/* Repère */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!isLocked && !isDone) onBookmark();
-          }}
-          disabled={isLocked || isDone}
-          aria-label={isDone ? "Quête déjà validée" : isBookmarked ? "Retirer le repère" : isLocked ? "Repère indisponible (prérequis)" : "Poser le repère ici"}
-          title={isDone ? "Quête déjà validée — repère désactivé" : isBookmarked ? "Repère posé ici" : isLocked ? "Repère indisponible (prérequis non terminés)" : "Je suis ici"}
-          className={cn(
-            "shrink-0 rounded-[3px] p-1 transition-colors",
-            (isLocked || isDone) && "cursor-not-allowed opacity-40",
-            isBookmarked && !isDone
-              ? "bg-warning/15 text-warning"
-              : "text-muted-foreground hover:bg-warning/10 hover:text-warning"
-          )}
-        >
-          {isBookmarked && !isDone ? (
-            <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
-          ) : isLocked ? (
-            <img
-              src="/assets/dofus-ui/pictos/verrou.png"
-              alt=""
-              aria-hidden="true"
-              className="h-3.5 w-3.5 shrink-0 object-contain"
-            />
-          ) : (
-            <Flag className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-        </button>
+        {/* Repère — masqué quand la quête est verrouillée : le cadenas de la case d'état
+            suffit, un second cadenas ici ne disait rien de plus (retour user 02/11/2026). */}
+        {!isLocked && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isDone) onBookmark();
+            }}
+            disabled={isDone}
+            aria-label={isDone ? "Quête déjà validée" : isBookmarked ? "Retirer le repère" : "Poser le repère ici"}
+            title={isDone ? "Quête déjà validée — repère désactivé" : isBookmarked ? "Repère posé ici" : "Je suis ici"}
+            className={cn(
+              "shrink-0 rounded-[3px] p-1 transition-colors",
+              isDone && "cursor-not-allowed opacity-40",
+              isBookmarked && !isDone
+                ? "bg-warning/15 text-warning"
+                : "text-muted-foreground hover:bg-warning/10 hover:text-warning"
+            )}
+          >
+            {isBookmarked && !isDone ? (
+              <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+          </button>
+        )}
 
         {/* Accordéon */}
         <button

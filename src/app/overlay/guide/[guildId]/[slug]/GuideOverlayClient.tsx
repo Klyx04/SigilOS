@@ -6,6 +6,7 @@ import { useOverlayToast } from "@/components/rush/overlay-toast";
 import {
   toggleMilestoneProgress,
   setRushSequenceProgress,
+  setRushResourceChecks,
   setRushBookmark,
   applyRushAlignmentFromSequence,
   resetGuideProgress,
@@ -13,6 +14,7 @@ import {
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
 import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -30,6 +32,8 @@ import {
 } from "@/lib/rush-dungeons";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
+import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
+import { matchesRushQuestFilter, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
@@ -100,6 +104,8 @@ type Props = {
    * propose la liaison (sans quoi l'overlay est un cul-de-sac pour un compte non lié).
    */
   ocreState?: "ready" | "not-linked" | "error";
+  /** Coches de ressources du membre (serveur, par personnage) — lu par la page. */
+  initialResourceChecks?: string[];
 };
 
 export default function GuideOverlayClient({
@@ -114,6 +120,7 @@ export default function GuideOverlayClient({
   pinned = true,
   ocre = null,
   ocreState = "ready",
+  initialResourceChecks,
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
   // Notifications : Toaster de l'overlay quand il y en a un (PiP), sinon le global.
@@ -383,6 +390,50 @@ export default function GuideOverlayClient({
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [hideCompleted, setHideCompleted] = useState<boolean>(false);
+  // Filtre d'affichage de la liste : Toutes / En cours / Verrouillées.
+  // Il ne change ni l'ordre, ni les compteurs de progression — seulement les lignes visibles.
+  const [questFilter, setQuestFilter] = useState<RushQuestFilter>("all");
+  // Coches de ressources « déjà préparé », par personnage : serveur pour un membre,
+  // `localStorage` pour un invité (même clé que le guide public).
+  const [resourceChecks, setResourceChecks] = useState<Set<string>>(() => {
+    if (initialResourceChecks) return new Set(initialResourceChecks);
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem(`${storagePrefix}resources`);
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch {}
+    return new Set();
+  });
+
+  const persistGuestResourceChecks = useCallback(
+    (next: Set<string>) => {
+      if (typeof window === "undefined") return;
+      try {
+        localStorage.setItem(`${storagePrefix}resources`, JSON.stringify([...next]));
+      } catch {}
+    },
+    [storagePrefix]
+  );
+
+  const handleToggleResourceCheck = useCallback(
+    async (key: string) => {
+      const previous = resourceChecks;
+      const next = new Set(previous);
+      next.has(key) ? next.delete(key) : next.add(key);
+      setResourceChecks(next);
+      if (isGuest) {
+        persistGuestResourceChecks(next);
+        return;
+      }
+      try {
+        await setRushResourceChecks(guildId, guide.slug, [...next], effectiveAltPseudo);
+      } catch {
+        setResourceChecks(previous);
+        toast.error("Impossible d'enregistrer la préparation");
+      }
+    },
+    [resourceChecks, isGuest, persistGuestResourceChecks, guildId, guide.slug, effectiveAltPseudo, toast]
+  );
   // Modale de détail d'une quête (remplace l'ancien accordéon).
   const [detailSeq, setDetailSeq] = useState<{ ms: RushMilestone; seq: RushSequence } | null>(null);
 
@@ -671,6 +722,15 @@ export default function GuideOverlayClient({
     async (ms: RushMilestone) => {
       if (loadingIds.has(ms.id)) return;
       const was = completedIds.has(ms.id);
+      // Ressources : valider le chapitre coche toutes ses ressources ; l'invalider les
+      // décoche. Écho optimiste de la règle serveur, persisté pour l'invité.
+      const resourceBefore = resourceChecks;
+      const nextResourceChecks = (ms.sequences || []).reduce(
+        (acc, s) => applyQuestResourceChecks(acc, (s as any).activityTags, !was),
+        resourceChecks
+      );
+      setResourceChecks(nextResourceChecks);
+      if (isGuest) persistGuestResourceChecks(nextResourceChecks);
       setCompletedIds((prev) => {
         const n = new Set(prev);
         was ? n.delete(ms.id) : n.add(ms.id);
@@ -733,6 +793,7 @@ export default function GuideOverlayClient({
         // Chapitre complété d'un coup → passer automatiquement au suivant.
         if (!was) goToNextMs();
       } catch {
+        setResourceChecks(resourceBefore);
         setCompletedStepsByMs(prevSteps);
         setCompletedIds((prev) => {
           const n = new Set(prev);
@@ -748,7 +809,7 @@ export default function GuideOverlayClient({
         });
       }
     },
-    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs]
+    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks]
   );
 
   const handleToggleSeq = useCallback(
@@ -790,6 +851,21 @@ export default function GuideOverlayClient({
           cascadeMsIds.get(owner.id)!.add(cid);
         }
       }
+      // Ressources : valider coche les ressources de la quête ; invalider les décoche
+      // (cascade comprise). Le serveur applique la même règle ; ici, l'écho optimiste.
+      const resourceBefore = resourceChecks;
+      const seqResource = ms.sequences.find((s) => s.id === seqId);
+      let nextResourceChecks = applyQuestResourceChecks(
+        resourceChecks,
+        (seqResource as any)?.activityTags,
+        !was
+      );
+      for (const cid of cascadeSeqIds) {
+        const cs = milestones.flatMap((m) => m.sequences).find((s) => s.id === cid);
+        if (cs) nextResourceChecks = applyQuestResourceChecks(nextResourceChecks, (cs as any).activityTags, false);
+      }
+      setResourceChecks(nextResourceChecks);
+      if (isGuest) persistGuestResourceChecks(nextResourceChecks);
       setCompletedStepsByMs((prev) => {
         const n = new Map(prev);
         n.set(ms.id, cur);
@@ -895,6 +971,7 @@ export default function GuideOverlayClient({
         // restait bloqué sur un chapitre vide à 100 %.
         if (!was && allChecked) goToNextMs();
       } catch {
+        setResourceChecks(resourceBefore);
         setCompletedStepsByMs(prevMap);
         setCompletedIds((prev) => {
           const n = new Set(prev);
@@ -904,7 +981,7 @@ export default function GuideOverlayClient({
         toast.error("Erreur de synchronisation");
       }
     },
-    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs]
+    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks]
   );
 
   // Réinitialise TOUTE la progression du guide (synchro serveur + dashboard),
@@ -914,6 +991,7 @@ export default function GuideOverlayClient({
       setCompletedIds(new Set());
       setCompletedStepsByMs(new Map());
       setBookmarksByMs(new Map());
+      setResourceChecks(new Set());
       setDetailSeq(null);
       setCurrentMsIndex(0);
       if (typeof window !== "undefined") {
@@ -921,6 +999,7 @@ export default function GuideOverlayClient({
           localStorage.removeItem(`${storagePrefix}completed_ms`);
           localStorage.removeItem(`${storagePrefix}steps`);
           localStorage.removeItem(`${storagePrefix}bookmarks`);
+          localStorage.removeItem(`${storagePrefix}resources`);
         } catch {}
       }
       toast.success("Guide réinitialisé.");
@@ -932,6 +1011,7 @@ export default function GuideOverlayClient({
         setCompletedIds(new Set());
         setCompletedStepsByMs(new Map());
         setBookmarksByMs(new Map());
+        setResourceChecks(new Set());
         setDetailSeq(null);
         // Force le recalcul de la progression globale (header) à 0.
         setCurrentMsIndex(0);
@@ -1009,8 +1089,19 @@ export default function GuideOverlayClient({
     if (hideCompleted) {
       seqs = seqs.filter((s) => !currentMsDoneSeqs.has(s.id));
     }
+    if (questFilter !== "all") {
+      // Les encarts info ne sont pas des quêtes : ils sortent des filtres « En cours »
+      // et « Verrouillées ». L'ordre de `seqs` n'est jamais modifié (on filtre).
+      seqs = seqs.filter((s) => {
+        if (isInfoSequence(s)) return false;
+        return matchesRushQuestFilter(
+          { isDone: currentMsDoneSeqs.has(s.id), isLocked: getSeqGate(s).locked },
+          questFilter
+        );
+      });
+    }
     return seqs;
-  }, [currentMs, search, hideCompleted, currentMsDoneSeqs]);
+  }, [currentMs, search, hideCompleted, currentMsDoneSeqs, questFilter, getSeqGate]);
 
   // Recherche GLOBALE : matche sur TOUT le guide (tous chapitres), pas seulement
   // le milestone courant. Un clic sur un résultat bascule vers son chapitre.
@@ -1094,15 +1185,15 @@ export default function GuideOverlayClient({
       <div key={ms.id} className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
         {dofus ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={dofus.imageUrl} alt={dofus.label} title={dofus.label} className="h-12 w-12 object-contain drop-shadow" />
+          <img src={dofus.imageUrl} alt={dofus.label} title={dofus.label} className="h-12 w-12 object-contain" />
         ) : ms.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={ms.imageUrl} alt={ms.title} className="h-12 w-12 object-contain drop-shadow" />
+          <img src={ms.imageUrl} alt={ms.title} className="h-12 w-12 object-contain" />
         ) : null}
-        <span className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: ms.accentColor || "#a3e635" }}>
+        <span className="text-[9px] font-semibold uppercase tracking-[0.22em]" style={{ color: ms.accentColor || "var(--color-gold)" }}>
           ✦ Dofus obtenu ✦
         </span>
-        <h3 className={`font-serif text-lg font-black uppercase tracking-wide ${isLightMode ? "text-slate-900" : "text-[#f2f0e9]"}`}>
+        <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-foreground">
           {ms.title}
         </h3>
         {(ms.description || ms.tips) && (
@@ -1128,12 +1219,13 @@ export default function GuideOverlayClient({
     // `.dark` et une modale sortie de l'arbre (portail) resterait sombre.
     <div
       ref={rootRef}
-      className={`rush-overlay relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} ${
-        isLightMode ? "bg-[#f8fafc] text-[#0f172a]" : "bg-[#090b0e] text-[#f2f0e9]"
-      }`}
+      className={`rush-overlay relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} bg-background text-foreground`}
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
       <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }`}</style>
+
+      {/* DA « Grimoire Sylvestre » : un seul filet de reliure, jamais d'ombre ni de halo. */}
+      <span aria-hidden="true" className="rush-carnet-frame pointer-events-none absolute inset-0 border border-border-strong/60" />
 
       {/* Navigateur sans Document PiP (ex. Opera GX) : la fenêtre n'est pas épinglée */}
       {!pinned && <OverlayPinNotice />}
@@ -1182,7 +1274,6 @@ export default function GuideOverlayClient({
             onSelectChapter={selectChapter}
             completedMsIds={completedIds}
             doneByMs={completedStepsByMs}
-            isLightMode={isLightMode}
             onToggleChapter={handleToggleMs}
             loading={!!currentMs && loadingIds.has(currentMs.id)}
             dofus={
@@ -1191,6 +1282,9 @@ export default function GuideOverlayClient({
                 : null
             }
           />
+
+          {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
+          <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} />
 
 
 
@@ -1258,7 +1352,7 @@ export default function GuideOverlayClient({
                   return (
                     <React.Fragment key={seq.id}>
                       {showMsHeader && (
-                        <div className="flex items-center gap-1.5 pt-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#d5a94e]">
+                        <div className="flex items-center gap-1.5 pt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-gold">
                           <span className="w-1 h-1 rounded-full bg-[#d5a94e]" />
                           {ms.title || "Jalon"}
                         </div>
@@ -1285,13 +1379,23 @@ export default function GuideOverlayClient({
                 })
               )
             ) : visibleSequences.length === 0 ? (
-              <div className="py-12 text-center text-[#929aa5] text-xs">
-                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-[#39bc95] opacity-40" />
-                <p className="font-bold font-serif text-sm text-[#f2f0e9]">
-                  {search.trim() ? "Aucune quête ne correspond" : "Toutes les quêtes sont terminées !"}
+              <div className="py-12 text-center text-xs text-muted-foreground">
+                <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-success opacity-40" />
+                <p className="font-serif text-sm font-semibold text-foreground">
+                  {search.trim()
+                    ? "Aucune quête ne correspond"
+                    : questFilter === "active"
+                      ? "Aucune quête à faire ici"
+                      : questFilter === "locked"
+                        ? "Aucune quête verrouillée ici"
+                        : "Toutes les quêtes sont terminées !"}
                 </p>
-                <p className="text-[11px] text-[#6e7784] mt-0.5">
-                  {search.trim() ? "Essayez un autre mot-clé." : "Passez au chapitre suivant avec le bouton Suivant."}
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {search.trim()
+                    ? "Essayez un autre mot-clé."
+                    : questFilter !== "all"
+                      ? "Changez de filtre pour voir les autres quêtes."
+                      : "Passez au chapitre suivant avec le bouton Suivant."}
                 </p>
               </div>
             ) : currentMs ? (
@@ -1353,6 +1457,8 @@ export default function GuideOverlayClient({
           isLightMode={isLightMode}
           totalCount={allResources.length}
           hideProvidedResources={hideCompleted}
+          checkedKeys={resourceChecks}
+          onToggleCheck={handleToggleResourceCheck}
           onClose={() => setShowResources(false)}
         />
       )}
@@ -1382,6 +1488,8 @@ export default function GuideOverlayClient({
           isLightMode={isLightMode}
           guildId={guildId}
           hideProvidedResources={hideCompleted}
+          checkedKeys={resourceChecks}
+          onToggleResourceCheck={handleToggleResourceCheck}
           onClose={() => setDetailSeq(null)}
         />
       )}

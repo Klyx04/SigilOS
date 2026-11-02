@@ -4,7 +4,12 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import type { RushSequence } from "@/types/rush-guide-types";
 import { RushRichText } from "./RushRichText";
-import { infoBannerTone } from "./RushInfoBanner";
+import {
+  infoBannerTone,
+  RUSH_INFO_TONE_ICON,
+  RUSH_INFO_TONE_RAIL,
+  RUSH_INFO_TONE_TEXT,
+} from "./RushInfoBanner";
 
 /**
  * RushInfoSequenceBanner — le bandeau d'une séquence marquée « info_sequence » au GOD.
@@ -18,10 +23,8 @@ import { infoBannerTone } from "./RushInfoBanner";
  * affichaient — et comme il les **comptait** dans sa progression, son pourcentage ne pouvait
  * jamais atteindre 100 %. Deux surfaces sur trois en avaient donc une vision fausse.
  *
- * Grammaire alignée sur `RushInfoBanner` (même famille d'encart) : filet d'accent à gauche,
- * eyebrow mono dont le **registre** vient de la couleur (« Attention / À savoir / Astuce /
- * Conseil ») avec son picto intégré, puis le texte enrichi (liens nommés + positions
- * copiables en `/w x,y`).
+ * DA « Carnet de campagne » (02/11/2026) : même panneau que `RushInfoBanner` — plus de
+ * dégradé ni d'emoji, un filet de registre sémantique et un texte lisible.
  */
 export function RushInfoSequenceBanner({
   seq,
@@ -34,29 +37,29 @@ export function RushInfoSequenceBanner({
   className?: string;
 }) {
   const tag = (seq.activityTags || []).find((t) => t.type === "info_sequence");
-  const color = tag?.color || accentColor || "#10b981";
-  const { label, icon } = infoBannerTone(color);
+  const rawColor = tag?.color || accentColor || "";
+  const tone = infoBannerTone(rawColor);
+  const ToneIcon = RUSH_INFO_TONE_ICON[tone.tone];
   const text = seq.tips || seq.subGuideName || seq.subGuideRef || "";
 
   return (
     <div
+      data-tone={tone.tone}
       className={cn(
-        "relative flex items-stretch overflow-hidden rounded-[6px] border select-none",
+        "rush-carnet relative flex items-stretch overflow-hidden rounded-[6px] bg-surface select-none",
         className
       )}
-      style={{
-        borderColor: `${color}25`,
-        background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.4) 50%, ${color}06 100%)`,
-      }}
     >
-      <span aria-hidden="true" className="w-[3px] shrink-0" style={{ backgroundColor: color }} />
+      <span aria-hidden="true" className={cn("w-[2px] shrink-0", RUSH_INFO_TONE_RAIL[tone.tone])} />
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-3 py-2.5">
         <span
-          className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.055em]"
-          style={{ color }}
+          className={cn(
+            "flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em]",
+            RUSH_INFO_TONE_TEXT[tone.tone]
+          )}
         >
-          <span aria-hidden="true" className="text-[11px] leading-none">{icon}</span>
-          {label}
+          <ToneIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
+          {tone.label}
         </span>
         <div className="text-xs leading-relaxed text-foreground/90 font-medium">
           <RushRichText text={text} />

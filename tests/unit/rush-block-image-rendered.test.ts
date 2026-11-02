@@ -97,17 +97,23 @@ describe("RushInfoBanner — le bandeau lui-même", () => {
     expect(infoHtml({})).not.toContain("<img");
   });
 
-  it("l'eyebrow nomme le registre ET porte le picto (plus d'icône isolée)", () => {
+  it("l'eyebrow nomme le registre et le sceau est une icône, plus un emoji", () => {
     const warm = infoHtml({ accentColor: "#f59e0b" });
     expect(warm).toContain("Attention");
-    expect(warm).toContain("⚠️");
+    expect(warm).toContain('data-tone="attention"');
+    // DA « Carnet » : plus aucun emoji dans le bandeau.
+    expect(warm).not.toMatch(/[⚠📖🔮💡]/u);
+    expect(warm).toContain("<svg");
     expect(infoHtml({ accentColor: "#3b82f6" })).toContain("À savoir");
     expect(infoHtml({ accentColor: "#7c3aed" })).toContain("Astuce");
     expect(infoHtml({ accentColor: "#10b981" })).toContain("Conseil");
   });
 
-  it("titre fort quand il est fourni, absent sinon", () => {
+  it("titre serif quand il est fourni, et aucune peinture à la couleur God", () => {
     expect(infoHtml({ title: "Avant le rush" })).toContain("Avant le rush");
-    expect(infoHtml({ accentColor: "#e11d48" })).toContain("background-color:#e11d48");
+    const red = infoHtml({ accentColor: "#e11d48" });
+    expect(red).toContain('data-tone="attention"');
+    expect(red).not.toContain("background-color:#e11d48");
+    expect(red).not.toContain("linear-gradient");
   });
 });

@@ -237,9 +237,11 @@ describe("Ressources — le toggle du guide les masque partout (un seul état)",
     const modal = codeOf(RESOURCES_MODAL);
     expect(modal).toMatch(/const effectiveMode = hideProvidedResources \? "restantes" : mode;/);
     expect(modal).toMatch(/!hideProvidedResources &&\s*\(\[\["restantes", "Restantes"\], \["toutes", "Toutes"\]\]/);
-    // Grille d'objets : les fournis sortent, et son filtre local disparaît.
+    // Grille d'objets : les fournis ET les cochés manuellement sortent, et son filtre
+    // local disparaît (une coche manuelle compte comme « préparée », règle du 02/11).
     const grid = codeOf(QUEST_ITEM_GRID);
-    expect(grid).toMatch(/if \(hideProvided\) return parsedItems\.filter\(\(it\) => !it\.isDone\)/);
+    expect(grid).toMatch(/if \(hideProvided\) return parsedItems\.filter\(\(it\) => !it\.isPrepared\)/);
+    expect(grid).toMatch(/isPrepared: item\.isProvided \|\| item\.isChecked/);
     expect(grid).toMatch(/showHeaderMeta && !hideProvided &&/);
   });
 

@@ -293,7 +293,7 @@ export function RushOverlayOcreModal({ guildId, onClose, initial, state = "ready
             {/* ══ PIERRES D'ÂME À PRÉVOIR ══ */}
             <section className="shrink-0 border-b border-border px-3 py-2">
               <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                   Pierres d'âme à prévoir
                 </span>
                 <span className="text-[12px] font-bold tabular-nums text-accent">

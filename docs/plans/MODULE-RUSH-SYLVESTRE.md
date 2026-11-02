@@ -75,7 +75,7 @@ Le détail suit le préfixe `rush-*` (`Get-ChildItem tests/unit -Filter 'rush-*.
 > L'**ordre** vit dans `docs/ROADMAP.md` ; ici, le **quoi**.
 
 ### T — Refonte rush (plan durable : `PLAN-REFONTE-RUSH-SYLVESTRE.md`)
-- **Reste** : T-2c (id de quête dans `prereq_text`) · **lot 4** — **O14** (contraste ✓ le 26/10 ; reste l'application générale des accents) et **T2** (**bandeau réel** `GuildStatusPanel` ✓ ; verrou repointé le 27/10 après suppression de `DofusProgressStrip`) faits, restent **O15** motion sobre, **G7** hero, **G8** dépli `grid-template-rows`, **G9** célébration (**à arbitrer**) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
+- **Reste** : T-2c (id de quête dans `prereq_text`) · **lot 4** — **O14** (contraste ✓ le 26/10 ; reste l'application générale des accents) et **T2** (**bandeau réel** `GuildStatusPanel` ✓ ; verrou repointé le 27/10 après suppression de `DofusProgressStrip`) faits · **DA « Carnet de campagne » livrée le 02/11** (matières, en-tête, chapitre, cartes, fiches, bandeaux, alignement, filtre Toutes/En cours/Verrouillées, ressources à prévoir, footer et portails ; verrou `rush-da-grimoire` **23**), restent **O15** motion sobre, **G7** hero complet, **G8** dépli `grid-template-rows`, **G9** célébration (**à arbitrer**) · lot 5 overlay avancé (O9, O10, O11, O12, O13) · lot 6 perf (G6 + `useOptimistic`) · transverses (O5, O6, O7, G2, G5, T1, T5) + les 4 `prompt()` / `confirm()` du studio.
 - **Statut** : T-1 / T-2 / T-2b / T-3 livrés (PR #851 / #853 / #856 / #857) · **T-4 partiel** le 26/10/2026 (O14 + T2, PR #1136) · **T2 consolidé** le 27/10/2026 (composant mort supprimé, verrou sur le code rendu).
 
 ### U — Zéro dépendance DofusDB (cadré, aucun lot commencé)
@@ -218,3 +218,4 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 4. **Local-first** : `resolveItemImage` sert le WebP local, le proxy est un repli (objectif **U**).
 5. **Fail-closed** : un alignement / ordre inconnu ne débloque rien ; état illisible ⇒ on refuse.
 6. **Une seule implémentation par comportement** (un composant partagé, jamais une copie par surface).
+7. **Ressources et validation** : valider une quête **coche** toutes ses ressources, l'invalider les **décoche** — règle pure `src/lib/rush-resource-checks.ts`, appliquée côté serveur et en écho optimiste sur les trois surfaces.

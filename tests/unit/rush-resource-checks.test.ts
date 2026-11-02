@@ -29,6 +29,9 @@ import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSi
 
 const DASHBOARD = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
 const PUBLIC = "src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx";
+const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+const DETAIL = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal.tsx";
+const GRID = "src/components/dofus-quests/rush/QuestItemResourceGrid.tsx";
 const ACTIONS = "src/server/actions/optimized-guide-actions.ts";
 
 const codeOf = (p: string) =>
@@ -120,6 +123,41 @@ describe("Persistance — module (serveur, par personnage) ↔ page publique (na
     const actions = codeOf(ACTIONS);
     expect(actions).toMatch(/unvalidatedSeqIds/);
     expect(actions).toMatch(/playerGuideResourceCheck\.deleteMany/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Validation d'une quête → toutes ses ressources sont cochées ; invalidation → décochées.
+// 🎯 Demande user (02/11/2026) : « une fois la quête validée ça override et valide tout ·
+// quête invalidée > décocher tout · overlay, guide interne, guide public ».
+// ─────────────────────────────────────────────────────────────────────────────
+describe("Validation d'une quête — les ressources suivent", () => {
+  it("le serveur coche à la validation (quête et bloc) et décoche à la dévalidation", () => {
+    const actions = codeOf(ACTIONS);
+    expect(actions).toMatch(/\[setRushSequenceProgress\] coche des ressources/);
+    expect(actions).toMatch(/\[toggleMilestoneProgress\] coches de ressources/);
+    expect(actions).toMatch(/playerGuideResourceCheck\.createMany/);
+    expect(actions).toMatch(/unvalidatedSeqIds/);
+  });
+
+  it("la grille de la fiche est cochable, avec aria-pressed", () => {
+    const grid = codeOf(GRID);
+    expect(grid).toMatch(/checkedKeys/);
+    expect(grid).toMatch(/onToggleCheck/);
+    expect(grid).toMatch(/aria-pressed=\{item\.isChecked\}/);
+    expect(codeOf(DETAIL)).toMatch(/onToggleResourceCheck/);
+  });
+
+  it("les trois surfaces appliquent la règle à la validation", () => {
+    expect(codeOf(DASHBOARD)).toMatch(/applyQuestResourceChecks/);
+    expect(codeOf(PUBLIC)).toMatch(/applyResourceChecksForQuest/);
+    expect(codeOf(OVERLAY)).toMatch(/applyQuestResourceChecks/);
+    expect(codeOf(OVERLAY)).toMatch(/handleToggleResourceCheck/);
+  });
+
+  it("le guide interne recharge ses coches avec le bon ordre d'arguments", () => {
+    const page = codeOf("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx");
+    expect(page).toMatch(/getRushResourceChecks\(guildId, slug, altPseudo\)/);
   });
 });
 

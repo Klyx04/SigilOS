@@ -32,6 +32,31 @@
 > | **5 — overlay avancé** | ⬜ à faire | O12 partiel (toast de validation) | **O9** carte « Maintenant », **O10** 3 densités (container queries), **O11** jauges/anneaux, **O13** mini-carte, O12 (coéquipier sur la même quête, prérequis débloqué) |
 > | **6 — perf & architecture** | ⬜ à faire | *rien* | **G6** contextes `SequenceRow` → Zustand (profiler avant/après), `useOptimistic` handler par handler |
 >
+> ### DA « Carnet de campagne » — livrée le 02/11/2026 (lot 4)
+>
+> **Concept.** Un carnet d'expédition : cadre sombre, métal patiné, touches végétales,
+> surface intérieure en ardoise nocturne. Pas une landing page, pas un dashboard SaaS.
+>
+> **Matières (jetons, aucune couleur dans les composants).** `.rush-overlay` porte sa
+> palette : fond vert anthracite, panneaux forêt, ivoire chaud, bronze (`--border-strong`),
+> ambre (`--accent` / `--sigil-gold`), jade (`--success`), terre cuite (`--danger`). `.light`
+> décline la version parchemin. `.rush-carnet` = filet + biseau interne ; `.rush-carnet-frame`
+> = double filet + quatre rivets de bronze.
+>
+> **Livré.** En-tête serif + filet d'or, jauge 2 px à losange, boutons tokenisés ; barre de
+> chapitre tokenisée (fin de `font-black` / `animate-pulse` / `shadow-2xl`) ; carte verrouillée
+> à filet terre cuite (plus de cadre rouge), **un seul cadenas**, prérequis nommé
+> « Terminer : … », repère masqué ; bandeaux CONSEIL/ATTENTION sans dégradé ni emoji, registre
+> sémantique ; fiche de quête (titre serif, losanges d'or, conseils en filet) ; modale
+> d'alignement sans hauteur forcée (fin du vide) ; filtre segmenté « Toutes / En cours /
+> Verrouillées » (règle pure, ordre des quêtes conservé) ; **Ressources à prévoir** passée
+> au carnet (panneau, bascule Restantes/Toutes à l'or, lignes et quantités tokenisées).
+>
+> **Reste.** G7 (emblème / feuillage), G8 (dépli `grid-template-rows`), G9 (célébration, à
+> arbitrer), application des accents Dofus écran par écran, O15 sur les animations restantes.
+>
+> **Verrou.** `tests/unit/rush-da-grimoire.test.ts` (23 cas) + `tests/unit/rush-quest-filter.test.ts` (6 cas) ; suite Rush 52 fichiers / 651 tests.
+>
 > **Transverses restants** : **O5** (bouton « Aller à la suite » + défilement auto vers la 1ʳᵉ quête non cochée), **O6** (`autoFocus` sur Fermer + verrou de scroll), **O7** (callout `touglibox` dans la modale de l'overlay), **G2** (succès en badges), **G5** (`ContextualHelp` au clic/clavier), **T1** (parsing des succès, résolution des prérequis par id), **T5** (`useQuestGroups` : collisions d'id de groupe).
 >
 > 🔭 **Session du 08/10/2026 « one shot »** (**PR #858 mergée** — 4 commits : 3 de code + 1 de docs) — livré **hors lots** : pictos **réels**

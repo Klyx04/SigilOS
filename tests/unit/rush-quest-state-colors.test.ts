@@ -53,18 +53,22 @@ describe("Dashboard — quête bloquée (rouge) ≠ quête repérée (ambre)", (
 });
 
 describe("Overlay — verrou (danger) ≠ repère (ambre), pour l'interne comme le public", () => {
-  it("la carte verrouillée porte une teinte danger", () => {
-    expect(ITEM).toMatch(/isLocked\s*\?\s*"border-danger\/30 bg-danger\/\[0\.05\]"/);
+  it("la carte verrouillée porte un filet danger à gauche, pas un cadre rouge complet", () => {
+    expect(ITEM).toMatch(/isLocked\s*\?\s*"border-border border-l-2 border-l-danger\/70 bg-surface"/);
+    // L'ancien cadre rouge intégral ne doit pas revenir (retour user 02/11/2026).
+    expect(ITEM).not.toMatch(/border-danger\/30 bg-danger\/\[0\.05\]/);
   });
 
   it("la carte repérée garde son ambre et son filet gauche", () => {
     expect(ITEM).toMatch(
-      /isBookmarked\s*\?\s*"border-warning\/40 border-l-\[3px\] border-l-warning bg-warning\/10"/
+      /isBookmarked\s*\?\s*"border-warning\/40 border-l-2 border-l-warning bg-warning\/\[0\.07\]"/
     );
   });
 
-  it("les chips de prérequis ne sont plus ambre", () => {
+  it("le blocage nomme le prérequis, en danger, sans second cadenas", () => {
     expect(ITEM).not.toMatch(/border-warning\/40 bg-warning\/10 px-1\.5 py-0\.5/);
-    expect(ITEM).toMatch(/border-danger\/40 bg-danger\/10 px-1\.5 py-0\.5/);
+    expect(ITEM).toContain("Terminer :");
+    expect(ITEM).toMatch(/text-left text-\[11px\] font-semibold text-danger/);
+    expect(ITEM).not.toContain("Quête à terminer avant");
   });
 });

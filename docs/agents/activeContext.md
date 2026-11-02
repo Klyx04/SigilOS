@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 02/11/2026 (suite 4) — **Rush : DA « Carnet de campagne » (overlay)** — branche `feat/rush-da-carnet`
+
+> **Demande user (verbatim)** : « on peut pas laisser ces couleurs IA dans ces blocs ni ces carrés rouges qui entourent les quêtes à terminer… c beaucoup trop fade 0 immersion DA dofus » · « 3 cadenas dans ces quêtes ça fait bc non ? » · « quid da detail de quete très fade ? la modale alignement qui n'a aucun sens non plus avec l'espace vide en bas ? » · brief DA « carnet de campagne ».
+> **Mesures** : ① `RushInfoBanner` / `RushInfoSequenceBanner` peignaient un **dégradé** avec la couleur God + des **emojis** (⚠️📖🔮💡) ; ② la carte verrouillée cumulait **3 cadenas** (case, repère, bandeau) et un **cadre rouge complet**, avec un texte générique alors que `prereqs[].name` existe ; ③ la fiche de quête n'avait ni hiérarchie ni matière ; ④ la modale d'alignement posait `h-full` dans une modale de contenu ⇒ **vide en bas**.
+> **Fait** : ① jetons `.rush-overlay` (vert forêt / ivoire / bronze / ambre / jade / terre cuite) + `.rush-carnet` / `.rush-carnet-frame` ; ② en-tête serif + filet d'or, jauge or 2 px à losange, boutons tokenisés ; ③ barre de chapitre tokenisée (fin `font-black` / `animate-pulse` / `shadow-2xl`) ; ④ carte verrouillée = **filet terre cuite** à gauche + **un seul cadenas** + « **Terminer : …** » + repère masqué ; ⑤ bandeaux sans dégradé ni emoji, registre sémantique (danger / or / jade) ; ⑥ fiche de quête (titre serif, losanges d'or, conseils en filet) ; ⑦ alignement sans `h-full`.
+> **Preuves** : `rush-da-grimoire` **17** · suite Rush **51 fichiers / 640 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
+> **Reste / ops** : contrôle visuel 390 / 768 / 1024 / 1440 en bêta (`./scripts/deploy-cd.sh beta`) ; PR vers `dev`. Reste T-4 : G7 (emblème / feuillage), G8 dépli `grid-template-rows`, G9 célébration (arbitrer), accents Dofus écran par écran, O15 sur les animations restantes.
+> **Rotation** : bloc « 01/11/2026 (suite 5) — Le propriétaire peut retirer sa guilde » sorti (le plus ancien) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 02/11/2026 (suite) — **Almanax : bornage de la navigation jour précédent / suivant à la fenêtre de 30 jours** — branche `fix-almanax-navigation-window`
 
 > **Demande user (verbatim)** : « dommage de rendre un 404 au "suivant" dans almanax après 30 jours? » · « pk on affiche pas simplement tous les jours possible? c voulu? » · « en résuméil faut faire quoi » · « ok ».
@@ -42,23 +51,3 @@
 > **Preuves** : `guild-deletion` **26/26** · `cron-telemetry` **3/3** · `tsc` 0 · ESLint 0 erreur.
 > **Reste / ops** : ajouter la ligne de crontab sur le VPS (`45 4 * * *`, **sans `%`**) ; `deploy-cd.sh beta` pour activer garde + bouton + cron ; chantier `guildes-cycle-de-vie` **clos** (registre ROADMAP).
 > **Rotation** : bloc « 31/10 (suite 13) — Journal : fin des faux événements Discord + inventaire de couverture » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 01/11/2026 (suite 5) — **Le propriétaire peut retirer sa guilde (Zone sensible)** — branche `feat/guildes-suppression-proprietaire`
-
-> **Demande user (verbatim)** : « où mettre le bouton ? dans pilotage pour le owner non ? » · « et si il est pas seul sur son discord ? et tout le monde est déco et supprimer instant de la bdd ? les token discord les datas etc ? ».
-> **Mesures** : ① `getUserContext` calculait déjà `isOwner` (`guildInfo.owner_id === discordUserId`) mais ne l'exposait pas ; ② aucune action propriétaire n'existait (`softDeleteGuild` / `hardDeleteGuild` = God) ; ③ `Account.access_token` / `refresh_token` vivent au niveau **compte** ⇒ une suppression de guilde n'y touche pas ; ④ `GuildConfig.scheduledDeletion` n'est lu par personne (la purge est le lot suivant).
-> **Fait** : ① `isGuildOwner` exposé par `getUserContext` (3 retours mis à jour) ; ② garde `requireGuildOwner` — owner **live** Discord, pas d'admin, pas de bypass God, fail-closed ; ③ action `requestGuildDeletion` : confirmation par le nom (`src/lib/guild-deletion.ts`), rate limit 3/10 min, **garde d'état dans le `WHERE`**, profils **archivés** (jamais supprimés), audit `GUILD_DELETE_REQUESTED`, purge des caches, notification des admins (salon système) et de God — **aucune** suppression physique ; ④ onglet **« Zone sensible »** dans `/admin/pilotage`, rendu **uniquement** pour `isGuildOwner` (un `?tab=sensible` forcé retombe sur « etat ») ; ⑤ verrou `tests/unit/guild-deletion.test.ts`.
-> **Preuves** : `guild-deletion` **15/15** · `tsc` 0 · ESLint 0 erreur.
-> **Reste / ops** : **purge réelle à J+30** (consommer `scheduledDeletion`, table par table) ; restauration God déjà en place (`reactivateGuild`) ; contrôle navigateur du nouvel onglet à faire en bêta après `deploy-cd.sh beta`.
-> **Rotation** : bloc « 31/10 (suite 12) — Exclusions de membres : suppression définitive + message honnête » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 01/11/2026 (suite 4) — **Une guilde désactivée n'écrit plus rien depuis Discord** — branche `fix/discord-guildes-inactives`
-
-> **Demande user (verbatim)** : « comment un owner supprime sa guilde ? » · « quid de tous les embed discord toutes les interactions autour ? » · « go ».
-> **Mesures** : ① le soft-delete ferme le site (`user-actions.ts:648`) mais **pas Discord** : les messages restent, et la résolution par `discordGuildId` (`interactions/route.ts:146`) comme `internalCheckPermission` (`user-actions.ts:1859`) ne regardent **ni** `isActive` **ni** `deletedAt` ⇒ un bouton écrivait encore ; ② `GuildConfig.scheduledDeletion` n'est lu par **personne** (la purge J+30 est une promesse non tenue) ; ③ crons : 2 seuls itèrent des guildes (`daily-summary`, `mission-reset-notify`) et **les deux filtrent `isActive`** ⇒ rien à corriger ; ④ `Account.access_token`/`refresh_token` sont au niveau **compte**, jamais touchés par une suppression de guilde.
-> **Fait** : règle pure `src/lib/discord-guild-state.ts` (`active`/`inactive`/`absent`/`error`) + **garde unique** en tête de `/api/discord/interactions` : après la signature, avant tout dispatch (types 2/3/4/5), refus éphémère ; autocomplete ⇒ `type 8` choix vides ; lecture impossible ⇒ refus (fail-closed) ; **God non exempté** (il réactive d'abord) ; guilde absente ⇒ comportement inchangé. Verrou `tests/unit/discord-interaction-guild-state.test.ts`.
-> **Preuves** : `discord-interaction-guild-state` **9/9** · suite **570 fichiers / 5 977 tests ✓** · `tsc` 0.
-> **Reste / ops** : lot suivant = **bouton « Supprimer ma guilde »** (propriétaire live `guards.ts:98`, soft-delete + notification des admins), puis **purge J+30** ; `ROADMAP` : `limite-guildes` déplacé au **registre des chantiers clos** (une ligne) et rang 33 remplacé par `guildes-cycle-de-vie`.
-> **Rotation** : bloc « 31/10 (suite 11) — Carte raid du dashboard : déslop + visuel réel » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

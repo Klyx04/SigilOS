@@ -51,13 +51,13 @@ export function RushOverlayAlignmentModal({
         className="absolute inset-0 bg-black/60"
       />
 
-      <div className="relative z-10 flex h-full max-h-full w-full max-w-[26rem] flex-col overflow-hidden rounded-[6px] border border-border-strong bg-elevated">
-        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+      <div className="rush-carnet relative z-10 flex max-h-full w-full max-w-[26rem] flex-col overflow-hidden rounded-[6px] border border-border-strong bg-elevated shadow-[var(--rush-bevel)]">
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border-strong bg-surface/60 px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/ordres/neutre.png" alt="" className="h-5 w-5 shrink-0 object-contain" />
             <div className="min-w-0">
-              <h2 className="truncate text-[13px] font-semibold text-foreground">
+              <h2 className="truncate font-serif text-[14px] font-semibold text-foreground">
                 {mode === "edit" ? "Mon alignement" : "Alignement de la guilde"}
               </h2>
               <p className="truncate text-[10px] text-muted-foreground">
@@ -71,7 +71,7 @@ export function RushOverlayAlignmentModal({
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="shrink-0 rounded-[4px] p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+            className="shrink-0 rounded-[4px] p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground motion-reduce:transition-none"
           >
             <X className="h-4 w-4" />
           </button>

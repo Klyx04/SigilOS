@@ -1094,15 +1094,15 @@ export default function GuideOverlayClient({
       <div key={ms.id} className="flex flex-col items-center gap-3 py-10 px-6 text-center select-none max-w-md mx-auto">
         {dofus ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={dofus.imageUrl} alt={dofus.label} title={dofus.label} className="h-12 w-12 object-contain drop-shadow" />
+          <img src={dofus.imageUrl} alt={dofus.label} title={dofus.label} className="h-12 w-12 object-contain" />
         ) : ms.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={ms.imageUrl} alt={ms.title} className="h-12 w-12 object-contain drop-shadow" />
+          <img src={ms.imageUrl} alt={ms.title} className="h-12 w-12 object-contain" />
         ) : null}
-        <span className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: ms.accentColor || "#a3e635" }}>
+        <span className="text-[9px] font-semibold uppercase tracking-[0.22em]" style={{ color: ms.accentColor || "var(--color-gold)" }}>
           ✦ Dofus obtenu ✦
         </span>
-        <h3 className={`font-serif text-lg font-black uppercase tracking-wide ${isLightMode ? "text-slate-900" : "text-[#f2f0e9]"}`}>
+        <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-foreground">
           {ms.title}
         </h3>
         {(ms.description || ms.tips) && (
@@ -1128,12 +1128,13 @@ export default function GuideOverlayClient({
     // `.dark` et une modale sortie de l'arbre (portail) resterait sombre.
     <div
       ref={rootRef}
-      className={`rush-overlay relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} ${
-        isLightMode ? "bg-[#f8fafc] text-[#0f172a]" : "bg-[#090b0e] text-[#f2f0e9]"
-      }`}
+      className={`rush-overlay relative flex flex-col h-screen overflow-hidden select-none transition-colors ${isLightMode ? "light" : ""} bg-background text-foreground`}
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
       <style>{`@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important; } }`}</style>
+
+      {/* DA « Grimoire Sylvestre » : un seul filet de reliure, jamais d'ombre ni de halo. */}
+      <span aria-hidden="true" className="rush-carnet-frame pointer-events-none absolute inset-0 border border-border-strong/60" />
 
       {/* Navigateur sans Document PiP (ex. Opera GX) : la fenêtre n'est pas épinglée */}
       {!pinned && <OverlayPinNotice />}
@@ -1182,7 +1183,6 @@ export default function GuideOverlayClient({
             onSelectChapter={selectChapter}
             completedMsIds={completedIds}
             doneByMs={completedStepsByMs}
-            isLightMode={isLightMode}
             onToggleChapter={handleToggleMs}
             loading={!!currentMs && loadingIds.has(currentMs.id)}
             dofus={
@@ -1258,7 +1258,7 @@ export default function GuideOverlayClient({
                   return (
                     <React.Fragment key={seq.id}>
                       {showMsHeader && (
-                        <div className="flex items-center gap-1.5 pt-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#d5a94e]">
+                        <div className="flex items-center gap-1.5 pt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-gold">
                           <span className="w-1 h-1 rounded-full bg-[#d5a94e]" />
                           {ms.title || "Jalon"}
                         </div>

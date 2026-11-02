@@ -23,7 +23,6 @@ interface RushOverlayChapterBarProps {
   onSelectChapter: (msId: string) => void;
   completedMsIds: Set<string>;
   doneByMs: Map<string, Set<string>>;
-  isLightMode?: boolean;
   className?: string;
   /** Case « tout le chapitre » : le bloc courant se valide (ou se décoche) d'un clic. */
   onToggleChapter?: (ms: RushMilestone) => void;
@@ -55,7 +54,6 @@ export function RushOverlayChapterBar({
   onSelectChapter,
   completedMsIds,
   doneByMs,
-  isLightMode = false,
   className,
   onToggleChapter,
   loading = false,
@@ -97,7 +95,7 @@ export function RushOverlayChapterBar({
       aria-label="Chapitres du guide"
       className={cn(
         "relative shrink-0 px-3 py-2.5 border-b z-30",
-        isLightMode ? "bg-slate-50 border-slate-200" : "bg-[#0d1014] border-[#28303a]/70",
+        "border-border-strong bg-surface",
         className
       )}
     >
@@ -114,19 +112,16 @@ export function RushOverlayChapterBar({
             aria-label={msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
             title={msDone ? "Décocher tout le chapitre" : "Valider tout le chapitre"}
             className={cn(
-              "shrink-0 cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-offset-1",
-              isLightMode ? "focus-visible:outline-emerald-600" : "focus-visible:outline-[#39bc95]",
+              "shrink-0 cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
               loading && "cursor-not-allowed opacity-50"
             )}
           >
             <span
               className={cn(
-                "flex h-4 w-4 items-center justify-center rounded-md border transition-all",
+                "flex h-4 w-4 items-center justify-center rounded-[4px] border transition-colors motion-reduce:transition-none",
                 msDone
-                  ? "bg-[#39bc95] border-[#39bc95] text-black"
-                  : isLightMode
-                    ? "border-slate-300 bg-white"
-                    : "border-[#3a4d60] bg-[#0f1419]"
+                  ? "border-success bg-success text-background"
+                  : "border-border-strong bg-background"
               )}
             >
               {msDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
@@ -142,19 +137,17 @@ export function RushOverlayChapterBar({
           aria-label="Choisir un chapitre"
           onClick={() => canSelect && setOpen((v) => !v)}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-2 rounded-xl border font-semibold transition-colors",
+            "flex min-w-0 flex-1 items-center gap-2 rounded-[6px] border font-semibold transition-colors motion-reduce:transition-none",
             "px-2.5 py-2 text-[11px]",
             canSelect && "cursor-pointer",
-            isLightMode
-              ? "bg-white border-slate-200 text-slate-800 hover:border-slate-300"
-              : "bg-[#181c22] border-[#28303a] text-[#f2f0e9] hover:border-[#2a3646]"
+            "border-border bg-elevated text-foreground hover:border-border-strong"
           )}
         >
           {/* Picto de QUÊTE du jeu (asset réel, 64 px servi en 16 px) : une quête/un chapitre
               se reconnaît à son picto, pas à un glyphe d'interface. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/assets/dofus-ui/pictos/etape.png" alt="" className="h-4 w-4 shrink-0 object-contain" />
-          <span className="min-w-0 flex-1 truncate text-left">
+          <span className="min-w-0 flex-1 truncate text-left font-serif text-[12px] tracking-[0.01em]">
             {activeMs?.title || `Chapitre ${activeIdx + 1}`}
           </span>
           {/* Dofus visé par le bloc courant (icône Dofus + pastille quand il est obtenu) */}
@@ -165,7 +158,7 @@ export function RushOverlayChapterBar({
                 src={dofus.imageUrl}
                 alt={dofus.label}
                 title={dofus.label}
-                className={cn("h-5 w-5 object-contain drop-shadow", dofus.done && "animate-pulse")}
+                className="h-5 w-5 object-contain"
               />
               {dofus.done && (
                 <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#39bc95]" />
@@ -175,10 +168,8 @@ export function RushOverlayChapterBar({
           {dofus?.done && (
             <span
               className={cn(
-                "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wide",
-                isLightMode
-                  ? "border-emerald-600/40 bg-emerald-50 text-emerald-700"
-                  : "border-[#39bc95]/50 bg-[#39bc95]/15 text-[#39bc95]"
+                "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+                "border-success/50 bg-success/10 text-success"
               )}
             >
               Dofus obtenu
@@ -187,8 +178,8 @@ export function RushOverlayChapterBar({
           {showChapterCount && (
             <span
               className={cn(
-                "hidden shrink-0 text-[9px] font-black uppercase tracking-[0.12em] sm:inline",
-                isLightMode ? "text-slate-400" : "text-[#6e7784]"
+                "hidden shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em] sm:inline",
+                "text-muted-foreground"
               )}
             >
               Chapitre {chapterPos + 1} / {selectable.length}
@@ -197,8 +188,8 @@ export function RushOverlayChapterBar({
           {showProgress && (
             <span
               className={cn(
-                "shrink-0 font-mono text-[9px] font-bold tabular-nums",
-                isLightMode ? "text-slate-600" : "text-[#969daa]"
+                "shrink-0 font-mono text-[9px] font-semibold tabular-nums",
+                "text-muted-foreground"
               )}
             >
               {done}/{total} · {pct}%
@@ -207,8 +198,7 @@ export function RushOverlayChapterBar({
           {canSelect && (
             <ChevronDown
               className={cn(
-                "h-3.5 w-3.5 shrink-0 transition-transform",
-                isLightMode ? "text-slate-400" : "text-[#6e7784]",
+                "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
                 open && "rotate-180"
               )}
             />
@@ -219,16 +209,17 @@ export function RushOverlayChapterBar({
           entière (c'était le 2ᵉ des trois blocs empilés). */}
       {showProgress && (
         <span
-          className={cn(
-            "absolute inset-x-0 bottom-0 h-[3px] overflow-hidden",
-            isLightMode ? "bg-slate-200" : "bg-[#1e2530]"
-          )}
+          className="absolute inset-x-0 bottom-0 h-[2px] bg-elevated"
           aria-hidden="true"
         >
           <span
-            className="block h-full bg-[#d5a94e] transition-all duration-500"
+            className="relative block h-full bg-gold transition-[width] duration-150 ease-out motion-reduce:transition-none"
             style={{ width: `${pct}%` }}
-          />
+          >
+            {pct > 0 && (
+              <span className="absolute -right-[3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 bg-gold" />
+            )}
+          </span>
         </span>
       )}
 
@@ -244,9 +235,9 @@ export function RushOverlayChapterBar({
           <ul
             role="listbox"
             className={cn(
-              "absolute top-full mt-1.5 z-50 max-h-[42vh] overflow-y-auto rounded-xl border py-1 shadow-2xl",
+              "absolute top-full mt-1.5 z-50 max-h-[42vh] overflow-y-auto rounded-[6px] border py-1",
               "left-3 right-3",
-              isLightMode ? "bg-white border-slate-200" : "bg-[#161b21] border-[#2a3646]"
+              "border-border-strong bg-elevated"
             )}
           >
             {selectable.map((ms, idx) => {
@@ -265,24 +256,18 @@ export function RushOverlayChapterBar({
                       setOpen(false);
                     }}
                     className={cn(
-                      "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[11px] transition-colors",
+                      "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[11px] transition-colors motion-reduce:transition-none",
                       isActive
-                        ? isLightMode
-                          ? "bg-slate-100 text-slate-900"
-                          : "bg-[#242c36] text-[#f2f0e9]"
-                        : isLightMode
-                          ? "text-slate-700 hover:bg-slate-50"
-                          : "text-[#c4cad2] hover:bg-[#1f2733]"
+                        ? "bg-surface text-foreground"
+                        : "text-muted-foreground hover:bg-surface hover:text-foreground"
                     )}
                   >
                     <span
                       className={cn(
                         "flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
                         isDone
-                          ? "bg-[#39bc95] text-black"
-                          : isLightMode
-                            ? "border border-slate-300"
-                            : "border border-[#3a4d60]"
+                          ? "bg-success text-background"
+                          : "border border-border-strong"
                       )}
                     >
                       {isDone && <Check className="h-2.5 w-2.5 stroke-[3]" />}
@@ -291,8 +276,8 @@ export function RushOverlayChapterBar({
                     <span className="min-w-0 flex-1 truncate">{ms.title || `Chapitre ${idx + 1}`}</span>
                     <span
                       className={cn(
-                        "shrink-0 font-mono text-[9px] font-bold tabular-nums",
-                        isLightMode ? "text-slate-400" : "text-[#6e7784]"
+                        "shrink-0 font-mono text-[9px] font-semibold tabular-nums",
+                        "text-muted-foreground"
                       )}
                     >
                       {msDoneCount}/{msTotal}

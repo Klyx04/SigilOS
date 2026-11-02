@@ -13,7 +13,7 @@ description: Module Rush Sylvestre — agrégateur (carte des fichiers + chantie
 > - **Ordre d'exécution** (jamais dupliqué ici) → `docs/ROADMAP.md`
 > - Backlog + ordre → `docs/ROADMAP.md` ; blocs de session → `docs/agents/journal-sessions-2026.md`
 >
-> **Dernière MAJ : 27/10/2026.**
+> **Dernière MAJ : 02/11/2026.**
 
 ## 0. Gouvernance (3 niveaux)
 
@@ -191,20 +191,28 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 1. ~~**Vue Branches à 2 étages** dans God~~ — **livrée** le 23/10/2026 (cible **100 / 102**). Organisation de la suite,
    blocs S0→S5 : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
 2. ~~**Édition** des champs de route sur une séquence **existante**~~ — **livrée** le 26/10/2026 (section « 7. Route »).
-3. Sélecteur d'**Ordre** dans l'overlay et le guide public (aujourd'hui : cité seule).
+3. **Route d'alignement sur les 3 surfaces** — état mesuré le 02/11/2026 : **overlay** = **aucune route**
+   (il reçoit les jalons bruts et affiche **les deux cités + les 3 Ordres**) · **guide interne** = `camp` + `classe`
+   appliqués, **Ordre non appliqué** (15 quêtes d'Ordre au lieu de 5) · **guide public** = **cité** seulement.
+   → appliquer `resolveRushRoute` partout + **sélecteur d'Ordre** public. La **classe publique** (19 quêtes)
+   reste à trancher — cf. `RUSH-DEVELOPPEMENT-SUITE.md` §3.
 4. Saisie du contenu : 2 × 100 quêtes de cité + 30 quêtes d'Ordre — **outillée** : export JSON de la trame + import
    **dry-run** dans God (`S4-4`). Reste l'écriture éditoriale (textes réécrits, jamais recopiés).
-5. Supprimer `alignOrderReq` et `alignmentLevel` quand la bascule est terminée.
+5. **Dette de schéma** : drop de la colonne `alignOrderReq` quand la bascule est finie (migration ⇒ accord
+   explicite) ; **`alignmentLevel` reste** — c'est le palier du joueur, affiché par le profil et le panneau de guilde.
+6. **V-C** — purge des WebP corrompus + siphon des images « jamais devinées » (rattaché à U-3, « zéro DofusDB »).
+   **V-D** — couverture des ressources **391 → 584** (détail : `MAPPING-RUSH-SYLVESTRE.md` §4.5).
+   **V-H** — donjons « ocre à capturer » : état + ouverture de la fenêtre Ocre (détail : §H ci-dessous).
 
 ### G — Liaison Metamob **dans l'overlay** (fin du cul-de-sac)
-- **État mesuré** : l'overlay ocre affiche « rien à prévoir » puis, au refresh, « Compte Metamob non lié » (`RushOverlayOcreModal:125`) — impasse.
+- **État mesuré (avant V-G)** : l'overlay ocre affichait « rien à prévoir » puis, au refresh, « Compte Metamob non lié » (`RushOverlayOcreModal:125`) — impasse.
 - **Changement** : quand non lié, afficher la brique « non lié » + bouton **« Lier mon compte Metamob »** qui ouvre **le même composant que le dashboard** (`components/profile/metamob-link.tsx` + `linkOcreAccount` / `unlinkOcreAccount` / `forceRefreshOcre`) — overlay **et** guide interne.
-- **Dépendances** : — · **Statut** : **à faire**.
+- **Dépendances** : — · **Statut** : **livré (V-G)** — la modale propose le lien ; le chemin est couvert par `rush-overlay-ocre-link`.
 
 ### H — Donjons « ocre à capturer » : état + ouverture
 - **Existant** : tag `ocre_dungeon` (God, `isDungeonOcre`) · progression Metamob (`getOwnQuestMonsters`, `findMonsterOwnersAction`, `OcreProgressData`).
 - **Changement** : à côté du badge ocre → **« capturé ✓ / à capturer »** (tous les monstres du donjon possédés) ; chaque donjon ocre **cliquable** → fenêtre Ocre (`RushOverlayOcreModal` / `OcreProgressModal` / `DofusOcreMetamob`) ; non lié → ouvre **G**.
-- **Dépendances** : **G** · **Statut** : **à faire**.
+- **Dépendances** : **G** (**livré**) · **Statut** : **à faire**.
 
 ## 3. Ordre d'exécution
 

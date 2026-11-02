@@ -38,7 +38,7 @@ filtre interne), **S1-2 Brâkmarien = 0/102**. S2 et S3 non commencés. Le **blo
 quête) n'a que sa **fondation en base** (`GuideSequence.publicSlug` + `isPublished`, migration
 **288**) : aucune route n'existe.
 
-**Prochain lot : S1-2** — le seul vrai trou de contenu, et ses exports sont déjà produits.
+**Prochain lot de contenu : S1-2** — le seul vrai trou de contenu, et ses exports sont déjà produits. L'ordre **global** des chantiers reste `docs/ROADMAP.md`.
 
 | Ressource (dans `src/temp/trame-rush/`, **jamais commité**) | Contenu |
 |---|---|

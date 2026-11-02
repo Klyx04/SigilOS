@@ -24,13 +24,16 @@ type CoreResult = {
  * en fin de grâce (`scheduledDeletion` passée), protections super-admin + **compte technique
  * « Ancien membre »** ; tâches de 50 max/exécution.
  *
- * ⚠️ **Ce que « 90 j » veut dire (mesure du 01/11/2026)** : c'est un **âge minimum du compte**
- * (`User.createdAt`), pas une mesure d'inactivité — les sessions sont en **JWT** (`src/auth.ts`),
- * donc aucune date de dernière connexion n'existe en base. Conséquence assumée : un compte ancien
- * qui perd sa **dernière** guilde devient éligible dès que la grâce de ses profils expire (J+30),
- * même s'il s'est connecté la veille ; un compte récent est protégé, même abandonné. Le seul
- * avertissement visible est l'écran « Serveur Supprimé » (compte à rebours). Mesurer l'activité
- * réelle demanderait un champ (migration) — décision non prise à ce jour.
+ * ⚠️ **Ce que « 90 j » veut dire (mesure du 01/11/2026, corrigée le 02/11/2026)** : c'était un
+ * **âge minimum du compte** (`User.createdAt`), pas une mesure d'inactivité — les sessions sont en
+ * **JWT** (`src/auth.ts`), donc aucune date de dernière connexion n'existait en base. Conséquence
+ * assumée à l'époque : un compte ancien qui perd sa **dernière** guilde devenait éligible dès que
+ * la grâce de ses profils expirait (J+30), même s'il s'était connecté la veille.
+ *
+ * ✅ **D-A tranché le 02/11/2026** : `User.lastSeenAt` existe (`src/server/last-seen.ts`, écrit au
+ * plus 1×/h) et la sélection exige désormais `lastSeenAt` nul **ou** plus vieux que la rétention.
+ * Un compte vu récemment n'est donc **plus** purgé ; un compte jamais mesuré reste éligible
+ * (comportement historique, aucun réveil de comptes anciens).
  *
  * Les **événements de guilde survivent** au compte (décision user du 30/10/2026, option C) :
  * ils sont annulés s'ils étaient ouverts, rattachés au compte technique puis signés
@@ -54,6 +57,11 @@ export async function purgeOrphanAccountsCore(opts?: {
     const candidates = await db.user.findMany({
         where: {
             createdAt: { lt: cutoff },
+            // D-A (02/11/2026) : l'**inactivité réelle** prime sur l'âge seul. Sans cette garde,
+            // quelqu'un qui perd sa dernière guilde et se connecte la veille était effacé à J+30.
+            // `lastSeenAt` nul = compte antérieur à la colonne : traité comme inactif (pas de
+            // régression, aucun réveil).
+            OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: cutoff } }],
             profiles: { none: { status: "ACTIVE" } },
         },
         include: {

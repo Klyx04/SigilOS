@@ -261,6 +261,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 logger.error("[Auth] Failed to update encrypted account tokens:", { error: (e as Error).message });
             }
 
+            // D-A (02/11/2026) : une connexion est la mesure d'activité la plus fiable — elle est
+            // écrite sans passer par le throttle de `touchLastSeen` (une connexion est rare).
+            try {
+                await prisma.user.updateMany({ where: { id: user.id }, data: { lastSeenAt: new Date() } });
+            } catch (e) {
+                logger.warn("[Auth] lastSeenAt non écrit", { error: (e as Error).message });
+            }
+
             // Sync Discord nickname for each guild the user is in
             try {
                 const userProfiles = await prisma.userProfile.findMany({

@@ -77,6 +77,6 @@ export const AUDIT_ACTION_FILTER_OPTIONS: readonly {
     { value: "GUILDATON_UPDATE,GUILDATON_CSV_IMPORT,GUILDATON_SETTINGS_UPDATE", label: "🏰 Guildaton", category: "functional" },
     { value: "HELP_CREDIT_GIVEN", label: "🤝 Coups de main", category: "functional" },
     { value: "SUCCESS_SYNC", label: "🔄 Synchronisations", category: "functional" },
-    { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD", category: "functional" },
+    { value: "USER_GDPR_DELETE,GUILD_PURGED", label: "🗑️ Suppressions RGPD", category: "functional" },
     { value: "GOD_GUILD_WHITELIST,GOD_USER_PLATFORM_BAN,GOD_CONFIG_OVERRIDE,GOD_DATABASE_SYNC,GOD_MODULE_LOCK,GOD_MARKET_SETTINGS,GOD_NEWS_PUBLISH,GOD_DASHBOARD_ACCESS,GOD_MAINTENANCE_MODE,GOD_GUIDE_UPDATE,GOD_RUSH_UPDATE,GOD_RUSH_UI_UPDATE,GOD_QUEST_DATA_UPDATE,GOD_GAME_DATA_UPDATE,GOD_TICKET_ACTION,GOD_DOC_UPDATE,GOD_MARKET_RESYNC,GOD_POLL_EMBED_RESYNC,GOD_MARKET_IMAGE_REGEN,GOD_MARKET_MEDIA_PURGE", label: "🛡️ Actions God", category: "functional" },
 ];

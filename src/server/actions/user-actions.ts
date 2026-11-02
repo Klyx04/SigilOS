@@ -518,6 +518,15 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const session = await auth();
     if (!session?.user?.id) return { isAuthenticated: false } as any;
 
+    // D-A (02/11/2026) : mesure d'activité réelle, au plus une écriture par heure et par personne
+    // (throttle Redis). Best-effort — ne bloque jamais le contexte, ne jette jamais.
+    try {
+        const { touchLastSeen } = await import("@/server/last-seen");
+        await touchLastSeen(session.user.id);
+    } catch {
+        // jamais bloquant
+    }
+
     const guildId = targetGuildId || process.env.DISCORD_GUILD_ID || "";
     const redisKey = `user:ctx:${session.user.id}:${guildId}`;
 

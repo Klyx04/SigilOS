@@ -11,6 +11,12 @@
  *
  * Ce qui part avec : la config et **toutes** les relations en cascade (profils, événements, tickets,
  * marché…), la ligne `AllowedGuild`, les caches, et le bot quitte le serveur Discord.
+ *
+ * 🧾 **Preuve de suppression (D-B, 02/11/2026)** : avant d'effacer, on écrit une ligne
+ * `AuditLog` **plateforme** (`guildId: null`, `isGodLog: true`, action `GUILD_PURGED`) qui porte
+ * l'identité de la guilde disparue. Elle survit à la cascade, et suit la rétention du journal
+ * plateforme (90 j, `src/lib/audit-retention-policy.ts`) — on ne garde pas des données
+ * indéfiniment. Si la preuve ne peut pas être écrite, **la purge est annulée** (fail-closed).
  */
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
@@ -18,19 +24,28 @@ import { isGuildPurgeDue, GUILD_DELETION_GRACE_DAYS } from "@/lib/guild-deletion
 
 export type GuildPurgeResult =
     | { purged: true; guildId: string; name: string; discordGuildId: string }
-    | { purged: false; guildId: string; reason: "not_found" | "not_due" };
+    | { purged: false; guildId: string; reason: "not_found" | "not_due" | "proof_write_failed" };
 
 export async function purgeGuildById(
     guildConfigId: string,
-    options: { force?: boolean; now?: Date } = {},
+    options: {
+        force?: boolean;
+        now?: Date;
+        /** Qui efface : le cron (aucune session) ou God (session). Jamais deviné. */
+        actor?: { userId: string; name: string; source: "CRON" | "GOD" };
+    } = {},
 ): Promise<GuildPurgeResult> {
+    const now = options.now ?? new Date();
     const config = await db.guildConfig.findUnique({
         where: { id: guildConfigId },
         select: {
             id: true,
             name: true,
             discordGuildId: true,
+            ownerId: true,
+            createdAt: true,
             deletedAt: true,
+            deletionReason: true,
             scheduledDeletion: true,
         },
     });
@@ -39,12 +54,76 @@ export async function purgeGuildById(
         return { purged: false, guildId: guildConfigId, reason: "not_found" };
     }
 
-    if (!options.force && !isGuildPurgeDue(config, options.now ?? new Date())) {
+    if (!options.force && !isGuildPurgeDue(config, now)) {
         return { purged: false, guildId: config.id, reason: "not_due" };
+    }
+
+    // 0. La **preuve**, avant tout effacement (D-B, décision du 02/11/2026 : 90 jours, comme tout
+    //    le journal plateforme). Écrite en `AuditLog` **sans `guildId`** : elle survit donc à la
+    //    cascade qui emporte le journal de la guilde. Jamais via `createGodAuditLog` : il exige une
+    //    session, et le cron n'en a pas (l'audit de `account-retention` en cron est vide pour cette
+    //    raison). Échec d'écriture ⇒ **on n'efface pas** (fail-closed) : le cron repasse demain.
+    const attemptedAt = now.toISOString();
+    let proofId: string;
+    try {
+        const proof = await db.auditLog.create({
+            data: {
+                guildId: undefined,
+                isGodLog: true,
+                actorUserId: options.actor?.userId ?? "SYSTEM",
+                actorName: options.actor?.name ?? "SigilOS (cron guild-purge)",
+                action: "GUILD_PURGED",
+                targetType: "GUILD",
+                targetId: config.id,
+                oldValue: {
+                    name: config.name,
+                    discordGuildId: config.discordGuildId,
+                    ownerId: config.ownerId,
+                    createdAt: config.createdAt?.toISOString() ?? null,
+                    deletedAt: config.deletedAt?.toISOString() ?? null,
+                    deletionReason: config.deletionReason,
+                    scheduledDeletion: config.scheduledDeletion?.toISOString() ?? null,
+                },
+                newValue: {
+                    purged: false,
+                    attemptedAt,
+                    trigger: options.force ? "GOD_FORCE" : "CRON",
+                },
+                metadata: { source: "guild-purge-core", force: Boolean(options.force) },
+            },
+            select: { id: true },
+        });
+        proofId = proof.id;
+    } catch (error) {
+        logger.error("[guild-purge] preuve de suppression impossible — purge annulée", {
+            guildId: config.id,
+            err: error instanceof Error ? error.message : String(error),
+        });
+        return { purged: false, guildId: config.id, reason: "proof_write_failed" };
     }
 
     // 1. La config et tout ce qui en dépend (cascades Prisma déclarées sur chaque relation).
     await db.guildConfig.delete({ where: { id: config.id } });
+
+    // 1bis. La preuve devient « confirmée » — si l'update échoue, la ligne reste « tentative » :
+    //       elle ne ment jamais sur une suppression qui n'a pas eu lieu.
+    try {
+        await db.auditLog.update({
+            where: { id: proofId },
+            data: {
+                newValue: {
+                    purged: true,
+                    attemptedAt,
+                    confirmedAt: new Date().toISOString(),
+                    trigger: options.force ? "GOD_FORCE" : "CRON",
+                },
+            },
+        });
+    } catch (error) {
+        logger.warn("[guild-purge] preuve non confirmée", {
+            err: error instanceof Error ? error.message : String(error),
+        });
+    }
 
     // 2. La whitelist, sinon la guilde « fantôme » réapparaît dans la console God.
     await db.allowedGuild.deleteMany({ where: { discordGuildId: config.discordGuildId } });

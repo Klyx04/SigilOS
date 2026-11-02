@@ -533,12 +533,16 @@ export function GodResourcesClient({
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <Label className="text-xs font-bold">Handle (@unique)</Label>
+                                <Label className="text-xs font-bold">Identifiant Twitch (sans @)</Label>
                                 <Input
                                     value={editingCreator?.handle || ""}
                                     onChange={e => setEditingCreator(prev => ({ ...prev, handle: e.target.value }))}
                                     placeholder="Ex: huzounet"
                                 />
+                                <p className="text-caption text-muted-foreground">
+                                    Clé de synchronisation entre les guildes et login utilisé pour détecter les lives.
+                                    Le YouTube se règle par l'URL ci-dessous.
+                                </p>
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-bold">Couleur Hex</Label>

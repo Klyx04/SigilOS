@@ -5,12 +5,15 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Save, Megaphone, Bell, AlertTriangle, Users, ShieldAlert, Sparkles } from "lucide-react";
+import { Loader2, Save, Megaphone, Bell, AlertTriangle, Users, ShieldAlert, Sparkles, Send } from "lucide-react";
 import { toast } from "sonner";
 import { getSystemAnnouncementSettings } from "@/server/actions/system-settings-actions";
 import { saveSystemAnnouncementSettings } from "@/server/actions/announcement-actions";
+import { getLiveNotifySettings, saveLiveNotifySettings, sendLiveNotifyTest } from "@/server/actions/live-notify-actions";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
+import { getGuildRoles } from "@/server/actions/bonus-actions";
 import { DiscordChannelPicker } from "@/components/shared/DiscordChannelPicker";
+import { TwitchIcon } from "@/components/icons/brand-icons";
 import { UnsavedChangesGuard, isDirty } from "@/components/ui/unsaved-changes-guard";
 
 interface SystemSettingsClientProps {
@@ -21,6 +24,11 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
     const [channelId, setChannelId] = useState<string>("");
     const [newsEnabled, setNewsEnabled] = useState<boolean>(false);
     const [lifecycleChannelId, setLifecycleChannelId] = useState<string>("");
+    const [liveChannelId, setLiveChannelId] = useState<string>("");
+    const [livePingRoleIds, setLivePingRoleIds] = useState<string[]>([]);
+    const [youtubeEnabled, setYoutubeEnabled] = useState<boolean>(true);
+    const [guildRoles, setGuildRoles] = useState<Array<{ id: string; name: string; color: number }>>([]);
+    const [isTestingLive, setIsTestingLive] = useState(false);
     
     const [fullMissionConfig, setFullMissionConfig] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -30,6 +38,9 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
         channelId: string;
         newsEnabled: boolean;
         lifecycleChannelId: string;
+        liveChannelId: string;
+        livePingRoleIds: string[];
+        youtubeEnabled: boolean;
     };
     const [initialConfig, setInitialConfig] = useState<SystemConfigSnapshot | null>(null);
 
@@ -37,27 +48,46 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
         channelId,
         newsEnabled,
         lifecycleChannelId,
-    }), [channelId, newsEnabled, lifecycleChannelId]);
+        liveChannelId,
+        livePingRoleIds,
+        youtubeEnabled,
+    }), [channelId, newsEnabled, lifecycleChannelId, liveChannelId, livePingRoleIds, youtubeEnabled]);
 
     const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
 
     useEffect(() => {
         async function loadConfig() {
-            const [sysRes, missionRes] = await Promise.all([
+            const [sysRes, missionRes, liveRes, rolesRes] = await Promise.all([
                 getSystemAnnouncementSettings(guildId),
-                getMissionConfig(guildId)
+                getMissionConfig(guildId),
+                getLiveNotifySettings(guildId),
+                getGuildRoles(guildId),
             ]);
 
-            if ((sysRes.success && sysRes.data) || (missionRes.success && missionRes.data)) {
+            const live = liveRes.success && liveRes.data
+                ? liveRes.data
+                : { channelId: null, pingRoleIds: [], youtubeEnabled: true };
+
+            if ((sysRes.success && sysRes.data) || (missionRes.success && missionRes.data) || liveRes.success) {
                 const loaded: SystemConfigSnapshot = {
                     channelId: (sysRes.success && sysRes.data ? sysRes.data.systemNotifyChannelId : "") || "",
                     newsEnabled: missionRes.success && missionRes.data ? (missionRes.data.newsBroadcastEnabled || false) : false,
                     lifecycleChannelId: missionRes.success && missionRes.data ? (missionRes.data.lifecycleNotifyChannelId || "") : "",
+                    liveChannelId: live.channelId || "",
+                    livePingRoleIds: live.pingRoleIds,
+                    youtubeEnabled: live.youtubeEnabled ?? true,
                 };
                 setChannelId(loaded.channelId);
                 setNewsEnabled(loaded.newsEnabled);
                 setLifecycleChannelId(loaded.lifecycleChannelId);
+                setLiveChannelId(loaded.liveChannelId);
+                setLivePingRoleIds(loaded.livePingRoleIds);
+                setYoutubeEnabled(loaded.youtubeEnabled);
                 setInitialConfig(loaded);
+            }
+
+            if (rolesRes.success && Array.isArray(rolesRes.data)) {
+                setGuildRoles(rolesRes.data.map((role) => ({ id: role.id, name: role.name, color: role.color })));
             }
 
             if (missionRes.success && missionRes.data) {
@@ -85,12 +115,39 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                 lifecycleNotifyChannelId: lifecycleChannelId.trim() || null,
             });
 
-            if (sysResult.success && discordResult.success) {
+            const liveResult = await saveLiveNotifySettings(guildId, {
+                channelId: liveChannelId.trim() || null,
+                pingRoleIds: livePingRoleIds,
+                youtubeEnabled,
+            });
+
+            if (sysResult.success && discordResult.success && liveResult.success) {
                 setInitialConfig(currentConfig);
                 toast.success("Paramètres d'annonces mis à jour avec succès !");
             } else {
-                toast.error("Une erreur est survenue lors de la sauvegarde");
+                toast.error(liveResult.error || "Une erreur est survenue lors de la sauvegarde");
             }
+        });
+    };
+
+    const handleTestLive = () => {
+        setIsTestingLive(true);
+        void sendLiveNotifyTest(guildId)
+            .then((res) => {
+                if (res.success) toast.success("Embed de test envoyé dans le salon.");
+                else toast.error(res.error || "Envoi impossible.");
+            })
+            .finally(() => setIsTestingLive(false));
+    };
+
+    const toggleLivePingRole = (roleId: string) => {
+        setLivePingRoleIds((current) => {
+            if (current.includes(roleId)) return current.filter((id) => id !== roleId);
+            if (current.length >= 5) {
+                toast.error("5 rôles maximum.");
+                return current;
+            }
+            return [...current, roleId];
         });
     };
 
@@ -261,6 +318,99 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* 4. ANNONCES DE LIVE */}
+                <Card className="bg-surface/60 border-border overflow-hidden">
+                    <CardHeader className="pb-4 border-b border-border/50">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
+                            <span className="p-1.5 rounded-lg bg-[#9146FF]/15 text-[#9146FF]">
+                                <TwitchIcon className="h-4 w-4" />
+                            </span>
+                            Annonces de live Twitch
+                        </CardTitle>
+                        <CardDescription className="text-xs text-muted-foreground">
+                            Un seul message par live Twitch et par nouvelle vidéo YouTube : photo, jeu et spécialité, miniature, lien. Vérifié toutes les 5 minutes.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-5">
+                        <div className="space-y-2">
+                            <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                Salon des annonces
+                            </label>
+                            <DiscordChannelPicker
+                                guildId={guildId}
+                                value={liveChannelId}
+                                onChange={setLiveChannelId}
+                            />
+                            <p className="text-caption text-muted-foreground">
+                                Laissez vide pour désactiver les annonces.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                                <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground">
+                                    Rôles à ping
+                                </label>
+                                <span className="text-caption text-muted-foreground">{livePingRoleIds.length}/5</span>
+                            </div>
+                            {guildRoles.length === 0 ? (
+                                <p className="text-caption text-muted-foreground">
+                                    Aucun rôle lisible pour l'instant — laisse vide pour annoncer sans ping.
+                                </p>
+                            ) : (
+                                <div className="max-h-40 overflow-y-auto rounded-xl border border-border bg-surface/60 p-2 flex flex-wrap gap-1.5">
+                                    {guildRoles.map((role) => {
+                                        const active = livePingRoleIds.includes(role.id);
+                                        return (
+                                            <button
+                                                key={role.id}
+                                                type="button"
+                                                aria-pressed={active}
+                                                onClick={() => toggleLivePingRole(role.id)}
+                                                className={
+                                                    active
+                                                        ? "px-2.5 py-1 rounded-lg text-caption font-semibold border bg-[#9146FF]/20 border-[#9146FF]/40 text-foreground transition-colors"
+                                                        : "px-2.5 py-1 rounded-lg text-caption font-semibold border bg-elevated/40 border-border text-muted-foreground hover:text-foreground transition-colors"
+                                                }
+                                            >
+                                                {role.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            <p className="text-caption text-muted-foreground">
+                                Vide = annonce sans ping. Aucun envoi vers @everyone.
+                            </p>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-surface/60">
+                            <div className="space-y-0.5">
+                                <p className="text-xs font-semibold text-foreground">Nouvelles vidéos YouTube</p>
+                                <p className="text-caption text-muted-foreground">
+                                    Une annonce par vidéo, via le flux de la chaîne (aucun quota).
+                                </p>
+                            </div>
+                            <Switch checked={youtubeEnabled} onCheckedChange={setYoutubeEnabled} />
+                        </div>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleTestLive}
+                            disabled={isTestingLive || !liveChannelId}
+                            className="w-full h-10"
+                        >
+                            {isTestingLive ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                                <Send className="h-4 w-4 mr-2" />
+                            )}
+                            Envoyer un test
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Bouton Enregistrer */}

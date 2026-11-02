@@ -239,6 +239,7 @@
 | 53 | `passifs-objets` | **Effets passifs officiels** des objets (Dofus, légendaires, bénédictions, Prysmaradites) | **livré** le 23/10/2026 : ligne native **`effectId 1175`** → `diceNum` = sort passif → `GET /spells/{id}` ; **117 sorts** dans `src/data/item-passives.json` (`scripts/siphon-item-passives.mjs`), repli inventé **supprimé**, description officielle des Prysmaradites dans la bibliothèque (12 verrous) | 38 sorts DofusDB sans description (percepteurs, 2 Dofus) : rien d'inventé, à rejouer via le siphon | — (à créer) |
 | 54 | `supply-chain` | **Débloquer la porte de sécurité** : `zod` 3.25.76 → **4.6.7** (HIGH `GHSA-mrhx-c7xc-m3w5`) et `undici` 7.0.0 → **7.30.1** (HIGH `GHSA-4qv8-2p9j-2685`) | **livré** le 23/10/2026 (PR #1101) : override `undici` bumpé (transitif : discord.js, cheerio, jsdom), migration zod 3 → 4 sur **26 fichiers** (`errors` → `issues`, `required_error` → `message`, `z.record(clé, v)`, codes v4 dans `market/listing-schemas`, chemins `PropertyKey[]`, resolver du calendrier) — `security:audit` **franchie**, **5 099 ✓**, `tsc` 0, ESLint 0 | — (rien) | — | — |
 | 55 | `rush-restes` | Restes du 26/10 : **T-4** G7/G8/G9/O15 (composition visuelle, à juger à l'écran) et sort de `questDbIds` (écrit, seule la puce du studio God l'affiche) | mesuré le 26/10 | juger à l'écran puis trancher | — |
+| 56 | `live-discord` | Annonces de créateurs : live Twitch + nouvelle vidéo YouTube, salon + ping par guilde, une annonce par session/vidéo (cron 5 min) | **livré** le 02/11/2026 | — (rien) | `docs/MAINTENANCE.md` | — |
 
 
 ## 4. Décisions en attente (elles bloquent un rang)
@@ -266,7 +267,7 @@
 
 | ID | Chantier | Livré |
 |---|---|---|
-| `guildes-cycle-de-vie` | Suppression d'une guilde : interactions Discord inertes, bouton propriétaire « Zone sensible » (confirmation par le nom, archivage, échéance J+30), purge réelle par cron, écran « Serveur Supprimé » corrigé (plus de fausse déconnexion, compte à rebours), propriétaire resynchronisé au transfert Discord + compteur aligné sur les deux formes d'`ownerId` ; **reste à décider** : `docs/plans/AMORCE-GUILDES-CYCLE-DE-VIE.md` | 01/11/2026 |
+| `guildes-cycle-de-vie` | Suppression d'une guilde : bouton propriétaire, purge par cron, écran honnête, propriétaire resynchronisé ; **preuve de purge 90 j + activité réelle** le 02/11 ; décisions : `docs/plans/AMORCE-GUILDES-CYCLE-DE-VIE.md` | 02/11/2026 |
 | `limite-guildes` (LG) | Plafond de **2 guildes par utilisateur** : règle pure, migration, gardes G1→G5, écran + bandeau du portail, annonce du bot à l'invitation | 01/11/2026 |
 | `G-STAND`/`G-ORPH` | Stand-by des groupes **+ contenu fantôme** (fermeture auto, reprise de lead, anonymisation à la purge) | 30/10/2026 |
 | `RUSH-S1` | Siphon Tougli + trame Rush (outil hors dépôt : 530 quêtes, 99 donjons, export God) | 26/10/2026 |

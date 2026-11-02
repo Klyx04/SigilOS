@@ -38,7 +38,14 @@ filtre interne), **S1-2 Brâkmarien = 0/102**. S2 et S3 non commencés. Le **blo
 quête) n'a que sa **fondation en base** (`GuideSequence.publicSlug` + `isPublished`, migration
 **288**) : aucune route n'existe.
 
-**Prochain lot de contenu : S1-2** — le seul vrai trou de contenu, et ses exports sont déjà produits. L'ordre **global** des chantiers reste `docs/ROADMAP.md`.
+> **Mise à jour du 02/11/2026 (mesure en base locale)** : **S1-2 est importé** — **121** séquences
+> portent `alignReq = brakmarien` (15 d'Ordre + **106** de cité ; cible consolidée **102**, l'écart de 4
+> vient des étapes dédoublées/variantes et reste à réconcilier). Le trou de contenu n'est donc plus
+> là : ce qui manque est **la route** (cité → Ordre → classe) et **l'outillage God** pour la poser.
+> État, défauts mesurés et ordre des lots : `docs/plans/MODULE-RUSH-SYLVESTRE.md` § **1 bis**.
+
+**Prochain lot : `G0`** (outillage God de la route), puis `L1` → `L2` → `L3`. L'ordre **global** des
+chantiers reste `docs/ROADMAP.md`.
 
 | Ressource (dans `src/temp/trame-rush/`, **jamais commité**) | Contenu |
 |---|---|
@@ -172,7 +179,9 @@ voir §3 et `MAPPING-RUSH-SYLVESTRE.md`).
 | **S1-7** | **Prises anticipées** (49) : `takeEarly` sur la séquence cible | 49 | S |
 | **S2-3 bis** | **Étape à variantes EXCLUSIVES** (modèle, livré le 27/10/2026) : une étape, N quêtes dont **une seule** est jouée (étape 55 = 3 variantes, étape 66 = 2). Convention **sans migration** : tag `choice_group` dans `activityTags` ; règle pure `src/lib/rush-choice-groups.ts` (`getChoiceGroup`, `stepCounts`, `applyChoiceExclusivity`) ; l'**import** porte `choiceGroup` ; les **compteurs** comptent le groupe pour 1 ; le **serveur** (`setRushSequenceProgress`) dé-coche les sœurs et termine le bloc dès qu'une variante est cochée. **6 cas** dans `rush-choice-groups` + **1 cas** de vue. **Tag appliqué le 27/10/2026** sur les **5** variantes (2 déjà en base + 3 importées) : groupe **55** = Le magnanime · Les kamas résolvent tout · Assassinat effectué, groupe **66** = Les ordres sont-ils les ordres ? · On m'appelle l'Escargot — écriture **additive** et idempotente. **Vérifié en base** : le bloc « palier 60 » passe de **22 séquences à 20 étapes** (les 3 variantes comptent pour une) et cocher une variante suffit à terminer l'étape | — | M |
 
-**Reste à trancher** : côté **visiteur** (guide public), ni la cité ni la classe ne sont connues ⇒ les 19 quêtes de classe s'affichent toutes jusqu'à un **sélecteur de classe** public (même famille que le sélecteur d'Ordre).
+**Tranché le 02/11/2026** : côté **visiteur**, cité, Ordre et classe viendront du **compte visiteur**
+(authentification Discord) et non plus d'un sélecteur anonyme ; en attendant, les 19 quêtes de classe
+s'affichent tant que le compte n'a pas déclaré sa classe. Voir `docs/plans/PLAN-ESPACE-VISITEUR.md`.
 
 **Méthode de saisie** : partir de la liste ordonnée (index = `order`), pas du nom ; les **jumelles**
 God (cité 1→1, Ordre 1→3) servent de squelette, jamais de contenu (elles recopient les noms).

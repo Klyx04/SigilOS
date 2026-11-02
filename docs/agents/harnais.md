@@ -11,6 +11,39 @@ description: Harnais agentique — règles conditionnelles, skills, hooks, .clin
 >
 > **Dépôt public.** Aucun secret, aucun ID Discord, aucun chemin machine, aucune capture du poste.
 > Les réglages personnels (`.vscode/`, `%USERPROFILE%\.cline\skills`) ne sont pas versionnés.
+## 0. Amorce de session — le prompt à coller (générique)
+
+> **But** : ne plus écrire « fais le lot X » dans le premier message. L'agent lit **l'ordre** dans
+> `ROADMAP.md`, pas une consigne inventée. Une seule amorce, valable pour **tous** les chantiers.
+
+```text
+Reprise SigilOS.
+
+Lis, dans cet ordre :
+1. AGENTS.md (en entier).
+2. docs/ROADMAP.md : §0 « Reprise immédiate » (il dit le lot courant), puis — si §0 ne tranche pas —
+   la ligne du premier rang **non livré et non bloqué** des tables §1 → §2 → §3.
+3. docs/agents/activeContext.md : en-tête + les blocs qui concernent ce rang (jamais tout).
+4. Les plans durables cités par cette ligne (docs/plans/…).
+
+Ensuite, avant d'écrire du code :
+- mesure l'état réel (git log/status, base en lecture seule, grep) ;
+- réponds en 10 lignes : lot visé, déjà fait, manquant, fichiers, tests, migration oui/non ;
+- si une migration est nécessaire, arrête-toi et demande mon accord.
+
+Règles : 1 lot = 1 branche = 1 PR → dev · aucun fichier d'état nouveau · docs mises à jour là où
+elles vivent · `npm run test:run` + `npx tsc --noEmit` + `npm run lint` verts · `git status --short`
+propre à la fin.
+Si le rang est déjà livré (vérifie §5), prends le suivant sans me demander.
+```
+
+**Pourquoi ça marche** : l'ordre ne dépend pas de la mémoire de l'agent, il est **dans le fichier** ;
+« premier rang non livré » est vérifiable ; la mesure obligatoire et l'arrêt sur migration sont les deux
+garde-fous qui ont évité le plus d'erreurs. **Ce qu'elle ne dit pas** : aucun nom de chantier, aucune
+liste de fichiers — sinon l'amorce devient une deuxième feuille de route, qui se périme au premier merge.
+
+**Cas particulier (reprise d'un sujet déjà ouvert)** : ajouter **une** ligne, « on reprend `<chantier>` »,
+et rien d'autre. Si le rang et le sujet divergent, c'est le sujet qui gagne — mais il faut alors le dire.
 
 ## 1. Les quatre briques (et leur coût réel)
 

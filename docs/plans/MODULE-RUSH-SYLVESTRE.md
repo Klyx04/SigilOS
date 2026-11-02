@@ -69,6 +69,61 @@ Règle d'or : **1 étape = 1 lot = 1 branche = 1 PR → `dev`**.
 Le détail suit le préfixe `rush-*` (`Get-ChildItem tests/unit -Filter 'rush-*.test.ts'`). **Ajoutés le 26/10/2026** : `rush-quest-identity` (identité de quête + borne des `questDbIds`), `rush-order-codes` (référentiel des 6 Ordres),
 `rush-import` (plan de dry-run + verrou « l'import n'efface rien »), `rush-dofus-accent` (contraste 4,5:1 des 24 accents + accessibilité du filtre), `rush-dofus-progress` (progression d'un membre **quête par quête** dans la modale par Dofus).
 
+## 1 bis. État mesuré le 02/11/2026 (soir) — la route, surface par surface
+
+> Mesuré sur la **base locale** (5433, lecture seule) + le code. À re-vérifier en bêta avant conclusion.
+
+### 1 bis.1 Ce que chaque surface applique
+
+| Surface | Cité | Ordre | Classe |
+|---|---|---|---|
+| Dashboard interne | ✅ camp du **personnage sélectionné** (`page.tsx:175-180`) | ❌ **jamais passée** à `resolveRushRoute` | ✅ `resolveDofusClassId` (mule incluse) |
+| Guide public | ✅ sélecteur local (`sigilos_rush_route_<slug>`) | ❌ | ❌ **déclarée mais non passée** (19 quêtes de classe visibles) |
+| Overlay | ❌ **aucune route** (jalons bruts, `page.tsx:116`) | ❌ | ❌ mule → `classe: null` |
+
+Conséquence mesurée : **15** quêtes d'Ordre affichées au lieu de **5** (interne/public), **30** dans l'overlay.
+
+### 1 bis.2 Données en base (guide `rush-sylvestre`, 492 séquences)
+
+| Mesure | Valeur |
+|---|---|
+| `alignReq` | **236** : 100 cité bontarienne + 15 Ordres Bonta · 106 cité brâkmarienne + 15 Ordres Brâkmar |
+| Quêtes d'Ordre | **30** = 6 × 5, paliers **20/40/60/80/100**, **0 `prereq_text`** |
+| Quêtes de classe | **19** dans **1** bloc, `classReq` = 19 ids, un `order` 0…18 chacun |
+| `alignment_set` | **67** seulement (66 bontariens + 1 mal tagué), écrits `{type, camp, level: 1}` |
+
+### 1 bis.3 Défauts mesurés (chacun est un correctif, pas une opinion)
+
+1. **Deux vocabulaires `alignment_set`** : l'import écrit `camp`, le studio écrit `name`
+   (`RushSylvestreAdminClient.tsx:2703-2710`). `getAlignmentSet` exige `name`
+   (`rush-guide-utils.ts:289`) ⇒ **null sur les 67 lignes réelles** ⇒ bandeau « Alignement » public et
+   badge par quête **jamais rendus**, `applyRushAlignmentFromSequence` **no-op**
+   (`optimized-guide-actions.ts:1746,1782`). Les tests sont verts car leurs fixtures utilisent `name`.
+2. **`level` toujours `1`** sur les lignes importées : le palier réel est `alignmentCountForCamp`.
+3. **Reset d'alignement incomplet** : `resetAlignmentQuests` (`rush-alignment.ts:76`) retire les
+   `alignment_set` + cascade ⇒ **67 racines sur 236**. Le reset doit porter sur **`alignReq` (l'ancienne cité)**.
+4. **Chaîne d'Ordre absente** : 0 prérequis sur les 30 quêtes ⇒ à 100 quêtes de cité, le rang 5 se coche
+   sans les rangs 1→4.
+5. **Compteur gonflé** : `alignmentCountForCamp` compte aussi les quêtes d'Ordre (elles portent `alignReq`).
+6. **Ordre jamais filtré** ⇒ 15 quêtes au lieu de 5 ; overlay : les **deux** cités + les **6** Ordres.
+7. **Prop morte** : `hasNoClassDeclared` n'est jamais passée (`RushTimelineClient.tsx:2556`).
+
+### 1 bis.4 Outillage God manquant (gestes attendus, sans migration)
+
+| # | Geste | Pourquoi |
+|---|---|---|
+| **G1** | Barre **« Route » du bloc** : Cité / Ordre / Palier + « Appliquer au bloc » (+ effacer), compteur de quêtes | aujourd'hui c'est **quête par quête** (236 fois) |
+| **G2** | **Classe = liste fermée** (l'`<input>` libre devient un `<select>` des 19 ids + tableau 19 lignes) | une faute de frappe ⇒ quête **invisible** (fail-closed) |
+| **G3** | **Aperçu de route** (Cité / Ordre / Classe) qui passe par `resolveRushRoute` | voir ce que verra le joueur, sans publier |
+| **G4** | **Branches à 3 étages** (cité → Ordre → classe) + manques nommés | contrôle qualité de la saisie |
+
+### 1 bis.5 Ordre des lots Rush (le détail des fichiers est dans le plan du lot)
+
+`G0` (outillage God G1→G4) → `L1` (source d'alignement : `camp`/`name`, niveau calculé, reset par cité)
+→ `L2` (route cité→Ordre→classe sur interne + overlay, chaîne des rangs, changement d'Ordre) →
+`L3` (modale d'accueil refondue, composant partagé). Le **public authentifié** et l'annuaire par serveur
+sont un chantier distinct : `docs/plans/PLAN-ESPACE-VISITEUR.md`.
+
 ## 2. Chantiers du module
 
 > Format : **BESOIN → ÉTAT MESURÉ → CHANGEMENT → TESTS → DÉPENDANCES → STATUT**.
@@ -191,11 +246,9 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 1. ~~**Vue Branches à 2 étages** dans God~~ — **livrée** le 23/10/2026 (cible **100 / 102**). Organisation de la suite,
    blocs S0→S5 : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
 2. ~~**Édition** des champs de route sur une séquence **existante**~~ — **livrée** le 26/10/2026 (section « 7. Route »).
-3. **Route d'alignement sur les 3 surfaces** — état mesuré le 02/11/2026 : **overlay** = **aucune route**
-   (il reçoit les jalons bruts et affiche **les deux cités + les 3 Ordres**) · **guide interne** = `camp` + `classe`
-   appliqués, **Ordre non appliqué** (15 quêtes d'Ordre au lieu de 5) · **guide public** = **cité** seulement.
-   → appliquer `resolveRushRoute` partout + **sélecteur d'Ordre** public. La **classe publique** (19 quêtes)
-   reste à trancher — cf. `RUSH-DEVELOPPEMENT-SUITE.md` §3.
+3. **Route d'alignement sur les 3 surfaces** — état mesuré, défauts (7) et ordre des lots :
+   **§ 1 bis** (prochain : `G0` outillage God → `L1` → `L2` → `L3`). La **classe publique** n'est plus
+   « à trancher » : elle viendra du **compte visiteur** (`docs/plans/PLAN-ESPACE-VISITEUR.md`, V1/V2).
 4. Saisie du contenu : 2 × 100 quêtes de cité + 30 quêtes d'Ordre — **outillée** : export JSON de la trame + import
    **dry-run** dans God (`S4-4`). Reste l'écriture éditoriale (textes réécrits, jamais recopiés).
 5. **Dette de schéma** : drop de la colonne `alignOrderReq` quand la bascule est finie (migration ⇒ accord

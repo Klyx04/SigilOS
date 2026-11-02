@@ -51,4 +51,12 @@ describe("Member Lifecycle Calculations", () => {
         expect(leaderboard[0].retentionRate).toBe(93);
         expect(leaderboard[1].recruiterName).toBe("Obvious");
     });
+
+    it("utilise le terme Exclu au lieu de Banni dans les notifications de guilde", async () => {
+        const fs = await import("node:fs");
+        const path = await import("node:path");
+        const source = fs.readFileSync(path.resolve(__dirname, "../../src/server/actions/lifecycle-actions.ts"), "utf-8");
+        expect(source).toMatch(/BANNED:\s*"Membre Exclu"/);
+        expect(source).toMatch(/case\s*"BANNED":\s*statusLabel\s*=\s*"Exclu";/);
+    });
 });

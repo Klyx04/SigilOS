@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 02/11/2026 (suite 3) — **Alignement du libellé d'exclusion (carte Discord + menu admin)** — branche `fix-align-wording-exclusion`
+
+> **Demande user (verbatim)** : « si qqun, supprime un user de sigil : envoyez une carte discord comme pour archive / ya t_il une carte pour l'exclusion également ? quand on exclu qqun si il veut revenir , il tombe sur une page banissement , terme non approprié? » · « ok ».
+> **Mesures** : ① La suppression (`purgeMemberFromGuild` et `deleteProfileByAdmin`) envoyait déjà un embed Discord `🗑️ Membre Supprimé` ; ② L'exclusion (`recordDeparture`) envoyait un embed mais titré historiquement `🚫 Membre Banni (Discord)` avec statut `Banni` ; ③ L'écran d'atterrissage d'un membre exclu affichait déjà `Membre exclu`, mais le menu dropdown de l'ancienne table membres (`member-management-table.tsx`) affichait encore `Bannir (SigilOS)` et `Debannir & Reintegrer`.
+> **Fait** : ① Alignement du titre de notification de cycle de vie Discord : `Membre Exclu` et statut `Exclu` dans `src/server/actions/lifecycle-actions.ts` ; ② Alignement des libellés dans `member-management-table.tsx` : `Exclure` et `Réintégrer` ; ③ Test unitaire ajouté dans `tests/unit/member-lifecycle.test.ts`.
+> **Preuves** : `member-lifecycle.test.ts` **5/5** · `tsc --noEmit` 0 erreur.
+> **Reste / ops** : PR vers `dev`.
+> **Rotation** : bloc « 01/11/2026 (suite 4) — Une guilde désactivée n'écrit plus rien depuis Discord » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 02/11/2026 (suite) — **Almanax : bornage de la navigation jour précédent / suivant à la fenêtre de 30 jours** — branche `fix-almanax-navigation-window`
 
 > **Demande user (verbatim)** : « dommage de rendre un 404 au "suivant" dans almanax après 30 jours? » · « pk on affiche pas simplement tous les jours possible? c voulu? » · « en résuméil faut faire quoi » · « ok ».
@@ -33,7 +42,6 @@
 > **Reste / ops** : ① `prisma migrate deploy` (bêta puis prod, **2 migrations** additives) ; ② crontab VPS `*/5 * * * *` pour `/api/cron/live-watch` (**sans `%`**) ; ③ vérifier `TWITCH_CLIENT_ID`/`SECRET` **et** `YOUTUBE_API_KEY` en bêta/prod (la résolution `@handle → channel_id` coûte 100 unités, **une fois** par créateur, cache 30 j) ; ④ **D-C** (gel) et **D-E** (e-mail, fournisseur à choisir) restent ouverts, **D-D** (export) en long terme ; ⑤ l'audit d'`account-retention` en cron est **vide** (`createGodAuditLog` sans session) — lot séparé.
 > **Rotation** : bloc « 01/11/2026 — Accès lecture seule de l'assistant à la bêta + tri Sentry » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
 ## 📝 Session 01/11/2026 (suite 6) — **La purge à J+30 existe vraiment (cron `guild-purge`)** — branche `feat/guildes-purge-j30`
 
 > **Demande user (verbatim)** : « lot 3 je veux plier ».
@@ -43,7 +51,6 @@
 > **Reste / ops** : ajouter la ligne de crontab sur le VPS (`45 4 * * *`, **sans `%`**) ; `deploy-cd.sh beta` pour activer garde + bouton + cron ; chantier `guildes-cycle-de-vie` **clos** (registre ROADMAP).
 > **Rotation** : bloc « 31/10 (suite 13) — Journal : fin des faux événements Discord + inventaire de couverture » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
 ## 📝 Session 01/11/2026 (suite 5) — **Le propriétaire peut retirer sa guilde (Zone sensible)** — branche `feat/guildes-suppression-proprietaire`
 
 > **Demande user (verbatim)** : « où mettre le bouton ? dans pilotage pour le owner non ? » · « et si il est pas seul sur son discord ? et tout le monde est déco et supprimer instant de la bdd ? les token discord les datas etc ? ».
@@ -52,13 +59,3 @@
 > **Preuves** : `guild-deletion` **15/15** · `tsc` 0 · ESLint 0 erreur.
 > **Reste / ops** : **purge réelle à J+30** (consommer `scheduledDeletion`, table par table) ; restauration God déjà en place (`reactivateGuild`) ; contrôle navigateur du nouvel onglet à faire en bêta après `deploy-cd.sh beta`.
 > **Rotation** : bloc « 31/10 (suite 12) — Exclusions de membres : suppression définitive + message honnête » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 01/11/2026 (suite 4) — **Une guilde désactivée n'écrit plus rien depuis Discord** — branche `fix/discord-guildes-inactives`
-
-> **Demande user (verbatim)** : « comment un owner supprime sa guilde ? » · « quid de tous les embed discord toutes les interactions autour ? » · « go ».
-> **Mesures** : ① le soft-delete ferme le site (`user-actions.ts:648`) mais **pas Discord** : les messages restent, et la résolution par `discordGuildId` (`interactions/route.ts:146`) comme `internalCheckPermission` (`user-actions.ts:1859`) ne regardent **ni** `isActive` **ni** `deletedAt` ⇒ un bouton écrivait encore ; ② `GuildConfig.scheduledDeletion` n'est lu par **personne** (la purge J+30 est une promesse non tenue) ; ③ crons : 2 seuls itèrent des guildes (`daily-summary`, `mission-reset-notify`) et **les deux filtrent `isActive`** ⇒ rien à corriger ; ④ `Account.access_token`/`refresh_token` sont au niveau **compte**, jamais touchés par une suppression de guilde.
-> **Fait** : règle pure `src/lib/discord-guild-state.ts` (`active`/`inactive`/`absent`/`error`) + **garde unique** en tête de `/api/discord/interactions` : après la signature, avant tout dispatch (types 2/3/4/5), refus éphémère ; autocomplete ⇒ `type 8` choix vides ; lecture impossible ⇒ refus (fail-closed) ; **God non exempté** (il réactive d'abord) ; guilde absente ⇒ comportement inchangé. Verrou `tests/unit/discord-interaction-guild-state.test.ts`.
-> **Preuves** : `discord-interaction-guild-state` **9/9** · suite **570 fichiers / 5 977 tests ✓** · `tsc` 0.
-> **Reste / ops** : lot suivant = **bouton « Supprimer ma guilde »** (propriétaire live `guards.ts:98`, soft-delete + notification des admins), puis **purge J+30** ; `ROADMAP` : `limite-guildes` déplacé au **registre des chantiers clos** (une ligne) et rang 33 remplacé par `guildes-cycle-de-vie`.
-> **Rotation** : bloc « 31/10 (suite 11) — Carte raid du dashboard : déslop + visuel réel » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

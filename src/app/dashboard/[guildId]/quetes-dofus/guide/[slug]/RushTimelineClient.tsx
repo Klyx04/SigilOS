@@ -48,7 +48,6 @@ import { linkOcreAccount } from "@/server/actions/ocre-actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
-import { updateUserProfile } from "@/server/actions/profile-actions";
 import {
   toggleMilestoneProgress,
   resetMilestoneProgress,
@@ -70,14 +69,13 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { toOcrePanelData } from "@/lib/ocre-soul-stones";
-import { metierIds } from "@/lib/metiers";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
 import { safeImageUrl } from "@/lib/security";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
@@ -1426,10 +1424,14 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // On mémorise donc l'étape dans `sessionStorage` le temps de la navigation, et on
   // la reprend au montage suivant. La clé est consommée une seule fois.
   const wizardResumeKey=`rush-onboarding-resume-${guide.id}`;
-  const [wizardStep,setWizardStep]=useState<1|2|3|4>(1);
-  useEffect(()=>{const k=`rush-onboarding-${guide.id}`;let resumed=false;try{const raw=sessionStorage.getItem(wizardResumeKey);if(raw){sessionStorage.removeItem(wizardResumeKey);const n=Number(raw);if(n===2||n===3||n===4){setWizardStep(n as 2|3|4);setWizardOpen(true);resumed=true;}}}catch{}if(resumed)return;if(!localStorage.getItem(k)){const t=setTimeout(()=>setWizardOpen(true),800);return()=>clearTimeout(t);}},[guide.id,wizardResumeKey]);
-  const handleWizardStep=useCallback((s:1|2|3|4)=>{setWizardStep(s);try{sessionStorage.setItem(wizardResumeKey,String(s));}catch{}},[wizardResumeKey]);
-  const handleWizardClose=useCallback(()=>{localStorage.setItem(`rush-onboarding-${guide.id}`,"done");try{sessionStorage.removeItem(wizardResumeKey);}catch{}setWizardOpen(false);},[guide.id,wizardResumeKey]);
+  const wizardDismissKey=`rush-onboarding-dismissed-${guide.id}`;
+  const [wizardStep,setWizardStep]=useState<1|2|3>(1);
+  useEffect(()=>{const k=`rush-onboarding-${guide.id}`;let resumed=false;try{const raw=sessionStorage.getItem(wizardResumeKey);if(raw){sessionStorage.removeItem(wizardResumeKey);const n=Number(raw);if(n===2||n===3){setWizardStep(n as 2|3);setWizardOpen(true);resumed=true;}}}catch{}if(resumed)return;try{if(sessionStorage.getItem(wizardDismissKey))return;}catch{}if(!localStorage.getItem(k)){const t=setTimeout(()=>setWizardOpen(true),800);return()=>clearTimeout(t);}},[guide.id,wizardResumeKey,wizardDismissKey]);
+  const handleWizardStep=useCallback((s:1|2|3)=>{setWizardStep(s);try{sessionStorage.setItem(wizardResumeKey,String(s));}catch{}},[wizardResumeKey]);
+  const handleWizardClose=useCallback(()=>{localStorage.setItem(`rush-onboarding-${guide.id}`,"done");try{sessionStorage.removeItem(wizardResumeKey);sessionStorage.removeItem(wizardDismissKey);}catch{}setWizardOpen(false);},[guide.id,wizardResumeKey,wizardDismissKey]);
+  // Fermer sans marquer « vu » : la modale ne revient pas dans cette session (pas de boucle
+  // des 800 ms), mais reste proposée à la prochaine visite.
+  const handleWizardDismiss=useCallback(()=>{try{sessionStorage.setItem(wizardDismissKey,"1");sessionStorage.removeItem(wizardResumeKey);}catch{}setWizardOpen(false);},[wizardDismissKey,wizardResumeKey]);
   // Changer de personnage depuis l'étape 1 : on note qu'il faudra reprendre à l'étape 2.
   const handleWizardSelectCharacter=useCallback((c:string)=>{if(c===selectedCharacter)return;try{sessionStorage.setItem(wizardResumeKey,"2");}catch{}router.push(`?character=${encodeURIComponent(c)}`);},[selectedCharacter,router,wizardResumeKey]);
   // (effets « Reprendre ? » déplacés après la dérivation du repère principal — voir plus bas)
@@ -1548,10 +1550,8 @@ const timelineItems=useMemo(()=>{
   const tMs=contentMilestones.length;const completedCount=contentMilestones.filter(ms=>completedIds.has(ms.id)).length;
   const overallPercent=tMs>0?Math.round((completedCount/tMs)*100):0;
 
-  // Métiers requis agrégés sur tout le guide (tags `metier`) — pour la modale de lancement.
-  const metiersRequires = useMemo(() => getGuideMetiersRequires(milestones as any), [milestones]);
-  // Ids de métiers déjà déclarés sur le profil (pour savoir si un métier requis est couvert).
-  const metiersDeclares = useMemo(() => metierIds((currentUserProfile as any)?.metiers), [currentUserProfile]);
+  // Métiers requis et déclaration : retirés de la modale d'accueil (demande du 02/11 :
+  // « métiers requis inutile à lister ») — plus aucune donnée agrégée pour ce panneau.
   const handleResetAlignment = useCallback(async () => {
     try {
       const res = await resetRushAlignment(guildId, effectiveAltPseudo);
@@ -1559,14 +1559,6 @@ const timelineItems=useMemo(()=>{
       else { toast.error((res as any).error || "Erreur"); }
     } catch { toast.error("Erreur réseau"); }
   }, [guildId, effectiveAltPseudo, router]);
-  const handleDeclareMetier = useCallback(async (name: string, level: number) => {
-    try {
-      const current = Array.isArray((currentUserProfile as any)?.metiers) ? (currentUserProfile as any).metiers : [];
-      const res = await updateUserProfile({ guildId, metiers: [...current, { name, level }] } as any);
-      if ((res as any).success) { toast.success(`Métier ${name} déclaré`); router.refresh(); }
-      else { toast.error((res as any).error || "Erreur"); }
-    } catch { toast.error("Erreur réseau"); }
-  }, [guildId, currentUserProfile, router]);
   const [resettingCharId, setResettingCharId] = useState<string | null>(null);
   const handleResetCharacter = useCallback(async (id: string) => {
     setResettingCharId(id);
@@ -2565,7 +2557,7 @@ const timelineItems=useMemo(()=>{
       document.body
     )}
     {djModal.open&&<DjPostCreateModal isOpen={true} onClose={()=>setDjModal({open:false})} onCreated={()=>{}} guildId={guildId} initialDungeonId={djModal.dungeonId} initialQuestName={djModal.questName}/>}
-    {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} initialStep={wizardStep} onStepChange={handleWizardStep} hasNoClassDeclared={!selectedClassDeclared} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={handleWizardSelectCharacter} activeMembers={guildProgress.map(p=>{const tc=contentMilestones.length;const mp=guildProgress.filter(x=>x.profileId===p.profileId);const d=mp.filter(x=>x.isCompleted).length;const pct=tc>0?Math.round((d/tc)*100):0;return{profileId:p.profileId,userName:p.userName,userAvatar:p.userAvatar,percent:pct};})} metamobPseudo={currentUserProfile?.metamobPseudo} onOpenMetamobLink={() => setMetamobLinkOpen(true)} currentAlignment={resolvedCharacterInfo.alignment} currentAlignmentOrder={resolvedCharacterInfo.alignmentOrder} onResetAlignment={handleResetAlignment} metiersRequires={metiersRequires} metiersDeclares={metiersDeclares} onDeclareMetier={handleDeclareMetier} launchConfig={rushUIConfig?.launch} onResetCharacter={handleResetCharacter} resettingId={resettingCharId}/>}
+    {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} onDismiss={handleWizardDismiss} initialStep={wizardStep} onStepChange={handleWizardStep} hasNoClassDeclared={!selectedClassDeclared} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={handleWizardSelectCharacter} metamobPseudo={currentUserProfile?.metamobPseudo} onOpenMetamobLink={() => setMetamobLinkOpen(true)} currentAlignment={resolvedCharacterInfo.alignment} currentAlignmentOrder={resolvedCharacterInfo.alignmentOrder} onResetAlignment={handleResetAlignment} launchConfig={rushUIConfig?.launch} onResetCharacter={handleResetCharacter} resettingId={resettingCharId}/>}
     {continueModalOpen&&bookmarkedMsId&&(()=>{const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;return<div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60" onClick={()=>setContinueModalOpen(false)}><div className="bg-surface border border-border rounded-[6px] p-5 max-w-sm w-full mx-4 " onClick={e=>e.stopPropagation()}><div className="flex items-center gap-3 mb-3"><Flag className="w-5 h-5 text-success"/><h3 className="text-sm font-semibold text-foreground" style={{fontFamily:"var(--font-cinzel)"}}>Reprendre ?</h3></div><p className="text-xs text-muted-foreground mb-4">Tu étais à <strong className="text-foreground">{ms.title}</strong>.</p><div className="flex gap-2"><button onClick={()=>{ensureChapterFor(msToChapter.get(bookmarkedMsId));const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-[4px] bg-success text-success-foreground text-caption font-medium">Reprendre</button><button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-[4px] bg-elevated hover:bg-muted text-muted-foreground text-caption font-medium">Plus tard</button></div></div></div>;})()}
     {resetModalOpen&&<ResetConfirmModal
       isOpen={resetModalOpen}

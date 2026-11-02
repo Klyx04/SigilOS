@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,17 +12,14 @@ import {
   Sparkles,
   ExternalLink,
   Check,
-  Hammer,
   Link2,
   RotateCcw,
-  CheckCircle2,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { ALIGNMENTS, getClass, ORDERS } from "@/lib/dofus-assets";
-import { getMetierIconPath } from "@/lib/rush-guide-utils";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
-import { MemberAvatar } from "@/components/shared/member-avatar";
 
 /**
  * Modale d'accueil du Rush — **DA « Carnet de campagne »** (L3, 02/11/2026).
@@ -44,26 +41,19 @@ type CharacterOption = {
   level?: number;
 };
 
-type ActiveMember = {
-  profileId: string;
-  userName: string;
-  userAvatar?: string;
-  dofusClass?: string;
-  currentMilestoneTitle?: string;
-  percent: number;
-};
-
 type Props = {
   isOpen: boolean;
+  /** Termine le parcours (marque l'accueil comme vu). */
   onClose: () => void;
+  /** Ferme sans marquer comme vu (croix, Échap, fond) — réouverture possible plus tard. */
+  onDismiss?: () => void;
   guildId: string;
   characters: CharacterOption[];
   selectedCharacter: string;
   onSelectCharacter: (charId: string) => void;
-  activeMembers: ActiveMember[];
   /** Étape d'ouverture : le dashboard reprend le parcours après un changement de personnage. */
-  initialStep?: 1 | 2 | 3 | 4;
-  onStepChange?: (step: 1 | 2 | 3 | 4) => void;
+  initialStep?: 1 | 2 | 3;
+  onStepChange?: (step: 1 | 2 | 3) => void;
   /** Le personnage SÉLECTIONNÉ n'a pas de classe : les 19 quêtes de classe sont masquées. */
   hasNoClassDeclared?: boolean;
   /** Préparation — liaison Metamob déjà effectuée ? */
@@ -74,12 +64,6 @@ type Props = {
   currentAlignmentOrder?: string | null;
   /** Préparation — réinitialise l'alignement courant (action existante). */
   onResetAlignment?: () => void;
-  /** Préparation — métiers requis agrégés sur le guide (id canonique). */
-  metiersRequires?: { id: string; name: string; level: number }[];
-  /** Préparation — ids de métiers déjà déclarés sur le profil (slugs). */
-  metiersDeclares?: string[];
-  /** Préparation — déclare un métier manquant sur le profil (updateUserProfile). */
-  onDeclareMetier?: (name: string, level: number) => void;
   /** Options de la modale de lancement (éditées côté GOD). */
   launchConfig?: { showMetamob: boolean; showResetAlignment: boolean; showMetiers: boolean };
   /** Réinitialise la progression d'un AUTRE personnage (id = "PRINCIPAL" | pseudo mule). */
@@ -106,11 +90,11 @@ const SMALL_DANGER =
 export function RushOnboardingWizardModal({
   isOpen,
   onClose,
+  onDismiss,
   guildId,
   characters,
   selectedCharacter,
   onSelectCharacter,
-  activeMembers,
   initialStep = 1,
   onStepChange,
   hasNoClassDeclared = false,
@@ -119,27 +103,35 @@ export function RushOnboardingWizardModal({
   currentAlignment = null,
   currentAlignmentOrder = null,
   onResetAlignment,
-  metiersRequires = [],
-  metiersDeclares = [],
-  onDeclareMetier,
   launchConfig = { showMetamob: true, showResetAlignment: true, showMetiers: true },
   onResetCharacter,
   resettingId = null,
 }: Props) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(initialStep);
+  const [step, setStep] = useState<1 | 2 | 3>(initialStep);
   // L'étape est remontée au dashboard : il la mémorise le temps d'un changement de
   // personnage (le guide est remonté par `key={character}`), sinon la modale se fermait.
-  const go = (next: 1 | 2 | 3 | 4) => {
+  const go = (next: 1 | 2 | 3) => {
     setStep(next);
     onStepChange?.(next);
   };
+  const dismiss = onDismiss ?? onClose;
+
+  // Échap ferme la modale : sans ça, un joueur bloqué devait recharger la page (F5).
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        dismiss();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen, dismiss]);
 
   if (!isOpen) return null;
 
   const currentSelectedChar = characters.find((c) => c.id === selectedCharacter) || characters[0];
-  const uniqueActiveMembers = Array.from(
-    new Map(activeMembers.map((m) => [m.profileId || m.userName, m])).values()
-  );
 
   // Libellés lisibles : le profil peut porter « Brâkmarien » (casse, accents) et l'Ordre
   // son id court (« vaillant »). Sans normalisation, la modale afficherait des ids bruts.
@@ -156,32 +148,31 @@ export function RushOnboardingWizardModal({
       : null;
 
   const stepTitle =
-    step === 1
-      ? "Votre personnage"
-      : step === 2
-        ? "Préparation"
-        : step === 3
-          ? "Les membres"
-          : "Prêt à partir";
+    step === 1 ? "Votre personnage" : step === 2 ? "Préparation" : "Prêt à partir";
   const stepHint =
     step === 1
       ? "Choisissez le personnage qui portera cette progression (principal ou mule)."
       : step === 2
-        ? "Metamob, alignement et métiers : ce qui se règle avant de rusher."
-        : step === 3
-          ? "Où en sont vos coéquipiers sur ce guide."
-          : "Tout est en place, la timeline peut s'ouvrir.";
+        ? "Metamob et alignement : ce qui se règle avant de rusher."
+        : "Tout est en place, la timeline peut s'ouvrir.";
 
   // Portail vers `document.body` : aucun ancêtre (transform, `overflow-hidden`) ne peut
-  // rogner la modale — mesuré le 02/11/2026 : dans une fenêtre basse, le pied sortait de
-  // la zone visible et « Suivant » devenait inatteignable. La hauteur est en plus FIXE
-  // (`92dvh` plafonnée à 42 rem) : l'en-tête et le pied sont `shrink-0`, seul le corps
-  // défile — le bouton d'action est donc toujours visible.
+  // rogner la modale. La hauteur suit le CONTENU et n'est plafonnée que par l'écran :
+  // en-tête et pied sont `shrink-0`, seul le corps défile — le pied reste donc visible
+  // (mesure du 02/11/2026 : une hauteur forcée laissait un vide et poussait le pied).
   if (typeof document === "undefined") return null;
 
   return createPortal(
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-4">
+        {/* Fond cliquable : ferme la modale (un joueur bloqué ne doit jamais recharger). */}
+        <button
+          type="button"
+          aria-label="Fermer l'accueil du Rush"
+          onClick={dismiss}
+          className="absolute inset-0 cursor-default"
+          tabIndex={-1}
+        />
         <motion.div
           initial={{ opacity: 0, scale: 0.98, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -190,9 +181,9 @@ export function RushOnboardingWizardModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="rush-onboarding-title"
-          className="rush-carnet-theme rush-carnet rush-carnet-frame relative flex h-[92vh] h-[92dvh] max-h-[42rem] w-full max-w-xl flex-col overflow-hidden rounded-[10px] bg-surface text-foreground"
+          className="rush-carnet-theme rush-carnet rush-carnet-frame relative flex max-h-[calc(100dvh_-_1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-[10px] bg-surface text-foreground"
         >
-          {/* ══ EN-TÊTE — serif, filet d'or, quatre repères d'étape ══ */}
+          {/* ══ EN-TÊTE — serif, filet d'or, trois repères d'étape ══ */}
           <header className="relative shrink-0 border-b border-border-strong px-5 pb-4 pt-5">
             <div
               aria-hidden
@@ -201,26 +192,36 @@ export function RushOnboardingWizardModal({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-                  Carnet de campagne · {step}/4
+                  Carnet de campagne · {step}/3
                 </p>
                 <h2 id="rush-onboarding-title" className="mt-1 font-serif text-lg font-semibold leading-tight">
                   {stepTitle}
                 </h2>
                 <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{stepHint}</p>
               </div>
-              <div className="flex shrink-0 items-center gap-1.5 pt-1" aria-hidden>
-                {[1, 2, 3, 4].map((s) => (
-                  <span
-                    key={s}
-                    className={
-                      s === step
-                        ? "h-1.5 w-5 rounded-full bg-accent"
-                        : s < step
-                          ? "h-1.5 w-1.5 rounded-full bg-accent/50"
-                          : "h-1.5 w-1.5 rounded-full bg-border"
-                    }
-                  />
-                ))}
+              <div className="flex shrink-0 items-center gap-2 pt-1">
+                <div className="flex items-center gap-1.5" aria-hidden>
+                  {[1, 2, 3].map((s) => (
+                    <span
+                      key={s}
+                      className={
+                        s === step
+                          ? "h-1.5 w-5 rounded-full bg-accent"
+                          : s < step
+                            ? "h-1.5 w-1.5 rounded-full bg-accent/50"
+                            : "h-1.5 w-1.5 rounded-full bg-border"
+                      }
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={dismiss}
+                  aria-label="Fermer l'accueil du Rush"
+                  className="rounded-[4px] p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent/60"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </header>
@@ -325,6 +326,13 @@ export function RushOnboardingWizardModal({
                     </ul>
                   </div>
                 )}
+
+                {/* Actions DANS l'étape : même bloc que les panneaux, donc toujours rendues. */}
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button type="button" onClick={() => go(2)} className={PRIMARY}>
+                    Suivant <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -376,117 +384,19 @@ export function RushOnboardingWizardModal({
                   </div>
                 )}
 
-                {launchConfig.showMetiers && (
-                  <div className={`${PANEL} px-3 py-2.5`}>
-                    <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      <Hammer className="h-3 w-3" /> Métiers requis
-                    </p>
-                    {metiersRequires.length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground">Aucun métier requis détecté sur ce guide.</p>
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {metiersRequires.map((m) => {
-                          const declared = metiersDeclares.includes(m.id);
-                          return (
-                            <li
-                              key={m.id}
-                              className="flex items-center justify-between gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5"
-                            >
-                              <span className="flex min-w-0 items-center gap-2">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={getMetierIconPath(m.name)}
-                                  alt=""
-                                  className="h-6 w-6 shrink-0 rounded-[3px] object-contain"
-                                />
-                                <span className="min-w-0">
-                                  <span className="block truncate text-[11px] font-semibold text-foreground">
-                                    {m.name} <span className="font-mono text-muted-foreground">Niv. {m.level}</span>
-                                  </span>
-                                  <span className="block text-[10px] text-muted-foreground">
-                                    {declared ? "Déclaré sur votre profil" : "Non déclaré"}
-                                  </span>
-                                </span>
-                              </span>
-                              {declared ? (
-                                <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-label="Déclaré" />
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => onDeclareMetier?.(m.name, m.level)}
-                                  className={SMALL_PRIMARY}
-                                >
-                                  Déclarer
-                                </button>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                )}
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button type="button" onClick={() => go(1)} className={GHOST}>
+                    <ArrowLeft className="h-3.5 w-3.5" /> Précédent
+                  </button>
+                  <button type="button" onClick={() => go(3)} className={PRIMARY}>
+                    Suivant <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             )}
 
-
-            {/* ── ÉTAPE 3 : les membres ─────────────────────────────────────── */}
+            {/* ── ÉTAPE 3 : le départ ───────────────────────────────────────── */}
             {step === 3 && (
-              <div className="space-y-3">
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  {uniqueActiveMembers.length > 0
-                    ? `${uniqueActiveMembers.length} membre${uniqueActiveMembers.length > 1 ? "s" : ""} de guilde ${
-                        uniqueActiveMembers.length > 1 ? "sont" : "est"
-                      } sur ce Rush :`
-                    : "Vous êtes le premier de la guilde à vous lancer sur ce Rush."}
-                </p>
-
-                {uniqueActiveMembers.length > 0 ? (
-                  <ul className="max-h-60 space-y-1.5 overflow-y-auto pr-1">
-                    {uniqueActiveMembers.map((m) => (
-                      <li
-                        key={m.profileId || m.userName}
-                        className={`${PANEL} flex items-center justify-between gap-3 px-3 py-2`}
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                            <MemberAvatar
-                              src={m.userAvatar}
-                              name={m.userName}
-                              alt={m.userName}
-                              fallbackClassName="text-[10px] font-semibold text-muted-foreground"
-                            />
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate text-xs font-semibold text-foreground">{m.userName}</span>
-                            <span className="block truncate text-[10px] text-muted-foreground">
-                              {m.currentMilestoneTitle ? `Étape : ${m.currentMilestoneTitle}` : "En cours"}
-                            </span>
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-right">
-                          <span className="text-xs font-semibold text-accent">{m.percent}%</span>
-                          <span className="mt-1 block h-1 w-16 overflow-hidden rounded-full bg-muted">
-                            <span className="block h-full rounded-full bg-accent" style={{ width: `${m.percent}%` }} />
-                          </span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="rounded-[6px] border border-dashed border-border px-4 py-6 text-center">
-                    <Sparkles className="mx-auto mb-2 h-7 w-7 text-accent/70" />
-                    <p className="text-xs font-semibold text-foreground">Soyez le pionnier du Rush</p>
-                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                      Votre progression apparaîtra ici pour guider les membres de la guilde.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── ÉTAPE 4 : le départ ───────────────────────────────────────── */}
-            {step === 4 && (
               <div className="space-y-4 py-2 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-accent/40 bg-accent/10 text-accent">
                   <CheckCircle className="h-8 w-8" />
@@ -508,30 +418,18 @@ export function RushOnboardingWizardModal({
                     <li>· Changer de cité ou d&apos;Ordre décoche la branche concernée (le tronc commun reste).</li>
                   </ul>
                 </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button type="button" onClick={() => go(2)} className={GHOST}>
+                    <ArrowLeft className="h-3.5 w-3.5" /> Précédent
+                  </button>
+                  <button type="button" onClick={onClose} className={PRIMARY}>
+                    Lancer mon Rush <Sparkles className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
-
-          {/* ══ PIED — un seul bouton d'action à la fois ══ */}
-          <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border-strong bg-surface/60 px-5 py-3">
-            {step > 1 ? (
-              <button type="button" onClick={() => go((step - 1) as 1 | 2 | 3 | 4)} className={GHOST}>
-                <ArrowLeft className="h-3.5 w-3.5" /> Précédent
-              </button>
-            ) : (
-              <span />
-            )}
-
-            {step < 4 ? (
-              <button type="button" onClick={() => go((step + 1) as 1 | 2 | 3 | 4)} className={PRIMARY}>
-                Suivant <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              <button type="button" onClick={onClose} className={PRIMARY}>
-                Lancer mon Rush <Sparkles className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </footer>
         </motion.div>
       </div>
     </AnimatePresence>,

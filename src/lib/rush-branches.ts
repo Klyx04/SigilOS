@@ -14,7 +14,7 @@
  * filtre, la cible 100/102 est atteinte à tort).
  */
 
-import { ORDERS } from "@/lib/dofus-assets";
+import { DOFUS_CLASSES, ORDERS } from "@/lib/dofus-assets";
 import { normalizeAlignmentCamp, type RushAlignmentCamp } from "@/lib/rush-route";
 import { RUSH_ORDER_CODES, normalizeOrderCode } from "@/lib/rush-order-codes";
 
@@ -46,6 +46,8 @@ export type RushBranchSequence = {
     alignReq?: string | null;
     alignOrderCode?: string | null;
     alignLevelReq?: number | null;
+    /** Id de classe (`feca`, `osamodas`…) — quêtes de classe du 3ᵉ étage. */
+    classReq?: string | null;
 };
 
 export type RushBranchPair = {
@@ -242,4 +244,97 @@ export function buildRushBranches(sequences: readonly RushBranchSequence[]): Rus
 /** Emplacements d'Ordre vides au total (cible : 6 Ordres × 5 paliers). */
 export function countMissingOrderSlots(view: RushBranchesView): number {
     return view.camps.reduce((total, camp) => total + camp.orders.reduce((n, order) => n + order.missing, 0), 0);
+}
+
+// ---------------------------------------------------------------------------
+// 3ᵉ étage — classes (G4, 02/11/2026)
+// ---------------------------------------------------------------------------
+
+export type RushClassBranch = {
+    /** Id de classe écrit dans `GuideSequence.classReq` (`feca`, `osamodas`…). */
+    id: string;
+    name: string;
+    icon: string;
+    /**
+     * Quêtes de cette classe. **0 = manque** ; **> 1 = doublon** (défaut de saisie
+     * signalé, jamais masqué : la route n'en rendrait qu'une).
+     */
+    sequences: RushBranchSequence[];
+};
+
+export type RushClassBranchesView = {
+    /** Classes jouables attendues (19 au 27/10/2026). */
+    target: number;
+    /** Classes qui portent au moins une quête. */
+    present: number;
+    missing: number;
+    classes: RushClassBranch[];
+    /** `classReq` inconnu (faute de frappe, libellé `Féca`, ancien id `osa`) : signalé. */
+    unknown: RushBranchSequence[];
+    /** Quête de classe qui porte **aussi** une cité, un Ordre ou un palier : elle fausserait la série. */
+    misplaced: RushBranchSequence[];
+};
+
+/**
+ * Range les **quêtes de classe** — le 3ᵉ étage de la route (cité → Ordre → classe).
+ *
+ * Cibles mesurées : **19** quêtes de classe, une par classe jouable. Ce que ce verrou
+ * interdit :
+ *  · rattacher d'office une valeur inconnue — la route (`isSequenceOnRoute`) la masque
+ *    en fail-closed, donc le joueur ne la verrait jamais : elle doit être **nommée** ici ;
+ *  · compter deux quêtes pour une même classe sans le dire (`sequences.length > 1`) ;
+ *  · laisser une quête de classe porter une cité, un Ordre ou un palier : elle compterait
+ *    dans la série de cité (cible 100/102) ou serait verrouillée par
+ *    `isSequenceBlockedByPrereqs` (`alignLevelReq`), qui compte des quêtes de cité.
+ *
+ * Règle pure : ne lit rien, n'écrit rien.
+ */
+export function buildRushClassBranches(
+    sequences: readonly RushBranchSequence[],
+): RushClassBranchesView {
+    const byClass = new Map<string, RushBranchSequence[]>();
+    const unknown: RushBranchSequence[] = [];
+    const misplaced: RushBranchSequence[] = [];
+
+    for (const seq of sequences) {
+        const raw = (seq.classReq ?? "").trim();
+        if (!raw) continue; // quête commune / cité / Ordre : hors 3ᵉ étage
+
+        // Comparaison stricte sur l'id (casse ignorée), comme la route : un libellé
+        // (« Féca ») ou un ancien id (« osa ») n'est PAS une classe reconnue.
+        const id = raw.toLowerCase();
+        const known = DOFUS_CLASSES.some((c) => c.id === id);
+        if (!known) {
+            unknown.push(seq);
+            continue;
+        }
+        if (
+            (seq.alignReq ?? "").trim() ||
+            (seq.alignOrderCode ?? "").trim() ||
+            seq.alignLevelReq != null
+        ) {
+            misplaced.push(seq);
+        }
+        const list = byClass.get(id) ?? [];
+        list.push(seq);
+        byClass.set(id, list);
+    }
+
+    const classes: RushClassBranch[] = DOFUS_CLASSES.map((c) => ({
+        id: c.id,
+        name: c.name,
+        icon: c.icon,
+        sequences: sortSequences(byClass.get(c.id) ?? []),
+    }));
+
+    const present = classes.filter((c) => c.sequences.length > 0).length;
+
+    return {
+        target: DOFUS_CLASSES.length,
+        present,
+        missing: classes.length - present,
+        classes,
+        unknown: sortSequences(unknown),
+        misplaced: sortSequences(misplaced),
+    };
 }

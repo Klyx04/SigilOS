@@ -88,6 +88,21 @@ async function requireRushAccess() {
 }
 
 /**
+ * Guard des **écritures de masse** du Rush : accès brique + rate limit Redis.
+ *
+ * Même patron que `requireGuideWriteAccess` : une action qui touche 100 quêtes d'un
+ * coup ne peut pas être déclenchée en boucle par un client. Fail-closed (Redis en
+ * échec ⇒ refus), jamais une variable en mémoire.
+ */
+async function requireRushWriteAccess(scope: string, limit = 12, windowMs = 60_000) {
+  await requireRushAccess();
+  const session = await auth();
+  const uid = session?.user?.id || "anon";
+  const { success } = await rateLimit(`rush-admin-${scope}:${uid}`, limit, windowMs);
+  if (!success) throw new Error("Trop de requêtes, veuillez patienter.");
+}
+
+/**
  * Résout le profileId et characterSlot à utiliser pour les actions de progression.
  * Lorsqu'un altPseudo est fourni, on utilise un characterSlot pour distinguer
  * la progression du personnage principal (characterSlot = null) 
@@ -3929,6 +3944,99 @@ export async function upsertRushSequence(data: {
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, sequence: seq };
+}
+
+// ---------------------------------------------------------------------------
+// G1 — route appliquée à un BLOC entier (02/11/2026)
+// ---------------------------------------------------------------------------
+
+/**
+ * Schéma **borné** de la route d'un bloc. Tout ce qui n'est pas explicitement autorisé
+ * est refusé : une faute de frappe sur la classe masquerait toutes ses quêtes (la route
+ * est fail-closed), et un Ordre d'une autre cité serait invisible pour les deux camps.
+ */
+const RushBlockRouteSchema = z.object({
+  milestoneId: z.string().min(1).max(64),
+  alignReq: z.enum(["bontarien", "brakmarien"]).nullable(),
+  alignOrderCode: z.string().max(64).nullable(),
+  alignLevelReq: z
+    .union([z.literal(20), z.literal(40), z.literal(60), z.literal(80), z.literal(100)])
+    .nullable(),
+  classReq: z.string().max(64).nullable(),
+});
+
+/**
+ * (God) Applique une route à **toutes les quêtes d'un bloc** — le geste qui remplace
+ * 236 éditions quête par quête.
+ *
+ * Règles fail-closed :
+ *  · un `alignOrderCode` inconnu, ou d'une autre cité que `alignReq`, est **refusé** ;
+ *  · une `classReq` hors des 19 ids est **refusée** (jamais écrite « au cas où ») ;
+ *  · le bloc doit appartenir au guide `rush-sylvestre` — vérifié **avant** l'écriture,
+ *    dans la requête, jamais depuis le client ;
+ *  · les champs vides **effacent** la valeur du bloc (geste explicite du studio).
+ */
+export async function updateRushBlockRoute(data: {
+  milestoneId: string;
+  alignReq: string | null;
+  alignOrderCode: string | null;
+  alignLevelReq: number | null;
+  classReq: string | null;
+}) {
+  const parsed = RushBlockRouteSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error("Route de bloc invalide");
+  }
+  const input = parsed.data;
+  await requireRushWriteAccess("rush-block-route");
+
+  const rawOrder = input.alignOrderCode?.trim() || null;
+  const order = rawOrder ? normalizeOrderCode(rawOrder) : null;
+  if (rawOrder && !order) throw new Error("Ordre inconnu");
+  if (order && !input.alignReq) throw new Error("Un Ordre exige une cité");
+  if (order && input.alignReq && !orderCodesForCamp(input.alignReq).some((o) => o.code === order)) {
+    throw new Error("Cet Ordre n'appartient pas à la cité choisie");
+  }
+
+  const rawClass = input.classReq?.trim().toLowerCase() || null;
+  if (rawClass && !DOFUS_CLASSES.some((c) => c.id === rawClass)) {
+    throw new Error("Classe inconnue");
+  }
+
+  // Isolation : le bloc doit être celui du guide Rush, sinon on n'écrit rien.
+  const milestone = await db.guideMilestone.findFirst({
+    where: { id: input.milestoneId, guide: { slug: "rush-sylvestre" } },
+    select: { id: true },
+  });
+  if (!milestone) throw new Error("Bloc introuvable");
+
+  const { count } = await db.guideSequence.updateMany({
+    where: { milestoneId: milestone.id },
+    data: {
+      alignReq: input.alignReq,
+      alignOrderCode: order,
+      alignLevelReq: input.alignLevelReq,
+      classReq: rawClass,
+    },
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: milestone.id,
+    metadata: {
+      op: "route-rush-block",
+      count,
+      camp: input.alignReq,
+      order,
+      level: input.alignLevelReq,
+      classReq: rawClass,
+    },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true, count };
 }
 
 /**

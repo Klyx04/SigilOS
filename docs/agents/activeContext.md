@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 02/11/2026 (suite 7) — **Rush : outillage God de la route (G0)** — branche `feat/rush-route-tooling`
+
+> **Demande user (verbatim)** : « Reprise SigilOS. » (amorce générique) — le §0 désignait `G0`.
+> **Mesures** : ① la route s'éditait **quête par quête** (236 `alignReq`), aucune action de masse ; ② `classReq` en `<input>` libre (une faute ⇒ quête **masquée**, fail-closed) ; ③ aucun aperçu de route ; ④ vue Branches à **2** étages ; base locale : **492** séquences, **30** Ordres, **19** classes, **67** `alignment_set`.
+> **Fait** : ① `updateRushBlockRoute` (brique Rush + rate limit Redis, Zod borné, Ordre de la cité, classe des 19 ids, bloc vérifié dans `rush-sylvestre`, `updateMany`, trace) + barre « Route du bloc » avec confirmation de portée ; ② `RushClassSelect` (19 ids, valeur inconnue **conservée** et signalée) sur les 3 surfaces ; ③ `RushRoutePreview` par `resolveRushRoute` (aucun second filtre) ; ④ `buildRushClassBranches` (règle pure) + table des 19 classes, manques nommés, `unknown`/`misplaced`.
+> **Preuves** : `rush-route-tooling` **19** · `rush-class-branches` **10** · Rush **56 fichiers / 695 tests ✓** · `tsc` 0 · ESLint 0 erreur.
+> **Reste / ops** : `L1` (source d'alignement), `L2`, `L3` ; contrôle visuel God 390/768/1024/1440 ; **aucune migration**.
+> **Rotation** : bloc « 02/11/2026 (suite 2) — Rang d'ancienneté, panneau CRON, erreur d'auth » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 02/11/2026 (suite 6) — **Rush : la route à 3 étages + l'espace visiteur (cadrage et docs)** — branche `docs/rush-route-visiteur`
 
 > **Demande user (verbatim)** : « j'aimerai aussi établir quelque chose : aujourd'hui quand on va ouvrir le module rush sylvestre … que se passe-t-il à la première visite de la page … idem côté rush public » · « deslop à faire + alignement DA » · « métiers requis inutile à lister » · « page 3 … ça n'a aucun intérêt » · « est-ce que la classe est bien identifiée dans le code ? » · « il va falloir schématiser » · « je veux aussi la modale de setup complet du rush comme l'interne, choix classe etc pour le rush public reset etc ».
@@ -49,12 +59,3 @@
 > **Preuves** : `seo-horizon-indexation.test.ts` **12/12** · suite complète Vitest **583 fichiers / 6 103 tests passés** (0 échec) · `tsc --noEmit` 0 erreur · ESLint 0 erreur · audit sécurité franchi.
 > **Reste / ops** : PR vers `dev`.
 > **Rotation** : bloc « 01/11/2026 (suite 3) — Bot : l'annonce d'invitation » sorti (7ᵉ, fusion avec `dev`) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 02/11/2026 (suite 2) — **Rang d'ancienneté dans la fiche membre, panneau CRON lisible, erreur d'auth expliquée** — branches `feat/membres-role-anciennete` · `fix/cron-annonces-lisibles` · `fix/auth-erreurs-lisibles`
-
-> **Demande user (verbatim)** : « ajouter modale membre > plus haut rôle ancienneté (bien visible) » · « comment je sais si le cron tourne bien pour les stream » · « règle tout explique avant vulgaris ».
-> **Mesures** : ① la fiche membre n'affichait que « 747 j » — aucun rang, alors que la règle de palier existait déjà (`resolveSeniorityRoleTier`, celle du cron) ; ② le panneau CRON de God affichait `live [object Object]` (les `details` de `creator_watch` étaient des **objets**) et un résumé `0 annonce / 1` **sans raison** ; ③ `JAVASCRIPT-NEXTJS-2F` = cookie **PKCE** illisible au retour de Discord (Brave), `NEXTJS-19` = code OAuth refusé, `NEXTJS-21` = `ECONNRESET` (Server Action coupé par un onglet fermé) — **aucun** n'est un bug serveur, et `/auth/error` renvoyait « Oups, petit accroc » pour le PKCE (code `Configuration` non géré) ; ④ bêta : `/api/cron/live-watch` répond **401** (route déployée) ; `sigilos.fr` renvoie une **page HTML statique** pour tout `/api/*` (prod non montée).
-> **Fait** : ① badge d'en-tête de la fiche (couronne + nom du rôle, « (à attribuer) » en pointillés si le rôle n'est pas posé) — règle **unique** `resolveSeniorityRoleBadge` (`src/lib/seniority-roles.ts`), calculée **côté serveur** et portée par `RosterRow.seniorityRole` ; module éteint ⇒ **aucun** badge ; ② `formatDetailValue` (plus de `[object Object]`) + `details` **scalaires** et résumé causal (`guilde(s)`, `ignorés` + raisons, `chaînes résolues`) ; ③ `/auth/error` gère `Configuration` (message FR/EN actionnable) + commentaire du filtre `aborted` complété ; ④ les 3 incidents Sentry sont **clos** avec leur justification (réouverture automatique si récidive).
-> **Preuves** : `seniority-role-badge` **8** · `cron-detail-format` **8** · suite live/YouTube **45** · `i18n-locale` **4** · `tsc` 0 · CI verte (#1210 5m45, #1211 9m36, #1212 6m39).
-> **Reste / ops** : ① le badge n'apparaît que si le module **Rôles d'ancienneté** est activé, qu'au moins **un palier** existe et que l'ancienneté dépasse son seuil — cause probable du « je ne le vois pas » ; ② `./scripts/deploy-cd.sh beta` après merge ; ③ contrôle visuel 390 / 768 / 1024 / 1440 (pas de session Discord ici).
-> **Rotation** : bloc « 01/11 (suite 2) — Portail : le plafond ne casse plus la carte » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

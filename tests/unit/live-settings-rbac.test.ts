@@ -18,7 +18,6 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 const ACTIONS = read("src/server/actions/live-notify-actions.ts");
 const CRON = read("src/app/api/cron/live-watch/route.ts");
-const SQL = read("prisma/migrations/20270125000000_live_notifications_and_last_seen/migration.sql");
 
 describe("réglages de live — gardes serveur", () => {
     it("la garde RBAC passe avant toute écriture", () => {
@@ -64,21 +63,34 @@ describe("cron de détection — protégé et télémétré", () => {
     });
 
     it("émet la télémétrie et déclare la tâche", () => {
-        expect(CRON).toContain('recordCronExecution("live_watch"');
-        expect(read("src/lib/cron-telemetry.ts")).toContain("live_watch:");
+        expect(CRON).toContain('recordCronExecution("creator_watch"');
+        expect(read("src/lib/cron-telemetry.ts")).toContain("creator_watch:");
+    });
+
+    it("annonce les lives ET les nouvelles vidéos, sans qu'une panne bloque l'autre", () => {
+        expect(CRON).toContain("runLiveWatch()");
+        expect(CRON).toContain("runYouTubeWatch()");
+        expect(CRON).toContain("youtubeError");
     });
 });
 
-describe("migration — additive, jamais destructive", () => {
-    it("trois colonnes en `ADD COLUMN IF NOT EXISTS`", () => {
-        expect(SQL).toContain('ADD COLUMN IF NOT EXISTS "liveNotifyChannelId"');
-        expect(SQL).toContain('ADD COLUMN IF NOT EXISTS "livePingRoleIds"');
-        expect(SQL).toContain('ADD COLUMN IF NOT EXISTS "lastSeenAt"');
+describe("migrations — additives, jamais destructives", () => {
+    const SQL_WATCH = read("prisma/migrations/20270125000000_live_notifications_and_last_seen/migration.sql");
+    const SQL_YT = read("prisma/migrations/20270125000100_creator_watch_youtube_toggle/migration.sql");
+
+    it("colonnes en `ADD COLUMN IF NOT EXISTS`", () => {
+        expect(SQL_WATCH).toContain('ADD COLUMN IF NOT EXISTS "liveNotifyChannelId"');
+        expect(SQL_WATCH).toContain('ADD COLUMN IF NOT EXISTS "livePingRoleIds"');
+        expect(SQL_WATCH).toContain('ADD COLUMN IF NOT EXISTS "lastSeenAt"');
+        expect(SQL_YT).toContain('ADD COLUMN IF NOT EXISTS "notifyYouTubeUploads"');
+        expect(SQL_YT).toContain("DEFAULT true");
     });
 
     it("aucun DROP, DELETE ou UPDATE de données existantes", () => {
-        expect(SQL).not.toMatch(/DROP\s/i);
-        expect(SQL).not.toMatch(/DELETE\s+FROM/i);
-        expect(SQL).not.toMatch(/UPDATE\s+"/i);
+        for (const sql of [SQL_WATCH, SQL_YT]) {
+            expect(sql).not.toMatch(/DROP\s/i);
+            expect(sql).not.toMatch(/DELETE\s+FROM/i);
+            expect(sql).not.toMatch(/UPDATE\s+"/i);
+        }
     });
 });

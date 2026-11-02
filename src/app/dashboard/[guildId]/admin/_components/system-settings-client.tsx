@@ -26,6 +26,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
     const [lifecycleChannelId, setLifecycleChannelId] = useState<string>("");
     const [liveChannelId, setLiveChannelId] = useState<string>("");
     const [livePingRoleIds, setLivePingRoleIds] = useState<string[]>([]);
+    const [youtubeEnabled, setYoutubeEnabled] = useState<boolean>(true);
     const [guildRoles, setGuildRoles] = useState<Array<{ id: string; name: string; color: number }>>([]);
     const [isTestingLive, setIsTestingLive] = useState(false);
     
@@ -39,6 +40,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
         lifecycleChannelId: string;
         liveChannelId: string;
         livePingRoleIds: string[];
+        youtubeEnabled: boolean;
     };
     const [initialConfig, setInitialConfig] = useState<SystemConfigSnapshot | null>(null);
 
@@ -48,7 +50,8 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
         lifecycleChannelId,
         liveChannelId,
         livePingRoleIds,
-    }), [channelId, newsEnabled, lifecycleChannelId, liveChannelId, livePingRoleIds]);
+        youtubeEnabled,
+    }), [channelId, newsEnabled, lifecycleChannelId, liveChannelId, livePingRoleIds, youtubeEnabled]);
 
     const hasUnsavedChanges = isDirty(currentConfig, initialConfig);
 
@@ -61,7 +64,9 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                 getGuildRoles(guildId),
             ]);
 
-            const live = liveRes.success && liveRes.data ? liveRes.data : { channelId: null, pingRoleIds: [] };
+            const live = liveRes.success && liveRes.data
+                ? liveRes.data
+                : { channelId: null, pingRoleIds: [], youtubeEnabled: true };
 
             if ((sysRes.success && sysRes.data) || (missionRes.success && missionRes.data) || liveRes.success) {
                 const loaded: SystemConfigSnapshot = {
@@ -70,12 +75,14 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                     lifecycleChannelId: missionRes.success && missionRes.data ? (missionRes.data.lifecycleNotifyChannelId || "") : "",
                     liveChannelId: live.channelId || "",
                     livePingRoleIds: live.pingRoleIds,
+                    youtubeEnabled: live.youtubeEnabled ?? true,
                 };
                 setChannelId(loaded.channelId);
                 setNewsEnabled(loaded.newsEnabled);
                 setLifecycleChannelId(loaded.lifecycleChannelId);
                 setLiveChannelId(loaded.liveChannelId);
                 setLivePingRoleIds(loaded.livePingRoleIds);
+                setYoutubeEnabled(loaded.youtubeEnabled);
                 setInitialConfig(loaded);
             }
 
@@ -111,6 +118,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
             const liveResult = await saveLiveNotifySettings(guildId, {
                 channelId: liveChannelId.trim() || null,
                 pingRoleIds: livePingRoleIds,
+                youtubeEnabled,
             });
 
             if (sysResult.success && discordResult.success && liveResult.success) {
@@ -321,7 +329,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                             Annonces de live Twitch
                         </CardTitle>
                         <CardDescription className="text-xs text-muted-foreground">
-                            Un seul message par stream : photo du streamer, jeu, spectateurs et lien. Vérifié toutes les 5 minutes.
+                            Un seul message par live Twitch et par nouvelle vidéo YouTube : photo, jeu et spécialité, miniature, lien. Vérifié toutes les 5 minutes.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6 space-y-5">
@@ -375,6 +383,16 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                             <p className="text-caption text-muted-foreground">
                                 Vide = annonce sans ping. Aucun envoi vers @everyone.
                             </p>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-surface/60">
+                            <div className="space-y-0.5">
+                                <p className="text-xs font-semibold text-foreground">Nouvelles vidéos YouTube</p>
+                                <p className="text-caption text-muted-foreground">
+                                    Une annonce par vidéo, via le flux de la chaîne (aucun quota).
+                                </p>
+                            </div>
+                            <Switch checked={youtubeEnabled} onCheckedChange={setYoutubeEnabled} />
                         </div>
 
                         <Button

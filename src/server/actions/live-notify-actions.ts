@@ -29,6 +29,7 @@ const SettingsSchema = z.object({
         .array(z.string().regex(SNOWFLAKE, "Identifiant de rôle invalide."))
         .max(LIVE_MAX_PING_ROLES, `Au maximum ${LIVE_MAX_PING_ROLES} rôles.`)
         .default([]),
+    youtubeEnabled: z.boolean().default(true),
 });
 
 export async function getLiveNotifySettings(guildId: string) {
@@ -44,13 +45,14 @@ export async function getLiveNotifySettings(guildId: string) {
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { liveNotifyChannelId: true, livePingRoleIds: true },
+            select: { liveNotifyChannelId: true, livePingRoleIds: true, notifyYouTubeUploads: true },
         });
         return {
             success: true as const,
             data: {
                 channelId: config?.liveNotifyChannelId ?? null,
                 pingRoleIds: sanitizePingRoleIds(config?.livePingRoleIds),
+                youtubeEnabled: config?.notifyYouTubeUploads ?? true,
             },
         };
     } catch (error) {
@@ -63,7 +65,7 @@ export async function getLiveNotifySettings(guildId: string) {
 
 export async function saveLiveNotifySettings(
     guildId: string,
-    input: { channelId: string | null; pingRoleIds: string[] },
+    input: { channelId: string | null; pingRoleIds: string[]; youtubeEnabled: boolean },
 ): Promise<{ success: boolean; error?: string }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non connecté." };
@@ -101,7 +103,11 @@ export async function saveLiveNotifySettings(
 
         const updated = await db.guildConfig.updateMany({
             where: { discordGuildId: guildId },
-            data: { liveNotifyChannelId: channelId, livePingRoleIds: pingRoleIds },
+            data: {
+                liveNotifyChannelId: channelId,
+                livePingRoleIds: pingRoleIds,
+                notifyYouTubeUploads: parsed.data.youtubeEnabled,
+            },
         });
         if (updated.count !== 1) return { success: false, error: "Guilde introuvable." };
 

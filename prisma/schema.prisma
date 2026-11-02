@@ -512,6 +512,8 @@ model GuildConfig {
   liveNotifyChannelId              String?
   /** Rôles à ping sur une annonce de live. Vide = **sans ping** (jamais `@everyone` par défaut). */
   livePingRoleIds                  String[]                @default([])
+  /** Annoncer aussi les **nouvelles vidéos YouTube** (flux RSS, 0 quota). */
+  notifyYouTubeUploads             Boolean                 @default(true)
   raidAllowedSignUpRoleIds         String[]                @default([])
   /// Rôles Discord comptés comme « en guilde **en jeu** » (module Membres → onglet Mules).
   /// Décision user du 25/10/2026 : une personne portant **plusieurs** de ces rôles n'est

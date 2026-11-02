@@ -136,7 +136,7 @@ authentifié** et l'annuaire par serveur sont un chantier distinct : `docs/plans
 > **Livrés le 02/11/2026** : G0 (`feat/rush-route-tooling`), L1 (`feat/rush-alignment-l1`),
 > L2 (`feat/rush-route-l2`) et L3 (`feat/rush-onboarding-l3`). Preuves : `rush-route-tooling` **19**
 > · `rush-class-branches` **10** · `rush-alignment-source` **15** · `rush-order-chain` **17**
-> · `rush-order-reset` **8** · `rush-onboarding-carnet` **7** · Rush **60 fichiers / 742 tests ✓**.
+> · `rush-order-reset` **8** · `rush-onboarding-carnet` **14** · Rush **60 fichiers / 742 tests ✓**.
 > **Aucune migration.** Prochain lot : **`textes`** (tips).
 >
 > **L2, ce qui a changé concrètement** : l'Ordre du personnage sélectionné entre dans la route
@@ -146,6 +146,14 @@ authentifié** et l'annuaire par serveur sont un chantier distinct : `docs/plans
 > saisie — les 30 quêtes d'Ordre n'ont aucun `prereq_text` ; changer d'Ordre décoche les **5**
 > quêtes de l'ancien Ordre (`orderResetSeeds`, sans cascade) via `resetRushOrderProgress`
 > (auth + rate limit Redis + cité/Ordre relus en base).
+>
+> **L3, ce qui a changé concrètement** (PR #1228, puis #1229/#1230) : la modale d'accueil passe en
+> DA « Carnet » ; `hasNoClassDeclared` est calculé pour le personnage **sélectionné** (mule comprise)
+> et affiché avec un lien vers le profil ; **trois étapes** seulement (la page « membres » est
+> supprimée) ; **plus de bloc « Métiers requis »** (ni `getGuideMetiersRequires`, ni `metierIds`, ni
+> `updateUserProfile`) ; les boutons `Précédent / Suivant / Lancer` vivent **dans le contenu de chaque
+> étape** (un `<footer>` séparé ne se rendait pas), avec croix + Échap + clic sur le fond ; la hauteur
+> suit le contenu, plafonnée à l'écran ; le changement de personnage reprend le parcours à l'étape 2.
 
 ## 2. Chantiers du module
 
@@ -270,7 +278,8 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
    blocs S0→S5 : `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md`.
 2. ~~**Édition** des champs de route sur une séquence **existante**~~ — **livrée** le 26/10/2026 (section « 7. Route »).
 3. **Route d'alignement sur les 3 surfaces** — état mesuré, défauts (7) et ordre des lots :
-   **§ 1 bis** (prochain : `G0` outillage God → `L1` → `L2` → `L3`). La **classe publique** n'est plus
+   **§ 1 bis** — `G0`, `L1`, `L2` **et** `L3` sont **livrés le 02/11/2026** ; prochain lot **`textes`** (tips).
+   La **classe publique** n'est plus
    « à trancher » : elle viendra du **compte visiteur** (`docs/plans/PLAN-ESPACE-VISITEUR.md`, V1/V2).
 4. Saisie du contenu : 2 × 100 quêtes de cité + 30 quêtes d'Ordre — **outillée** : export JSON de la trame + import
    **dry-run** dans God (`S4-4`). Reste l'écriture éditoriale (textes réécrits, jamais recopiés).

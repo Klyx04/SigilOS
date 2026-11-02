@@ -100,6 +100,31 @@ describe("parcours interrompu — la modale survit au changement de personnage",
   });
 });
 
+describe("mise en page — le pied reste atteignable", () => {
+  it("la modale est portée dans `document.body` (aucun ancêtre ne la rogne)", () => {
+    const src = codeOf(MODAL);
+    expect(src).toContain('import { createPortal } from "react-dom"');
+    expect(src).toContain("createPortal(");
+    expect(src).toContain("document.body");
+    expect(src).toContain('if (typeof document === "undefined") return null');
+  });
+
+  it("la hauteur est fixe : en-tête et pied `shrink-0`, seul le corps défile", () => {
+    const src = codeOf(MODAL);
+    // Hauteur déterministe (92dvh plafonnée) : le pied ne peut pas sortir de la zone visible.
+    expect(src).toContain("h-[92vh] h-[92dvh] max-h-[42rem]");
+    expect(src).toMatch(/<header className="relative shrink-0/);
+    expect(src).toContain("min-h-0 flex-1 space-y-3 overflow-y-auto");
+    expect(src).toMatch(/<footer className="flex shrink-0/);
+  });
+
+  it("les actions du pied sont des `<button>` accessibles", () => {
+    const src = codeOf(MODAL);
+    expect(src).toMatch(/<button type="button" onClick=\{\(\) => go\(\(step \+ 1\)/);
+    expect(src).toMatch(/<button type="button" onClick=\{onClose\} className=\{PRIMARY\}>/);
+  });
+});
+
 describe("classe manquante (défaut 7) — dite, et cliquable", () => {
   it("la modale affiche l'avertissement et renvoie au profil", () => {
     const src = codeOf(MODAL);

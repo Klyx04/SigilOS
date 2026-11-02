@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User,
@@ -171,9 +172,16 @@ export function RushOnboardingWizardModal({
           ? "Où en sont vos coéquipiers sur ce guide."
           : "Tout est en place, la timeline peut s'ouvrir.";
 
-  return (
+  // Portail vers `document.body` : aucun ancêtre (transform, `overflow-hidden`) ne peut
+  // rogner la modale — mesuré le 02/11/2026 : dans une fenêtre basse, le pied sortait de
+  // la zone visible et « Suivant » devenait inatteignable. La hauteur est en plus FIXE
+  // (`92dvh` plafonnée à 42 rem) : l'en-tête et le pied sont `shrink-0`, seul le corps
+  // défile — le bouton d'action est donc toujours visible.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.98, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -182,7 +190,7 @@ export function RushOnboardingWizardModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="rush-onboarding-title"
-          className="rush-carnet-theme rush-carnet rush-carnet-frame relative flex max-h-[min(92vh,44rem)] w-full max-w-xl flex-col overflow-hidden rounded-[10px] bg-surface text-foreground"
+          className="rush-carnet-theme rush-carnet rush-carnet-frame relative flex h-[92vh] h-[92dvh] max-h-[42rem] w-full max-w-xl flex-col overflow-hidden rounded-[10px] bg-surface text-foreground"
         >
           {/* ══ EN-TÊTE — serif, filet d'or, quatre repères d'étape ══ */}
           <header className="relative shrink-0 border-b border-border-strong px-5 pb-4 pt-5">
@@ -526,7 +534,8 @@ export function RushOnboardingWizardModal({
           </footer>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 

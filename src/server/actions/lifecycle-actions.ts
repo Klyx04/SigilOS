@@ -167,7 +167,7 @@ const LIFECYCLE_EMOJIS: Record<LifecycleEventType, string> = {
 
 const LIFECYCLE_TITLES: Record<LifecycleEventType, string> = {
     LEFT: "Membre Parti (Discord)",
-    BANNED: "Membre Banni (Discord)",
+    BANNED: "Membre Exclu",
     ARCHIVED: "Membre Archivé",
     DELETED: "Membre Supprimé",
     REACTIVATED: "Membre Réactivé",
@@ -231,7 +231,7 @@ export async function sendLifecycleNotification(
                 retentionInfo = "Profil archivé automatiquement lors de la synchro Discord";
                 break;
             case "BANNED":
-                statusLabel = "Banni";
+                statusLabel = "Exclu";
                 retentionInfo = "Données personnelles anonymisées immédiatement";
                 break;
             case "DELETED":

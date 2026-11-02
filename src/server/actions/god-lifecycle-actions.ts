@@ -202,7 +202,15 @@ export async function hardDeleteGuild(guildId: string) {
         // Une seule implémentation de la purge (`src/server/guild-purge-core.ts`), partagée avec le
         // cron `guild-purge` : config + cascades, whitelist, caches, sortie du bot.
         // `force` : God supprime sans attendre l'échéance (décision assumée, action God explicite).
-        const purge = await purgeGuildById(guildId, { force: true });
+        // L'acteur est **passé** et non deviné : la preuve de suppression doit dire qui a effacé.
+        const purge = await purgeGuildById(guildId, {
+            force: true,
+            actor: {
+                userId: session?.user?.id ?? "SYSTEM",
+                name: adminName,
+                source: "GOD",
+            },
+        });
         if (!purge.purged) {
             return { success: false, error: "Guilde introuvable" };
         }

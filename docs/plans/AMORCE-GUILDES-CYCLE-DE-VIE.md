@@ -61,10 +61,10 @@ deux endroits différents.
 
 | # | Question à trancher | Ce que ça change pour l'utilisateur | Effort | Si on ne décide pas |
 |---|---|---|---|---|
-| **D-A** | Mesure-t-on l'**inactivité réelle** ? | aujourd'hui : un compte **ancien** qui perd sa dernière guilde est purgé à J+30 même s'il s'est connecté la veille | **migration** (`User.lastSeenAt`) | on garde « âge du compte » (désormais documenté) |
-| **D-B** | Garde-t-on une **preuve de suppression** ? | le journal d'audit de la guilde part **avec** elle (cascade) : plus aucune trace de qui a supprimé quoi | petit (log **plateforme** `guildId: null`, `isGodLog: true`) | aucun historique après purge |
+| **D-A** | Mesure-t-on l'**inactivité réelle** ? | ✅ **tranché le 02/11/2026** : `User.lastSeenAt` existe (écrit au plus 1×/h), la rétention exige 90 j **sans activité** — un compte vu récemment n'est plus purgé | livré (`src/server/last-seen.ts`) | — (soldé) |
+| **D-B** | Garde-t-on une **preuve de suppression** ? | ✅ **tranché puis livré le 02/11/2026** : une ligne `AuditLog` **plateforme** (`guildId: null`, `isGodLog: true`, `GUILD_PURGED`) est écrite **avant** l'effacement, avec le nom, le snowflake, le motif et l'échéance ; elle survit à la cascade et suit la rétention plateforme (**90 j**) | livré (`src/server/guild-purge-core.ts`) | — (soldé) |
 | **D-C** | Peut-on **geler** une purge (litige, incident) ? | God peut purger n'importe quand, sans frein | petit (drapeau `purgeHold` + garde dans le cron) | une purge peut détruire une preuve en cours d'examen |
-| **D-D** | Offre-t-on un **export** des données d'une guilde ? | la suppression existe (RGPD), la **portabilité** non | moyen (sérialisation + lien signé) | demande RGPD traitée à la main |
+| **D-D** | Offre-t-on un **export** des données d'une guilde ? | **long terme** (décision user du 02/11/2026) : la suppression existe (RGPD), la **portabilité** non | moyen (sérialisation + lien signé) | demande RGPD traitée à la main |
 | **D-E** | Prévenir **hors application** (e-mail) ? | aujourd'hui seul celui qui **revient** sur le dashboard voit le compte à rebours | moyen (fournisseur + gabarits) | suppression sans aucun préavis |
 
 > ⚠️ **D-A est le seul qui exige une migration de schéma** : par règle interne, c'est un arrêt
@@ -173,7 +173,9 @@ purge **pas** les caches. Un membre peut donc naviguer **jusqu'à 60 s** sur une
 | **Signal d'activité disponible** sans migration | `GuildActivity` (`schema.prisma:699`, index `guildId+createdAt`) alimentée par `emitGuildActivity` à chaque connexion (`src/app/api/[guildId]/stream/route.ts:51-58`) | lecture |
 | `UserProfile.lastActivityAt` n'est **pas** un « vu pour la dernière fois » | écrit uniquement par `market-actions.ts` (interactions marché) | `git grep` |
 | Sessions **JWT** ⇒ aucune date de connexion en base | `src/auth.ts:58` (`strategy: "jwt"`) ; `lastSeenAt` n'existe que sur `GodSessionLog` | lecture |
-| Rétention compte = **âge** (90 j) + grâce | `src/server/account-retention-core.ts` (`createdAt: { lt: cutoff }`, `profiles: { none: { status: "ACTIVE" } }`) | lecture + test |
+| Rétention compte = **inactivité** (90 j) + grâce | `src/server/account-retention-core.ts` (`OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: cutoff } }]`, `profiles: { none: { status: "ACTIVE" } }`) · `src/server/last-seen.ts` | lecture + test `last-seen` |
+| **Preuve de suppression** écrite **avant** l'effacement | `src/server/guild-purge-core.ts` (`db.auditLog.create` avant `db.guildConfig.delete`, `guildId: undefined`, `isGodLog: true`) | lecture + test `guild-purge-proof` |
+| Un **log plateforme** survit à la cascade | `prisma/schema.prisma` (`AuditLog.guild … onDelete: Cascade`) — la preuve n'a **pas** de `guildId` | lecture |
 
 > Ce qui n'est **pas** dans ce tableau n'est pas affirmé. Si une ligne devient fausse, c'est le code
 > qui a raison : on corrige l'amorce dans le même commit.
@@ -205,8 +207,8 @@ purge **pas** les caches. Un membre peut donc naviguer **jusqu'à 60 s** sur une
 
 ## Comment démarrer (sans attendre S5)
 
-1. Prendre **S1** (preuve de suppression immuable) : le champ existe, il ne reste qu'à écrire le log
-   plateforme au moment de la purge et à le verrouiller par un test.
+1. ~~Prendre **S1** (preuve de suppression)~~ — **livré le 02/11/2026** : preuve plateforme
+   `GUILD_PURGED` écrite avant l'effacement, rétention 90 j, `fail-closed` si la preuve échoue.
 2. Puis **S2** (restauration libre-service) : le pendant exact du bouton supprimer.
 3. Puis **S3** (dormance) : lecture seule, aucun risque, et ça règle le cas qui a ouvert le sujet.
 

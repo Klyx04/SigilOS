@@ -94,7 +94,10 @@ export type AuditAction =
     | "RAID_CLOSURE_UNDONE"     // Annulation de clôture raid (remboursement XP + Kamas)
     | "RAID_PRESENCE_CORRECTED" // Correction d'un statut de présence par un officier (R1)
     // Verrou God d'un module par guilde (fiche guilde `/god/guilds/[id]`)
-    | "GOD_MODULE_LOCK";
+    | "GOD_MODULE_LOCK"
+    // Guilde effacée définitivement — écrit par la purge (cron ou God), journal **plateforme**
+    // (`guildId: null`) pour survivre à la cascade. Cf. `src/server/guild-purge-core.ts`.
+    | "GUILD_PURGED";
 
 export type AuditTargetType =
     | "PERMISSION"

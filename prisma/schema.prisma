@@ -53,6 +53,16 @@ model User {
   scheduledDeletion    DateTime?
   lastSeenChangelogId  String?
   lastFeedViewedAt     DateTime?          @default(now())
+  /**
+   * Dernière **activité authentifiée** connue (D-A, décision du 02/11/2026).
+   *
+   * Les sessions sont en JWT (`src/auth.ts`) : sans ce champ, la rétention des comptes ne
+   * mesurait que l'**âge du compte** (`createdAt`) et pouvait effacer quelqu'un qui s'était
+   * connecté la veille. Écrit au plus une fois par heure (throttle Redis) par
+   * `touchLastSeen` (`src/server/last-seen.ts`) et lu par `purgeOrphanAccountsCore`.
+   * `null` = jamais mesuré (compte d'avant la colonne) : traité comme inactif, jamais comme actif.
+   */
+  lastSeenAt           DateTime?
   accounts             Account[]
   dreamJoinRequests    DreamJoinRequest[]
   dreamRuns            DreamRun[]         @relation("RunLeader")
@@ -498,6 +508,10 @@ model GuildConfig {
   songesPingRoleIds                String[]                @default([])
   pollsPingRoleIds                 String[]                @default([])
   missionPingRoleIds               String[]                @default([])
+  /** Salon des annonces de live (Twitch) — `null` = module éteint pour cette guilde. */
+  liveNotifyChannelId              String?
+  /** Rôles à ping sur une annonce de live. Vide = **sans ping** (jamais `@everyone` par défaut). */
+  livePingRoleIds                  String[]                @default([])
   raidAllowedSignUpRoleIds         String[]                @default([])
   /// Rôles Discord comptés comme « en guilde **en jeu** » (module Membres → onglet Mules).
   /// Décision user du 25/10/2026 : une personne portant **plusieurs** de ces rôles n'est

@@ -32,6 +32,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Quotidien 03h05",
         logFile: "cleanup-logs.log",
     },
+    live_watch: {
+        name: "Annonces de Live Discord",
+        schedule: "Toutes les 5 min",
+        logFile: "live-watch.log",
+    },
     account_retention: {
         name: "Purge RGPD Comptes Orphelins",
         schedule: "Quotidien 06h00",

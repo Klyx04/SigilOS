@@ -176,7 +176,10 @@ describe("cron `guild-purge` — borné, protégé, sans `force`", () => {
         const fin = GOD.indexOf("export async function softDeleteProfile");
         const bloc = GOD.slice(debut, fin);
 
-        expect(bloc).toContain("purgeGuildById(guildId, { force: true })");
+        expect(bloc).toContain("purgeGuildById(guildId, {");
+        expect(bloc).toContain("force: true");
+        // La preuve de suppression (D-B) doit dire **qui** a effacé : l'acteur est passé, pas deviné.
+        expect(bloc).toContain('source: "GOD"');
         expect(bloc).not.toContain("db.guildConfig.delete");
     });
 });

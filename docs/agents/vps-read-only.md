@@ -53,9 +53,17 @@ répond `Commande non autorisée` (code 2) et est journalisé (`logger -t sigilo
 CREATE ROLE sigil_ro LOGIN PASSWORD '<mot-de-passe>';
 GRANT CONNECT ON DATABASE sigilos TO sigil_ro;
 GRANT USAGE ON SCHEMA public TO sigil_ro;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO sigil_ro;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO sigil_ro;
+-- Uniquement les tables lues par le script : jamais Account/User (jetons OAuth).
+GRANT SELECT ON "_prisma_migrations", "GuideSequence", "GuideMilestone", "OptimizedGuide" TO sigil_ro;
 ```
+
+> **Durcissement d'un rôle déjà créé avec `ALL TABLES`** (bêta, 02/11/2026) :
+>
+> ```sql
+> REVOKE SELECT ON ALL TABLES IN SCHEMA public FROM sigil_ro;
+> ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE SELECT ON TABLES FROM sigil_ro;
+> GRANT SELECT ON "_prisma_migrations", "GuideSequence", "GuideMilestone", "OptimizedGuide" TO sigil_ro;
+> ```
 
 > Le rôle ne peut **pas** écrire : même un bug du script ne peut pas modifier la base.
 

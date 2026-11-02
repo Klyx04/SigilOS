@@ -2,11 +2,38 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Users, CheckCircle, ArrowRight, ArrowLeft, Shield, Sparkles, ExternalLink, Check, Hammer, Link2, RotateCcw, CheckCircle2 } from "lucide-react";
+import {
+  User,
+  CheckCircle,
+  ArrowRight,
+  ArrowLeft,
+  Shield,
+  Sparkles,
+  ExternalLink,
+  Check,
+  Hammer,
+  Link2,
+  RotateCcw,
+  CheckCircle2,
+} from "lucide-react";
 import Link from "next/link";
-import { getClass } from "@/lib/dofus-assets";
+import { ALIGNMENTS, getClass, ORDERS } from "@/lib/dofus-assets";
 import { getMetierIconPath } from "@/lib/rush-guide-utils";
+import { normalizeAlignmentCamp } from "@/lib/rush-route";
+import { normalizeOrderCode } from "@/lib/rush-order-codes";
 import { MemberAvatar } from "@/components/shared/member-avatar";
+
+/**
+ * Modale d'accueil du Rush — **DA « Carnet de campagne »** (L3, 02/11/2026).
+ *
+ * Quatre étapes, inchangées : personnage → préparation (Metamob, alignement, métiers) →
+ * avancée des membres → lancement. Seule la **forme** change : les jetons
+ * `.rush-carnet-theme` (forêt / ivoire / bronze / ambre) remplacent l'ancien
+ * `zinc` + `emerald` + `rounded-3xl` + `font-black`, qui ne respectait pas la DA
+ * (rayons ≤ 12 px, une seule teinte d'accent, pas de `font-black`).
+ *
+ * Aucun accès base ici : tout vient des props (le dashboard Rush les agrège déjà).
+ */
 
 type CharacterOption = {
   id: string; // "PRINCIPAL" | mule pseudo
@@ -33,6 +60,10 @@ type Props = {
   selectedCharacter: string;
   onSelectCharacter: (charId: string) => void;
   activeMembers: ActiveMember[];
+  /** Étape d'ouverture : le dashboard reprend le parcours après un changement de personnage. */
+  initialStep?: 1 | 2 | 3 | 4;
+  onStepChange?: (step: 1 | 2 | 3 | 4) => void;
+  /** Le personnage SÉLECTIONNÉ n'a pas de classe : les 19 quêtes de classe sont masquées. */
   hasNoClassDeclared?: boolean;
   /** Préparation — liaison Metamob déjà effectuée ? */
   metamobPseudo?: string | null;
@@ -56,6 +87,21 @@ type Props = {
   resettingId?: string | null;
 };
 
+/** Panneau du carnet : filet de bronze, matière élevée, jamais d'ombre portée. */
+const PANEL = "rounded-[6px] border border-border bg-elevated";
+/** Bouton d'action principal : l'ambre du carnet, jamais une seconde teinte. */
+const PRIMARY =
+  "inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-accent/60 bg-accent/15 px-4 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/25 focus-visible:outline-2 focus-visible:outline-accent/60 disabled:opacity-50";
+/** Bouton discret (précédent). */
+const GHOST =
+  "inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-border bg-surface px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent/60";
+/** Bouton de ligne (lier, déclarer). */
+const SMALL_PRIMARY =
+  "inline-flex shrink-0 items-center justify-center gap-1 rounded-[4px] border border-accent/60 bg-accent/15 px-2.5 py-1 text-[10px] font-semibold text-accent transition-colors hover:bg-accent/25 focus-visible:outline-2 focus-visible:outline-accent/60";
+/** Bouton de ligne destructif (réinitialiser). */
+const SMALL_DANGER =
+  "inline-flex shrink-0 items-center justify-center rounded-[4px] border border-danger/40 px-2 py-1 text-[10px] font-semibold text-danger transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-danger/50 disabled:opacity-50";
+
 export function RushOnboardingWizardModal({
   isOpen,
   onClose,
@@ -64,6 +110,8 @@ export function RushOnboardingWizardModal({
   selectedCharacter,
   onSelectCharacter,
   activeMembers,
+  initialStep = 1,
+  onStepChange,
   hasNoClassDeclared = false,
   metamobPseudo = null,
   onOpenMetamobLink,
@@ -77,78 +125,122 @@ export function RushOnboardingWizardModal({
   onResetCharacter,
   resettingId = null,
 }: Props) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(initialStep);
+  // L'étape est remontée au dashboard : il la mémorise le temps d'un changement de
+  // personnage (le guide est remonté par `key={character}`), sinon la modale se fermait.
+  const go = (next: 1 | 2 | 3 | 4) => {
+    setStep(next);
+    onStepChange?.(next);
+  };
 
   if (!isOpen) return null;
 
   const currentSelectedChar = characters.find((c) => c.id === selectedCharacter) || characters[0];
-  const uniqueActiveMembers = Array.from(new Map(activeMembers.map(m => [m.profileId || m.userName, m])).values());
+  const uniqueActiveMembers = Array.from(
+    new Map(activeMembers.map((m) => [m.profileId || m.userName, m])).values()
+  );
+
+  // Libellés lisibles : le profil peut porter « Brâkmarien » (casse, accents) et l'Ordre
+  // son id court (« vaillant »). Sans normalisation, la modale afficherait des ids bruts.
+  const campKey = normalizeAlignmentCamp(currentAlignment);
+  const campLabel = currentAlignment
+    ? ALIGNMENTS.find((a) => a.id === campKey)?.name ?? currentAlignment
+    : null;
+  const orderKey = normalizeOrderCode(currentAlignmentOrder);
+  const orderLabel =
+    campKey && orderKey
+      ? ((
+          (ORDERS as unknown as Record<string, Array<Record<string, unknown>>>)[campKey] ?? []
+        ).find((o) => normalizeOrderCode(String(o.id)) === orderKey)?.name ?? null)
+      : null;
+
+  const stepTitle =
+    step === 1
+      ? "Votre personnage"
+      : step === 2
+        ? "Préparation"
+        : step === 3
+          ? "Les membres"
+          : "Prêt à partir";
+  const stepHint =
+    step === 1
+      ? "Choisissez le personnage qui portera cette progression (principal ou mule)."
+      : step === 2
+        ? "Metamob, alignement et métiers : ce qui se règle avant de rusher."
+        : step === 3
+          ? "Où en sont vos coéquipiers sur ce guide."
+          : "Tout est en place, la timeline peut s'ouvrir.";
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          initial={{ opacity: 0, scale: 0.98, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="w-full max-w-xl bg-zinc-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+          exit={{ opacity: 0, scale: 0.98, y: 8 }}
+          transition={{ duration: 0.16, ease: "easeOut" }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rush-onboarding-title"
+          className="rush-carnet-theme rush-carnet rush-carnet-frame relative flex max-h-[min(92vh,44rem)] w-full max-w-xl flex-col overflow-hidden rounded-[10px] bg-surface text-foreground"
         >
-          {/* Header Wizard Stepper */}
-          <div className="p-6 border-b border-white/5 bg-zinc-900/50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-black text-xs">
-                {step}/4
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                  {step === 1 && "Étape 1 : Choix de votre Personnage"}
-                  {step === 2 && "Étape 2 : Préparation"}
-                  {step === 3 && "Étape 3 : Avancée des Membres"}
-                  {step === 4 && "Étape 4 : Prêt pour le Rush !"}
-                </h3>
-                <p className="text-caption text-zinc-400 font-medium">
-                  {step === 1 && "Sélectionnez le personnage principal ou la mule avec laquelle vous rushez."}
-                  {step === 2 && "Vérifiez votre liaison Metamob, votre alignement et vos métiers."}
-                  {step === 3 && "Découvrez où en sont vos coéquipiers de guilde."}
-                  {step === 4 && "Validation finale et lancement de la timeline."}
+          {/* ══ EN-TÊTE — serif, filet d'or, quatre repères d'étape ══ */}
+          <header className="relative shrink-0 border-b border-border-strong px-5 pb-4 pt-5">
+            <div
+              aria-hidden
+              className="absolute inset-x-5 top-0 h-px bg-accent/40"
+            />
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
+                  Carnet de campagne · {step}/4
                 </p>
+                <h2 id="rush-onboarding-title" className="mt-1 font-serif text-lg font-semibold leading-tight">
+                  {stepTitle}
+                </h2>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{stepHint}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 pt-1" aria-hidden>
+                {[1, 2, 3, 4].map((s) => (
+                  <span
+                    key={s}
+                    className={
+                      s === step
+                        ? "h-1.5 w-5 rounded-full bg-accent"
+                        : s < step
+                          ? "h-1.5 w-1.5 rounded-full bg-accent/50"
+                          : "h-1.5 w-1.5 rounded-full bg-border"
+                    }
+                  />
+                ))}
               </div>
             </div>
-            {/* Step Indicators */}
-            <div className="flex items-center gap-1.5">
-              {[1, 2, 3, 4].map((s) => (
-                <div
-                  key={s}
-                  className={`w-2.5 h-2.5 rounded-full transition-all ${
-                    s === step ? "bg-emerald-400 scale-125" : s < step ? "bg-emerald-500/40" : "bg-white/10"
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
+          </header>
 
-          {/* Content Body */}
-          <div className="p-6 flex-1 max-h-[65vh] overflow-y-auto space-y-4">
-            {/* STEP 1: Select Character / Class */}
+          {/* ══ CORPS ══ */}
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
+
+
+            {/* ── ÉTAPE 1 : le personnage ───────────────────────────────────── */}
             {step === 1 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {hasNoClassDeclared && (
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between text-xs text-amber-200">
-                    <span>Aucune classe n'est déclarée sur votre profil !</span>
+                  <div className="flex items-start justify-between gap-2 rounded-[6px] border border-warning/40 bg-warning/10 px-3 py-2.5">
+                    <p className="text-[11px] leading-relaxed text-warning">
+                      Aucune classe déclarée pour{" "}
+                      <span className="font-semibold">{currentSelectedChar?.name}</span> : les 19 quêtes de
+                      classe restent masquées.
+                    </p>
                     <Link
                       href={`/dashboard/${guildId}/profile`}
-                      className="px-2.5 py-1 rounded-xl bg-amber-500 text-black font-black text-caption uppercase flex items-center gap-1 hover:bg-amber-400 transition-colors"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-warning/50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-warning transition-colors hover:bg-warning/15"
                     >
-                      Mon Profil <ExternalLink className="w-3 h-3" />
+                      Profil <ExternalLink className="h-3 w-3" />
                     </Link>
                   </div>
                 )}
 
-                <p className="text-xs text-zinc-300 font-medium">
-                  Choisissez le personnage qui réalisera cette progression :
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {characters.map((char) => {
                     const isSelected = char.id === selectedCharacter;
                     const classDef = char.dofusClass ? getClass(char.dofusClass) : null;
@@ -157,222 +249,227 @@ export function RushOnboardingWizardModal({
                         key={char.id}
                         type="button"
                         onClick={() => onSelectCharacter(char.id)}
-                        className={`p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all ${
+                        aria-pressed={isSelected}
+                        className={`flex items-center gap-2.5 rounded-[6px] border px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-accent/60 ${
                           isSelected
-                            ? "bg-emerald-500/15 border-emerald-500/50 "
-                            : "bg-zinc-900/60 border-white/5 hover:border-white/20 hover:bg-zinc-900"
+                            ? "border-accent/60 bg-accent/10"
+                            : "border-border bg-surface hover:border-border-strong"
                         }`}
                       >
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 overflow-hidden ${
-                            isSelected ? "bg-emerald-500/20 border border-emerald-500/30" : "bg-zinc-800 border border-white/10"
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border ${
+                            isSelected ? "border-accent/40 bg-accent/10" : "border-border bg-muted"
                           }`}
                         >
                           {classDef ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={classDef.icon} alt={classDef.name} className="w-full h-full object-contain p-1" />
+                            <img src={classDef.icon} alt={classDef.name} className="h-full w-full object-contain p-1" />
                           ) : char.dofusClass ? (
-                            <span className="uppercase text-caption text-zinc-300">{char.dofusClass.substring(0, 3)}</span>
+                            <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+                              {char.dofusClass.substring(0, 3)}
+                            </span>
                           ) : (
-                            <User className="w-5 h-5 text-zinc-400" />
+                            <User className="h-4 w-4 text-muted-foreground" />
                           )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-black text-white truncate">{char.name}</p>
-                          <p className="text-caption text-zinc-400 font-bold uppercase tracking-wider">
-                            {char.isMule ? "Mule" : "Personnage Principal"}
-                            {classDef && <span className="ml-1 text-zinc-500">({classDef.name})</span>}
-                          </p>
-                        </div>
-                        {isSelected && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-semibold text-foreground">{char.name}</span>
+                          <span className="block truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+                            {char.isMule ? "Mule" : "Personnage principal"}
+                            {classDef && (
+                              <span className="ml-1 normal-case tracking-normal">({classDef.name})</span>
+                            )}
+                          </span>
+                        </span>
+                        {isSelected && <CheckCircle className="h-4 w-4 shrink-0 text-accent" />}
                       </button>
                     );
                   })}
                 </div>
+
                 {characters.length > 1 && onResetCharacter && (
-                  <div className="mt-4 p-3 rounded-2xl bg-zinc-900/60 border border-white/10">
-                    <p className="text-xs font-black text-zinc-300 uppercase tracking-wider mb-2">↺ Réinitialiser un autre personnage</p>
-                    <div className="space-y-1.5">
-                      {characters.filter(c => c.id !== selectedCharacter).map(c => (
-                        <div key={c.id} className="flex items-center justify-between gap-2">
-                          <span className="text-xs text-zinc-300 flex items-center gap-2 min-w-0">
-                            <User className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                            <span className="truncate">{c.name}</span>
-                            {c.isMule && <span className="text-[9px] text-blue-300 uppercase shrink-0">Mule</span>}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => onResetCharacter?.(c.id)}
-                            disabled={resettingId === c.id}
-                            className="px-2 py-1 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-caption font-black uppercase shrink-0 disabled:opacity-50"
-                          >
-                            {resettingId === c.id ? "…" : "Réinitialiser"}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                  <div className={`${PANEL} px-3 py-2.5`}>
+                    <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <RotateCcw className="h-3 w-3" /> Réinitialiser un autre personnage
+                    </p>
+                    <ul className="space-y-1.5">
+                      {characters
+                        .filter((c) => c.id !== selectedCharacter)
+                        .map((c) => (
+                          <li key={c.id} className="flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-foreground">
+                              <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              <span className="truncate">{c.name}</span>
+                              {c.isMule && (
+                                <span className="shrink-0 text-[9px] uppercase text-muted-foreground">Mule</span>
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => onResetCharacter?.(c.id)}
+                              disabled={resettingId === c.id}
+                              className={SMALL_DANGER}
+                            >
+                              {resettingId === c.id ? "…" : "Réinitialiser"}
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
                   </div>
                 )}
               </div>
             )}
 
-            {/* STEP 2: Préparation — Metamob / alignement / métiers */}
+
+            {/* ── ÉTAPE 2 : la préparation ──────────────────────────────────── */}
             {step === 2 && (
-              <div className="space-y-4">
-                {/* Liaison Metamob */}
+              <div className="space-y-2.5">
                 {launchConfig.showMetamob && (
-                <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/5 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Link2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-black text-white">Liaison Metamob</p>
-                      <p className="text-caption text-zinc-400">
-                        {metamobPseudo
-                          ? `Compte lié : ${metamobPseudo}`
-                          : "Non lié — optionnel mais recommandé pour tracker l'Ocre."}
-                      </p>
+                  <div className={`${PANEL} flex items-center justify-between gap-3 px-3 py-2.5`}>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Link2 className="h-4 w-4 shrink-0 text-accent" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-foreground">Liaison Metamob</p>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground">
+                          {metamobPseudo
+                            ? `Compte lié : ${metamobPseudo}`
+                            : "Non lié — optionnel, mais nécessaire pour suivre l'Ocre."}
+                        </p>
+                      </div>
                     </div>
+                    {metamobPseudo ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-success/40 bg-success/10 px-2 py-1 text-[10px] font-semibold text-success">
+                        <Check className="h-3 w-3" /> Lié
+                      </span>
+                    ) : (
+                      <button type="button" onClick={onOpenMetamobLink} className={SMALL_PRIMARY}>
+                        Lier
+                      </button>
+                    )}
                   </div>
-                  {metamobPseudo ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-caption font-black shrink-0">
-                      <Check className="w-3 h-3" /> Lié
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={onOpenMetamobLink}
-                      className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-black text-caption font-black uppercase shrink-0"
-                    >
-                      Lier
-                    </button>
-                  )}
-                </div>
                 )}
 
-                {/* Reset alignement */}
                 {launchConfig.showResetAlignment && (
-                <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/5 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <RotateCcw className="w-4 h-4 text-[#e6b96b] shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-black text-white">Réinitialiser l'alignement ?</p>
-                      <p className="text-caption text-zinc-400">
-                        {currentAlignment ? `Alignement actuel : ${currentAlignment}` : "Aucun alignement défini."}
-                      </p>
+                  <div className={`${PANEL} flex items-center justify-between gap-3 px-3 py-2.5`}>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <RotateCcw className="h-4 w-4 shrink-0 text-accent" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-foreground">Réinitialiser l&apos;alignement</p>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground">
+                          {campLabel
+                            ? `${campLabel}${orderLabel ? ` · ${orderLabel}` : ""}`
+                            : "Aucun alignement défini."}
+                        </p>
+                      </div>
                     </div>
+                    <button type="button" onClick={onResetAlignment} className={SMALL_DANGER}>
+                      Réinitialiser
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={onResetAlignment}
-                    className="px-2.5 py-1 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-caption font-black uppercase shrink-0"
-                  >
-                    Réinitialiser
-                  </button>
-                </div>
                 )}
 
-                {/* Métiers requis */}
                 {launchConfig.showMetiers && (
-                <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/5">
-                  <p className="text-xs font-black text-white flex items-center gap-1.5 mb-2">
-                    <Hammer className="w-3.5 h-3.5 text-[#e6b96b]" /> Métiers requis
-                  </p>
-                  {metiersRequires.length === 0 ? (
-                    <p className="text-caption text-zinc-400">Aucun métier requis détecté sur ce guide.</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {metiersRequires.map((m) => {
-                        const declared = metiersDeclares.includes(m.id);
-                        return (
-                          <div
-                            key={m.id}
-                            className="flex items-center justify-between gap-2 rounded-xl border border-white/5 bg-[#121821] px-2.5 py-2"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={getMetierIconPath(m.name)} alt="" className="w-6 h-6 object-contain rounded-md shrink-0" />
-                              <div className="min-w-0">
-                                <p className="text-[11px] font-bold text-zinc-100 truncate">
-                                  {m.name} <span className="text-zinc-500 font-mono">Niv. {m.level}</span>
-                                </p>
-                                <p className="text-[9px] font-bold text-zinc-500">
-                                  {declared ? "✓ Déclaré sur votre profil" : "Non déclaré"}
-                                </p>
-                              </div>
-                            </div>
-                            {declared ? (
-                              <span className="text-emerald-400 shrink-0">
-                                <CheckCircle2 className="w-4 h-4" />
+                  <div className={`${PANEL} px-3 py-2.5`}>
+                    <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <Hammer className="h-3 w-3" /> Métiers requis
+                    </p>
+                    {metiersRequires.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground">Aucun métier requis détecté sur ce guide.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {metiersRequires.map((m) => {
+                          const declared = metiersDeclares.includes(m.id);
+                          return (
+                            <li
+                              key={m.id}
+                              className="flex items-center justify-between gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5"
+                            >
+                              <span className="flex min-w-0 items-center gap-2">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={getMetierIconPath(m.name)}
+                                  alt=""
+                                  className="h-6 w-6 shrink-0 rounded-[3px] object-contain"
+                                />
+                                <span className="min-w-0">
+                                  <span className="block truncate text-[11px] font-semibold text-foreground">
+                                    {m.name} <span className="font-mono text-muted-foreground">Niv. {m.level}</span>
+                                  </span>
+                                  <span className="block text-[10px] text-muted-foreground">
+                                    {declared ? "Déclaré sur votre profil" : "Non déclaré"}
+                                  </span>
+                                </span>
                               </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => onDeclareMetier?.(m.name, m.level)}
-                                className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-black text-caption font-black shrink-0"
-                              >
-                                Déclarer
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                              {declared ? (
+                                <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-label="Déclaré" />
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => onDeclareMetier?.(m.name, m.level)}
+                                  className={SMALL_PRIMARY}
+                                >
+                                  Déclarer
+                                </button>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
                 )}
               </div>
             )}
 
-            {/* STEP 3: Active Members Overview */}
+
+            {/* ── ÉTAPE 3 : les membres ─────────────────────────────────────── */}
             {step === 3 && (
               <div className="space-y-3">
-                <p className="text-xs text-zinc-300 font-medium">
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
                   {uniqueActiveMembers.length > 0
-                    ? `${uniqueActiveMembers.length} membre(s) de guilde sont actuellement sur ce Rush :`
-                    : "Vous êtes le premier de la guilde à vous lancer dans ce Rush !"}
+                    ? `${uniqueActiveMembers.length} membre${uniqueActiveMembers.length > 1 ? "s" : ""} de guilde ${
+                        uniqueActiveMembers.length > 1 ? "sont" : "est"
+                      } sur ce Rush :`
+                    : "Vous êtes le premier de la guilde à vous lancer sur ce Rush."}
                 </p>
 
                 {uniqueActiveMembers.length > 0 ? (
-                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    {uniqueActiveMembers.map((m, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-3 rounded-2xl bg-zinc-900/60 border border-white/5"
+                  <ul className="max-h-60 space-y-1.5 overflow-y-auto pr-1">
+                    {uniqueActiveMembers.map((m) => (
+                      <li
+                        key={m.profileId || m.userName}
+                        className={`${PANEL} flex items-center justify-between gap-3 px-3 py-2`}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-indigo-900/60 border border-indigo-500/30 flex items-center justify-center text-xs font-black text-indigo-300 overflow-hidden">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             <MemberAvatar
                               src={m.userAvatar}
                               name={m.userName}
                               alt={m.userName}
-                              fallbackClassName="text-xs font-black text-indigo-300"
+                              fallbackClassName="text-[10px] font-semibold text-muted-foreground"
                             />
-                          </div>
-                          <div>
-                            <p className="text-xs font-black text-white">{m.userName}</p>
-                            <p className="text-caption text-zinc-400">
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-xs font-semibold text-foreground">{m.userName}</span>
+                            <span className="block truncate text-[10px] text-muted-foreground">
                               {m.currentMilestoneTitle ? `Étape : ${m.currentMilestoneTitle}` : "En cours"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <span className="text-xs font-black text-emerald-400">{m.percent}%</span>
-                          <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden mt-1">
-                            <div
-                              className="h-full bg-emerald-400 rounded-full"
-                              style={{ width: `${m.percent}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
+                            </span>
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-right">
+                          <span className="text-xs font-semibold text-accent">{m.percent}%</span>
+                          <span className="mt-1 block h-1 w-16 overflow-hidden rounded-full bg-muted">
+                            <span className="block h-full rounded-full bg-accent" style={{ width: `${m.percent}%` }} />
+                          </span>
+                        </span>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 ) : (
-                  <div className="p-6 text-center border border-dashed border-white/10 rounded-2xl bg-zinc-900/30">
-                    <Sparkles className="w-8 h-8 text-amber-400 mx-auto mb-2 opacity-80" />
-                    <p className="text-xs font-bold text-zinc-300">Soyez le pionnier du Rush !</p>
-                    <p className="text-caption text-zinc-500 mt-1">
+                  <div className="rounded-[6px] border border-dashed border-border px-4 py-6 text-center">
+                    <Sparkles className="mx-auto mb-2 h-7 w-7 text-accent/70" />
+                    <p className="text-xs font-semibold text-foreground">Soyez le pionnier du Rush</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                       Votre progression apparaîtra ici pour guider les membres de la guilde.
                     </p>
                   </div>
@@ -380,68 +477,56 @@ export function RushOnboardingWizardModal({
               </div>
             )}
 
-            {/* STEP 4: Ready to Rush */}
+            {/* ── ÉTAPE 4 : le départ ───────────────────────────────────────── */}
             {step === 4 && (
-              <div className="text-center py-4 space-y-4">
-                <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto ">
-                  <CheckCircle className="w-8 h-8" />
+              <div className="space-y-4 py-2 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-accent/40 bg-accent/10 text-accent">
+                  <CheckCircle className="h-8 w-8" />
                 </div>
                 <div>
-                  <h4 className="text-base font-black text-white uppercase tracking-wider">Tout est configuré !</h4>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Vous allez suivre ce guide avec{" "}
-                    <span className="text-emerald-400 font-bold">{currentSelectedChar?.name}</span>.
+                  <h3 className="font-serif text-base font-semibold text-foreground">Tout est en place</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    La timeline s&apos;ouvrira pour{" "}
+                    <span className="font-semibold text-accent">{currentSelectedChar?.name}</span>.
                   </p>
                 </div>
-                <div className="p-3 bg-zinc-900/80 border border-white/5 rounded-2xl text-left text-xs space-y-1 text-zinc-300">
-                  <p className="font-bold text-white flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5 text-indigo-400" /> Astuces Rush :
+                <div className={`${PANEL} px-3 py-2.5 text-left`}>
+                  <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Shield className="h-3 w-3" /> À retenir
                   </p>
-                  <p className="text-caption text-zinc-400">
-                    - Cochez vos quêtes une par une pour notifier la guilde de votre avancée.
-                  </p>
-                  <p className="text-caption text-zinc-400">
-                    - Cliquez sur le bouton Donjon pour organiser une sortie en 1 clic.
-                  </p>
+                  <ul className="space-y-1 text-[11px] leading-relaxed text-muted-foreground">
+                    <li>· Cochez vos quêtes une par une : la guilde voit votre avancée.</li>
+                    <li>· Un donjon requis non validé verrouille sa quête — le panneau donjon le montre.</li>
+                    <li>· Changer de cité ou d&apos;Ordre décoche la branche concernée (le tronc commun reste).</li>
+                  </ul>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Footer Controls */}
-          <div className="p-4 border-t border-white/5 bg-zinc-900/50 flex items-center justify-between">
+          {/* ══ PIED — un seul bouton d'action à la fois ══ */}
+          <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border-strong bg-surface/60 px-5 py-3">
             {step > 1 ? (
-              <button
-                type="button"
-                onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
-                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" /> Précédent
+              <button type="button" onClick={() => go((step - 1) as 1 | 2 | 3 | 4)} className={GHOST}>
+                <ArrowLeft className="h-3.5 w-3.5" /> Précédent
               </button>
             ) : (
-              <div />
+              <span />
             )}
 
             {step < 4 ? (
-              <button
-                type="button"
-                onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
-                className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-md"
-              >
-                Suivant <ArrowRight className="w-3.5 h-3.5" />
+              <button type="button" onClick={() => go((step + 1) as 1 | 2 | 3 | 4)} className={PRIMARY}>
+                Suivant <ArrowRight className="h-3.5 w-3.5" />
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all "
-              >
-                Lancer mon Rush ! <Sparkles className="w-3.5 h-3.5" />
+              <button type="button" onClick={onClose} className={PRIMARY}>
+                Lancer mon Rush <Sparkles className="h-3.5 w-3.5" />
               </button>
             )}
-          </div>
+          </footer>
         </motion.div>
       </div>
     </AnimatePresence>
   );
 }
+

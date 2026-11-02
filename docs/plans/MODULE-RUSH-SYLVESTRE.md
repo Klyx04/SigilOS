@@ -112,7 +112,9 @@ Conséquence mesurée : **15** quêtes d'Ordre affichées au lieu de **5** (inte
 > palier calculé (`alignmentCountForCamp`, hors Ordres), reset par cité (`alignmentResetSeeds`),
 > compteur corrigé. **Livrés le 02/11/2026 (L2)** : défauts **4** (chaîne des rangs
 > `previousOrderRank` : le rang N exige N−1) et **6** (l'Ordre entre dans la route du dashboard
-> **et** de l'overlay autonome). Défaut **7** = `L3` (prop morte `hasNoClassDeclared`).
+> **et** de l'overlay autonome). **Livré le 02/11/2026 (L3)** : défaut **7** — `hasNoClassDeclared`
+> est calculé pour le personnage sélectionné (mule comprise) et affiché dans la modale d'accueil,
+> qui passe en DA « Carnet ».
 
 ### 1 bis.4 Outillage God manquant (gestes attendus, sans migration)
 
@@ -125,15 +127,17 @@ Conséquence mesurée : **15** quêtes d'Ordre affichées au lieu de **5** (inte
 
 ### 1 bis.5 Ordre des lots Rush (le détail des fichiers est dans le plan du lot)
 
-`G0` (outillage God G1→G4), `L1` (source d'alignement) et `L2` (route cité→Ordre→classe sur
-interne + overlay, chaîne des rangs, changement d'Ordre) sont **livrés** → `L3` (modale d'accueil
-refondue, composant partagé). Le **public authentifié** et l'annuaire par serveur sont un chantier
-distinct : `docs/plans/PLAN-ESPACE-VISITEUR.md`.
+`G0` (outillage God G1→G4), `L1` (source d'alignement), `L2` (route cité→Ordre→classe sur
+interne + overlay, chaîne des rangs, changement d'Ordre) et `L3` (modale d'accueil en DA « Carnet »,
+classe manquante dite et cliquable) sont **livrés** → **`textes`** (tips par quête). Le **public
+authentifié** et l'annuaire par serveur sont un chantier distinct : `docs/plans/PLAN-ESPACE-VISITEUR.md`
+(la modale publique, elle, attend ce compte visiteur : **migration ⇒ accord**).
 
-> **Livrés le 02/11/2026** : G0 (`feat/rush-route-tooling`), L1 (`feat/rush-alignment-l1`) et
-> L2 (`feat/rush-route-l2`). Preuves : `rush-route-tooling` **19** · `rush-class-branches` **10**
-> · `rush-alignment-source` **15** · `rush-order-chain` **17** · `rush-order-reset` **8**
-> · Rush **59 fichiers / 735 tests ✓**. **Aucune migration.** Prochain lot : `L3`.
+> **Livrés le 02/11/2026** : G0 (`feat/rush-route-tooling`), L1 (`feat/rush-alignment-l1`),
+> L2 (`feat/rush-route-l2`) et L3 (`feat/rush-onboarding-l3`). Preuves : `rush-route-tooling` **19**
+> · `rush-class-branches` **10** · `rush-alignment-source` **15** · `rush-order-chain` **17**
+> · `rush-order-reset` **8** · `rush-onboarding-carnet` **7** · Rush **60 fichiers / 742 tests ✓**.
+> **Aucune migration.** Prochain lot : **`textes`** (tips).
 >
 > **L2, ce qui a changé concrètement** : l'Ordre du personnage sélectionné entre dans la route
 > (5 quêtes d'Ordre au lieu de 15) ; l'overlay autonome `/overlay/guide/...` calcule enfin sa route

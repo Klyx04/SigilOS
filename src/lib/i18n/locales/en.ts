@@ -106,6 +106,8 @@ export const en: Translations = {
         errorNoManagedGuildDesc: "Your Discord account is not linked to any guild using SigilOS and you are not an administrator of any eligible server. To set up SigilOS independently, sign in with the account holding Administrator rights on your Discord server.",
         errorVerificationTitle: "Link Expired",
         errorVerificationDesc: "This verification link has already been used or has expired.",
+        errorConfigurationTitle: "Sign-in interrupted by the browser",
+        errorConfigurationDesc: "The browser lost the sign-in security cookie (sign-in opened in another tab or device, blocked cookies, private browsing). Please retry the Discord sign-in in this same browser, allowing cookies for this site.",
         diagnostics: "Diagnostics:",
         requestAccessDiscord: "Request Access (Discord)",
         returnHome: "Return to Home",

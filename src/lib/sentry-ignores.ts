@@ -33,6 +33,10 @@ export const COMMON_IGNORE_ERRORS: (string | RegExp)[] = [
     // — c'est le **tunnel Sentry** lui-même : le navigateur annule la requête en quittant la
     // page. Rien de notre code ne produit cette annulation, et le tunnel n'est pas une route
     // métier (même famille que « The destination stream closed early », cf. filtre serveur).
+    // ⚠️ Complément du 02/11/2026 : la **même** erreur apparaît sur `POST /dashboard/<id>` sous
+    // la forme `ECONNRESET` (`abortIncoming` de Node, aucune frame applicative) — un Server
+    // Action coupé par un client qui ferme l'onglet. C'est bien la valeur `aborted` qui est
+    // comparée, donc ce filtre la couvre ; l'issue 21 est antérieure au filtre.
     /^aborted$/i,
     // Particularité connue de ResizeObserver, bruit standard du web.
     "ResizeObserver loop",

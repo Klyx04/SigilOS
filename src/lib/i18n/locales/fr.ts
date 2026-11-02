@@ -111,6 +111,13 @@ export const fr = {
         errorNoManagedGuildDesc: "Votre compte Discord n'est associé à aucune guilde utilisant SigilOS et vous n'êtes administrateur d'aucun serveur éligible. Pour installer SigilOS en autonomie, connectez-vous avec le compte disposant des droits Administrateur sur votre serveur Discord.",
         errorVerificationTitle: "Lien expiré",
         errorVerificationDesc: "Ce lien de vérification a déjà été utilisé ou est trop vieux.",
+        // Mesure du 02/11/2026 (`JAVASCRIPT-NEXTJS-2F`, navigateur Brave) : Auth.js renvoie
+        // `Configuration` quand le **cookie PKCE** de la connexion n'est plus lisible au retour
+        // de Discord (autre onglet/appareil, cookies bloqués, navigation privée). Ce n'est pas
+        // un bug du serveur : sans ce libellé, l'utilisateur lisait « Oups, petit accroc » et
+        // retentait à l'identique. Le message dit **quoi faire** (même navigateur, cookies).
+        errorConfigurationTitle: "Connexion interrompue par le navigateur",
+        errorConfigurationDesc: "Le navigateur n'a pas retrouvé le cookie de sécurité de la connexion (connexion ouverte dans un autre onglet ou appareil, cookies bloqués, navigation privée). Réessayez la connexion Discord dans ce même navigateur, en autorisant les cookies du site.",
         diagnostics: "Diagnostics :",
         requestAccessDiscord: "Demande d'accès (Discord)",
         returnHome: "Retour à l'accueil",

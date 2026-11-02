@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 02/11/2026 (suite) — **Almanax : bornage de la navigation jour précédent / suivant à la fenêtre de 30 jours** — branche `fix-almanax-navigation-window`
+
+> **Demande user (verbatim)** : « dommage de rendre un 404 au "suivant" dans almanax après 30 jours? » · « pk on affiche pas simplement tous les jours possible? c voulu? » · « en résuméil faut faire quoi » · « ok ».
+> **Mesures** : ① L'API tierce (dofusdu.de) ne renvoie que 30 jours glissants (`range[size]=30`), ignorant `range[date]` pour le passé ou le futur distant ; le 404 sur les dates hors fenêtre (`isServableAlmanaxDay`) est nécessaire pour éviter d'indexer des coquilles vides ("soft 404") ; ② En revanche, la page `src/app/almanax/[date]/page.tsx` calculait aveuglément `prevKey` et `nextKey` avec `addDays(±1)`, affichant un lien "Jour suivant" sur J+29 et "Jour précédent" sur aujourd'hui menant directement à une erreur 404.
+> **Fait** : ① Conditionnement de l'affichage des liens « Jour précédent » et « Jour suivant » via `hasPrev = isServableAlmanaxDay(prevKey)` et `hasNext = isServableAlmanaxDay(nextKey)` ; ② Espacement flex préservé (`justify-between`) avec `<span aria-hidden="true" />` quand un seul lien est visible ; ③ Verrou unitaire dans `tests/unit/seo-horizon-indexation.test.ts`.
+> **Preuves** : `seo-horizon-indexation.test.ts` **12/12** · suite complète Vitest **583 fichiers / 6 103 tests passés** (0 échec) · `tsc --noEmit` 0 erreur · ESLint 0 erreur · audit sécurité franchi.
+> **Reste / ops** : PR vers `dev`.
+> **Rotation** : bloc « 01/11/2026 (suite 2) — Portail : le plafond ne casse plus la carte » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 02/11/2026 — **Annonces de live Discord + preuve de purge + activité réelle** — branche `feat/live-notifications-discord`
 
 > **Demande user (verbatim)** : « deslop le bloc qui affiche les streamer en live + la modale qui s'ouvre … afficher l'icone twitch ou youtube + l'icone du streamer … envoyer un superbe embed discord dans un canal … quand un streamer est en live » · « une seule notif quand le streamer se co jusqu'à sa prochaine reco » · « une seule PR pour la totalité + DB DA ».
@@ -54,15 +64,3 @@
 > **Preuves** : `guild-limit` **17/17** · `discord-bot-guild-create-limit` **11/11** · `discord-bot-build` **6/6** · build du bot **exit 0** (`dist/index.js` + `dist/shared/guild-limit.js` se chargent sous Node) · `tsc` 0 · ESLint 0 erreur.
 > **Reste / ops** : `./scripts/deploy-cd.sh beta` **reconstruit l'image `discord-bot`** (sans rebuild, le conteneur garde l'ancien code) ; contrôle réel = ré-inviter le bot sur un serveur dont le propriétaire est à 2/2 ; `docs/plans/PLAN-RAID.md` reste modifié dans l'arbre (pas de cette session).
 > **Rotation** : bloc « 31/10 (suite 10) — Modale raid : charte mesurée et corrigée » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 01/11/2026 (suite 2) — **Portail : le plafond ne casse plus la carte** — branche `fix/limite-guildes-ui-portail`
-
-> **Demande user (verbatim)** : « bandeau très moche pas faux et responsivité détruite dans le bloc deploiement » (capture du portail à 2 guildes sur 2).
-> **Mesures (capture + code)** : ① le bandeau vivait **hors** de `.reg-shell` (`px-4 pt-6 md:px-8`) ⇒ barre pleine largeur au-dessus du titre, alignée sur rien ; ② `guild-setup-card.tsx` posait un paragraphe `max-w-[24rem]` (384 px) dans la 3ᵉ colonne `auto` d'une grille `auto | minmax(0,1fr) | auto` large de ~450 px ⇒ colonne du titre écrasée à ~0 (« un mot par ligne ») et texte hors cadre, **dès 1440** ; ③ la carte affichait « Bot détecté · Prêt à déployer » **et** « Ouverture autonome suspendue » alors que le switch était ON — faux ; ④ `autoDeploy` appelait `onboardGuild` même porte fermée (clic pour rien, refus certain).
-> **Fait** : ① règle d'affichage **pure** `src/lib/guild-setup-view.ts` (`resolveGuildSetupView` : plafond > kill-switch, aucune offre si une porte est fermée, badge seulement si déployable) ; ② carte : plus de 3ᵉ colonne ni de texte long quand bloqué, badge passé en `.reg-tag`, sous-titre d'état, `onboardGuild` non appelé ; ③ bandeau déplacé **dans** l'en-tête (`.reg-shell`, `max-w-[62ch]`, filet `warning` + icône, une seule fois) ; ④ verrou `tests/unit/guild-setup-view.test.ts` (6 cas de comportement + 3 assertions de mise en page).
-> **Preuves** : `guild-setup-view` **9/9** · `guild-limit` **10/10** · `guild-limit-guards` **8/8** · `tsc` 0 · ESLint 0 erreur (9 avertissements de couleur **préexistants** sur la carte).
-> **Reste / ops** : contrôle visuel navigateur 390 / 768 / 1024 / 1440 **non joué ici** (session sans authentification Discord) ; reste du chantier = **annonce du bot à l'invitation** (service séparé, `GuildCreate` sans session, rebuild d'image).
-> **Rotation** : bloc « 31/10 (suite 9) — R1 no-show : le registre de présence existe » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-

@@ -40,6 +40,13 @@ sql() {
     psql -U sigil_ro -d sigilos -A -F '|' "$@"
 }
 
+# Les variables psql (`:'name'`, `:id`) ne sont substituées que sur l'ENTRÉE
+# standard, pas dans `-c` : ces requêtes passent donc par un heredoc.
+sql_stdin() {
+  PGPASSWORD="$(cat "$PASS_FILE")" docker exec -i -e PGPASSWORD "$DB_CONTAINER" \
+    psql -U sigil_ro -d sigilos -A -F '|' "$@"
+}
+
 # `read` découpe sur l'IFS par défaut, SANS expansion de glob : le premier mot est
 # le verbe, le RESTE un éventuel argument (validé par un `case` fermé).
 read -r CMD ARG <<< "${SSH_ORIGINAL_COMMAND:-}"
@@ -75,9 +82,13 @@ case "${CMD:-}" in
     ;;
   items)
     if [[ "${ARG:-}" =~ ^[0-9]{1,9}$ ]]; then
-      sql -v id="$ARG" -c "SELECT \"ankamaId\", name, level, \"typeName\", category FROM \"GameItem\" WHERE \"ankamaId\" = :id LIMIT 10;"
+      sql_stdin -v id="$ARG" <<'SQL'
+SELECT "ankamaId", name, level, "typeName", category FROM "GameItem" WHERE "ankamaId" = :id LIMIT 10;
+SQL
     elif [[ ${#ARG} -ge 2 && ${#ARG} -le 60 ]]; then
-      sql -v name="$ARG" -c "SELECT \"ankamaId\", name, level, \"typeName\", category FROM \"GameItem\" WHERE name ILIKE '%' || :'name' || '%' ORDER BY level, name LIMIT 10;"
+      sql_stdin -v name="$ARG" <<'SQL'
+SELECT "ankamaId", name, level, "typeName", category FROM "GameItem" WHERE name ILIKE '%' || :'name' || '%' ORDER BY level, name LIMIT 10;
+SQL
     elif [[ -z "${ARG:-}" ]]; then
       sql -c "SELECT \"ankamaId\", name, level, \"typeName\", category FROM \"GameItem\" ORDER BY \"ankamaId\" DESC LIMIT 20;"
     else
@@ -86,7 +97,9 @@ case "${CMD:-}" in
     ;;
   monsters)
     if [[ ${#ARG} -ge 2 && ${#ARG} -le 60 ]]; then
-      sql -v name="$ARG" -c "SELECT m.name, m.level, f.name AS family FROM \"Monster\" m LEFT JOIN \"MonsterFamily\" f ON f.id = m.\"familyId\" WHERE m.name ILIKE '%' || :'name' || '%' ORDER BY m.level DESC NULLS LAST, m.name LIMIT 10;"
+      sql_stdin -v name="$ARG" <<'SQL'
+SELECT m.name, m.level, f.name AS family FROM "Monster" m LEFT JOIN "MonsterFamily" f ON f.id = m."familyId" WHERE m.name ILIKE '%' || :'name' || '%' ORDER BY m.level DESC NULLS LAST, m.name LIMIT 10;
+SQL
     elif [[ -z "${ARG:-}" ]]; then
       sql -c "SELECT m.name, m.level, f.name AS family FROM \"Monster\" m LEFT JOIN \"MonsterFamily\" f ON f.id = m.\"familyId\" ORDER BY m.level DESC NULLS LAST, m.name LIMIT 20;"
     else
@@ -95,9 +108,13 @@ case "${CMD:-}" in
     ;;
   quests)
     if [[ "${ARG:-}" =~ ^[0-9]{1,9}$ ]]; then
-      sql -v id="$ARG" -c "SELECT \"dofusDbId\", name, \"levelMin\", \"levelMax\", category FROM \"GameQuest\" WHERE \"dofusDbId\" = :id LIMIT 10;"
+      sql_stdin -v id="$ARG" <<'SQL'
+SELECT "dofusDbId", name, "levelMin", "levelMax", category FROM "GameQuest" WHERE "dofusDbId" = :id LIMIT 10;
+SQL
     elif [[ ${#ARG} -ge 2 && ${#ARG} -le 60 ]]; then
-      sql -v name="$ARG" -c "SELECT \"dofusDbId\", name, \"levelMin\", \"levelMax\", category FROM \"GameQuest\" WHERE name ILIKE '%' || :'name' || '%' ORDER BY \"levelMin\" NULLS LAST, name LIMIT 10;"
+      sql_stdin -v name="$ARG" <<'SQL'
+SELECT "dofusDbId", name, "levelMin", "levelMax", category FROM "GameQuest" WHERE name ILIKE '%' || :'name' || '%' ORDER BY "levelMin" NULLS LAST, name LIMIT 10;
+SQL
     elif [[ -z "${ARG:-}" ]]; then
       sql -c "SELECT \"dofusDbId\", name, \"levelMin\", \"levelMax\", category FROM \"GameQuest\" ORDER BY \"dofusDbId\" DESC NULLS LAST LIMIT 20;"
     else

@@ -283,16 +283,35 @@ export function blockHeaderCoord(
 export type RushAlignmentSet = { camp: string; level: number };
 
 /**
+ * Camp porté par un tag `alignment_set` — **`camp` d'abord** (canonique), puis `name`
+ * (legacy : import Tougli, exports JSON, tags écrits avant le 02/11/2026).
+ *
+ * Une seule source de lecture pour les 4 surfaces (badges, serveur, reset) : sans ça,
+ * les 67 lignes importées avec `camp` étaient lues comme « pas d'alignement » alors que
+ * `getAlignmentSet` exigeait `name` (défaut mesuré le 02/11/2026).
+ */
+export function alignmentTagCamp(tag: RushActivityTag | null | undefined): string | null {
+  if (!tag || tag.type !== "alignment_set") return null;
+  const raw = (tag as { camp?: unknown }).camp ?? (tag as { name?: unknown }).name;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
+/**
  * Lit le tag `alignment_set` d'une séquence : la quête « donne » cet alignement
  * (camp + niveau) quand elle est cochée. `null` si ce n'est pas une quête d'alignement.
+ *
+ * Le camp rendu est **normalisé** (`Bonta` → `bontarien`) pour que les libellés et les
+ * comparaisons soient stables ; une valeur inconnue est rendue telle quelle (jamais
+ * rattachée d'office).
  */
 export function getAlignmentSet(seq: RushSequence | null | undefined): RushAlignmentSet | null {
   if (!seq || !Array.isArray(seq.activityTags)) return null;
   const tag = seq.activityTags.find((t) => t.type === "alignment_set");
-  if (!tag || !tag.name) return null;
+  const raw = alignmentTagCamp(tag);
+  if (!raw) return null;
   return {
-    camp: tag.name,
-    level: typeof tag.level === "number" ? Math.max(0, Math.min(100, tag.level)) : 0,
+    camp: normalizeAlignmentCamp(raw) ?? raw,
+    level: typeof tag?.level === "number" ? Math.max(0, Math.min(100, tag.level)) : 0,
   };
 }
 
@@ -542,8 +561,7 @@ function alignmentCampOf(seq: RushSequence): string | null {
   const raw = (seq.alignReq ?? "").trim();
   if (raw) return raw;
   const tags = Array.isArray(seq.activityTags) ? seq.activityTags : [];
-  const tag = tags.find((t) => t.type === "alignment_set") as { name?: string } | undefined;
-  return tag?.name ?? null;
+  return alignmentTagCamp(tags.find((t) => t.type === "alignment_set"));
 }
 
 /**
@@ -563,6 +581,11 @@ export function alignmentCountForCamp(
   for (const ms of allMilestones) {
     for (const seq of ms.sequences || []) {
       if (!completedSeqIds.has(seq.id)) continue;
+      // Une quête d'ORDRE porte aussi `alignReq` : elle ne compte PAS dans la série de
+      // cité. Sans cette exclusion, 15 quêtes d'Ordre gonflaient le palier de 15
+      // (défaut mesuré le 02/11/2026 : 15 quêtes de rang 5 cochées « débloquaient » le
+      // palier 100 sans les 100 quêtes de cité).
+      if ((seq.alignOrderCode ?? "").trim()) continue;
       if (normalizeAlignmentCamp(alignmentCampOf(seq)) === wanted) count += 1;
     }
   }
@@ -715,6 +738,34 @@ export function findMilestoneInsertIndex(
     if ((ms.chapter ?? 0) > target.chapter) return i;
   }
   return ordered.length;
+}
+
+/**
+ * **Graines du reset d'alignement** — toutes les quêtes de la cité (`alignReq`), Ordre
+ * compris. C'est la règle de jeu : changer de cité efface la branche de l'**ancienne**
+ * cité, pas seulement les 67 quêtes qui portent le tag `alignment_set` (défaut mesuré
+ * le 02/11/2026 : 67 racines sur 236).
+ *
+ * Camp inconnu ou « neutre » ⇒ repli sur les tags `alignment_set` : le bouton « reset »
+ * historique continue de nettoyer quelque chose, même sans cité mémorisée.
+ *
+ * Règle PURE : aucun accès base, aucune mutation.
+ */
+export function alignmentResetSeeds(
+  allMilestones: RushMilestone[],
+  camp: string | null | undefined
+): string[] {
+  const wanted = normalizeAlignmentCamp(camp);
+  const ids: string[] = [];
+  for (const ms of allMilestones) {
+    for (const seq of ms.sequences || []) {
+      const isSeed = wanted
+        ? normalizeAlignmentCamp(seq.alignReq) === wanted
+        : Array.isArray(seq.activityTags) && seq.activityTags.some((t) => t.type === "alignment_set");
+      if (isSeed) ids.push(seq.id);
+    }
+  }
+  return ids;
 }
 
 /**

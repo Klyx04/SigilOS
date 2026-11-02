@@ -10,7 +10,7 @@
  * 🛡️ Ce que ce test verrouille :
  *  • plus AUCUN sélecteur de tranche (rush, overlay, profil, mules) ;
  *  • l'Ordre n'est plus effacé par une coche de quête d'alignement ;
- *  • changer de cité réinitialise les quêtes d'alignement (les autres gardent leur avancement) ;
+ *  • changer de cité réinitialise la branche de l'ancienne cité (les autres gardent leur avancement) ;
  *  • la coche continue de mettre l'alignement à jour en direct.
  */
 
@@ -71,9 +71,12 @@ describe("l'Ordre fait foi", () => {
 });
 
 describe("changer de cité = reset des quêtes d'alignement", () => {
-  it("le reset ne retire QUE les séquences d'alignement", () => {
+  it("le reset ne retire QUE la branche de l'ancienne cité (jamais les quêtes communes)", () => {
     const code = read(RESET);
-    expect(code).toContain('tags.some((tag) => tag?.type === "alignment_set")');
+    // L1 (02/11/2026) : la graine est TOUTE la cité (`alignReq`), pas le seul tag
+    // `alignment_set` (67 racines sur 236). La règle pure `alignmentResetSeeds` est
+    // verrouillée par `rush-alignment-source.test.ts` ; ici on tient le câblage.
+    expect(code).toContain("alignmentResetSeeds(milestones, camp)");
     // La quête qui vient d'être cochée est conservée.
     expect(code).toMatch(/id === keepSeqId/);
     expect(code).toMatch(/!ids\.has\(id\) \|\| id === keepSeqId/);

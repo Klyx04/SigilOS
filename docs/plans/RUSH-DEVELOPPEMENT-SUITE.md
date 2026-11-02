@@ -44,9 +44,9 @@ quête) n'a que sa **fondation en base** (`GuideSequence.publicSlug` + `isPublis
 > là : ce qui manque est **la route** (cité → Ordre → classe) et **l'outillage God** pour la poser.
 > État, défauts mesurés et ordre des lots : `docs/plans/MODULE-RUSH-SYLVESTRE.md` § **1 bis**.
 
-**`G0` livré le 02/11/2026** (outillage God de la route : masse par bloc, classe fermée, aperçu,
-Branches à 3 étages). **Prochain lot : `L1`** (source d'alignement), puis `L2` → `L3`. L'ordre **global**
-des chantiers reste `docs/ROADMAP.md`.
+**`G0` et `L1` livrés le 02/11/2026** (outillage God de la route ; source d'alignement :
+`camp`/`name`, palier calculé, reset par cité). **Prochain lot : `L2`** (route cité→Ordre→classe),
+puis `L3`. L'ordre **global** des chantiers reste `docs/ROADMAP.md`.
 
 | Ressource (dans `src/temp/trame-rush/`, **jamais commité**) | Contenu |
 |---|---|

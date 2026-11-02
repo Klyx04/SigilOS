@@ -276,14 +276,14 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           {(parsedCoord || hasDungeon || bookmarkers.length > 0 || alignmentSet) && (
             <div className="flex flex-wrap items-center gap-1">
               {alignmentSet && alignLabel && (
-                <span className={chip} title={`Quête d'alignement → ${alignLabel} ${alignmentSet.level}`}>
+                <span className={chip} title={`Quête d'alignement → ${alignLabel}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={alignmentSet.camp === "brakmarien" ? "/ordres/brakmar.png" : "/ordres/bonta.png"}
                     alt=""
                     className="h-3 w-3 shrink-0 object-contain"
                   />
-                  Alignement {alignLabel} {alignmentSet.level}
+                  Alignement {alignLabel}
                 </span>
               )}
               {parsedCoord && (

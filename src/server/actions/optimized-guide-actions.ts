@@ -17,6 +17,7 @@ import { normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
 import { importKey, isRushImportNoop, planRushImport, safeRushGuideLink } from "@/lib/rush-import";
 import { applyChoiceExclusivity, choiceGroupTag, stepCounts } from "@/lib/rush-choice-groups";
 import { normalizeAlignmentCamp } from "@/lib/rush-route";
+import { alignmentCountForCamp, alignmentTagCamp } from "@/lib/rush-guide-utils";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { findNearestZaap, type ZaapEntry } from "@/lib/nearest-zaap";
 import { publishGuideEvent, parseStepKey, getCachedGuideProgress, invalidateGuideProgressCache } from "@/lib/guide-realtime";
@@ -25,7 +26,7 @@ import { z } from "zod";
 import { resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
 import { boundQuestDbIds } from "@/lib/rush-quest-identity";
-import type { RushSequence } from "@/types/rush-guide-types";
+import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
 /**
  * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
@@ -1724,13 +1725,18 @@ export async function setRushDungeonState(
  * quête d'alignement ne reste cochée (on retombe alors sur la base).
  * Position = milestone.order * 10000 + seq.order (ordre de progression guide).
  */
-async function findLastCheckedAlignmentQuest(
+/**
+ * État d'alignement d'un personnage pour un guide : les jalons utiles aux règles et les
+ * ids de quêtes validées. Un jalon `isCompleted` vaut **toutes** ses quêtes ; sinon
+ * `completedSteps` fait foi (même lecture que le guide, aucune seconde vérité).
+ */
+async function loadAlignmentProgress(
   profileId: string,
   characterSlot: string,
-  guideSlug: string | undefined,
-  excludeSequenceId: string
-): Promise<{ camp: string; level: number } | null> {
-  if (!guideSlug) return null;
+  guideSlug: string | undefined
+): Promise<{ milestones: RushMilestone[]; completed: Set<string> }> {
+  if (!guideSlug) return { milestones: [], completed: new Set() };
+
   const rows = await db.playerGuideProgress.findMany({
     where: { profileId, characterSlot, milestone: { guide: { slug: guideSlug } } },
     select: {
@@ -1738,37 +1744,72 @@ async function findLastCheckedAlignmentQuest(
       completedSteps: true,
       milestone: {
         select: {
+          id: true,
+          type: true,
+          chapter: true,
+          chapterLabel: true,
+          title: true,
           order: true,
-          sequences: { select: { id: true, order: true, activityTags: true } },
+          isOptional: true,
+          sequences: {
+            select: { id: true, order: true, alignReq: true, alignOrderCode: true, activityTags: true },
+          },
         },
       },
     },
   });
 
-  const candidates: { pos: number; camp: string; level: number }[] = [];
+  const milestones = rows.map((row) => row.milestone) as unknown as RushMilestone[];
+  const completed = new Set<string>();
   for (const row of rows) {
-    const checked = new Set<string>(
-      row.isCompleted
-        ? row.milestone.sequences.map((s) => s.id)
-        : (Array.isArray(row.completedSteps) ? (row.completedSteps as string[]) : [])
-    );
-    for (const seq of row.milestone.sequences) {
-      if (seq.id === excludeSequenceId) continue;
-      if (!checked.has(seq.id)) continue;
-      const tag = ((Array.isArray(seq.activityTags) ? seq.activityTags : []) as any[]).find(
-        (t: any) => t.type === "alignment_set"
-      );
-      if (!tag?.name) continue;
-      candidates.push({
-        pos: row.milestone.order * 10000 + seq.order,
-        camp: String(tag.name),
-        level: typeof tag.level === "number" ? Math.max(0, Math.min(100, tag.level)) : 0,
-      });
+    if (row.isCompleted) {
+      for (const seq of row.milestone.sequences) completed.add(seq.id);
+    } else if (Array.isArray(row.completedSteps)) {
+      for (const id of row.completedSteps as string[]) completed.add(id);
     }
   }
-  if (!candidates.length) return null;
-  candidates.sort((a, b) => b.pos - a.pos);
-  return { camp: candidates[0].camp, level: candidates[0].level };
+  return { milestones, completed };
+}
+
+/**
+ * Palier RÉEL d'un camp : nombre de quêtes **de cité** validées (`alignmentCountForCamp`
+ * exclut les quêtes d'Ordre). Le `level` du tag importé valait toujours 1 : il n'est plus
+ * la vérité (défaut mesuré le 02/11/2026).
+ */
+async function alignmentLevelFor(
+  profileId: string,
+  characterSlot: string,
+  guideSlug: string | undefined,
+  camp: string | null
+): Promise<number> {
+  const { milestones, completed } = await loadAlignmentProgress(profileId, characterSlot, guideSlug);
+  return alignmentCountForCamp(milestones, completed, camp);
+}
+
+/**
+ * Dernière quête d'alignement validée (hors quête en cours de décochage), dans l'ordre du
+ * guide. Sert à restaurer le camp quand on décoche la dernière quête d'un camp.
+ */
+async function findLastCheckedAlignmentQuest(
+  profileId: string,
+  characterSlot: string,
+  guideSlug: string | undefined,
+  excludeSequenceId: string
+): Promise<{ camp: string } | null> {
+  if (!guideSlug) return null;
+  const { milestones, completed } = await loadAlignmentProgress(profileId, characterSlot, guideSlug);
+
+  let best: { pos: number; camp: string } | null = null;
+  for (const ms of milestones) {
+    for (const seq of ms.sequences) {
+      if (seq.id === excludeSequenceId || !completed.has(seq.id)) continue;
+      const camp = alignmentTagCamp(seq.activityTags?.find((t) => t.type === "alignment_set"));
+      if (!camp) continue;
+      const pos = (ms.order ?? 0) * 10000 + (seq.order ?? 0);
+      if (!best || pos > best.pos) best = { pos, camp };
+    }
+  }
+  return best ? { camp: best.camp } : null;
 }
 
 export async function applyRushAlignmentFromSequence(
@@ -1793,13 +1834,15 @@ export async function applyRushAlignmentFromSequence(
   const alignmentTag = ((Array.isArray(sequence.activityTags) ? sequence.activityTags : []) as any[]).find(
     (t: any) => t.type === "alignment_set"
   );
-  // Pas une quête d'alignement → no-op (aucun effet).
-  if (!alignmentTag?.name) return { success: true, noop: true };
+  // Deux vocabulaires : `camp` (canonique) puis `name` (legacy). Pas de camp → no-op.
+  const rawCamp = alignmentTagCamp(alignmentTag as any);
+  if (!rawCamp) return { success: true, noop: true };
 
-  const camp = String(alignmentTag.name);
-  const level = typeof alignmentTag.level === "number" ? Math.max(0, Math.min(100, alignmentTag.level)) : 0;
+  const camp = normalizeAlignmentCamp(rawCamp) ?? rawCamp;
+  const guideSlug = sequence.milestone?.guide?.slug;
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
+  let appliedLevel = 0;
   const isMule = characterSlot !== "PRINCIPAL";
 
   const profile = await db.userProfile.findUnique({
@@ -1831,22 +1874,25 @@ export async function applyRushAlignmentFromSequence(
           };
         }
         mule.alignment = camp;
-        mule.alignmentLevel = level;
+        appliedLevel = await alignmentLevelFor(profileId, characterSlot, guideSlug, camp);
+        mule.alignmentLevel = appliedLevel;
       } else {
         const last = await findLastCheckedAlignmentQuest(
           profileId,
           characterSlot,
-          sequence.milestone?.guide?.slug,
+          guideSlug,
           sequenceId
         );
         if (last) {
-          mule.alignment = last.camp;
-          mule.alignmentLevel = last.level;
+          mule.alignment = normalizeAlignmentCamp(last.camp) ?? last.camp;
+          appliedLevel = await alignmentLevelFor(profileId, characterSlot, guideSlug, mule.alignment);
+          mule.alignmentLevel = appliedLevel;
         } else {
           const base = mule.alignmentBefore as any;
           mule.alignment = base?.alignment ?? "neutre";
           mule.alignmentOrder = base?.alignmentOrder ?? null;
           mule.alignmentLevel = base?.alignmentLevel ?? 0;
+          appliedLevel = mule.alignmentLevel;
           delete mule.alignmentBefore;
         }
       }
@@ -1863,22 +1909,25 @@ export async function applyRushAlignmentFromSequence(
           };
         }
         data.alignment = camp;
-        data.alignmentLevel = level;
+        appliedLevel = await alignmentLevelFor(profileId, characterSlot, guideSlug, camp);
+        data.alignmentLevel = appliedLevel;
       } else {
         const last = await findLastCheckedAlignmentQuest(
           profileId,
           characterSlot,
-          sequence.milestone?.guide?.slug,
+          guideSlug,
           sequenceId
         );
         if (last) {
-          data.alignment = last.camp;
-          data.alignmentLevel = last.level;
+          data.alignment = normalizeAlignmentCamp(last.camp) ?? last.camp;
+          appliedLevel = await alignmentLevelFor(profileId, characterSlot, guideSlug, data.alignment);
+          data.alignmentLevel = appliedLevel;
         } else {
           const base = profile.alignmentBefore as any;
           data.alignment = base?.alignment ?? "neutre";
           data.alignmentOrder = base?.alignmentOrder ?? null;
           data.alignmentLevel = base?.alignmentLevel ?? 0;
+          appliedLevel = data.alignmentLevel;
           data.alignmentBefore = null;
         }
       }
@@ -1897,7 +1946,7 @@ export async function applyRushAlignmentFromSequence(
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${sequence.milestone.guide.slug}`);
   }
 
-  return { success: true, applied: isChecked, camp, level };
+  return { success: true, applied: isChecked, camp, level: appliedLevel };
 }
 
 /**
@@ -4329,7 +4378,21 @@ export async function resetAlignmentProgress(guildId: string, altPseudo?: string
   if (!rateOk) return { success: false as const, error: "Trop de requêtes, veuillez patienter." };
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
-  const cleared = await resetAlignmentQuests(profileId, characterSlot);
+
+  // La cité quittée est encore celle du profil : le sélecteur n'écrit le nouveau camp
+  // qu'APRÈS ce reset (`AlignmentChoiceForm`). On la lit ici, pas dans le client.
+  const profile = await db.userProfile.findUnique({
+    where: { id: profileId },
+    select: { alignment: true, altPseudos: true },
+  });
+  if (!profile) return { success: false as const, error: "Profil introuvable" };
+  const oldCamp =
+    characterSlot === "PRINCIPAL"
+      ? profile.alignment
+      : ((Array.isArray(profile.altPseudos) ? (profile.altPseudos as any[]) : [])
+          .find((m: any) => m.pseudo === characterSlot)?.alignment ?? null);
+
+  const cleared = await resetAlignmentQuests(profileId, characterSlot, oldCamp);
   return { success: true as const, data: { cleared } };
 }
 

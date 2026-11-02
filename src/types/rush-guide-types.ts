@@ -30,6 +30,11 @@ export type RushActivityTagType =
 export type RushActivityTag = {
   type: RushActivityTagType | string;
   name?: string;
+  /**
+   * Camp d'un tag `alignment_set` — **vocabulaire canonique** (02/11/2026).
+   * L'ancien import écrivait `name` : il reste lu en legacy (`alignmentTagCamp`).
+   */
+  camp?: string | null;
   level?: number;
   count?: number;
   color?: string;

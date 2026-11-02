@@ -1896,7 +1896,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                           return (
                                             <span
                                               className="inline-flex items-center gap-1 shrink-0 text-[11px] text-muted-foreground"
-                                              title={`Quête d'alignement → ${label} ${align.level}`}
+                                              title={`Quête d'alignement → ${label}`}
                                             >
                                               {/* eslint-disable-next-line @next/next/no-img-element */}
                                               <img
@@ -1904,7 +1904,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones }: Publ
                                                 alt=""
                                                 className="h-3 w-3 shrink-0 object-contain"
                                               />
-                                              Alignement {label} {align.level}
+                                              Alignement {label}
                                             </span>
                                           );
                                         })()}

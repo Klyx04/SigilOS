@@ -121,4 +121,12 @@ describe("aucune perte silencieuse", () => {
 
         expect(view.misplaced.map((s) => s.id)).toEqual(["avec-ordre"]);
     });
+
+    it("une quête de classe qui porte un palier est signalée (le verrou compterait des quêtes de cité)", () => {
+        const view = buildRushClassBranches([
+            seq({ id: "avec-palier", classReq: "feca", alignLevelReq: 20 }),
+        ]);
+
+        expect(view.misplaced.map((s) => s.id)).toEqual(["avec-palier"]);
+    });
 });

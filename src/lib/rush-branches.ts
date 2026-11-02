@@ -271,7 +271,7 @@ export type RushClassBranchesView = {
     classes: RushClassBranch[];
     /** `classReq` inconnu (faute de frappe, libellé `Féca`, ancien id `osa`) : signalé. */
     unknown: RushBranchSequence[];
-    /** Quête de classe qui porte **aussi** une cité ou un Ordre : elle fausserait la série. */
+    /** Quête de classe qui porte **aussi** une cité, un Ordre ou un palier : elle fausserait la série. */
     misplaced: RushBranchSequence[];
 };
 
@@ -283,8 +283,9 @@ export type RushClassBranchesView = {
  *  · rattacher d'office une valeur inconnue — la route (`isSequenceOnRoute`) la masque
  *    en fail-closed, donc le joueur ne la verrait jamais : elle doit être **nommée** ici ;
  *  · compter deux quêtes pour une même classe sans le dire (`sequences.length > 1`) ;
- *  · laisser une quête de classe porter une cité ou un Ordre : elle compterait dans la
- *    série de cité et fausserait la cible 100/102.
+ *  · laisser une quête de classe porter une cité, un Ordre ou un palier : elle compterait
+ *    dans la série de cité (cible 100/102) ou serait verrouillée par
+ *    `isSequenceBlockedByPrereqs` (`alignLevelReq`), qui compte des quêtes de cité.
  *
  * Règle pure : ne lit rien, n'écrit rien.
  */
@@ -307,7 +308,11 @@ export function buildRushClassBranches(
             unknown.push(seq);
             continue;
         }
-        if ((seq.alignReq ?? "").trim() || (seq.alignOrderCode ?? "").trim()) {
+        if (
+            (seq.alignReq ?? "").trim() ||
+            (seq.alignOrderCode ?? "").trim() ||
+            seq.alignLevelReq != null
+        ) {
             misplaced.push(seq);
         }
         const list = byClass.get(id) ?? [];

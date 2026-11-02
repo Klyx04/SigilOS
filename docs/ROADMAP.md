@@ -11,7 +11,7 @@
 
 - **Livré le 02/11/2026 — Rush : outillage God de la route, G0 (branche `feat/rush-route-tooling`).**
   ① **Route du bloc** : cité / Ordre / palier / classe appliqués d'un coup (action `updateRushBlockRoute` — brique Rush + rate limit Redis, Zod borné, Ordre de la cité, classe des 19 ids, bloc vérifié dans `rush-sylvestre`, `updateMany`, trace), barre avec confirmation de portée ; ② **classe en liste fermée** (19 ids `DOFUS_CLASSES`, valeur inconnue conservée et signalée) sur les 3 surfaces ; ③ **aperçu de route** (cité/Ordre/classe) par `resolveRushRoute`, sans publication ; ④ **Branches à 3 étages** : 19 emplacements de classe, manques nommés, classes inconnues et quêtes mal placées signalées.
-  **Preuves** : `rush-route-tooling` **19** · `rush-class-branches` **9** · Rush **56 fichiers / 694 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.** **Reste** : `L1` (source d'alignement), `L2`, `L3`.
+  **Preuves** : `rush-route-tooling` **19** · `rush-class-branches` **10** · Rush **56 fichiers / 695 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.** **Reste** : `L1` (source d'alignement), `L2`, `L3`.
 
 - **Livré le 02/11/2026 — Rush : cocher les ressources dans la fiche, et la validation les coche toutes (branche `feat/rush-da-carnet`).**
   ① `QuestItemResourceGrid` **cochable** (`checkedKeys` + `onToggleCheck`, `aria-pressed`) sur les 3 surfaces ; **valider une quête coche toutes ses ressources**, l'**invalider les décoche** (règle pure `src/lib/rush-resource-checks.ts`, serveur + écho optimiste, cascade comprise) ; ② **bug corrigé** : `getRushResourceChecks(slug, guildId)` → `(guildId, slug)` (les coches ne se rechargeaient jamais) ; ③ badges de condition longs bornés (`truncate` + `break-words`).

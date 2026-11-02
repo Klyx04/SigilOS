@@ -11,7 +11,7 @@
 > **Demande user (verbatim)** : « Reprise SigilOS. » (amorce générique) — le §0 désignait `G0`.
 > **Mesures** : ① la route s'éditait **quête par quête** (236 `alignReq`), aucune action de masse ; ② `classReq` en `<input>` libre (une faute ⇒ quête **masquée**, fail-closed) ; ③ aucun aperçu de route ; ④ vue Branches à **2** étages ; base locale : **492** séquences, **30** Ordres, **19** classes, **67** `alignment_set`.
 > **Fait** : ① `updateRushBlockRoute` (brique Rush + rate limit Redis, Zod borné, Ordre de la cité, classe des 19 ids, bloc vérifié dans `rush-sylvestre`, `updateMany`, trace) + barre « Route du bloc » avec confirmation de portée ; ② `RushClassSelect` (19 ids, valeur inconnue **conservée** et signalée) sur les 3 surfaces ; ③ `RushRoutePreview` par `resolveRushRoute` (aucun second filtre) ; ④ `buildRushClassBranches` (règle pure) + table des 19 classes, manques nommés, `unknown`/`misplaced`.
-> **Preuves** : `rush-route-tooling` **19** · `rush-class-branches` **9** · Rush **56 fichiers / 694 tests ✓** · `tsc` 0 · ESLint 0 erreur.
+> **Preuves** : `rush-route-tooling` **19** · `rush-class-branches` **10** · Rush **56 fichiers / 695 tests ✓** · `tsc` 0 · ESLint 0 erreur.
 > **Reste / ops** : `L1` (source d'alignement), `L2`, `L3` ; contrôle visuel God 390/768/1024/1440 ; **aucune migration**.
 > **Rotation** : bloc « 02/11/2026 (suite 2) — Rang d'ancienneté, panneau CRON, erreur d'auth » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 

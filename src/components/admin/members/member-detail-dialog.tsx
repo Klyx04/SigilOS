@@ -7,6 +7,7 @@ import {
     Ban,
     CalendarClock,
     CheckCircle2,
+    Crown,
     Pencil,
     Palmtree,
     Trash2,
@@ -20,6 +21,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { describeMemberTrial, type MemberTrialTone } from "@/lib/member-registry";
+import { formatSeniority } from "@/lib/ladder-utils";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -584,6 +586,34 @@ export function MemberDetailDialog({
                                         <Badge variant="outline" className={cn("text-caption", trialState.tone)}>
                                             <CalendarClock className="mr-1 h-3 w-3" aria-hidden="true" />
                                             {trialState.label}
+                                        </Badge>
+                                    )}
+                                    {current.seniorityRole && (
+                                        <Badge
+                                            variant="outline"
+                                            className={cn(
+                                                "gap-1 text-caption",
+                                                current.seniorityRole.assigned
+                                                    ? "border-foreground/25 bg-elevated text-foreground"
+                                                    : "border-dashed border-border-strong text-muted-foreground"
+                                            )}
+                                            title={
+                                                `Palier ${formatSeniority(current.seniorityRole.days)} atteint` +
+                                                (current.seniorityRole.assigned
+                                                    ? " — rôle attribué"
+                                                    : " — rôle pas encore attribué") +
+                                                (current.seniorityRole.nextTierDays !== null
+                                                    ? ` · prochain palier à ${formatSeniority(current.seniorityRole.nextTierDays)}`
+                                                    : " · dernier palier")
+                                            }
+                                        >
+                                            <Crown className="h-3 w-3 text-amber-400" aria-hidden="true" />
+                                            {current.seniorityRole.names.length > 0
+                                                ? current.seniorityRole.names.join(" · ")
+                                                : formatSeniority(current.seniorityRole.days)}
+                                            {!current.seniorityRole.assigned && (
+                                                <span className="text-muted-foreground">(à attribuer)</span>
+                                            )}
                                         </Badge>
                                     )}
                                 </DialogDescription>

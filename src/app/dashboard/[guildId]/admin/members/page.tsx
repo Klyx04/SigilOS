@@ -7,6 +7,7 @@ import { ModuleHelpActions } from "@/components/doc/module-help-actions";
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { buildMemberRoster, DEFAULT_TRIAL_DURATION_DAYS, mergeExclusions, rosterCounts, type RosterExclusion } from "@/lib/member-roster";
+import { mergeSeniorityRolesConfig, resolveSeniorityRoleBadge } from "@/lib/seniority-roles";
 import { getGuildMemberBans } from "@/server/actions/lifecycle-actions";
 import { roleHasDashboardAccess } from "@/lib/permissions";
 
@@ -45,7 +46,14 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
         getMemberRegistryDiscordIndex(guildId),
         db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { welcomeBadgeName: true, ownerId: true, rolesMapping: true, inGameGuildRoleIds: true },
+            select: {
+                welcomeBadgeName: true,
+                ownerId: true,
+                rolesMapping: true,
+                inGameGuildRoleIds: true,
+                seniorityRolesEnabled: true,
+                seniorityRolesTiers: true,
+            },
         }),
         // F-01 — exclusions (tombstones). Fail-closed : une permission absente renvoie
         // `success: false`, on affiche alors la liste sans les exclusions plutôt que de mentir.
@@ -140,6 +148,24 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
         : [];
     const rosterRows = mergeExclusions(rows, exclusions);
 
+    // ── Plus haut rôle d'ancienneté (badge de la modale membre) ────────────────────────────
+    // Une seule règle (`resolveSeniorityRoleBadge`), la même que la synchronisation : le palier
+    // affiché est le plus haut **atteint**, même si le rôle n'a pas encore été posé — l'écart de
+    // synchronisation doit se voir. Module éteint ⇒ aucun badge (jamais un rang inventé).
+    const seniorityConfig = mergeSeniorityRolesConfig(guildConfig ?? {});
+    const roleNameById = new Map((indexData?.roles ?? []).map((role) => [role.id, role.name]));
+    const rosterRowsWithSeniority = seniorityConfig.enabled
+        ? rosterRows.map((row) => ({
+              ...row,
+              seniorityRole: resolveSeniorityRoleBadge(
+                  seniorityConfig.tiers,
+                  row.seniorityDays,
+                  row.roles,
+                  (roleId) => roleNameById.get(roleId) ?? null,
+              ),
+          }))
+        : rosterRows;
+
     if (lifecycleData === null || indexData === null) {
         logger.warn("[admin/members] Données partielles chargées", {
             lifecycle: lifecycle.success,
@@ -176,12 +202,12 @@ export default async function AdminMembersPage({ params, searchParams }: AdminMe
                 <div data-tour="admin-members-table">
                     <MemberManagement
                         guildId={guildId}
-                        rows={rosterRows}
+                        rows={rosterRowsWithSeniority}
                         roles={indexData?.roles ?? []}
                         dashboardRoleIds={dashboardRoleIds}
                         inGameGuildRoleIds={guildConfig?.inGameGuildRoleIds ?? []}
                         stats={stats}
-                        excludedCount={rosterCounts(rosterRows).banned}
+                        excludedCount={rosterCounts(rosterRowsWithSeniority).banned}
                         discordAvailable={indexData?.discordAvailable ?? false}
                         welcomeBadgeName={guildConfig?.welcomeBadgeName || "Nouveau"}
                         isSuperAdmin={ctx.isSuperAdmin}

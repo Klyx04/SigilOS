@@ -28,6 +28,7 @@ import {
   upsertRushMilestone,
   deleteRushMilestone,
   upsertRushSequence,
+  updateRushBlockRoute,
   deleteRushSequence,
   updateRushSylvestreSettings,
   updateRushUIConfig,
@@ -42,7 +43,7 @@ import { searchDungeonsLocal, searchGuideQuests, searchItemsLocalThenDofusDB, se
 import { searchGameQuests, type GameQuestResult } from "@/server/actions/picker-actions";
 import { applyQuestIdentity, type RushQuestPick } from "@/lib/rush-quest-identity";
 import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
-import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
+import { DOFUS_WORLDS, DOFUS_JOBS, DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
 import { resolveRushUIConfig, type RushUIConfig } from "@/lib/rush-ui-config";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
@@ -50,6 +51,7 @@ import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { RUSH_ORDER_CODES, normalizeOrderCode, orderCodesForCamp } from "@/lib/rush-order-codes";
+import { resolveRushRoute } from "@/lib/rush-route";
 import { RushBlockMetaEditor, type RushBlockMetaValues } from "@/components/dofus-quests/rush/RushBlockMetaEditor";
 import { parseBlockMeta, formatBlockMeta, validateCoordinate } from "@/lib/rush-rich-meta";
 import {
@@ -59,7 +61,7 @@ import {
   RUSH_RICH_TEXT_NOT_ACCEPTED,
 } from "@/components/dofus-quests/rush/RushRichText";
 import type { RushActivityTag, RushMilestone, RushSequence } from "@/types/rush-guide-types";
-import { countMissingOrderSlots, type RushBranchesView } from "@/lib/rush-branches";
+import { countMissingOrderSlots, type RushBranchesView, type RushClassBranchesView } from "@/lib/rush-branches";
 import { isRushImportNoop, type RushImportPlan } from "@/lib/rush-import";
 // La ligne de quête et la fiche « Détails » de l'aperçu sont **celles du membre** : les mêmes
 // composants servent l'overlay, le dashboard et le guide public (aucun second rendu à maintenir).
@@ -112,6 +114,14 @@ type Sequence = {
   icon?: string | null;
   metamobMonsterId?: number | null;
   activityTags?: ActivityTag[];
+};
+
+/** Route appliquée à un bloc (G1) — une valeur vide **efface** celle du bloc. */
+type RushBlockRouteValues = {
+  alignReq: string | null;
+  alignOrderCode: string | null;
+  alignLevelReq: number | null;
+  classReq: string | null;
 };
 
 type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO" | "SEPARATEUR" | "DOFUS_OBTAINED";
@@ -257,10 +267,13 @@ function godScrollContainer(): HTMLElement | null {
 export function RushSylvestreAdminClient({
   guide: initialGuide,
   branches,
+  classBranches,
 }: {
   guide: Guide;
   /** Vue Branches (S4-1) — calculée côté serveur par la règle pure `buildRushBranches`. */
   branches?: RushBranchesView;
+  /** 3ᵉ étage (G4) — les 19 classes, calculées par `buildRushClassBranches`. */
+  classBranches?: RushClassBranchesView;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -302,6 +315,33 @@ export function RushSylvestreAdminClient({
   const chapterCount = useMemo(() => countContentChapters(localMilestones), [localMilestones]);
   // Métiers requis agrégés sur tout le guide — affichés dans l'onglet « Lancement ».
   const launchMetiers = useMemo(() => getGuideMetiersRequires(localMilestones as any), [localMilestones]);
+
+  /**
+   * Route « telle que la voit le joueur » (G3) : mêmes jalons, réduits aux champs dont
+   * `resolveRushRoute` a besoin. On ne réimplémente **aucun** filtre ici.
+   */
+  const routeMilestones = useMemo<RushMilestone[]>(
+    () => sortedMilestones.map((m) => ({
+      id: m.id,
+      chapter: m.chapter,
+      chapterLabel: m.chapterLabel,
+      title: m.title,
+      order: m.order,
+      isOptional: m.isOptional,
+      type: m.type,
+      sequences: m.sequences.map((s) => ({
+        id: s.id,
+        subGuideRef: s.subGuideRef,
+        subGuideName: s.subGuideName,
+        order: s.order,
+        isOptional: false,
+        alignReq: s.alignReq ?? null,
+        alignOrderCode: s.alignOrderCode ?? null,
+        classReq: s.classReq ?? null,
+      })),
+    })),
+    [sortedMilestones],
+  );
 
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
@@ -589,6 +629,22 @@ export function RushSylvestreAdminClient({
         toast.success(data.id ? "Quête mise à jour ✓" : "Quête ajoutée ✓");
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
+    });
+  }, [router]);
+
+  /**
+   * Route appliquée à un **bloc entier** (G1). Le serveur borne et vérifie tout ; ici on
+   * ne fait que remonter le compte réellement écrit.
+   */
+  const handleApplyBlockRoute = useCallback((milestoneId: string, route: RushBlockRouteValues) => {
+    startTransition(async () => {
+      try {
+        const res = await updateRushBlockRoute({ milestoneId, ...route });
+        toast.success(`Route appliquée à ${res.count} quête${res.count !== 1 ? "s" : ""}`);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message || "Application impossible");
+      }
     });
   }, [router]);
 
@@ -983,6 +1039,7 @@ export function RushSylvestreAdminClient({
                                 onSaveSequence={handleSaveSequence}
                                 onDeleteSequence={handleDeleteSequence}
                                 onReorderSequences={(ids) => handleReorderSequences(m.id, ids)}
+                                onApplyBlockRoute={handleApplyBlockRoute}
                               />
                             </div>
                           )}
@@ -1021,7 +1078,9 @@ export function RushSylvestreAdminClient({
           </motion.div>
         )}
 
-        {activeTab === "branches" && <RushBranchesPanel view={branches} />}
+        {activeTab === "branches" && (
+          <RushBranchesPanel view={branches} classView={classBranches} milestones={routeMilestones} />
+        )}
 
         {activeTab === "settings" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 max-w-xl">
@@ -1595,6 +1654,7 @@ function SortableMilestoneRow(props: {
   onSaveSequence: (data: any) => void;
   onDeleteSequence: (id: string) => void;
   onReorderSequences: (ids: string[]) => void;
+  onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.milestone.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
@@ -1610,7 +1670,7 @@ function SortableMilestoneRow(props: {
 function MilestoneRow({
   milestone, isExpanded, isEditing, editingData, isPending,
   onToggle, onEdit, onEditChange, onSave, onCancelEdit, onDelete,
-  onSaveSequence, onDeleteSequence, onReorderSequences, dragHandleProps,
+  onSaveSequence, onDeleteSequence, onReorderSequences, onApplyBlockRoute, dragHandleProps,
 }: {
   milestone: Milestone; isExpanded: boolean; isEditing: boolean;
   editingData: Milestone | null; isPending: boolean;
@@ -1619,6 +1679,7 @@ function MilestoneRow({
   onSave: () => void; onCancelEdit: () => void; onDelete: () => void;
   onSaveSequence: (data: any) => void; onDeleteSequence: (id: string) => void;
   onReorderSequences: (ids: string[]) => void;
+  onApplyBlockRoute: (milestoneId: string, route: RushBlockRouteValues) => void;
   dragHandleProps?: any;
 }) {
   const color = milestone.accentColor || "#10b981";
@@ -1806,6 +1867,12 @@ function MilestoneRow({
         {!isTips && isExpanded && !isEditing && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="pl-10 pr-4 pb-3 space-y-1.5">
+              <RushRouteBlockBar
+                milestoneId={milestone.id}
+                count={milestone.sequences.length}
+                isPending={isPending}
+                onApply={onApplyBlockRoute}
+              />
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSeqDragEnd}>
                 <SortableContext items={milestone.sequences.map(s => s.id)} strategy={verticalListSortingStrategy}>
                   {milestone.sequences.map(seq => (
@@ -1846,6 +1913,221 @@ function MilestoneRow({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ─── RushClassSelect (G2) ────────────────────────────────────────────────────
+/**
+ * Liste **fermée** des 19 classes (G2).
+ *
+ * Un `<input>` libre laissait écrire `osa`, `Féca` ou une faute de frappe : la route
+ * (`isSequenceOnRoute`) compare des **ids** et masque alors la quête au joueur, sans
+ * aucun signal. Une valeur historique inconnue reste **visible** ici (option dédiée)
+ * et n'est jamais effacée en silence : l'admin doit la voir pour la corriger.
+ */
+function RushClassSelect({
+  id, value, onChange, className,
+}: {
+  id: string; value: string; onChange: (value: string) => void; className?: string;
+}) {
+  const known = DOFUS_CLASSES.some((c) => c.id === value);
+  return (
+    <select
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={className ?? "w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"}
+    >
+      <option value="">— Aucune —</option>
+      {DOFUS_CLASSES.map((c) => (
+        <option key={c.id} value={c.id}>{c.name}</option>
+      ))}
+      {value && !known && <option value={value}>Valeur inconnue : {value}</option>}
+    </select>
+  );
+}
+
+// ─── RushRouteBlockBar (G1) ──────────────────────────────────────────────────
+/**
+ * Route du **bloc** : cité / Ordre / palier / classe appliqués d'un coup à ses quêtes
+ * (236 éditions quête par quête jusqu'ici).
+ *
+ * Deux garde-fous de geste :
+ *  · un champ vide **efface** la valeur du bloc — la confirmation l'écrit noir sur blanc ;
+ *  · la portée est le bloc seul (`count` quêtes), jamais le guide entier.
+ */
+function RushRouteBlockBar({
+  milestoneId, count, isPending, onApply,
+}: {
+  milestoneId: string; count: number; isPending: boolean;
+  onApply: (milestoneId: string, route: RushBlockRouteValues) => void;
+}) {
+  const [camp, setCamp] = useState("");
+  const [order, setOrder] = useState("");
+  const [level, setLevel] = useState("");
+  const [classId, setClassId] = useState("");
+  const [pending, setPending] = useState<{ mode: "apply" | "clear" } | null>(null);
+
+  // En mode « effacer », l'aperçu montre exactement ce qui part (quatre tirets).
+  const fields = pending?.mode === "clear"
+    ? { camp: "", order: "", level: "", classId: "" }
+    : { camp, order, level, classId };
+
+  const summary = [
+    `Cité : ${fields.camp || "—"}`,
+    `Ordre : ${fields.order ? (RUSH_ORDER_CODES.find((o) => o.code === fields.order)?.label ?? fields.order) : "—"}`,
+    `Palier : ${fields.level ? `≥ ${fields.level}` : "—"}`,
+    `Classe : ${fields.classId || "—"}`,
+  ];
+
+  const confirm = () => {
+    if (!pending) return;
+    onApply(milestoneId, {
+      alignReq: fields.camp || null,
+      alignOrderCode: fields.order || null,
+      alignLevelReq: fields.level ? Number(fields.level) : null,
+      classReq: fields.classId || null,
+    });
+    setPending(null);
+  };
+
+  const fieldClass = "w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none";
+
+  return (
+    <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-2.5 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-caption font-black uppercase tracking-widest text-sky-300/80">Route du bloc</p>
+        <span className="text-caption text-zinc-500">{count} quête{count !== 1 ? "s" : ""}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div>
+          <label htmlFor={`route-camp-${milestoneId}`} className="text-caption text-zinc-500 mb-1 block">Cité</label>
+          <select
+            id={`route-camp-${milestoneId}`}
+            value={camp}
+            onChange={(e) => { setCamp(e.target.value); setOrder(""); }}
+            className={fieldClass}
+          >
+            <option value="">— Aucune —</option>
+            <option value="bontarien">Bontarien</option>
+            <option value="brakmarien">Brakmarien</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor={`route-order-${milestoneId}`} className="text-caption text-zinc-500 mb-1 block">Ordre</label>
+          <select
+            id={`route-order-${milestoneId}`}
+            value={order}
+            disabled={!camp}
+            onChange={(e) => setOrder(e.target.value)}
+            className={`${fieldClass} disabled:opacity-40`}
+          >
+            <option value="">— Aucun —</option>
+            {orderCodesForCamp(camp).map((o) => (
+              <option key={o.code} value={o.code}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor={`route-level-${milestoneId}`} className="text-caption text-zinc-500 mb-1 block">Palier</label>
+          <select
+            id={`route-level-${milestoneId}`}
+            value={level}
+            onChange={(e) => setLevel(e.target.value)}
+            className={fieldClass}
+          >
+            <option value="">— Aucun —</option>
+            {[20, 40, 60, 80, 100].map((n) => (
+              <option key={n} value={n}>Alignement ≥ {n}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor={`route-class-${milestoneId}`} className="text-caption text-zinc-500 mb-1 block">Classe</label>
+          <RushClassSelect id={`route-class-${milestoneId}`} value={classId} onChange={setClassId} className={fieldClass} />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setPending({ mode: "apply" })}
+          disabled={isPending || count === 0}
+          className="px-2.5 py-1 rounded-lg text-caption font-bold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/20 transition-colors disabled:opacity-40"
+        >
+          Appliquer au bloc ({count})
+        </button>
+        <button
+          type="button"
+          onClick={() => setPending({ mode: "clear" })}
+          disabled={isPending || count === 0}
+          className="px-2.5 py-1 rounded-lg text-caption font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-white/5 transition-colors disabled:opacity-40"
+        >
+          Effacer la route
+        </button>
+        <span className="text-caption text-zinc-500">Les champs vides effacent la valeur du bloc.</span>
+      </div>
+
+      <RushRouteBlockDialog
+        open={!!pending}
+        isClear={pending?.mode === "clear"}
+        count={count}
+        summary={summary}
+        isPending={isPending}
+        onCancel={() => setPending(null)}
+        onConfirm={confirm}
+      />
+    </div>
+  );
+}
+
+// ─── RushRouteBlockDialog (G1) ───────────────────────────────────────────────
+/** Confirmation d'une écriture de masse : la portée et les valeurs sont écrites noir sur blanc. */
+function RushRouteBlockDialog({
+  open, isClear, count, summary, isPending, onCancel, onConfirm,
+}: {
+  open: boolean; isClear: boolean; count: number; summary: string[];
+  isPending: boolean; onCancel: () => void; onConfirm: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{isClear ? "Effacer la route du bloc" : "Appliquer la route au bloc"}</DialogTitle>
+          <DialogDescription>
+            {count} quête{count !== 1 ? "s" : ""} de ce bloc {isClear ? "vont perdre leur route" : "vont recevoir"} :
+          </DialogDescription>
+        </DialogHeader>
+        <ul className="space-y-1 text-xs text-zinc-300">
+          {summary.map((line) => <li key={line} className="font-mono">{line}</li>)}
+        </ul>
+        <p className="text-caption text-amber-400/90">
+          {isClear
+            ? "Cité, Ordre, palier et classe seront retirés de ce bloc."
+            : "Une valeur vide efface celle du bloc. Aucune autre quête n'est touchée."}
+        </p>
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-1.5 rounded-lg text-caption font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isPending}
+            className={`px-3 py-1.5 rounded-lg text-caption font-bold border transition-colors disabled:opacity-40 ${
+              isClear
+                ? "bg-red-500/15 hover:bg-red-500/25 text-red-300 border-red-500/20"
+                : "bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border-sky-500/20"
+            }`}
+          >
+            {isClear ? "Effacer" : "Appliquer"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -3776,10 +4058,12 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                 </select>
               </div>
               <div>
-                <label className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
-                <input value={classReq} onChange={e => setClassReq(e.target.value)}
+                <label htmlFor="rush-seq-class" className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
+                <RushClassSelect
+                  id="rush-seq-class"
+                  value={classReq}
+                  onChange={setClassReq}
                   className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
-                  placeholder="feca, osa…"
                 />
               </div>
             </div>
@@ -4397,10 +4681,12 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   </select>
                 </div>
                 <div>
-                  <label className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
-                  <input value={classReq} onChange={e => setClassReq(e.target.value)}
+                  <label htmlFor="rush-new-class" className="text-caption text-zinc-600 mb-1 block">Classe (quêtes de classe)</label>
+                  <RushClassSelect
+                    id="rush-new-class"
+                    value={classReq}
+                    onChange={setClassReq}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
-                    placeholder="feca, osa…"
                   />
                 </div>
               </div>
@@ -4517,6 +4803,99 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   );
 }
 
+// ─── RushRoutePreview (G3) ───────────────────────────────────────────────────
+/**
+ * Aperçu de la route **telle que la voit le joueur**. Mêmes jalons que le guide, passés
+ * par la règle unique `resolveRushRoute` — **aucun second filtre** ici. Lecture seule :
+ * rien n'est publié, aucune écriture.
+ */
+function RushRoutePreview({ milestones }: { milestones: RushMilestone[] }) {
+  const [camp, setCamp] = useState("");
+  const [order, setOrder] = useState("");
+  const [classId, setClassId] = useState("");
+
+  const visible = useMemo(
+    () => resolveRushRoute(milestones, {
+      camp: camp || null,
+      order: order || null,
+      playerClass: classId || null,
+    }),
+    [milestones, camp, order, classId],
+  );
+  const total = useMemo(() => milestones.reduce((n, m) => n + m.sequences.length, 0), [milestones]);
+  const shown = useMemo(() => visible.reduce((n, m) => n + m.sequences.length, 0), [visible]);
+  const blocks = useMemo(() => visible.filter((m) => m.sequences.length > 0), [visible]);
+
+  const fieldClass = "w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none";
+
+  return (
+    <section className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 space-y-3">
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Aperçu de la route</h2>
+          <p className="text-caption text-zinc-500">
+            Ce que verra le joueur — calculé par <code>resolveRushRoute</code>, rien n&apos;est publié.
+          </p>
+        </div>
+        <span className="text-caption font-bold tabular-nums text-zinc-400">{shown} / {total} quêtes</span>
+      </header>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div>
+          <label htmlFor="preview-camp" className="text-caption text-zinc-500 mb-1 block">Cité</label>
+          <select
+            id="preview-camp"
+            value={camp}
+            onChange={(e) => { setCamp(e.target.value); setOrder(""); }}
+            className={fieldClass}
+          >
+            <option value="">— Aucune —</option>
+            <option value="bontarien">Bontarien</option>
+            <option value="brakmarien">Brakmarien</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="preview-order" className="text-caption text-zinc-500 mb-1 block">Ordre</label>
+          <select
+            id="preview-order"
+            value={order}
+            disabled={!camp}
+            onChange={(e) => setOrder(e.target.value)}
+            className={`${fieldClass} disabled:opacity-40`}
+          >
+            <option value="">— Aucun —</option>
+            {orderCodesForCamp(camp).map((o) => (
+              <option key={o.code} value={o.code}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="preview-class" className="text-caption text-zinc-500 mb-1 block">Classe</label>
+          <RushClassSelect id="preview-class" value={classId} onChange={setClassId} className={fieldClass} />
+        </div>
+      </div>
+      {!camp && !order && !classId && (
+        <p className="text-caption text-zinc-500">
+          Sans choix, le guide est complet : la route ne filtre que ce qui est déclaré.
+        </p>
+      )}
+      <div className="space-y-1">
+        {blocks.map((m) => (
+          <details key={m.id} className="rounded-lg border border-white/5 bg-black/20">
+            <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-1.5 text-xs text-zinc-300">
+              <span className="truncate">{m.title}</span>
+              <span className="shrink-0 text-zinc-500">{m.sequences.length} quête{m.sequences.length !== 1 ? "s" : ""}</span>
+            </summary>
+            <ul className="space-y-0.5 px-3 pb-2 text-caption text-zinc-400">
+              {m.sequences.map((s) => <li key={s.id} className="truncate">{s.subGuideName}</li>)}
+            </ul>
+          </details>
+        ))}
+        {blocks.length === 0 && <p className="text-caption text-zinc-500">Aucune quête sur cette route.</p>}
+      </div>
+    </section>
+  );
+}
+
 // ─── RushBranchesPanel (S4-1) ────────────────────────────────────────────────
 /**
  * Vue **Branches à deux étages** — cité (étage 1) puis Ordre (étage 2).
@@ -4525,7 +4904,11 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
  * 3 Ordres × 5 paliers par cité). L'édition vit dans l'onglet Contenu (S4-2).
  * Aucune requête : la vue est calculée côté serveur par `buildRushBranches`.
  */
-function RushBranchesPanel({ view }: { view?: RushBranchesView }) {
+function RushBranchesPanel({ view, classView, milestones }: {
+  view?: RushBranchesView;
+  classView?: RushClassBranchesView;
+  milestones: RushMilestone[];
+}) {
   if (!view) {
     return (
       <p className="max-w-6xl mx-auto px-6 py-10 text-sm text-zinc-500">
@@ -4538,6 +4921,9 @@ function RushBranchesPanel({ view }: { view?: RushBranchesView }) {
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-6 space-y-8">
+      {/* G3 — ce que le joueur verra, sans publier. */}
+      <RushRoutePreview milestones={milestones} />
+
       {/* Étage 1 — les deux cités (cible mesurée 100 / 102). */}
       <section className="grid gap-4 md:grid-cols-2">
         {view.camps.map((camp) => {
@@ -4633,6 +5019,61 @@ function RushBranchesPanel({ view }: { view?: RushBranchesView }) {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* Étage 3 — 19 classes, une quête par classe (G4). */}
+      <section className="space-y-3">
+        <header className="flex items-center justify-between">
+          <h2 className="text-sm font-black uppercase tracking-widest text-zinc-300">Classes — 19 variantes</h2>
+          <span className="text-caption font-bold text-zinc-500">
+            {classView ? `${classView.present} / ${classView.target} · ${classView.missing} manque(s)` : "vue indisponible"}
+          </span>
+        </header>
+        {classView && (
+          <div className="rounded-xl border border-white/10 bg-zinc-900/40">
+            <table className="w-full text-caption">
+              <thead className="bg-zinc-900 text-zinc-400">
+                <tr>
+                  <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Classe</th>
+                  <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Quête</th>
+                </tr>
+              </thead>
+              <tbody>
+                {classView.classes.map((c) => (
+                  <tr key={c.id} className="border-t border-white/5">
+                    <td className="px-3 py-1.5 text-zinc-300">
+                      <span className="flex items-center gap-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={c.icon} alt="" aria-hidden="true" loading="lazy" className="h-4 w-4 object-contain" />
+                        {c.name}
+                      </span>
+                    </td>
+                    <td className={`px-3 py-1.5 ${c.sequences.length ? "text-zinc-200" : "text-zinc-600"}`}>
+                      {c.sequences.length === 0
+                        ? "— manque —"
+                        : c.sequences.map((s) => s.subGuideName).join(" · ")}
+                      {c.sequences.length > 1 && (
+                        <span className="ml-2 font-bold text-amber-400">{c.sequences.length} quêtes (doublon)</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {classView && classView.unknown.length > 0 && (
+          <p className="text-caption text-amber-500/80">
+            {classView.unknown.length} quête(s) avec une classe inconnue (masquées par la route) :{" "}
+            {classView.unknown.map((s) => `${s.subGuideName} (${s.classReq})`).join(" · ")}
+          </p>
+        )}
+        {classView && classView.misplaced.length > 0 && (
+          <p className="text-caption text-amber-500/80">
+            {classView.misplaced.length} quête(s) de classe portent aussi une cité/un Ordre :{" "}
+            {classView.misplaced.map((s) => s.subGuideName).join(" · ")}
+          </p>
+        )}
       </section>
 
       {/* Paires alignées — position ↔ position (le miroir ne vaut pas au-delà de 100). */}

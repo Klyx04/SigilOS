@@ -124,6 +124,10 @@ Conséquence mesurée : **15** quêtes d'Ordre affichées au lieu de **5** (inte
 `L3` (modale d'accueil refondue, composant partagé). Le **public authentifié** et l'annuaire par serveur
 sont un chantier distinct : `docs/plans/PLAN-ESPACE-VISITEUR.md`.
 
+> **Livrés le 02/11/2026** (G0, branche `feat/rush-route-tooling`) : les quatre gestes G1→G4.
+> Preuves : `rush-route-tooling` **19** · `rush-class-branches` **9** · Rush **56 fichiers / 694 tests ✓**.
+> **Aucune migration.** Prochain lot : `L1`.
+
 ## 2. Chantiers du module
 
 > Format : **BESOIN → ÉTAT MESURÉ → CHANGEMENT → TESTS → DÉPENDANCES → STATUT**.

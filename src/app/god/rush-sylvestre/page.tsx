@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { getOrCreateRushSylvestreGuide } from "@/server/actions/optimized-guide-actions";
-import { buildRushBranches, type RushBranchSequence } from "@/lib/rush-branches";
+import { buildRushBranches, buildRushClassBranches, type RushBranchSequence } from "@/lib/rush-branches";
 import { RushSylvestreAdminClient } from "./RushSylvestreAdminClient";
 
 export const dynamic = "force-dynamic";
@@ -26,10 +26,13 @@ export default async function RushSylvestreGodPage() {
       alignReq: seq.alignReq ?? null,
       alignOrderCode: seq.alignOrderCode ?? null,
       alignLevelReq: seq.alignLevelReq ?? null,
+      classReq: seq.classReq ?? null,
     })),
   );
   const branches = buildRushBranches(sequences);
+  // 3ᵉ étage (G4) — les 19 classes, calculées par la même règle pure.
+  const classBranches = buildRushClassBranches(sequences);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <RushSylvestreAdminClient guide={guide as any} branches={branches} />;
+  return <RushSylvestreAdminClient guide={guide as any} branches={branches} classBranches={classBranches} />;
 }

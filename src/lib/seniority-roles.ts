@@ -299,6 +299,61 @@ export function resolveSeniorityTargetRoleIds(tiers: readonly SeniorityTier[], t
 }
 
 /**
+ * Badge « plus haut rôle d'ancienneté » d'un membre — **une seule règle**, lue par la modale membre.
+ *
+ * Le palier affiché est le **plus haut atteint** (`resolveSeniorityRoleTier` : la règle même de la
+ * synchronisation), et non le plus haut rôle effectivement porté. Un rôle non encore posé doit se
+ * **voir** (`assigned: false`) : c'est un écart de synchronisation, pas un détail à cacher.
+ * `nextTierDays` sert à écrire « prochain palier dans X jours » sans recalculer côté écran.
+ */
+export interface SeniorityRoleBadge {
+    /** Seuil du palier atteint, en jours. */
+    days: number;
+    /** Rôles **déclarés par ce palier** (les paliers inférieurs sont acquis, pas répétés). */
+    roleIds: string[];
+    /** Libellés résolus (les identifiants inconnus de Discord sont ignorés, jamais inventés). */
+    names: string[];
+    /** Vrai si le membre porte **au moins un** des rôles de ce palier. */
+    assigned: boolean;
+    /** Seuil du palier suivant, `null` si c'est le dernier. */
+    nextTierDays: number | null;
+}
+
+export function resolveSeniorityRoleBadge(
+    tiers: readonly SeniorityTier[],
+    seniorityDays: number | null | undefined,
+    memberRoleIds: readonly string[] | null | undefined,
+    nameOf: (roleId: string) => string | null,
+): SeniorityRoleBadge | null {
+    if (seniorityDays === null || seniorityDays === undefined || !Number.isFinite(seniorityDays)) return null;
+
+    const index = resolveSeniorityRoleTier(tiers, seniorityDays);
+    if (index < 0) return null;
+
+    const tier = tiers[index];
+    const held = new Set(memberRoleIds ?? []);
+    const names: string[] = [];
+    for (const roleId of tier.roleIds) {
+        const name = nameOf(roleId);
+        if (name && !names.includes(name)) names.push(name);
+    }
+
+    let nextTierDays: number | null = null;
+    for (const candidate of tiers) {
+        if (candidate.days <= tier.days) continue;
+        if (nextTierDays === null || candidate.days < nextTierDays) nextTierDays = candidate.days;
+    }
+
+    return {
+        days: tier.days,
+        roleIds: [...tier.roleIds],
+        names,
+        assigned: tier.roleIds.length > 0 && tier.roleIds.some((roleId) => held.has(roleId)),
+        nextTierDays,
+    };
+}
+
+/**
  * Annonce **effective** d'un palier : ses surcharges de texte, champ par champ, sinon le message
  * global. Couleur et miniature restent **communes** (l'identité visuelle de la guilde) — un palier
  * ne personnalise que ce qui se lit.

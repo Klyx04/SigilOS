@@ -20,6 +20,7 @@ import {
     type TrialDecision,
 } from "./member-registry";
 import { differenceInDays } from "date-fns";
+import type { SeniorityRoleBadge } from "./seniority-roles";
 
 export type { DiscordRoleOption, RegistryComment, TrialDecision };
 
@@ -81,6 +82,12 @@ export interface RosterRow {
     roles: string[];
     joinedAt: string | null;
     seniorityDays: number | null;
+    /**
+     * Plus haut palier d'ancienneté atteint et son rôle (règle unique
+     * `resolveSeniorityRoleBadge`). `null`/absent quand le module est éteint, ou qu'aucun
+     * palier n'est atteint — l'écran n'affiche alors **rien**, il n'invente pas un rang.
+     */
+    seniorityRole?: SeniorityRoleBadge | null;
     pseudoDofus: string | null;
     discordNickname: string | null;
     ankamaId: string | null;

@@ -108,6 +108,10 @@ Conséquence mesurée : **15** quêtes d'Ordre affichées au lieu de **5** (inte
 6. **Ordre jamais filtré** ⇒ 15 quêtes au lieu de 5 ; overlay : les **deux** cités + les **6** Ordres.
 7. **Prop morte** : `hasNoClassDeclared` n'est jamais passée (`RushTimelineClient.tsx:2556`).
 
+> **Livrés le 02/11/2026 (L1)** : défauts **1**, **2**, **3** et **5** — source `camp`/`name`,
+> palier calculé (`alignmentCountForCamp`, hors Ordres), reset par cité (`alignmentResetSeeds`),
+> compteur corrigé. Défauts **4** et **6** = `L2` ; défaut **7** = `L3`.
+
 ### 1 bis.4 Outillage God manquant (gestes attendus, sans migration)
 
 | # | Geste | Pourquoi |
@@ -119,14 +123,14 @@ Conséquence mesurée : **15** quêtes d'Ordre affichées au lieu de **5** (inte
 
 ### 1 bis.5 Ordre des lots Rush (le détail des fichiers est dans le plan du lot)
 
-`G0` (outillage God G1→G4) → `L1` (source d'alignement : `camp`/`name`, niveau calculé, reset par cité)
-→ `L2` (route cité→Ordre→classe sur interne + overlay, chaîne des rangs, changement d'Ordre) →
-`L3` (modale d'accueil refondue, composant partagé). Le **public authentifié** et l'annuaire par serveur
-sont un chantier distinct : `docs/plans/PLAN-ESPACE-VISITEUR.md`.
+`G0` (outillage God G1→G4) et `L1` (source d'alignement) sont **livrés** → `L2` (route cité→Ordre→classe
+sur interne + overlay, chaîne des rangs, changement d'Ordre) → `L3` (modale d'accueil refondue,
+composant partagé). Le **public authentifié** et l'annuaire par serveur sont un chantier distinct :
+`docs/plans/PLAN-ESPACE-VISITEUR.md`.
 
-> **Livrés le 02/11/2026** (G0, branche `feat/rush-route-tooling`) : les quatre gestes G1→G4.
-> Preuves : `rush-route-tooling` **19** · `rush-class-branches` **10** · Rush **56 fichiers / 695 tests ✓**.
-> **Aucune migration.** Prochain lot : `L1`.
+> **Livrés le 02/11/2026** : G0 (`feat/rush-route-tooling`) et L1 (`feat/rush-alignment-l1`).
+> Preuves : `rush-route-tooling` **19** · `rush-class-branches` **10** · `rush-alignment-source` **15**
+> · Rush **57 fichiers / 710 tests ✓**. **Aucune migration.** Prochain lot : `L2`.
 
 ## 2. Chantiers du module
 

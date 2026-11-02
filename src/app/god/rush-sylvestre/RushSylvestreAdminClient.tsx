@@ -88,7 +88,7 @@ type ActivityTagType =
   | "quest_group"
   | "item";
 
-type ActivityTag = { type: ActivityTagType; name?: string; level?: number; count?: number; color?: string; url?: string; id?: string; imageUrl?: string; quantity?: number };
+type ActivityTag = { type: ActivityTagType; name?: string; camp?: string | null; level?: number; count?: number; color?: string; url?: string; id?: string; imageUrl?: string; quantity?: number };
 
 type Sequence = {
   id: string;
@@ -2983,13 +2983,15 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
   // ─── Quête d'alignement (tag alignment_set) ─────────────────────────────
   const [alignmentSet, setAlignmentSet] = useState<{ camp: string; level: number } | null>(() => {
     const t = (seq.activityTags as any[])?.find((x: any) => x.type === "alignment_set");
-    return t && t.name ? { camp: t.name, level: typeof t.level === "number" ? t.level : 0 } : null;
+    // `camp` = vocabulaire canonique ; `name` = legacy (imports et tags antérieurs).
+    const camp = t?.camp ?? t?.name;
+    return camp ? { camp: String(camp), level: typeof t.level === "number" ? t.level : 0 } : null;
   });
 
   const syncAlignmentTag = (next: { camp: string; level: number } | null) => {
     setActivityTags(prev => {
       const filtered = prev.filter((t: any) => t.type !== "alignment_set");
-      if (next) return [...filtered, { type: "alignment_set" as any, name: next.camp, level: next.level }];
+      if (next) return [...filtered, { type: "alignment_set" as any, camp: next.camp, level: next.level }];
       return filtered;
     });
   };
@@ -3818,7 +3820,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
                     />
                   </div>
                   <span className="ml-auto text-caption text-indigo-300/60 italic">
-                    → tag: {'{ type: "alignment_set", name: "'}{alignmentSet.camp}{'", level: '}{alignmentSet.level}{' }'}
+                    → tag: {'{ type: "alignment_set", camp: "'}{alignmentSet.camp}{'", level: '}{alignmentSet.level}{' }'}
                   </span>
                 </div>
               )}

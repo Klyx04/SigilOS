@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 02/11/2026 (suite 8) — **Rush : source d'alignement (L1)** — branche `feat/rush-alignment-l1`
+
+> **Demande user (verbatim)** : « c'est parti one shot le tout je m'absente 15 minutes » (feu vert sur `L1`, clé `camp` validée).
+> **Mesures** : ① `alignment_set` écrit `camp` par l'import, lu `name` par le studio/`getAlignmentSet` ⇒ **null sur les 67 lignes réelles** (bandeau et badge jamais rendus, `applyRushAlignmentFromSequence` no-op) ; ② `level` figé à `1` ; ③ reset = **67 racines sur 236** ; ④ compteur gonflé par les 30 quêtes d'Ordre.
+> **Fait** : ① `alignmentTagCamp` (`camp` puis `name`), studio écrit `camp` — les 67 lignes redeviennent lisibles ; ② palier **calculé** par `alignmentCountForCamp` (hors Ordres) à la coche/décoche ; ③ `alignmentResetSeeds` : reset de **toute** la branche `alignReq` de l'ancienne cité (115/121 racines) + cascade, cité lue côté serveur avant l'écriture du profil ; ④ badges sans faux niveau.
+> **Preuves** : `rush-alignment-source` **15** · `rush-alignment-tranche` **8** · Rush **57 fichiers / 710 tests ✓** · `tsc` 0 · ESLint 0 erreur.
+> **Reste / ops** : `L2` (route cité→Ordre→classe, chaîne des rangs), `L3` (modale d'accueil) ; contrôle visuel profil/guide/overlay ; **aucune migration**.
+> **Rotation** : bloc « 02/11/2026 (suite) — Almanax : bornage de la navigation » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 02/11/2026 (suite 7) — **Rush : outillage God de la route (G0)** — branche `feat/rush-route-tooling`
 
 > **Demande user (verbatim)** : « Reprise SigilOS. » (amorce générique) — le §0 désignait `G0`.
@@ -50,12 +60,3 @@
 > **Preuves** : `member-lifecycle.test.ts` **5/5** · `tsc --noEmit` 0 erreur.
 > **Reste / ops** : PR vers `dev`.
 > **Rotation** : bloc « 01/11/2026 (suite 4) — Une guilde désactivée n'écrit plus rien depuis Discord » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 02/11/2026 (suite) — **Almanax : bornage de la navigation jour précédent / suivant à la fenêtre de 30 jours** — branche `fix-almanax-navigation-window`
-
-> **Demande user (verbatim)** : « dommage de rendre un 404 au "suivant" dans almanax après 30 jours? » · « pk on affiche pas simplement tous les jours possible? c voulu? » · « en résuméil faut faire quoi » · « ok ».
-> **Mesures** : ① L'API tierce (dofusdu.de) ne renvoie que 30 jours glissants (`range[size]=30`), ignorant `range[date]` pour le passé ou le futur distant ; le 404 sur les dates hors fenêtre (`isServableAlmanaxDay`) est nécessaire pour éviter d'indexer des coquilles vides ("soft 404") ; ② En revanche, la page `src/app/almanax/[date]/page.tsx` calculait aveuglément `prevKey` et `nextKey` avec `addDays(±1)`, affichant un lien "Jour suivant" sur J+29 et "Jour précédent" sur aujourd'hui menant directement à une erreur 404.
-> **Fait** : ① Conditionnement de l'affichage des liens « Jour précédent » et « Jour suivant » via `hasPrev = isServableAlmanaxDay(prevKey)` et `hasNext = isServableAlmanaxDay(nextKey)` ; ② Espacement flex préservé (`justify-between`) avec `<span aria-hidden="true" />` quand un seul lien est visible ; ③ Verrou unitaire dans `tests/unit/seo-horizon-indexation.test.ts`.
-> **Preuves** : `seo-horizon-indexation.test.ts` **12/12** · suite complète Vitest **583 fichiers / 6 103 tests passés** (0 échec) · `tsc --noEmit` 0 erreur · ESLint 0 erreur · audit sécurité franchi.
-> **Reste / ops** : PR vers `dev`.
-> **Rotation** : bloc « 01/11/2026 (suite 3) — Bot : l'annonce d'invitation » sorti (7ᵉ, fusion avec `dev`) — récupérable via `git log -p -- docs/agents/activeContext.md`.

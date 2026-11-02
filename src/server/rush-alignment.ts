@@ -1,6 +1,6 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { cascadeResetIds } from "@/lib/rush-guide-utils";
+import { alignmentResetSeeds, cascadeResetIds } from "@/lib/rush-guide-utils";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 /**
@@ -15,6 +15,8 @@ import type { RushMilestone } from "@/types/rush-guide-types";
 /** Shape minimale du guide pour la règle de prérequis (lecture seule). */
 async function loadGuideMilestones(): Promise<RushMilestone[]> {
   const milestones = await db.guideMilestone.findMany({
+    // Le reset d'alignement est celui du RUSH : on ne balaie pas les autres guides.
+    where: { guide: { slug: "rush-sylvestre" } },
     select: {
       id: true,
       type: true,
@@ -30,6 +32,8 @@ async function loadGuideMilestones(): Promise<RushMilestone[]> {
           subGuideRef: true,
           order: true,
           isOptional: true,
+          alignReq: true,
+          alignOrderCode: true,
           activityTags: true,
         },
       },
@@ -38,47 +42,42 @@ async function loadGuideMilestones(): Promise<RushMilestone[]> {
   return milestones as unknown as RushMilestone[];
 }
 
-/** Les quêtes qui donnent de l'alignement (tous camps confondus). */
-function alignmentSeeds(milestones: RushMilestone[]): Set<string> {
-  const ids = new Set<string>();
-  for (const ms of milestones) {
-    for (const seq of ms.sequences || []) {
-      const tags = Array.isArray(seq.activityTags)
-        ? (seq.activityTags as Array<{ type?: string }>)
-        : [];
-      if (tags.some((tag) => tag?.type === "alignment_set")) ids.add(seq.id);
-    }
-  }
-  return ids;
-}
-
-/** Ids « stricts » (sans cascade) — utile pour l'inspection. */
+/**
+ * Ids « stricts » (sans cascade) — utile pour l'inspection : les quêtes marquées
+ * `alignment_set`, tous camps confondus.
+ */
 export async function alignmentSequenceIds(): Promise<Set<string>> {
-  return alignmentSeeds(await loadGuideMilestones());
+  return new Set(alignmentResetSeeds(await loadGuideMilestones(), null));
 }
 
 /**
- * Ids à décocher lors d'un changement de cité : quêtes d'alignement **et leur cascade
- * de prérequis**. C'est la règle jeu : tout ce qui dépend d'une quête invalidée
- * redevient à faire.
+ * Ids à décocher lors d'un changement de cité : **toutes les quêtes `alignReq` de la
+ * cité** (cité + Ordres) **et leur cascade de prérequis**. C'est la règle jeu : tout ce
+ * qui dépend d'une quête invalidée redevient à faire.
+ *
+ * Sans cité (profil neutre), repli sur les tags `alignment_set` — comportement du bouton
+ * « reset » historique.
  */
-export async function alignmentResetIds(): Promise<Set<string>> {
+export async function alignmentResetIds(camp?: string | null): Promise<Set<string>> {
   const milestones = await loadGuideMilestones();
-  return cascadeResetIds(milestones, alignmentSeeds(milestones));
+  return cascadeResetIds(milestones, alignmentResetSeeds(milestones, camp));
 }
 
 /**
  * Retire de la progression les quêtes à réinitialiser pour un personnage.
  *
+ * @param camp la cité que le personnage **quitte** (`alignReq` de l'ancienne cité) ;
+ *             `null` ⇒ repli sur les tags `alignment_set`.
  * @param keepSeqId la quête qui vient d'être cochée (elle reste cochée).
  * @returns le nombre de coches retirées.
  */
 export async function resetAlignmentQuests(
   profileId: string,
   characterSlot: string,
+  camp?: string | null,
   keepSeqId?: string
 ): Promise<number> {
-  const ids = await alignmentResetIds();
+  const ids = await alignmentResetIds(camp);
   if (ids.size === 0) return 0;
 
   const rows = await db.playerGuideProgress.findMany({

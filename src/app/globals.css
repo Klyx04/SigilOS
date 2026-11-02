@@ -153,7 +153,8 @@ html:has(.boss-detail-shell) {
    de l'ambre patiné. Les utilitaires (`bg-surface`, `border-border-strong`,
    `text-gold`, `text-success`…) suivent automatiquement : aucun composant ne
    code la palette. */
-.rush-overlay {
+.rush-overlay,
+.rush-carnet-theme {
   color-scheme: dark;
   --background: oklch(0.155 0.014 155);
   --surface: oklch(0.205 0.018 155);
@@ -181,7 +182,8 @@ html:has(.boss-detail-shell) {
   --rush-bevel: inset 0 1px 0 oklch(0.95 0.02 90 / 0.06), inset 0 -1px 0 oklch(0 0 0 / 0.35);
 }
 
-.rush-overlay.light {
+.rush-overlay.light,
+.rush-carnet-theme.light {
   color-scheme: light;
   --background: oklch(0.96 0.012 90);
   --surface: oklch(0.985 0.008 90);

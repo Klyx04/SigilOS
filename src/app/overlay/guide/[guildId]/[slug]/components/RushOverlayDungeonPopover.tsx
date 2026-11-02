@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { cn } from "@/lib/utils";
 import type { DungeonInfo } from "./overlay-utils";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import type {
@@ -43,6 +44,7 @@ export function RushOverlayDungeonPopover({
   onOpenChange,
   targetKey = null,
   children,
+  isLightMode = false,
 }: {
   /** La quête de la ligne — porte l'identité de l'occurrence. */
   seq: RushSequence;
@@ -65,6 +67,8 @@ export function RushOverlayDungeonPopover({
   onOpenChange?: (open: boolean) => void;
   /** Donjon à mettre en avant à l'ouverture. */
   targetKey?: string | null;
+  /** Thème clair de l'overlay : la popover vit dans le portail, elle porte sa classe. */
+  isLightMode?: boolean;
   children: React.ReactNode;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
@@ -143,10 +147,10 @@ export function RushOverlayDungeonPopover({
 
       {isOpen && portalDoc && createPortal(
         <div
-          className="fixed z-[999999] pointer-events-auto"
+          className={cn("rush-carnet-theme fixed z-[999999] pointer-events-auto", isLightMode && "light")}
           style={{ top: position.top, left: position.left, width: 320 }}
         >
-          <div className="rounded-xl border border-border/60 bg-background p-1.5 shadow-2xl shadow-black/60">
+          <div className="rush-carnet rounded-[6px] bg-elevated p-1.5">
             <RushQuestDungeonsPanel
               seq={seq}
               guildId={guildId}

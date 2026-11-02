@@ -88,6 +88,9 @@ const DETAIL = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQue
 const ALIGN = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayAlignmentModal.tsx";
 const SEARCH = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlaySearch.tsx";
 const RESOURCES = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal.tsx";
+const FOOTER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayFooter.tsx";
+const PREREQ = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayPrereqModal.tsx";
+const POPOVER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonPopover.tsx";
 
 describe("DA « Carnet de campagne » — blocs de conseil", () => {
     it("un seul panneau de matière, plus de dégradé ni d'emoji", () => {
@@ -170,12 +173,36 @@ describe("DA « Carnet de campagne » — ressources à prévoir", () => {
     });
 });
 
+describe("DA « Carnet de campagne » — navigation et portails", () => {
+    it("le footer suit les jetons (plus de palette legacy)", () => {
+        const src = codeOf(FOOTER);
+        expect(src).toMatch(/border-t border-border-strong bg-surface/);
+        expect(src).toMatch(/text-success/);
+        expect(src).not.toMatch(/bg-\[#|text-\[#|border-\[#/);
+    });
+
+    it("les portails portent la classe de jetons du carnet", () => {
+        for (const path of [PREREQ, POPOVER]) {
+            const src = codeOf(path);
+            expect(src, path).toContain("rush-carnet-theme");
+            expect(src, path).toContain("rush-carnet");
+            expect(src, path).not.toMatch(/rounded-2xl|backdrop-blur|shadow-2xl/);
+        }
+    });
+
+    it("aucun rayon > 12 px sur la navigation et les portails", () => {
+        for (const path of [FOOTER, PREREQ, POPOVER]) {
+            expect(codeOf(path), path).not.toMatch(/rounded-(2xl|3xl)/);
+        }
+    });
+});
+
 describe("DA « Carnet de campagne » — jetons de matière", () => {
     it("l'overlay a sa propre palette (vert forêt / ivoire / bronze / ambre) dans les deux thèmes", () => {
         const css = readFileSync("src/app/globals.css", "utf8");
-        expect(css).toMatch(/\.rush-overlay \{[\s\S]*?--background: oklch\(0\.155 0\.014 155\)/);
+        expect(css).toMatch(/\.rush-overlay,\s*\.rush-carnet-theme \{[\s\S]*?--background: oklch\(0\.155 0\.014 155\)/);
         expect(css).toMatch(/--sigil-gold: oklch\(0\.76 0\.12 78\)/);
-        expect(css).toMatch(/\.rush-overlay\.light \{[\s\S]*?--background: oklch\(0\.96 0\.012 90\)/);
+        expect(css).toMatch(/\.rush-overlay\.light,\s*\.rush-carnet-theme\.light \{[\s\S]*?--background: oklch\(0\.96 0\.012 90\)/);
         expect(css).toContain(".rush-carnet-frame");
     });
 });

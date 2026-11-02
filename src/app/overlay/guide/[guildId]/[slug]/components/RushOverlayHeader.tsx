@@ -250,7 +250,7 @@ export function RushOverlayHeader({
                   {ocre.missing > 99 ? "99+" : ocre.missing}
                 </span>
               ) : (
-                <span className="absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full bg-[#39bc95] text-black grid place-items-center">
+                <span className="absolute -top-1 -right-1 w-[15px] h-[15px] rounded-full bg-success text-background grid place-items-center">
                   <Check className="w-2.5 h-2.5 stroke-[3]" />
                 </span>
               ))}

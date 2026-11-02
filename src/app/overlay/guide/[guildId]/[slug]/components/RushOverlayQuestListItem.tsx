@@ -122,6 +122,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   onGoToPrereq,
   onOpenBookmarkers,
   guildId,
+  isLightMode = false,
   dungeonActions,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
@@ -301,6 +302,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                   seq={seq}
                   dungeons={dungeons}
                   guildId={guildId}
+                  isLightMode={isLightMode}
                   open={dungeonPanelOpen}
                   onOpenChange={(next) => {
                     setDungeonPanelOpen(next);
@@ -357,6 +359,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           {prereqsOpen && (
             <RushOverlayPrereqModal
               prereqs={prereqs}
+              isLightMode={isLightMode}
               onGoTo={(seqId, milestoneId) => onGoToPrereq?.(seqId, milestoneId)}
               onClose={() => setPrereqsOpen(false)}
             />

@@ -161,7 +161,7 @@ export function RushOverlayChapterBar({
                 className="h-5 w-5 object-contain"
               />
               {dofus.done && (
-                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#39bc95]" />
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-success" />
               )}
             </span>
           )}

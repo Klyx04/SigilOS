@@ -9,7 +9,7 @@
 
 ## 0. Reprise immédiate
 
-- **Livré le 02/11/2026 — Rush : la modale d'accueil en DA « Carnet », L3 (branche `feat/rush-onboarding-l3`).**
+- **Livré le 02/11/2026 — Rush : la modale d'accueil en DA « Carnet », L3 (branches `feat/rush-onboarding-l3` puis `fix/rush-onboarding-footer`, PR #1228 / #1229 / #1230).**
   ① la modale d'accueil (`RushOnboardingWizardModal`) passe aux jetons `.rush-carnet-theme` / `.rush-carnet-frame` : en-tête serif + filet d'or, panneaux élevés, boutons ambre — fin des `rounded-3xl`, `font-black`, `zinc`/`emerald`/`indigo` et des ombres diffuses ; ② **défaut 7 corrigé** : `hasNoClassDeclared` est calculé pour le personnage **sélectionné** (mule comprise, `altPseudos[].classe`) et passé à la modale — un joueur sans classe voit enfin **pourquoi** ses 19 quêtes de classe manquent, avec un lien vers son profil ; ③ l'alignement de l'étape 2 affiche des **libellés** (cité · Ordre) au lieu d'ids bruts (`normalizeAlignmentCamp` + `normalizeOrderCode`) ; ④ **périmètre resserré** selon les demandes du 02/11 : **trois** étapes (la page « membres » disparaît) et **plus de bloc « Métiers requis »** (ni `getGuideMetiersRequires`, ni `metierIds`, ni `updateUserProfile` dans le guide) ; ⑤ **changement de personnage** : la navigation `?character=` remonte le guide (`key={character}`) ⇒ l'étape est mémorisée dans `sessionStorage` et reprise au montage (`initialStep`/`onStepChange`) ; ⑥ **on ne peut plus être bloqué** : `Précédent / Suivant / Lancer` vivent **dans le contenu de chaque étape** (un pied séparé ne se rendait pas), la croix + **Échap** + le clic sur le fond ferment la modale, et la hauteur suit le contenu (plafonnée à l'écran) au lieu d'un cadre vide.
   **Preuves** : `rush-onboarding-carnet` **14** · Rush **60 fichiers / 742 tests ✓** · suite **593 / 6 231 ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.** **Reste** : volet **public** de la modale (compte visiteur = `PLAN-ESPACE-VISITEUR.md`, migration), `textes`/tips, T-4 (G7/G8/G9).
 
@@ -270,7 +270,7 @@
 
 | ID | Chantier | Livré |
 |---|---|---|
-| `RUSH-L3` | Modale d'accueil en **DA « Carnet »** + classe manquante **dite et cliquable** (défaut 7, `hasNoClassDeclared`) — branche `feat/rush-onboarding-l3` | 02/11/2026 |
+| `RUSH-L3` | Modale d'accueil en **DA « Carnet »**, **3 étapes** (page « membres » retirée), **bloc « Métiers requis » supprimé**, classe manquante **dite et cliquable** (défaut 7), actions dans le contenu + fermeture (croix/Échap/fond) — PR #1228 / #1229 / #1230 | 02/11/2026 |
 | `RUSH-L2` | Route **cité → Ordre → classe** (dashboard + overlay autonome), **chaîne des rangs** (`previousOrderRank`), **changement d'Ordre** (5 quêtes décochées, `resetRushOrderProgress`) — branche `feat/rush-route-l2` | 02/11/2026 |
 | `RUSH-DA` | DA « Carnet de campagne » de l'overlay (matières, en-tête serif, chapitre, cartes, fiche, filtre Toutes/En cours/Verrouillées) + coches de ressources dans la fiche (valider coche tout, invalider décoche) — branche `feat/rush-da-carnet` | 02/11/2026 |
 | `BOSS-BUTIN` | Fiches boss : butin le plus complet (`pickBestMonsterStatRow`), garde d'écriture, succès « Spécial » résolus, lot B (quêtes, Titan, raid, bloc de stats unique) — PR #1167/#1168 | 30/10/2026 |

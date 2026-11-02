@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 02/11/2026 (suite 9) — **Rush : la route cité→Ordre→classe, la chaîne des rangs, le changement d'Ordre (L2)** — branche `feat/rush-route-l2`
+
+> **Demande user (verbatim)** : « on part sur quoi » · « Tout d'un coup, une seule livraison (recommandé) — je passe en Act et je déroule ».
+> **Mesures** : ① base locale (5433, lecture seule) : **30** quêtes d'Ordre (2 cités × 3 Ordres × 5, paliers 20/40/60/80/100, `order` 0…4) avec **0** tag `prereq_text` ⇒ le rang 5 se cochait sans les rangs 1→4 ; **19** quêtes de classe ; **1** seul profil porte un `alignmentOrder`. ② dashboard : l'Ordre n'était **jamais** passé à `resolveRushRoute` (`page.tsx:177`) ⇒ **15** quêtes d'Ordre affichées au lieu de 5. ③ overlay autonome : **aucune** route (30 quêtes, les 2 cités) et classe de mule lue `null`, alors que `altPseudos[].classe` existe. ④ changer d'Ordre ne décochait rien (`AlignmentChoiceForm` ne testait que `campChanged`). ⑤ la carte bloquée lisait les tags bruts ⇒ « 0 prérequis à terminer » sur une quête d'Ordre.
+> **Fait** : ① `order: routeOrder` dans la route du dashboard (personnage sélectionné, mule comprise) ; ② l'overlay autonome calcule sa route (cité + Ordre + **classe** via `altPseudos`) et reçoit ses jalons **filtrés**, plus `selfAlignment`/`selfOrder` pour la modale d'alignement ; ③ règle pure `previousOrderRank` (même cité + même Ordre, palier immédiatement inférieur) appliquée par `isSequenceBlockedByPrereqs` **et** `getPrereqRefs` — la carte bloquée nomme le rang précédent, sinon « Palier N — x/N quêtes de cité » ; ④ `orderResetSeeds` (5 quêtes, **sans cascade**) + action `resetRushOrderProgress` (auth, rate limit Redis, cité/Ordre relus en base) appelée **avant** l'écriture par `AlignmentChoiceForm` ; ⑤ une seule règle de verrou dans le dashboard (`blockedSeqIds` / `isActuallyBlocked` ne relisent plus les tags à la main).
+> **Preuves** : `rush-order-chain` **17** · `rush-order-reset` **8** · Rush **59 fichiers / 735 tests ✓** · suite **592 fichiers / 6 217 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.** ROADMAP ramenée de 61 350 à **58 244 o** (5 blocs livrés déplacés au §5, borne du verrou 60 KiB).
+> **Reste / ops** : `L3` (modale d'accueil, prop morte `hasNoClassDeclared`), textes/tips, guide public (compte visiteur = `PLAN-ESPACE-VISITEUR.md`) ; **contrôle visuel bêta** 390 / 768 / 1024 / 1440 (`./scripts/deploy-cd.sh beta`) : 5 quêtes d'Ordre visibles, carte du rang 2 qui nomme le rang 1, changement d'Ordre → 5 coches retirées.
+> **Rotation** : bloc « 02/11/2026 (suite 3) — Alignement du libellé d'exclusion » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 02/11/2026 (suite 8) — **Rush : source d'alignement (L1)** — branche `feat/rush-alignment-l1`
 
 > **Demande user (verbatim)** : « c'est parti one shot le tout je m'absente 15 minutes » (feu vert sur `L1`, clé `camp` validée).
@@ -52,11 +62,4 @@
 > **Preuves** : `rush-da-grimoire` **23** · `rush-quest-filter` **6** · suite Rush **52 fichiers / 651 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
 > **Reste / ops** : contrôle visuel 390 / 768 / 1024 / 1440 en bêta (`./scripts/deploy-cd.sh beta`) ; PR vers `dev`. Reste T-4 : G7 (emblème / feuillage), G8 dépli `grid-template-rows`, G9 célébration (arbitrer), accents Dofus écran par écran, O15 sur les animations restantes.
 > **Rotation** : bloc « 01/11/2026 (suite 5) — Le propriétaire peut retirer sa guilde » sorti (le plus ancien) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-## 📝 Session 02/11/2026 (suite 3) — **Alignement du libellé d'exclusion (carte Discord + menu admin)** — branche `fix-align-wording-exclusion`
 
-> **Demande user (verbatim)** : « si qqun, supprime un user de sigil : envoyez une carte discord comme pour archive / ya t_il une carte pour l'exclusion également ? quand on exclu qqun si il veut revenir , il tombe sur une page banissement , terme non approprié? » · « ok ».
-> **Mesures** : ① La suppression (`purgeMemberFromGuild` et `deleteProfileByAdmin`) envoyait déjà un embed Discord `🗑️ Membre Supprimé` ; ② L'exclusion (`recordDeparture`) envoyait un embed mais titré historiquement `🚫 Membre Banni (Discord)` avec statut `Banni` ; ③ L'écran d'atterrissage d'un membre exclu affichait déjà `Membre exclu`, mais le menu dropdown de l'ancienne table membres (`member-management-table.tsx`) affichait encore `Bannir (SigilOS)` et `Debannir & Reintegrer`.
-> **Fait** : ① Alignement du titre de notification de cycle de vie Discord : `Membre Exclu` et statut `Exclu` dans `src/server/actions/lifecycle-actions.ts` ; ② Alignement des libellés dans `member-management-table.tsx` : `Exclure` et `Réintégrer` ; ③ Test unitaire ajouté dans `tests/unit/member-lifecycle.test.ts`.
-> **Preuves** : `member-lifecycle.test.ts` **5/5** · `tsc --noEmit` 0 erreur.
-> **Reste / ops** : PR vers `dev`.
-> **Rotation** : bloc « 01/11/2026 (suite 4) — Une guilde désactivée n'écrit plus rien depuis Discord » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

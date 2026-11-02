@@ -65,9 +65,20 @@ export function AlignmentChoiceForm({
       // Logique jeu : changer de CITÉ réinitialise les quêtes d'alignement.
       // Les autres quêtes (communes, prérequis, donjons) gardent leur avancement.
       const campChanged = (camp ?? "neutre") !== (alignment ?? "neutre");
+      // Et changer d'ORDRE (L2) décoche les 5 quêtes de l'ancien Ordre : le nouvel Ordre
+      // repart de son rang 1, la progression de cité n'est pas touchée. Si la cité change
+      // aussi, le reset de cité a déjà effacé la branche d'Ordre — un seul reset suffit.
+      const orderChanged = !campChanged && (order ?? null) !== (alignmentOrder ?? null);
       if (campChanged) {
         const { resetAlignmentProgress } = await import("@/server/actions/optimized-guide-actions");
         const reset = await resetAlignmentProgress(guildId, mulePseudo ?? undefined);
+        if (!reset.success) {
+          setMessage(reset.error || "Réinitialisation impossible");
+          return;
+        }
+      } else if (orderChanged && alignmentOrder) {
+        const { resetRushOrderProgress } = await import("@/server/actions/optimized-guide-actions");
+        const reset = await resetRushOrderProgress(guildId, mulePseudo ?? undefined);
         if (!reset.success) {
           setMessage(reset.error || "Réinitialisation impossible");
           return;

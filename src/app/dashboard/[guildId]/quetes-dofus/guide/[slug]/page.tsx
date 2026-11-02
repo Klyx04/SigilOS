@@ -164,18 +164,22 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
 
     const mules = (user.altPseudos as any[] | undefined) || [];
 
-    // Route d'alignement (lot 5) : on filtre AVANT la vue, les prérequis et l'agrégation.
-    // Le camp et la **classe** viennent du personnage SÉLECTIONNÉ (mule incluse), sinon du
-    // profil principal. Sans choix renseigné, rien n'est masqué : on ne vide jamais le guide.
+    // Route d'alignement (lot 5 / L2) : on filtre AVANT la vue, les prérequis et l'agrégation.
+    // La cité, l'**Ordre** et la **classe** viennent du personnage SÉLECTIONNÉ (mule incluse),
+    // sinon du profil principal. Sans choix renseigné, rien n'est masqué : on ne vide jamais
+    // le guide. Sans l'Ordre, les **15** quêtes d'Ordre de la cité restaient visibles au lieu
+    // des **5** de son Ordre (défaut 6 mesuré le 02/11/2026).
     // ⚠️ `UserProfile.classe` est un **libellé** (« Féca », « sram ») : on le ramène à l'**id**
     // (`feca`) avant la route, sinon la comparaison stricte masquerait les quêtes de classe.
     const selectedMule = altPseudo
         ? (userProfile.altPseudos as any[] | undefined)?.find((m) => m?.pseudo === altPseudo) ?? null
         : null;
     const routeCamp = selectedMule ? selectedMule.alignment ?? null : userProfile.alignment ?? null;
+    const routeOrder = selectedMule ? selectedMule.alignmentOrder ?? null : userProfile.alignmentOrder ?? null;
     const routeClass = resolveDofusClassId(selectedMule ? selectedMule.classe : userProfile.dofusClass);
     const routeMilestones = resolveRushRoute((guide.milestones as any[]) || [], {
         camp: routeCamp,
+        order: routeOrder,
         playerClass: routeClass,
     });
 

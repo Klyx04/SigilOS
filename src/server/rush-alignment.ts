@@ -1,6 +1,6 @@
 import { db } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { alignmentResetSeeds, cascadeResetIds } from "@/lib/rush-guide-utils";
+import { alignmentResetSeeds, cascadeResetIds, orderResetSeeds } from "@/lib/rush-guide-utils";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 /**
@@ -8,8 +8,10 @@ import type { RushMilestone } from "@/types/rush-guide-types";
  *
  * Aucun guide n'est codé en dur : on lit ce que le studio God a marqué (`alignment_set`).
  * Un changement de cité **réinitialise** les quêtes d'alignement **et toutes les quêtes
- * qui en dépendent** (prérequis, puis leurs dépendants, etc.). Le reste — quêtes
- * communes, donjons, succès indépendants — **garde** son avancement.
+ * qui en dépendent** (prérequis, puis leurs dépendants, etc.). Un changement d'**Ordre**
+ * ne décoche que les **5 quêtes de l'Ordre quitté** (L2) : la progression de cité reste
+ * acquise. Le reste — quêtes communes, donjons, succès indépendants — **garde** son
+ * avancement.
  */
 
 /** Shape minimale du guide pour la règle de prérequis (lecture seule). */
@@ -64,20 +66,21 @@ export async function alignmentResetIds(camp?: string | null): Promise<Set<strin
 }
 
 /**
- * Retire de la progression les quêtes à réinitialiser pour un personnage.
+ * Retire de la progression les quêtes d'un ensemble d'ids, pour un personnage.
  *
- * @param camp la cité que le personnage **quitte** (`alignReq` de l'ancienne cité) ;
- *             `null` ⇒ repli sur les tags `alignment_set`.
+ * Mécanique **unique** des deux resets d'alignement (cité et Ordre) : on ne réécrit pas
+ * deux fois le décochage — seule la façon de calculer les ids change.
+ *
  * @param keepSeqId la quête qui vient d'être cochée (elle reste cochée).
  * @returns le nombre de coches retirées.
  */
-export async function resetAlignmentQuests(
+async function clearQuestsByIds(
   profileId: string,
   characterSlot: string,
-  camp?: string | null,
+  ids: Set<string>,
+  label: "cité" | "ordre",
   keepSeqId?: string
 ): Promise<number> {
-  const ids = await alignmentResetIds(camp);
   if (ids.size === 0) return 0;
 
   const rows = await db.playerGuideProgress.findMany({
@@ -99,10 +102,61 @@ export async function resetAlignmentQuests(
 
   if (cleared > 0) {
     // Aucune donnée personnelle : seulement des volumes.
-    logger.info("[RushAlignment] quêtes réinitialisées (alignement + cascade)", {
+    logger.info(`[RushAlignment] quêtes réinitialisées (${label})`, {
       cleared,
       roots: ids.size,
     });
   }
   return cleared;
+}
+
+/**
+ * Retire de la progression les quêtes à réinitialiser pour un personnage.
+ *
+ * @param camp la cité que le personnage **quitte** (`alignReq` de l'ancienne cité) ;
+ *             `null` ⇒ repli sur les tags `alignment_set`.
+ * @param keepSeqId la quête qui vient d'être cochée (elle reste cochée).
+ * @returns le nombre de coches retirées.
+ */
+export async function resetAlignmentQuests(
+  profileId: string,
+  characterSlot: string,
+  camp?: string | null,
+  keepSeqId?: string
+): Promise<number> {
+  const ids = await alignmentResetIds(camp);
+  return clearQuestsByIds(profileId, characterSlot, ids, "cité", keepSeqId);
+}
+
+/**
+ * **Changement d'Ordre** (L2) : ids des 5 quêtes de l'Ordre que le personnage quitte.
+ *
+ * Sans cascade, volontairement : la règle de jeu ne décoche que l'ancien Ordre (voir
+ * `orderResetSeeds`). Un Ordre ou une cité inconnus ⇒ ensemble vide (rien n'est décoché).
+ */
+export async function orderResetIds(
+  camp?: string | null,
+  order?: string | null
+): Promise<Set<string>> {
+  const milestones = await loadGuideMilestones();
+  return new Set(orderResetSeeds(milestones, camp, order));
+}
+
+/**
+ * Retire de la progression les **5 quêtes de l'ancien Ordre** (changement d'Ordre).
+ *
+ * La cité passée est celle du profil **au moment du reset** (lue côté serveur dans
+ * l'action) ; l'Ordre est celui que le personnage quitte. La progression de cité n'est
+ * jamais touchée.
+ *
+ * @returns le nombre de coches retirées.
+ */
+export async function resetOrderQuests(
+  profileId: string,
+  characterSlot: string,
+  camp?: string | null,
+  order?: string | null
+): Promise<number> {
+  const ids = await orderResetIds(camp, order);
+  return clearQuestsByIds(profileId, characterSlot, ids, "ordre");
 }

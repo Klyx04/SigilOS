@@ -13,7 +13,7 @@
 > **Fait** : règle pure `src/lib/rush-resource-checks.ts` (`resourceKeysForTags`, `applyQuestResourceChecks`) ; `QuestItemResourceGrid` cochable (`checkedKeys`, `onToggleCheck`, `aria-pressed`) ; fiche overlay/interne + grille publique câblées ; validation = coche, invalidation = décoche (serveur + écho optimiste, invité `localStorage`) ; cascade comprise ; `resetGuide` / `resetMilestone` / `completeGuide` alignés ; bug d'ordre d'arguments corrigé ; **badges de condition longs bornés** (`max-w-full min-w-0 truncate`, détail en `break-words`) — ils débordaient de la fiche.
 > **Preuves** : `rush-quest-resource-checks` **7** · `rush-resource-checks` **19** · `rush-tag-overflow` **4** · suite **587 fichiers / 6 147 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
 > **Reste / ops** : contrôle visuel (fiche de quête, coche, validation/invalidation) en bêta ; PR vers `dev`.
-> **Rotation** : aucun bloc sorti (5 blocs + celui-ci = 6).
+> **Rotation** : blocs « 01/11/2026 (suite 6) — La purge à J+30 » et « 01/11/2026 (suite 5) — Le propriétaire peut retirer sa guilde » sortis après fusion avec `dev` — récupérables via `git log -p -- docs/agents/activeContext.md`.
 
 ## 📝 Session 02/11/2026 (suite 4) — **Rush : DA « Carnet de campagne » (overlay)** — branche `feat/rush-da-carnet`
 
@@ -23,6 +23,14 @@
 > **Preuves** : `rush-da-grimoire` **23** · `rush-quest-filter` **6** · suite Rush **52 fichiers / 651 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
 > **Reste / ops** : contrôle visuel 390 / 768 / 1024 / 1440 en bêta (`./scripts/deploy-cd.sh beta`) ; PR vers `dev`. Reste T-4 : G7 (emblème / feuillage), G8 dépli `grid-template-rows`, G9 célébration (arbitrer), accents Dofus écran par écran, O15 sur les animations restantes.
 > **Rotation** : bloc « 01/11/2026 (suite 5) — Le propriétaire peut retirer sa guilde » sorti (le plus ancien) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+## 📝 Session 02/11/2026 (suite 3) — **Alignement du libellé d'exclusion (carte Discord + menu admin)** — branche `fix-align-wording-exclusion`
+
+> **Demande user (verbatim)** : « si qqun, supprime un user de sigil : envoyez une carte discord comme pour archive / ya t_il une carte pour l'exclusion également ? quand on exclu qqun si il veut revenir , il tombe sur une page banissement , terme non approprié? » · « ok ».
+> **Mesures** : ① La suppression (`purgeMemberFromGuild` et `deleteProfileByAdmin`) envoyait déjà un embed Discord `🗑️ Membre Supprimé` ; ② L'exclusion (`recordDeparture`) envoyait un embed mais titré historiquement `🚫 Membre Banni (Discord)` avec statut `Banni` ; ③ L'écran d'atterrissage d'un membre exclu affichait déjà `Membre exclu`, mais le menu dropdown de l'ancienne table membres (`member-management-table.tsx`) affichait encore `Bannir (SigilOS)` et `Debannir & Reintegrer`.
+> **Fait** : ① Alignement du titre de notification de cycle de vie Discord : `Membre Exclu` et statut `Exclu` dans `src/server/actions/lifecycle-actions.ts` ; ② Alignement des libellés dans `member-management-table.tsx` : `Exclure` et `Réintégrer` ; ③ Test unitaire ajouté dans `tests/unit/member-lifecycle.test.ts`.
+> **Preuves** : `member-lifecycle.test.ts` **5/5** · `tsc --noEmit` 0 erreur.
+> **Reste / ops** : PR vers `dev`.
+> **Rotation** : bloc « 01/11/2026 (suite 4) — Une guilde désactivée n'écrit plus rien depuis Discord » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 ## 📝 Session 02/11/2026 (suite) — **Almanax : bornage de la navigation jour précédent / suivant à la fenêtre de 30 jours** — branche `fix-almanax-navigation-window`
 
@@ -51,12 +59,3 @@
 > **Reste / ops** : ① `prisma migrate deploy` (bêta puis prod, **2 migrations** additives) ; ② crontab VPS `*/5 * * * *` pour `/api/cron/live-watch` (**sans `%`**) ; ③ vérifier `TWITCH_CLIENT_ID`/`SECRET` **et** `YOUTUBE_API_KEY` en bêta/prod (la résolution `@handle → channel_id` coûte 100 unités, **une fois** par créateur, cache 30 j) ; ④ **D-C** (gel) et **D-E** (e-mail, fournisseur à choisir) restent ouverts, **D-D** (export) en long terme ; ⑤ l'audit d'`account-retention` en cron est **vide** (`createGodAuditLog` sans session) — lot séparé.
 > **Rotation** : bloc « 01/11/2026 — Accès lecture seule de l'assistant à la bêta + tri Sentry » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 01/11/2026 (suite 6) — **La purge à J+30 existe vraiment (cron `guild-purge`)** — branche `feat/guildes-purge-j30`
-
-> **Demande user (verbatim)** : « lot 3 je veux plier ».
-> **Mesures** : ① `GuildConfig.scheduledDeletion` était écrit mais **lu par personne** — la « suppression définitive » annoncée n'arrivait jamais ; ② toutes les relations `GuildConfig` sont en `onDelete: Cascade` ⇒ `guildConfig.delete` suffit, et le hard delete God faisait déjà exactement ça ; ③ son `if (guildConfig?.discordGuildId)` englobait caches **et** sortie du bot (indentation) : un `discordGuildId` vide sautait les deux.
-> **Fait** : ① core **unique** `src/server/guild-purge-core.ts` (`purgeGuildById` : config + cascades, whitelist, caches, sortie du bot), partagé par **God** (`force`) et le cron ; ② `purgeDueGuilds` borné (20/passe, plus ancien d'abord), `WHERE deletedAt != null AND scheduledDeletion <= now` ; ③ cron `/api/cron/guild-purge` (`verifyCronSecret`, télémétrie `guild_purge`, 401 fail-closed) ; ④ `isGuildPurgeDue` pur (une date illisible ne purge **jamais**) ; ⑤ `hardDeleteGuild` réécrit sur le core (même comportement, indentation corrigée) ; ⑥ docs : `MAINTENANCE.md`, `scripts/maintenance.sh`, `cron-telemetry` ; ⑦ **écran « Serveur Supprimé »** corrigé : plus de fausse déconnexion, compte à rebours J+30 (échéance exposée par le contexte), avertissement explicite pour un membre **sans autre guilde** (son compte part à la même échéance), lien support inchangé ; ⑧ **propriétaire réconcilié** : handler bot `GuildUpdate` (sortie sans requête si `owner_id` inchangé) + écriture paresseuse au dashboard (`ownerId` exposé par le select caché, cas `null` couvert par un `OR`), et **compteur du site aligné sur les deux formes** d'`ownerId` (snowflake ∪ UUID interne) — une guilde transférée ne sort plus du plafond ; ⑨ **rétention** : « 90 j » documenté pour ce qu'il est (âge minimum du compte, pas une mesure d'activité — sessions JWT, aucune date de dernière connexion) ; mesurer l'activité réelle exige un champ ⇒ **migration, décision non prise**.
-> **Preuves** : `guild-deletion` **26/26** · `cron-telemetry` **3/3** · `tsc` 0 · ESLint 0 erreur.
-> **Reste / ops** : ajouter la ligne de crontab sur le VPS (`45 4 * * *`, **sans `%`**) ; `deploy-cd.sh beta` pour activer garde + bouton + cron ; chantier `guildes-cycle-de-vie` **clos** (registre ROADMAP).
-> **Rotation** : bloc « 31/10 (suite 13) — Journal : fin des faux événements Discord + inventaire de couverture » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.

@@ -280,9 +280,9 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
 
     // Dedicated reactivation handler — calls the new server action with full audit log + session invalidation
     const handleReactivate = async (profileId: string, previousStatus: "ARCHIVED" | "BANNED") => {
-        const label = previousStatus === "BANNED" ? "Débannir et réintégrer" : "Réactiver";
+        const label = previousStatus === "BANNED" ? "Réintégrer" : "Réactiver";
         const warning = previousStatus === "BANNED"
-            ? `⚠️ Réintégrer ce membre banni ? Il pourra à nouveau accéder au dashboard.`
+            ? `⚠️ Réintégrer ce membre exclu ? Il pourra à nouveau accéder au dashboard.`
             : `Réactiver le profil de ce membre archivé ?`;
 
         if (!confirm(warning)) return;
@@ -728,7 +728,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             {member.status !== "ACTIVE" && (isAdmin || isSuperAdmin) && (
                                                 <DropdownMenuItem onClick={() => handleReactivate(member.id, member.status as "ARCHIVED" | "BANNED")} className="gap-2 focus:bg-success/10 focus:text-success cursor-pointer text-caption font-black uppercase tracking-wider">
                                                     <RotateCcw className="h-3.5 w-3.5 text-success" />
-                                                    {member.status === "BANNED" ? "Debannir & Reintegrer" : "Reactiver"}
+                                                    {member.status === "BANNED" ? "Réintégrer" : "Réactiver"}
                                                 </DropdownMenuItem>
                                             )}
                                             {member.status === "ACTIVE" && !isProtected && (
@@ -740,7 +740,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             {!isProtected && (
                                                 <DropdownMenuItem onClick={() => handleStatusUpdate(member.id, "BANNED")} className="gap-2 focus:bg-danger/10 focus:text-danger cursor-pointer text-caption font-black uppercase tracking-wider">
                                                     <ShieldAlert className="h-3.5 w-3.5 text-danger" />
-                                                    Bannir (SigilOS)
+                                                    Exclure
                                                 </DropdownMenuItem>
                                             )}
                                             {isProtected && (

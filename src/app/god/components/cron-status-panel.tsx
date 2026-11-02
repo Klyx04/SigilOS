@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { StatusBadge, formatBytes, formatDuration, formatRelativeTime } from "./cron-ui";
+import { StatusBadge, formatBytes, formatDetailValue, formatDuration, formatRelativeTime } from "./cron-ui";
 
 interface HistoryEntry {
   id: string;
@@ -172,7 +172,7 @@ function CronDetailModal({ task, onClose }: { task: CronTask | null; onClose: ()
                   {Object.entries(task.details).map(([k, v]) => (
                     <div key={k} className="rounded-md bg-elevated/60 border border-border px-2 py-1.5">
                       <dt className="text-[9px] uppercase tracking-wider text-muted-foreground">{k}</dt>
-                      <dd className="text-sm font-bold text-foreground tabular-nums">{String(v ?? "—")}</dd>
+                      <dd className="text-sm font-bold text-foreground tabular-nums">{formatDetailValue(v)}</dd>
                     </div>
                   ))}
                 </dl>

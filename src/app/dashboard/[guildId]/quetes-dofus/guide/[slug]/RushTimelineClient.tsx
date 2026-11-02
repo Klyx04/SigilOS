@@ -70,7 +70,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
@@ -101,7 +101,7 @@ type ActivityTag = { type: string; name?: string; level?: number; count?: number
  */
 const TARGET_HIGHLIGHT_MS = 1200;
 
-type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; alignReq?: string|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
+type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; alignReq?: string|null; alignOrderCode?: string|null; alignLevelReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
 type GuildMemberProgress = { profileId:string; milestoneId:string; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
 type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string;parallelQuests?:number}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; initialResourceChecks?:string[]; };
@@ -289,9 +289,18 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const prereqBlocked = !isSeqCompleted && isSequenceBlockedByPrereqs(seq as any, allCompletedSeqIds, allMilestones as any);
 
   if (prereqBlocked) {
-    const prereqTags = (Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text") : []);
-    const totalPrereqs = prereqTags.length;
-    const singleName = totalPrereqs === 1 ? prereqTags[0]?.name : null;
+    // Source UNIQUE des prérequis (tags `prereq_text` + chaîne des rangs, L2) : la carte
+    // bloquée nomme donc aussi le rang précédent d'un Ordre, qui n'a aucun tag.
+    const prereqRefs = getPrereqRefs(seq as any, allMilestones as any);
+    const totalPrereqs = prereqRefs.length;
+    const singleName = totalPrereqs === 1 ? prereqRefs[0]?.name : null;
+    // Verrou de PALIER : une quête d'Ordre exige 20/40/60/80/100 quêtes de cité. Sans ce
+    // libellé, la carte affichait « 0 prérequis à terminer » (aucun tag à lister).
+    const levelReq = seq.alignLevelReq ?? 0;
+    const cityCount = levelReq > 0
+      ? alignmentCountForCamp(allMilestones as any, allCompletedSeqIds, seq.alignReq ?? null)
+      : 0;
+    const palierLocked = levelReq > 0 && cityCount < levelReq;
     return (
       <div data-seq-id={seq.id} className={`rounded-[4px] border bg-danger/[0.05] border-danger/30 hover:border-danger/50 scroll-mt-24 transition-colors ${focusedSeqId===seq.id?"ring-2 ring-success ring-offset-2 ring-offset-background bg-success/[0.06]":""}`}>
         <div className="flex items-center gap-2 px-3 pt-3 pb-0">
@@ -322,15 +331,21 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           <div className="px-3 pb-3 pt-2">
             <div className="flex items-center gap-2 mb-2">
               <Lock className="w-3.5 h-3.5 text-danger shrink-0" />
-              <p className="text-[11px] text-muted-foreground">{totalPrereqs} prérequis à terminer</p>
+              <p className="text-[11px] text-muted-foreground">
+                {totalPrereqs > 0
+                  ? `${totalPrereqs} prérequis à terminer`
+                  : palierLocked
+                    ? `Palier ${levelReq} — ${cityCount}/${levelReq} quêtes de cité`
+                    : "Verrouillée"}
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              {prereqTags.map((t:any,i:number)=>(
-                <button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}}
+              {prereqRefs.map((ref) => (
+                <button key={ref.seqId} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(ref.name||"");}}
                   className="inline-flex items-center gap-1.5 px-2 py-1 rounded-[4px] text-[11px] font-semibold text-danger border border-danger/30 hover:bg-danger/10 transition-colors group focus-visible:outline-2 focus-visible:outline-danger/50"
-                  aria-label={`Voir la quête requise : ${t.name}`}
+                  aria-label={`Voir la quête requise : ${ref.name}`}
                 >
-                  <span className="truncate max-w-[140px]">{t.name}</span>
+                  <span className="truncate max-w-[140px]">{ref.name}</span>
                   <ChevronRight className="w-2.5 h-2.5 text-danger/50 group-hover:text-danger/80 transition-colors shrink-0" />
                 </button>
               ))}
@@ -1590,26 +1605,18 @@ const timelineItems=useMemo(()=>{
     }
   }, [resourceChecks, guildId, guide.slug, effectiveAltPseudo]);
 
-  // Séquences bloquées par un prérequis non terminé → impossible de cocher / poser un repère
+  // Séquences bloquées → impossible de cocher / poser un repère.
+  // ⚠️ Une SEULE règle (`isSequenceBlockedByPrereqs`) : elle couvre les tags
+  // `prereq_text`, le **palier de cité** et la **chaîne des rangs** (L2). Deux copies
+  // locales (nom seul) laissaient passer une quête d'Ordre verrouillée côté client.
   const blockedSeqIds = useMemo(() => {
     const out = new Set<string>();
     for (const ms of milestones) {
       if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
       for (const seq of ms.sequences) {
-        const prereqNames = Array.isArray(seq.activityTags)
-          ? seq.activityTags.filter((x: any) => x.type === "prereq_text").map((x: any) => x.name?.toLowerCase()).filter(Boolean)
-          : [];
-        if (prereqNames.length === 0) continue;
-        const blocked = milestones.some((candidateMs: any) =>
-          candidateMs.type !== "SEPARATEUR" &&
-          candidateMs.type !== "INFO" &&
-          candidateMs.sequences.some((candidateSeq: any) => {
-            if (candidateSeq.id === seq.id) return false;
-            const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "").toLowerCase();
-            return prereqNames.includes(candidateName) && !allCompletedSeqIds.has(candidateSeq.id);
-          })
-        );
-        if (blocked) out.add(seq.id);
+        if (isSequenceBlockedByPrereqs(seq as any, allCompletedSeqIds, milestones as any)) {
+          out.add(seq.id);
+        }
       }
     }
     return out;
@@ -1807,22 +1814,12 @@ const timelineItems=useMemo(()=>{
     });
   }, [helpStorageKey]);
 
-  // ─── Helper pur : vérifier si une séquence a un prérequis réellement non terminé ──
-  const isActuallyBlocked = useCallback((seq: Sequence): boolean => {
-    const prereqNames = Array.isArray(seq.activityTags)
-      ? seq.activityTags.filter((x:any) => x.type === "prereq_text").map((x:any) => x.name?.toLowerCase()).filter(Boolean)
-      : [];
-    if (prereqNames.length === 0) return false;
-    return milestones.some((candidateMs) =>
-      candidateMs.type !== "SEPARATEUR" &&
-      candidateMs.type !== "INFO" &&
-      candidateMs.sequences.some((candidateSeq) => {
-        if (candidateSeq.id === seq.id) return false;
-        const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "").toLowerCase();
-        return prereqNames.includes(candidateName) && !allCompletedSeqIds.has(candidateSeq.id);
-      })
-    );
-  }, [milestones, allCompletedSeqIds]);
+  // ─── Verrou d'une séquence : une seule règle, partagée avec la carte et le serveur ──
+  const isActuallyBlocked = useCallback(
+    (seq: Sequence): boolean =>
+      isSequenceBlockedByPrereqs(seq as any, allCompletedSeqIds, milestones as any),
+    [milestones, allCompletedSeqIds]
+  );
 
   // ─── Computed active/next sequences ─────────────────────────────────────
   const findNextActionableSequence = useCallback(() => {

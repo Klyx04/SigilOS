@@ -106,6 +106,16 @@ type Props = {
   ocreState?: "ready" | "not-linked" | "error";
   /** Coches de ressources du membre (serveur, par personnage) — lu par la page. */
   initialResourceChecks?: string[];
+  /**
+   * Cité et Ordre du personnage COURANT, résolus côté serveur (route `L2`).
+   *
+   * Repli de la modale d'alignement : `alignmentMembers` déduplique par `profileId` et
+   * `buildGuildProgressRows` ne renseigne que le pseudo **principal**, donc pour une mule
+   * (`?character=…`) `isSelf` échoue et la modale repartait vide — l'utilisateur pouvait
+   * écraser son choix. Le serveur, lui, sait toujours quel personnage est sélectionné.
+   */
+  selfAlignment?: string | null;
+  selfOrder?: string | null;
 };
 
 export default function GuideOverlayClient({
@@ -121,6 +131,8 @@ export default function GuideOverlayClient({
   ocre = null,
   ocreState = "ready",
   initialResourceChecks,
+  selfAlignment = null,
+  selfOrder = null,
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
   // Notifications : Toaster de l'overlay quand il y en a un (PiP), sinon le global.
@@ -1515,8 +1527,8 @@ export default function GuideOverlayClient({
         <RushOverlayAlignmentModal
           guildId={guildId}
           members={alignmentMembers}
-          selfAlignment={alignmentMembers.find((m) => m.isSelf)?.alignment ?? null}
-          selfOrder={alignmentMembers.find((m) => m.isSelf)?.alignmentOrder ?? null}
+          selfAlignment={alignmentMembers.find((m) => m.isSelf)?.alignment ?? selfAlignment}
+          selfOrder={alignmentMembers.find((m) => m.isSelf)?.alignmentOrder ?? selfOrder}
           mulePseudo={!character?.isMain ? character?.pseudo ?? null : null}
           onClose={() => setShowAlignment(false)}
         />

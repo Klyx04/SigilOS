@@ -27,6 +27,9 @@ export type RushRouteChoice = {
   level?: number | null;
 };
 
+/** Référence d'un rang de la chaîne d'Ordre (même forme que `RushPrereqRef`). */
+export type RushOrderRankRef = { seqId: string; milestoneId: string; name: string };
+
 /** Normalise une valeur de camp (« bontarien », « Brâkmar », « BONTA »…). */
 export function normalizeAlignmentCamp(value?: string | null): RushAlignmentCamp | null {
   const v = (value ?? "")
@@ -89,6 +92,55 @@ export function isSequenceOnRoute(
   }
 
   return true;
+}
+
+/**
+ * **Chaîne des rangs d'un Ordre** (L2) — le rang N exige le rang N−1.
+ *
+ * Mesure du 02/11/2026 : les **30** quêtes d'Ordre (2 cités × 3 Ordres × 5) ne portent
+ * **aucun** `prereq_text`. Sans cette règle, le rang 5 (« Héros Légendaire », palier 100)
+ * se cochait sans avoir fait les rangs 1 → 4.
+ *
+ * Le lien est **calculé**, pas saisi : une quête d'Ordre est le rang immédiatement
+ * inférieur de la **même cité** et du **même Ordre** (paliers 20/40/60/80/100). Écrire
+ * 24 tags en base aurait dupliqué une règle de jeu dans une donnée non versionnée
+ * (bêta et prod divergent déjà sur d'autres points).
+ *
+ * Fonction PURE : aucun accès base, aucune mutation.
+ *
+ * @returns le rang N−1, ou `null` pour le rang 1 (palier 20) / une valeur inconnue.
+ */
+export function previousOrderRank(
+  seq: Pick<RushSequence, "id" | "alignReq" | "alignOrderCode" | "alignLevelReq" | "subGuideName">,
+  allMilestones: RushMilestone[]
+): RushOrderRankRef | null {
+  const level = seq.alignLevelReq ?? 0;
+  const wantedOrder = normalizeOrderCode(seq.alignOrderCode);
+  if (!wantedOrder || level <= 0) return null;
+
+  const wantedCamp = normalizeAlignmentCamp(seq.alignReq);
+  let best: { level: number; ref: RushOrderRankRef } | null = null;
+
+  for (const ms of allMilestones) {
+    for (const other of ms.sequences || []) {
+      if (other.id === seq.id) continue;
+      const otherLevel = other.alignLevelReq ?? 0;
+      if (otherLevel <= 0 || otherLevel >= level) continue;
+      if (normalizeOrderCode(other.alignOrderCode) !== wantedOrder) continue;
+      // Un Ordre n'appartient qu'à une cité : si le candidat déclare une cité, elle
+      // doit être la même. Une quête sans cité n'est pas écartée (donnée incomplète).
+      const otherCamp = normalizeAlignmentCamp(other.alignReq);
+      if (wantedCamp && otherCamp && otherCamp !== wantedCamp) continue;
+      if (!best || otherLevel > best.level) {
+        best = {
+          level: otherLevel,
+          ref: { seqId: other.id, milestoneId: ms.id, name: other.subGuideName },
+        };
+      }
+    }
+  }
+
+  return best?.ref ?? null;
 }
 
 /**

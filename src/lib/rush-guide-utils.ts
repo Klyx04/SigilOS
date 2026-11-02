@@ -1,7 +1,8 @@
 import type { RushMilestone, RushSequence, RushActivityTag } from "@/types/rush-guide-types";
 import { getJob } from "@/lib/dofus-assets";
 import { QUEST_TYPE_KEYS, questTypeIconPath, type QuestTypeKey } from "@/lib/quest-type-icon";
-import { normalizeAlignmentCamp } from "@/lib/rush-route";
+import { normalizeAlignmentCamp, previousOrderRank } from "@/lib/rush-route";
+import { normalizeOrderCode } from "@/lib/rush-order-codes";
 const LOCAL_ASSET_PREFIXES = ["/uploads/assets-dofus/", "/assets-dofus/"];
 
 /**
@@ -508,23 +509,41 @@ function resolvePrereqTag(
 
 
 /**
- * Retourne les quêtes prérequis d'une séquence (tag `prereq_text`, résolu par **id** puis
- * par libellé). Indépendant de la complétion : sert à afficher/dispatcher les cibles.
+ * Retourne les quêtes prérequis d'une séquence.
+ *
+ * Deux sources, **une seule liste** :
+ *  1. le tag `prereq_text` (résolu par **id** puis par libellé, indépendant de la
+ *     complétion) ;
+ *  2. la **chaîne des rangs** (L2) : le rang N d'un Ordre exige le rang N−1
+ *     (`previousOrderRank`). Les 30 quêtes d'Ordre ne portent aucun tag : sans cette
+ *     seconde source, la carte bloquée affichait « 0 prérequis à terminer » et le
+ *     joueur ne savait pas quoi faire.
  */
 export function getPrereqRefs(seq: RushSequence | null | undefined, allMilestones: RushMilestone[]): RushPrereqRef[] {
-  if (!seq || !Array.isArray(seq.activityTags) || !seq.activityTags.length) return [];
-  const tags = seq.activityTags.filter((tag) => tag.type === "prereq_text");
-  if (!tags.length) return [];
+  if (!seq) return [];
 
-  const candidates = prereqCandidates(allMilestones);
   const out: RushPrereqRef[] = [];
   const seen = new Set<string>();
-  for (const tag of tags) {
-    const hit = resolvePrereqTag(tag, candidates);
-    if (!hit || hit.seqId === seq.id || seen.has(hit.seqId)) continue;
-    seen.add(hit.seqId);
-    out.push({ seqId: hit.seqId, milestoneId: hit.milestoneId, name: hit.name });
+
+  const tags = Array.isArray(seq.activityTags)
+    ? seq.activityTags.filter((tag) => tag.type === "prereq_text")
+    : [];
+  if (tags.length) {
+    const candidates = prereqCandidates(allMilestones);
+    for (const tag of tags) {
+      const hit = resolvePrereqTag(tag, candidates);
+      if (!hit || hit.seqId === seq.id || seen.has(hit.seqId)) continue;
+      seen.add(hit.seqId);
+      out.push({ seqId: hit.seqId, milestoneId: hit.milestoneId, name: hit.name });
+    }
   }
+
+  const rankRef = previousOrderRank(seq, allMilestones);
+  if (rankRef && rankRef.seqId !== seq.id && !seen.has(rankRef.seqId)) {
+    seen.add(rankRef.seqId);
+    out.push(rankRef);
+  }
+
   return out;
 }
 
@@ -552,10 +571,6 @@ function normPrereqName(value: string | null | undefined): string {
   return (value ?? "").replace(/\u00a0/g, " ").trim().toLowerCase();
 }
 
-/**
- * Helper pur vérifiant si une séquence est bloquée par des prérequis inachevés.
- * Renvoie false si la séquence n'a pas de tag prereq_text OU si tous les prérequis sont terminés.
- */
 /** Camp d'alignement d'une séquence : `alignReq` d'abord, sinon le tag `alignment_set`. */
 function alignmentCampOf(seq: RushSequence): string | null {
   const raw = (seq.alignReq ?? "").trim();
@@ -592,6 +607,15 @@ export function alignmentCountForCamp(
   return count;
 }
 
+/**
+ * Une séquence est-elle bloquée ? Trois verrous, dans cet ordre :
+ *  1. **palier de cité** (`alignLevelReq` = 20/40/60/80/100 validé par le compteur) ;
+ *  2. **chaîne des rangs** (L2) : le rang N d'un Ordre exige le rang N−1 ;
+ *  3. **prérequis explicites** (`prereq_text`), résolus par id puis par libellé.
+ *
+ * `false` dès qu'aucun des trois ne s'applique ou que tout est satisfait — un prérequis
+ * introuvable ne bloque jamais à vie (il est signalé dans le studio God).
+ */
 export function isSequenceBlockedByPrereqs(
   seq: RushSequence,
   allCompletedSeqIds: Set<string>,
@@ -607,7 +631,13 @@ export function isSequenceBlockedByPrereqs(
     if (count < levelReq) return true;
   }
 
-  // 2. Prérequis explicites (`prereq_text`).
+  // 2. Chaîne des rangs (L2) : le rang N d'un Ordre exige le rang N−1 validé. Comme le
+  //    verrou de palier, il est vérifié AVANT les tags — les quêtes d'Ordre n'en portent
+  //    aucun (mesure du 02/11/2026 : 0 `prereq_text` sur les 30).
+  const rankRef = previousOrderRank(seq, allMilestones);
+  if (rankRef && !allCompletedSeqIds.has(rankRef.seqId)) return true;
+
+  // 3. Prérequis explicites (`prereq_text`).
   const tags = Array.isArray(seq.activityTags)
     ? seq.activityTags.filter((tag) => tag.type === "prereq_text")
     : [];
@@ -763,6 +793,45 @@ export function alignmentResetSeeds(
         ? normalizeAlignmentCamp(seq.alignReq) === wanted
         : Array.isArray(seq.activityTags) && seq.activityTags.some((t) => t.type === "alignment_set");
       if (isSeed) ids.push(seq.id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * **Graines du reset de changement d'ORDRE** (L2) — les 5 quêtes de l'Ordre quitté.
+ *
+ * Règle de jeu (`ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md` § 8.2) : changer d'Ordre
+ * décoche **les 5 quêtes de l'ancien Ordre** ; le nouvel Ordre repart de son rang 1 et la
+ * progression de cité n'est pas touchée.
+ *
+ * Pas de cascade ici, volontairement :
+ *  · mesuré le 02/11/2026 — **aucun** tag `prereq_text` ne vise une quête d'Ordre, donc
+ *    il n'y a aucun dépendant à décocher ;
+ *  · une cascade emprunterait la **chaîne des rangs** (`previousOrderRank`) et effacerait
+ *    la branche du nouvel Ordre au lieu des 5 quêtes de l'ancien.
+ *
+ * Cité ou Ordre inconnu ⇒ **aucune** graine (fail-closed : on ne décoche rien au hasard).
+ *
+ * Règle PURE : aucun accès base, aucune mutation.
+ */
+export function orderResetSeeds(
+  allMilestones: RushMilestone[],
+  camp: string | null | undefined,
+  order: string | null | undefined
+): string[] {
+  const wantedCamp = normalizeAlignmentCamp(camp);
+  const wantedOrder = normalizeOrderCode(order);
+  if (!wantedCamp || !wantedOrder) return [];
+
+  const ids: string[] = [];
+  for (const ms of allMilestones) {
+    for (const seq of ms.sequences || []) {
+      if (normalizeOrderCode(seq.alignOrderCode) !== wantedOrder) continue;
+      // L'Ordre est déjà propre à une cité ; la vérifier évite qu'une donnée mal taguée
+      // fasse déborder le reset sur l'autre branche.
+      if (normalizeAlignmentCamp(seq.alignReq) !== wantedCamp) continue;
+      ids.push(seq.id);
     }
   }
   return ids;

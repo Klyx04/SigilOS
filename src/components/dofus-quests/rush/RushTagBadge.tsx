@@ -57,7 +57,7 @@ export function RushTagBadge({ tag, size = "sm", className }: RushTagBadgeProps)
         title={`Cliquer pour détails : ${label}`}
         aria-label={`Détails du tag ${label}`}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-[3px] border border-border bg-surface text-muted-foreground transition-colors",
+          "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-[3px] border border-border bg-surface text-left text-muted-foreground transition-colors",
           "hover:border-border-strong hover:text-foreground",
           size === "sm" ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-1 text-xs",
           className
@@ -67,10 +67,10 @@ export function RushTagBadge({ tag, size = "sm", className }: RushTagBadgeProps)
           // eslint-disable-next-line @next/next/no-img-element
           <img src={iconSrc} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" loading="lazy" />
         )}
-        {label && <span className="truncate font-medium">{label}</span>}
-        {tag.level && <span className="text-[10px] tabular-nums text-muted-foreground">Niv. {tag.level}</span>}
+        {label && <span className="min-w-0 truncate font-medium">{label}</span>}
+        {tag.level && <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">Niv. {tag.level}</span>}
         {tag.count && tag.count > 1 && (
-          <span className="text-[10px] font-semibold tabular-nums text-warning">×{tag.count}</span>
+          <span className="shrink-0 text-[10px] font-semibold tabular-nums text-warning">×{tag.count}</span>
         )}
       </button>
 
@@ -92,7 +92,7 @@ export function RushTagBadge({ tag, size = "sm", className }: RushTagBadgeProps)
             <header className="flex items-start justify-between gap-3 border-b border-border px-3.5 py-2.5">
               <div className="min-w-0">
                 <p className="text-[11px] text-muted-foreground">{config?.label ?? "Badge"}</p>
-                <h3 className="mt-0.5 text-[14px] font-semibold leading-snug text-foreground">{label}</h3>
+                <h3 className="mt-0.5 break-words text-[14px] font-semibold leading-snug text-foreground">{label}</h3>
               </div>
               <button
                 type="button"
@@ -104,7 +104,7 @@ export function RushTagBadge({ tag, size = "sm", className }: RushTagBadgeProps)
               </button>
             </header>
             <div className="space-y-1.5 px-3.5 py-3 text-[12px] text-muted-foreground">
-              {tag.name && <p className="font-semibold text-foreground">{tag.name}</p>}
+              {tag.name && <p className="break-words font-semibold text-foreground">{tag.name}</p>}
               {tag.level && (
                 <p>
                   Niveau requis : <strong className="font-semibold text-foreground">{tag.level}</strong>

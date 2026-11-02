@@ -74,10 +74,10 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO sigil_ro;
 ## 5. Vérification (agent)
 
 ```bash
-ssh -i ~/.ssh/sigilos-agent-ro2 myvps-ro status
-ssh -i ~/.ssh/sigilos-agent-ro2 myvps-ro migrations
-ssh -i ~/.ssh/sigilos-agent-ro2 myvps-ro counts
-ssh -i ~/.ssh/sigilos-agent-ro2 myvps-ro whoami   # doit être refusé
+ssh -i ~/.ssh/sigilos-agent-ro2 myvps status
+ssh -i ~/.ssh/sigilos-agent-ro2 myvps migrations
+ssh -i ~/.ssh/sigilos-agent-ro2 myvps counts
+ssh -i ~/.ssh/sigilos-agent-ro2 myvps whoami   # doit être refusé
 ```
 
 ## 6. Règles de changement

@@ -62,12 +62,15 @@ describe("câblage de l'overlay", () => {
         expect(src).toMatch(/questFilter !== "all"/);
     });
 
-    it("le contrôle est un groupe accessible, avec les trois libellés et l'or actif", () => {
+    it("le contrôle est un groupe accessible, avec trois blocs séparés et l'or actif", () => {
         const src = readFileSync(FILTER, "utf8");
         expect(src).toContain('role="group"');
         expect(src).toContain('aria-label="Filtrer les quêtes"');
         expect(src).toContain("aria-pressed={active}");
         for (const label of ["Toutes", "En cours", "Verrouillées"]) expect(src).toContain(label);
         expect(src).toContain("border-gold/60 bg-gold/10 text-foreground");
+        // Chaque segment porte son propre filet : plus de rail continu.
+        expect(src).toContain("flex gap-1.5");
+        expect(src).toContain("border-border-strong bg-surface text-muted-foreground");
     });
 });

@@ -73,6 +73,7 @@ import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/com
 import { isSequenceBlockedByPrereqs, resolveRushSeqIcon, getGuideMetiersRequires, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, resolveSequenceDungeons, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
+import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { toOcrePanelData } from "@/lib/ocre-soul-stones";
@@ -254,6 +255,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
               const guildProgressBySeq = React.useContext(GuildProgressBySeqCtx) as Map<string,GuildMemberProgress[]>;
               const guildId = React.useContext(GuildIdCtx);
+  const resourceChecks = React.useContext(ResourceChecksCtx);
+  const onToggleResourceCheck = React.useContext(OnToggleResourceCheckCtx);
   const isActive = seq.id === activeSeqId && !isSeqCompleted;
   const isNext = seq.id === nextSeqId && !isSeqCompleted && !isActive;
   const isThisBookmarked = seq.id === (bookmarksByMs.get(ms.id) ?? null);
@@ -632,6 +635,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           isLightMode={false}
           guildId={guildId}
           hideProvidedResources={!!hideSeqCompleted}
+          checkedKeys={resourceChecks}
+          onToggleResourceCheck={onToggleResourceCheck}
           onClose={() => setDetailOpen(false)}
         />,
         document.body
@@ -1089,6 +1094,8 @@ const BookmarkedSeqCtx=React.createContext<Map<string,string>>(new Map);
 const OnBookmarkSeqCtx=React.createContext<(seqId:string,ms:Milestone)=>void>(()=>{});
 const GuildProgressBySeqCtx=React.createContext<Map<string,GuildMemberProgress[]>>(new Map);
 const GuildIdCtx=React.createContext<string>("");
+const ResourceChecksCtx=React.createContext<Set<string>>(new Set);
+const OnToggleResourceCheckCtx=React.createContext<(key:string)=>void>(()=>{});
 
 // ─── ContextualHelp ──────────────────────────────────────────────────────────
 function ContextualHelp({ label, children, className }: { label: string; children?: React.ReactNode; className?: string }) {
@@ -1536,11 +1543,12 @@ const timelineItems=useMemo(()=>{
     try {
       const { resetGuideProgress } = await import("@/server/actions/optimized-guide-actions");
       await resetGuideProgress(guildId, guide.id, id === "PRINCIPAL" ? undefined : id);
+      if (id === selectedCharacter) setResourceChecks(new Set());
       toast.success(id === "PRINCIPAL" ? "Progression du personnage principal réinitialisée" : `Progression de ${id} réinitialisée`);
       router.refresh();
     } catch { toast.error("Erreur réseau"); }
     finally { setResettingCharId(null); }
-  }, [guildId, guide.id, router]);
+  }, [guildId, guide.id, router, selectedCharacter]);
   
   const activeMembersCount=useMemo(()=>new Set(guildProgress.map(p=>p.profileId)).size,[guildProgress]);
   const setLoading=useCallback((msId:string,val:boolean)=>setLoadingIds(prev=>{const n=new Set(prev);val?n.add(msId):n.delete(msId);return n;}),[]);
@@ -1645,6 +1653,16 @@ const timelineItems=useMemo(()=>{
         cascadeMsIds.get(owner.id)!.add(cid);
       }
     }
+    // Ressources : valider coche les ressources de la quête ; invalider les décoche
+    // (cascade comprise). Même règle que le serveur — ici, l'écho optimiste.
+    const resourceBefore=resourceChecks;
+    const seqResource=ms.sequences.find((s:any)=>s.id===seqId);
+    let nextResourceChecks=applyQuestResourceChecks(resourceChecks,(seqResource as any)?.activityTags,!was);
+    for(const cid of cascadeSeqIds){
+      const cs=milestones.flatMap((m:any)=>m.sequences).find((s:any)=>s.id===cid);
+      if(cs)nextResourceChecks=applyQuestResourceChecks(nextResourceChecks,(cs as any).activityTags,false);
+    }
+    setResourceChecks(nextResourceChecks);
     setCompletedStepsByMs(prev=>{
       const n=new Map(prev);
       n.set(ms.id,cur);
@@ -1673,7 +1691,7 @@ const timelineItems=useMemo(()=>{
     try{
       const res=await setRushSequenceProgress(guildId,ms.id,arr,effectiveAltPseudo);
       // Verrou de donjons : le serveur refuse (donjon requis non fait) → on l'explique.
-      if(!(res as any).success){ toast.error((res as any)?.error || "Quête verrouillée par un donjon"); return; }
+      if(!(res as any).success){ setResourceChecks(resourceBefore); toast.error((res as any)?.error || "Quête verrouillée par un donjon"); return; }
       if((res as any).success){
         // Validation → le repère de cette quête est retiré (soit validée, soit repère).
         if(!was && bookmarksByMs.get(ms.id)===seqId){
@@ -1706,12 +1724,13 @@ const timelineItems=useMemo(()=>{
         toast.error((res as any)?.error||"Erreur");
       }
     }catch{
+      setResourceChecks(resourceBefore);
       setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});
       setCompletedIds(prev=>{const n=new Set(prev);wasMilestoneCompleted?n.add(ms.id):n.delete(ms.id);return n;});
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
-  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states]);
-  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);setCelebrate({msId:ms.id,title:isChapterEnd?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:isChapterEnd?"#56d4ad":"#e6b96b"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); }}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading]);
+  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states,resourceChecks]);
+  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);const resourceBefore=resourceChecks;setResourceChecks((ms.sequences||[]).reduce((acc:Set<string>,s:any)=>applyQuestResourceChecks(acc,s.activityTags,!was),resourceChecks));setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setResourceChecks(resourceBefore);setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);setCelebrate({msId:ms.id,title:isChapterEnd?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:isChapterEnd?"#56d4ad":"#e6b96b"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); }}catch{setResourceChecks(resourceBefore);toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
 
   // ─── Bookmark par séquence ─────────────────────────────────────────────
@@ -2044,7 +2063,7 @@ const timelineItems=useMemo(()=>{
   };
 
 
-  return(<><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
+  return(<><ResourceChecksCtx.Provider value={resourceChecks}><OnToggleResourceCheckCtx.Provider value={handleToggleResourceCheck}><GuildIdCtx.Provider value={guildId}><RushDungeonActionsCtx.Provider value={dungeonActionsValue}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={bookmarksByMs}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   <div className="flex flex-col gap-5">
     {/* Braises d'ambiance teintées au Dofus actif (désactivable via Options) */}
     <GuideParticles active={rushParticlesEnabled} colors={particlePalette} haloColor={ambientDofusColor} />
@@ -2539,7 +2558,7 @@ const timelineItems=useMemo(()=>{
     {resetModalOpen&&<ResetConfirmModal
       isOpen={resetModalOpen}
       onClose={()=>setResetModalOpen(false)}
-      onConfirm={async()=>{setResetLoading(true);try{const{resetGuideProgress}=await import("@/server/actions/optimized-guide-actions");await resetGuideProgress(guildId,guide.id,effectiveAltPseudo);setCompletedIds(new Set);setResetModalOpen(false);setWizardOpen(true);toast.success("Réinitialisée !");router.refresh();}catch{toast.error("Erreur");}finally{setResetLoading(false);}}}
+      onConfirm={async()=>{setResetLoading(true);try{const{resetGuideProgress}=await import("@/server/actions/optimized-guide-actions");await resetGuideProgress(guildId,guide.id,effectiveAltPseudo);setCompletedIds(new Set);setResourceChecks(new Set());setResetModalOpen(false);setWizardOpen(true);toast.success("Réinitialisée !");router.refresh();}catch{toast.error("Erreur");}finally{setResetLoading(false);}}}
       characterName={selectedCharacter}
       isLoading={resetLoading}
     />}
@@ -2653,7 +2672,7 @@ const timelineItems=useMemo(()=>{
       sections={rushUIConfig?.penseBete}
       storageKey={`rush-sylvestre-pense-bete-${guide.id}`}
     />
-   </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider>
+   </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></RushDungeonActionsCtx.Provider></GuildIdCtx.Provider></OnToggleResourceCheckCtx.Provider></ResourceChecksCtx.Provider>
 
 
 </>);}

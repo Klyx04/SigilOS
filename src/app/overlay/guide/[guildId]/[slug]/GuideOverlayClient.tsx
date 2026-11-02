@@ -6,6 +6,7 @@ import { useOverlayToast } from "@/components/rush/overlay-toast";
 import {
   toggleMilestoneProgress,
   setRushSequenceProgress,
+  setRushResourceChecks,
   setRushBookmark,
   applyRushAlignmentFromSequence,
   resetGuideProgress,
@@ -13,6 +14,7 @@ import {
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
 import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { useGuideProgressSync } from "@/hooks/use-guide-sync";
 import { MemberAvatar } from "@/components/shared/member-avatar";
@@ -102,6 +104,8 @@ type Props = {
    * propose la liaison (sans quoi l'overlay est un cul-de-sac pour un compte non lié).
    */
   ocreState?: "ready" | "not-linked" | "error";
+  /** Coches de ressources du membre (serveur, par personnage) — lu par la page. */
+  initialResourceChecks?: string[];
 };
 
 export default function GuideOverlayClient({
@@ -116,6 +120,7 @@ export default function GuideOverlayClient({
   pinned = true,
   ocre = null,
   ocreState = "ready",
+  initialResourceChecks,
 }: Props) {
   const effectiveAltPseudo = altPseudo ?? undefined;
   // Notifications : Toaster de l'overlay quand il y en a un (PiP), sinon le global.
@@ -388,6 +393,47 @@ export default function GuideOverlayClient({
   // Filtre d'affichage de la liste : Toutes / En cours / Verrouillées.
   // Il ne change ni l'ordre, ni les compteurs de progression — seulement les lignes visibles.
   const [questFilter, setQuestFilter] = useState<RushQuestFilter>("all");
+  // Coches de ressources « déjà préparé », par personnage : serveur pour un membre,
+  // `localStorage` pour un invité (même clé que le guide public).
+  const [resourceChecks, setResourceChecks] = useState<Set<string>>(() => {
+    if (initialResourceChecks) return new Set(initialResourceChecks);
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem(`${storagePrefix}resources`);
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch {}
+    return new Set();
+  });
+
+  const persistGuestResourceChecks = useCallback(
+    (next: Set<string>) => {
+      if (typeof window === "undefined") return;
+      try {
+        localStorage.setItem(`${storagePrefix}resources`, JSON.stringify([...next]));
+      } catch {}
+    },
+    [storagePrefix]
+  );
+
+  const handleToggleResourceCheck = useCallback(
+    async (key: string) => {
+      const previous = resourceChecks;
+      const next = new Set(previous);
+      next.has(key) ? next.delete(key) : next.add(key);
+      setResourceChecks(next);
+      if (isGuest) {
+        persistGuestResourceChecks(next);
+        return;
+      }
+      try {
+        await setRushResourceChecks(guildId, guide.slug, [...next], effectiveAltPseudo);
+      } catch {
+        setResourceChecks(previous);
+        toast.error("Impossible d'enregistrer la préparation");
+      }
+    },
+    [resourceChecks, isGuest, persistGuestResourceChecks, guildId, guide.slug, effectiveAltPseudo, toast]
+  );
   // Modale de détail d'une quête (remplace l'ancien accordéon).
   const [detailSeq, setDetailSeq] = useState<{ ms: RushMilestone; seq: RushSequence } | null>(null);
 
@@ -676,6 +722,15 @@ export default function GuideOverlayClient({
     async (ms: RushMilestone) => {
       if (loadingIds.has(ms.id)) return;
       const was = completedIds.has(ms.id);
+      // Ressources : valider le chapitre coche toutes ses ressources ; l'invalider les
+      // décoche. Écho optimiste de la règle serveur, persisté pour l'invité.
+      const resourceBefore = resourceChecks;
+      const nextResourceChecks = (ms.sequences || []).reduce(
+        (acc, s) => applyQuestResourceChecks(acc, (s as any).activityTags, !was),
+        resourceChecks
+      );
+      setResourceChecks(nextResourceChecks);
+      if (isGuest) persistGuestResourceChecks(nextResourceChecks);
       setCompletedIds((prev) => {
         const n = new Set(prev);
         was ? n.delete(ms.id) : n.add(ms.id);
@@ -738,6 +793,7 @@ export default function GuideOverlayClient({
         // Chapitre complété d'un coup → passer automatiquement au suivant.
         if (!was) goToNextMs();
       } catch {
+        setResourceChecks(resourceBefore);
         setCompletedStepsByMs(prevSteps);
         setCompletedIds((prev) => {
           const n = new Set(prev);
@@ -753,7 +809,7 @@ export default function GuideOverlayClient({
         });
       }
     },
-    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs]
+    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks]
   );
 
   const handleToggleSeq = useCallback(
@@ -795,6 +851,21 @@ export default function GuideOverlayClient({
           cascadeMsIds.get(owner.id)!.add(cid);
         }
       }
+      // Ressources : valider coche les ressources de la quête ; invalider les décoche
+      // (cascade comprise). Le serveur applique la même règle ; ici, l'écho optimiste.
+      const resourceBefore = resourceChecks;
+      const seqResource = ms.sequences.find((s) => s.id === seqId);
+      let nextResourceChecks = applyQuestResourceChecks(
+        resourceChecks,
+        (seqResource as any)?.activityTags,
+        !was
+      );
+      for (const cid of cascadeSeqIds) {
+        const cs = milestones.flatMap((m) => m.sequences).find((s) => s.id === cid);
+        if (cs) nextResourceChecks = applyQuestResourceChecks(nextResourceChecks, (cs as any).activityTags, false);
+      }
+      setResourceChecks(nextResourceChecks);
+      if (isGuest) persistGuestResourceChecks(nextResourceChecks);
       setCompletedStepsByMs((prev) => {
         const n = new Map(prev);
         n.set(ms.id, cur);
@@ -900,6 +971,7 @@ export default function GuideOverlayClient({
         // restait bloqué sur un chapitre vide à 100 %.
         if (!was && allChecked) goToNextMs();
       } catch {
+        setResourceChecks(resourceBefore);
         setCompletedStepsByMs(prevMap);
         setCompletedIds((prev) => {
           const n = new Set(prev);
@@ -909,7 +981,7 @@ export default function GuideOverlayClient({
         toast.error("Erreur de synchronisation");
       }
     },
-    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs]
+    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks]
   );
 
   // Réinitialise TOUTE la progression du guide (synchro serveur + dashboard),
@@ -919,6 +991,7 @@ export default function GuideOverlayClient({
       setCompletedIds(new Set());
       setCompletedStepsByMs(new Map());
       setBookmarksByMs(new Map());
+      setResourceChecks(new Set());
       setDetailSeq(null);
       setCurrentMsIndex(0);
       if (typeof window !== "undefined") {
@@ -926,6 +999,7 @@ export default function GuideOverlayClient({
           localStorage.removeItem(`${storagePrefix}completed_ms`);
           localStorage.removeItem(`${storagePrefix}steps`);
           localStorage.removeItem(`${storagePrefix}bookmarks`);
+          localStorage.removeItem(`${storagePrefix}resources`);
         } catch {}
       }
       toast.success("Guide réinitialisé.");
@@ -937,6 +1011,7 @@ export default function GuideOverlayClient({
         setCompletedIds(new Set());
         setCompletedStepsByMs(new Map());
         setBookmarksByMs(new Map());
+        setResourceChecks(new Set());
         setDetailSeq(null);
         // Force le recalcul de la progression globale (header) à 0.
         setCurrentMsIndex(0);
@@ -1382,6 +1457,8 @@ export default function GuideOverlayClient({
           isLightMode={isLightMode}
           totalCount={allResources.length}
           hideProvidedResources={hideCompleted}
+          checkedKeys={resourceChecks}
+          onToggleCheck={handleToggleResourceCheck}
           onClose={() => setShowResources(false)}
         />
       )}
@@ -1411,6 +1488,8 @@ export default function GuideOverlayClient({
           isLightMode={isLightMode}
           guildId={guildId}
           hideProvidedResources={hideCompleted}
+          checkedKeys={resourceChecks}
+          onToggleResourceCheck={handleToggleResourceCheck}
           onClose={() => setDetailSeq(null)}
         />
       )}

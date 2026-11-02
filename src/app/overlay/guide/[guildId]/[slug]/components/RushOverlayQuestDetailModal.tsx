@@ -29,6 +29,10 @@ interface RushOverlayQuestDetailModalProps {
   isLightMode?: boolean;
   guildId?: string;
   onClose: () => void;
+  /** Coches MANUELLES de ressources (« déjà préparé »), keyées par `rushResourceKey`. */
+  checkedKeys?: Set<string>;
+  /** Coche/décoche une ressource depuis la fiche. Sans handler, la grille reste en lecture. */
+  onToggleResourceCheck?: (key: string) => void;
   /**
    * Le toggle « Masquer les étapes faites » du guide PRIME ici aussi : sur une quête **validée**,
    * le bloc « Ressources requises » disparaît (il n'y a plus rien à préparer) — même règle dans
@@ -60,6 +64,8 @@ export function RushOverlayQuestDetailModal({
   guildId,
   onClose,
   hideProvidedResources = false,
+  checkedKeys,
+  onToggleResourceCheck,
 }: RushOverlayQuestDetailModalProps) {
   const tags = useMemo(() => classifyTags(seq.activityTags), [seq.activityTags]);
   // Badges affichés sans les donjons (déjà listés dans la carte « Donjon requis »).
@@ -222,7 +228,12 @@ export function RushOverlayQuestDetailModal({
             {/* Toggle du guide actif + quête déjà validée ⇒ plus rien à préparer : pas de bloc. */}
             {resources.length > 0 && !(hideProvidedResources && isDone) && (
               <section className="py-3">
-                <QuestItemResourceGrid items={resources} showHeaderMeta={false} />
+                <QuestItemResourceGrid
+                  items={resources}
+                  showHeaderMeta={false}
+                  checkedKeys={checkedKeys}
+                  onToggleCheck={onToggleResourceCheck}
+                />
               </section>
             )}
 

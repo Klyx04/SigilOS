@@ -218,3 +218,4 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 4. **Local-first** : `resolveItemImage` sert le WebP local, le proxy est un repli (objectif **U**).
 5. **Fail-closed** : un alignement / ordre inconnu ne débloque rien ; état illisible ⇒ on refuse.
 6. **Une seule implémentation par comportement** (un composant partagé, jamais une copie par surface).
+7. **Ressources et validation** : valider une quête **coche** toutes ses ressources, l'invalider les **décoche** — règle pure `src/lib/rush-resource-checks.ts`, appliquée côté serveur et en écho optimiste sur les trois surfaces.

@@ -81,7 +81,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     // non bloquant, même politique que la progression guilde ci-dessus.
     // Les DEUX lectures qui suivent sont INDÉPENDANTES : elles sont lancées ici, en PARALLÈLE
     // (elles s'ajoutaient l'une après l'autre sur le chemin critique de la page — G10 du plan).
-    const resourceChecksPromise = getRushResourceChecks(slug, guildId, altPseudo);
+    const resourceChecksPromise = getRushResourceChecks(guildId, slug, altPseudo);
     const profilePromise = user.profileId
         ? getMemberProfile(guildId, user.profileId)
         : Promise.resolve(null);

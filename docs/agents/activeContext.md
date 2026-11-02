@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 02/11/2026 (suite 5) — **Rush : cocher les ressources dans la fiche, validation = tout cocher** — branche `feat/rush-da-carnet`
+
+> **Demande user (verbatim)** : « permettre aux gens de cocher les ressources demandées dans chaque quête dans la vue détaillée · une fois la quête validée ça override et valide tout · quête invalidée > décocher tout · overlay guide interne externe ».
+> **Mesures** : ① les coches existaient déjà par ressource (`PlayerGuideResourceCheck`, `localStorage` invité) mais **aucune grille de fiche n'était cochable** ; ② valider une quête n'ajoutait **rien** (seule la dévalidation supprimait) ; ③ le guide interne appelait `getRushResourceChecks(slug, guildId)` alors que l'action attend `(guildId, slug)` — les coches ne se rechargeaient jamais.
+> **Fait** : règle pure `src/lib/rush-resource-checks.ts` (`resourceKeysForTags`, `applyQuestResourceChecks`) ; `QuestItemResourceGrid` cochable (`checkedKeys`, `onToggleCheck`, `aria-pressed`) ; fiche overlay/interne + grille publique câblées ; validation = coche, invalidation = décoche (serveur + écho optimiste, invité `localStorage`) ; cascade comprise ; `resetGuide` / `resetMilestone` / `completeGuide` alignés ; bug d'ordre d'arguments corrigé.
+> **Preuves** : `rush-quest-resource-checks` **7** · `rush-resource-checks` **19** · suite **586 fichiers / 6 143 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
+> **Reste / ops** : contrôle visuel (fiche de quête, coche, validation/invalidation) en bêta ; PR vers `dev`.
+> **Rotation** : aucun bloc sorti (5 blocs + celui-ci = 6).
+
 ## 📝 Session 02/11/2026 (suite 4) — **Rush : DA « Carnet de campagne » (overlay)** — branche `feat/rush-da-carnet`
 
 > **Demande user (verbatim)** : « on peut pas laisser ces couleurs IA dans ces blocs ni ces carrés rouges qui entourent les quêtes à terminer… c beaucoup trop fade 0 immersion DA dofus » · « 3 cadenas dans ces quêtes ça fait bc non ? » · « quid da detail de quete très fade ? la modale alignement qui n'a aucun sens non plus avec l'espace vide en bas ? » · brief DA « carnet de campagne ».

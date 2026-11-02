@@ -40,16 +40,40 @@ export async function GET(req: NextRequest) {
         }
 
         const durationMs = Date.now() - startedAt;
+        // Résumé **causal** : « 0 annonce » doit toujours s'expliquer (aucune guilde, live trop
+        // vieux, déjà annoncé). Les `details` sont des **scalaires** : le panneau God les affiche
+        // en chips, un objet y apparaîtrait `[object Object]` (mesure du 02/11/2026).
+        const liveReasons = Object.entries(live.reasons ?? {})
+            .map(([reason, count]) => `${reason}=${count}`)
+            .join(",") || "aucun";
+        const youtubeReasons = Object.entries(youtube?.reasons ?? {})
+            .map(([reason, count]) => `${reason}=${count}`)
+            .join(",") || "aucun";
+
         const summary =
-            `Live : ${live.notified} annonce(s) / ${live.streams} · ` +
-            `YouTube : ${youtube ? `${youtube.notified} annonce(s) / ${youtube.videos} vidéo(s)` : `ÉCHEC (${youtubeError})`} · ` +
-            `échecs live ${live.failed}${youtube ? ` / YouTube ${youtube.failed}` : ""}`;
+            `Live : ${live.notified} annonce(s) / ${live.streams} live(s) · ${live.guilds} guilde(s) · ` +
+            `ignorés ${live.skipped} (${liveReasons}) · YouTube : ` +
+            (youtube
+                ? `${youtube.notified} annonce(s) / ${youtube.videos} vidéo(s) · ${youtube.channelsResolved}/${youtube.creators} chaîne(s) · ignorés ${youtube.skipped} (${youtubeReasons})`
+                : `ÉCHEC (${youtubeError})`) +
+            ` · échecs ${live.failed + (youtube?.failed ?? 0)}`;
 
         await recordCronExecution("creator_watch", {
             success: live.failed === 0 && youtubeError === null && (youtube?.failed ?? 0) === 0,
             durationMs,
             summary,
-            details: { live, youtube, youtubeError },
+            details: {
+                liveStreams: live.streams,
+                liveNotified: live.notified,
+                liveGuilds: live.guilds,
+                liveSkipped: live.skipped,
+                liveReasons,
+                youtubeVideos: youtube?.videos ?? 0,
+                youtubeNotified: youtube?.notified ?? 0,
+                youtubeChannels: `${youtube?.channelsResolved ?? 0}/${youtube?.creators ?? 0}`,
+                youtubeSkipped: youtube?.skipped ?? 0,
+                failed: live.failed + (youtube?.failed ?? 0),
+            },
         });
 
         logger.info("[Cron:CreatorWatch] passe terminée", {

@@ -42,6 +42,32 @@ export function formatDuration(ms?: number | null): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+/**
+ * Rend une valeur de `details` **lisible** — jamais `[object Object]`.
+ *
+ * Mesure du 02/11/2026 : la tâche `creator_watch` envoyait des objets (`live`, `youtube`) dans
+ * `details` et le panneau affichait `[object Object]`, donc la raison d'un « 0 annonce » était
+ * invisible. Règle : scalaires tels quels, tableaux joints, objets aplatis en `clé=valeur`
+ * (les valeurs imbriquées sont ignorées — un aperçu, pas un dump), le tout borné.
+ */
+export function formatDetailValue(value: unknown, maxLength = 160): string {
+  const clip = (text: string) => (text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text);
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return clip(String(value));
+  }
+  if (Array.isArray(value)) {
+    return clip(value.map((item) => formatDetailValue(item, 40)).join(", "));
+  }
+  if (typeof value === "object") {
+    const pairs = Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item === null || ["string", "number", "boolean"].includes(typeof item))
+      .map(([key, item]) => `${key}=${item === null ? "—" : String(item)}`);
+    return clip(pairs.length > 0 ? pairs.join(" · ") : "—");
+  }
+  return "—";
+}
+
 export function formatRelativeTime(iso: string | null): string {
   if (!iso) return "Jamais";
   const diff = Date.now() - new Date(iso).getTime();

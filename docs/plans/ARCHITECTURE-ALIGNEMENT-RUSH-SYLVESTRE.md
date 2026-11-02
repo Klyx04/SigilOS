@@ -265,9 +265,15 @@ function getStepQuests(step: RushStep, alignment: AlignmentChoice, order: OrderC
 
 | Surface | Cité | Ordre | Classe | Source |
 |---|---|---|---|---|
-| Dashboard interne | ✅ | ❌ (à câbler, lot `L2`) | ✅ | `UserProfile` du **personnage sélectionné** (mule incluse) |
-| Overlay | ❌ (lot `L2`) | ❌ (lot `L2`) | ❌ (mule lue `null`) | profil + `searchParams.character` |
+| Dashboard interne | ✅ | ✅ | ✅ | `UserProfile` du **personnage sélectionné** (mule incluse) |
+| Overlay | ✅ | ✅ | ✅ | profil + `searchParams.character` (classe de mule lue dans `altPseudos`) |
 | Guide public | ✅ | ❌ | ❌ | `localStorage` — **remplacé par le compte visiteur** (`PLAN-ESPACE-VISITEUR.md`) |
+
+> **Live le 02/11/2026 (lot `L2`)** : le dashboard passe `order` à `resolveRushRoute` (5 quêtes
+> d'Ordre au lieu de 15) et l'overlay autonome calcule sa route (cité + Ordre + classe) avant de
+> recevoir ses jalons filtrés. La **chaîne des rangs** (§ 8.2) est **calculée** par
+> `previousOrderRank` — même cité, même Ordre, palier immédiatement inférieur — et non saisie : les
+> 30 quêtes d'Ordre ne portent aucun `prereq_text`.
 
 ### 8.2 Ce que fait un changement (règle de jeu)
 

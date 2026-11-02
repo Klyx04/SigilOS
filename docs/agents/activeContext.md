@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 02/11/2026 (suite 2) — **Rang d'ancienneté dans la fiche membre, panneau CRON lisible, erreur d'auth expliquée** — branches `feat/membres-role-anciennete` · `fix/cron-annonces-lisibles` · `fix/auth-erreurs-lisibles`
+
+> **Demande user (verbatim)** : « ajouter modale membre > plus haut rôle ancienneté (bien visible) » · « comment je sais si le cron tourne bien pour les stream » · « règle tout explique avant vulgaris ».
+> **Mesures** : ① la fiche membre n'affichait que « 747 j » — aucun rang, alors que la règle de palier existait déjà (`resolveSeniorityRoleTier`, celle du cron) ; ② le panneau CRON de God affichait `live [object Object]` (les `details` de `creator_watch` étaient des **objets**) et un résumé `0 annonce / 1` **sans raison** ; ③ `JAVASCRIPT-NEXTJS-2F` = cookie **PKCE** illisible au retour de Discord (Brave), `NEXTJS-19` = code OAuth refusé, `NEXTJS-21` = `ECONNRESET` (Server Action coupé par un onglet fermé) — **aucun** n'est un bug serveur, et `/auth/error` renvoyait « Oups, petit accroc » pour le PKCE (code `Configuration` non géré) ; ④ bêta : `/api/cron/live-watch` répond **401** (route déployée) ; `sigilos.fr` renvoie une **page HTML statique** pour tout `/api/*` (prod non montée).
+> **Fait** : ① badge d'en-tête de la fiche (couronne + nom du rôle, « (à attribuer) » en pointillés si le rôle n'est pas posé) — règle **unique** `resolveSeniorityRoleBadge` (`src/lib/seniority-roles.ts`), calculée **côté serveur** et portée par `RosterRow.seniorityRole` ; module éteint ⇒ **aucun** badge ; ② `formatDetailValue` (plus de `[object Object]`) + `details` **scalaires** et résumé causal (`guilde(s)`, `ignorés` + raisons, `chaînes résolues`) ; ③ `/auth/error` gère `Configuration` (message FR/EN actionnable) + commentaire du filtre `aborted` complété ; ④ les 3 incidents Sentry sont **clos** avec leur justification (réouverture automatique si récidive).
+> **Preuves** : `seniority-role-badge` **8** · `cron-detail-format` **8** · suite live/YouTube **45** · `i18n-locale` **4** · `tsc` 0 · CI verte (#1210 5m45, #1211 9m36, #1212 6m39).
+> **Reste / ops** : ① le badge n'apparaît que si le module **Rôles d'ancienneté** est activé, qu'au moins **un palier** existe et que l'ancienneté dépasse son seuil — cause probable du « je ne le vois pas » ; ② `./scripts/deploy-cd.sh beta` après merge ; ③ contrôle visuel 390 / 768 / 1024 / 1440 (pas de session Discord ici).
+> **Rotation** : bloc « 01/11 (suite 2) — Portail : le plafond ne casse plus la carte » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 02/11/2026 — **Annonces de live Discord + preuve de purge + activité réelle** — branche `feat/live-notifications-discord`
 
 > **Demande user (verbatim)** : « deslop le bloc qui affiche les streamer en live + la modale qui s'ouvre … afficher l'icone twitch ou youtube + l'icone du streamer … envoyer un superbe embed discord dans un canal … quand un streamer est en live » · « une seule notif quand le streamer se co jusqu'à sa prochaine reco » · « une seule PR pour la totalité + DB DA ».
@@ -56,13 +66,6 @@
 > **Rotation** : bloc « 31/10 (suite 10) — Modale raid : charte mesurée et corrigée » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
-## 📝 Session 01/11/2026 (suite 2) — **Portail : le plafond ne casse plus la carte** — branche `fix/limite-guildes-ui-portail`
 
-> **Demande user (verbatim)** : « bandeau très moche pas faux et responsivité détruite dans le bloc deploiement » (capture du portail à 2 guildes sur 2).
-> **Mesures (capture + code)** : ① le bandeau vivait **hors** de `.reg-shell` (`px-4 pt-6 md:px-8`) ⇒ barre pleine largeur au-dessus du titre, alignée sur rien ; ② `guild-setup-card.tsx` posait un paragraphe `max-w-[24rem]` (384 px) dans la 3ᵉ colonne `auto` d'une grille `auto | minmax(0,1fr) | auto` large de ~450 px ⇒ colonne du titre écrasée à ~0 (« un mot par ligne ») et texte hors cadre, **dès 1440** ; ③ la carte affichait « Bot détecté · Prêt à déployer » **et** « Ouverture autonome suspendue » alors que le switch était ON — faux ; ④ `autoDeploy` appelait `onboardGuild` même porte fermée (clic pour rien, refus certain).
-> **Fait** : ① règle d'affichage **pure** `src/lib/guild-setup-view.ts` (`resolveGuildSetupView` : plafond > kill-switch, aucune offre si une porte est fermée, badge seulement si déployable) ; ② carte : plus de 3ᵉ colonne ni de texte long quand bloqué, badge passé en `.reg-tag`, sous-titre d'état, `onboardGuild` non appelé ; ③ bandeau déplacé **dans** l'en-tête (`.reg-shell`, `max-w-[62ch]`, filet `warning` + icône, une seule fois) ; ④ verrou `tests/unit/guild-setup-view.test.ts` (6 cas de comportement + 3 assertions de mise en page).
-> **Preuves** : `guild-setup-view` **9/9** · `guild-limit` **10/10** · `guild-limit-guards` **8/8** · `tsc` 0 · ESLint 0 erreur (9 avertissements de couleur **préexistants** sur la carte).
-> **Reste / ops** : contrôle visuel navigateur 390 / 768 / 1024 / 1440 **non joué ici** (session sans authentification Discord) ; reste du chantier = **annonce du bot à l'invitation** (service séparé, `GuildCreate` sans session, rebuild d'image).
-> **Rotation** : bloc « 31/10 (suite 9) — R1 no-show : le registre de présence existe » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

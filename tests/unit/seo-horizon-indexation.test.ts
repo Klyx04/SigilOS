@@ -109,4 +109,11 @@ describe("almanax — on ne sert que les jours que la source connaît", () => {
             /robots: item \? \{ index: true, follow: true \} : \{ index: false, follow: true \},/,
         );
     });
+
+    it("la navigation entre jours est bornée par isServableAlmanaxDay (aucun lien vers un 404)", () => {
+        expect(ALMANAX_PAGE).toMatch(/const hasPrev = isServableAlmanaxDay\(prevKey\);/);
+        expect(ALMANAX_PAGE).toMatch(/const hasNext = isServableAlmanaxDay\(nextKey\);/);
+        expect(ALMANAX_PAGE).toMatch(/\{hasPrev \? \(/);
+        expect(ALMANAX_PAGE).toMatch(/\{hasNext \? \(/);
+    });
 });

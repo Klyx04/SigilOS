@@ -113,6 +113,8 @@ export default async function AlmanaxDatePage({
     const nextDate = addDays(parsed, 1);
     const prevKey = prevDate.toISOString().slice(0, 10);
     const nextKey = nextDate.toISOString().slice(0, 10);
+    const hasPrev = isServableAlmanaxDay(prevKey);
+    const hasNext = isServableAlmanaxDay(nextKey);
     const formattedDate = formatDate(parsed, locale);
 
     const jsonLd = item
@@ -194,20 +196,30 @@ export default async function AlmanaxDatePage({
                             </div>
 
                             {/* Navigation entre les jours */}
-                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-4 sm:px-6">
-                                <Link
-                                    href={`/almanax/${prevKey}`}
-                                    className="reg-link-quiet inline-flex items-center gap-1.5 text-sm"
-                                >
-                                    <ArrowRight className="h-4 w-4 rotate-180" aria-hidden="true" /> {t.almanaxPage.prevDay}
-                                </Link>
-                                <Link
-                                    href={`/almanax/${nextKey}`}
-                                    className="reg-link-quiet inline-flex items-center gap-1.5 text-sm"
-                                >
-                                    {t.almanaxPage.nextDay} <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                                </Link>
-                            </div>
+                            {(hasPrev || hasNext) && (
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-4 sm:px-6">
+                                    {hasPrev ? (
+                                        <Link
+                                            href={`/almanax/${prevKey}`}
+                                            className="reg-link-quiet inline-flex items-center gap-1.5 text-sm"
+                                        >
+                                            <ArrowRight className="h-4 w-4 rotate-180" aria-hidden="true" /> {t.almanaxPage.prevDay}
+                                        </Link>
+                                    ) : (
+                                        <span aria-hidden="true" />
+                                    )}
+                                    {hasNext ? (
+                                        <Link
+                                            href={`/almanax/${nextKey}`}
+                                            className="reg-link-quiet inline-flex items-center gap-1.5 text-sm"
+                                        >
+                                            {t.almanaxPage.nextDay} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                                        </Link>
+                                    ) : (
+                                        <span aria-hidden="true" />
+                                    )}
+                                </div>
+                            )}
                         </section>
                     ) : (
                         <div className="reg-callout mt-6 border-warning/40">

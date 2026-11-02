@@ -49,12 +49,13 @@
 > « Terminer : … », repère masqué ; bandeaux CONSEIL/ATTENTION sans dégradé ni emoji, registre
 > sémantique ; fiche de quête (titre serif, losanges d'or, conseils en filet) ; modale
 > d'alignement sans hauteur forcée (fin du vide) ; filtre segmenté « Toutes / En cours /
-> Verrouillées » (règle pure, ordre des quêtes conservé).
+> Verrouillées » (règle pure, ordre des quêtes conservé) ; **Ressources à prévoir** passée
+> au carnet (panneau, bascule Restantes/Toutes à l'or, lignes et quantités tokenisées).
 >
 > **Reste.** G7 (emblème / feuillage), G8 (dépli `grid-template-rows`), G9 (célébration, à
 > arbitrer), application des accents Dofus écran par écran, O15 sur les animations restantes.
 >
-> **Verrou.** `tests/unit/rush-da-grimoire.test.ts` (18 cas) + `tests/unit/rush-quest-filter.test.ts` (6 cas) ; suite Rush 52 fichiers / 646 tests.
+> **Verrou.** `tests/unit/rush-da-grimoire.test.ts` (20 cas) + `tests/unit/rush-quest-filter.test.ts` (6 cas) ; suite Rush 52 fichiers / 648 tests.
 >
 > **Transverses restants** : **O5** (bouton « Aller à la suite » + défilement auto vers la 1ʳᵉ quête non cochée), **O6** (`autoFocus` sur Fermer + verrou de scroll), **O7** (callout `touglibox` dans la modale de l'overlay), **G2** (succès en badges), **G5** (`ContextualHelp` au clic/clavier), **T1** (parsing des succès, résolution des prérequis par id), **T5** (`useQuestGroups` : collisions d'id de groupe).
 >

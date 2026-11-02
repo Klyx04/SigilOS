@@ -55,7 +55,6 @@ const EMPTY_KEYS = new Set<string>();
 export function RushOverlayResourcesModal({
   resources,
   allResources,
-  isLightMode,
   onClose,
   totalCount,
   theme = "overlay",
@@ -84,9 +83,12 @@ export function RushOverlayResourcesModal({
   const remainingCount = resources.filter((r) => !checked.has(r.key)).length;
 
   const isSite = theme === "site";
-  /** Site (tokens du registre) → thème clair → thème sombre de l'overlay. */
-  const pick = (siteCls: string, lightCls: string, darkCls: string) =>
-    isSite ? siteCls : isLightMode ? lightCls : darkCls;
+  /**
+   * Site (tokens du registre) → overlay (DA « Carnet de campagne »).
+   * L'overlay ne peint plus avec des gris codés en dur : `.rush-overlay` porte sa
+   * palette, et `.light` la décline pour le thème clair. Le thème `site` est intact.
+   */
+  const pick = (siteCls: string, overlayCls: string) => (isSite ? siteCls : overlayCls);
 
   // Échap ferme la liste : même comportement que les autres modales du rush.
   useEffect(() => {
@@ -106,7 +108,7 @@ export function RushOverlayResourcesModal({
         onClick={onClose}
         className={cn(
           "fixed inset-0",
-          pick("bg-black/60", "bg-slate-900/50", "bg-black/70 backdrop-blur-md")
+          pick("bg-black/60", "bg-black/70")
         )}
       />
 
@@ -116,8 +118,7 @@ export function RushOverlayResourcesModal({
           "relative z-10 flex flex-col w-full border overflow-hidden",
           pick(
             "max-w-[min(58rem,95vw)] max-h-[88vh] rounded-lg border-border-strong bg-background",
-            "max-w-[420px] max-h-[80vh] rounded-2xl border-slate-200 bg-white shadow-2xl",
-            "max-w-[420px] max-h-[80vh] rounded-2xl border-[#2a3646] bg-[#111419] shadow-2xl"
+            "rush-carnet max-w-[420px] max-h-[80vh] rounded-[6px] bg-elevated"
           )
         )}
       >
@@ -126,7 +127,7 @@ export function RushOverlayResourcesModal({
         <div
           className={cn(
             "flex items-center justify-between gap-2 px-4 py-3 border-b shrink-0",
-            pick("border-border", "border-slate-200", "border-[#28303a]/70")
+            pick("border-border", "border-border-strong bg-surface/60")
           )}
         >
           <div className="flex items-center gap-2 min-w-0">
@@ -136,16 +137,16 @@ export function RushOverlayResourcesModal({
             <img src={RUSH_RESOURCES_PICTO} alt="" loading="lazy" className="w-4 h-4 object-contain shrink-0" />
             <h2
               className={cn(
-                "text-sm font-bold min-w-0 truncate",
-                pick("text-foreground", "font-serif text-slate-900", "font-serif text-[#f2f0e9]")
+                "text-sm font-semibold min-w-0 truncate",
+                pick("text-foreground", "font-serif text-foreground")
               )}
             >
               Ressources à prévoir
             </h2>
             <span
               className={cn(
-                "text-[10px] font-bold tabular-nums shrink-0 whitespace-nowrap",
-                pick("reg-mono text-muted-foreground", "font-mono text-slate-400", "font-mono text-[#6e7784]")
+                "text-[10px] font-semibold tabular-nums shrink-0 whitespace-nowrap",
+                pick("reg-mono text-muted-foreground", "font-mono text-muted-foreground")
               )}
             >
               {list.length}
@@ -159,8 +160,7 @@ export function RushOverlayResourcesModal({
               "p-1.5 transition-colors",
               pick(
                 "rounded-md text-muted-foreground hover:text-foreground hover:bg-surface",
-                "rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50",
-                "rounded-lg text-[#6e7784] hover:text-red-400 hover:bg-[#1c2129]"
+                "rounded-[4px] text-muted-foreground hover:text-foreground hover:bg-surface"
               )
             )}
           >
@@ -179,11 +179,10 @@ export function RushOverlayResourcesModal({
                 type="button"
                 onClick={() => setMode(m)}
                 className={cn(
-                  "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors",
+                  "rounded-[3px] border px-2.5 py-1 text-[10px] font-semibold transition-colors motion-reduce:transition-none",
                   pick(
                     active ? "reg-tag reg-tag-accent" : "reg-tag text-muted-foreground hover:text-foreground",
-                    active ? "bg-amber-100 text-amber-700 border border-amber-300" : "text-slate-400 hover:text-slate-600",
-                    active ? "bg-[#d5a94e]/15 text-[#d5a94e] border border-[#d5a94e]/30" : "text-[#6e7784] hover:text-[#f2f0e9]"
+                    active ? "border-gold/60 bg-gold/10 text-foreground" : "border-transparent text-muted-foreground hover:bg-elevated hover:text-foreground"
                   )
                 )}
               >
@@ -193,8 +192,8 @@ export function RushOverlayResourcesModal({
           })}
           <span
             className={cn(
-              "ml-auto text-[10px] font-bold tabular-nums",
-              pick("reg-mono text-muted-foreground", "font-mono text-slate-400", "font-mono text-[#6e7784]")
+              "ml-auto text-[10px] font-semibold tabular-nums",
+              pick("reg-mono text-muted-foreground", "font-mono text-muted-foreground")
             )}
             title={totalCount != null ? `Total sur toutes les étapes : ${totalCount}` : undefined}
           >
@@ -209,12 +208,11 @@ export function RushOverlayResourcesModal({
               "flex items-center gap-2 h-9 px-3 border",
               pick(
                 "rounded-md border-border bg-surface",
-                "rounded-lg bg-white border-slate-200",
-                "rounded-lg bg-[#181c22] border-[#28303a]"
+                "rush-carnet rounded-[4px] bg-surface"
               )
             )}
           >
-            <Search className={cn("w-3.5 h-3.5", pick("text-muted-foreground", "text-slate-400", "text-[#6e7783]"))} />
+            <Search className={cn("w-3.5 h-3.5", pick("text-muted-foreground", "text-muted-foreground"))} />
             <input
               type="text"
               value={query}
@@ -225,8 +223,7 @@ export function RushOverlayResourcesModal({
                 "flex-1 min-w-0 bg-transparent text-xs outline-none",
                 pick(
                   "text-foreground placeholder:text-muted-foreground",
-                  "text-slate-900 placeholder:text-slate-400",
-                  "text-[#f2f0e9] placeholder:text-[#6e7784]"
+                  "text-foreground placeholder:text-muted-foreground"
                 )
               )}
             />
@@ -241,7 +238,6 @@ export function RushOverlayResourcesModal({
               // Colonnes à largeur MINIMALE (15 rem) : un nom long passe à la ligne,
               // il n'est jamais cassé lettre par lettre par une colonne écrasée.
               "p-4 grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-1.5 content-start",
-              "p-3 space-y-1.5",
               "p-3 space-y-1.5"
             )
           )}
@@ -250,7 +246,7 @@ export function RushOverlayResourcesModal({
             <p
               className={cn(
                 "py-10 text-center text-xs",
-                pick("text-muted-foreground col-span-full", "text-slate-400", "text-[#6e7784]")
+                pick("text-muted-foreground col-span-full", "text-muted-foreground")
               )}
             >
               Aucune ressource trouvée.
@@ -265,8 +261,7 @@ export function RushOverlayResourcesModal({
                   "flex items-center gap-2.5 px-2.5 py-2 border",
                   pick(
                     "rounded-md border-border bg-surface",
-                    "rounded-xl border-slate-200 bg-slate-50",
-                    "rounded-xl border-[#1e2530] bg-[#0d1117]"
+                    "rounded-[4px] border-border bg-surface"
                   )
                 )}
               >
@@ -282,8 +277,8 @@ export function RushOverlayResourcesModal({
                     className={cn(
                       "shrink-0 w-4 h-4 rounded-[3px] border flex items-center justify-center transition-colors",
                       isChecked
-                        ? pick("border-success/70 text-success", "border-emerald-500 text-emerald-600", "border-[#39bc95]/70 text-[#39bc95]")
-                        : pick("border-border-strong text-transparent hover:border-success", "border-slate-300 text-transparent hover:border-emerald-500", "border-[#3a4553] text-transparent hover:border-[#39bc95]")
+                        ? pick("border-success/70 text-success", "border-success text-success")
+                        : pick("border-border-strong text-transparent hover:border-success", "border-border-strong text-transparent hover:border-success")
                     )}
                   >
                     <Check className="w-3 h-3 stroke-[3]" aria-hidden="true" />
@@ -296,8 +291,7 @@ export function RushOverlayResourcesModal({
                     "shrink-0 w-9 h-9 flex items-center justify-center border overflow-hidden",
                     pick(
                       "rounded-md border-border bg-background",
-                      "rounded-lg border-slate-200 bg-white",
-                      "rounded-lg border-[#2c3646] bg-[#1c2129]"
+                      "rounded-[4px] border-border bg-background"
                     )
                   )}
                 >
@@ -323,26 +317,26 @@ export function RushOverlayResourcesModal({
                         // alignées sur la première ligne.
                         "text-[12px] font-semibold min-w-0 flex-1 text-left transition-colors cursor-pointer break-words",
                         isChecked && "line-through opacity-60",
-                        pick("text-foreground hover:text-accent", "text-slate-800 hover:text-[#e6b96b]", "text-[#e8e4da] hover:text-[#e6b96b]")
+                        pick("text-foreground hover:text-accent", "text-foreground hover:text-accent")
                       )}
                     >
                       {r.name}
                     </button>
                     {(r.levels?.length ?? 0) > 0 && (
-                      <span className={cn("text-[9px]", pick("reg-mono text-muted-foreground", "font-mono text-slate-400", "font-mono text-[#6e7784]"))}>
+                      <span className={cn("text-[9px]", pick("reg-mono text-muted-foreground", "font-mono text-muted-foreground"))}>
                         Niv. {r.levels!.join("/")}
                       </span>
                     )}
                   </div>
                   {(r.chapters?.length ?? 0) > 0 && (
-                    <p className={cn("text-[9px]", pick("text-muted-foreground", "text-slate-400", "text-[#6e7784]"))}>
+                    <p className={cn("text-[9px]", pick("text-muted-foreground", "text-muted-foreground"))}>
                       Chapitre{r.chapters!.length > 1 ? "s" : ""} {Array.from(new Set(r.chapters!.map((c) => c + 1))).join(", ")}
                     </p>
                   )}
                 </div>
 
                 {/* Quantité — donnée de jeu : l'ocre du registre sur le site */}
-                <span className={cn("shrink-0 text-[12px] font-bold tabular-nums", pick("reg-mono text-warning", "font-mono text-amber-700", "font-mono text-[#e6c16f]"))}>
+                <span className={cn("shrink-0 text-[12px] font-semibold tabular-nums", pick("reg-mono text-warning", "font-mono text-gold"))}>
                   ×{r.count}
                 </span>
 
@@ -355,7 +349,7 @@ export function RushOverlayResourcesModal({
                     aria-label={`Voir ${r.name} sur DofusDB`}
                     className={cn(
                       "shrink-0 p-1 rounded transition-colors",
-                      pick("text-muted-foreground hover:text-accent", "text-slate-400 hover:text-emerald-600", "text-[#6e7784] hover:text-[#74d6b6]")
+                      pick("text-muted-foreground hover:text-accent", "text-muted-foreground hover:text-accent")
                     )}
                   >
                     {/* Logo DofusDB servi en local (pas de requête vers google.com/s2/favicons) */}

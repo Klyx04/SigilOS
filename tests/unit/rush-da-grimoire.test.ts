@@ -87,6 +87,7 @@ const CARD = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuest
 const DETAIL = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal.tsx";
 const ALIGN = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayAlignmentModal.tsx";
 const SEARCH = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlaySearch.tsx";
+const RESOURCES = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal.tsx";
 
 describe("DA « Carnet de campagne » — blocs de conseil", () => {
     it("un seul panneau de matière, plus de dégradé ni d'emoji", () => {
@@ -151,6 +152,21 @@ describe("DA « Carnet de campagne » — recherche", () => {
         const src = codeOf(SEARCH);
         expect(src).toContain("rush-carnet");
         expect(src).not.toMatch(/bg-\[#|text-\[#|border-\[#/);
+    });
+});
+
+describe("DA « Carnet de campagne » — ressources à prévoir", () => {
+    it("la modale overlay suit le carnet, sans verre ni ombre diffuse", () => {
+        const src = codeOf(RESOURCES);
+        expect(src).toContain("rush-carnet");
+        expect(src).not.toMatch(/backdrop-blur|rounded-2xl|shadow-2xl/);
+        expect(src).not.toMatch(/bg-\[#|text-\[#|border-\[#/);
+    });
+
+    it("le titre est serif et les quantités passent à l'or", () => {
+        const src = codeOf(RESOURCES);
+        expect(src).toMatch(/font-serif text-foreground/);
+        expect(src).toMatch(/font-mono text-gold/);
     });
 });
 

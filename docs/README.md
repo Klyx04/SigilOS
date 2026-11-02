@@ -34,6 +34,7 @@ docs/
 ├── agents/                        consignes données aux assistants IA
 │   │                              (amorce lue automatiquement : `AGENTS.md`, à la RACINE)
 │   ├── harnais.md                 harnais agentique : règles, skills, hooks, mesure
+│   ├── vps-read-only.md           accès agent au VPS : clé SSH à commande forcée, lecture seule (bêta)
 │   ├── journal-sessions-2026.md   archive des 171 blocs de session (à la demande)
 │   ├── archive/                   anciennes sources d'ordre (FILE-EXECUTION, BRIEF, amorce)
 │   ├── activeContext.md           journal de session (état réel entre deux sessions)

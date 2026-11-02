@@ -51,14 +51,16 @@ describe("modale d'accueil — DA « Carnet de campagne »", () => {
     expect(src).toMatch(/text-accent/);
   });
 
-  it("les quatre étapes sont conservées (personnage, préparation, membres, départ)", () => {
+  it("trois étapes : personnage, préparation, départ — la page « membres » est retirée", () => {
     const src = codeOf(MODAL);
-    expect(src).toMatch(/useState<1 \| 2 \| 3 \| 4>/);
+    expect(src).toMatch(/useState<1 \| 2 \| 3>/);
     expect(src).toContain("Votre personnage");
     expect(src).toContain("Préparation");
-    expect(src).toContain("Les membres");
     expect(src).toContain("Prêt à partir");
     expect(src).toContain("Lancer mon Rush");
+    // Demandes du 02/11 : « page 3 … ça n'a aucun intérêt » et « métiers requis inutile à lister ».
+    expect(src).not.toContain("Les membres");
+    expect(src).not.toContain("Métiers requis");
   });
 
   it("le dialogue est accessible : rôle, `aria-modal` et titre lié", () => {
@@ -85,11 +87,8 @@ describe("parcours interrompu — la modale survit au changement de personnage",
   it("la modale ouvre à l'étape transmise et remonte chaque changement", () => {
     const src = codeOf(MODAL);
     expect(src).toContain("initialStep = 1");
-    expect(src).toContain("useState<1 | 2 | 3 | 4>(initialStep)");
+    expect(src).toContain("useState<1 | 2 | 3>(initialStep)");
     expect(src).toContain("onStepChange?.(next)");
-    // Les deux boutons du pied passent par `go`, jamais par `setStep` en direct.
-    expect(src).toContain("onClick={() => go((step + 1) as 1 | 2 | 3 | 4)}");
-    expect(src).toContain("onClick={() => go((step - 1) as 1 | 2 | 3 | 4)}");
   });
 
   it("le dashboard transmet l'étape et le sélecteur de personnage dédié", () => {
@@ -109,19 +108,32 @@ describe("mise en page — le pied reste atteignable", () => {
     expect(src).toContain('if (typeof document === "undefined") return null');
   });
 
-  it("la hauteur est fixe : en-tête et pied `shrink-0`, seul le corps défile", () => {
+  it("la hauteur suit le contenu et n'est plafonnée que par l'écran", () => {
     const src = codeOf(MODAL);
-    // Hauteur déterministe (92dvh plafonnée) : le pied ne peut pas sortir de la zone visible.
-    expect(src).toContain("h-[92vh] h-[92dvh] max-h-[42rem]");
+    // Plafond écran (calc valide : les espaces sont échappés en underscores par Tailwind).
+    expect(src).toContain("max-h-[calc(100dvh_-_1.5rem)]");
+    expect(src).not.toContain("h-[92dvh]");
     expect(src).toMatch(/<header className="relative shrink-0/);
     expect(src).toContain("min-h-0 flex-1 space-y-3 overflow-y-auto");
-    expect(src).toMatch(/<footer className="flex shrink-0/);
   });
 
-  it("les actions du pied sont des `<button>` accessibles", () => {
+  it("on peut toujours sortir : croix, fond cliquable et Échap", () => {
     const src = codeOf(MODAL);
-    expect(src).toMatch(/<button type="button" onClick=\{\(\) => go\(\(step \+ 1\)/);
-    expect(src).toMatch(/<button type="button" onClick=\{onClose\} className=\{PRIMARY\}>/);
+    expect(src).toContain("onDismiss");
+    expect(src).toMatch(/aria-label="Fermer l'accueil du Rush"/);
+    expect(src).toContain('event.key === "Escape"');
+    expect(src).toContain('document.addEventListener("keydown", onKey)');
+  });
+
+  it("les actions sont DANS chaque étape (jamais dans un pied séparé)", () => {
+    const src = codeOf(MODAL);
+    // Le pied séparé ne s'affichait pas chez l'utilisateur : les actions vivent désormais
+    // dans le même bloc que les panneaux (si un panneau s'affiche, le bouton aussi).
+    expect(src).not.toMatch(/<footer/);
+    expect(src).toContain("onClick={() => go(1)}");
+    expect(src).toContain("onClick={() => go(2)}");
+    expect(src).toContain("onClick={() => go(3)}");
+    expect(src).toMatch(/onClick=\{onClose\} className=\{PRIMARY\}/);
   });
 });
 

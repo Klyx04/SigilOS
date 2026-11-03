@@ -9,6 +9,14 @@
 
 ## 0. Reprise immédiate
 
+- **Livré le 03/11/2026 (suite) — Rush : les notes Tougli et Dofusyelle corrélées (branche `feat/rush-notes`).**
+  ① **Tougli** : ses `quests[].objectives` ne portent **aucun texte** (0/1 085) mais des **contraintes structurées** absentes de notre base — `needPlayer` **38**, `job` **37**, `hours` **6**, `spell` **3**, `note` **4** — et **73 textes de guide** (dont 20 `take_quests` avec `&n`, désormais résolus) ⇒ siphon `siphon-tougli-notes.ts` (**73 notes · 74 quêtes**).
+  ② **Dofusyelle** : guide **autonome** (aucun lien avec Tougli) — analyse `analyse-dofusyelle-notes.mjs` (**57 étapes · 54 avec quêtes · 45 notes de donjon**) ; son rattachement propre est **l'étape** (elle liste ses quêtes) et le **donjon**.
+  ③ **Corrélation** : règle pure `rush-notes.ts` (`normalizeQuestKey`, `constraintLabel`, `cleanDofusyelleBody`, `correlateRushNotes`) + **10 tests** ; script `correlate-rush-notes.ts` (dry-run, `--apply --db`) ⇒ **22 conseils écrits** (dataset + base), il reste **219** quêtes sans conseil.
+  **Mesure négative conservée** : les notes de donjon (« Ali 57 », « Ali 40 »…) ne sont **pas** appliquées — rattachées au donjon, elles tombaient sur **12** quêtes qui ne les concernaient pas ; elles restent au rapport tant que la numérotation n'est pas tranchée.
+  **Preuves** : `rush-notes` **10** · suite **596 fichiers / 6 260 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
+
+
 - **Livré le 03/11/2026 — Rush : les conseils réparés, les astuces Dofusyelle corrélées (branche `fix/rush-textes`).**
   ① **37 séquences (15 textes) affichaient « &1 », « &2 »…** au lieu du nom de la quête : la source porte la correspondance (`payload.text.fr` + `payload.quests[n-1]` — preuve : `&1` de « Faites &1 jusqu'à parler a Mage Ax » → quête **1989 « Restauration rapide »**) ; règle pure `resolveQuestRefs` (`src/lib/rush-quest-refs.ts`) + script ciblé `fix-rush-guide-quest-refs.ts` (**dry-run** par défaut, `--apply --db`) ⇒ **74 champs corrigés** dans le dataset **et** en base, **0** `&n` restant ; **garde** à l'écriture (`upsertRushSequence` refuse `tips`/`note` contenant `&n`).
   ② **Dofusyelle n'a pas d'API** (commentaire de la source : « en dur, pas d'API ») : `window.RUSH_DATA` dans `assets/js/rush-sylvestre-data.js?v=20261019`, l'ancien chemin du 08/10 étant **404** ⇒ siphon `siphon-dofusyelle-rush.mjs` (sortie **zone volatile**, jamais committée) : **57 étapes · 45 notes de donjon · 9 aides · 531 ressources**.

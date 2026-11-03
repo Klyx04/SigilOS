@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 03/11/2026 (suite) — **Rush : notes Tougli siphonnées, Dofusyelle analysé, corrélation mesurée** — branche `feat/rush-notes`
+
+> **Demande user (verbatim)** : « Siphonne les notes tougli des quetes, analyse les notes dofusyelle car ce guide n'a aucun lien ni adhérance avec le guide tougli et correèle ».
+> **Mesures** : ① Tougli : `quests[].objectives` = **0 texte** sur 1 085 ; ses notes sont des contraintes structurées (`needPlayer` 38, `job` 37, `hours` 6, `spell` 3, `note` 4) + **73 textes de guide** (20 `take_quests` avec `&n`, désormais résolus) ; notre base ne porte que `plusieurs_personnes` (91), aucun `job`/`hours`/`spell` ; ② Dofusyelle : **57 étapes**, 54 avec quêtes, 35 avec donjons, **45 notes de donjon**, 9 aides — guide **autonome**, aucune correspondance de structure avec Tougli ; ③ piège mesuré : rattacher une note de donjon à toutes les quêtes du donjon posait « Ali 57 » sur **12** quêtes, et l'aide d'étape faisait de même.
+> **Fait** : ① `scripts/siphon-tougli-notes.ts` (zone volatile) : **73 notes** + **74 quêtes contraintes** ; ② `scripts/analyse-dofusyelle-notes.mjs` : **57 étapes · 45 notes de donjon** ; ③ règle pure `src/lib/rush-notes.ts` (`normalizeQuestKey`, `constraintLabel`, `cleanDofusyelleBody` qui retire les `[object Object]`, `correlateRushNotes` borné à 6 notes) + **10 tests** ; ④ `scripts/correlate-rush-notes.ts` (dry-run, `--apply --db`) ⇒ **22 conseils** écrits (dataset + base), **219** quêtes restent sans conseil ; ⑤ les notes de donjon et les `body` d'étape restent au **rapport**, non appliqués.
+> **Preuves** : base **273** conseils / 492 · `rush-notes` **10** · suite **596 fichiers / 6 260 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
+> **Reste / ops** : **219** conseils (dont Brâkmarien) ; **18** références Ali/Ordre à trancher pour appliquer les notes de donjon ; contrôle visuel bêta d'un conseil (« Joueurs : … », « Métier : … »).
+> **Rotation** : bloc « 02/11/2026 (suite 6) — la route à 3 étages » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 03/11/2026 — **Rush : les conseils réparés (« &1 »), Dofusyelle siphonné et corrélé** — branche `fix/rush-textes`
 
 > **Demande user (verbatim)** : « si tu resiphonne l'intégralité du guide RSA Tougli ? » · « on avait aussi siphonné dofusyelle rush, à voir si ya une api ou non, et corréler toutes les astuces aux bonnes quêtes bon moments etc ? » · « notre module rush ne doit jamais laisser paraître qu'on a siphonné dofusyelle et tougli : on devra reformuler un peu mais ça c'est moi qui ferai, on siphonne tel quel là ».
@@ -55,13 +65,4 @@
 > **Reste / ops** : `L1` (source d'alignement), `L2`, `L3` ; contrôle visuel God 390/768/1024/1440 ; **aucune migration**.
 > **Rotation** : bloc « 02/11/2026 (suite 2) — Rang d'ancienneté, panneau CRON, erreur d'auth » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-
-## 📝 Session 02/11/2026 (suite 6) — **Rush : la route à 3 étages + l'espace visiteur (cadrage et docs)** — branche `docs/rush-route-visiteur`
-
-> **Demande user (verbatim)** : « j'aimerai aussi établir quelque chose : aujourd'hui quand on va ouvrir le module rush sylvestre … que se passe-t-il à la première visite de la page … idem côté rush public » · « deslop à faire + alignement DA » · « métiers requis inutile à lister » · « page 3 … ça n'a aucun intérêt » · « est-ce que la classe est bien identifiée dans le code ? » · « il va falloir schématiser » · « je veux aussi la modale de setup complet du rush comme l'interne, choix classe etc pour le rush public reset etc ».
-> **Mesures** : ① la modale d'accueil s'ouvre **800 ms** après le montage si `localStorage["rush-onboarding-<guideId>"]` est absent (`RushTimelineClient:1403-1404`), 4 étapes ; le public n'a **aucune** modale, seulement « Ma cité » + « Mon personnage ». ② la **route** : le dashboard applique cité + classe, **jamais l'Ordre** ; le public n'applique que la cité ; l'**overlay aucune**. ③ base locale : **236** séquences `alignReq` (100 + 106 + 30 Ordres), **30** quêtes d'Ordre (**0 prérequis**), **19** classes, **67** `alignment_set` écrits `{camp, level:1}`. ④ `getAlignmentSet` exige `name` ⇒ **null sur les 67 lignes réelles** (bandeau d'alignement et badge jamais rendus, `applyRushAlignmentFromSequence` no-op) ; les fixtures des tests utilisent `name`. ⑤ reset d'alignement = **67 racines sur 236** (partiel). ⑥ `signIn` **refuse** tout compte Discord sans guilde gérée (`auth.ts:64-175`) ⇒ un « visiteur public » ne peut pas se connecter aujourd'hui.
-> **Fait (docs seulement, aucun code)** : `docs/plans/PLAN-ESPACE-VISITEUR.md` (D-V1 tables dédiées `PublicProfile` + `PublicRushProgress`, D-V2 un seul `User`, D-V3 jamais de roster, D-V4 visibilité par **consentement individuel** `User.rushServerVisible`, D-V5 purge 12 mois + RGPD) ; `MODULE-RUSH-SYLVESTRE.md` § **1 bis** (surfaces, données, **7 défauts mesurés**, outillage God G1→G4, ordre `G0`→`L1`→`L2`→`L3`) ; `ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md` § **8** (schéma de la route, où vit le choix, ce que fait un changement de cité/Ordre) ; `RUSH-DEVELOPPEMENT-SUITE.md` (§0 bis corrigé : S1-2 importé — 121 séquences brâkmariennes, dont 106 de cité ; classe publique tranchée) ; `ROADMAP.md` (§0 + rangs 9/10 + nouveau chantier `espace-visiteur`, rang **57**).
-> **Preuves** : ROADMAP **60 154 o** (borne 61 440) · **aucune migration** · aucun code applicatif touché.
-> **Reste / ops** : prochaine PR = **`G0`** (outillage God de la route) ; puis `L1`, `L2`, `L3` ; `V1` (auth + tables) = **migration ⇒ accord explicite**.
-> **Rotation** : bloc « 02/11/2026 — Annonces de live Discord + preuve de purge + activité réelle » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 

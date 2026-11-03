@@ -32,21 +32,21 @@ pas ; les textes sont **réécrits**, jamais recopiés.
 > **Pourquoi ici et pas une sixième doc** : un sujet = un fichier. Ce document porte déjà
 > l'organisation des chantiers Rush ; l'amorce en est la **tête de lecture**, pas une copie.
 
-**État mesuré au 29/10/2026** : mécanique **terminée** (S0), outillage God **fini** (S4), contenu
-**à moitié** — S1-1 Bontarien ✅ **100/100**, S1-3 Ordres ✅ (5/5 × 6), S1-4 Classes ✅ (export +
-filtre interne), **S1-2 Brâkmarien = 0/102**. S2 et S3 non commencés. Le **bloc B** (une page par
-quête) n'a que sa **fondation en base** (`GuideSequence.publicSlug` + `isPublished`, migration
-**288**) : aucune route n'existe.
+**État mesuré au 04/11/2026** — mécanique **terminée** (S0), outillage God **fini** (S4), route
+**livrée** (G0 / L1 / L2 / L3), contenu **partiel** : Bontarien **100/100**, Ordres **5/5 × 6**,
+classes **19**, Brâkmarien **121 séquences importées** (15 d'Ordre + 106 de cité ; cible **102**,
+l'écart de 4 venant des étapes dédoublées/variantes). **Mesure neuve** : sur ces 121 séquences,
+**115 n'ont AUCUN tag** (ni objet, ni donjon, ni position) et **117 n'ont pas de conseil** — la
+route est là, le contenu ne l'est pas.
 
-> **Mise à jour du 02/11/2026 (mesure en base locale)** : **S1-2 est importé** — **121** séquences
-> portent `alignReq = brakmarien` (15 d'Ordre + **106** de cité ; cible consolidée **102**, l'écart de 4
-> vient des étapes dédoublées/variantes et reste à réconcilier). Le trou de contenu n'est donc plus
-> là : ce qui manque est **la route** (cité → Ordre → classe) et **l'outillage God** pour la poser.
-> État, défauts mesurés et ordre des lots : `docs/plans/MODULE-RUSH-SYLVESTRE.md` § **1 bis**.
+**Livré le 04/11/2026** : **25 conseils** écrits depuis les contraintes Tougli (19 Brâkmarien,
+6 Bontarien), le rattachement passant désormais par **`questDbIds`** (une séquence importée n'a pas
+le libellé de Tougli). Reste **194** conseils, dont **98 Brâkmarien sans aucune source**.
 
-**`G0` et `L1` livrés le 02/11/2026** (outillage God de la route ; source d'alignement :
-`camp`/`name`, palier calculé, reset par cité). **Prochain lot : `L2`** (route cité→Ordre→classe),
-puis `L3`. L'ordre **global** des chantiers reste `docs/ROADMAP.md`.
+**Prochain lot : `V-D`** (ressources par quête, `MODULE-RUSH-SYLVESTRE.md` § D) — la trame
+`src/temp/trame-rush/data.json` porte les objets **par quête** (`id`, `name`, `count`) : attendu
+~**485-517** ids contre **390** aujourd'hui, sans migration et **sans re-seed**. L'ordre **global**
+reste `docs/ROADMAP.md`.
 
 | Ressource (dans `src/temp/trame-rush/`, **jamais commité**) | Contenu |
 |---|---|

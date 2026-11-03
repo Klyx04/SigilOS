@@ -29,6 +29,8 @@ export type RushNote = {
 export type TougliNotes = {
   guideNotes?: Array<{ type?: string; text?: string; questNames?: string[] }>;
   questConstraints?: Array<{
+    /** Id DofusDB de la quête — **le rattachement exact** quand notre nom diffère de Tougli. */
+    questId?: number;
     questName?: string;
     constraints?: Array<{ type?: string; text?: string }>;
   }>;
@@ -52,6 +54,12 @@ export type NoteTarget = {
   key: string;
   /** Nom affiché (preuve). */
   name: string;
+  /**
+   * Ids DofusDB de la quête (`GuideSequence.questDbIds`) — rattachement **exact**, y compris
+   * pour les séquences importées depuis God (Brâkmarien) absentes du dataset de seed et dont
+   * le nom peut différer de celui de Tougli.
+   */
+  questIds?: number[];
   /** Donjons de la quête (noms), pour rattacher les notes de donjon. */
   dungeonNames?: string[];
 };
@@ -113,6 +121,16 @@ export function correlateRushNotes(input: {
   const max = input.maxNotesPerTarget ?? MAX_NOTES_PER_TARGET;
   const known = new Set(input.targets.map((target) => target.key).filter(Boolean));
   const notes = new Map<string, RushNote[]>();
+  /** Rattachement **exact** par id DofusDB — une séquence importée n'a pas toujours le nom de Tougli. */
+  const byQuestId = new Map<string, NoteTarget[]>();
+  for (const target of input.targets) {
+    for (const id of target.questIds ?? []) {
+      const idKey = String(id);
+      const list = byQuestId.get(idKey) ?? [];
+      list.push(target);
+      byQuestId.set(idKey, list);
+    }
+  }
 
   const add = (key: string, note: RushNote) => {
     if (!known.has(key)) return;
@@ -130,16 +148,21 @@ export function correlateRushNotes(input: {
   // ─── Tougli : contraintes de quête (métier, joueurs, horaire, sort, note) ──
   for (const quest of input.toughli?.questConstraints ?? []) {
     const key = normalizeQuestKey(quest?.questName);
-    if (!key) continue;
+    // Le nom de Tougli ne suffit pas : les séquences importées depuis God (Brâkmarien) portent
+    // `questDbIds` et gardent leur propre libellé. L'id tranche, le nom reste le repli.
+    const exact = quest?.questId != null ? (byQuestId.get(String(quest.questId)) ?? []) : [];
+    if (!key && exact.length === 0) continue;
     for (const constraint of quest?.constraints ?? []) {
       const text = String(constraint?.text ?? "").trim();
       if (!text) continue;
-      add(key, {
+      const note: RushNote = {
         source: "tougli",
         kind: "constraint",
         text: `${constraintLabel(constraint?.type)} : ${text}`,
         origin: String(constraint?.type ?? "constraint"),
-      });
+      };
+      if (key) add(key, note);
+      for (const target of exact) add(target.key, note);
     }
   }
 

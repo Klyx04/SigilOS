@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 04/11/2026 (suite) — **Rush : ressources par quête, la série Brâkmarien remplie (V-D1)** — branche `feat/rush-ressources`
+
+> **Demande user (verbatim)** : « Lot B ok, attention à bien conserver toutes les synchro entre les boutons des ressources totales du guide / overlay, les ressources cochées manuellement / validées par les quêtes etc » — GO.
+> **Mesures** : ① les **121** séquences Brâkmarien (importées depuis God, absentes du dataset de seed) : **115 n'avaient AUCUN tag**, **1** seul id d'objet, mais **120 `questDbIds`** ⇒ appariement exact par id (replis URL puis nom) ; ② `dofusyelle.resources` est **global** (531 lignes nom+qté, sans id) ⇒ **584 est un plafond**, pas une cible par quête (67 ids n'existent que là) ; ③ la trame porte encore l'id **22058** (invalide, corrigé en **32079**).
+> **Fait** : ① règle pure `src/lib/rush-resource-tags.ts` — `mergeItemTags` ajoute les ids absents, **ne réécrit ni ne supprime jamais**, `count` borné, **nom canonique** réutilisé (clé `id|nom` stable) ; ② script `enrich-rush-guide-resources.ts` — appariement `questDbIds`→URL→nom, dry-run, `--apply --db`, `--sql` **additif** (bêta), remap `22058→32079` ; ③ **81 séquences** enrichies, **252 tags**, **173 ids** dont **95 nouveaux** ⇒ **390 → 485 ids** ; Brâkmarien **1 → 151 ids** / **65** séquences (contre 1).
+> **Preuves** : `rush-resource-tags` **12** · suite **597 / 6 272 ✓** · `tsc` 0 · ESLint 0 erreur · **2ᵉ passage = 0 écriture** · 0 tag sans nom / quantité invalide · **486 clés pour 485 ids** (seul doublon **9687**, antérieur) · dataset **inchangé** · **aucune migration**.
+> **Reste / ops** : **V-D2** (51 ids Tougli hors base + 67 ids Dofusyelle par étape) ; bêta — `--sql` puis God ▸ « Pré-chauffer les icônes du guide » (**95** ids) ; prochain lot **V-H**.
+> **Rotation** : bloc « 02/11/2026 (suite 7) — outillage God de la route (G0) » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 03/11/2026 (suite) — **Rush : notes Tougli siphonnées, Dofusyelle analysé, corrélation mesurée** — branche `feat/rush-notes`
 
 > **Demande user (verbatim)** : « Siphonne les notes tougli des quetes, analyse les notes dofusyelle car ce guide n'a aucun lien ni adhérance avec le guide tougli et correèle ».
@@ -54,15 +63,3 @@
 > **Preuves** : `rush-alignment-source` **15** · `rush-alignment-tranche` **8** · Rush **57 fichiers / 710 tests ✓** · `tsc` 0 · ESLint 0 erreur.
 > **Reste / ops** : `L2` (route cité→Ordre→classe, chaîne des rangs), `L3` (modale d'accueil) ; contrôle visuel profil/guide/overlay ; **aucune migration**.
 > **Rotation** : bloc « 02/11/2026 (suite) — Almanax : bornage de la navigation » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-## 📝 Session 02/11/2026 (suite 7) — **Rush : outillage God de la route (G0)** — branche `feat/rush-route-tooling`
-
-> **Demande user (verbatim)** : « Reprise SigilOS. » (amorce générique) — le §0 désignait `G0`.
-> **Mesures** : ① la route s'éditait **quête par quête** (236 `alignReq`), aucune action de masse ; ② `classReq` en `<input>` libre (une faute ⇒ quête **masquée**, fail-closed) ; ③ aucun aperçu de route ; ④ vue Branches à **2** étages ; base locale : **492** séquences, **30** Ordres, **19** classes, **67** `alignment_set`.
-> **Fait** : ① `updateRushBlockRoute` (brique Rush + rate limit Redis, Zod borné, Ordre de la cité, classe des 19 ids, bloc vérifié dans `rush-sylvestre`, `updateMany`, trace) + barre « Route du bloc » avec confirmation de portée ; ② `RushClassSelect` (19 ids, valeur inconnue **conservée** et signalée) sur les 3 surfaces ; ③ `RushRoutePreview` par `resolveRushRoute` (aucun second filtre) ; ④ `buildRushClassBranches` (règle pure) + table des 19 classes, manques nommés, `unknown`/`misplaced`.
-> **Preuves** : `rush-route-tooling` **19** · `rush-class-branches` **10** · Rush **56 fichiers / 695 tests ✓** · `tsc` 0 · ESLint 0 erreur.
-> **Reste / ops** : `L1` (source d'alignement), `L2`, `L3` ; contrôle visuel God 390/768/1024/1440 ; **aucune migration**.
-> **Rotation** : bloc « 02/11/2026 (suite 2) — Rang d'ancienneté, panneau CRON, erreur d'auth » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-

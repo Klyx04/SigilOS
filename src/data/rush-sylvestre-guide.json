@@ -9627,7 +9627,7 @@
               "count": 1
             }
           ],
-          "tips": null,
+          "tips": "Joueurs : 1 Joueur pour une dalle",
           "note": null
         },
         {
@@ -9691,7 +9691,7 @@
               "count": 1
             }
           ],
-          "tips": null,
+          "tips": "Joueurs : 1 Joueur pour une dalle (Ordre de l’Oeil Attentif de niveau 2 minimum OU un Sram)",
           "note": null
         },
         {
@@ -9749,7 +9749,7 @@
               "name": "Ali 57 = Need 4 perso Bucheron 150 + Alchi 150 + Sadi 56 + Fleur"
             }
           ],
-          "tips": null,
+          "tips": "Joueurs : 1 Joueur pour dalle (Bricoleur de niveau 100 ou +)",
           "note": null
         },
         {
@@ -10205,7 +10205,7 @@
               "count": 1
             }
           ],
-          "tips": null,
+          "tips": "Joueurs : 4 Joueurs pour des dalles",
           "note": null
         },
         {
@@ -10333,7 +10333,7 @@
               "count": 20
             }
           ],
-          "tips": null,
+          "tips": "Joueurs : 4 Joueurs pour des dalles et des combats",
           "note": null
         },
         {
@@ -10421,7 +10421,7 @@
               "count": 500
             }
           ],
-          "tips": null,
+          "tips": "Joueurs : 4 Joueurs pour des dalles (Un bucheron 156+ / Un alchimiste 156+ / Un Sadida level 56+ / Un personnage avec l'attitude Fleurs)\nMétier : Craft cooperatif de niveau 137 ou +",
           "note": null
         },
         {
@@ -10567,7 +10567,7 @@
               "count": 1
             }
           ],
-          "tips": null,
+          "tips": "Joueurs : 1 Joueur pour une dalle (Un Sadida)",
           "note": null
         },
         {
@@ -13259,7 +13259,7 @@
               "count": 12
             }
           ],
-          "tips": null,
+          "tips": "Métier : Etre aidé d'un Chasseur niveau 120+",
           "note": null
         }
       ],
@@ -14095,7 +14095,7 @@
               "name": "Ali 75 \"Si j'avais un marteau.\" : aide de 3 perso pour dalle + combat\nAli 76 \"Es"
             }
           ],
-          "tips": null,
+          "tips": "Horaire : >20h00 (Contournable)",
           "note": null
         },
         {
@@ -14569,7 +14569,7 @@
               "count": 5000
             }
           ],
-          "tips": null,
+          "tips": "Métier : Craft coopératif de niveau 184+",
           "note": null
         },
         {
@@ -14635,7 +14635,7 @@
               "count": 1
             }
           ],
-          "tips": null,
+          "tips": "Métier : Craft coopératif de niveau 185+",
           "note": null
         }
       ],
@@ -15204,7 +15204,7 @@
               "count": 2
             }
           ],
-          "tips": null,
+          "tips": "Métier : Etre Alchimiste de niveau 20+",
           "note": null
         },
         {
@@ -15606,7 +15606,7 @@
               "count": 10
             }
           ],
-          "tips": null,
+          "tips": "Métier : Etre alchimiste de niveau 40 ou plus",
           "note": null
         }
       ],
@@ -15709,7 +15709,7 @@
               "count": 5
             }
           ],
-          "tips": null,
+          "tips": "Métier : Etre mineur de niveau 20",
           "note": null
         },
         {
@@ -18662,7 +18662,7 @@
               "count": 1
             }
           ],
-          "tips": null,
+          "tips": "Sort : Flamiche\nHoraire : Attendre 2 minutes",
           "note": null
         },
         {
@@ -19601,7 +19601,7 @@
               "count": 1
             }
           ],
-          "tips": null,
+          "tips": "Métier : Faites vous aider d'une sculpteur niveau 180+\nNote : Pour voir Sylvosse : Allez en [26,-32] puis cliquez sur la zone noire puis aller sur la map à droite",
           "note": null
         },
         {
@@ -19665,7 +19665,7 @@
               "count": 2
             }
           ],
-          "tips": null,
+          "tips": "Métier : Etre Bricoleur de niveau 30+",
           "note": null
         },
         {
@@ -20956,7 +20956,7 @@
               "count": 1
             }
           ],
-          "tips": null,
+          "tips": "Métier : Etre mineur de niveau 40 ou plus",
           "note": null
         },
         {
@@ -21290,7 +21290,7 @@
               "count": 10
             }
           ],
-          "tips": null,
+          "tips": "Métier : Etre Paysan de niveau 100 ou plus",
           "note": null
         },
         {
@@ -21885,7 +21885,7 @@
               "count": 30
             }
           ],
-          "tips": null,
+          "tips": "Métier : Etre aider d'une paysan level 140+",
           "note": null
         },
         {
@@ -23090,7 +23090,7 @@
               "count": 200
             }
           ],
-          "tips": null,
+          "tips": "Métier : Craft coopératif avec un bricoleur de niveau 190\nMétier : Craft coopératif avec un alchimiste de niveau 190\nMétier : Craft coopératif avec un forgeron de niveau 190",
           "note": null
         },
         {
@@ -25868,7 +25868,7 @@
               "count": 600
             }
           ],
-          "tips": null,
+          "tips": "Métier : Avoir un métier de récolte de niveau 200",
           "note": null
         },
         {

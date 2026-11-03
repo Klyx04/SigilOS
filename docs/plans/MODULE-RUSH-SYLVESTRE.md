@@ -132,7 +132,7 @@ interne + overlay, chaîne des rangs, changement d'Ordre) et `L3` (modale d'accu
 classe manquante dite et cliquable) sont **livrés** → **`textes`** (tips par quête) : **livré le
 03/11/2026** pour les références `&n` (**74** champs corrigés, dataset + base, garde d'écriture) et
 la **corrélation Dofusyelle** (**5** conseils écrits, **18** références Ali/Ordre listées) — reste la
-**rédaction** des 242 conseils manquants. Le **public
+**rédaction** des 219 conseils manquants. Le **public
 authentifié** et l'annuaire par serveur sont un chantier distinct : `docs/plans/PLAN-ESPACE-VISITEUR.md`
 (la modale publique, elle, attend ce compte visiteur : **migration ⇒ accord**).
 
@@ -143,7 +143,8 @@ authentifié** et l'annuaire par serveur sont un chantier distinct : `docs/plans
 > **Aucune migration.** **`textes` livré le 03/11/2026** : `resolveQuestRefs` + script ciblé
 > (**74** champs, **0** `&n` restant), garde `upsertRushSequence`, siphon Dofusyelle (pas d'API)
 > et corrélation par nom (**5** conseils ; **18** références Ali/Ordre listées, non appliquées).
-> **Reste** : 242 conseils à rédiger (Ordres 30, classes 19, Brâkmarien 102, cité 47, divers).
+> **Reste** : 219 conseils à rédiger (Ordres 30, classes 19, Brâkmarien 102, cité 47, divers 21) ;
+> **18** références « Ali N »/« Ordre N » à trancher pour appliquer les notes de donjon Dofusyelle.
 >
 > **L2, ce qui a changé concrètement** : l'Ordre du personnage sélectionné entre dans la route
 > (5 quêtes d'Ordre au lieu de 15) ; l'overlay autonome `/overlay/guide/...` calcule enfin sa route
@@ -285,7 +286,7 @@ docker exec -i sigilos-db-beta sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 2. ~~**Édition** des champs de route sur une séquence **existante**~~ — **livrée** le 26/10/2026 (section « 7. Route »).
 3. **Route d'alignement sur les 3 surfaces** — état mesuré, défauts (7) et ordre des lots :
    **§ 1 bis** — `G0`, `L1`, `L2` **et** `L3` sont **livrés le 02/11/2026** ; **`textes` livré le
-   03/11/2026** (références `&n` corrigées, corrélation Dofusyelle) ; reste la rédaction des **242**
+   03/11/2026** (références `&n` corrigées, corrélation Dofusyelle) ; reste la rédaction des **219**
    conseils manquants.
    La **classe publique** n'est plus
    « à trancher » : elle viendra du **compte visiteur** (`docs/plans/PLAN-ESPACE-VISITEUR.md`, V1/V2).

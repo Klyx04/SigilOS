@@ -26,6 +26,7 @@ import { z } from "zod";
 import { resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceKey, sequenceDungeonProgress, type RushDungeonStateMap } from "@/lib/rush-dungeons";
 import { boundQuestDbIds } from "@/lib/rush-quest-identity";
+import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -3914,6 +3915,23 @@ export async function upsertRushSequence(data: {
   activityTags?: Array<{ type: string; name?: string; level?: number }>;
 }) {
   await requireRushAccess();
+
+  /**
+   * Garde des références de quête — mesure du 03/11/2026 : 37 séquences affichaient « &1 » au
+   * lieu du nom (la source porte la correspondance, cf. `resolveQuestRefs`). Une référence
+   * saisie ou importée est refusée **avant** l'écriture : le joueur ne doit jamais lire un
+   * placeholder, et le studio doit dire pourquoi.
+   */
+  for (const [field, value] of [
+    ["tips", data.tips],
+    ["note", data.note],
+  ] as const) {
+    if (hasUnresolvedQuestRef(value)) {
+      throw new Error(
+        `Le champ « ${field} » contient une référence de quête non résolue (&n) : remplacez-la par le nom de la quête.`,
+      );
+    }
+  }
 
   /**
    * Bornage du drapeau « optionnel » — fait **ici**, jamais dans l'éditeur : un id qui

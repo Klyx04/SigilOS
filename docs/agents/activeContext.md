@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 03/11/2026 — **Rush : les conseils réparés (« &1 »), Dofusyelle siphonné et corrélé** — branche `fix/rush-textes`
+
+> **Demande user (verbatim)** : « si tu resiphonne l'intégralité du guide RSA Tougli ? » · « on avait aussi siphonné dofusyelle rush, à voir si ya une api ou non, et corréler toutes les astuces aux bonnes quêtes bon moments etc ? » · « notre module rush ne doit jamais laisser paraître qu'on a siphonné dofusyelle et tougli : on devra reformuler un peu mais ça c'est moi qui ferai, on siphonne tel quel là ».
+> **Mesures** : ① **37 séquences (15 textes)** affichaient « &1 », « &2 »… (dataset à l'identique) — le rendu ne les remplace pas (capture Tougli : `&1` → « Restauration rapide ») ; la correspondance est `payload.quests[n-1]` (preuve : quête **1989**) ; ② Tougli resiphonné en lecture seule : arbre **identique** au 08/10 (383 objectifs), 530 noms identiques, **214** `&n` toujours présents ⇒ resiphonner ne répare pas les textes (+11 objets et `bashMobs` seulement) ; ③ Dofusyelle : **pas d'API** (`window.RUSH_DATA` en dur), nouveau chemin `assets/js/rush-sylvestre-data.js?v=20261019` (l'ancien est 404) — **57 étapes · 45 notes de donjon · 9 aides · 531 ressources** ; **8/8** quêtes citées retrouvées, **5** sans conseil ; ④ base : 493 séquences, **247** sans conseil, dont **102 Brâkmarien** et **30 Ordres** (non couverts par Dofusyelle).
+> **Fait** : ① règle pure `src/lib/rush-quest-refs.ts` (`resolveQuestRefs`, `hasUnresolvedQuestRef`) + **10** tests ; ② script `scripts/fix-rush-guide-quest-refs.ts` (dry-run par défaut, `--apply --db`) ⇒ **74 champs corrigés** (dataset **et** base), **0** `&n` restant, aucun reformatage (74/74 lignes) ; ③ **garde** dans `upsertRushSequence` (refuse `tips`/`note` avec `&n`) + test de câblage ; ④ `scripts/siphon-dofusyelle-rush.mjs` (sortie **zone volatile**, jamais committée) ; ⑤ règle pure `src/lib/rush-dofusyelle-tips.ts` (`normalizeQuestKey`, `quotedQuestTitles`, `aidLineFor`, `alignmentRefs`) + **9** tests ; ⑥ script `scripts/correlate-dofusyelle-tips.ts` ⇒ **5 conseils écrits** (dataset + base), **18** références Ali/Ordre **listées** (non appliquées : numérotation à trancher).
+> **Preuves** : `rush-quest-refs` **10** · `rush-dofusyelle-tips` **9** · suite **595 fichiers / 6 250 tests ✓** · `tsc` 0 · ESLint 0 erreur (warnings préexistants). **Aucune migration.**
+> **Reste / ops** : **242** conseils à écrire (Ordres 30, classes 19, Brâkmarien 102, cité 47, divers) ; **18** références Ali/Ordre à trancher ; resiphonnage Tougli (données seules) ; contrôle visuel bêta d'un conseil réparé (« Restauration rapide »).
+> **Rotation** : bloc « 02/11/2026 (suite 5) — cocher les ressources dans la fiche » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
 ## 📝 Session 02/11/2026 (suite 10) — **Rush : la modale d'accueil en DA « Carnet » (L3)** — branche `feat/rush-onboarding-l3`
 
 > **Demande user (verbatim)** : « on attaque quoi ensuite » · « on parle d'un lot 100% visiteur là? » · « Interne seul (recommandé) : refonte DA Carnet de la modale membres + brancher hasNoClassDeclared — le volet public part avec l'espace visiteur ».
@@ -54,14 +64,4 @@
 > **Preuves** : ROADMAP **60 154 o** (borne 61 440) · **aucune migration** · aucun code applicatif touché.
 > **Reste / ops** : prochaine PR = **`G0`** (outillage God de la route) ; puis `L1`, `L2`, `L3` ; `V1` (auth + tables) = **migration ⇒ accord explicite**.
 > **Rotation** : bloc « 02/11/2026 — Annonces de live Discord + preuve de purge + activité réelle » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 02/11/2026 (suite 5) — **Rush : cocher les ressources dans la fiche, validation = tout cocher** — branche `feat/rush-da-carnet`
-
-> **Demande user (verbatim)** : « permettre aux gens de cocher les ressources demandées dans chaque quête dans la vue détaillée · une fois la quête validée ça override et valide tout · quête invalidée > décocher tout · overlay guide interne externe ».
-> **Mesures** : ① les coches existaient déjà par ressource (`PlayerGuideResourceCheck`, `localStorage` invité) mais **aucune grille de fiche n'était cochable** ; ② valider une quête n'ajoutait **rien** (seule la dévalidation supprimait) ; ③ le guide interne appelait `getRushResourceChecks(slug, guildId)` alors que l'action attend `(guildId, slug)` — les coches ne se rechargeaient jamais.
-> **Fait** : règle pure `src/lib/rush-resource-checks.ts` (`resourceKeysForTags`, `applyQuestResourceChecks`) ; `QuestItemResourceGrid` cochable (`checkedKeys`, `onToggleCheck`, `aria-pressed`) ; fiche overlay/interne + grille publique câblées ; validation = coche, invalidation = décoche (serveur + écho optimiste, invité `localStorage`) ; cascade comprise ; `resetGuide` / `resetMilestone` / `completeGuide` alignés ; bug d'ordre d'arguments corrigé ; **badges de condition longs bornés** (`max-w-full min-w-0 truncate`, détail en `break-words`) — ils débordaient de la fiche.
-> **Preuves** : `rush-quest-resource-checks` **7** · `rush-resource-checks` **19** · `rush-tag-overflow` **4** · suite **587 fichiers / 6 147 tests ✓** · `tsc` 0 · ESLint 0 erreur. **Aucune migration.**
-> **Reste / ops** : contrôle visuel (fiche de quête, coche, validation/invalidation) en bêta ; PR vers `dev`.
-> **Rotation** : blocs « 01/11/2026 (suite 6) — La purge à J+30 » et « 01/11/2026 (suite 5) — Le propriétaire peut retirer sa guilde » sortis après fusion avec `dev` — récupérables via `git log -p -- docs/agents/activeContext.md`.
-
 

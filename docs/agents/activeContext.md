@@ -6,13 +6,14 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
-## 📝 Session 05/11/2026 — **Rush : le déplacement d'une quête réparé (lot A)** — branche `fix/rush-move-sequence`
+## 📝 Session 05/11/2026 — **Rush : déplacement réparé + split des blocs (lots A/B)** — branches `fix/rush-move-sequence` / `feat/rush-split-blocks`
 
 > **Demande user (verbatim)** : « ok pour les lots … l'editeur god rush … je dois pouvoir manipuler ici pendant des h sans chercher partout » → le lot A (déplacement) de la reprise, avant la refonte E1→E5.
 > **Mesures** : ① le contrôle « Déplacer vers » ne s'affichait **jamais** : `MilestoneRow` passait `milestones={[milestone]}` à `SequenceEditForm`, donc `milestones.length > 1` était toujours faux ; ② l'action appelée (`upsertRushSequence`) **ignorait `milestoneId`** et remettait `alignOrderCode`, `alignLevelReq`, `classReq`, `isSuccess`, `icon`, `metamobMonsterId` à `null`/`false` (perte de route) ; ③ `RushSylvestreAdminClient.tsx` = **5 128 lignes**, **405** motifs UI interdits, **77/77** fichiers God.
 > **Fait** : action dédiée `moveRushSequence` (Zod borné, rate limit 60/min, transaction, cible relue dans le même guide, séparateur + bloc Conseil/Tips refusés, no-op même bloc) qui n'écrit que `milestoneId` + `order` (`nextSequenceOrder`) ; `SequenceEditForm` reçoit la liste complète des blocs et appelle `onMove` ; mise à jour optimiste + `router.refresh()` en échec ; garde en commentaire dans `upsertRushSequence`. Plan de la refonte : `docs/plans/REFONTE-EDITEUR-RUSH.md`.
-> **Preuves** : `rush-move-sequence` **10** · Rush **65 / 805 ✓** · suite **602 / 6 332 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
-> **Reste / ops** : E1 (squelette 3 panneaux) → E2 → B (split bêta) → E3 → E4 → D → E5 ; contrôle visuel du studio (le contrôle « Déplacer vers » est visible en bas du formulaire, à remonter dans l'inspecteur en E2).
+> **Lot B (branche `feat/rush-split-blocks`)** : sur la bêta, un palier = une séquence de 20 quêtes ⇒ la route ne peut pas filtrer à l'intérieur et « Déplacer vers » déplace le bloc. Action `splitRushSequence` (N séquences à la même position, route/Ordre/palier/classe conservés, tags/donjons **par quête** du dataset enrichi, progression reportée, donjons inconnus écartés) ; bouton « Scinder en N quêtes » au-dessus du footer ; table `RUSH_CLASS_QUESTS` (19 classes — la base locale avait `cra` partout). **Ops** : cliquer sur chaque bloc après merge/déploiement, puis rejouer l'enrichissement des ressources.
+> **Preuves** : `rush-move-sequence` **10** · `rush-split-blocks` **12** · Rush **66 / 817 ✓** · suite **603 / 6 344 ✓** · `tsc` 0 · ESLint 0 erreur · **aucune migration**.
+> **Reste / ops** : E1 (squelette 3 panneaux) → E2 → E3 → E4 → D → E5 ; le split bêta s'exécute par le bouton ; la base locale garde 19 classes en `cra` (patch local séparé) ; contrôle visuel du studio.
 > **Rotation** : bloc « 04/11/2026 (suite 4) — Fluidité du scroll » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 ## 📝 Session 04/11/2026 (suite 9) — **Module DJ/Quête : la DA landing partout** — branche `feat/dj-da-landing`

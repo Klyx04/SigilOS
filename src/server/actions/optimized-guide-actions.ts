@@ -28,6 +28,8 @@ import { boundOptionalDungeonIds, doneDungeonKeysForSequence, dungeonOccurrenceK
 import { boundQuestDbIds } from "@/lib/rush-quest-identity";
 import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
 import { nextSequenceOrder } from "@/lib/rush-move";
+import { buildRushSplitPlan, type RushSplitBlock } from "@/lib/rush-split";
+import { rushSplitMetaOf } from "@/server/rush-split-data";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -4119,6 +4121,185 @@ export async function moveRushSequence(sequenceId: string, targetMilestoneId: st
   }
 
   return { success: true, moved: result.moved, sequence: result.sequence };
+}
+
+/**
+ * Schéma borné du split : un seul id de séquence.
+ */
+const SplitRushSequenceSchema = z.object({
+  sequenceId: z.string().min(1).max(64),
+});
+
+/**
+ * (God) Éclate **une séquence multi-quêtes** en N séquences de 1 quête.
+ *
+ * Mesure du 05/11/2026 : sur la bêta, chaque palier d'alignement (20/22 quêtes), chaque
+ * Ordre (5) et le bloc des 19 classes sont **une seule `GuideSequence`** qui porte N
+ * `questDbIds`. La route ne sait pas filtrer une quête à l'intérieur d'une séquence, et
+ * « Déplacer vers » déplace le bloc entier. Le split crée N séquences à la **même
+ * position**, avec la route du bloc, les tags/donjons **par quête** du dataset enrichi,
+ * la classe des 19 quêtes via `RUSH_CLASS_QUESTS`, et la progression reportée (une étape
+ * cochée = ses N quêtes cochées).
+ *
+ * Fail-closed : bloc `rush-sylvestre`, au moins 2 quêtes, et un bloc d'alignement sans
+ * cité est refusé (sinon les quêtes deviendraient communes aux deux camps).
+ */
+export async function splitRushSequence(sequenceId: string) {
+  const parsed = SplitRushSequenceSchema.safeParse({ sequenceId });
+  if (!parsed.success) {
+    throw new Error("Scission invalide");
+  }
+  await requireRushWriteAccess("rush-split-sequence", 60, 60_000);
+
+  const block = await db.guideSequence.findUnique({
+    where: { id: parsed.data.sequenceId },
+    select: {
+      id: true,
+      milestoneId: true,
+      order: true,
+      subGuideName: true,
+      subGuideRef: true,
+      questDbIds: true,
+      alignReq: true,
+      alignOrderCode: true,
+      alignLevelReq: true,
+      classReq: true,
+      tips: true,
+      note: true,
+      isSuccess: true,
+      icon: true,
+      metamobMonsterId: true,
+      activityTags: true,
+      dungeonIds: true,
+      dungeonOptionalIds: true,
+      dofusdbUrl: true,
+      dofuspourlesnoobsUrl: true,
+      milestone: { select: { guideId: true, guide: { select: { slug: true } } } },
+    },
+  });
+
+  if (!block || block.milestone.guide.slug !== "rush-sylvestre") {
+    throw new Error("Quête introuvable dans le guide Rush");
+  }
+  if (!Array.isArray(block.questDbIds) || block.questDbIds.length <= 1) {
+    throw new Error("Cette étape ne contient qu'une seule quête.");
+  }
+
+  const gameQuests = await db.gameQuest.findMany({
+    where: { dofusDbId: { in: block.questDbIds } },
+    select: { dofusDbId: true, name: true },
+  });
+  const gameNames = new Map(gameQuests.map((quest) => [quest.dofusDbId as number, quest.name]));
+
+  const drafts = buildRushSplitPlan(
+    block as unknown as RushSplitBlock,
+    (qid) => rushSplitMetaOf(qid, gameNames.get(qid) ?? null),
+  );
+  if (drafts.length <= 1) {
+    throw new Error("Aucune quête à scinder.");
+  }
+
+  const isAlignment =
+    !!(block.alignOrderCode ?? "").trim() || /alignement/i.test(block.subGuideName);
+  if (isAlignment && !drafts[0].alignReq) {
+    throw new Error("Renseigne la cité du bloc (Route du bloc) avant de le scinder.");
+  }
+
+  // Les `dungeonIds` du dataset enrichi sont des cuids **de l'environnement local** : on ne
+  // les écrit que s'ils existent dans la table `Dungeon` de CETTE base. Sinon on les écarte
+  // (jamais une FK morte dans un tableau String[]) et on remonte le nombre ignoré.
+  const candidateDungeonIds = Array.from(new Set(drafts.flatMap((draft) => draft.dungeonIds)));
+  const knownDungeons = candidateDungeonIds.length > 0
+    ? new Set((await db.dungeon.findMany({
+        where: { id: { in: candidateDungeonIds } },
+        select: { id: true },
+      })).map((dungeon) => dungeon.id))
+    : new Set<string>();
+  let droppedDungeons = 0;
+  for (const draft of drafts) {
+    const kept = draft.dungeonIds.filter((id) => knownDungeons.has(id));
+    droppedDungeons += draft.dungeonIds.length - kept.length;
+    draft.dungeonIds = kept;
+  }
+
+  const createdIds = await db.$transaction(async (tx) => {
+    // Ouvre N-1 créneaux à partir de la position du bloc (les autres blocs ne bougent pas
+    // de chapitre, seuls les ordres suivants du MÊME milestone sont décalés).
+    await tx.guideSequence.updateMany({
+      where: {
+        milestoneId: block.milestoneId,
+        id: { not: block.id },
+        order: { gte: block.order },
+      },
+      data: { order: { increment: drafts.length - 1 } },
+    });
+
+    const ids: string[] = [];
+    for (const draft of drafts) {
+      const created = await tx.guideSequence.create({
+        data: {
+          milestoneId: block.milestoneId,
+          subGuideRef: draft.subGuideRef,
+          subGuideName: draft.subGuideName,
+          order: draft.order,
+          isPartial: false,
+          dungeonId: null,
+          questDbIds: draft.questDbIds,
+          alignReq: draft.alignReq,
+          alignOrderCode: draft.alignOrderCode,
+          alignLevelReq: draft.alignLevelReq,
+          classReq: draft.classReq,
+          tips: draft.tips,
+          note: draft.note,
+          isSuccess: draft.isSuccess,
+          icon: draft.icon,
+          metamobMonsterId: draft.metamobMonsterId,
+          activityTags: draft.activityTags as any,
+          dungeonIds: draft.dungeonIds,
+          dungeonOptionalIds: draft.dungeonOptionalIds,
+          mapPositions: draft.mapPositions as any,
+          dofusdbUrl: draft.dofusdbUrl,
+          dofuspourlesnoobsUrl: draft.dofuspourlesnoobsUrl,
+        },
+        select: { id: true },
+      });
+      ids.push(created.id);
+    }
+
+    // Progression : une étape cochée = ses N quêtes cochées (règle conservatrice).
+    const progressRows = await tx.playerGuideProgress.findMany({
+      where: { milestoneId: block.milestoneId },
+      select: { id: true, completedSteps: true, currentStep: true },
+    });
+    for (const row of progressRows) {
+      const steps = Array.isArray(row.completedSteps) ? (row.completedSteps as string[]) : null;
+      if (!steps || !steps.includes(block.id)) continue;
+      const next = steps.flatMap((step) => (step === block.id ? ids : [step]));
+      await tx.playerGuideProgress.update({
+        where: { id: row.id },
+        data: {
+          completedSteps: next,
+          ...(row.currentStep === block.id ? { currentStep: ids[0] } : {}),
+        },
+      });
+    }
+
+    await tx.guideSequence.delete({ where: { id: block.id } });
+    return ids;
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: block.id,
+    metadata: { op: "split-rush-sequence", created: createdIds.length },
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  revalidatePath("/guides/rush-sylvestre");
+
+  return { success: true, created: createdIds.length, ids: createdIds, droppedDungeons };
 }
 
 // ---------------------------------------------------------------------------

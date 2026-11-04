@@ -70,10 +70,10 @@
 
 ## 5. Ordre d'exécution
 
-`A` (déplacement réparé, **livré le 05/11**) → `E1` → `E2` → `B` (split des blocs bêta) → `E3` → `E4` → `D` (overlay live) → `E5`.
+`A` (déplacement réparé, **livré le 05/11**) → `B` (split des blocs bêta, **livré le 05/11**) → `E1` → `E2` → `E3` → `E4` → `D` (overlay live) → `E5`.
 
-- `A` avant `E1` : le bouton « Déplacer vers » de l'inspecteur doit appeler une action qui marche.
-- `E1` avant `B` : le split est une opération de données, mais c'est l'arbre qui rend le résultat manipulable ; `B` peut aussi passer juste après `A` si les quêtes individuelles sont urgentes.
+- `A` avant `B` : le bouton « Déplacer vers » doit marcher avant de scinder.
+- `B` avant `E1` : les quêtes deviennent individuelles tout de suite ; E1/E2 rendent ensuite l'édition confortable.
 
 ## 6. Décisions à prendre (E2/E3)
 

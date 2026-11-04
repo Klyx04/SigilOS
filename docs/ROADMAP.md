@@ -253,6 +253,7 @@
 
 | ID | Chantier | Livré |
 |---|---|---|
+| `AVATARS-DISCORD` | Avatars : `avatar-sync` n'écrit plus `null` (avatar Discord **officiel** `embed/avatars/{n}.png`), URL d'embed du cycle de vie réparée (elle concaténait une URL comme un hash), règle pure `resolveDiscordAvatarUrl` + verrous — branche `fix/avatars-discord-default` | 04/11/2026 |
 | `RUSH-NOTES` | Notes Rush : siphon Tougli (**73 notes · 74 quêtes contraintes**) + analyse Dofusyelle, règle `rush-notes` (rattachement par nom, **10 tests**), **22 conseils** écrits ; notes de donjon laissées au rapport (mesure négative « Ali 57 ») — branche `feat/rush-notes` | 03/11/2026 |
 | `RUSH-TEXTES` | Conseils du guide : **37 séquences « &n » corrigées** (règle `resolveQuestRefs`, **74** champs dataset + base, garde d'écriture), **Dofusyelle siphonné** (pas d'API) et **5 conseils corrélés** ; **aucune migration** — branche `fix/rush-textes` | 03/11/2026 |
 | `RUSH-NOTES` | Notes Rush : siphon Tougli (**73 notes · 74 quêtes contraintes**) + analyse Dofusyelle, règle `rush-notes`, **22 conseils** écrits ; notes de donjon laissées au rapport — branche `feat/rush-notes` | 03/11/2026 |

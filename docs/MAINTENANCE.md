@@ -79,9 +79,38 @@ son redémarrage les tue. Après : `docker compose config -q` (la CLI change de 
 | `sysctl net.ipv4.tcp_migrate_req` | **0** ferme le second chemin du bug (migration de request socket) |
 
 **Le proxy (Caddy) ne se patche pas tout seul.** `Dockerfile.caddy` est épinglé (verrou :
-`tests/unit/caddy-image-pin.test.ts`). Mesure du 04/11/2026 : le binaire tournait sur `go1.23.8` +
-`mod caddy (devel)` — buildé depuis `master`, janvier 2025, sans un seul correctif Go/Caddy. Après tout
-rebuild : `docker exec sigilos-gateway caddy build-info | head -2` (plus de `(devel)`) puis `ss -M`.
+`tests/unit/caddy-image-pin.test.ts`). Mesure du 04/11/2026 : le binaire tournait sur `go1.23.8`,
+buildé depuis `master` (janvier 2025), sans un seul correctif Go/Caddy depuis.
+
+**La preuve après rebuild, c'est `caddy version` — pas `build-info`.** `xcaddy` compile le module
+principal localement : `build-info` affichera **toujours** `mod caddy (devel)`, même sur une version
+taggée (constaté le 04/11/2026 sur 2.11.7 — la version réelle est `v2.11.7`, le `(devel)` ne veut rien
+dire de plus). Contrôle complet après bascule :
+
+| Commande | Attendu |
+|---|---|
+| `docker exec sigilos-gateway caddy version` | `v2.11.x` |
+| `docker run --rm --entrypoint caddy sigilos-caddy:latest build-info \| head -2` | `go go1.2x` (≥ 1.25) |
+| `ss -M` | **vide** — Go ≥ 1.24 active MPTCP par défaut ; `net.mptcp.enabled = 0` le neutralise |
+| `curl -fsS https://beta.sigilos.fr/api/health` | `"status":"healthy"` |
+| `curl -sI https://sigilos.fr \| head -1` | `HTTP/2 200` |
+
+⚠️ **Avant de bumper la version** : la release GitHub précède la publication Docker Hub de plusieurs
+heures. Vérifier que les images existent, sinon le build casse en fenêtre
+(`2.11.8` était encore absent le 04/11/2026 à 15 h) :
+
+```bash
+curl -s 'https://hub.docker.com/v2/repositories/library/caddy/tags/?name=<ver>-alpine' | grep -o '"count":[0-9]*'
+```
+
+**Résultat de la bascule du 04/11/2026** : 2.9.1 → **2.11.7** (`xcaddy build v2.11.7`), Go **1.27.3**,
+`ss -M` vide, bêta `healthy`, vitrine `200`. L'ancienne image reste taguée `sigilos-caddy:rollback`
+(supprimable après quelques jours sans incident).
+
+**Dettes cosmétiques constatées par `caddy validate` sur 2.11.7** : `header_up X-Forwarded-For`
+redondant (2 occurrences dans le `Caddyfile`) et fichier non formaté (`caddy fmt --overwrite`). Aucun
+impact fonctionnel — à nettoyer au prochain passage sur le `Caddyfile`.
+
 
 
 ### Crons HTTP (endpoints protégés `x-cron-secret`)

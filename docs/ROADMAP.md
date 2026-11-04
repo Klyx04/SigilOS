@@ -226,6 +226,7 @@
 | 54 | `supply-chain` | **Débloquer la porte de sécurité** : `zod` 3.25.76 → **4.6.7** (HIGH `GHSA-mrhx-c7xc-m3w5`) et `undici` 7.0.0 → **7.30.1** (HIGH `GHSA-4qv8-2p9j-2685`) | **livré** le 23/10/2026 (PR #1101) : override `undici` bumpé (transitif : discord.js, cheerio, jsdom), migration zod 3 → 4 sur **26 fichiers** (`errors` → `issues`, `required_error` → `message`, `z.record(clé, v)`, codes v4 dans `market/listing-schemas`, chemins `PropertyKey[]`, resolver du calendrier) — `security:audit` **franchie**, **5 099 ✓**, `tsc` 0, ESLint 0 | — (rien) | — | — |
 | 55 | `rush-restes` | Restes du 26/10 : **T-4** G7/G8/G9/O15 (composition visuelle, à juger à l'écran) et sort de `questDbIds` (écrit, seule la puce du studio God l'affiche) | mesuré le 26/10 | juger à l'écran puis trancher | — |
 | 56 | `live-discord` | Annonces de créateurs : live Twitch + nouvelle vidéo YouTube, **deux salons distincts** (Twitch / YouTube) + **deux interrupteurs** + ping par guilde, une annonce par session/vidéo (cron 5 min) | **livré** le 02/11/2026 · **scindé** le 04/11/2026 (salons et interrupteurs distincts, migration additive avec reprise du salon existant) | — (rien) | `docs/MAINTENANCE.md` | — |
+| 58 | `ui-dj` | DJ/Quête : DA landing sur `DjPostCreateModal`, `DjEditModal`, `DjFiltersBar`, `DungeonFinderClient` | ~90 occurrences | même passe que #1252 + `ui-tokens-dj` | `docs/RULES.md` § UI |
 
 
 ## 4. Décisions en attente (elles bloquent un rang)

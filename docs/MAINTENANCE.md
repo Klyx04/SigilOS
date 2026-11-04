@@ -41,6 +41,49 @@ Logs: /home/sigiladmin/SigilOS/logs/maintenance.log
 6. **Nettoyage des notifications** — queue BullMQ `sigilos-cleanup` (`src/workers/metamob-worker.ts`, `0 4 * * *`), non bloquant : **lues > 30 j** (une passe) et **non lues > 90 j** (par lots de 500, 20 000 lignes/jour au maximum, reliquat repris le lendemain). Mesure du 15/10/2026 : la purge ne visait que les lues, or **66 lignes sur 11 722** l'étaient — la table ne décroissait donc jamais.
 7. **Contrôle de la mémoire Redis** — le mot de passe est relu dans la ligne de commande du conteneur (injecté au parse du compose, donc absent de son environnement) et transmis par `REDISCLI_AUTH`, **jamais affiché**. Alerte Discord au-delà de **60 %** du plafond, et alerte explicite si `maxmemory` vaut **0** (le plafond vit dans `docker-compose.prod.yml` : `--maxmemory 512mb --maxmemory-policy noeviction --appendonly yes`, sur **les deux** Redis). Politique `noeviction` = à 100 %, Redis **refuse les écritures** : les files BullMQ s'arrêtent, d'où l'alerte précoce.
 
+### 🛡️ Mises à jour système & veille CVE noyau
+
+**Le socle.** `scripts/setup_security_updates.sh` installe et configure `unattended-upgrades` :
+origines **`-security` uniquement**, `docker-ce`/`containerd.io` blacklistés (pour ne pas casser la stack
+la nuit), `Automatic-Reboot "false"`. `scripts/maintenance.sh` ne fait que le **ménage**
+(`autoremove`/`autoclean`) : les deux sont complémentaires, aucun ne remplace l'autre.
+
+| Contrôle | Commande | Attendu |
+|---|---|---|
+| Patchs actifs | `cat /etc/apt/apt.conf.d/20auto-upgrades` | `Unattended-Upgrade "1";` |
+| Service | `systemctl is-active unattended-upgrades` | `active` |
+| Reboot en attente | `cat /var/run/reboot-required` | absent = rien à faire |
+| Noyau réellement booté | `uname -r` | à comparer au dernier `linux-image-*` installé |
+| Méta noyau présent | `apt-mark showmanual \| grep '^linux-'` | sinon **aucun** nouveau noyau n'est tiré |
+
+**⚠️ Le piège : `Automatic-Reboot "false"`.** `unattended-upgrades` installe le noyau corrigé **sur le
+disque** mais ne redémarre jamais : la machine continue de tourner sur l'ancien noyau, donc **la CVE reste
+active en mémoire**. `maintenance.sh` (§4c) alerte désormais quand `/var/run/reboot-required` existe. Le
+reboot reste une **décision humaine** (prod + bêta tombent ensemble, ~1‑2 min) et la preuve est `uname -r`,
+**pas** `apt-cache policy`.
+
+**⚠️ Les paquets `-updates` ne partent jamais seuls.** Seule l'origine `-security` est autorisée : les
+correctifs de bugs/matériel/`universe` (`glib2.0`, `tmux`, `cloud-init` le 04/11/2026) restent en attente
+indéfiniment. Rituel : 1×/mois, lire `apt list --upgradable`, puis passer le lot **système** d'abord (aucun
+service redémarré) et le lot **Docker** ensuite, en fenêtre — `containerd.io` est le parent des conteneurs,
+son redémarrage les tue. Après : `docker compose config -q` (la CLI change de majeure) + health check.
+
+**Veille CVE noyau — la grille de lecture, mesurée le 04/11/2026 (CVE‑2026‑98432, CVSS 9.8) :**
+
+| Mesure | Ce qu'elle tranche |
+|---|---|
+| `systemd-detect-virt` | `kvm` = noyau patchable par nous · `lxc`/`openvz` = c'est l'hébergeur |
+| `uname -r` + `apt-cache policy linux-image-virtual` | le noyau **et** son méta sont-ils à la bonne version ? |
+| `sysctl net.mptcp.enabled` | doit rester **0** (`secure_vps.sh`) : vecteur de la chaîne d'exploit |
+| `ss -M` | 0 socket MPTCP = la voie d'exploitation démontrée est fermée |
+| `sysctl net.ipv4.tcp_migrate_req` | **0** ferme le second chemin du bug (migration de request socket) |
+
+**Le proxy (Caddy) ne se patche pas tout seul.** `Dockerfile.caddy` est épinglé (verrou :
+`tests/unit/caddy-image-pin.test.ts`). Mesure du 04/11/2026 : le binaire tournait sur `go1.23.8` +
+`mod caddy (devel)` — buildé depuis `master`, janvier 2025, sans un seul correctif Go/Caddy. Après tout
+rebuild : `docker exec sigilos-gateway caddy build-info | head -2` (plus de `(devel)`) puis `ss -M`.
+
+
 ### Crons HTTP (endpoints protégés `x-cron-secret`)
 Appelés depuis le crontab VPS (`crontab -l`) via
 `curl -s -H "x-cron-secret: $CRON_SECRET" https://beta.sigilos.fr/api/cron/<name>` :

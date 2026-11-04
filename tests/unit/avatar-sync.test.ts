@@ -1,7 +1,8 @@
 /**
  * Avatar Hash Resync — chantier #134 (reste backend).
- * Couvre : update seulement si changement, null → embed par défaut côté UI,
- * priorité avatar de guilde, fail-closed, itération multi-guildes du cron.
+ * Couvre : update seulement si changement, **avatar Discord par défaut officiel quand
+ * aucun avatar n'existe** (jamais `null`), priorité avatar de guilde, fail-closed,
+ * itération multi-guildes du cron.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -105,12 +106,12 @@ describe("resyncGuildAvatarHashes (#134 backend)", () => {
         });
     });
 
-    it("écrit null quand l'avatar Discord est absent (null → embed par défaut côté UI)", async () => {
+    it("écrit l'avatar Discord par défaut officiel quand aucun avatar n'existe (jamais null)", async () => {
         mockListGuildMembers.mockResolvedValue([
-            makeDiscordMember({ id: "discord-1", globalAvatar: null, guildAvatar: null }),
+            makeDiscordMember({ id: "4194304", globalAvatar: null, guildAvatar: null }),
         ]);
         mockUserProfileFindMany.mockResolvedValue([
-            makeProfile({ image: "https://cdn.discordapp.com/avatars/discord-1/stale.webp?size=256" }),
+            makeProfile({ discordId: "4194304", image: "https://cdn.discordapp.com/avatars/4194304/stale.webp?size=256" }),
         ]);
 
         const result = await resyncGuildAvatarHashes(GUILD.id);
@@ -118,7 +119,8 @@ describe("resyncGuildAvatarHashes (#134 backend)", () => {
         expect(result.updated).toBe(1);
         expect(mockUserUpdate).toHaveBeenCalledWith({
             where: { id: "user-1" },
-            data: { image: null },
+            // Index déterministe du snowflake : (4194304 >> 22) % 6 = 1.
+            data: { image: "https://cdn.discordapp.com/embed/avatars/1.png" },
         });
     });
 

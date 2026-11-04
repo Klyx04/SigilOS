@@ -3,6 +3,7 @@ import {
     buildDiscordAvatarUrl,
     buildGuildAvatarUrl,
     normalizeDiscordAvatarUrl,
+    resolveDiscordAvatarUrl,
     discordAvatarErrorFallback,
     isDiscordAvatarUrl,
     isDiscordAvatarHostname,
@@ -75,6 +76,30 @@ describe("discord-avatars — URLs d'avatar (chantier #23, hardening F-29)", () 
             expect(buildDiscordAvatarUrl("", "h")).toBeNull();
             expect(buildDiscordAvatarUrl("123", null)).toBeNull();
             expect(buildGuildAvatarUrl("guild", "", "h")).toBeNull();
+        });
+    });
+
+    describe("resolveDiscordAvatarUrl — avatar réel ou défaut officiel", () => {
+        it("privilégie le vrai hash (webp borné à la taille demandée)", () => {
+            expect(resolveDiscordAvatarUrl("4194304", "hash", 128)).toBe(
+                "https://cdn.discordapp.com/avatars/4194304/hash.webp?size=128",
+            );
+        });
+
+        it("sans hash ⇒ avatar Discord par défaut déterministe, jamais null", () => {
+            // (4194304 >> 22) % 6 = 1
+            expect(resolveDiscordAvatarUrl("4194304", null)).toBe("https://cdn.discordapp.com/embed/avatars/1.png");
+            expect(resolveDiscordAvatarUrl("4194304", undefined)).toBe(
+                "https://cdn.discordapp.com/embed/avatars/1.png",
+            );
+            expect(resolveDiscordAvatarUrl("4194304", "")).toBe("https://cdn.discordapp.com/embed/avatars/1.png");
+        });
+
+        it("fail-closed sans identifiant exploitable ⇒ null (initiales)", () => {
+            expect(resolveDiscordAvatarUrl(null, "hash")).toBeNull();
+            expect(resolveDiscordAvatarUrl(undefined, "hash")).toBeNull();
+            expect(resolveDiscordAvatarUrl("", "hash")).toBeNull();
+            expect(resolveDiscordAvatarUrl("pas-un-snowflake", null)).toBeNull();
         });
     });
 

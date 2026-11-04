@@ -508,11 +508,18 @@ model GuildConfig {
   songesPingRoleIds                String[]                @default([])
   pollsPingRoleIds                 String[]                @default([])
   missionPingRoleIds               String[]                @default([])
-  /** Salon des annonces de live (Twitch) — `null` = module éteint pour cette guilde. */
+  /** Salon des annonces de **live Twitch** — `null` = aucune annonce Twitch pour cette guilde. */
   liveNotifyChannelId              String?
-  /** Rôles à ping sur une annonce de live. Vide = **sans ping** (jamais `@everyone` par défaut). */
+  /**
+   * Interrupteur des annonces de **live Twitch**. Le salon reste requis pour envoyer :
+   * interrupteur actif + salon vide ⇒ rien n'est posté (fail-closed).
+   */
+  notifyTwitchLives                Boolean                 @default(true)
+  /** Rôles à ping sur une annonce de live **ou** de vidéo. Vide = **sans ping** (jamais `@everyone`). */
   livePingRoleIds                  String[]                @default([])
-  /** Annoncer aussi les **nouvelles vidéos YouTube** (flux RSS, 0 quota). */
+  /** Salon des annonces de **nouvelle vidéo YouTube**, distinct du salon Twitch. */
+  youtubeNotifyChannelId           String?
+  /** Annoncer les **nouvelles vidéos YouTube** (flux RSS, 0 quota). */
   notifyYouTubeUploads             Boolean                 @default(true)
   raidAllowedSignUpRoleIds         String[]                @default([])
   /// Rôles Discord comptés comme « en guilde **en jeu** » (module Membres → onglet Mules).

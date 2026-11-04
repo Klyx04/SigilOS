@@ -1,14 +1,17 @@
 "use server";
 
 /**
- * Réglages des **annonces de live** — salon + rôles à ping, décidés par le staff de la guilde.
+ * Réglages des **annonces de créateurs** — salon Twitch, salon YouTube, interrupteurs et rôles à ping,
+ * décidés par le staff de la guilde.
  *
- * 📌 Décision du 02/11/2026 : le salon est **explicite** (`null` = module éteint) et le ping est
- * **choisi** (liste vide = sans ping, jamais un repli sur `@everyone`). Un live est annoncé une
- * seule fois par session, par le cron `live-watch` — ces actions ne font que configurer.
+ * 📌 Décision du 04/11/2026 : les deux types d'annonce ont **chacun leur salon** (un live Twitch et
+ * une nouvelle vidéo YouTube ne se mélangent plus) et **chacun leur interrupteur**. Un salon est
+ * **explicite** (`null` = rien n'est envoyé) et le ping est **choisi** (liste vide = sans ping,
+ * jamais un repli sur `@everyone`). Un live est annoncé une seule fois par session, par le cron
+ * `live-watch` — ces actions ne font que configurer.
  *
  * 🔒 RBAC **fail-closed** : `requireGuildConfigAccess` avant toute lecture ou écriture, Zod borné,
- * rate limit Redis sur les mutations, et vérification que le salon **et** les rôles appartiennent
+ * rate limit Redis sur les mutations, et vérification que les **salons** et les rôles appartiennent
  * bien au serveur avant d'enregistrer.
  */
 import { auth } from "@/auth";
@@ -21,14 +24,19 @@ import { buildLiveAnnouncement, LIVE_MAX_PING_ROLES, sanitizePingRoleIds } from 
 const SNOWFLAKE = /^\d{17,20}$/;
 
 const SettingsSchema = z.object({
-    channelId: z
+    twitchChannelId: z
         .string()
-        .regex(SNOWFLAKE, "Identifiant de salon invalide.")
+        .regex(SNOWFLAKE, "Identifiant de salon Twitch invalide.")
+        .nullable(),
+    youtubeChannelId: z
+        .string()
+        .regex(SNOWFLAKE, "Identifiant de salon YouTube invalide.")
         .nullable(),
     pingRoleIds: z
         .array(z.string().regex(SNOWFLAKE, "Identifiant de rôle invalide."))
         .max(LIVE_MAX_PING_ROLES, `Au maximum ${LIVE_MAX_PING_ROLES} rôles.`)
         .default([]),
+    twitchEnabled: z.boolean().default(true),
     youtubeEnabled: z.boolean().default(true),
 });
 
@@ -45,13 +53,21 @@ export async function getLiveNotifySettings(guildId: string) {
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { liveNotifyChannelId: true, livePingRoleIds: true, notifyYouTubeUploads: true },
+            select: {
+                liveNotifyChannelId: true,
+                youtubeNotifyChannelId: true,
+                livePingRoleIds: true,
+                notifyTwitchLives: true,
+                notifyYouTubeUploads: true,
+            },
         });
         return {
             success: true as const,
             data: {
-                channelId: config?.liveNotifyChannelId ?? null,
+                twitchChannelId: config?.liveNotifyChannelId ?? null,
+                youtubeChannelId: config?.youtubeNotifyChannelId ?? null,
                 pingRoleIds: sanitizePingRoleIds(config?.livePingRoleIds),
+                twitchEnabled: config?.notifyTwitchLives ?? true,
                 youtubeEnabled: config?.notifyYouTubeUploads ?? true,
             },
         };
@@ -65,7 +81,13 @@ export async function getLiveNotifySettings(guildId: string) {
 
 export async function saveLiveNotifySettings(
     guildId: string,
-    input: { channelId: string | null; pingRoleIds: string[]; youtubeEnabled: boolean },
+    input: {
+        twitchChannelId: string | null;
+        youtubeChannelId: string | null;
+        pingRoleIds: string[];
+        twitchEnabled: boolean;
+        youtubeEnabled: boolean;
+    },
 ): Promise<{ success: boolean; error?: string }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non connecté." };
@@ -81,14 +103,22 @@ export async function saveLiveNotifySettings(
     if (!parsed.success) {
         return { success: false, error: parsed.error.issues[0]?.message ?? "Réglages invalides." };
     }
-    const channelId = parsed.data.channelId;
+    const { twitchChannelId, youtubeChannelId } = parsed.data;
     const pingRoleIds = sanitizePingRoleIds(parsed.data.pingRoleIds);
 
     try {
-        if (channelId) {
+        // Chaque salon non vide doit appartenir à CE serveur — vérifié avant toute écriture.
+        const requestedChannels = [...new Set([twitchChannelId, youtubeChannelId])].filter(
+            (id): id is string => Boolean(id),
+        );
+        if (requestedChannels.length > 0) {
             const { validateChannelBelongsToGuild } = await import("@/server/discord");
-            const valid = await validateChannelBelongsToGuild(channelId, guildId);
-            if (!valid) return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord." };
+            for (const channelId of requestedChannels) {
+                const valid = await validateChannelBelongsToGuild(channelId, guildId);
+                if (!valid) {
+                    return { success: false, error: "Un des salons choisis n'appartient pas à votre serveur Discord." };
+                }
+            }
         }
 
         if (pingRoleIds.length > 0) {
@@ -104,8 +134,10 @@ export async function saveLiveNotifySettings(
         const updated = await db.guildConfig.updateMany({
             where: { discordGuildId: guildId },
             data: {
-                liveNotifyChannelId: channelId,
+                liveNotifyChannelId: twitchChannelId,
+                youtubeNotifyChannelId: youtubeChannelId,
                 livePingRoleIds: pingRoleIds,
+                notifyTwitchLives: parsed.data.twitchEnabled,
                 notifyYouTubeUploads: parsed.data.youtubeEnabled,
             },
         });
@@ -123,8 +155,8 @@ export async function saveLiveNotifySettings(
 }
 
 /**
- * Envoie un embed de démonstration dans le salon configuré — sans ping, et sans consommer la clé
- * d'anti-doublon (ce n'est pas un live).
+ * Envoie un embed de démonstration **Twitch** dans le salon Twitch configuré — sans ping, et sans
+ * consommer la clé d'anti-doublon (ce n'est pas un live).
  */
 export async function sendLiveNotifyTest(guildId: string): Promise<{ success: boolean; error?: string }> {
     const session = await auth();
@@ -143,7 +175,7 @@ export async function sendLiveNotifyTest(guildId: string): Promise<{ success: bo
             select: { liveNotifyChannelId: true },
         });
         if (!config?.liveNotifyChannelId) {
-            return { success: false, error: "Choisis d'abord un salon, puis enregistre." };
+            return { success: false, error: "Choisis d'abord un salon Twitch, puis enregistre." };
         }
 
         const now = new Date();

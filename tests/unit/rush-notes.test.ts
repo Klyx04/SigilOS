@@ -14,6 +14,7 @@ import {
   constraintLabel,
   correlateRushNotes,
   normalizeQuestKey,
+  sqlLiteral,
 } from "@/lib/rush-notes";
 
 const ROOT = path.resolve(__dirname, "../..");
@@ -43,6 +44,14 @@ describe("cleanDofusyelleBody — les marqueurs [object Object] disparaissent", 
     );
     expect(cleanDofusyelleBody("[object Object] puis rien")).toBe("puis rien");
     expect(cleanDofusyelleBody(null)).toBe("");
+  });
+});
+
+describe("sqlLiteral — l'échappement du patch SQL", () => {
+  it("double l'apostrophe et borne la valeur", () => {
+    expect(sqlLiteral("L'ascension de Qu'Tan")).toBe("'L''ascension de Qu''Tan'");
+    expect(sqlLiteral("")).toBe("''");
+    expect(sqlLiteral(null)).toBe("''");
   });
 });
 

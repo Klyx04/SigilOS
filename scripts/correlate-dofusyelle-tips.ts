@@ -29,12 +29,14 @@ import {
   matchAidsByQuestName,
   normalizeQuestKey,
 } from "../src/lib/rush-dofusyelle-tips";
+import { sqlLiteral } from "../src/lib/rush-notes";
 
 const SOURCE_FILE = "src/temp/archive/siphon-align/dofusyelle-rush-data.json";
 const DATASET_FILE = "src/data/rush-sylvestre-guide.json";
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes("--apply");
+const SQL = argv.includes("--sql");
 const WITH_DB = argv.includes("--db");
 const valueOf = (flag: string, fallback: string): string => {
   const i = argv.indexOf(flag);
@@ -74,6 +76,26 @@ async function main(): Promise<void> {
   const byKey = new Map<string, SequenceLike>();
   for (const sequence of sequences) {
     if (sequence.subGuideName) byKey.set(normalizeQuestKey(sequence.subGuideName), sequence);
+  }
+
+  if (APPLY && SQL) throw new Error("--apply et --sql sont exclusifs (relire le patch avant de l'appliquer)");
+
+  // ─── Patch SQL : cible le NOM (les ids diffèrent entre local, bêta et prod) ──
+  if (SQL) {
+    const statements = ["BEGIN;"];
+    const emitted = new Set<string>();
+    for (const match of matches) {
+      const key = normalizeQuestKey(match.questTitle);
+      if (emitted.has(key)) continue;
+      emitted.add(key);
+      const name = byKey.get(key)?.subGuideName ?? match.questTitle;
+      statements.push(
+        `UPDATE "GuideSequence" SET tips = ${sqlLiteral(match.text)} WHERE ("subGuideName" = ${sqlLiteral(name)} OR "subGuideName" LIKE ${sqlLiteral(`${name} [%`)}) AND btrim(coalesce(tips, '')) = '';`,
+      );
+    }
+    statements.push("COMMIT;");
+    console.log(statements.join("\n"));
+    return;
   }
 
   const toWrite: Array<{ sequence: SequenceLike; text: string; questTitle: string }> = [];

@@ -24,7 +24,6 @@ import Link from "next/link";
 const MODULE_ROUTES: Partial<Record<ModuleKey, { label: string; href: string }[]>> = {
     presentation: [{ label: "Présentation", href: "/dashboard/{guildId}/presentation" }],
     roster: [{ label: "Annuaire", href: "/dashboard/{guildId}/members" }],
-    stats: [{ label: "Stats Guilde", href: "/dashboard/{guildId}/stats" }],
     calendar: [{ label: "Calendrier", href: "/dashboard/{guildId}/calendar" }],
     missions: [
         { label: "Missions", href: "/dashboard/{guildId}/missions" },

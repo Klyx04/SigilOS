@@ -15,7 +15,6 @@ import {
     Users,
     Key,
     UserCircle,
-    BarChart3,
     FileText,
     LayoutDashboard,
     BookMarked,
@@ -52,7 +51,6 @@ export type ModuleDef = {
 export const MODULE_DOFUS_ASSETS: Partial<Record<ModuleKey, string>> = {
     presentation: "guild.png",
     roster: "social.png",
-    stats: "guildActivity.png",
     calendar: "calendar.png",
     availability: "calendar.png",
     commandes: "chat.png",
@@ -84,13 +82,20 @@ export type ModuleGroup = {
     modules: ModuleDef[];
 };
 
+/** Libellés des modules retirés — aucune page, aucun toggle, uniquement l'affichage historique. */
+const LEGACY_MODULE_LABELS: Record<string, string> = {
+    stats: "Stats Guilde",
+};
+
 /** Libellé officiel d'une clé de module (ou la clé si elle est inconnue : jamais un libellé inventé). */
 export function moduleLabel(key: string): string {
     for (const group of MODULE_GROUPS) {
         const found = group.modules.find((module) => module.key === key);
         if (found) return found.label;
     }
-    return key;
+    // Modules **retirés** du produit : leur clé peut encore apparaître dans des données
+    // historiques (télémétrie, documentation). On garde le libellé, jamais la page.
+    return LEGACY_MODULE_LABELS[key] ?? key;
 }
 
 export const MODULE_GROUPS: ModuleGroup[] = [
@@ -111,15 +116,6 @@ export const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Annuaire",
                 description: "Répertoire des membres avec leurs personnages, rôles et statistiques Dofus.",
                 icon: Users,
-                color: "text-info",
-                bgColor: "bg-info/10",
-                borderColor: "border-info/30",
-            },
-            {
-                key: "stats",
-                label: "Stats Guilde",
-                description: "Tableau de bord des statistiques globales de la guilde (activité, missions, songes).",
-                icon: BarChart3,
                 color: "text-info",
                 bgColor: "bg-info/10",
                 borderColor: "border-info/30",

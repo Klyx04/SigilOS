@@ -134,3 +134,10 @@ export const DEFAULT_MODULES: GuildModulesState = {
     scheduledPolls: false,
 };
 
+/**
+ * Modules **retirés** du produit, conservés dans les types et en BDD pour compatibilité
+ * (aucune migration). Ils ne doivent apparaître dans aucun écran ni mesure d'adoption :
+ * le catalogue les ignore, la télémétrie les filtre, la page n'existe plus.
+ */
+export const RETIRED_MODULE_KEYS: ReadonlySet<string> = new Set(["stats"]);
+

@@ -197,15 +197,23 @@ export async function runDiscordVeille(): Promise<DiscordVeilleReport> {
     }
 
     // Rappel UNIQUE dans la fenêtre avant le jour J.
+    // ⚠️ Sévérité (mesure du 04/11/2026) : l'alerte « Veille Discord : anomalies » ne contenait
+    // QUE ce rappel — gateway OK, 0 breaking, doc inchangée — donc rouge + ping pour rien. Un
+    // rappel de calendrier n'est pas une anomalie : il part en **notice** (bleu, sans ping).
+    // Seul le jour J lui-même reste critique.
     if (dayJ === "remind") {
         const reminded = await redis.get(DAY_J_REMINDED_KEY).catch(() => null);
         if (!reminded) {
-            critical.push("Le point dur HTTP Discord (16/11/2026) approche — préparer la checklist jour J (plan maître §10.5).");
+            notices.push(
+                "Le point dur HTTP Discord (16/11/2026) approche — checklist : docs/agents/discord-jour-j-2026-11-16.md.",
+            );
             await redis.set(DAY_J_REMINDED_KEY, "1", "EX", 60 * 60 * 24 * 60).catch(() => {});
         }
     }
     if (dayJ === "day" || dayJ === "passed") {
-        critical.push("Jour J 16/11/2026 atteint — vérifier bot connecté + notifications + salons privés (checklist §10.5).");
+        critical.push(
+            "Jour J 16/11/2026 atteint — vérifier bot connecté + notifications + salons privés (checklist : docs/agents/discord-jour-j-2026-11-16.md).",
+        );
     }
 
     // Persistance des baselines (après calcul réussi uniquement).

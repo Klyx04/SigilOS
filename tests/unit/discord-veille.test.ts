@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { existsSync } from "node:fs";
 
 const mockRedisGet = vi.fn();
 const mockRedisSet = vi.fn();
@@ -195,18 +196,23 @@ describe("runDiscordVeille — fenêtre jour J (16/11/2026)", () => {
         expect(report.anomalies.some((a) => a.includes("Jour J"))).toBe(false);
     });
 
-    it("dans la fenêtre (avant le jour J) : rappel UNIQUE + critique", async () => {
+    it("dans la fenêtre (avant le jour J) : rappel UNIQUE, information SANS ping", async () => {
         at("2026-11-05T09:00:00.000Z");
         vi.stubGlobal("fetch", makeFetcher({}));
 
         const report = await runDiscordVeille();
 
         expect(report.dayJStatus).toBe("remind");
-        expect(report.critical.some((a) => a.includes("16/11/2026"))).toBe(true);
+        // Un rappel de calendrier n'est pas une anomalie (mesure du 04/11/2026 : le rapport
+        // était rouge + ping alors que gateway/breaking/doc étaient tous OK).
+        expect(report.critical).toEqual([]);
+        expect(report.notices.some((a) => a.includes("16/11/2026"))).toBe(true);
+        expect(report.severity).toBe("notice");
+        expect(mockNotifyGod.mock.calls[0][0].ping).toBe(false);
         expect(mockRedisSet.mock.calls.map((c) => c[0])).toContain("discord:veille:day-j-reminded");
     });
 
-    it("après le jour J : checklist §10.5 (critique)", async () => {
+    it("après le jour J : checklist (critique) qui pointe vers un doc qui EXISTE", async () => {
         at("2026-11-17T09:00:00.000Z");
         vi.stubGlobal("fetch", makeFetcher({}));
 
@@ -214,7 +220,14 @@ describe("runDiscordVeille — fenêtre jour J (16/11/2026)", () => {
 
         expect(report.dayJStatus).toBe("passed");
         expect(report.critical.some((a) => a.includes("Jour J 16/11/2026 atteint"))).toBe(true);
+        expect(report.critical.some((a) => a.includes("docs/agents/discord-jour-j-2026-11-16.md"))).toBe(true);
         expect(mockNotifyGod).toHaveBeenCalledTimes(1);
+    });
+
+    it("le chemin de checklist cité par la veille existe réellement", () => {
+        // Garde « un chemin cité doit exister » : l'alerte renvoyait vers un plan maître
+        // supprimé (mesure du 04/11/2026), donc vers une checklist introuvable.
+        expect(existsSync("docs/agents/discord-jour-j-2026-11-16.md")).toBe(true);
     });
 
     it("constantes du point dur officiel", () => {
